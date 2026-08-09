@@ -1,5 +1,11 @@
 # Hoist editable text-projection config into documents
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 Retire `ProjectionConfiguringProjection` (pcp). Its editable parameters
 (`TextHighlighting.pattern`, `TextFiltering.pattern` / `invert` etc.) live on
 projection structs, which are not `@document`s and therefore have no

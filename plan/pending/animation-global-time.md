@@ -1,5 +1,11 @@
 # Animation via a Global Time Cell
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **Note:** This document was generated with AI assistance as a brainstorming
 > artifact. It is a collection of raw ideas and directions, not a specification.
 > Everything here needs to be critically evaluated, refined, and adapted before
@@ -348,8 +354,8 @@ subscription — settling with no registry (§5).
 fraction, so toggling mid-slide resumes from where the knob visually is.
 
 This is implemented for `WidgetSwitch`
-([WidgetToGraphics.jl](../../package/domain/src/projection/primitive/WidgetToGraphics.jl),
-[Widget.jl](../../package/domain/src/document/Widget.jl)); the same shape covers
+([WidgetToGraphics.jl](../../package/visual/main/widget/WidgetToGraphics.jl),
+[Widget.jl](../../package/visual/example/document/Widget.jl)); the same shape covers
 the other finite widgets in the palette below.
 
 ---
@@ -483,7 +489,7 @@ All of them reuse the same core as A and B: a presentation cell that subscribes
 to time via `reactive_editor_time()` plus an `animate`/easing helper. They differ
 only in what they interpolate and in whether they self-start, loop forever, or
 fire on a state change. All the widget types below already exist in
-[Widget.jl](../../package/domain/src/document/Widget.jl).
+[Widget.jl](../../package/visual/example/document/Widget.jl).
 
 | Widget | Animation | Interpolates | Kind | Trigger |
 |---|---|---|---|---|

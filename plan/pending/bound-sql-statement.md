@@ -1,5 +1,11 @@
 # Bound SQL statement document model
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **⏳ AUDIT (2026-06-23): ALL STEPS OPEN.** No `BoundSql` code exists anywhere
 > under `package/` — `grep "BoundSql"` returns zero source hits and there is no
 > `BoundSql.jl` document nor `SqlToBoundSql.jl` projection. All dependencies are

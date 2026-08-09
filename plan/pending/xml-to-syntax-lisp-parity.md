@@ -110,7 +110,7 @@ What remains — and what this plan covers:
 > `package/kernel/src/common/Operation.jl:100` (`ReplaceDocumentOperation`),
 > `:209` (`CollectionInsertOperation`), `:235` (`CollectionDeleteOperation`).
 > XML readers emit them
-> (`package/domain/src/projection/primitive/XmlToSyntax.jl:382, 390, 395, 404, 427`).
+> (`package/xml/main/XmlToSyntax.jl:382, 390, 395, 404, 427`).
 > No new operation types were needed here.
 
 > `ReplaceDocumentOperation`, `CollectionInsertOperation`, `CollectionDeleteOperation`
@@ -267,7 +267,7 @@ decision in the code comment either way.
 ## 4. Placeholder / default text (shared mechanism — see JSON plan §4) — ⏳ remaining (unblocked)
 
 > ⏳ VERIFIED OPEN (2026-06-23): `_hinted_text` exists **only** in
-> `package/domain/src/projection/primitive/JsonToSyntax.jl` — it is absent from
+> `package/json/main/JsonToSyntax.jl` — it is absent from
 > `XmlToSyntax.jl`. XML still hardcodes `"insert XML here"` as content
 > (`XmlToSyntax.jl:112`) and none of the four `"enter xml …"` placeholder strings
 > appear anywhere under `package/`. The four leaves (text content, tag, attr name,

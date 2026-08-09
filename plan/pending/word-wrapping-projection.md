@@ -1,5 +1,11 @@
 # Word wrapping — remaining work
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 The structural refactor (extracting wrap out of `TextToGraphics` into a
 context-aware `WordWrapping` with a bidirectional mapping table) is done —
 see [plan/done/word-wrapping-projection.md](../done/word-wrapping-projection.md).
@@ -51,7 +57,7 @@ forward+backward selection mapping pipeline that the load-bearing
 
 ### Soft/hard newline distinction ⏳
 
-**⏳ OPEN (verified):** `TextNewline` still has no `soft` field — `package/domain/src/document/Text.jl:86` defines it with `font, font_color, fill_color, line_color, padding, selection` only.
+**⏳ OPEN (verified):** `TextNewline` still has no `soft` field — `package/visual/example/document/Text.jl:86` defines it with `font, font_color, fill_color, line_color, padding, selection` only.
 
 Add a `soft::Bool` flag to `TextNewline` set by `WordWrapping`. Today
 soft (wrap) and hard (source `\n`) breaks are indistinguishable to

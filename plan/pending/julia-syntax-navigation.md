@@ -42,7 +42,7 @@ has no equivalent, so its structural tokens are dead ends for the cursor.
       does.
       <!-- VERIFIED OPEN (2026-06-23): JuliaToSyntax.jl defines NO projection_read for
       any Julia node; `_syntax_to_flat` is mentioned only in the explanatory comment
-      block (package/domain/src/projection/primitive/JuliaToSyntax.jl:726-746), not
+      block (package/julia/main/JuliaToSyntax.jl:726-746), not
       imported or called. JsonToSyntax.jl:37 imports it and JsonToSyntax.jl:260-265
       uses it in projection_read; Julia has no equivalent. -->
 - [ ] ⏳ OPEN: Add per-node School-A `map_reference_forward`/`map_reference_backward` for

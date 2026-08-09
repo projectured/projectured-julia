@@ -1,5 +1,11 @@
 # Component Document Layer
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 Introduce a **component** layer between widgets and the workbench. Components are higher-level, behavioral UI building blocks composed from widget primitives.
 
 ## Context
@@ -25,9 +31,9 @@ A component:
 
 ### ComponentMasterDetail (document only)
 
-**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/domain/main/component/Component.jl` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered in `package/domain/main/ProjecturedDomain.jl` (`include("component/Component.jl")`), placed with the document slices, before Workbench. (The document was dropped during the repository history restart and salvaged back from the `claude/kernel-layered-architecture-sb10gx` branch on 2026-07-08.)
+**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/visual/main/component/Component.jl` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered in `package/domain/main/ProjecturedDomain.jl` (`include("component/Component.jl")`), placed with the document slices, before Workbench. (The document was dropped during the repository history restart and salvaged back from the `claude/kernel-layered-architecture-sb10gx` branch on 2026-07-08.)
 
-**File**: [Component.jl](../../package/domain/main/component/Component.jl)
+**File**: [Component.jl](../../package/visual/main/component/Component.jl)
 
 A two-pane component: master (tree/list) on the left, detail (inspector/form) on the right. Selecting an item in the master pane reactively updates the detail pane.
 
@@ -45,7 +51,7 @@ Registered in [ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain
 
 ### ComponentMasterDetail projection
 
-**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/domain/main/component/Component.jl`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
+**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/visual/main/component/Component.jl`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
 
 Create `ComponentToWidget` projection that maps `ComponentMasterDetail` to:
 ```

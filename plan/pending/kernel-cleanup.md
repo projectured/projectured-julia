@@ -1,5 +1,11 @@
 # Kernel cleanup — structure review and proposal
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **Superseded in part (2026-07-03):** the "Target structure (proposal)" section and the
 > remaining unchecked Phase 2/3 items are superseded by
 > [kernel-layered-architecture.md](kernel-layered-architecture.md) (kernel/base package

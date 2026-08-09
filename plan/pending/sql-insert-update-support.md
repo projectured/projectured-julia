@@ -8,7 +8,7 @@
 
 > **✅ AUDIT (verified 2026-06-23):** §1 (model), §2 (projection), §4 (examples),
 > §5 (tests) are all **DONE** against the current `package/` tree. §3 (parser) is
-> **OPEN** — `parse_sql` in `package/domain/src/parser/SqlParser.jl:325` still
+> **OPEN** — `parse_sql` in `package/sql/main/SqlParser.jl:325` still
 > dispatches only `SELECT`/`CREATE`, no INSERT/UPDATE. Per-step evidence inline below.
 > Note: old `program/src/...` and top-level `Projectured.jl` re-export paths in the
 > text are pre-restructure; symbols now live/export under `package/<subpkg>/src/...`.
@@ -35,7 +35,7 @@ its leaf types (`SqlTableName`, `SqlColumnName`, `SqlScalarValue`) and the exist
 ## 1. Document model (`program/src/document/Sql.jl`)
 
 **✅ DONE (verified):** all types/constructors exist in
-`package/domain/src/document/Sql.jl` — `SqlInsertStatement` (314-325, incl. zero-arg
+`package/sql/example/document/Sql.jl` — `SqlInsertStatement` (314-325, incl. zero-arg
 + ergonomic ctors), `SqlUpdateAssignment` (329-335), `SqlUpdateStatement` (338-351,
 incl. zero-arg + ergonomic ctors). Exported from `SqlDocumentModule` (Sql.jl:48-50).
 **⛔ OBSOLETE sub-point:** the "re-export from `Projectured.jl:255-269`/`:551+`"
@@ -96,7 +96,7 @@ interface) and the updated constructors from `SqlDocumentModule`.
 ## 2. Projection (`SqlToSyntax.jl`)
 
 **✅ DONE (verified):** all projections exist in
-`package/domain/src/projection/primitive/SqlToSyntax.jl` —
+`package/sql/main/SqlToSyntax.jl` —
 `SqlInsertStatementToSyntaxNode` (1269, with forward/backward ref maps 1327/1362 and
 `projection_read(::ReplaceSelectionOperation)` 1399), `SqlUpdateAssignmentToSyntaxNode`
 (1413), `SqlUpdateStatementToSyntaxNode` (1506), plus the two bare-name leaves
@@ -175,7 +175,7 @@ separator helpers and keep keywords (`INSERT`, `INTO`, `VALUES`, `UPDATE`, `SET`
 ## 3. Parser (`SqlParser.jl`) — DEFERRED (open follow-up)
 
 **⏳ OPEN (verified still open):** `parse_sql` in
-`package/domain/src/parser/SqlParser.jl:325-341` dispatches only `SELECT` and
+`package/sql/main/SqlParser.jl:325-341` dispatches only `SELECT` and
 `CREATE`; there are no `parse_insert!`/`parse_update!` functions and no
 `SqlInsertStatement`/`SqlUpdateStatement` construction in the parser. (INSERT/UPDATE
 appear only in the keyword set at SqlParser.jl:100-102.) Remains the sole open item.

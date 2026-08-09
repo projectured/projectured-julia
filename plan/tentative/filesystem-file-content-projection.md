@@ -1,5 +1,11 @@
 # FileSystemFile Content Projection with Live File Synchronization
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **Note:** This document was generated with AI assistance as a brainstorming
 > artifact. It is a collection of raw ideas and directions, not a specification.
 > Everything here needs to be critically evaluated, refined, and adapted before
@@ -8,7 +14,7 @@
 > **Status (2026-06-28): tentative — nothing implemented.** Searches for `content`
 > on `FileSystemFile`, `FileSystemFileToText`, `FileSystemSynchronizer`, and
 > `synchronize!` across `package/*/src/` find no definitions. Today `FileSystemFile`
-> (`package/domain/src/document/FileSystem.jl`) carries only `pathname` +
+> (`package/filesystem/example/document/FileSystem.jl`) carries only `pathname` +
 > `selection`, and the only file-system projections — `FileSystemToSyntax` and
 > `FileSystemToWidget` — render a node's *basename* for the directory-tree view;
 > neither reads, watches, or writes file *contents*.
@@ -58,7 +64,7 @@ and reconciles them; the **projection** is an ordinary bidirectional
 text projection over that cell (no I/O of its own).
 
 This mirrors `PrimitiveStringToTextBlock`
-([package/domain/src/projection/primitive/PrimitiveToText.jl](../../package/domain/src/projection/primitive/PrimitiveToText.jl))
+([package/visual/main/text/PrimitiveToText.jl](../../package/visual/main/text/PrimitiveToText.jl))
 almost exactly — a string value rendered as a single editable `TextBlock` span,
 with editing reified once as `@gestures` on the document and reached through the
 generic `document_read` fallback.
@@ -68,7 +74,7 @@ generic `document_read` fallback.
 `Editor` lives in the **kernel** layer
 ([package/kernel/src/editor/Editor.jl](../../package/kernel/src/editor/Editor.jl));
 `FileSystemFile` lives in the **domain** layer
-([package/domain/src/document/FileSystem.jl](../../package/domain/src/document/FileSystem.jl)).
+([package/filesystem/example/document/FileSystem.jl](../../package/filesystem/example/document/FileSystem.jl)).
 Domain depends on kernel, never the reverse. Therefore the kernel cannot know
 about `FileSystemFile`. The kernel must expose a **generic per-frame extension
 point**; the file-specific synchronizer is implemented in the domain layer and
@@ -110,7 +116,7 @@ way the side effect is loop-bound.
 
 ## Phase 1 — Document: content + editing gestures
 
-### File: `package/domain/src/document/FileSystem.jl`
+### File: `package/filesystem/example/document/FileSystem.jl`
 
 Add a content field to `FileSystemFile`:
 
@@ -398,7 +404,7 @@ are deterministic and fast. Tests must use the session scratch dir for temp file
 
 | File | Change |
 |---|---|
-| `package/domain/src/document/FileSystem.jl` | `content` field on `FileSystemFile`; `@gestures FileSystemFile`; `_file_content_*`, `clamp_file_selection!` helpers |
+| `package/filesystem/example/document/FileSystem.jl` | `content` field on `FileSystemFile`; `@gestures FileSystemFile`; `_file_content_*`, `clamp_file_selection!` helpers |
 | `package/domain/src/projection/primitive/FileSystemFileToText.jl` | **new** — bidirectional content↔TextBlock projection |
 | `package/domain/src/editor/FileSystemSynchronizer.jl` | **new** — loop-driven disk⇄cell reconciler |
 | `package/domain/src/ProjecturedDomain.jl` | include the two new domain files |

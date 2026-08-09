@@ -1,5 +1,11 @@
 # The simplest syntax document: optional delimiters, then real wrapper projections
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 Goal: **every domain→syntax projection emits the simplest syntax document that expresses what it
 means** — a JSON null is one span, not three; a Julia connector node says "concatenate these", not
 "a node with three empty delimiters". Today neither is possible, and the cost is measurable.
@@ -364,7 +370,7 @@ insertion = SyntaxInsertion`, generating `SyntaxNothing` and adopting the existi
 **Layering constraint — check this first.** The existing renderers for these two roles,
 `NothingToSyntaxLeaf` and `InsertionToSyntaxLeaf` (with the `_nothing_label` helper that turns
 `JsonNothing` into "empty json"), live in
-[package/domain/main/insertion/InsertionToSyntax.jl](../../package/domain/main/insertion/InsertionToSyntax.jl)
+[package/visual/main/syntax/InsertionToSyntax.jl](../../package/visual/main/syntax/InsertionToSyntax.jl)
 — the **domain** package, which sits *above* visual. `SyntaxToText` is in visual and cannot import
 them. Options, decide before writing code: move the label helper (and possibly the generic
 Nothing/Insertion renderers) down to base or visual so both layers share one implementation, or give
@@ -377,7 +383,7 @@ domain renders its `Nothing` / `Insertion` by registering `XNothing => Insertion
 / `XInsertion => …InsertionToSyntaxLeaf()` in its `XToSyntax` dispatch table — and those renderers
 live in `package/domain/main/insertion/` (the **domain** package). That works for every domain because
 every domain sits *above* visual: even the Text domain kit renders through
-[`NaturalProjection.jl`](../../package/domain/main/insertion/NaturalProjection.jl)
+[`NaturalProjection.jl`](../../package/visual/main/naturalprojection/NaturalProjection.jl)
 (`TextNothing => InsertionNothingToSyntaxLeaf()`, `TextInsertion => DomainInsertionToSyntaxLeaf(TextDocument)`),
 which is in domain and can reach them.
 

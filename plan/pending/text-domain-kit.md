@@ -28,11 +28,11 @@ rots is already in the tree:
   nowhere, printed nowhere, has no traits, no gesture, no reader. Its `value::Any = nothing` does
   not even match the kit's `value::String = ""`, so the shared insertion gestures
   (`_insertion_insert` / `_insertion_tab` / `_insertion_commit` in
-  [InsertionToSyntax.jl](../../package/domain/main/insertion/InsertionToSyntax.jl)) could not drive
+  [InsertionToSyntax.jl](../../package/visual/main/syntax/InsertionToSyntax.jl)) could not drive
   it if they ever reached it.
 - **`TextNothing` does not exist.** There is no way to represent "this text slot is empty".
 - **The `"text"` short name is a hand-written hack in the wrong package.**
-  [InsertionToSyntax.jl:326](../../package/domain/main/insertion/InsertionToSyntax.jl#L326) carries
+  [InsertionToSyntax.jl:326](../../package/visual/main/syntax/InsertionToSyntax.jl#L326) carries
 
   ```julia
   # `TextBlock` is a plain visual document, not an `@domain` kit, so its historic
@@ -73,7 +73,7 @@ In [Text.jl](../../package/visual/main/text/Text.jl):
   `@document struct TextInsertion` — the macro emits both. Drop `TextDocument` from the manual
   `export` list (`@domain` exports the root).
 - **Delete** `DomainModule.insertion_aliases(::Type{<:TextBlock}) = ["text"]` from
-  [InsertionToSyntax.jl](../../package/domain/main/insertion/InsertionToSyntax.jl) and its comment.
+  [InsertionToSyntax.jl](../../package/visual/main/syntax/InsertionToSyntax.jl) and its comment.
 - **Layering:** `DomainModule` lives in base ([Domain.jl](../../package/base/main/document/Domain.jl)),
   visual is above base, but **no visual module imports it today**. Add
   `const DomainModule = ProjecturedBase.DomainModule` to the re-export block in
@@ -119,7 +119,7 @@ placeholder that renders and takes Insert.
 Keeping the alias on the container instead would leave two candidates answering exactly to `"text"`
 and make `resolve_insertion` order-dependent. Take the convention.
 
-- Update [DocumentInsertionTest.jl:39](../../package/domain/test/projection/DocumentInsertionTest.jl#L39):
+- Update [DocumentInsertionTest.jl:39](../../package/projectured/test/projection/DocumentInsertionTest.jl#L39):
   `@test "text" in DS.insertion_names(TextBlock)  # hand-written alias` becomes the assertion that
   `"text"` resolves to `TextInsertion` and that `TextBlock` answers to `"Text"` under
   `root = TextDocument`.
@@ -127,7 +127,7 @@ and make `resolve_insertion` order-dependent. Take the convention.
 ### Rendering the new pair — cheapest correct route
 
 `TextNothing` and `TextInsertion` are `<: TextDocument`, and the **natural projection** routes
-`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/domain/main/insertion/NaturalProjection.jl#L160))
+`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/visual/main/naturalprojection/NaturalProjection.jl#L160))
 — a Text→Graphics chain whose printer is typed `print_document(::TextToGraphics, _, ::TextBlock, _)`.
 A bare `TextNothing` root would not render.
 

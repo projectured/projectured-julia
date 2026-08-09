@@ -1,5 +1,11 @@
 # Selection layer — API hardening + seal handoff
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 Handoff for continuing the **"seal the kernel main folder"** effort. Written after
 hardening the selection API (Layer 4) and just before sealing its files.
 

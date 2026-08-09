@@ -1,5 +1,11 @@
 # Extract `ProjecturedGraphics` and `ProjecturedText` packages
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 ## Goal
 
 Split the two lowest visual layers out of `ProjecturedDomain` into their own packages so

@@ -1,5 +1,11 @@
 # Object Versioning
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 A generic, domain-neutral overlay that lets **any** document subtree carry
 multiple versions of itself. Versioning is an *optional, recursive* wrapper
 layer plus an *elimination projection* that collapses the wrapper away — at
@@ -67,7 +73,7 @@ exists.
 ### File: `program/src/document/Versioning.jl`
 
 **✅ DONE (verified):** implemented at
-`package/domain/src/document/Versioning.jl` (path remapped after restructure).
+`package/projectured/example/document/Versioning.jl` (path remapped after restructure).
 
 A new domain module, modeled on `ClipboardModule`. All fields are `Cell`-backed
 via `@document` (see [`guide/macros.md`](../../guide/macros.md)).
@@ -143,7 +149,7 @@ no version matches (the projection then emits a `DocumentNothing`, mirroring
 ### File: `program/src/projection/primitive/VersioningToAny.jl`
 
 **✅ DONE (verified):** implemented at
-`package/domain/src/projection/primitive/VersioningToAny.jl` (path remapped).
+`package/base/main/versioning/VersioningToAny.jl` (path remapped).
 
 The elimination projection — the direct analogue of
 `ClipboardSliceToAnyProjection`. One `VersionedObject` in, the projected
@@ -308,7 +314,7 @@ Wire-in points (match the clipboard's two include sites):
    `select_version`. Include + export in `Projectured.jl`. Unit-test
    `select_version` for each criterion (latest, index, by-author, as-of,
    predicate, no-match).
-   Evidence: `package/domain/src/document/Versioning.jl` defines all three
+   Evidence: `package/projectured/example/document/Versioning.jl` defines all three
    `@document` types, the five `VersionCriterion` subtypes, and `select_version`
    (lines 58–229) with `export` (lines 35–39). Included at
    `package/domain/src/ProjecturedDomain.jl:82` and re-exported by the
@@ -318,7 +324,7 @@ Wire-in points (match the clipboard's two include sites):
 2. **✅ DONE (verified):** **`VersioningToAnyProjection`** — printer +
    forward/backward reference mapping + reader delegation/re-rooting, copied
    structurally from `ClipboardToAny.jl`. Include + export.
-   Evidence: `package/domain/src/projection/primitive/VersioningToAny.jl` —
+   Evidence: `package/base/main/versioning/VersioningToAny.jl` —
    `projection_print` (line 90), `map_reference_forward`/`map_reference_backward`
    (lines 110/129), `projection_read` with `_prefix_op`/`_prepend` re-rooting
    (lines 186, 208, 228), `export` (lines 61–62). Included at

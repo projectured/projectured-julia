@@ -41,7 +41,7 @@ visual-layer geometry steps — which pass the test: a selection genuinely carri
   constructs either step. This plan only deletes what Phase B left dead.
 - **Tests** — `package/kernel/test/reference/IdentityAndFileStepTest.jl` (delete);
   `package/base/test/serialization/FileProjectTest.jl` and
-  `package/domain/test/serializer/FileProjectS4Test.jl` / `JsonFileTest.jl` lose their
+  `package/projectured/test/serializer/FileProjectS4Test.jl` / `JsonFileTest.jl` lose their
   step-specific assertions (largely reworked by Phase B already).
 - **Docs** — sweep live guides for mentions (`package/kernel/doc/reference.md`). Done
   plans (`plan/done/document-file-storage.md`) are historical records and stay verbatim.

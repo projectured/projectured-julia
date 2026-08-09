@@ -13,9 +13,9 @@ questions. Neither is started.
 **⏳ OPEN (verified 2026-06-23):** `TextRangeReference` does not exist anywhere
 under `package/` (grep returns no matches). The foundation it builds on still
 exists — `TextRectangularReference` (`package/kernel/src/reference/Reference.jl`,
-exported line 27; rendered in `package/domain/src/projection/primitive/TextToGraphics.jl`)
+exported line 27; rendered in `package/visual/main/text/TextToGraphics.jl`)
 and the flat→pixel machinery (`_text_selection_range`,
-`package/domain/src/document/Text.jl:522`). None of the renderer / plumbing /
+`package/visual/example/document/Text.jl:522`). None of the renderer / plumbing /
 syntax-side sub-items below are built.
 
 A *range* over adjacent siblings — e.g. `.children[2..4]` selects three adjacent
@@ -53,7 +53,7 @@ whole-element selection and only shares the flat→pixel machinery.
 ## 2. Wrapped / paragraph text (`ListNode`) highlight ⏳
 
 **⏳ OPEN (verified 2026-06-23):** `_print_listnode`
-(`package/domain/src/projection/primitive/TextToGraphics.jl:412-417`) still
+(`package/visual/main/text/TextToGraphics.jl:412-417`) still
 builds its `TextToGraphicsIoMap` with an empty coord map (`Cell(SegCoord[])`)
 and emits no highlight/cursor overlay rects — unlike the single-line path
 (`highlight_rect` / `cursor_rect`, same file ~lines 238-248). No selection

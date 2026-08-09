@@ -1,5 +1,11 @@
 # Unify the parameter names of the four projection APIs
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **⏳ AUDIT 2026-06-23 — ENTIRE PLAN STILL OPEN (verified against current code).**
 > The codebase was restructured (`program/src/...` → `package/<sub>/src/...`); the
 > referenced files now live at `package/kernel/src/api/ProjectionApi.jl`,

@@ -1,5 +1,11 @@
 # Cairo + GLFW backend
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 ## Goal
 
 Add a new **interactive** `Backend` — `CairoBackend` — that renders the graphics
@@ -17,7 +23,7 @@ mirroring `package/sdl`.
 The graphics-domain render walk already exists **twice**, and the Cairo version
 is closest to the SDL-free one:
 
-- **`package/domain/src/backend/Pdf.jl`** (`PdfBackendModule`) is a complete,
+- **`package/visual/main/backend/Pdf.jl`** (`PdfBackendModule`) is a complete,
   SDL-free walk of a `GraphicsCanvas`: `paint_rect!`, `paint_circle!`,
   `paint_line!`, `paint_polyline!`, `paint_spline!`, `paint_text!`,
   `paint_image!`, `paint_viewport!`, `paint_canvas!`, `paint_elem!`. Cairo's
@@ -267,8 +273,8 @@ callback, or `GLFW.GetCursorPos(win)`).
 ## References
 - `package/sdl/src/ProjecturedSdl.jl` — interactive backend to mirror (windowing,
   `read_from_devices`, `write_to_devices` reconciliation, key/mod maps, HiDPI).
-- `package/domain/src/backend/Pdf.jl` — the SDL-free canvas walk to port to Cairo.
-- `package/domain/src/backend/Console.jl` — smallest complete non-SDL backend.
+- `package/visual/main/backend/Pdf.jl` — the SDL-free canvas walk to port to Cairo.
+- `package/visual/main/backend/Console.jl` — smallest complete non-SDL backend.
 - `package/kernel/src/api/{Backend,Device}.jl` — the interface to implement.
 - `package/kernel/src/document/ScreenDocument.jl` — `ScreenDocument`/`WindowDocument`.
 - `documentation/devices-and-backends.md` — §"Adding a new backend".

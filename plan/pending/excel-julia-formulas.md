@@ -1,11 +1,17 @@
 # Excel-style Julia Formulas
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **AUDIT (2026-06-23):** Phases 1–3, most of 4, and 7 are implemented and
 > registered. Phase 5 (operations + insertion parsing) and Phase 6 (embedding in
 > Table/Text) are still OPEN; the global-default view switch in Phase 4 and the
 > `test_printer`/`test_reader`/`test_text_navigation` sweep in Phase 8 are OPEN.
-> Source: `package/domain/src/document/Formula.jl`,
-> `package/domain/src/projection/primitive/FormulaToSyntax.jl`,
+> Source: `package/formula/example/document/Formula.jl`,
+> `package/formula/main/FormulaToSyntax.jl`,
 > `package/example/src/{document,projection}/Formula.jl`,
 > `package/test/src/projection/FormulaToSyntaxTest.jl`. Tests could not be
 > executed (no Julia in audit environment); status is from static code evidence.
@@ -92,7 +98,7 @@ spreadsheet's `A1`) is just one naming convention among others.
 ## Phase 1 — Formula domain types
 
 **✅ DONE (verified):** `FormulaModule` exists at
-`package/domain/src/document/Formula.jl` with `FormulaDocument`,
+`package/formula/example/document/Formula.jl` with `FormulaDocument`,
 `FormulaInsertion`, `FormulaReference`, `FormulaFormula`, `FormulaEnvironment`
 (lines 51–143), and is registered via `include("document/Formula.jl")` in
 `package/domain/src/ProjecturedDomain.jl:91`. NOTE: `FormulaInsertion` holds a
@@ -204,7 +210,7 @@ the named, reactive, cross-referencing evolution of that idea — reuse
 ## Phase 4 — Projections
 
 **✅ MOSTLY DONE (verified):** `FormulaToSyntaxModule` exists at
-`package/domain/src/projection/primitive/FormulaToSyntax.jl`, registered in
+`package/formula/main/FormulaToSyntax.jl`, registered in
 `ProjecturedDomain.jl:140`. Implements `FormulaReferenceToSyntaxLeaf` (renders
 `target.name` reactively, 77–88), `FormulaFormulaToSyntaxNode` with the three
 `:code`/`:result`/`:both` layouts selected by `display_mode` (103–206, including

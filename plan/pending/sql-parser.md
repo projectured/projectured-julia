@@ -1,6 +1,12 @@
 # SqlParser — SQL parser module
 
-> **✅ DONE (verified):** Module implemented at `package/domain/src/parser/SqlParser.jl` (the plan's `program/src/parser/` path is the pre-restructure location). `SqlParserModule` exports `sqlparse`/`sqlparse_file` (line 42), is included from `package/domain/src/ProjecturedDomain.jl:96`, and is exercised by `package/test/src/document/SqlParserTest.jl` (`test_sql_parser`). Implementation now exceeds the SELECT-only scope described here — it also parses `CREATE TABLE`/`CREATE SCHEMA` DDL (SqlParser.jl:376-451). Per-step notes below.
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
+> **✅ DONE (verified):** Module implemented at `package/sql/main/SqlParser.jl` (the plan's `program/src/parser/` path is the pre-restructure location). `SqlParserModule` exports `sqlparse`/`sqlparse_file` (line 42), is included from `package/domain/src/ProjecturedDomain.jl:96`, and is exercised by `package/test/src/document/SqlParserTest.jl` (`test_sql_parser`). Implementation now exceeds the SELECT-only scope described here — it also parses `CREATE TABLE`/`CREATE SCHEMA` DDL (SqlParser.jl:376-451). Per-step notes below.
 
 `sqlparse(text) → SqlSelectStatement`. A standalone parser that turns SQL source
 text into the `SqlDocument` hierarchy, mirroring the other parsers in
@@ -9,7 +15,7 @@ text through the rendering pipeline (`SqlToSyntax → SyntaxToText → TextToStr
 
 **File:** `program/src/parser/SqlParser.jl`
 
-**⛔ OBSOLETE (path):** File now lives at `package/domain/src/parser/SqlParser.jl` after the repo restructure (`program/src/...` no longer exists). The file itself exists and matches the described purpose.
+**⛔ OBSOLETE (path):** File now lives at `package/sql/main/SqlParser.jl` after the repo restructure (`program/src/...` no longer exists). The file itself exists and matches the described purpose.
 
 **Entry points:**
 - `sqlparse(text)` — parse a SQL string into a `SqlSelectStatement`.

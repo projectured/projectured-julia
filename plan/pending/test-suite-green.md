@@ -1,5 +1,11 @@
 # Get the complete test suite green
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 <!--
 AUDIT 2026-06-23 (verified against current codebase under package/*/src):
 Items 1–6 and all sub-items of 7: DONE — code evidence cited inline below.
@@ -66,7 +72,7 @@ series. Several were documented as "pre-existing" in recent commit messages.
 - [x] 2. sql_table length (CellTableToTable raw-value thunks) **✅ DONE (verified):** `CellVector(() -> …)` lazy thunks return raw values (no `length(::Cell)`) — package/domain/src/projection/primitive/CellTableToTable.jl:43-60.
 - [x] 3. valid_reference_prefix checkpoint bug (probe getindex, not length) **✅ DONE (verified):** probes `document[idx]` in try/catch instead of `length` — package/kernel/src/reference/Reference.jl:513-521 (and annotate_reference_types:576-578).
 - [x] 4. Primitive/ConsoleBackend/TableNav checkpoint asserts **✅ DONE (verified):** `_cursor_at` strips checkpoints before asserting — package/test/src/document/PrimitiveTest.jl:17; `skip_type_checkpoints` exported (Reference.jl:32) and exercised TypeReferenceTest.jl:62-65.
-- [~] 5. Conversation serialization (assistant-turn coalescing in build_messages) **✅ DONE (verified):** consecutive `:assistant` turns coalesced into one logical turn before serialising — package/domain/src/editor/WorkbenchAssistant.jl:418-429,445.
+- [~] 5. Conversation serialization (assistant-turn coalescing in build_messages) **✅ DONE (verified):** consecutive `:assistant` turns coalesced into one logical turn before serialising — package/workbench/main/WorkbenchAssistant.jl:418-429,445.
 - [x] 6. SqlToSyntax test orphans **✅ DONE (verified):** `test_sql_to_syntax_selection` is now defined and exported (no longer undefined `test_selection`); SqlToSyntaxTest.jl:118,207.
 - [~] 7. Tabular / AssistantMvp / Mcp / misc **✅ DONE (verified):** all sub-bullets below are `[x]` and confirmed in tree (e.g. Dragging.jl:198, TypeDispatching.jl:75,80). The `[~]` top-level marker only reflects deferred items 8–14.
   - [x] **ProjectionConfiguring visibility** — ObjectToWidget now outputs a
@@ -148,7 +154,7 @@ to fix only the tractable bugs (dragging/json) and document the rest:
   promoting to the whole cell and moving (`.rows[3][2]`). Whole-cell Alt+Down (184)
   works. Nav-internals in the math_table TypeDispatching pipeline (deep).
 - [ ] 13. **SqlToSyntax INSERT/UPDATE round-trip (1, SqlToSyntaxTest:113)** —
-  **⏳ OPEN (verified still unresolved):** `SqlSelectItemToSyntaxNode` backward mapping reused for WHERE comparisons persists — package/domain/src/projection/primitive/SqlToSyntax.jl:279-312; `test_sql_insert_update_selection` still present (SqlToSyntaxTest.jl:207).
+  **⏳ OPEN (verified still unresolved):** `SqlSelectItemToSyntaxNode` backward mapping reused for WHERE comparisons persists — package/sql/main/SqlToSyntax.jl:279-312; `test_sql_insert_update_selection` still present (SqlToSyntaxTest.jl:207).
   `backward(forward(.where_clause.condition.expression.left))` returns
   `.where_clause.condition::SqlSelectItem.expression.left`. `SqlSelectItemToSyntaxNode`
   is reused to render the WHERE comparison and its backward hardcodes

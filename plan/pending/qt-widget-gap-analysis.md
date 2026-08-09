@@ -14,7 +14,7 @@ missing, and what we are choosing not to build.
 
 See [documentation/document/widget.md](../../documentation/document/widget.md)
 for the current widget set and
-[package/domain/src/document/Widget.jl](../../package/domain/src/document/Widget.jl)
+[package/visual/example/document/Widget.jl](../../package/visual/example/document/Widget.jl)
 for the source of truth.
 
 ---

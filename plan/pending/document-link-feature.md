@@ -3,7 +3,7 @@
 > **⏳ AUDIT (verified 2026-06-23): ALL STEPS OPEN.** No `DocumentLink*` or `DocumentLocator*`
 > symbols exist anywhere under `package/*/src/` — grep for `DocumentLink` matches only this plan
 > file, and `DocumentLocator` appears only in plan files plus an unrelated comment in
-> `package/domain/src/document/Versioning.jl:125`. No `DocumentLink.jl`, `DocumentLocator.jl`, or
+> `package/projectured/example/document/Versioning.jl:125`. No `DocumentLink.jl`, `DocumentLocator.jl`, or
 > `DocumentLinkToSyntax.jl` files exist (glob found none). `package/projectured/src/Projectured.jl`
 > contains no `include`/export for either. The dependency `plan/pending/document-locator.md` is also
 > still pending and unimplemented. Nothing here is DONE or OBSOLETE.

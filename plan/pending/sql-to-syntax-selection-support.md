@@ -2,7 +2,7 @@
 
 > **AUDIT (2026-06-23):** The "Completed" projection table is **✅ DONE
 > (verified)** — every listed projection exists with full selection wiring in
-> `package/domain/src/projection/primitive/SqlToSyntax.jl` (each node projection
+> `package/sql/main/SqlToSyntax.jl` (each node projection
 > has `projection_print`, `map_reference_forward`/`backward` with the
 > `proj(^(p), _)` pass-through arm, and the `_syntax_to_flat` `projection_read`).
 > The "Patterns" and "Checklist" sections are reference docs (not deliverables).
@@ -18,7 +18,7 @@ All projections in `SqlToSyntax.jl` now have full selection wiring. This file
 records the **patterns** that emerged so future SQL constructs can be added
 consistently.
 
-### Completed ✅ — **✅ DONE (verified):** all 18 projections present in `package/domain/src/projection/primitive/SqlToSyntax.jl`
+### Completed ✅ — **✅ DONE (verified):** all 18 projections present in `package/sql/main/SqlToSyntax.jl`
 
 | Projection | Type | Notes |
 |---|---|---|
@@ -377,7 +377,7 @@ Whenever a new SQL node projection is added to `SqlToSyntax.jl`:
 > `package/` finds no `SqlDistinctToSyntaxLeaf`, `SqlJoinUsingConditionToSyntaxNode`,
 > `SqlHavingToSyntaxNode`, `SqlGroupByToSyntaxNode`, `SqlOrderByToSyntaxNode`,
 > `SqlLimitToSyntaxNode`, etc. `SqlDistinct` is still a flag field
-> (`distinct::Any  # SqlDistinct | nothing`, `package/domain/src/document/Sql.jl:139`).
+> (`distinct::Any  # SqlDistinct | nothing`, `package/sql/example/document/Sql.jl:139`).
 > `SqlJoinUsingCondition` exists as a `@document` (`Sql.jl:233`) but has no
 > projection in `SqlToSyntax.jl`. All bullets below remain OPEN.
 

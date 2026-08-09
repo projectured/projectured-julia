@@ -130,16 +130,16 @@ From the last full run of `test_domain()` (26 items — 19 `Fail`, 7 `Error`):
 - `package/kernel/test/src/editor/PrinterTest.jl:138` — `json_sorted` fail
 
 **Domain projections:**
-- `package/domain/test/src/projection/XmlToSyntaxTest.jl:13` — error (likely testset-setup)
-- `package/domain/test/src/projection/SqlToSyntaxTest.jl:112` — INSERT/UPDATE round-trip fail
-- `package/domain/test/src/projection/TableSelectionTest.jl:65,69,73,102` — 4 fails (highlight band + in-cell cursor)
-- `package/domain/test/src/projection/DraggingTest.jl:49,73,87,103` — 4 errors (press/drag/drop, sub-threshold, unresolvable, real pipeline)
+- `package/xml/test/projection/XmlToSyntaxTest.jl:13` — error (likely testset-setup)
+- `package/sql/test/projection/SqlToSyntaxTest.jl:112` — INSERT/UPDATE round-trip fail
+- `package/projectured/test/projection/TableSelectionTest.jl:65,69,73,102` — 4 fails (highlight band + in-cell cursor)
+- `package/projectured/test/projection/DraggingTest.jl:49,73,87,103` — 4 errors (press/drag/drop, sub-threshold, unresolvable, real pipeline)
 
 **Domain editors:**
-- `package/domain/test/src/editor/JsonContentClicksTest.jl:28` — error (`json fixture`)
-- `package/domain/test/src/editor/McpTest.jl:250,463,464,537` — 4 items (`print_object` error; `workbench editor reference` 2 fails; `base_extensions` fail)
-- `package/domain/test/src/editor/AssistantMvpTest.jl:286,370,374,377,380,383,386,468,510` — 9 fails (collapse-on-header cluster + ScriptedLlm timestamps + Tool-use round-trip + layout)
-- `package/domain/test/src/projection/TableNavigationTest.jl:192` — `individual moves (3×3 with headers)` fail
+- `package/json/test/editor/JsonContentClicksTest.jl:28` — error (`json fixture`)
+- `package/projectured/test/editor/McpTest.jl:250,463,464,537` — 4 items (`print_object` error; `workbench editor reference` 2 fails; `base_extensions` fail)
+- `package/workbench/test/editor/AssistantMvpTest.jl:286,370,374,377,380,383,386,468,510` — 9 fails (collapse-on-header cluster + ScriptedLlm timestamps + Tool-use round-trip + layout)
+- `package/projectured/test/projection/TableNavigationTest.jl:192` — `individual moves (3×3 with headers)` fail
 
 Each of these needs an `# @broken:` line and a `@test_broken`. Reasons
 should be short and honest — "unknown; predates the split" is fine when

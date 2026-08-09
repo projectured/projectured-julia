@@ -1,5 +1,11 @@
 # Precompile workloads: compile every (printer, node type) pair at build time
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 ## The problem, measured
 
 Opening a page of the omnetpp-julia demo catalog takes ~13 s the first time, and
@@ -125,7 +131,7 @@ The directive exists; nothing checks it against the method table.
       atoms under one name would make both ambiguous.
 
 - [x] **One `@compile_workload`, driven by the registry** —
-      `package/domain/example/Precompile.jl`, walking every atom through
+      `package/projectured/example/Precompile.jl`, walking every atom through
       `NaturalToGraphics` and forcing the output.
 
       **One workload, not one per example package.** `ProjecturedVisualExample`

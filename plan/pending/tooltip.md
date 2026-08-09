@@ -108,7 +108,7 @@ keeps both windows open and closed independently.
 ## Step 9 — Optional: pointer-based hover — DONE (via the hover inspector)
 
 **✅ DONE (verified):** `HoverProbeProjection`
-([package/domain/src/projection/higherorder/HoverProbe.jl](../../package/domain/src/projection/higherorder/HoverProbe.jl)),
+([package/visual/main/inspector/HoverProbe.jl](../../package/visual/main/inspector/HoverProbe.jl)),
 `ReferenceInspector` document + test
 ([package/test/src/projection/HoverProbeTest.jl](../../package/test/src/projection/HoverProbeTest.jl)),
 the `inspector=true` pipeline

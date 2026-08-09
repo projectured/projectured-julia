@@ -1,5 +1,11 @@
 # Data-driven projections via a builder-and-walk engine
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 ## Motivation
 
 `JsonToSyntax.jl` and `SqlToSyntax.jl` (and every other `XToSyntax`) are dominated
@@ -78,7 +84,7 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 > - `@document` emits a **mutable** struct: `package/kernel/src/common/Document.jl:196`
 >   (`structdef.args[1] = true`), with the rationale at lines 191–196.
 > - The builder/marker/walk engine lives at
->   `package/domain/src/projection/ProjectionTemplate.jl` and is included via
+>   `package/kernel/main/projection/ProjectionTemplate.jl` and is included via
 >   `package/domain/src/ProjecturedDomain.jl`. It implements `Bound`/`Project`/
 >   `Collection`/`Tokens`/`Sections` markers, the reflection walk
 >   (`rule_print`, `_atomic_print`, `_node_print`, `_fixed_print`, `_mixed_print`,
@@ -88,7 +94,7 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 >   (Note: the engine now exceeds the plan's docstring, which still says "node
 >   support is WIP".)
 > - All seven JSON value types are builders in
->   `package/domain/src/projection/primitive/JsonToSyntax.jl` (lines 49, 59, 70, 81,
+>   `package/json/main/JsonToSyntax.jl` (lines 49, 59, 70, 81,
 >   96, 112, 132). Hand-written kept: authoring readers + the structural flat-offset
 >   fallback (lines 251–279).
 
@@ -142,7 +148,7 @@ clean ones on the new layout:
 
 ### Stage B — SQL domain (`SqlToSyntax.jl`) ⏳ PARTIAL (leaves done; nodes open)
 
-**Audit:** in `package/domain/src/projection/primitive/SqlToSyntax.jl` only the
+**Audit:** in `package/sql/main/SqlToSyntax.jl` only the
 seven leaves use `@projection_template` (lines 92, 104, 118, 128, 138, 236, 890).
 Every node projection (Comparison, BooleanBinary, Not, the clauses, the
 statements, Insert/Update/DDL) is **still hand-written** with `ChildrenIoMap` and

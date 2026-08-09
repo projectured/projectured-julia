@@ -15,7 +15,7 @@ because the domain printers still hard-code `Cell(false)` for the node's
 ## 1. JSON hookup ⏳
 
 **⏳ OPEN (verified 2026-06-23):** still not wired. The file moved to
-`package/domain/src/projection/primitive/JsonToSyntax.jl`. The array node
+`package/json/main/JsonToSyntax.jl`. The array node
 (`JsonArrayToSyntaxNode`, line 113) and the object node
 (`JsonObjectToSyntaxNode`, line 133) construct `SyntaxNode(...)` without a
 `collapsed=` keyword, so they fall back to the constructor default `false`
@@ -42,7 +42,7 @@ remains dormant.
 ## 2. XML hookup ⏳
 
 **⏳ OPEN (verified 2026-06-23):** still not wired. File moved to
-`package/domain/src/projection/primitive/XmlToSyntax.jl`. The root element node
+`package/xml/main/XmlToSyntax.jl`. The root element node
 (`XmlElementToSyntaxNode`, `SyntaxNode(...)` at line 283) passes only
 `selection=sel` — no `collapsed=`, so it defaults to `false`. `XmlElement`
 already has the `collapsed::Bool` field (`Xml.jl:160`). No `xml` case in

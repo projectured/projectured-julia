@@ -1,5 +1,11 @@
 # Enable clipboard, dragging, tooltip, text filtering, searching & highlighting in the workbench example
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 ## Goal
 
 The standalone `run_example` flags already exercise these projections one at a
@@ -167,8 +173,8 @@ to the screen root.
 > **⏳ OPEN (verified 2026-06-23):** Neither infra step is done. `SearchingProjection.pattern`
 > is still a plain `Regex` (`package/kernel/src/projection/generic/Searching.jl:54`), and
 > `WorkbenchSearcher` still holds only `selection`
-> (`package/domain/src/document/Workbench.jl:185-187`) with the panel rendering `nothing`
-> (`package/domain/src/projection/primitive/WorkbenchToWidget.jl:299-304`).
+> (`package/workbench/example/document/Workbench.jl:185-187`) with the panel rendering `nothing`
+> (`package/workbench/main/WorkbenchToWidget.jl:299-304`).
 
 1. **Make `SearchingProjection` configurable.** Its `pattern` is a plain `Regex`,
    not a `Cell` (`generic/Searching.jl:52-64`), so `ProjectionConfiguringProjection`
@@ -218,7 +224,7 @@ or `TextHighlighting` entry; no grep match for either symbol in the workbench ex
 
 ### Phase 2 — Wire the Searcher panel (class C, the control point)
 **⏳ OPEN (verified 2026-06-23):** `WorkbenchSearcherToWidgetScrollPane.projection_print`
-still wraps `nothing` (`package/domain/src/projection/primitive/WorkbenchToWidget.jl:299-304`);
+still wraps `nothing` (`package/workbench/main/WorkbenchToWidget.jl:299-304`);
 `SearchingProjection` is not yet `Cell`-reactive (infra step 1, same status).
 - Make `SearchingProjection` reactive on a `pattern::Cell` (infra step 1).
 - Change `WorkbenchSearcherToWidgetScrollPane` to project a
@@ -245,7 +251,7 @@ in the workbench example files.
 **⏳ OPEN (verified 2026-06-23):** No `ClipboardSlice` / `ClipboardCollection` wrapping in
 `make_workbench_document_example` and no dispatch entry in `combined_w2g`; no grep match for
 either symbol in `package/example/src/document/Workbench.jl` or `.../projection/Workbench.jl`.
-(The underlying projections exist at `package/domain/src/projection/primitive/ClipboardToAny.jl`.)
+(The underlying projections exist at `package/visual/main/clipboard/ClipboardToAny.jl`.)
 - Wrap the JSON and XML editor contents in `ClipboardSlice`
   (and/or a `ClipboardCollection` editor) in
   `make_workbench_document_example`.
@@ -271,7 +277,7 @@ entry in `combined_w2g`; no grep match in the workbench example files. (The deco
 **⏳ OPEN (verified 2026-06-23):** The `tooltip && workbench` error still exists, now at
 `package/example/src/Examples.jl:274-275` (not line 220). No `TooltipSource` wrapping or
 dispatch entry in the workbench example files. (The decorator exists at
-`package/domain/src/projection/higherorder/TooltipDecorator.jl`.)
+`package/visual/main/tooltip/TooltipDecorator.jl`.)
 - Remove the `tooltip && workbench` error in `run_example` (`Examples.jl:220`),
   or add a dedicated workbench-tooltip wiring path.
 - Wrap a chosen sub-node (descriptor target, or each editor) in `TooltipSource`;

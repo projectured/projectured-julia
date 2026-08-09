@@ -1,6 +1,12 @@
 # Anchored Layout
 
-> **Audit status (verified 2026-06-23): ⏳ ALL OPEN.** No part of this plan is implemented. Searches for `AnchoredLayout`, `AnchoredEntry`, `compute_anchored_positions`, and `AnchoredLayoutToGraphicsCanvas` across `package/*/src/` find no source definitions — the only hits are mentions in other plan files (`plan/pending/injecting-projection.md`, `plan/pending/graph-domain.md`, `plan/tentative/search-input-widget.md`) and a doc comment in `package/domain/src/document/Graph.jl:53`. The target files exist (`package/domain/src/document/Layout.jl`, `package/domain/src/projection/primitive/LayoutToGraphics.jl`) but contain no `Anchored*` symbols. (Note: plan references old `program/src/...` paths; current code lives under `package/domain/src/...`.)
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
+> **Audit status (verified 2026-06-23): ⏳ ALL OPEN.** No part of this plan is implemented. Searches for `AnchoredLayout`, `AnchoredEntry`, `compute_anchored_positions`, and `AnchoredLayoutToGraphicsCanvas` across `package/*/src/` find no source definitions — the only hits are mentions in other plan files (`plan/pending/injecting-projection.md`, `plan/pending/graph-domain.md`, `plan/tentative/search-input-widget.md`) and a doc comment in `package/graph/example/document/Graph.jl:53`. The target files exist (`package/visual/example/document/Layout.jl`, `package/visual/main/layout/LayoutToGraphics.jl`) but contain no `Anchored*` symbols. (Note: plan references old `program/src/...` paths; current code lives under `package/domain/src/...`.)
 
 Extend the layout system with a new `AnchoredLayout` document type that positions children relative to target elements' graphics coordinates, with smart collision-aware placement and stacking.
 
@@ -142,9 +148,9 @@ After placement, anchored children may be offset from their targets. Add optiona
 
 ## Implementation Steps
 
-1. ⏳ OPEN — Add `AnchoredEntry` and `AnchoredLayout` document types to `Layout.jl` *(not present in `package/domain/src/document/Layout.jl`)*
+1. ⏳ OPEN — Add `AnchoredEntry` and `AnchoredLayout` document types to `Layout.jl` *(not present in `package/visual/example/document/Layout.jl`)*
 2. ⏳ OPEN — Implement `compute_anchored_positions` pure algorithm in `Layout.jl` *(no such symbol anywhere)*
-3. ⏳ OPEN — Add `AnchoredLayoutToGraphicsCanvas` projection to `LayoutToGraphics.jl` *(not present in `package/domain/src/projection/primitive/LayoutToGraphics.jl`)*
+3. ⏳ OPEN — Add `AnchoredLayoutToGraphicsCanvas` projection to `LayoutToGraphics.jl` *(not present in `package/visual/main/layout/LayoutToGraphics.jl`)*
 4. ⏳ OPEN — Add target resolution helpers *(`resolve_target_position` not present)*
 5. ⏳ OPEN — Wire into `LayoutToGraphics` factory and `Projectured.jl` exports *(no `AnchoredLayout`/`IAnchoredLayout` exports)*
 6. ⏳ OPEN — Add line-leader rendering

@@ -1,5 +1,11 @@
 # Validate the four core functions are recursive — without a fifth recursive function
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **Status (2026-06-27):** Plan + documentation + harness. The contract is stated
 > explicitly in the API and guides (Part C, landed). The audit is recorded (Part A).
 > The **validation harness (Part B) is implemented** in
@@ -69,7 +75,7 @@ was performed (the four functions plus every private helper they call).
 ### Confirmed violation (exactly one)
 
 **`SyntaxNodeToText` / `SyntaxListToText`** —
-[package/domain/src/projection/primitive/SyntaxToText.jl](../../package/domain/src/projection/primitive/SyntaxToText.jl)
+[package/visual/main/syntax/SyntaxToText.jl](../../package/visual/main/syntax/SyntaxToText.jl)
 
 - `projection_print(::SyntaxNodeToText, recursion, node, ctx)` (≈ L194) threads
   `recursion` but **never invokes it**. It calls `_collect_spans` (≈ L778) →

@@ -1,5 +1,11 @@
 # Gesture pipeline: recognition + reified bindings + context-sensitive collection
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 > **Status (implemented on branch `worktree-reified-gesture-bindings`).**
 > Stages 0–4 **done**. Stage 4's **live help window** is now a `GestureHelpProjection`
 > sibling-window opened via the tooltip-as-window rail (2026-06-24, superseding the
@@ -265,7 +271,7 @@ available operations and can close the help when done. This maps **exactly** ont
 existing tooltip-as-window rail — no new windowing machinery:
 
 `TooltipDecoratorProjection`
-([`TooltipDecorator.jl`](../../package/domain/src/projection/higherorder/TooltipDecorator.jl))
+([`TooltipDecorator.jl`](../../package/visual/main/tooltip/TooltipDecorator.jl))
 is a content-level decorator whose reader emits `OpenWindowOperation` /
 `CloseWindowOperation` (carrying a `content::Document`); those bubble up to
 `WindowManagerProjection` ([`WindowManager.jl`](../../package/kernel/src/projection/higherorder/WindowManager.jl)),

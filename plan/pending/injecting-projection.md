@@ -227,7 +227,7 @@ No iomap rebuilding, no projection changes — the cell system propagates the in
 
 ## Phase 3: TextToGraphics TextGraphics Support
 
-**✅ DONE (verified):** `TextToGraphics` already handles `TextGraphics` inline spans as an atomic word-wrappable box. See `package/domain/src/projection/primitive/TextToGraphics.jl:303-325`: it reads `span.width`/`span.height`, extracts the embedded image via `_extract_image_data` (line 796), emits a `GraphicsImage` at `(cx, cy)`, records a `SegCoord` in `coord_map` for hit-testing (line 310), advances the cursor by `img_w`, and grows `line_h` by `img_h`. The `TextGraphics` document type itself exists at `package/domain/src/document/Text.jl:203` (fields `content::Document`, `width::Int32`, `height::Int32`, reactive cells). NOTE: the "line 219 skips non-`TextString`" premise is stale — the skip guard is now at lines 327/532/561 and is reached only *after* the `TextGraphics` branch. The implemented design differs from the plan's hypothesis: sizing uses `width`/`height::Int32` cells + an embedded `ImageDocument`, not a `w`/`h`-bearing `GraphicsCanvas` sub-projection. Reflow on cell change is reactive as the plan intended.
+**✅ DONE (verified):** `TextToGraphics` already handles `TextGraphics` inline spans as an atomic word-wrappable box. See `package/visual/main/text/TextToGraphics.jl:303-325`: it reads `span.width`/`span.height`, extracts the embedded image via `_extract_image_data` (line 796), emits a `GraphicsImage` at `(cx, cy)`, records a `SegCoord` in `coord_map` for hit-testing (line 310), advances the cursor by `img_w`, and grows `line_h` by `img_h`. The `TextGraphics` document type itself exists at `package/visual/example/document/Text.jl:203` (fields `content::Document`, `width::Int32`, `height::Int32`, reactive cells). NOTE: the "line 219 skips non-`TextString`" premise is stale — the skip guard is now at lines 327/532/561 and is reached only *after* the `TextGraphics` branch. The implemented design differs from the plan's hypothesis: sizing uses `width`/`height::Int32` cells + an embedded `ImageDocument`, not a `w`/`h`-bearing `GraphicsCanvas` sub-projection. Reflow on cell change is reactive as the plan intended.
 
 ### File: `program/src/projection/primitive/TextToGraphics.jl`
 
@@ -254,7 +254,7 @@ This makes `TextGraphics` a first-class inline element that participates in word
 ## Implementation Steps
 
 1. **⏳ OPEN (verified):** Create `InjectingProjection` in `projection/generic/Injecting.jl` with index remapping — file/types do not exist.
-2. **✅ DONE (verified):** Add `TextGraphics` handling to `TextToGraphics` word-wrap engine — implemented at `package/domain/src/projection/primitive/TextToGraphics.jl:303-325` (see Phase 3 annotation).
+2. **✅ DONE (verified):** Add `TextGraphics` handling to `TextToGraphics` word-wrap engine — implemented at `package/visual/main/text/TextToGraphics.jl:303-325` (see Phase 3 annotation).
 3. **⏳ OPEN (verified):** Wire into `Projectured.jl` — no include/export present in `package/projectured/src/Projectured.jl`.
 4. **⏳ OPEN (verified):** Add tests — no `Injecting*` tests exist (grep across repo finds the symbols only in this plan file).
 

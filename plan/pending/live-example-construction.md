@@ -1,5 +1,11 @@
 # Live example construction test
 
+> **Layout note.** This plan was written when every domain lived in one
+> `ProjecturedDomain` package. Each domain is its own package now — see
+> [documentation/domains.md](../../documentation/domains.md). A path or a
+> module name below that still says `package/domain/` or `ProjecturedDomain`
+> needs translating when the plan is picked up.
+
 A new end-to-end test that **rebuilds each example document from an empty seed using only the
 editor's own gestures**, then asserts the reconstruction deeply equals the original example.
 

@@ -51,14 +51,14 @@ old and new selection paths.
   field by field, except the `selection` cells).
 - This is the load-bearing case the user singled out. Today selection is wired
   as `Cell(() -> map_reference_forward(p, im, doc.selection))`
-  ([ProjectionTemplate.jl:296,371,428,474,507](../../package/domain/src/projection/ProjectionTemplate.jl#L296)),
+  ([ProjectionTemplate.jl:296,371,428,474,507](../../package/kernel/main/projection/ProjectionTemplate.jl#L296)),
   which reads `doc.selection` **and** `iomap.child_iomaps[]`. Reading
   `child_iomaps` makes the selection cell depend on the children *structure*;
   that is fine in the A→B direction (a structure change may invalidate the
   selection) but the audit must confirm the **reverse does not happen**: a
   selection write must not transitively reach any child output cell. The
   leaf fast path that *shares* the raw selection cell
-  ([ProjectionTemplate.jl:271](../../package/domain/src/projection/ProjectionTemplate.jl#L271),
+  ([ProjectionTemplate.jl:271](../../package/kernel/main/projection/ProjectionTemplate.jl#L271),
   `bound_field === :value`) is the gold standard — verify it stays that tight.
 
 ### B. Value-edit isolation
@@ -83,12 +83,12 @@ Inserting / removing / reordering **one** element of a collection must:
 - **Suspected central violation.** The template engine builds children as
   `child_iomaps = Cell(() -> [projection_printer_recurse(recursion, x, …) for x in coll])`
   and `children = CellVector(() -> [im.output for im in child_iomaps[]])`
-  ([ProjectionTemplate.jl:283-303](../../package/domain/src/projection/ProjectionTemplate.jl#L283)).
+  ([ProjectionTemplate.jl:283-303](../../package/kernel/main/projection/ProjectionTemplate.jl#L283)).
   When the collection's structure cell invalidates (any insert/remove/reorder),
   the **whole** `child_iomaps` thunk re-runs and re-projects **every** sibling
   from scratch — new iomaps, new output objects — so all siblings lose identity
   even though their inputs are unchanged. `_mixed_print` and `_sections_print`
-  ([ProjectionTemplate.jl:421,492](../../package/domain/src/projection/ProjectionTemplate.jl#L421))
+  ([ProjectionTemplate.jl:421,492](../../package/kernel/main/projection/ProjectionTemplate.jl#L421))
   have the same shape. This is the most likely place "smallest possible change"
   is not met, and the audit's primary target. (Whether it is *fixable* vs. a
   justified exception is decided in Phase 4 — keyed-reconciliation against the

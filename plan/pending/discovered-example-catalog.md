@@ -42,7 +42,7 @@ old fixtures later; that is out of scope here.
   registry the testers already consume. Catalog entries **are** `Example`s (see "Data
   structure"), so `test_printer`/`test_reader`/`run_example` take them unchanged.
 - The chain shape already exists in the wild (a hand-wired path the graph would synthesize):
-  [`WorkbenchAssistant.jl:185`](../../package/domain/src/editor/WorkbenchAssistant.jl#L185)
+  [`WorkbenchAssistant.jl:185`](../../package/workbench/main/WorkbenchAssistant.jl#L185)
   `ChainingProjection(RecursiveProjection(JsonToSyntax()), SyntaxToText(), …)`.
 
 ## The one pivot: `terminal domain`
@@ -164,10 +164,10 @@ needs, and it subsumes the ladder — the shared `Syntax→Text→Graphics` tail
 
 **The one hard constraint: a projection's *output* type is not recoverable statically.**
 Confirmed both ways — the printer types only its input
-([`SyntaxToText.jl:73`](../../package/domain/src/projection/primitive/SyntaxToText.jl#L73)
+([`SyntaxToText.jl:73`](../../package/visual/main/syntax/SyntaxToText.jl#L73)
 `print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)`), and the reader
 dispatches on the *iomap*/operation, not the output document
-([`SyntaxToText.jl:83`](../../package/domain/src/projection/primitive/SyntaxToText.jl#L83)
+([`SyntaxToText.jl:83`](../../package/visual/main/syntax/SyntaxToText.jl#L83)
 `read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op)`). Type inference won't help
 either — the reactive layer erases field types to `Cell`/`Any` (the same erasure the
 `CellVector{T}` metadata relies on). So graph **edges cannot be built from the method
@@ -268,7 +268,7 @@ type — important because the `TextToGraphics` bridge triggers the slow TrueTyp
 after the first search the graph is pure and reusable.
 
 **Dedup bonus:** the hand-wired `_JSON_TO_TEXT` / `_XML_TO_TEXT` / … consts in
-[`WorkbenchAssistant.jl:185`](../../package/domain/src/editor/WorkbenchAssistant.jl#L185)
+[`WorkbenchAssistant.jl:185`](../../package/workbench/main/WorkbenchAssistant.jl#L185)
 are exactly what `projection_to(domain, TextDocument)` would synthesize — a real consumer
 the graph could replace later.
 

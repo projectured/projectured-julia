@@ -6,7 +6,7 @@
 > the `configuration_label`/`is_configuration_gesture`/`configuration_descriptor`
 > traits do **not** exist anywhere under `package/`. The current
 > `ProjectionConfiguringProjection`
-> (`package/domain/src/projection/higherorder/ProjectionConfiguring.jl`) still
+> (`package/visual/main/widget/ProjectionConfiguring.jl`) still
 > builds a `WidgetSplitPane` (printer, line 85), still has `_strip_control_slot`
 > (line 139), and still hardcodes the `Ctrl+F` toggle in `_toggle_operation`
 > (line 155). The test
@@ -178,12 +178,12 @@ Configure highlighting"* / *"Ctrl+R — Configure filtering"* contextually.
 
 1. **⏳ OPEN: `WidgetOverlay` document** — add struct + ctor in `Widget.jl`, export from
    `Projectured.jl`. (Sonnet-delegable: mechanical, mirror `WidgetSplitPane`.)
-   _Verified OPEN: no `WidgetOverlay` exists in `package/domain/src/document/Widget.jl` (only `WidgetSplitPane`, line 520) nor any export._
+   _Verified OPEN: no `WidgetOverlay` exists in `package/visual/example/document/Widget.jl` (only `WidgetSplitPane`, line 520) nor any export._
 2. **⏳ OPEN: `WidgetOverlayToGraphicsCanvas`** — renderer + hit-test in
    `WidgetToGraphics.jl`, register in the dispatch table. Layout = base full-size
    + anchored content-sized layers; route top-first. (Opus: layout/hit-test
    logic; verify against the split-pane reference.)
-   _Verified OPEN: no `WidgetOverlayToGraphicsCanvas` in `package/domain/src/projection/primitive/WidgetToGraphics.jl`; dispatch table (line 3543) maps only `WidgetSplitPane`._
+   _Verified OPEN: no `WidgetOverlayToGraphicsCanvas` in `package/visual/main/widget/WidgetToGraphics.jl`; dispatch table (line 3543) maps only `WidgetSplitPane`._
 3. **⏳ OPEN: Printer swap** in `ProjectionConfiguring.jl`: `WidgetSplitPane` →
    `WidgetOverlay`, control as the top (visible-gated) layer.
    _Verified OPEN: printer still emits `WidgetSplitPane(p.orientation, Any[control_widget, doc_widget])` at `ProjectionConfiguring.jl:85`._
