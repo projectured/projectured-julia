@@ -20,3 +20,6 @@ package/*/example/Manifest.toml
 
 # Generated run output (vector files, plots) — never source.
 results/
+
+# The workload level is a person's choice, not the project's.
+LocalPreferences.toml

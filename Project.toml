@@ -79,6 +79,7 @@ ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSdlExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedSdlTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedRepl = "6b3f1e12-a33e-4b24-a01a-a986c90b1b68"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
@@ -165,6 +166,7 @@ ProjecturedExample = {path = "package/projectured/example"}
 ProjecturedOdbcExample = {path = "package/odbc/example"}
 ProjecturedAdaptagramsExample = {path = "package/adaptagrams/example"}
 ProjecturedTulipExample = {path = "package/tulip/example"}
+ProjecturedRepl = {path = "package/repl"}
 ProjecturedTest = {path = "package/projectured/test"}
 ProjecturedMcp = {path = "package/mcp/main"}
 ProjecturedLlm = {path = "package/llm/main"}
