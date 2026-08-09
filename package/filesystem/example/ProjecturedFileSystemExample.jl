@@ -40,6 +40,7 @@ end
 include("document/FileSystem.jl")
 include("projection/FileSystem.jl")
 
+export filesystem_example_root
 export make_filesystem_document_example, make_filesystem_file_document_example, make_filesystem_directory_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
 

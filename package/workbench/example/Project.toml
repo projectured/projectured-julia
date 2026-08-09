@@ -9,6 +9,7 @@ entryfile = "ProjecturedWorkbenchExample.jl"
 # that runs them, live in the ProjecturedExample umbrella.
 
 [deps]
+ProjecturedFileSystemExample = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
@@ -35,6 +36,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
+ProjecturedFileSystemExample = {path = "../../filesystem/example"}
 ProjecturedConversationExample = {path = "../../conversation/example"}
 ProjecturedMath = {path = "../../math/main"}
 ProjecturedBookExample = {path = "../../book/example"}

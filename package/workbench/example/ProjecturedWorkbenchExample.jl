@@ -35,6 +35,7 @@ using ProjecturedSqlExample
 using ProjecturedXmlExample
 using ProjecturedYamlExample
 using ProjecturedConversationExample
+using ProjecturedFileSystemExample
 using ProjecturedKernelExample
 using ProjecturedVisualExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures

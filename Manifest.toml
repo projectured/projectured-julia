@@ -1303,7 +1303,7 @@ uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 version = "0.1.0"
 
 [[deps.ProjecturedWorkbenchExample]]
-deps = ["ProjecturedBase", "ProjecturedBook", "ProjecturedBookExample", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedFileSystem", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedMath", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
+deps = ["ProjecturedBase", "ProjecturedBook", "ProjecturedBookExample", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedFileSystem", "ProjecturedFileSystemExample", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedMath", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
 entryfile = "ProjecturedWorkbenchExample.jl"
 path = "package/workbench/example"
 uuid = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
