@@ -79,6 +79,37 @@ function _read_package_graph()
 end
 
 """
+    _read_all_packages() -> Dict{String,Vector{String}}
+
+**Every** package in the tree, not only `package/*/main` — the example, test,
+repl and executable packages included — mapped to the `Projectured*` packages it
+declares. The leaf rules are about exactly those kinds, so they need a reader
+that can see them.
+"""
+function _read_all_packages()
+    packages = Dict{String,Vector{String}}()
+    for (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, "package"))
+        "Project.toml" in files || continue
+        text = read(joinpath(root, "Project.toml"), String)
+        name = match(r"(?m)^name = \"([^\"]+)\"", text)
+        name === nothing && continue
+        deps = String[]
+        in_deps = false
+        for line in split(text, "\n")
+            if startswith(line, "[")
+                in_deps = line == "[deps]"
+                continue
+            end
+            in_deps || continue
+            m = match(r"^(Projectured\w*) = ", line)
+            m === nothing || push!(deps, m.captures[1])
+        end
+        packages[name.captures[1]] = deps
+    end
+    packages
+end
+
+"""
     test_package_graph()
 
 The package dependency graph is acyclic, and every domain package declares
@@ -148,6 +179,58 @@ function test_package_graph()
                     @test !haskey(DOMAIN_EDGES, dep)
                 end
             end
+        end
+
+        # ── The leaf rules ──────────────────────────────────────────────────
+        #
+        # A package image is built with exactly that package's dependencies
+        # present, so compiled code survives only in a package nothing depends
+        # on and nothing loads after. These rules keep that true, and they are
+        # asserted rather than described because the cost of breaking one is
+        # invisible: it shows up as a slow first paint, not as a failure.
+        # See plan/pending/package-convention-repl-leaves.md.
+
+        packages = _read_all_packages()
+
+        @testset "nothing depends on a leaf" begin
+            for (name, deps) in sort(collect(packages))
+                for leaf in ("ProjecturedRepl", "ProjecturedExecutable")
+                    leaf in deps &&
+                        println(stderr, "\n$name depends on the leaf $leaf")
+                    @test !(leaf in deps)
+                end
+            end
+        end
+
+        @testset "an example package is a dependency only of a leaf, an example or a test" begin
+            for (name, deps) in sort(collect(packages))
+                (endswith(name, "Example") || endswith(name, "Test")) && continue
+                name in ("ProjecturedRepl", "ProjecturedExecutable") && continue
+                examples = sort(filter(d -> endswith(d, "Example"), deps))
+                isempty(examples) ||
+                    println(stderr, "\n$name depends on the example package(s) $examples")
+                @test isempty(examples)
+            end
+        end
+
+        @testset "a compile workload lives only in a leaf" begin
+            offenders = String[]
+            for (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, "package"))
+                (occursin(joinpath("package", "repl"), root) ||
+                 occursin(joinpath("package", "executable"), root)) && continue
+                for file in files
+                    endswith(file, ".jl") || continue
+                    path = joinpath(root, file)
+                    # A call, not a mention: the macro at the head of a line.
+                    # Prose about it, and this test's own message, must not count.
+                    occursin(r"(?m)^\s*@compile_workload\b", read(path, String)) &&
+                        push!(offenders, relpath(path, _PACKAGE_ROOT))
+                end
+            end
+            isempty(offenders) ||
+                println(stderr, "\n@compile_workload outside a leaf:\n  ",
+                        join(offenders, "\n  "))
+            @test isempty(offenders)
         end
     end
 end
