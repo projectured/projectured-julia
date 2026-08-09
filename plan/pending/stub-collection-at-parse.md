@@ -101,12 +101,12 @@ differences, both of them intended:
 ## Steps
 
 - [x] 1. Create the worktree and the plan.
-- [ ] 2. `LoaderContext`: the three fields, with the one-argument constructor
+- [x] 2. `LoaderContext`: the three fields, with the one-argument constructor
       unchanged.
-- [ ] 3. `ReferenceStub(source, ctx)`: register with the context.
-- [ ] 4. `_load_into_context`: mark the file being populated, file the list,
+- [x] 3. `ReferenceStub(source, ctx)`: register with the context.
+- [x] 4. `_load_into_context`: mark the file being populated, file the list,
       feed the sink.
-- [ ] 5. `resolve_stubs!`: the worklist drain, with the walk as the fallback.
+- [x] 5. `resolve_stubs!`: the worklist drain, with the walk as the fallback.
 - [ ] 6. Tests in `package/base/test/serialization/`.
 - [ ] 7. The two call sites in omnetpp-julia's `CatalogShell` pass the session.
 - [ ] 8. Measure the click again.

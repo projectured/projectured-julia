@@ -223,14 +223,36 @@ that call evaluated to: `file("a.json")` to its `JsonFile`,
 canonical source (rather than by the value's identity) is what makes
 two markers written the same way share one object, and what lets
 `file` pre-register a placeholder to break cycles.
+
+`stubs` maps a file document to the markers its parse produced, in the
+order the parser met them. A parser makes every stub there is, so this
+is the whole list — [`resolve_stubs!`](@ref) reads it instead of
+searching the parsed tree for what the parse already knew.
+
+`minting` is the list the stub constructor appends to: the one
+`_load_into_context` opened for the file it is populating, or `nothing`
+when no parse is running. `sink` is a second list a running drain asks
+to be told about, which is how a file a marker pulls in adds its own
+markers to that drain.
 """
 mutable struct LoaderContext
     base_dir::String
     intern::Dict{String, Any}
+    # `Vector{Any}` rather than `Vector{ReferenceStub}`: the stub type is
+    # declared below this one, and a struct field cannot name a type that does
+    # not exist yet.
+    stubs::IdDict{Any, Vector{Any}}
+    minting::Union{Nothing, Vector{Any}}
+    sink::Union{Nothing, Vector{Any}}
 end
 
 LoaderContext(base_dir::AbstractString) =
-    LoaderContext(String(base_dir), Dict{String, Any}())
+    LoaderContext(String(base_dir), Dict{String, Any}(),
+                  IdDict{Any, Vector{Any}}(), nothing, nothing)
+
+LoaderContext(base_dir::AbstractString, intern::Dict{String, Any}) =
+    LoaderContext(String(base_dir), intern,
+                  IdDict{Any, Vector{Any}}(), nothing, nothing)
 
 # ── Registry: extension → concrete FileDocument type ──────────────────────
 
@@ -302,8 +324,18 @@ end
 
 ReferenceStub(source::AbstractString; inline::Bool = false) =
     ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing), inline)
-ReferenceStub(source::AbstractString, context::LoaderContext; inline::Bool = false) =
-    ReferenceStub(String(source), context, ReactiveCell{Any}(nothing), inline)
+
+# Every stub in a load session is born here, which is why this is where the
+# session is told about it. A parser that makes a marker therefore reports it
+# by construction: there is no list to keep in step and no tree to search
+# afterwards for what the parse already knew.
+function ReferenceStub(source::AbstractString, context::LoaderContext;
+                       inline::Bool = false)
+    stub = ReferenceStub(String(source), context, ReactiveCell{Any}(nothing), inline)
+    minting = context.minting
+    minting === nothing || push!(minting, stub)
+    stub
+end
 
 # `stub.resolved` reads *through* the reactive cell (the raw cell stays
 # reachable with `getfield`), which is both what a reference path into
@@ -346,19 +378,53 @@ function resolve!(stub::ReferenceStub)
 end
 
 """
-    resolve_stubs!(root) -> root
+    resolve_stubs!(root; context = nothing) -> root
 
-Force every marker reachable from `root`, transitively: resolve the
-stubs in `root`, then the stubs inside whatever they evaluated to, and
-so on. Shared and cyclic targets terminate through the intern table
-and the visited set.
+Force every marker of `root`, transitively: resolve the stubs `root`'s parse
+produced, then the stubs of whatever file each of them pulled in, and so on.
+Shared and cyclic targets terminate through the intern table.
 
 Loading stays lazy by default (`load_project` resolves nothing); this
 is the "open the whole project now" button, used when a caller wants
 the complete graph in memory — e.g. before rendering a page whose
 embeds must all be visible.
+
+Pass the `context` that loaded `root` and the markers come from the parse:
+`context.stubs[root]` is the list, and a file pulled in by a marker adds its
+own list as it is parsed. Nothing is searched for, at any depth, so the cost
+is the number of markers rather than the size of the document.
+
+Without a context — a tree composed in memory, or one loaded by a caller that
+does not keep its session — the markers are found by walking `root`. That walk
+is bounded by nothing but the object graph, so a document that can reach a
+running editor pays for walking it; a caller on a hot path is much better off
+keeping its session and passing it.
 """
-function resolve_stubs!(root)
+function resolve_stubs!(root; context::Union{Nothing, LoaderContext} = nothing)
+    if context !== nothing && haskey(context.stubs, root)
+        return _resolve_collected_stubs!(root, context)
+    end
+    _resolve_searched_stubs!(root)
+end
+
+# The drain. `sink` is what makes this recursive without a second loop over the
+# resolved values: while it is set, every file a marker loads reports its own
+# markers straight into this worklist.
+function _resolve_collected_stubs!(root, ctx::LoaderContext)
+    worklist = copy(ctx.stubs[root])
+    outer = ctx.sink
+    ctx.sink = worklist
+    try
+        while !isempty(worklist)
+            resolve!(pop!(worklist))
+        end
+    finally
+        ctx.sink = outer
+    end
+    root
+end
+
+function _resolve_searched_stubs!(root)
     pending = Any[root]
     seen    = IdDict{Any, Bool}()
     while !isempty(pending)
@@ -474,7 +540,9 @@ end
 
 function _evaluate_marker_expression(e::Expr, ctx::LoaderContext)
     key = _canonical_marker(e)
-    haskey(ctx.intern, key) && return ctx.intern[key]
+    # An interned marker answers without going near the loader, so this is the
+    # other place a drain can meet a file the session already parsed.
+    haskey(ctx.intern, key) && return _feed_sink!(ctx, ctx.intern[key])
     name = e.args[1]::Symbol
     f = marker_function(name)
     f === nothing &&
@@ -676,14 +744,48 @@ substitutes markers, a marker back to `A` becomes a `ReferenceStub`;
 when someone later `resolve!`s that stub, the intern lookup finds
 the placeholder for `A` already there (populated by then, since `A`
 finished loading before its stubs are forced by user code).
+
+This is also where a parse is **collected**: the stub constructor appends to
+`ctx.minting`, so opening a list around `populate_file!` is what turns "the
+parser made these markers" into `ctx.stubs[file]`. The previous list is put
+back afterwards, because a `\$doctype` loader can start a nested load in the
+middle of a parse and the outer file must keep collecting its own markers.
+A drain that is running (`ctx.sink`) is told about the new markers too, which
+is how a file a marker pulls in joins the drain that pulled it.
 """
 function _load_into_context(::Type{T}, filename::AbstractString, ctx::LoaderContext;
                             marker_key::Union{Nothing, String}=nothing) where {T}
     key = marker_key === nothing ? _file_marker_key(filename) : marker_key
-    haskey(ctx.intern, key) && return ctx.intern[key]::T
+    if haskey(ctx.intern, key)
+        existing = ctx.intern[key]::T
+        # A file this session already parsed still owes its markers to a drain
+        # that reaches it for the first time. Resolving one twice is free — the
+        # stub answers from its cell — so appending is enough, and a cycle
+        # terminates because a resolved stub loads nothing again.
+        _feed_sink!(ctx, existing)
+        return existing
+    end
     file = _make_empty_file(T, filename)
     ctx.intern[key] = file
-    populate_file!(file, filename, ctx)
+    minted = Any[]
+    outer = ctx.minting
+    ctx.minting = minted
+    try
+        populate_file!(file, filename, ctx)
+    finally
+        ctx.minting = outer
+    end
+    ctx.stubs[file] = minted
+    _feed_sink!(ctx, file)
+    file
+end
+
+# Hand a file's markers to a drain that is running, if one is.
+function _feed_sink!(ctx::LoaderContext, file)
+    sink = ctx.sink
+    sink === nothing && return file
+    stubs = get(ctx.stubs, file, nothing)
+    stubs === nothing || append!(sink, stubs)
     file
 end
 
