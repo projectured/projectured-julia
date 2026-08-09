@@ -428,10 +428,26 @@ baseline (see Risks).
 
 ## Risks
 
-**A wide refactor needs a baseline diff.** Targeted tests will not catch a regression
-that only shows on a shared seam. Record a full `test_all()` summary on clean `main`
-before Step 0, and diff against it after Step 5. A change in the pass count with no
-change in `Fail` or `Error` is normal when the cell count moves; a new `Fail` is not.
+**A wide refactor needs a baseline diff — but `test_all()` costs 47 minutes.** Run it
+once for the baseline, then compare **per suite**, not per whole run. Two rules learned
+at Step 1:
+
+1. Compare like with like. A suite run standalone and the same suite run inside
+   `test_all()` give **different** pass counts — `test_visual()` was 52526 standalone
+   and 52514 inside `test_all()` on the same tree. Always re-measure the base commit
+   the same way you measure the branch. The branch is committed, so
+   `git checkout <base>` in the worktree is cheap and the precompile caches are warm.
+2. `test_catalog()` is the highest-value single check for anything that touches the
+   natural projection or a printer: 292982 assertions over every atomic document, six
+   minutes, and it matched the baseline **exactly** after the registry rewrite.
+
+**Four examples are not hermetic — they render the repository itself.**
+`make_filesystem_document_example` takes `root = package/domain/example/` and lists the
+live directory. So `filesystem`, `filesystem_widget`, `navigator` and `workbench` change
+their assertion counts whenever a file is added to or removed from that directory. Moving
+one example file out at Step 1 cost 67 + 17 + 67 + 17 = 168 assertions. Step 4 moves
+about 150 example files, so expect a large, meaningless shift there. Do not read it as a
+regression; read `Fail`, `Error` and `Broken` instead.
 
 **A reactive-reuse bug hides from a direct read.** The insertion split and the
 `natural_to_syntax` registry both change what a printer sees. Verify them in a real
@@ -472,7 +488,24 @@ the same type. Add an assertion in the registry that rejects a duplicate key.
   - the registry seam — see the section above. Verified with `test_markdown_embed`,
     `test_rst_embed`, `test_graph`, `test_math_to_graphics`, `test_document_insertion` —
     312 pass, 0 fail.
-- [ ] Step 1 — sink the six items into `ProjecturedVisual`
+- [x] **Step 1 — sink the six items into `ProjecturedVisual`** (`195b052e`).
+  `package/domain/main/` now holds exactly the 20 slice folders. `ChartGeometryModule` is
+  renamed `PlotGeometryModule`. `ChartGeometryTest` moved to the visual test package as
+  `PlotGeometryTest`; the three gesture tests stayed in domain because their fixtures are
+  JSON documents.
+
+  **The count diff reconciles exactly, with nothing left over:**
+
+  | Suite | base | branch | delta | why |
+  | --- | --- | --- | --- | --- |
+  | `test_visual()` standalone | 52526 | 52631 | +105 | `test_plot_geometry` moved in |
+  | `test_domain()` | — | 209281 | −273 | the two rows below |
+  | ‣ `test_chart_geometry` | 105 | — | −105 | moved to visual |
+  | ‣ `test_domain_examples()` | 206311 | 206143 | −168 | the four non-hermetic examples |
+  | `test_catalog()` | 290836 | 290836 | 0 | identical |
+
+  `Fail` and `Error` are 0 on both sides; `Broken` is unchanged (1 visual, 5 domain).
+- [ ] Step 2 — extract the 20 main packages
 - [ ] Step 2 — extract the 20 main packages
 - [ ] Step 3 — dissolve the umbrella package
 - [ ] Step 4 — the example tier
