@@ -2928,7 +2928,16 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
                 return NewTabRequestOperation(w)
             index, on_close = _tab_at_strip_x(g, xx)
             index > 0 && return on_close ? CloseTabRequestOperation(w, index) :
-                                           SelectTabOperation(w, index)
+                                           # A tab click is a selection change, nothing
+                                           # more. Emitted as this pane's own local
+                                           # path, so the ordinary re-targeting carries
+                                           # it to the document root: the walk then
+                                           # starts high enough to see a sibling group
+                                           # and mark it dormant, which a widget-rooted
+                                           # write never could.
+                                           ReplaceSelectionOperation(Reference(
+                                               FieldReferenceStep("selector_element_pairs"),
+                                               ElementReferenceStep(index)))
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end

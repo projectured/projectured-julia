@@ -440,12 +440,10 @@ end
 # claims is the list below and nothing else — every other payload, a text edit or
 # a raw gesture included, reaches the generic reader by ordinary dispatch.
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::SelectTabOperation)
-    group = _pane_node_for(iomap, operation.widget)
-    group isa PaneGroup || return nothing
-    pane_focus_operation(iomap.input, group, operation.tab_index)
-end
+# A tab click arrives as a ReplaceSelectionOperation now, which the generic
+# reader re-targets through `map_reference_backward` — its bare
+# `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`, the same path
+# `pane_focus_operation` used to build. No method of our own is needed.
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::CloseTabRequestOperation)
