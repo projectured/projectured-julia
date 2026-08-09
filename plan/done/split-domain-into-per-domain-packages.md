@@ -463,14 +463,30 @@ They exist to declare the home.
 **A registry-built dispatch table is order-sensitive.** Two domains must not register
 the same type. Add an assertion in the registry that rejects a duplicate key.
 
-## Open questions
+## Answered questions
 
-- `sequencechart` should lose its `chart` edge entirely once the plot geometry sinks.
-  Confirm during Step 1. If a symbol remains, keep the package edge.
-- `graph` stays a domain package by the user's decision. If `NaturalProjection` turns out
-  to need `GraphGraph` in a way the registry cannot express, revisit the question of
-  sinking `graph` into visual.
-- `Base64` is listed as a domain dep but no source file uses it. Confirm and drop it.
+- `sequencechart` **did** lose its `chart` edge once the plot geometry sank. Both are
+  tier-1 packages now.
+- `graph` stayed a domain package. The registry expressed its `GraphGraph` row without
+  trouble, so the question of sinking it into visual did not arise.
+- `Base64`, `Markdown` and `Serialization` were all declared but unused. None of the
+  twenty packages carries them.
+
+## Follow-ups this work surfaced
+
+- **The filesystem example is much smaller than it was.**
+  `make_filesystem_document_example` lists the directory above its own file, which used
+  to be the whole domain example package and is now `package/filesystem/example/` — four
+  entries. It should point at a fixed fixture directory instead of `@__DIR__/..`. That
+  also stops four examples changing their assertion counts whenever a file moves.
+- **Three test packages hold only their layering guard** — yaml, book and database. They
+  exist to declare the home; their first suite lands there.
+- **The pending plans still describe the old layout.** Several `plan/pending/*.md` cite
+  `package/domain/main/<slice>/…`. They are proposals, not documentation, and each will
+  be rewritten when it is picked up.
+- **`ProjecturedTest` is now large.** It keeps every cross-domain suite, which is
+  correct, but it is worth a later look at whether some of those fixtures could be
+  narrowed to one domain.
 
 ## Status
 
@@ -540,6 +556,50 @@ the same type. Add an assertion in the registry that rejects a duplicate key.
   Verified: `test_domain()` 209395 pass, 5 broken, 0 fail. The rise from 209281 is the
   layering guard running 20 times rather than once, 6 assertions each. All six opt-in
   packages load, SDL and Tulip included.
-- [ ] Step 4 — the example tier
-- [ ] Step 5 — the test tier
-- [ ] Step 6 — documentation and guards
+- [x] **Step 4 — the example tier** (`bcafc114`). Each domain's factories live in
+  `package/<domain>/example/`.
+
+  **The registry stayed whole**, against the plan. `DomainExamples.jl`,
+  `Examples.jl`, `Catalog.jl`, `Gallery.jl` and `FileEditor.jl` all moved to
+  `ProjecturedExample`: each names factories from every domain, so splitting them
+  per domain would have reordered the registry and put the catalog comparison out
+  of use for nothing. The umbrella also kept the examples that demonstrate an
+  **engine feature over a domain fixture** rather than a domain — clipboard,
+  dragging, embed, focusing, versioning, natural, pane, graphics.
+
+  Three shared pieces needed a home both users can reach:
+  `make_table_projection_example` is `NaturalToGraphics` with the chrome font and
+  names no domain, so it sank to `ProjecturedVisualExample`; the mixed JSON+XML
+  pair went to `ProjecturedXmlExample`; `_conversation_widget_graphics` went to
+  `ProjecturedConversationExample`, where it belongs.
+
+  An example package declares whatever its examples name, even when the main
+  package does not — the workbench example opens a book, a SQL statement and a
+  YAML document.
+
+  Verified: `test_domain()` 199319 pass, 5 broken, 0 fail.
+- [x] **Step 5 — the test tier** (`04ed37a7`). `package/domain/` is gone.
+
+  The umbrella kept every suite whose fixture names several domains, which is most
+  of what was left. Four things needed more than a move:
+  - `test_xml_parser` lived inside `JsonParserTest`; it is now
+    `xml/test/document/XmlParserTest.jl`.
+  - The conversation panel, parsing and serialization suites drive
+    `WorkbenchAssistant`, so they rose to the umbrella rather than pull workbench
+    into the conversation test package. `WorkbenchFileTest` needs the gallery, so
+    it rose too.
+  - **Six aggregators collided with a suite of the same name.** `test_json`,
+    `test_fsm`, `test_graph`, `test_process`, `test_chart`, `test_sequencechart`
+    were taken by a single file's suite. The file-level suite took a specific name
+    (`test_json_document`, `test_graph_projection`, …) and the bare name is now the
+    package aggregator, which is what a reader expects it to mean.
+  - `test_database` collided with the ODBC live-connection suite, so the domain
+    one is `test_database_domain`.
+
+  Verified: all twenty test packages green — 2261 pass, 1 broken, 0 fail.
+- [x] **Step 6 — documentation and guards** (`5b274229`). `documentation/domains.md`
+  replaces the old domain-package guide; the package chain, the thirteen visual
+  slices and the opt-in edges are rewritten. New `test_package_graph()` reads every
+  `package/*/main/Project.toml` and asserts the graph is acyclic, that each domain
+  declares exactly the edges the table allows, that each depends on all three
+  engine packages, and that no engine package depends on a domain.
