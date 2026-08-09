@@ -472,18 +472,26 @@ the same type. Add an assertion in the registry that rejects a duplicate key.
 - `Base64`, `Markdown` and `Serialization` were all declared but unused. None of the
   twenty packages carries them.
 
-## Follow-ups this work surfaced
+## Follow-ups — all three closed
 
-- **The filesystem example is much smaller than it was.**
-  `make_filesystem_document_example` lists the directory above its own file, which used
-  to be the whole domain example package and is now `package/filesystem/example/` — four
-  entries. It should point at a fixed fixture directory instead of `@__DIR__/..`. That
-  also stops four examples changing their assertion counts whenever a file moves.
-- **Three test packages hold only their layering guard** — yaml, book and database. They
-  exist to declare the home; their first suite lands there.
-- **The pending plans still describe the old layout.** Several `plan/pending/*.md` cite
-  `package/domain/main/<slice>/…`. They are proposals, not documentation, and each will
-  be rewritten when it is picked up.
+- [x] **The filesystem examples read a fixture, not the repository** (`e568fe21`).
+  `make_filesystem_document_example` read the directory above its own file, so four
+  examples changed their assertion counts whenever a file moved nearby — twice during
+  this work, each time looking exactly like a regression. They now read
+  `package/filesystem/example/fixture/project`, a fixed tree of nested folders and a few
+  file kinds. `filesystem_example_root()` is exported and the workbench navigator example
+  shares it.
+- [x] **yaml, book and database have a first suite** (`48e5187e`). The yaml parser suite
+  found a real gap and recorded it with two `@test_broken` markers: an anchor loads as
+  its own source text (`"&x 1"` becomes a string) and a tab indent parses without
+  complaint, so a file using either loads as something with nothing to signal it was not
+  understood. Book covers the three rules a projection template cannot express; database
+  covers the documents and the adapter seam without touching a database.
+- [x] **The pending plans point at the packages the files live in** (`8c29774b`).
+  35 plans were rewritten by mapping each path to the one file that matches it on disk.
+  25 still name the old package in a way no rewrite can fix — the `ProjecturedDomain`
+  module itself, or a pre-restructure `package/domain/src/` path whose file was since
+  renamed. Those carry a layout note under their first heading instead of a wrong path.
 - **`ProjecturedTest` is now large.** It keeps every cross-domain suite, which is
   correct, but it is worth a later look at whether some of those fixtures could be
   narrowed to one domain.
