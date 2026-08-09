@@ -102,7 +102,7 @@ divergence, while a tabbed pane **is** the divergence.
 function keeps_dormant_selection end
 
 """
-    stored_selection(document) -> reference or nothing
+    get_stored_selection(document) -> reference or nothing
 
 The path `document` holds, live **or** dormant.
 
@@ -114,4 +114,4 @@ says so by asking.
 A tab group is the case this exists for: the tab it shows is the tab its own
 selection names, and it must still show that tab while the focus is elsewhere.
 """
-function stored_selection end
+function get_stored_selection end

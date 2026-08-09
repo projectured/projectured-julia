@@ -225,6 +225,7 @@ export make_natural_projection_example, make_navigator_document_example
 export make_navigator_projection_example
 export make_pane_json_document_example, make_pane_json_projection_example
 export make_widget_tabs_document_example, make_widget_tabs_projection_example
+export make_widget_split_document_example, make_widget_split_projection_example
 export make_scrolling_document, make_scrolling_projection
 export make_dragging_document, make_dragging_projection
 export make_shell_document, make_shell_projection, make_command_palette_projection
@@ -247,7 +248,7 @@ export make_workbench_projection_example, make_xml_document_example
 export make_xml_projection_example, make_yaml_document_example, make_yaml_projection_example
 export markdown_example, markdown_rendered_example, math_example, math_display_example, math_table_example
 export mixed_example, natural_example, navigator_example, pane_json_example
-export widget_tabs_example
+export widget_tabs_example, widget_split_example
 export record_assistant_conversation_video
 export run_console_example, run_example, run_file_editor, sql_insert_syntax_example
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
@@ -351,7 +352,7 @@ export yaml_example
 export xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example
 export widget_example, widget_tabbed_pane_example, widget_text_example
-export pane_example, empty_pane_example, pane_json_example, widget_tabs_example
+export pane_example, empty_pane_example, pane_json_example, widget_tabs_example, widget_split_example
 export widget_label_example, widget_checkbox_example, widget_button_example
 export widget_button_action_example, widget_button_image_example
 export widget_tooltip_example, widget_menu_item_example, widget_menu_example

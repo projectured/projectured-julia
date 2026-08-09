@@ -115,8 +115,8 @@ const _PANE_BORDER = Inset(4, 4, 4, 4)
 const _PANE_PADDING = Inset(4, 4, 4, 4)
 
 # What a selection cell holds, past the live/dormant wrapper.
-_stored_selection_value(value) = value
-_stored_selection_value(value::SelectionDocument) = value.primary
+_get_stored_selection_value(value) = value
+_get_stored_selection_value(value::SelectionDocument) = value.primary
 
 # The junction type. A tab's content passes through this projection untouched, and
 # the mapper that handed it back names the step but not the node it descends from
@@ -179,7 +179,7 @@ function _forward_selection!(widget, source, projection, iomap)
     set_cell_function!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
-        selection = _stored_selection_value(source_selection[])
+        selection = _get_stored_selection_value(source_selection[])
         selection === nothing && return nothing
         map_reference_forward(projection, iomap, _index_prefix(selection))
     end)

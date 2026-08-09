@@ -438,8 +438,13 @@ end
 # The flat text selection `(start, stop)` — from a flat `TextRangeReferenceStep` head,
 # or a structural `.content{a:b}` caret canonicalised to its flat offsets — else
 # `nothing` (no caret, or a whole-element `∅` / `TextSpanReferenceStep`).
-function _text_flat_selection(text::TextBlock)
-    sel = strip_reference_types(text.selection)
+# The path defaults to the block's own live selection. A caller that has to read a
+# **dormant** one — the pale caret of a pane that does not have the focus — hands
+# the stored path in, because the property answers `nothing` for a dormant
+# selection by design.
+_text_flat_selection(text::TextBlock) = _text_flat_selection(text, text.selection)
+function _text_flat_selection(text::TextBlock, selection)
+    sel = strip_reference_types(selection)
     if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return (sel.head.start, sel.head.stop)
     end
@@ -495,8 +500,9 @@ end
 # geometry, or `nothing` when there is no caret, the selection is a range, or the
 # caret falls in a break / indentation gap with no owning span. `_flat_base`
 # supplies the span's flat base, `_flat_to_span` the inverse.
-function _flat_cursor_coord(text::TextBlock)
-    sel = _text_flat_selection(text)
+_flat_cursor_coord(text::TextBlock) = _flat_cursor_coord(text, text.selection)
+function _flat_cursor_coord(text::TextBlock, selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     sel[1] == sel[2] || return nothing            # a range has no single char cursor
     loc = _flat_to_span(text, sel[1])

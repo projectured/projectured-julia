@@ -41,3 +41,18 @@ function make_widget_tabs_document_example()
                       ("data.xml",  make_xml_document_example())];
                      border = Inset(4, 4, 4, 4))
 end
+
+# A `WidgetSplitPane` **as the document**, one domain document per side. The tabbed
+# pane above shows one tab at a time, so a dormant selection is only visible after
+# you switch back to it. A split shows both sides at once, which is what makes the
+# live caret and the dormant one visible in the same picture.
+#
+#   +-------------+-------------+
+#   |  data.json  |  data.xml   |
+#   |  caret      |  pale caret |
+#   +-------------+-------------+
+function make_widget_split_document_example(; width = 900)
+    WidgetSplitPane(:horizontal, Any[make_json_document_example(),
+                                     make_xml_document_example()];
+                    sizes = [div(width, 2), div(width, 2)])
+end

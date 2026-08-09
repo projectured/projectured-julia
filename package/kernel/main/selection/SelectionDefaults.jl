@@ -14,15 +14,15 @@ keeps_dormant_selection(::Any) = false
 # `get_selection` answers only the live one, because the property read unwraps a
 # dormant selection to `nothing`. The writers below need the path either way: what
 # they are abandoning is exactly what a dormant node still holds.
-_stored_path(value) = value
-_stored_path(value::SelectionDocument) = value.primary
-stored_selection(document) =
-    hasproperty(document, :selection) ? _stored_path(getfield(document, :selection)[]) : nothing
+_get_stored_path(value) = value
+_get_stored_path(value::SelectionDocument) = value.primary
+get_stored_selection(document) =
+    hasproperty(document, :selection) ? _get_stored_path(getfield(document, :selection)[]) : nothing
 
 function clear_selection!(document)
     hasproperty(document, :selection) || return
     sel = getfield(document, :selection)
-    path = _stored_path(sel[])
+    path = _get_stored_path(sel[])
     sel[] = nothing
     path isa ConcreteReference || return
     # Descend into the child this step routes to and clear it too.
@@ -60,7 +60,12 @@ Base.showerror(io::IO, e::SelectionMismatch) =
 # divergence node **itself** and goes down the abandoned path; the first `true`
 # keeps the whole branch. Inclusive because a pane group sits below the divergence
 # while a tabbed pane is the divergence.
-function _keeps_branch(divergence, old_path)
+function _keeps_branch(owner, divergence, old_path)
+    # The owner of the divergence node first. A tabbed pane and a split pane both
+    # hold their alternatives in a `CellVector`, so the step that differs belongs
+    # to that collection and the collection is the divergence — while the document
+    # that knows the children are alternatives is the one above it.
+    (owner !== nothing && keeps_dormant_selection(owner)) && return true
     keeps_dormant_selection(divergence) && return true
     node = divergence
     path = old_path
@@ -79,7 +84,7 @@ function _mark_dormant!(document)
     hasproperty(document, :selection) || return
     cell = getfield(document, :selection)
     value = cell[]
-    path = _stored_path(value)
+    path = _get_stored_path(value)
     path === nothing && return
     if value isa SelectionDocument
         value.live && (value.live = false)
@@ -94,7 +99,7 @@ end
 # A path that ends on a keeper holding a dormant selection is extended by it, so
 # the focus coming back makes the whole branch live again. `path` must already be
 # canonical; the caller re-validates the result and falls back when it is stale.
-function _restored_selection(document, path)
+function _restore_selection(document, path)
     node = document
     rest = path
     while rest isa ConcreteReference
@@ -122,7 +127,7 @@ function _matched_selection(document, path)
     path === nothing && return nothing
     canonical = annotate_reference_types(document, strip_reference_types(path))
     _selection_matches(document, canonical) || throw(SelectionMismatch(document, canonical))
-    restored = _restored_selection(document, canonical)
+    restored = _restore_selection(document, canonical)
     restored === canonical && return canonical
     # A dormant path can name a node an edit has since removed. Canonicalize and
     # match the extension too, and fall back to the plain path when it no longer
@@ -237,11 +242,11 @@ end
 #
 # Returns the value now held by `document.selection` so the caller can keep its
 # own path tail pointing at it (chain sharing).
-function _sync_selection!(document, path)
+function _sync_selection!(document, path, owner = nothing)
     hasproperty(document, :selection) || return path
     cell = getfield(document, :selection)
     stored = cell[]
-    old = _stored_path(stored)
+    old = _get_stored_path(stored)
     # A live write through a node revives it: the wrapper goes, the path stays.
     stored isa SelectionDocument && (cell[] = old)
     (old isa Reference && path isa Reference && is_reference_equal(old, path)) && return old
@@ -252,7 +257,7 @@ function _sync_selection!(document, path)
         # Same routing step into the same child Document: keep this cell, recurse
         # into the child and only re-point our tail if the child's value changed.
         if new_child !== nothing && old_child === new_child && old.head == path.head
-            new_tail = _sync_selection!(new_child, path.tail)
+            new_tail = _sync_selection!(new_child, path.tail, document)
             getfield(old, :tail)[] === new_tail || (getfield(old, :tail)[] = new_tail)
             return old
         end
@@ -269,7 +274,7 @@ function _sync_selection!(document, path)
     if old isa ConcreteReference
         oc = _selection_child(document, old)
         if oc !== nothing
-            _keeps_branch(document, old) ? _mark_dormant!(oc) : clear_selection!(oc)
+            _keeps_branch(owner, document, old) ? _mark_dormant!(oc) : clear_selection!(oc)
         end
     end
     cell[] = path

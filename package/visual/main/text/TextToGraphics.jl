@@ -38,6 +38,7 @@ import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyDown, KeyPress
 import ..EventModule: MousePress
+import ..DocumentModule: SelectionDocument
 import ..EventPatternModule: var"@event_case"
 import ..IoMapModule: IoMap, var"@iomap"
 export TextToGraphics, TextToGraphicsIoMap
@@ -130,6 +131,16 @@ function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
     base = _flat_base(text, span_path)
     base === nothing ? nothing : ReplaceSelectionOperation(_flat_caret_ref(base + char))
 end
+
+# What a selection cell holds, past the live/dormant wrapper, and whether it is
+# the live one. Only the painters need this: everything else reads the property,
+# which answers a live path or `nothing`.
+_get_stored_path(value) = value
+_get_stored_path(value::SelectionDocument) = value.primary
+_is_live_selection(value) = true
+_is_live_selection(value::SelectionDocument) = value.live
+
+const _DORMANT_CURSOR_COLOR = StyleColor(0.55, 0.55, 0.55, 1.0)
 
 # Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
 # step above us). Translate to a text-domain selection by picking the
@@ -278,12 +289,23 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # (an empty `TextLine`). It lives in its own cell because only such a line
     # reads it: a font edit still re-lays out just the lines that render glyphs.
     block_font = ComputedCell(() -> _block_font(styled))
-    overlay = ComputedCell(() -> _layout_overlay(p, styled, styled.selection, block_font))
+    # The overlay is laid out from the **stored** selection, live or dormant, so a
+    # dormant caret still has a place on the screen. `is_live` decides only how it
+    # is painted. Reading the raw cell is what makes a dormant selection visible at
+    # all: the property answers `nothing` for one, which is the default that keeps
+    # every other reader correct.
+    selection_cell = getfield(styled, :selection)
+    overlay = ComputedCell(() -> _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font))
+    is_live = ComputedCell(() -> _is_live_selection(selection_cell[]))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
     # skips a zero-width rect, and the bounds machinery ignores it).
     cursor_rect = GraphicsRect(0, 0, 0, 0, color_black)
+    # A dormant caret is drawn muted: the pane it belongs to still remembers where
+    # the caret is, and shows it, but the keyboard is not on it.
+    set_cell_function!(getfield(cursor_rect, :color),
+                       () -> is_live[] ? color_black : _DORMANT_CURSOR_COLOR)
     set_cell_function!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
     set_cell_function!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
     set_cell_function!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
@@ -295,11 +317,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # keyed by row index and reused across re-layouts; the k-th reads `overlay`'s k-th
     # rect (a zero width hides a rect whose row no longer exists, matching the cursor).
     hl_color = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
+    hl_color_dormant = StyleColor(0x88 / 255, 0x88 / 255, 0x88 / 255, 0x28 / 255)
     hl_cache = Dict{Int,GraphicsRect}()
     _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
     function get_highlight_rect(k::Int)
         haskey(hl_cache, k) && return hl_cache[k]
         r = GraphicsRect(0, 0, 0, 0, hl_color, 4)
+        set_cell_function!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
         set_cell_function!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
         set_cell_function!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
         set_cell_function!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
@@ -612,7 +636,7 @@ end
 # both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
 # into the block at wrap points and the box space must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
-    cursor_pos = _flat_cursor_coord(styled)
+    cursor_pos = _flat_cursor_coord(styled, sel)
     coord_map = SegCoord[]
     span_flat_offsets = Dict{SpanPath,Int}()
     cursor = nothing

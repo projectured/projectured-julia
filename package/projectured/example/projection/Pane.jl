@@ -31,3 +31,11 @@ function make_widget_tabs_projection_example(; measure=truetype_measure_text)
     renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
     WidgetHoverTrackingProjection(inner=renderer)
 end
+
+# The projection of `make_widget_split_document_example`. Like the tabbed-pane
+# example, the document is already a widget, so the natural renderer draws the
+# split and each side's own domain through the same recursion.
+function make_widget_split_projection_example(; measure=truetype_measure_text)
+    renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
+    WidgetHoverTrackingProjection(inner=renderer)
+end
