@@ -1,0 +1,17 @@
+name = "ProjecturedXml"
+uuid = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedXml.jl"
+
+# The XML source domain.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../../visual/main"}

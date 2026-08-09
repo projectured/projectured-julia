@@ -10,12 +10,20 @@
 const _SOURCE_PREFERENCE = ("Projectured", "ProjecturedDomain", "ProjecturedVisual",
                             "ProjecturedBase", "ProjecturedKernel")
 
-function _flat_reexport!(m::Module, source::Module)
+function _flat_reexport!(m::Module, source::Module, sources)
     srcname = nameof(source)
     for n in names(source; all = true)
         isdefined(source, n) || continue
         sub = getfield(source, n)
-        (sub isa Module && sub !== source && parentmodule(sub) === source) || continue
+        sub isa Module && sub !== source || continue
+        # A submodule this source defines, or a submodule of a package the source
+        # reaches but `sources` does not name. The second case is a concrete
+        # domain in its own package: the umbrella binds it, so it arrives here
+        # through that binding. A submodule whose parent IS in `sources` is
+        # skipped, so a kernel module aliased by three sources is not bound three
+        # times. A package module itself (parent `Main`) is not a submodule.
+        parent = parentmodule(sub)
+        (parent === source || (parent !== Main && !(parent in sources))) || continue
         syms = [s for s in names(sub) if s !== nameof(sub) && isdefined(sub, s)]
         isempty(syms) && continue
         Core.eval(m, Expr(:using, Expr(:(:),
@@ -41,7 +49,7 @@ function _scratch_module(set::ToolSet)
     end
     Core.eval(m, :(const Projectured = $(srcs[1])))
     for src in srcs
-        _flat_reexport!(m, src)
+        _flat_reexport!(m, src, srcs)
     end
     set.scratch = m
 end

@@ -48,13 +48,21 @@ import ProjecturedVisualTest: _find_text_iomap, _pipeline_measure, _seg_x_at,
 # exactly like the `Projectured` umbrella's re-export loop (but without
 # re-exporting): alias every submodule and `using` its exported names into
 # scope.
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+
+# A submodule this source defines, or a submodule of a package this source
+# reaches but the list does not name — a concrete domain that already left
+# `ProjecturedDomain` for its own package arrives through that binding.
+_alias_here(_src, _m) =
+    parentmodule(_m) === _src ||
+    (parentmodule(_m) !== Main && !(parentmodule(_m) in _SOURCES))
+
+for _src in _SOURCES
     _srcname = nameof(_src)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
-        # a submodule defined *by* this source (skip re-exported aliases of the other source)
-        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        (_m isa Module && _m !== _src && _alias_here(_src, _m)) || continue
         # alias the submodule so `XxxModule.foo` keeps resolving
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
         # bring its exported names into scope

@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "adb029efd6f5bf5667fb1590bde4810103d5a9bb"
+project_hash = "1c9078cbc2f36289a33cdd9e086976ffef381edb"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -778,6 +778,13 @@ path = "bench"
 uuid = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 version = "0.1.0"
 
+[[deps.ProjecturedBook]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedBook.jl"
+path = "package/book/main"
+uuid = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
+version = "0.1.0"
+
 [[deps.ProjecturedBuilder]]
 deps = ["Pkg"]
 entryfile = "ProjecturedBuilder.jl"
@@ -785,8 +792,36 @@ path = "package/executable/builder"
 uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
 
+[[deps.ProjecturedChart]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedChart.jl"
+path = "package/chart/main"
+uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+version = "0.1.0"
+
+[[deps.ProjecturedConversation]]
+deps = ["ProjecturedBase", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual", "ProjecturedXml"]
+entryfile = "ProjecturedConversation.jl"
+path = "package/conversation/main"
+uuid = "99f175d3-497d-4a02-8497-78e6e06c4369"
+version = "0.1.0"
+
+[[deps.ProjecturedDatabase]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedDatabase.jl"
+path = "package/database/main"
+uuid = "a8e362de-fb06-4734-b6cc-4acfede009df"
+version = "0.1.0"
+
+[[deps.ProjecturedDbCatalog]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedSql", "ProjecturedVisual"]
+entryfile = "ProjecturedDbCatalog.jl"
+path = "package/dbcatalog/main"
+uuid = "b1d9ff6e-938d-43f9-b327-c16571782863"
+version = "0.1.0"
+
 [[deps.ProjecturedDomain]]
-deps = ["Base64", "Markdown", "ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual", "Serialization"]
+deps = ["Base64", "Markdown", "ProjecturedBase", "ProjecturedBook", "ProjecturedChart", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedFileSystem", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGraph", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedProcess", "ProjecturedRst", "ProjecturedSequenceChart", "ProjecturedSql", "ProjecturedVisual", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedYaml", "Serialization"]
 entryfile = "ProjecturedDomain.jl"
 path = "package/domain/main"
 uuid = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
@@ -811,6 +846,48 @@ deps = ["Profile", "Projectured", "ProjecturedDomainExample", "ProjecturedKernel
 entryfile = "ProjecturedExample.jl"
 path = "package/projectured/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+version = "0.1.0"
+
+[[deps.ProjecturedFileSystem]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedFileSystem.jl"
+path = "package/filesystem/main"
+uuid = "d20df666-2dae-4a0b-8892-08ed6c45272c"
+version = "0.1.0"
+
+[[deps.ProjecturedFormula]]
+deps = ["ProjecturedBase", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedFormula.jl"
+path = "package/formula/main"
+uuid = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
+version = "0.1.0"
+
+[[deps.ProjecturedFsm]]
+deps = ["ProjecturedBase", "ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedFsm.jl"
+path = "package/fsm/main"
+uuid = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
+version = "0.1.0"
+
+[[deps.ProjecturedGraph]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedGraph.jl"
+path = "package/graph/main"
+uuid = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+version = "0.1.0"
+
+[[deps.ProjecturedJson]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedJson.jl"
+path = "package/json/main"
+uuid = "975d7430-285c-49f1-8705-4e3c002513ca"
+version = "0.1.0"
+
+[[deps.ProjecturedJulia]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedJulia.jl"
+path = "package/julia/main"
+uuid = "8625b742-6071-4be0-bd92-d89876019251"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
@@ -838,6 +915,20 @@ deps = ["HTTP", "JSON3", "ProjecturedKernel"]
 entryfile = "ProjecturedLlm.jl"
 path = "package/llm/main"
 uuid = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
+version = "0.1.0"
+
+[[deps.ProjecturedMarkdown]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedMarkdown.jl"
+path = "package/markdown/main"
+uuid = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+version = "0.1.0"
+
+[[deps.ProjecturedMath]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedMath.jl"
+path = "package/math/main"
+uuid = "80f7b254-0441-42e3-ab4d-62a480615fad"
 version = "0.1.0"
 
 [[deps.ProjecturedMcp]]
@@ -868,6 +959,20 @@ path = "package/odbc/test"
 uuid = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 version = "0.1.0"
 
+[[deps.ProjecturedProcess]]
+deps = ["ProjecturedBase", "ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedProcess.jl"
+path = "package/process/main"
+uuid = "0e3957ae-e92a-496b-bebd-10c4026663e9"
+version = "0.1.0"
+
+[[deps.ProjecturedRst]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedRst.jl"
+path = "package/rst/main"
+uuid = "831b768c-bfea-4983-ba67-a56f379c3222"
+version = "0.1.0"
+
 [[deps.ProjecturedSdl]]
 deps = ["ProjecturedDomain", "SDL2_jll", "SimpleDirectMediaLayer"]
 entryfile = "ProjecturedSdl.jl"
@@ -887,6 +992,20 @@ deps = ["Projectured", "ProjecturedExample", "ProjecturedSdl", "Test"]
 entryfile = "ProjecturedSdlTest.jl"
 path = "package/sdl/test"
 uuid = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+version = "0.1.0"
+
+[[deps.ProjecturedSequenceChart]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedSequenceChart.jl"
+path = "package/sequencechart/main"
+uuid = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
+version = "0.1.0"
+
+[[deps.ProjecturedSql]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedSql.jl"
+path = "package/sql/main"
+uuid = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
@@ -957,6 +1076,27 @@ deps = ["Base64", "HTTP", "JSON3", "ProjecturedDomain"]
 entryfile = "ProjecturedWeb.jl"
 path = "package/web/main"
 uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
+version = "0.1.0"
+
+[[deps.ProjecturedWorkbench]]
+deps = ["ProjecturedBase", "ProjecturedConversation", "ProjecturedFileSystem", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedVisual", "ProjecturedXml", "ProjecturedYaml"]
+entryfile = "ProjecturedWorkbench.jl"
+path = "package/workbench/main"
+uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+version = "0.1.0"
+
+[[deps.ProjecturedXml]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedXml.jl"
+path = "package/xml/main"
+uuid = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+version = "0.1.0"
+
+[[deps.ProjecturedYaml]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
+entryfile = "ProjecturedYaml.jl"
+path = "package/yaml/main"
+uuid = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 version = "0.1.0"
 
 [[deps.PulseAudio_jll]]

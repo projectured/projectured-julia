@@ -1,0 +1,31 @@
+name = "ProjecturedWorkbench"
+uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedWorkbench.jl"
+
+# The workbench application.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
+ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedConversation = {path = "../../conversation/main"}
+ProjecturedFileSystem = {path = "../../filesystem/main"}
+ProjecturedJson = {path = "../../json/main"}
+ProjecturedJulia = {path = "../../julia/main"}
+ProjecturedMarkdown = {path = "../../markdown/main"}
+ProjecturedXml = {path = "../../xml/main"}
+ProjecturedYaml = {path = "../../yaml/main"}

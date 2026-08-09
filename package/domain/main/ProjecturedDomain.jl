@@ -147,55 +147,49 @@ const NaturalFormatModule = ProjecturedVisual.NaturalFormatModule
 const NaturalRegistryModule = ProjecturedVisual.NaturalRegistryModule
 const DocumentFileModule = ProjecturedVisual.DocumentFileModule
 
+# ── Extracted domain packages ──────────────────────────────────────────────
+# Each concrete domain becomes its own package. Bind their submodules the same
+# way the engine packages' are bound above, so a slice still inside this package
+# names them unchanged (`..JsonModule`). This tuple grows with every extraction
+# and this package disappears when the last slice leaves.
+using ProjecturedJson
+using ProjecturedWorkbench
+using ProjecturedConversation
+using ProjecturedProcess
+using ProjecturedFsm
+using ProjecturedFormula
+using ProjecturedDbCatalog
+using ProjecturedSequenceChart
+using ProjecturedChart
+using ProjecturedGraph
+using ProjecturedFileSystem
+using ProjecturedDatabase
+using ProjecturedSql
+using ProjecturedJulia
+using ProjecturedMath
+using ProjecturedBook
+using ProjecturedRst
+using ProjecturedMarkdown
+using ProjecturedXml
+using ProjecturedYaml
+
+for _src in (ProjecturedJson, ProjecturedWorkbench, ProjecturedConversation, ProjecturedProcess, ProjecturedFsm, ProjecturedFormula, ProjecturedDbCatalog, ProjecturedSequenceChart, ProjecturedChart, ProjecturedGraph, ProjecturedFileSystem, ProjecturedDatabase, ProjecturedSql, ProjecturedJulia, ProjecturedMath, ProjecturedBook, ProjecturedRst, ProjecturedMarkdown, ProjecturedXml, ProjecturedYaml,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
 # ── Concrete domains, parsers, projections, backends, editors ──────────────
 # Each source slice groups a document + its parser + its XToSyntax bridge in one
 # folder. Load order: document/parser/toSyntax within each slice; slices ordered
 # so cross-slice edges are satisfied (json/xml/yaml/julia/math/markdown/book/
 # component independent; formula → julia; dbcatalog → sql) — an acyclic
 # slice DAG.
-include("json/Json.jl")
-include("yaml/Yaml.jl")
-include("math/Math.jl")
-include("julia/Julia.jl")
-include("database/DatabaseInstance.jl")
-include("database/Database.jl")
-include("dbcatalog/DbCatalog.jl")
-include("sql/Sql.jl")
-include("xml/Xml.jl")
-include("filesystem/FileSystem.jl")
-include("workbench/Workspace.jl")
-include("graph/Graph.jl")
-include("graph/GraphLayout.jl")
-include("graph/GraphLayoutEngine.jl")
 # The plot vocabulary both plotted notations share: the arithmetic and the
 # colour/marker cycles. Neither the chart nor the sequence chart owns it.
-include("chart/ChartSampleReferenceStep.jl")
-include("chart/Chart.jl")
-include("chart/ChartPlot.jl")
-include("sequencechart/SequenceChartGeometry.jl")
-include("sequencechart/SequenceChartRowReferenceStep.jl")
-include("sequencechart/SequenceChart.jl")
-include("sequencechart/SequenceChartPlot.jl")
-include("fsm/Fsm.jl")
-include("fsm/FsmDiagram.jl")
-include("process/Process.jl")
-include("process/ProcessRuntime.jl")
-include("process/ProcessDiagram.jl")
-include("process/ProcessDebugSession.jl")
-include("book/Book.jl")
-include("markdown/Markdown.jl")
-include("rst/Rst.jl")
-include("conversation/Evaluator.jl")
-include("formula/Formula.jl")
-include("conversation/Conversation.jl")
-include("julia/JuliaParser.jl")
-include("json/JsonParser.jl")
-include("yaml/YamlParser.jl")
-include("xml/XmlParser.jl")
-include("markdown/MarkdownParser.jl")
-include("rst/RstParser.jl")
-include("sql/SqlParser.jl")
-include("workbench/Workbench.jl")
 # DocumentInsertionToSyntax before every domain ToSyntax: it defines the shared
 # insertion leaf (typed-name buffer with live completion) and the shared
 # *Nothing placeholder leaf. It names no domain at all — a domain builds its own
@@ -203,69 +197,23 @@ include("workbench/Workbench.jl")
 # The Julia source hole: the keyword scaffolds and the JuliaInsertion leaf. It
 # needs the generic insertion leaf above and the Julia parser, and JuliaToSyntax
 # needs it, so it sits between them.
-include("julia/JuliaInsertionToSyntax.jl")
-include("json/JsonToSyntax.jl")
-include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
-include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument
-include("yaml/YamlToSyntax.jl")
 # The recorder and the overlay come after the log chain: the overlay names
 # GestureLogToSyntax to render the panel.
-include("xml/XmlToSyntax.jl")
-include("markdown/MarkdownToSyntax.jl")
-include("rst/RstToSyntax.jl")
-include("rst/RstFile.jl")   # FileDocument wrapping an RstDocument
-include("markdown/MarkdownFile.jl") # FileDocument wrapping a MarkdownDocument
-include("markdown/MarkdownToLayout.jl") # MarkdownRoot as a stack of blocks
-include("rst/RstToLayout.jl")        # RstRoot / RstSection as a stack of blocks
-include("xml/XmlFile.jl")           # FileDocument wrapping an XmlDocument
-include("filesystem/FileSystemToSyntax.jl")
-include("filesystem/FileSystemToWidget.jl")
-include("workbench/WorkspaceToFileSystem.jl")
-include("graph/GraphToGraphLayout.jl")
-include("graph/GraphLayoutToGraphics.jl")
-include("chart/ChartToChartPlot.jl")
-include("chart/ChartPlotToGraphics.jl")
-include("sequencechart/SequenceChartToSequenceChartPlot.jl")
-include("sequencechart/SequenceChartPlotToGraphics.jl")
-include("book/BookToSyntax.jl")
-include("math/MathToSyntax.jl")
 # The two-dimensional form of a formula: its own typesetter, next to the linear
 # one. Needs the visual style metrics (TrueTypeModule) and Graphics only.
-include("math/MathToGraphics.jl")
-include("julia/JuliaToSyntax.jl")
-include("formula/FormulaToSyntax.jl")
 # After julia/JuliaToSyntax.jl: the notation merges the Julia dispatch table so
 # embedded guards/actions/entry/helpers render through the same recursion.
-include("fsm/FsmToSyntax.jl")
 # Same merge as the fsm notation: the process notation renders embedded
 # actions/conditions through the Julia dispatch table.
-include("process/ProcessToSyntax.jl")
-include("fsm/FsmToFsmDiagram.jl")
 # After the graph slice projections: the diagram prints into GraphGraph and
 # relies on the stock layout/graphics stages to draw it.
-include("fsm/FsmDiagramToGraph.jl")
-include("process/ProcessToProcessDiagram.jl")
 # After the graph slice projections, as the fsm diagram is: the flowchart
 # prints into GraphGraph and relies on the stock layout/graphics stages.
-include("process/ProcessDiagramToGraph.jl")
 # Code generation: builds a JuliaDocument module and writes it through the
 # fileformat natural-text path, so it follows both.
-include("fsm/FsmToJuliaCode.jl")
 # Realization: builds a JuliaDocument function and writes it through the
 # fileformat natural-text path, so it follows both.
-include("process/ProcessToJuliaCode.jl")
 # The debug runner: realization + runtime + session meet here, and nowhere
 # else, so it follows all three.
-include("process/ProcessDebug.jl")
-include("sql/SqlToSyntax.jl")
-include("dbcatalog/DbCatalogToSql.jl")
-include("dbcatalog/DbCatalogToSyntax.jl")
-include("conversation/ConversationToSyntax.jl")
-include("conversation/ConversationToWidget.jl")
-include("workbench/WorkbenchToWidget.jl")
-include("database/DatabaseAdapters.jl")
-include("conversation/ConversationEditor.jl")
-include("workbench/WorkbenchAssistant.jl")
-include("workbench/WorkbenchFile.jl")
 
 end # module ProjecturedDomain

@@ -6,6 +6,26 @@ ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
+ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
+ProjecturedFsm = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
+ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
+ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
+ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
+ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
+ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
+ProjecturedRst = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
 ProjecturedDomainTest = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
@@ -43,6 +63,26 @@ ProjecturedBaseTest = {path = "package/base/test"}
 ProjecturedBench = {path = "bench"}
 ProjecturedBuilder = {path = "package/executable/builder"}
 ProjecturedDomain = {path = "package/domain/main"}
+ProjecturedJson = {path = "package/json/main"}
+ProjecturedWorkbench = {path = "package/workbench/main"}
+ProjecturedConversation = {path = "package/conversation/main"}
+ProjecturedProcess = {path = "package/process/main"}
+ProjecturedFsm = {path = "package/fsm/main"}
+ProjecturedFormula = {path = "package/formula/main"}
+ProjecturedDbCatalog = {path = "package/dbcatalog/main"}
+ProjecturedSequenceChart = {path = "package/sequencechart/main"}
+ProjecturedChart = {path = "package/chart/main"}
+ProjecturedGraph = {path = "package/graph/main"}
+ProjecturedFileSystem = {path = "package/filesystem/main"}
+ProjecturedDatabase = {path = "package/database/main"}
+ProjecturedSql = {path = "package/sql/main"}
+ProjecturedJulia = {path = "package/julia/main"}
+ProjecturedMath = {path = "package/math/main"}
+ProjecturedBook = {path = "package/book/main"}
+ProjecturedRst = {path = "package/rst/main"}
+ProjecturedMarkdown = {path = "package/markdown/main"}
+ProjecturedXml = {path = "package/xml/main"}
+ProjecturedYaml = {path = "package/yaml/main"}
 ProjecturedDomainTest = {path = "package/domain/test"}
 ProjecturedDomainExample = {path = "package/domain/example"}
 ProjecturedAdaptagrams = {path = "package/adaptagrams/main"}

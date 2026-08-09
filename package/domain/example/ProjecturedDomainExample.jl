@@ -40,12 +40,21 @@ import ProjecturedKernelExample: Example, make_typein_gestures
 # Build the same flat namespace over the four main-package sources — one mechanical
 # pass, exactly like the `Projectured` umbrella's re-export loop (but without
 # re-exporting).
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+
+# A submodule this source defines, or a submodule of a package this source
+# reaches but the list does not name — a concrete domain that already left
+# `ProjecturedDomain` for its own package arrives through that binding.
+_alias_here(_src, _m) =
+    parentmodule(_m) === _src ||
+    (parentmodule(_m) !== Main && !(parentmodule(_m) in _SOURCES))
+
+for _src in _SOURCES
     _srcname = nameof(_src)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
-        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        (_m isa Module && _m !== _src && _alias_here(_src, _m)) || continue
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
         _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
         isempty(_syms) && continue

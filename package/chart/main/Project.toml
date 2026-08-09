@@ -1,0 +1,17 @@
+name = "ProjecturedChart"
+uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedChart.jl"
+
+# The chart domain.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../../visual/main"}

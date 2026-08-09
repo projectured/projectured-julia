@@ -1,0 +1,19 @@
+name = "ProjecturedDbCatalog"
+uuid = "b1d9ff6e-938d-43f9-b327-c16571782863"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedDbCatalog.jl"
+
+# The database catalog domain.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedSql = {path = "../../sql/main"}

@@ -1,0 +1,21 @@
+name = "ProjecturedFsm"
+uuid = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedFsm.jl"
+
+# The finite state machine domain.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedJulia = {path = "../../julia/main"}
+ProjecturedGraph = {path = "../../graph/main"}
