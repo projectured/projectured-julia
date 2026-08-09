@@ -107,13 +107,46 @@ differences, both of them intended:
 - [x] 4. `_load_into_context`: mark the file being populated, file the list,
       feed the sink.
 - [x] 5. `resolve_stubs!`: the worklist drain, with the walk as the fallback.
-- [x] 6. Tests in `package/base/test/serialization/`.
-- [ ] 7. The two call sites in omnetpp-julia's `CatalogShell` pass the session.
-- [ ] 8. Measure the click again.
+- [x] 6. Tests in `package/domain/test/serializer/StubCollectionTest.jl` — base has
+      no marker-minting parser, the domain package owns all five.
+- [x] 7. The two call sites in omnetpp-julia's `CatalogShell` pass the session.
+- [x] 8. Measure the click again.
 
 ## Result
 
-To be filled in when step 8 runs.
+Measured with one script, cold process, SDL editor attached, the same display
+in both runs. "before" is the two repositories at `main`; "after" is the two
+worktrees.
+
+| step | before | after |
+| --- | ---: | ---: |
+| `open_page!` — parse, resolve, watch | 11.68 s | **1.10 s** |
+| `print!` — project, force, render | 0.53 s | 0.61 s |
+| **the click** | **12.21 s** | **1.72 s** |
+| a second page: `open_page!` | 1.35 s | 0.30 s |
+| a second page: `print!` | 0.12 s | 0.09 s |
+
+The stub search itself, on a page the parser had just produced, in one process
+after the change:
+
+| how the markers are found | time | markers |
+| --- | ---: | ---: |
+| `search_documents`, the old way | 13.27 s | 9 |
+| the parse's own list | 0.009 s | 1 |
+
+The page carries **one** marker. The search reported nine, because it left the
+page through the marker's context and found the markers of eight other
+documents the session holds. That is the laziness the fast path restores, and
+it is why the walk was never a search of the page.
+
+What remains of the click is ordinary first-run compilation of the parse, the
+marker evaluation and the workbench build. Those types are fixed when the
+package is built, so a precompile workload can cover them. Before this change
+it could not, because the compiled set depended on what the editor held when
+the reader clicked.
+
+Tests: `test_stub_collection()` (9 cases, new), `test_base()` 387 pass,
+the serializer suites 190 pass, `test_demo_catalog()` 467 pass.
 
 ## Follow-up, not in this plan
 
