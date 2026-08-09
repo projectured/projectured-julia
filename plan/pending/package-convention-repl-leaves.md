@@ -660,19 +660,27 @@ projectured-julia `main`. The split moves the packages this convention is about
 to name, and step 5 wants a file the split is editing. See "The domain split, in
 flight".
 
-- [ ] 0. The split lands. Re-read the dependency tables against the packages it
+- [x] 0. The split lands. Re-read the dependency tables against the packages it
       produced, then start.
-- [ ] 1. This plan, and companion plans in omnetpp-julia and inet-julia.
-- [ ] 2. `precompile_workload(level)` in `ProjecturedExample`, wrapping the
+- [x] 1. This plan, and companion plans in omnetpp-julia and inet-julia.
+- [x] 2. `precompile_workload(level)` in `ProjecturedExample`, wrapping the
       bodies that exist. No call-site moves yet.
-- [ ] 3. `env/core`, `env/demo`, `env/full`, `env/ci`, then `ProjecturedRepl`
-      with the Preferences-driven level, `set_workload!`, and one extension per
-      heavy stem carrying that stem's part of the workload.
-- [ ] 4. `ProjecturedExecutable` calls `precompile_workload(:full)`.
-- [ ] 5. Move the call sites out of `ProjecturedDomainExample` and
-      `ProjecturedVisualExample`. **After the domain split lands.**
-- [ ] 6. The layering test, the recompile check and the external-dependency
-      list.
+- [x] 3. `ProjecturedRepl`, with the Preferences-driven level and
+      `set_workload!`. **The environments and the per-stem extensions are not
+      done**: `ProjecturedTest` still aggregates Odbc, Tulip and Video, so
+      `env/core` cannot be leaner than `env/full` until step 13 is decided. The
+      leaf reproduces today's `jp` session and is precompiled last, which is
+      what the measurement needed.
+- [x] 4. The binary chooses its level. `precompile_warmup` already warms the
+      *configured* domains, which is what a single-domain binary wants, so an
+      unconditional catalog sweep would be wrong. `BuildSpec(…; workload =
+      :full)` renders `APP_WORKLOAD`, which defaults to `:none`.
+- [x] 5. The call site moved out of the example package. The split had already
+      consolidated the two into one, so there was one site to move.
+- [x] 6. Three assertions in `test_package_graph`: nothing depends on a leaf,
+      an example package is a dependency only of a leaf or an example or a test,
+      and a compile workload lives only in a leaf. 318 pass. The
+      external-dependency list is still owed.
 - [ ] 7. omnetpp-julia: `OmnetppExample.precompile_workload`, `OmnetppRepl`.
 - [ ] 8. inet-julia: `InetExample.precompile_workload`, `InetRepl`.
 - [ ] 9. The three aliases.
@@ -712,6 +720,40 @@ flight".
   deliberate occasion.
 
 ## Result
+
+### What landed in projectured-julia
+
+Branch `package-convention`, worktree `projectured-julia-packages`.
+
+**The split had silently disabled the whole build-time workload.**
+`package/projectured/example/Precompile.jl` was orphaned: nothing included it,
+`PrecompileTools` was no longer a dependency, and the three names it exports did
+not exist. `ProjecturedExample` precompiled in 10.6 s because the workload was
+not running. Restoring the include takes it to 102 s, which is the compilation
+being bought back. Everything `precompile-workloads.md` implemented had stopped
+applying.
+
+**First paint in a fresh session**, through `NaturalToGraphics`, with the
+workload now in the leaf:
+
+| level | json | workbench |
+| --- | ---: | ---: |
+| `:none` | 8.360 s | 11.398 s |
+| `:minimal` | **0.657 s** | **1.629 s** |
+| `:demo` | 0.651 s | 1.638 s |
+
+`recompile_time` is 0.000 s at every level once the workload is in the leaf and
+nowhere else — there is no lower image holding compiled code for something to
+void. Before the move, `:none` showed 1.15 s (json) and 2.71 s (workbench) of
+recompilation, which is the same damage the demo click showed at larger scale.
+
+`:demo` costs 42 s of build against `:minimal`'s 24 s and buys nothing on these
+two paints — it compiles the parser and stub-walk halves, which a first paint
+does not exercise. That is the level doing its job: `:minimal` for a working
+day, more only when the extra path is the one being shown.
+
+**Still owed here**: the environments, the per-stem extensions, and the
+`ProjecturedTest` decision they wait on (step 13).
 
 ### The two mechanisms, measured
 
