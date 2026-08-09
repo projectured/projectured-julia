@@ -38,6 +38,8 @@ for _src in _SOURCES
 end
 
 
+include("projection/BookToSyntaxTest.jl")
+
 """
     test_book_layering()
 
@@ -63,9 +65,10 @@ Run this package's whole suite: the layering guard and every book test.
 function test_book()
     @testset "ProjecturedBook" begin
         test_book_layering()
+        test_book_to_syntax()
     end
 end
 
-export test_book, test_book_layering
+export test_book, test_book_layering, test_book_to_syntax
 
 end # module ProjecturedBookTest

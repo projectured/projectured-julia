@@ -38,6 +38,8 @@ for _src in _SOURCES
 end
 
 
+include("document/YamlParserTest.jl")
+
 """
     test_yaml_layering()
 
@@ -63,9 +65,10 @@ Run this package's whole suite: the layering guard and every yaml test.
 function test_yaml()
     @testset "ProjecturedYaml" begin
         test_yaml_layering()
+        test_yaml_parser()
     end
 end
 
-export test_yaml, test_yaml_layering
+export test_yaml, test_yaml_layering, test_yaml_parser
 
 end # module ProjecturedYamlTest

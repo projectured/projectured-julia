@@ -38,6 +38,8 @@ for _src in _SOURCES
 end
 
 
+include("document/DatabaseTest.jl")
+
 """
     test_database_layering()
 
@@ -63,9 +65,10 @@ Run this package's whole suite: the layering guard and every database test.
 function test_database_domain()
     @testset "ProjecturedDatabase" begin
         test_database_layering()
+        test_database_documents()
     end
 end
 
-export test_database_domain, test_database_layering
+export test_database_domain, test_database_layering, test_database_documents
 
 end # module ProjecturedDatabaseTest
