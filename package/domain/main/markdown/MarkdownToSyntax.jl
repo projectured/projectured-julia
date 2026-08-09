@@ -668,4 +668,14 @@ end
 _embedded_marker_fence(f::FileDocument) =
     "```pred-ref\n" * file_marker_text(filename(f)) * "\n```"
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..MarkdownModule: MarkdownDocument
+
+function __init__()
+    register_natural_syntax!(:markdown, () -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
+end
+
 end # module

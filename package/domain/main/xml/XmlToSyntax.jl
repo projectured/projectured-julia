@@ -242,4 +242,14 @@ natural_extension(::XmlDocument) = ".xml"
 parse_natural(::Val{:xml}, text::AbstractString) = xmlparse(text)
 new_document_seed(::Val{:xml}) = XmlInsertion()
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..XmlModule: XmlDocument
+
+function __init__()
+    register_natural_syntax!(:xml, () -> Pair{Type,Any}[XmlDocument => XmlToSyntax()])
+end
+
 end # module

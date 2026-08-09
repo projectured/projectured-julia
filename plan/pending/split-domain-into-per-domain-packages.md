@@ -91,26 +91,46 @@ type key instead of an instance key.
 
 `insertion/NaturalProjection.jl` does **not** move as it stands. See the seam below.
 
-### The `natural_to_syntax` seam
+### The natural-projection seam — **done, and larger than planned**
 
 `NaturalToGraphics` moves to `visual/naturalprojection/NaturalProjection.jl`, but its
-dispatch table stops being a literal. Add one open generic to `NaturalFormatModule`:
+dispatch tables stop being literals. Three findings changed the design during
+implementation:
+
+1. **`register_natural_syntax!` already existed** in `NaturalProjection.jl`, for
+   downstream domains. The work was to move the nine built-in rows onto it, not to
+   invent it.
+2. **There are two tables, not one.** A domain becomes graphics in one of two ways:
+   through its `*ToSyntax` and the shared `Syntax → Text → Graphics` tail, or directly,
+   because a page of blocks (markdown, RST), a diagram (graph) or a typeset formula
+   (math) is not a syntax tree. The second kind needs the backend's `measure` function,
+   so it registers a **factory** rather than a pair.
+3. **The registry cannot live in the domain package.** A domain file can only import a
+   module the compiler has already seen, and `NaturalProjection.jl` is included last.
+   So the registry landed in **visual** immediately, as
+   `visual/naturalprojection/NaturalRegistry.jl` — the folder `NaturalProjection.jl`
+   itself moves into at Step 1.
+
+`NaturalRegistryModule` declares:
 
 ```julia
-natural_syntax_projection(::Type{<:Document}) -> Projection
+register_natural_syntax!(pairs::Pair...)          # ready-made rows (the existing API)
+register_natural_syntax!(key::Symbol, factory)    # factory(): fresh instances per build
+register_natural_graphics!(key::Symbol, factory)  # factory(; measure)
+natural_syntax_entries()                          # pairs first, then what factories build
+natural_graphics_entries(; measure)
 ```
 
-Each domain package registers its own type in the `*ToSyntax.jl` file it already has,
-exactly as it registers the instance-keyed method today:
+The nine to-syntax rows and the four to-graphics registrations use the **factory** form,
+so every renderer still builds its own projection instances — the literal table did, and
+a shared instance would share reactive state. Each domain registers from an `__init__` in
+a file it already has: the nine `*ToSyntax.jl`, plus `MarkdownToLayout.jl`,
+`RstToLayout.jl`, `GraphLayoutToGraphics.jl` and `MathToGraphics.jl`.
 
-```julia
-natural_syntax_projection(::Type{JsonDocument}) = JsonToSyntax()
-```
-
-`NaturalToGraphics` builds its `TypeDispatchingProjection` from the registered types at
-construction time. The `GraphGraph` entry, the widget entries and the layout entries
-follow the same rule. The result: the last cross-domain file in `main/` disappears, and
-the `insertion` slice folder disappears with it.
+Row order changed in one harmless way: the domain graphics rows now come before
+`ReferenceStub` and `FileDocument` instead of straddling them. Every type involved is
+disjoint, so first-match-wins is unaffected. Measured after the change: 9 syntax rows and
+25 graphics rows, the same set as the literal.
 
 **Risk to watch.** A `TypeDispatchingProjection` built from a registry sees only the
 domain packages that are loaded. `Projectured` loads all of them, so the umbrella
@@ -438,7 +458,20 @@ the same type. Add an assertion in the registry that rejects a duplicate key.
 
 ## Status
 
-- [ ] Step 0 — prepare inside the current package
+- [x] **Step 0 — prepare inside the current package.** Three commits on branch
+  `domain-split`, worktree `projectured-julia-domain-split`.
+  - `56392a6e` — the alias sweep. Every domain, odbc, sdl, web and video source names
+    the canonical module; the twelve deprecated `const`s are gone from
+    `ProjecturedDomain.jl`. `ExportCollisionTest.jl`'s prose keeps the old names on
+    purpose: visual and base still define those aliases for their own files.
+  - `a291be10` — the two splits. `julia/JuliaInsertionToSyntax.jl` is new;
+    `chart/PlotStyle.jl` is new; `InsertionToSyntax.jl` lost 266 lines and names no
+    domain. Verified with `test_document_insertion`, `test_julia_typein`,
+    `test_sql_to_syntax`, `test_chart_geometry`, `test_chart`, `test_sequencechart` —
+    658 pass, 0 fail.
+  - the registry seam — see the section above. Verified with `test_markdown_embed`,
+    `test_rst_embed`, `test_graph`, `test_math_to_graphics`, `test_document_insertion` —
+    312 pass, 0 fail.
 - [ ] Step 1 — sink the six items into `ProjecturedVisual`
 - [ ] Step 2 — extract the 20 main packages
 - [ ] Step 3 — dissolve the umbrella package

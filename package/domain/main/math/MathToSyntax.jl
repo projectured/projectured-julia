@@ -703,4 +703,14 @@ function MathToSyntax()
     )
 end
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..MathModule: MathDocument
+
+function __init__()
+    register_natural_syntax!(:math, () -> Pair{Type,Any}[MathDocument => MathToSyntax()])
+end
+
 end # module

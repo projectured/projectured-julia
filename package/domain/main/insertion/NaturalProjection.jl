@@ -17,10 +17,9 @@ printer, the reader, and both reference maps for free — there are no new
 Two recursion fabrics, tied together by the four-function recursion contract:
 
 - **`natural_to_syntax`** — a `TypeDispatchingProjection` that routes every
-  *syntax-producible* domain (JSON, XML, Markdown, RST, Math, Julia, Book,
-  Primitive, FileSystem) to its `*ToSyntax`, collections (`CellVector` / `ListNode`) to
-  `CollectionToSyntax`, and *anything else* to `ObjectToSyntax`'s reflection
-  table (`Cell`/`Nothing`/`Bool`/`Number`/`String`/`Symbol`/`Char`/`Any`).
+  *syntax-producible* domain to its `*ToSyntax`, collections (`CellVector` /
+  `ListNode`) to `CollectionToSyntax`, and *anything else* to `ObjectToSyntax`'s
+  reflection table (`Cell`/`Nothing`/`Bool`/`Number`/`String`/`Symbol`/`Char`/`Any`).
   Wrapped in a `RecursiveProjection`, it is the shared element-recursion fabric:
   a collection of mixed-domain values, or any cross-domain nesting, projects to a
   single syntax tree because each element re-enters this same fabric by type.
@@ -28,13 +27,19 @@ Two recursion fabrics, tied together by the four-function recursion contract:
 - **the to-graphics dispatcher** — the returned `RecursiveProjection(
   TypeDispatchingProjection(…))`. It routes layout combinators and widget nodes
   to their direct graphics renderers (which recurse their embedded content back
-  through this same dispatcher), a `GraphGraph` to the two graph stages (whose
-  vertex content re-enters here, so a diagram node may be a widget or prose or a
+  through this same dispatcher), a domain that draws itself to its own stages
+  (whose content re-enters here, so a diagram node may be a widget or prose or a
   table), prose `TextDocument` to a text→graphics chain,
   and **everything else** (`Any`) to `syntax_to_graphics =
   RecursiveProjection(natural_to_syntax) → SyntaxToText → Text→Graphics`. The
   `Any` catch-all means the renderer never errors — it degrades to a reflected
   object tree for genuinely unknown values.
+
+## No domain is named here
+
+Both tables come from [`NaturalRegistryModule`](@ref). A domain registers its
+own row in a file it already has, so this module names no domain and sits below
+all of them. A domain in a package this one cannot see registers the same way.
 
 ## Scope
 
@@ -74,39 +79,18 @@ import ..WordWrappingModule: WordWrapping
 import ..SyntaxToTextModule: SyntaxToText
 import ..ObjectToSyntaxModule: ObjectToSyntax
 import ..CollectionToSyntaxModule: CollectionToSyntax
-import ..JsonToSyntaxModule: JsonToSyntax
-import ..XmlToSyntaxModule: XmlToSyntax
-import ..JuliaToSyntaxModule: JuliaToSyntax
-import ..MathToSyntaxModule: MathToSyntax
-import ..BookToSyntaxModule: BookToSyntax
 import ..PrimitiveToSyntaxModule: PrimitiveToSyntax
-import ..FileSystemToSyntaxModule: FileSystemToSyntax
-import ..SqlToSyntaxModule: SqlToSyntax
-import ..JsonModule: JsonDocument
-import ..XmlModule: XmlDocument
-import ..MathModule: MathDocument
-import ..MathToGraphicsModule: math_to_graphics_dispatch
-import ..JuliaModule: JuliaDocument
-import ..BookModule: BookDocument
 import ..PrimitiveModule: PrimitiveDocument
-import ..FileSystemModule: FileSystemDocument
-import ..SqlDocumentModule: SqlDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..DocumentCoreModule: DocumentNothing
-import ..MarkdownToSyntaxModule: MarkdownToSyntax
-import ..RstToSyntaxModule: RstToSyntax
-import ..RstModule: RstDocument, RstRoot, RstSection
-import ..MarkdownModule: MarkdownDocument, MarkdownRoot
-import ..MarkdownToLayoutModule: MarkdownRootToVerticalLayout
-import ..RstToLayoutModule: RstRootToVerticalLayout, RstSectionToVerticalLayout
 import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
 import ..FileProjectModule: FileDocument, ReferenceStub
-import ..GraphModule: GraphGraph
-import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
-import ..GraphLayoutToGraphicsModule: GraphLayoutToGraphicsCanvas
+import ..NaturalRegistryModule: natural_syntax_entries, natural_graphics_entries,
+                                register_natural_syntax!, register_natural_graphics!
 
-export NaturalToGraphics, natural_to_syntax_dispatch, register_natural_syntax!
+export NaturalToGraphics, natural_to_syntax_dispatch,
+       register_natural_syntax!, register_natural_graphics!
 
 """
     natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
@@ -117,52 +101,21 @@ reflection table as the tail (so plain `Bool`/`Number`/`String`/… render as
 leaves and any unknown value as a reflected node). Exposed so callers can splice
 or extend it the way `WidgetToGraphics(…).dispatch` is spliced.
 """
-# Domains that live downstream of this package — a NED file, an INI config —
-# cannot be named in the table below, and the natural renderer is supposed to
-# render *any* document. So they register themselves, the way a file extension
-# or a marker verb does, and their entries go in FRONT of the built-ins so a
-# downstream domain can also override one.
-const _NATURAL_SYNTAX_EXTRA = Pair{Type,Any}[]
-
-"""
-    register_natural_syntax!(pairs::Pair{Type,Any}...) -> nothing
-
-Teach the natural renderer how a downstream domain becomes syntax. Call it from
-the registering package's `__init__` (the table is runtime state, not something
-to bake into a precompiled image); a type registered twice keeps the first
-entry, so a reload does not stack duplicates.
-
-Without this a document from a package this one cannot see falls through to the
-reflection tail and renders as its field names instead of as itself.
-"""
-function register_natural_syntax!(pairs::Pair{Type,Any}...)
-    for pr in pairs
-        any(e -> first(e) === first(pr), _NATURAL_SYNTAX_EXTRA) && continue
-        push!(_NATURAL_SYNTAX_EXTRA, pr)
-    end
-    nothing
-end
-
+# No domain is named here. Every source domain registers its own row from a file
+# it already has (`NaturalRegistryModule`), which is also how a domain living
+# downstream of this package — a NED file, an INI config — gets rendered. The
+# registered rows come FIRST, so a domain can override another domain's row.
 function natural_to_syntax_dispatch()
     vcat(
-        Pair{Type,Any}[e for e in _NATURAL_SYNTAX_EXTRA],
+        natural_syntax_entries(),
         Pair{Type,Any}[
-            JsonDocument       => JsonToSyntax(),
-            XmlDocument        => XmlToSyntax(),
-            MarkdownDocument   => MarkdownToSyntax(style = :rendered),
-            RstDocument        => RstToSyntax(style = :rendered),
             # An embed renders as what it embeds: the stub prints the value its
             # marker evaluated to, the file document prints its content. Both
             # come *before* the reflection tail, and neither is in a domain's own
             # table — saving goes through that one and stays by-marker.
             ReferenceStub      => ReferenceStubToSyntax(),
             FileDocument       => FileDocumentToSyntax(),
-            MathDocument       => MathToSyntax(),
-            JuliaDocument      => JuliaToSyntax(),
-            SqlDocument        => SqlToSyntax(),
-            BookDocument       => BookToSyntax(),
             PrimitiveDocument  => PrimitiveToSyntax(),
-            FileSystemDocument => FileSystemToSyntax(),
             # The Text domain's `@domain` pair. Text has no `TextToSyntax` table of
             # its own to carry them (it *is* the layer syntax prints to), and both
             # renderers live here, so its two entries live here — ahead of the
@@ -222,44 +175,21 @@ function NaturalToGraphics(; measure::Function,
         Pair{Type,Any}[p for p in extra],
         LayoutToGraphics().dispatch,   # layouts before widgets: a WidgetTable builds a GridLayout
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
+        # The domains that draw themselves rather than going through the syntax
+        # fabric: a page of blocks (markdown, RST), a diagram (graph), a typeset
+        # formula (math). Each registers its own rows; none is named here. A row
+        # is spliced one type at a time (not as one dispatching projection) so
+        # every child re-enters *this* renderer — which is what lets a diagram
+        # node be a widget, a page hold a live card, and a number inside a
+        # formula render through the shared primitive path.
+        natural_graphics_entries(measure = measure),
         Pair{Type,Any}[
-            # A markdown page is a stack of blocks, not one syntax tree, so each
-            # element re-enters *this* renderer in its own domain. Prose still
-            # goes to the syntax fabric; an embed whose document is a widget
-            # (a live simulation card) reaches the widget renderer and can be
-            # clicked, which a syntax tree could never offer it.
-            MarkdownRoot  => ChainingProjection(MarkdownRootToVerticalLayout(),
-                                                VerticalLayoutToGraphicsCanvas()),
-            # An RST page is a stack of blocks for the same reason. It takes two
-            # rules where markdown takes one: an RST section OWNS its blocks, so a
-            # root rewrap alone would leave every embed below the first title
-            # inside a syntax tree, where a card could not go.
-            RstRoot       => ChainingProjection(RstRootToVerticalLayout(),
-                                                VerticalLayoutToGraphicsCanvas()),
-            RstSection    => ChainingProjection(RstSectionToVerticalLayout(),
-                                                VerticalLayoutToGraphicsCanvas()),
             # An embed wears a card here, and only here: a card is a widget, so it
             # belongs in a to-graphics table. The to-syntax fabric above keeps the
             # bare rules, and so does every domain's own table — the save path
             # goes through those and stays by-marker.
             ReferenceStub => ReferenceStubToSyntax(unforced = :prose, wrap = :card),
             FileDocument  => FileDocumentToSyntax(unforced = :prose, wrap = :card),
-            # A graph is a diagram, not a syntax tree: it goes through its own two
-            # stages (size and place, then draw). No `NestingProjection` here — the
-            # stages take *this* renderer as their recursion, so a vertex's content
-            # is whatever it is, rendered the same way it would be anywhere else.
-            # That is what lets a diagram node be a widget, or prose, or a table.
-            GraphGraph    => ChainingProjection(GraphGraphToGraphLayout(),
-                                                GraphLayoutToGraphicsCanvas()),
-        ],
-        # A formula is set, not spelled: it goes to its own typesetter, which
-        # places real two-dimensional boxes. The rules are spliced one type at a
-        # time (not as one dispatching projection) so every child of a formula
-        # re-enters *this* renderer — which is what lets a formula hold an
-        # embedded document, and a number inside one render through the shared
-        # primitive path and still land on the formula's baseline.
-        math_to_graphics_dispatch(measure = measure),
-        Pair{Type,Any}[
             # The Text placeholder / name buffer are `TextDocument`s, but they are not
             # prose: they route through the syntax fabric, whose table renders them
             # with the shared `@domain` leaves. Exact types, so they win over the

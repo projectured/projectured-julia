@@ -1012,4 +1012,14 @@ natural_extension(::JuliaDocument) = ".jl"
 parse_natural(::Val{:jl}, text::AbstractString) = juliaparse(text)
 new_document_seed(::Val{:jl}) = JuliaInsertion()
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..JuliaModule: JuliaDocument
+
+function __init__()
+    register_natural_syntax!(:julia, () -> Pair{Type,Any}[JuliaDocument => JuliaToSyntax()])
+end
+
 end # module

@@ -2082,4 +2082,14 @@ natural_extension(::SqlDocument) = ".sql"
 parse_natural(::Val{:sql}, text::AbstractString) = sqlparse(text)
 new_document_seed(::Val{:sql}) = SqlInsertion()
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..SqlDocumentModule: SqlDocument
+
+function __init__()
+    register_natural_syntax!(:sql, () -> Pair{Type,Any}[SqlDocument => SqlToSyntax()])
+end
+
 end # module

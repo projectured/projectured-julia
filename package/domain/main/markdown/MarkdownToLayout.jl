@@ -93,4 +93,21 @@ end
 # to die: it rendered, took the press, answered, and the answer stopped here.
 read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# A markdown page is a stack of blocks, not one syntax tree, so each element
+# re-enters the natural renderer in its own domain. Prose still goes to the
+# syntax fabric; an embed whose document is a widget (a live simulation card)
+# reaches the widget renderer and can be clicked, which a syntax tree could
+# never offer it.
+import ..ChainingProjectionModule: ChainingProjection
+import ..LayoutToGraphicsModule: VerticalLayoutToGraphicsCanvas
+import ..NaturalRegistryModule: register_natural_graphics!
+
+function __init__()
+    register_natural_graphics!(:markdown_page, (; measure) -> Pair{Type,Any}[
+        MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
+                                           VerticalLayoutToGraphicsCanvas()),
+    ])
+end
+
 end # module MarkdownToLayoutModule

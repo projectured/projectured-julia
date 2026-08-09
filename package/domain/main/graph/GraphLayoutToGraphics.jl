@@ -345,4 +345,22 @@ chain explicitly so they can thread the content projection as the recursion.
 """
 function GraphToGraphics end
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# A graph is a diagram, not a syntax tree: it goes through its own two stages
+# (size and place, then draw). No `NestingProjection` — the stages take the
+# natural renderer as their recursion, so a vertex's content is whatever it is,
+# rendered the same way it would be anywhere else. That is what lets a diagram
+# node be a widget, or prose, or a table.
+import ..ChainingProjectionModule: ChainingProjection
+import ..GraphModule: GraphGraph
+import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
+import ..NaturalRegistryModule: register_natural_graphics!
+
+function __init__()
+    register_natural_graphics!(:graph, (; measure) -> Pair{Type,Any}[
+        GraphGraph => ChainingProjection(GraphGraphToGraphLayout(),
+                                         GraphLayoutToGraphicsCanvas()),
+    ])
+end
+
 end # module

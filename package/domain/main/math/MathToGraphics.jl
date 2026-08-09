@@ -2030,4 +2030,17 @@ math_to_graphics_dispatch(; kwargs...) =
     Pair{Type,Any}[entry for entry in MathToGraphics(; kwargs...).dispatch
                    if first(entry) !== PrimitiveNumber && first(entry) !== PrimitiveString]
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# A formula is set, not spelled: it goes to its own typesetter, which places
+# real two-dimensional boxes. The rows are spliced one type at a time, so every
+# child of a formula re-enters the natural renderer — which is what lets a
+# formula hold an embedded document, and a number inside one render through the
+# shared primitive path and still land on the formula's baseline.
+import ..NaturalRegistryModule: register_natural_graphics!
+
+function __init__()
+    register_natural_graphics!(:math, (; measure) ->
+        math_to_graphics_dispatch(measure = measure))
+end
+
 end # module

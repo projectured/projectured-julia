@@ -1370,4 +1370,14 @@ end
 _embedded_marker_directive(f::FileDocument) =
     ".. " * PRED_REF_DIRECTIVE * ":: " * file_marker_text(filename(f))
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..RstModule: RstDocument
+
+function __init__()
+    register_natural_syntax!(:rst, () -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
+end
+
 end # module

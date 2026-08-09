@@ -155,4 +155,22 @@ end
 read_intent(::RstRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
 read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# An RST page is a stack of blocks, for the reason a markdown page is. It takes
+# two rows where markdown takes one: an RST section OWNS its blocks, so a root
+# rewrap alone would leave every embed below the first title inside a syntax
+# tree, where a card could not go.
+import ..ChainingProjectionModule: ChainingProjection
+import ..LayoutToGraphicsModule: VerticalLayoutToGraphicsCanvas
+import ..NaturalRegistryModule: register_natural_graphics!
+
+function __init__()
+    register_natural_graphics!(:rst_page, (; measure) -> Pair{Type,Any}[
+        RstRoot    => ChainingProjection(RstRootToVerticalLayout(),
+                                         VerticalLayoutToGraphicsCanvas()),
+        RstSection => ChainingProjection(RstSectionToVerticalLayout(),
+                                         VerticalLayoutToGraphicsCanvas()),
+    ])
+end
+
 end # module RstToLayoutModule

@@ -137,6 +137,7 @@ const PdfBackendModule = ProjecturedVisual.PdfBackendModule
 # seams (natural_syntax_projection / natural_extension / parse_natural /
 # new_document_seed) on these modules from their existing ToSyntax files.
 const NaturalFormatModule = ProjecturedVisual.NaturalFormatModule
+const NaturalRegistryModule = ProjecturedVisual.NaturalRegistryModule
 const DocumentFileModule = ProjecturedVisual.DocumentFileModule
 
 # ── Concrete domains, parsers, projections, backends, editors ──────────────

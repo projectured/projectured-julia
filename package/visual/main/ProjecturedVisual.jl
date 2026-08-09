@@ -252,6 +252,13 @@ include("syntax/PrimitiveToSyntax.jl")
 include("fileformat/NaturalFormat.jl")
 include("fileformat/DocumentFile.jl")
 
+# ── Slice — naturalprojection (the render-anything dispatch tables) ─────────
+# The two tables the natural renderer is built from. They hold no entry of
+# their own: each domain registers its own row from a file it already has, so
+# the renderer never names a domain. Depends on nothing, so it can sit anywhere
+# a domain file can reach.
+include("naturalprojection/NaturalRegistry.jl")
+
 # ── Slice 8 — interaction decorators (clipboard / tooltip / inspector) ───
 # Domain-independent higher-order projections that decorate an arbitrary
 # wrapped content: clipboard copy/cut/paste (mirrored to the OS clipboard),

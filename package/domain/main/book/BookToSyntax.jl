@@ -661,4 +661,14 @@ function _render_paragraph_content(content)
     String(take!(buf))
 end
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..BookModule: BookDocument
+
+function __init__()
+    register_natural_syntax!(:book, () -> Pair{Type,Any}[BookDocument => BookToSyntax()])
+end
+
 end # module

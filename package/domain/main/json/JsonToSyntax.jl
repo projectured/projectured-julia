@@ -223,4 +223,14 @@ natural_extension(::JsonDocument) = ".json"
 parse_natural(::Val{:json}, text::AbstractString) = jsonparse(text)
 new_document_seed(::Val{:json}) = JsonInsertion()
 
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that teaches the render-anything projection what this domain is. The
+# factory form, so every renderer builds its own projection instance.
+import ..NaturalRegistryModule: register_natural_syntax!
+import ..JsonModule: JsonDocument
+
+function __init__()
+    register_natural_syntax!(:json, () -> Pair{Type,Any}[JsonDocument => JsonToSyntax()])
+end
+
 end # module
