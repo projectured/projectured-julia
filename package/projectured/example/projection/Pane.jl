@@ -23,3 +23,11 @@ function make_pane_json_projection_example(; measure=truetype_measure_text, new_
         WidgetHoverTrackingProjection(inner=renderer),
     )
 end
+
+# The projection of `make_widget_tabs_document_example`. The document is already a
+# widget, so there is no first stage: the natural renderer draws the tabbed pane
+# and, through the same recursion, whichever domain document each tab holds.
+function make_widget_tabs_projection_example(; measure=truetype_measure_text)
+    renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
+    WidgetHoverTrackingProjection(inner=renderer)
+end

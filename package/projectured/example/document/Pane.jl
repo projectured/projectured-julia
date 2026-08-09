@@ -26,3 +26,18 @@ function make_pane_json_document_example()
     set_selection!(tree, pane_tab_reference(tree, left, 1))
     tree
 end
+
+# A bare `WidgetTabbedPane` **as the document**, holding one domain document per
+# tab. The pane tree above projects *to* a tabbed pane; this one **is** one, which
+# is the smallest document that shows what a tab group does with a selection.
+#
+#   +--------------------------+
+#   | data.json | data.xml     |
+#   +--------------------------+
+#   | { "name": "Alice", … }   |
+#   +--------------------------+
+function make_widget_tabs_document_example()
+    WidgetTabbedPane([("data.json", make_json_document_example()),
+                      ("data.xml",  make_xml_document_example())];
+                     border = Inset(4, 4, 4, 4))
+end

@@ -52,6 +52,11 @@ const workbench_example      = Example("workbench",      make_workbench_document
 # focused tab holds the json example document, and the renderer is the natural
 # projection, so any other domain works in a tab too.
 const pane_json_example      = Example("pane_json",      make_pane_json_document_example,      make_pane_json_projection_example; render_width=1000, render_height=700)
+# A `WidgetTabbedPane` **as the document**, one domain document per tab. The
+# smallest case of a tab group that owns a selection: no projection stage sits
+# between the document and the widget, so the selection the tab strip reads is the
+# document's own.
+const widget_tabs_example    = Example("widget_tabs",    make_widget_tabs_document_example,    make_widget_tabs_projection_example; render_width=900, render_height=600)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
 # the enumeration-based suites (test_printers / test_readers / test_position_navigations /
@@ -153,6 +158,7 @@ const domain_examples = Example[
     fsm_diagram_example,
     workbench_example,
     pane_json_example,
+    widget_tabs_example,
     math_example,
     julia_example,
     graphics_image_example,
