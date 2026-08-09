@@ -454,7 +454,7 @@ function _text_flat_selection(text::TextBlock, selection)
     # can act on it and re-emit the caret in the canonical flat form. Whole-element
     # `∅` / `TextSpanReferenceStep` selections are not `.content` ranges, so they still
     # return nothing here and keep declining (the syntax layer tree-navigates them).
-    rng = _text_selection_range(text)
+    rng = _text_selection_range(text, selection)
     rng === nothing && return nothing
     path, a, b = rng
     base = _flat_base(text, path)
@@ -642,7 +642,8 @@ end
 # else return nothing. Selections are canonical at rest; the TypeReferenceStep
 # checkpoints are stripped (this parser extracts only integer span/char offsets)
 # before the raw structural walk.
-_text_selection_range(text::TextBlock) = _parse_selection_range(strip_reference_types(text.selection))
+_text_selection_range(text::TextBlock) = _text_selection_range(text, text.selection)
+_text_selection_range(::TextBlock, selection) = _parse_selection_range(strip_reference_types(selection))
 
 # The structural-caret parser, over an already-stripped reference. `text_caret_flat`
 # reuses it so a decorator can resolve either caret form from a raw reference, not just

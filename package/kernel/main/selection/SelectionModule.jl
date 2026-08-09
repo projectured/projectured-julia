@@ -34,7 +34,8 @@ using ..ReferenceModule
 
 export get_selection, clear_selection!, set_selection!, with_selection,
        var"@with_selection", replace_selection!, SelectionMismatch,
-       keeps_dormant_selection, get_stored_selection
+       keeps_dormant_selection, get_stored_selection,
+       is_live_selection, map_selection_forward
 
 include("SelectionInterface.jl")
 include("SelectionDefaults.jl")

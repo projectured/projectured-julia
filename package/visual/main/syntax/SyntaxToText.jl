@@ -14,6 +14,7 @@ module SyntaxToTextModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..SelectionModule: map_selection_forward, get_stored_selection
 import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
@@ -142,12 +143,14 @@ end
 #   PS(p).close[k] →  the close span
 #   anything else  →  no cursor
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
-    sel = ComputedCell(() -> begin
-        leaf_sel = strip_reference_types(leaf.selection)   # canonical → plain skeleton
+    # The state travels with the image: a dormant selection maps forward as a
+    # dormant one, so the painter downstream can draw it pale.
+    sel = ComputedCell(() -> map_selection_forward(leaf, path -> begin
+        leaf_sel = strip_reference_types(path)             # canonical → plain skeleton
         leaf_sel isa EmptyReference && return @reference()
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
-    end)
+    end))
     SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
 end
 
@@ -592,7 +595,12 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     iomap_cell = Cell(nothing)
     output = TextBlock(
         ComputedCellVector(() -> spans[].elements),
-        ComputedCell(() -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[])))
+        # The bit rides from input to output. `map_selection_forward` hands the
+        # stored path to the composer and gives the image back carrying the node's
+        # own live/dormant state, so a dormant caret stays dormant all the way to
+        # the Text domain, where the painter turns it into a pale colour.
+        ComputedCell(() -> map_selection_forward(node,
+            path -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[], path))))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
@@ -787,9 +795,10 @@ end
 # path; (4) otherwise the first child whose composed selection is a plain cursor
 # element path, shifted by its splice base — a child returning ∅ or a TextRect is
 # skipped, not promoted; (5) none.
-function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, iomap, cims)
+function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, iomap, cims,
+                                selection = node.selection)
     iomap === nothing && return nothing
-    node_sel = strip_reference_types(node.selection)     # canonical → plain skeleton
+    node_sel = strip_reference_types(selection)          # canonical → plain skeleton
     node_sel isa EmptyReference && return @reference()                    # case 1
     if node_sel isa Reference
         fwd = map_reference_forward(p, iomap, node_sel)                        # cases 2 & 3
@@ -797,7 +806,9 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
     end
     ranges = iomap.child_elem_ranges                                         # case 4
     for (i, cim) in enumerate(cims)
-        csel = cim.output.selection
+        # The stored path: a dormant child answers `nothing` through the property,
+        # and case 4 is exactly where that child's caret has to be found.
+        csel = get_stored_selection(cim.output)
         csel === nothing && continue
         cf = _text_side_flat(csel)
         cf === nothing && continue                 # skip ∅ / TextRect / non-cursor

@@ -115,3 +115,26 @@ A tab group is the case this exists for: the tab it shows is the tab its own
 selection names, and it must still show that tab while the focus is elsewhere.
 """
 function get_stored_selection end
+
+"""
+    is_live_selection(document) -> Bool
+
+Whether the selection `document` holds is the live one. `true` when it holds none,
+so a document with no selection never looks dormant.
+"""
+function is_live_selection end
+
+"""
+    map_selection_forward(source, map) -> image or nothing
+
+The forward image of `source`'s selection, carrying its live/dormant state.
+
+A printer wires its output's selection from its input's, and it must use this
+rather than reading the property: the property answers `nothing` for a dormant
+selection, so a plain read drops the state at the first hop and the painter at the
+end of the chain has nothing left to paint pale.
+
+`map` receives the stored path and returns the image, normally through
+`map_reference_forward`.
+"""
+function map_selection_forward end

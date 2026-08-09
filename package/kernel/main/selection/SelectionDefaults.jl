@@ -16,6 +16,19 @@ keeps_dormant_selection(::Any) = false
 # they are abandoning is exactly what a dormant node still holds.
 _get_stored_path(value) = value
 _get_stored_path(value::SelectionDocument) = value.primary
+is_live_selection(document) = _is_live_value(hasproperty(document, :selection) ?
+                                            getfield(document, :selection)[] : nothing)
+_is_live_value(value) = true
+_is_live_value(value::SelectionDocument) = value.live
+
+function map_selection_forward(source, map)
+    path = get_stored_selection(source)
+    path === nothing && return nothing
+    image = map(path)
+    image === nothing && return nothing
+    is_live_selection(source) ? image : SelectionDocument(; primary = image, live = false)
+end
+
 get_stored_selection(document) =
     hasproperty(document, :selection) ? _get_stored_path(getfield(document, :selection)[]) : nothing
 

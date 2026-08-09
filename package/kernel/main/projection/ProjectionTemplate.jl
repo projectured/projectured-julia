@@ -41,6 +41,7 @@ using ..IoMapModule
 using ..ProjectionApiModule
 using ..IntentModule
 # `import`, not `using`: this module adds RuleIoMap methods to the three seams.
+import ..SelectionModule: map_selection_forward
 import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent
 using ..ReferenceModule
 using ..ProjectionReferenceStepModule
@@ -361,15 +362,14 @@ end
 # pass a proj-wrapped structural cursor through unchanged.
 function _key_leaf_sel(doc, in_field::Symbol)
     fname = String(in_field)
-    ComputedCell(() -> begin
-        sel = doc.selection
+    ComputedCell(() -> map_selection_forward(doc, sel -> begin
         is_introduced_reference(sel) && return sel
         core = sel
         if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == fname
             return ConcreteReference(FieldReferenceStep("value"), core.tail)
         end
         return nothing
-    end)
+    end))
 end
 
 # Locate a `Collection` marker among the built output's fields, if any.
@@ -411,12 +411,17 @@ function _atomic_print(p, doc, out)
     #                             `.value{k}` so the render stage's leaf-cursor logic
     #                             (which only knows `.value`/`.open`/`.close`) renders it.
     iomap_cell = Cell(nothing)
-    sel = wiring.bound_field === nothing ? ComputedCell(() -> map_reference_forward(p, nothing, doc.selection)) :
+    # `map_selection_forward`, not a plain read of `doc.selection`: the property
+    # answers `nothing` for a dormant selection, so a plain read would drop the
+    # live/dormant state at this hop and the painter at the end of the chain would
+    # have nothing left to paint pale.
+    sel = wiring.bound_field === nothing ?
+              ComputedCell(() -> map_selection_forward(doc, path -> map_reference_forward(p, nothing, path))) :
           wiring.bound_field === :value  ? getfield(doc, :selection) :
                                            ComputedCell(() -> begin
                                                im = iomap_cell[]
                                                im === nothing && return nothing
-                                               map_reference_forward(p, im, doc.selection)
+                                               map_selection_forward(doc, path -> map_reference_forward(p, im, path))
                                            end)
     out = _with_selection(out, sel)
     iomap = RuleIoMap(p, doc, out, wiring, nothing)
@@ -451,9 +456,7 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
     sel = ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end)
     children = make_children_container(() -> [im.output for im in child_iomaps[]])
     setproperty!(out, children_field, children)   # replace the Collection marker with the real children
@@ -546,9 +549,8 @@ function _fixed_print(p, recursion, doc, ctx, out)
     out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
-        sel = doc.selection
-        sel === nothing && return nothing
-        map_reference_forward(p, im, sel)
+        # `map_selection_forward`, so a dormant selection maps forward as one.
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     im = RuleIoMap(p, doc, out, FixedNodeWiring(_dtype(doc), _dtype(out), children_field, slots), store)
     iomap_cell[] = im
@@ -567,9 +569,7 @@ function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
     out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
-        sel = doc.selection
-        sel === nothing && return nothing
-        map_reference_forward(p, im, sel)
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     im = RuleIoMap(p, doc, out, ConditionalNodeWiring(_dtype(doc), _dtype(out), children_field), state)
     iomap_cell[] = im
@@ -628,8 +628,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
     iomap_cell = Cell(nothing)
     out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
-        path = doc.selection; path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     wiring = MixedNodeWiring(_dtype(doc), _dtype(out), children_field, prefix_slots, coll_field)
     iomap = RuleIoMap(p, doc, out, wiring, (prefix=store, coll=coll_iomaps))
@@ -676,8 +675,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
     iomap_cell = Cell(nothing)
     out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
-        path = doc.selection; path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     wiring = InlineWiring(_dtype(doc), _dtype(out), children_field, bound_index,
                           bound_field, bound_type, value_checkpoint)
@@ -709,8 +707,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
     iomap_cell = Cell(nothing)
     out = _with_selection(out, ComputedCell(() -> begin
         im = iomap_cell[]; im === nothing && return nothing
-        path = doc.selection; path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     iomap = RuleIoMap(p, doc, out, SectionsWiring(_dtype(doc), _dtype(out), children_field), section_iomaps)
     iomap_cell[] = iomap
