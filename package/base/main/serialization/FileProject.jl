@@ -400,8 +400,8 @@ is bounded by nothing but the object graph, so a document that can reach a
 running editor pays for walking it; a caller on a hot path is much better off
 keeping its session and passing it.
 """
-function resolve_stubs!(root; context::Union{Nothing, LoaderContext} = nothing)
-    if context !== nothing && haskey(context.stubs, root)
+function resolve_stubs!(root; context = nothing)
+    if context isa LoaderContext && haskey(context.stubs, root)
         return _resolve_collected_stubs!(root, context)
     end
     _resolve_searched_stubs!(root)
