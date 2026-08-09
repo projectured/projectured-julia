@@ -82,15 +82,53 @@ plan says it.
 ### 2. One dependency direction
 
 ```
-Foo            -> Bar
-FooExample     -> BarExample -> Foo
-FooTest        -> BarTest    -> FooExample
-FooRepl        -> FooTest                     (leaf)
-FooBuild       -> FooExample                  (leaf)
+Foo            -> Bar,  and every sub-stem of Foo
+FooExample     -> Foo,  BarExample
+FooTest        -> Foo,  BarTest, FooExample
+FooRepl        -> FooTest, and every Test it wants at the prompt   (leaf)
+FooBuild       -> FooExample                                       (leaf)
 ```
+
+A stem's main package **aggregates its sub-stems**, so `Foo` is the one name a
+consumer needs, and `FooTest` depends on `Foo` whole rather than on the pieces.
 
 **Nothing may depend on a `Repl` or a `Build` package.** That is the whole
 mechanism; a dependency on a leaf makes it not a leaf.
+
+### 2b. A package with a third-party dependency is a stem, not a sub-stem
+
+Aggregation would otherwise pull an ODBC driver manager and a linear programming
+solver into everything that says `using Projectured`. So the name prefix does not
+decide: **a sub-stem is a layer of the stem and carries no third-party
+dependency of its own. A package that has one is a stem in its own right, named
+explicitly by whoever wants it.**
+
+This is already how the tree is built; it has only been unstated. `Omnetpp`
+aggregates Description, Format, Legacy, Presentation, Simulator and Units, and
+deliberately not `OmnetppDynamics`, which owns a solver. `OmnetppLegacyPlot`,
+`OmnetppLegacyResult` and `ProjecturedOdbc` are stems whose names begin with
+another stem's name, and `Example`, `Test`, `Repl` and `Build` remain the only
+reserved suffixes.
+
+So:
+
+- `Projectured` aggregates Kernel, Base, Visual, Domain — and, after the split,
+  the domain packages. None of them has an external dependency.
+- `ProjecturedSdl`, `ProjecturedAdaptagrams`, `ProjecturedOdbc`,
+  `ProjecturedTulip`, `ProjecturedVideo`, `ProjecturedLlm`, `ProjecturedMcp`,
+  `ProjecturedWeb` are stems. Each is named by the package or the leaf that
+  wants it.
+- `ProjecturedTest` therefore covers the umbrella's layers. **The suites of the
+  separate stems reach the prompt through the leaf**, which is where "everything
+  I want available" belongs:
+
+```
+ProjecturedRepl -> ProjecturedTest, ProjecturedSdlTest, ProjecturedOdbcTest,
+                   ProjecturedTulipTest, ProjecturedVideoTest
+```
+
+That settles what `test_all()` covers: the leaf decides, not an inherited
+dependency, and the cost is load time rather than compile time.
 
 ### 3. A workload lives in a leaf
 
@@ -256,7 +294,7 @@ the leaf fixes on its own.
 | `ProjecturedBase` | Kernel | — |
 | `ProjecturedVisual` | Base, Kernel | — |
 | `ProjecturedDomain` | Base, Kernel, Visual | — |
-| `Projectured` | Base, Domain, Kernel, Visual | — |
+| `Projectured` **(umbrella)** | Base, Domain, Kernel, Visual, and the domain packages after the split | — |
 | `ProjecturedSdl` | Domain | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedAdaptagrams` | Domain | Libdl |
 | `ProjecturedOdbc` | Domain | DBInterface, ODBC, Tables |
@@ -266,8 +304,8 @@ the leaf fixes on its own.
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
 | `ProjecturedWeb` | Domain | HTTP, JSON3 |
 | `<Stem>Example` | `<Stem>`, the Examples below it | PrecompileTools where it holds a body |
-| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
-| `ProjecturedRepl` **(leaf)** | ProjecturedTest, ProjecturedSdl | PrecompileTools, Preferences |
+| `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
+| `ProjecturedRepl` **(leaf)** | ProjecturedTest, and the Tests of the separate stems it wants: Sdl, Odbc, Tulip, Video | PrecompileTools, Preferences |
 | `ProjecturedExecutable` **(leaf)** | ProjecturedExample, Projectured, Llm, Sdl | PackageCompiler, FixedPointNumbers |
 | `ProjecturedBuilder` (tool) | — | Pkg |
 
@@ -283,10 +321,10 @@ the leaf fixes on its own.
 | `OmnetppPresentation` | Units, Simulator, Projectured, Adaptagrams, Base, Domain, Kernel, Visual | — |
 | `OmnetppLegacy` | Format, Units, Projectured | **DataFrames** |
 | `OmnetppLegacyPlot` | Legacy, Projectured, Sdl | **CairoMakie**, LaTeXStrings |
-| `Omnetpp` | Description, Format, Legacy, Presentation, Simulator, Units | — |
+| `Omnetpp` **(umbrella)** | Description, Format, Legacy, Presentation, Simulator, Units — not Dynamics, Plot or Result, which own dependencies | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | BlackBoxOptim (presentation only) |
-| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
-| `OmnetppRepl` **(leaf)** | OmnetppTest, ProjecturedSdl | PrecompileTools, Preferences |
+| `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
+| `OmnetppRepl` **(leaf)** | OmnetppTest, and the Tests of the separate stems it wants: Sdl, Dynamics | PrecompileTools, Preferences |
 
 ### inet-julia
 
@@ -297,10 +335,10 @@ the leaf fixes on its own.
 | `InetLinkLayer` | Packet, OmnetppSimulator, ProjecturedKernel | — |
 | `InetQueuing` | Common, Packet, OmnetppSimulator, ProjecturedKernel | — |
 | `InetRunner` | Packet, Queuing, OmnetppDescription, OmnetppFormat, OmnetppSimulator, OmnetppUnits | — |
-| `Inet` | Common, LinkLayer, Packet, Queuing, OmnetppSimulator, ProjecturedVisual | — |
+| `Inet` **(umbrella)** | Common, LinkLayer, Packet, Queuing, Runner, OmnetppSimulator, ProjecturedVisual | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | — |
-| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
-| `InetRepl` **(leaf)** | InetTest, ProjecturedSdl | PrecompileTools, Preferences |
+| `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
+| `InetRepl` **(leaf)** | InetTest, ProjecturedSdlTest | PrecompileTools, Preferences |
 
 ### The domains, after the split
 
@@ -486,7 +524,7 @@ as low as it can go.**
 
 | dependency | the question |
 | --- | --- |
-| `ODBC`, `Tulip`, `FFMPEG` via `ProjecturedTest` | should `test_all()` from the prompt load a driver manager, an LP solver and a video encoder? If yes, say so in `packages.md`; if no, they move to a second aggregator and CI runs both |
+| `ODBC`, `Tulip`, `FFMPEG` | **settled by rule 2b.** They belong to separate stems, so `ProjecturedTest` no longer inherits them. `ProjecturedRepl` names `ProjecturedOdbcTest`, `ProjecturedTulipTest` and `ProjecturedVideoTest` if `test_all()` is to cover them at the prompt. Write the choice into `packages.md` |
 | `OrdinaryDiffEq*` via `OmnetppPresentationExample` | the demo has hybrid-dynamics pages and `src/OmnetppPresentationExample.jl:27` imports `OmnetppDynamics` to register its doctype module, so this one is real. Keep it, and know that the demo session carries a solver stack |
 
 ### Remove
