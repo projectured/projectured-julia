@@ -85,7 +85,9 @@ plan says it.
 Foo            -> Bar,  and every sub-stem of Foo
 FooExample     -> Foo,  BarExample
 FooTest        -> Foo,  BarTest, FooExample
-FooRepl        -> FooTest, and every Test it wants at the prompt   (leaf)
+FooAll         -> Foo,  and every separate stem of the repository
+FooAllTest     -> FooAll, FooTest, and every separate stem's Test
+FooRepl        -> FooAllTest                                       (leaf)
 FooBuild       -> FooExample                                       (leaf)
 ```
 
@@ -123,12 +125,67 @@ So:
   I want available" belongs:
 
 ```
-ProjecturedRepl -> ProjecturedTest, ProjecturedSdlTest, ProjecturedOdbcTest,
-                   ProjecturedTulipTest, ProjecturedVideoTest
+ProjecturedAll     -> Projectured, Sdl, Adaptagrams, Odbc, Tulip, Video, Llm, Mcp, Web
+ProjecturedAllTest -> ProjecturedAll, ProjecturedTest, SdlTest, OdbcTest,
+                      TulipTest, VideoTest
 ```
 
-That settles what `test_all()` covers: the leaf decides, not an inherited
-dependency, and the cost is load time rather than compile time.
+That settles what `test_all()` covers: `StemAll` decides, in one written list,
+and the cost is load time rather than compile time.
+
+### 2c. Optional wiring goes in an extension, not in a dependency
+
+The mechanism is `[weakdeps]` + `[extensions]`, and it is already in this tree:
+`package/simulator/main/Project.toml` declares `BlackBoxOptim` and
+`SQLite`/`DBInterface` as weak dependencies with an extension each. The
+extension module loads by itself when both sides are present, in either order.
+
+**Use it whenever a package needs another package only to wire something up.**
+Two such force-loads exist today:
+
+- `OmnetppPresentationExample` imports `OmnetppDynamics` at
+  `src/OmnetppPresentationExample.jl:27` for one call —
+  `register_doctype_module!(OmnetppDynamics)` at line 354. That is glue and
+  nothing else, so it belongs in an extension. The demo then stops dragging a
+  differential-equation solver in.
+- `OmnetppPresentationTest` imports `OmnetppLegacy` only so the `.ned` and
+  `.ini` doctypes are registered for the catalog walk. Same shape, if the
+  coverage is not moved to `OmnetppLegacyTest` instead.
+
+What an extension **cannot** do, so nobody expects it to:
+
+- **It cannot re-export.** `using Projectured` will not hand out
+  `ProjecturedOdbc`'s names because ODBC happens to be loaded. An extension adds
+  methods; it does not merge namespaces. The reader still writes
+  `using ProjecturedOdbc`.
+- **It cannot pull.** It reacts to a package being loaded; it does not cause it.
+- **It does not save disk or resolution.** A weak dependency is still resolved
+  and installed. What it saves is the load, and the invalidation that comes with
+  the load.
+
+### 2d. One list of everything, in `StemAll`
+
+An explicit "everything" package is worth having, on one condition: **the list
+lives in exactly one place.** Two lists — one in `StemAll`, one in `StemRepl` —
+will drift, and the second will be the one that is wrong.
+
+```
+StemAll     -> Stem, and every separate stem of this repository
+StemAllTest -> StemAll, StemTest, and every separate stem's Test
+StemRepl    -> StemAllTest                                   (leaf)
+```
+
+`StemAll` is a stem under rule 1, so its kinds are `StemAllExample` and
+`StemAllTest`; `All` is not a sixth kind. Nothing else in the repository may
+depend on `StemAll` — a package that needs ODBC names ODBC.
+
+The leaf then holds no list at all, only `Preferences`, `PrecompileTools` and the
+workload call. That is the split worth having: `StemAll` says *what is in the
+session*, `StemRepl` says *how it is prepared*.
+
+This changes nothing about speed. Whatever `StemAll` does not name is still
+invalidating if it is loaded at the prompt afterwards. Extensions are about not
+being forced to load; the leaf is about what is compiled last.
 
 ### 3. A workload lives in a leaf
 
@@ -305,7 +362,9 @@ the leaf fixes on its own.
 | `ProjecturedWeb` | Domain | HTTP, JSON3 |
 | `<Stem>Example` | `<Stem>`, the Examples below it | PrecompileTools where it holds a body |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `ProjecturedRepl` **(leaf)** | ProjecturedTest, and the Tests of the separate stems it wants: Sdl, Odbc, Tulip, Video | PrecompileTools, Preferences |
+| `ProjecturedAll` | Projectured, Sdl, Adaptagrams, Odbc, Tulip, Video, Llm, Mcp, Web | — |
+| `ProjecturedAllTest` | ProjecturedAll, ProjecturedTest, and each stem's Test | — |
+| `ProjecturedRepl` **(leaf)** | ProjecturedAllTest | PrecompileTools, Preferences |
 | `ProjecturedExecutable` **(leaf)** | ProjecturedExample, Projectured, Llm, Sdl | PackageCompiler, FixedPointNumbers |
 | `ProjecturedBuilder` (tool) | — | Pkg |
 
@@ -324,7 +383,9 @@ the leaf fixes on its own.
 | `Omnetpp` **(umbrella)** | Description, Format, Legacy, Presentation, Simulator, Units — not Dynamics, Plot or Result, which own dependencies | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | BlackBoxOptim (presentation only) |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `OmnetppRepl` **(leaf)** | OmnetppTest, and the Tests of the separate stems it wants: Sdl, Dynamics | PrecompileTools, Preferences |
+| `OmnetppAll` | Omnetpp, Dynamics, LegacyPlot, ProjecturedAll | — |
+| `OmnetppAllTest` | OmnetppAll, OmnetppTest, and each stem's Test | — |
+| `OmnetppRepl` **(leaf)** | OmnetppAllTest | PrecompileTools, Preferences |
 
 ### inet-julia
 
@@ -338,7 +399,9 @@ the leaf fixes on its own.
 | `Inet` **(umbrella)** | Common, LinkLayer, Packet, Queuing, Runner, OmnetppSimulator, ProjecturedVisual | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | — |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `InetRepl` **(leaf)** | InetTest, ProjecturedSdlTest | PrecompileTools, Preferences |
+| `InetAll` | Inet, OmnetppAll | — |
+| `InetAllTest` | InetAll, InetTest | — |
+| `InetRepl` **(leaf)** | InetAllTest | PrecompileTools, Preferences |
 
 ### The domains, after the split
 
@@ -573,7 +636,9 @@ and the existing guides point at it.
 - [ ] 1. This plan, and companion plans in omnetpp-julia and inet-julia.
 - [ ] 2. `precompile_workload(level)` in `ProjecturedExample`, wrapping the
       bodies that exist. No call-site moves yet.
-- [ ] 3. `ProjecturedRepl`, with the Preferences-driven level and `set_workload!`.
+- [ ] 3. `ProjecturedAll` and `ProjecturedAllTest` — the one list — then
+      `ProjecturedRepl` on top, with the Preferences-driven level and
+      `set_workload!`.
 - [ ] 4. `ProjecturedExecutable` calls `precompile_workload(:full)`.
 - [ ] 5. Move the call sites out of `ProjecturedDomainExample` and
       `ProjecturedVisualExample`. **After the domain split lands.**
@@ -598,6 +663,9 @@ and the existing guides point at it.
 - [ ] 16. Delete or rebuild `OmnetppBenchPlot` — `Plots` does not resolve.
 - [ ] 16a. `BlackBoxOptim` out of `OmnetppPresentationExample`'s `[deps]` —
       only `watch/adaptive.jl` uses it, and that runs in the watch environment.
+- [ ] 16b. `OmnetppDynamics` becomes a weak dependency of
+      `OmnetppPresentationExample`, with an extension holding the one
+      `register_doctype_module!` call. The demo stops loading a solver.
 - [ ] 17. `documentation/packages.md` in each repository, and the pointers from
       `architecture.md`, `terminology.md` and `CLAUDE.md`.
 - [ ] 18. Re-measure the first click in each repository, at each level.
