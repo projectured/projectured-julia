@@ -1,0 +1,33 @@
+name = "ProjecturedChartTest"
+uuid = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedChartTest.jl"
+
+# The Chart tier of the test-package DAG. Cross-domain suites live in
+# ProjecturedTest, which is where a fixture that names several domains belongs.
+
+[deps]
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
+ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+
+[sources]
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedVisualExample = {path = "../../visual/example"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedChart = {path = "../../chart/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedChartExample = {path = "../../chart/example"}
+ProjecturedKernelTest = {path = "../../kernel/test"}
+ProjecturedBaseTest = {path = "../../base/test"}
+ProjecturedVisualTest = {path = "../../visual/test"}

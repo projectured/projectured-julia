@@ -45,7 +45,26 @@ ProjecturedFsmExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
 ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
 ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
-ProjecturedDomainTest = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
+ProjecturedJsonTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
+ProjecturedYamlTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
+ProjecturedXmlTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
+ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
+ProjecturedRstTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
+ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
+ProjecturedMathTest = "35efe23a-a24b-424c-93f0-086222c9adeb"
+ProjecturedJuliaTest = "caf9ed19-1e68-4f5e-8085-d28b12c9e002"
+ProjecturedSqlTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
+ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
+ProjecturedFileSystemTest = "58f0a119-c25e-4957-a8ea-27a85642ba0e"
+ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
+ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
+ProjecturedDbCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
+ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
+ProjecturedFsmTest = "01095f28-dae7-4131-b352-cd496415c16e"
+ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
+ProjecturedConversationTest = "475e7e6a-a374-4244-9dfc-8229b9ae86be"
+ProjecturedWorkbenchTest = "dee3d367-0cd3-47f5-9f81-9b83918ba741"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
 ProjecturedOdbcExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
@@ -100,7 +119,26 @@ ProjecturedRst = {path = "package/rst/main"}
 ProjecturedMarkdown = {path = "package/markdown/main"}
 ProjecturedXml = {path = "package/xml/main"}
 ProjecturedYaml = {path = "package/yaml/main"}
-ProjecturedDomainTest = {path = "package/domain/test"}
+ProjecturedJsonTest = {path = "package/json/test"}
+ProjecturedYamlTest = {path = "package/yaml/test"}
+ProjecturedXmlTest = {path = "package/xml/test"}
+ProjecturedMarkdownTest = {path = "package/markdown/test"}
+ProjecturedRstTest = {path = "package/rst/test"}
+ProjecturedBookTest = {path = "package/book/test"}
+ProjecturedMathTest = {path = "package/math/test"}
+ProjecturedJuliaTest = {path = "package/julia/test"}
+ProjecturedSqlTest = {path = "package/sql/test"}
+ProjecturedDatabaseTest = {path = "package/database/test"}
+ProjecturedFileSystemTest = {path = "package/filesystem/test"}
+ProjecturedGraphTest = {path = "package/graph/test"}
+ProjecturedChartTest = {path = "package/chart/test"}
+ProjecturedSequenceChartTest = {path = "package/sequencechart/test"}
+ProjecturedDbCatalogTest = {path = "package/dbcatalog/test"}
+ProjecturedFormulaTest = {path = "package/formula/test"}
+ProjecturedFsmTest = {path = "package/fsm/test"}
+ProjecturedProcessTest = {path = "package/process/test"}
+ProjecturedConversationTest = {path = "package/conversation/test"}
+ProjecturedWorkbenchTest = {path = "package/workbench/test"}
 ProjecturedJsonExample = {path = "package/json/example"}
 ProjecturedYamlExample = {path = "package/yaml/example"}
 ProjecturedXmlExample = {path = "package/xml/example"}

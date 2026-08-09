@@ -1,0 +1,34 @@
+Give every domain its own test package
+
+ProjecturedDomainTest is gone, and with it the last package/domain directory.
+Each domain's suites live in package/<domain>/test/ behind a test_<domain>()
+aggregator that also runs that package's layering guard.
+
+The umbrella keeps every suite whose fixture names several domains — which is
+most of what was left: ConstructTest builds JSON, YAML and XML; the table,
+dragging, insertion, gesture and serializer suites all mix domains; the Console
+and Pdf backend tests drive a JSON pipeline but need the umbrella's graphics
+example. test_domain_examples() moves here too, because the registry it walks
+names factories from all twenty example packages.
+
+Four things had to move or change beyond the plain split:
+
+- test_xml_parser lived in JsonParserTest. It is now xml/test/document/XmlParserTest.jl.
+- The conversation panel, parsing and serialization suites drive
+  WorkbenchAssistant, so they rose to the umbrella rather than pull workbench
+  into the conversation test package.
+- WorkbenchFileTest needs the gallery's window helpers, so it rose too.
+- Six aggregators collided with a suite of the same name — test_json, test_fsm,
+  test_graph, test_process, test_chart, test_sequencechart. The file-level suite
+  took a more specific name (test_json_document, test_graph_projection, …) and
+  the bare name is now the package aggregator, which is what a reader expects it
+  to mean. test_database collided with the ODBC live-connection suite, so the
+  domain one is test_database_domain.
+
+Every domain guide moved to its package's doc/. versioning.md went to base,
+where the code already lives. The old domain architecture guide is now
+documentation/domains.md and still describes the dissolved package; the
+documentation pass rewrites it.
+
+Verified: all twenty test packages green — 2261 pass, 1 broken, 0 fail, 0 error.
+The suites that rose to the umbrella pass too.

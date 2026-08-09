@@ -2,6 +2,18 @@ module ProjecturedTest
 
 using Test
 using Projectured
+
+# The umbrella binds every submodule of every package as `Projectured.XxxModule`
+# but exports only their symbols, so bind the module names here too. The suites
+# below were written against the flat namespace and name a module directly
+# (`ProjectionApiModule.print_document`, …).
+for _n in names(Projectured; all = true)
+    isdefined(Projectured, _n) || continue
+    _m = getfield(Projectured, _n)
+    (_m isa Module && _m !== Projectured && parentmodule(_m) !== Main) || continue
+    Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+end
+
 using ProjecturedExample
 # The generic test drivers ((label, document, projection) forms), the reflexive
 # cell walker, the event battery, and the kernel unit suites live in
@@ -11,23 +23,45 @@ using ProjecturedExample
 using ProjecturedKernelTest
 using ProjecturedBaseTest
 using ProjecturedVisualTest
-using ProjecturedDomainTest
+using ProjecturedJsonTest
+using ProjecturedYamlTest
+using ProjecturedXmlTest
+using ProjecturedMarkdownTest
+using ProjecturedRstTest
+using ProjecturedBookTest
+using ProjecturedMathTest
+using ProjecturedJuliaTest
+using ProjecturedSqlTest
+using ProjecturedDatabaseTest
+using ProjecturedFileSystemTest
+using ProjecturedGraphTest
+using ProjecturedChartTest
+using ProjecturedSequenceChartTest
+using ProjecturedDbCatalogTest
+using ProjecturedFormulaTest
+using ProjecturedFsmTest
+using ProjecturedProcessTest
+using ProjecturedConversationTest
+using ProjecturedWorkbenchTest
+
+# Re-export every lower tier's test functions, so `using ProjecturedTest` alone
+# gives a REPL `test_json()` and `test_workbench()` as well as `test_all()`.
+for _src in (ProjecturedKernelTest, ProjecturedBaseTest, ProjecturedVisualTest,
+             ProjecturedJsonTest, ProjecturedYamlTest, ProjecturedXmlTest,
+             ProjecturedMarkdownTest, ProjecturedRstTest, ProjecturedBookTest,
+             ProjecturedMathTest, ProjecturedJuliaTest, ProjecturedSqlTest,
+             ProjecturedDatabaseTest, ProjecturedFileSystemTest,
+             ProjecturedGraphTest, ProjecturedChartTest,
+             ProjecturedSequenceChartTest, ProjecturedDbCatalogTest,
+             ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedProcessTest,
+             ProjecturedConversationTest, ProjecturedWorkbenchTest)
+    for _n in names(_src)
+        _n === nameof(_src) && continue
+        isdefined(_src, _n) || continue
+        Core.eval(@__MODULE__, Expr(:export, _n))
+    end
+end
 import ProjecturedBaseTest: test_collection, test_copying_projection
-import ProjecturedDomainTest: test_json, test_json_parser, test_xml_parser,
-                              test_sql_parser, test_sql_document,
-                              test_json_to_syntax, test_json_to_syntax_reader,
-                              test_json_gesture_collection,
-                              test_xml_to_syntax, test_xml_to_syntax_reader,
-                              test_sql_to_syntax, test_sql_to_syntax_selection,
-                              test_sql_insert_update_selection, test_sql_ddl,
-                              test_sql_ddl_selection,
-                              test_formula_to_syntax, test_filesystem_to_syntax,
-                              test_graph,
-                              test_versioning_to_any, test_syntax_tree_selection,
-                              test_table_selection, test_console_backend,
-                              test_write_pdf, test_type_reference,
-                              test_json_content_clicks_clean,
-                              collect_json_tree_selections
 import ProjecturedVisualTest: test_projection_template_hygiene,
                               test_syntax, test_text, test_graphics, test_affine_transform,
                               test_graphics_layout, test_layout_allocator,
@@ -51,7 +85,6 @@ import ProjecturedVisualTest: test_projection_template_hygiene,
 import ProjecturedKernelTest: test_kernel
 import ProjecturedBaseTest: test_base
 import ProjecturedVisualTest: test_visual
-import ProjecturedDomainTest: test_domain
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
@@ -100,6 +133,35 @@ function __init__()
 end
 
 include("ExportCollisionTest.jl")
+# Suites that rose from the domain test package when it dissolved: each
+# fixture names several domains, so none of them belongs to one.
+include("backend/ConsoleBackendTest.jl")
+include("backend/PdfTest.jl")
+include("document/SelectionEnumeration.jl")
+include("reference/TypeReferenceTest.jl")
+include("editor/ConstructTest.jl")
+include("editor/ConversationPanelTest.jl")
+include("editor/ConversationParsingTest.jl")
+include("editor/ConversationSerializationTest.jl")
+include("editor/WorkbenchFileTest.jl")
+include("editor/GalleryWrapperTest.jl")
+include("editor/McpTest.jl")
+include("projection/CommandPaletteTest.jl")
+include("projection/DocumentInsertionTest.jl")
+include("projection/DraggingTest.jl")
+include("projection/GestureHelpTest.jl")
+include("projection/GestureLogTest.jl")
+include("projection/GestureMapTest.jl")
+include("projection/HoverProbeTest.jl")
+include("projection/SyntaxTreeSelectionTest.jl")
+include("projection/TableNavigationTest.jl")
+include("projection/TableSelectionTest.jl")
+include("serializer/FileProjectS4Test.jl")
+include("serializer/FileProjectS5Test.jl")
+include("serializer/JuliaAndMarkdownFileTest.jl")
+include("serializer/MarkerVocabularyTest.jl")
+include("serializer/SerializationTest.jl")
+include("serializer/StubCollectionTest.jl")
 include("editor/ExampleTest.jl")
 include("editor/ExampleSweeps.jl")
 include("editor/PrinterLocalityTest.jl")
@@ -149,12 +211,28 @@ function test_projections()
 end
 
 """
+    test_domain_examples()
+
+Walk the printer over every concrete-domain example. The registry the sweep
+walks (`domain_examples`) names factories from all twenty domain example
+packages, so the sweep belongs here rather than in any one of them.
+"""
+function test_domain_examples()
+    @testset "DomainExamples" begin
+        for ex in domain_examples
+            @testset "$(ex.name)" begin
+                test_printer(ex)
+            end
+        end
+    end
+end
+
+"""
     test_all()
 
-The full suite: the four per-layer test packages
-(`test_kernel`/`test_base`/`test_visual`/`test_domain`), then the umbrella's
-full-stack integration tests (examples, editor loop, SDL/Tulip/Video-coupled
-suites, live-DB-optional checks).
+The full suite: the three engine test packages and the twenty domain test
+packages, then the umbrella's full-stack integration tests (examples, editor
+loop, SDL/Tulip/Video-coupled suites, live-DB-optional checks).
 """
 function test_all()
     @testset "Projectured" begin
@@ -163,7 +241,28 @@ function test_all()
     test_kernel()
     test_base()
     test_visual()
-    test_domain()
+    test_json()
+    test_yaml()
+    test_xml()
+    test_markdown()
+    test_rst()
+    test_book()
+    test_math()
+    test_julia()
+    test_sql()
+    test_database_domain()
+    test_filesystem()
+    test_graph()
+    test_chart()
+    test_sequencechart()
+    test_dbcatalog()
+    test_formula()
+    test_fsm()
+    test_process()
+    test_conversation()
+    test_workbench()
+    # Every concrete-domain example through the printer.
+    test_domain_examples()
     # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
     # name is exported by two modules with different bindings, so bare `using
     # ..XxxModule` can never become ambiguous. The per-package guards cannot
@@ -230,11 +329,11 @@ export test_all
 export test_kernel, test_base, test_visual, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
-export test_json, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
+export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard_to_any, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_workbench_tab_click, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
-export test_graph
+export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation
 export printer_locality_report, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
@@ -259,5 +358,18 @@ export test_conversation_editor, test_conversation_serialization, test_parse_mar
 export test_workbench_file_keys, test_gallery_wrappers
 export test_database_connection, test_database, test_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
+
+# The suites that rose from the dissolved domain test package.
+export test_json_construct, test_yaml_construct, test_xml_construct
+export test_assistant_composer_panel, test_list_guides, test_read_guide
+export test_list_modules, test_list_classes, test_list_functions
+export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
+export test_search_documentation, test_search_api, test_search_tools_registered
+export test_workbench_b1, test_print_object_options, test_search_object
+export test_execute_julia_code, test_workbench_editor_reference, test_function_availability
+export test_base_extensions, test_mcp_resources, test_mcp_tools
+export test_command_palette, test_command_palette_decorator, test_document_insertion
+export test_gesture_log, test_file_project_s4, test_file_project_s5
+export test_julia_and_markdown_file, test_marker_vocabulary, test_stub_collection
 
 end # module ProjecturedTest
