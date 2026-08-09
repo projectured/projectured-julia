@@ -107,7 +107,7 @@ differences, both of them intended:
 - [x] 4. `_load_into_context`: mark the file being populated, file the list,
       feed the sink.
 - [x] 5. `resolve_stubs!`: the worklist drain, with the walk as the fallback.
-- [ ] 6. Tests in `package/base/test/serialization/`.
+- [x] 6. Tests in `package/base/test/serialization/`.
 - [ ] 7. The two call sites in omnetpp-julia's `CatalogShell` pass the session.
 - [ ] 8. Measure the click again.
 
