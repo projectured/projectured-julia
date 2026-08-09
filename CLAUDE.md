@@ -67,6 +67,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentCopy.jl`
   - ⬜ `document/DocumentSync.jl`
   - ⬜ `document/DocumentMacro.jl`
+  - ⬜ `document/SelectionDocument.jl`
   - 🔒 `document/DocumentWalk.jl`
   - 🔒 `document/DocumentSearch.jl`
   - 🔒 `document/ForwardProtocol.jl`

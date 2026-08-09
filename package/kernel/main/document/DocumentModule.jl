@@ -19,6 +19,7 @@ its own definition:
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
+| [`SelectionDocument.jl`](SelectionDocument.jl) | `SelectionDocument` — the value a `selection` cell holds, and `unwrap_selection` |
 | [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, parameterized by how it names a node (`DocumentWalk`) |
 | [`DocumentSearch.jl`](DocumentSearch.jl) | `search_documents` — the value-collecting walk |
 | [`ForwardProtocol.jl`](ForwardProtocol.jl) | `@forward_protocol` / `@forward_vector_protocol` / `@adapt_map_protocol` — give a wrapper another type's protocol |
@@ -34,6 +35,7 @@ export Document, copy_document, sync_document!, document_family,
        is_element_collection, is_walk_opaque, is_collection_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
+export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, string_predicate
 
 include("DocumentInterface.jl")
@@ -41,6 +43,7 @@ include("DocumentDefaults.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")
 include("DocumentMacro.jl")
+include("SelectionDocument.jl")
 include("DocumentWalk.jl")
 include("DocumentSearch.jl")
 include("ForwardProtocol.jl")

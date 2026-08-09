@@ -145,9 +145,17 @@ end
 
 Transparent property access. Uniform across every kind — which cell a field holds
 decides the behaviour, so the accessors need no kind dispatch of their own.
+
+The read passes what the cell holds through [`unwrap_selection`](@ref), so a
+`selection` field holding a [`SelectionDocument`](@ref) answers its reference
+while it is live and `nothing` once it is dormant. The dispatch is on the stored
+**value**, not on the field name, so every other field of every other document
+pays nothing for it: the method resolves on the concrete stored type and inlines
+away.
 """
 _emit_accessors(plan) = (
-    :(Base.getproperty(obj::$(plan.name), name::Symbol) = getfield(obj, name)[]),
+    :(Base.getproperty(obj::$(plan.name), name::Symbol) =
+        $(unwrap_selection)(getfield(obj, name)[])),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
         (getfield(obj, name)[] = val)),
 )
@@ -491,7 +499,11 @@ function _document_expr(args)
             error("@document $(plan.name): an explicit `selection` field must be declared last.")
         haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
     else
-        add_cell_struct_field!(plan, :selection, :(Union{Nothing, Reference}), :nothing)
+        # `SelectionDocument` is spliced as a type **object**, not as a name: it is
+        # declared in this module, so no caller needs it in scope. `Reference` is
+        # still a name, for the reason above.
+        add_cell_struct_field!(plan, :selection,
+                               :(Union{Nothing, Reference, $(SelectionDocument)}), :nothing)
     end
 
     # The cell layout now subtypes `family` (which subtypes the real supertype), not
