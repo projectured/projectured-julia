@@ -235,6 +235,174 @@ per domain. This plan must not collide with it:
   `@compile_workload` in any of them — their bodies register with
   `ProjecturedExample.precompile_workload` instead.
 
+## What should depend on what
+
+Every package in the three repositories, checked against the rules. `→` is a
+dependency. Standard library entries are left out.
+
+### An important consequence of rule 3
+
+Once the workload is in the leaf, **a heavy dependency no longer costs compile
+time**, because the leaf is precompiled with it present. What it still costs is
+load time, memory and disk. So the removals proposed below are about an honest
+dependency graph and a session that starts quickly — not about the 3.5 s, which
+the leaf fixes on its own.
+
+### projectured-julia
+
+| package | should depend on | external |
+| --- | --- | --- |
+| `ProjecturedKernel` | — | — |
+| `ProjecturedBase` | Kernel | — |
+| `ProjecturedVisual` | Base, Kernel | — |
+| `ProjecturedDomain` | Base, Kernel, Visual | — |
+| `Projectured` | Base, Domain, Kernel, Visual | — |
+| `ProjecturedSdl` | Domain | SDL2_jll, SimpleDirectMediaLayer |
+| `ProjecturedAdaptagrams` | Domain | Libdl |
+| `ProjecturedOdbc` | Domain | DBInterface, ODBC, Tables |
+| `ProjecturedTulip` | Domain | MathOptInterface, Tulip |
+| `ProjecturedVideo` | Domain, Sdl | FFMPEG |
+| `ProjecturedLlm` | Kernel | HTTP, JSON3 |
+| `ProjecturedMcp` | Kernel | ModelContextProtocol |
+| `ProjecturedWeb` | Domain | HTTP, JSON3 |
+| `<Stem>Example` | `<Stem>`, the Examples below it | PrecompileTools where it holds a body |
+| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
+| `ProjecturedRepl` **(leaf)** | ProjecturedTest, ProjecturedSdl | PrecompileTools, Preferences |
+| `ProjecturedExecutable` **(leaf)** | ProjecturedExample, Projectured, Llm, Sdl | PackageCompiler, FixedPointNumbers |
+| `ProjecturedBuilder` (tool) | — | Pkg |
+
+### omnetpp-julia
+
+| package | should depend on | external |
+| --- | --- | --- |
+| `OmnetppUnits` | — | Unitful |
+| `OmnetppSimulator` | Units, ProjecturedBase, ProjecturedKernel | DataStructures |
+| `OmnetppFormat` | Units, ProjecturedBase, ProjecturedKernel | **Lerche** |
+| `OmnetppDescription` | Format, Simulator, Units, ProjecturedKernel | — |
+| `OmnetppDynamics` | Simulator, Units, ProjecturedBase, ProjecturedKernel | OrdinaryDiffEqCore, OrdinaryDiffEqTsit5, StaticArrays |
+| `OmnetppPresentation` | Units, Simulator, Projectured, Adaptagrams, Base, Domain, Kernel, Visual | — |
+| `OmnetppLegacy` | Format, Units, Projectured | **DataFrames** |
+| `OmnetppLegacyPlot` | Legacy, Projectured, Sdl | **CairoMakie**, LaTeXStrings |
+| `Omnetpp` | Description, Format, Legacy, Presentation, Simulator, Units | — |
+| `<Stem>Example` | `<Stem>`, the Examples below it | BlackBoxOptim (presentation only) |
+| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
+| `OmnetppRepl` **(leaf)** | OmnetppTest, ProjecturedSdl | PrecompileTools, Preferences |
+
+### inet-julia
+
+| package | should depend on | external |
+| --- | --- | --- |
+| `InetPacket` | — | — |
+| `InetCommon` | OmnetppSimulator, ProjecturedKernel | — |
+| `InetLinkLayer` | Packet, OmnetppSimulator, ProjecturedKernel | — |
+| `InetQueuing` | Common, Packet, OmnetppSimulator, ProjecturedKernel | — |
+| `InetRunner` | Packet, Queuing, OmnetppDescription, OmnetppFormat, OmnetppSimulator, OmnetppUnits | — |
+| `Inet` | Common, LinkLayer, Packet, Queuing, OmnetppSimulator, ProjecturedVisual | — |
+| `<Stem>Example` | `<Stem>`, the Examples below it | — |
+| `<Stem>Test` | `<Stem>Example`, the Tests below it | — |
+| `InetRepl` **(leaf)** | InetTest, ProjecturedSdl | PrecompileTools, Preferences |
+
+### The domains, after the split
+
+Each domain the split produces gets the same three packages and **no external
+dependency at all**, which is what `ProjecturedDomain` has today:
+
+```
+ProjecturedJson        -> ProjecturedVisual (and Base, Kernel)
+ProjecturedJsonExample -> ProjecturedJson, ProjecturedVisualExample
+ProjecturedJsonTest    -> ProjecturedJsonExample, ProjecturedVisualTest
+```
+
+If a domain ever needs an external package — a real SQL grammar, say — it stops
+being a plain domain and becomes an optional slice like `ProjecturedOdbc`, named
+in the table above rather than folded into the aggregate.
+
+`ProjecturedDomain` survives as the aggregator over the domain packages, and
+keeps depending on nothing external.
+
+## Four things that need fixing, and one that looks wrong
+
+### 1. A main package depends on an example package
+
+`OmnetppPresentation` imports **one** function from `ProjecturedDomainExample`:
+
+```
+package/presentation/main/src/module/SimulationTopologyToWidget.jl:38
+    import ProjecturedDomainExample: make_graph_projection_example
+```
+
+This breaks rule 2 in the worst direction — every session that loads the
+presentation package loads example code. Move `make_graph_projection_example`
+down into `ProjecturedDomain` (it is a projection factory, not an example) or
+inline the projection at the call site. One function either way.
+
+### 2. The presentation test drags the legacy stack in
+
+`OmnetppPresentationTest` imports `OmnetppLegacy` because the demo catalog has
+legacy pages whose `.ned` and `.ini` doctypes are registered by
+`OmnetppLegacy.__init__`, and the catalog walk needs them registered. The effect
+is that `DataFrames` reaches every presentation test run, and through
+`OmnetppTest` it reaches the REPL leaf.
+
+Move the legacy pages' coverage into `OmnetppLegacyTest`, which owns that
+dependency honestly, and let the presentation test skip a page whose doctype is
+not registered — the catalog already survives an unresolved embed.
+
+### 3. `ProjecturedTest` aggregates the optional slices
+
+It depends on `ProjecturedOdbc`, `ProjecturedTulip`, `ProjecturedVideo` and
+`ProjecturedSdl`, so the `jp` REPL loads an ODBC driver manager, a linear
+programming solver and FFMPEG. `Tulip` is where `MathOptInterface` comes from,
+and `MathOptInterface` is one of the two sources of `JSON` — 3872 invalidated
+instances in the earlier count.
+
+This is defensible if `test_all()` must be callable from the prompt, and after
+rule 3 it costs load time rather than compile time. Decide it deliberately
+rather than by inheritance, and write the decision down.
+
+### 4. `InetQueuingExample` depends on `Test`
+
+An example package should not need the test standard library. Move whatever uses
+it into `InetQueuingTest`.
+
+### The one that looks wrong: DataFrames
+
+You are right that it should not be needed, though not quite for the reason you
+gave — it is not the plotting library. It is the **table type of the legacy
+result reader**:
+
+- `package/legacy/main/src/simulation/ResultReader.jl` — 30 references. Reads
+  OMNeT++ `.sca` and `.vec` files into `DataFrame`s.
+- `package/legacy/main/src/document/Simulation.jl` — 6 references.
+  `simulation_plot(df::AbstractDataFrame)` builds a plot document from one.
+
+That is one file's worth of table handling, for results produced by the **C++**
+OMNeT++. The Julia simulator has its own result store, accumulators and charts;
+nothing in the live path touches a `DataFrame`. What the reader actually needs
+is columns by name, `eachrow` and filtering — which a column table of our own
+supplies, and which the result store already is.
+
+DataFrames is also the single largest source of invalidation: SentinelArrays
+(4371 + 1332), InlineStrings (4111) and Tables (1226) all arrive with it, about
+11000 of the 15286 instances.
+
+**CairoMakie deserves the same question, and there your reason does hold.**
+`OmnetppLegacyPlot` uses it to render a `SimulationPlotDocument` to a PNG
+headlessly. We render line, bar, scatter, histogram and colour-strip charts
+ourselves — they have pages in the demo catalog. If our own charts can write a
+PNG, CairoMakie goes, and GeometryBasics (2400 + 2049), StructArrays (1028) and
+the other source of `JSON` go with it.
+
+**`OmnetppBenchPlot` is already dead.** It depends on `Plots`, `CSV` and
+`DataFrames`, and `Plots` is not installed in the root environment — the package
+cannot resolve. Delete it or rebuild it on our own charts.
+
+**Lerche is genuinely needed** and should stay: it is the grammar engine behind
+the NED and INI parsers in `OmnetppFormat`, two real grammars. It costs 2796
+instances by defining `hash(::Lerche.Token)`. Keep it, and keep it named — it is
+the reason `OmnetppFormat` is a slice of its own rather than part of the
+simulator.
+
 ## Guards
 
 - **A layering test**, next to `test_kernel_layering()`: no package depends on a
@@ -243,6 +411,30 @@ per domain. This plan must not collide with it:
 - **A recompile check**: open a page in a `Repl`-shaped session and assert
   `@timed`'s `recompile_time` is near zero. That single number is what makes a
   misplaced dependency visible, and it is how this whole problem surfaced.
+- **An external-dependency list**, asserted rather than described: the set of
+  non-standard-library dependencies per package is written down, and the test
+  fails when a package acquires one that is not on its list. That is what stops
+  a `DataFrames` from arriving in the middle of the stack again.
+
+## Documentation
+
+The architecture is only useful if it is written down where a reader looks
+first. After the convention is applied, each repository gets a package document
+and the existing guides point at it.
+
+- `documentation/packages.md` in each of the three repositories: the five kinds,
+  the dependency direction, the full table of what depends on what, the external
+  dependency of each package and why it has one, and which package is the leaf
+  the alias loads.
+- [documentation/architecture.md](../../documentation/architecture.md) in
+  projectured-julia gains the leaf and workload rules next to the existing
+  layer and slice vocabulary, and links to `packages.md`. The division
+  vocabulary in [terminology.md](../../documentation/terminology.md) gains
+  `leaf` as a term, since the whole convention turns on it.
+- Each repository's `CLAUDE.md` gains one line: where a new package goes, and
+  that a `@compile_workload` belongs only in a leaf.
+- The document and the layering test are written together and say the same
+  thing. The test is the authority; the document explains it.
 
 ## Steps
 
@@ -253,11 +445,26 @@ per domain. This plan must not collide with it:
 - [ ] 4. `ProjecturedExecutable` calls `precompile_workload(:full)`.
 - [ ] 5. Move the call sites out of `ProjecturedDomainExample` and
       `ProjecturedVisualExample`. **After the domain split lands.**
-- [ ] 6. The layering test and the recompile check.
+- [ ] 6. The layering test, the recompile check and the external-dependency
+      list.
 - [ ] 7. omnetpp-julia: `OmnetppExample.precompile_workload`, `OmnetppRepl`.
 - [ ] 8. inet-julia: `InetExample.precompile_workload`, `InetRepl`.
 - [ ] 9. The three aliases.
-- [ ] 10. Re-measure the first click in each repository, at each level.
+- [ ] 10. `make_graph_projection_example` moves down, so `OmnetppPresentation`
+      stops depending on an example package.
+- [ ] 11. The legacy pages' coverage moves to `OmnetppLegacyTest`, so
+      `OmnetppPresentationTest` stops needing `OmnetppLegacy`.
+- [ ] 12. `InetQueuingExample` stops depending on `Test`.
+- [ ] 13. Decide `ProjecturedTest`'s optional slices deliberately, and write the
+      decision into `documentation/packages.md`.
+- [ ] 14. Replace `DataFrames` in the legacy result reader with a column table
+      of our own, or state why it stays.
+- [ ] 15. Replace `CairoMakie` in `OmnetppLegacyPlot` with our own charts
+      rendered to PNG, or state why it stays.
+- [ ] 16. Delete or rebuild `OmnetppBenchPlot` — `Plots` does not resolve.
+- [ ] 17. `documentation/packages.md` in each repository, and the pointers from
+      `architecture.md`, `terminology.md` and `CLAUDE.md`.
+- [ ] 18. Re-measure the first click in each repository, at each level.
 
 ## Risks
 
