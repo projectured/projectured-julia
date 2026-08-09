@@ -5,13 +5,17 @@ authors = []
 entryfile = "ProjecturedWeb.jl"
 
 [deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 
 [sources]
-ProjecturedDomain = {path = "../../domain/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedVisual = {path = "../../visual/main"}
 
 [compat]
 HTTP = "1.11.0"

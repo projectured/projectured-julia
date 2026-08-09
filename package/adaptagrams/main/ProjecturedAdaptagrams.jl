@@ -31,9 +31,9 @@ install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
 """
 module ProjecturedAdaptagrams
 
-import ProjecturedDomain.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
+import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
                                                   register_layout_engine!
-import ProjecturedDomain.GraphModule: GraphGraph, GraphVertex, GraphEdge
+import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
 export AdaptagramsEngine

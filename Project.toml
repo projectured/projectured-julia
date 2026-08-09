@@ -5,7 +5,6 @@ ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
-ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
 ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
@@ -62,7 +61,6 @@ ProjecturedBase = {path = "package/base/main"}
 ProjecturedBaseTest = {path = "package/base/test"}
 ProjecturedBench = {path = "bench"}
 ProjecturedBuilder = {path = "package/executable/builder"}
-ProjecturedDomain = {path = "package/domain/main"}
 ProjecturedJson = {path = "package/json/main"}
 ProjecturedWorkbench = {path = "package/workbench/main"}
 ProjecturedConversation = {path = "package/conversation/main"}

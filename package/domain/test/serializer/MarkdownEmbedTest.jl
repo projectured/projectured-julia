@@ -10,31 +10,31 @@ path) renders only the marker.
 """
 
 using Test
-using ProjecturedDomain.CellModule: Cell
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.MarkdownFileModule
-using ProjecturedDomain.MarkdownModule: MarkdownDocument, MarkdownRoot
-using ProjecturedDomain.MarkdownToSyntaxModule: MarkdownToSyntax
+using ProjecturedKernel.CellModule: Cell
+using ProjecturedBase.FileProjectModule
+using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedMarkdown.MarkdownModule: MarkdownDocument, MarkdownRoot
+using ProjecturedMarkdown.MarkdownToSyntaxModule: MarkdownToSyntax
 using ProjecturedVisual.NaturalProjectionModule: natural_to_syntax_dispatch
-using ProjecturedDomain.TypeDispatchingProjectionModule: TypeDispatchingProjection
-using ProjecturedDomain.RecursiveProjectionModule: RecursiveProjection
-using ProjecturedDomain.ChainingProjectionModule: ChainingProjection
-using ProjecturedDomain.SyntaxToTextModule: SyntaxToText
-using ProjecturedDomain.TextToStringModule: TextToString
-using ProjecturedDomain.ProjectionApiModule: print_document, map_reference_backward, read_intent
-using ProjecturedDomain.EventModule: MousePress, KeyPress, ModifierKeys
-using ProjecturedDomain.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
+using ProjecturedBase.TypeDispatchingProjectionModule: TypeDispatchingProjection
+using ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
+using ProjecturedBase.ChainingProjectionModule: ChainingProjection
+using ProjecturedVisual.SyntaxToTextModule: SyntaxToText
+using ProjecturedVisual.TextToStringModule: TextToString
+using ProjecturedKernel.ProjectionApiModule: print_document, map_reference_backward, read_intent
+using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys
+using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                                          evaluate_operation
-using ProjecturedDomain.PrimitiveModule: ReplaceStringRangeOperation
-using ProjecturedDomain.ReferenceModule: ConcreteReference, FieldReferenceStep,
+using ProjecturedBase.PrimitiveModule: ReplaceStringRangeOperation
+using ProjecturedKernel.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
-using ProjecturedDomain.SelectionModule: set_selection!, get_selection
-using ProjecturedDomain.NaturalFormatModule: document_to_text
+using ProjecturedKernel.SelectionModule: set_selection!, get_selection
+using ProjecturedVisual.NaturalFormatModule: document_to_text
 using ProjecturedVisual.NaturalProjectionModule: NaturalToGraphics
-using ProjecturedDomain.WidgetModule: WidgetButton
-using ProjecturedDomain.GeometryModule: Point2D
-using ProjecturedDomain.GraphicsModule: GraphicsCanvas
-using ProjecturedDomain.CellModule: AbstractCell
+using ProjecturedVisual.WidgetModule: WidgetButton
+using ProjecturedVisual.GeometryModule: Point2D
+using ProjecturedVisual.GraphicsModule: GraphicsCanvas
+using ProjecturedKernel.CellModule: AbstractCell
 
 const _ME_STEPS = "function packet_queue_step(x)\n    return x + 1\nend\n"
 const _ME_PAGE  = "# Step\n\nProse before.\n\n```pred-ref\n" *

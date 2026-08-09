@@ -8,7 +8,9 @@ Relocated from the former program/src/backend/Web.jl (WebBackendModule).
 """
 module ProjecturedWeb
 
-using ProjecturedDomain
+using ProjecturedKernel
+using ProjecturedBase
+using ProjecturedVisual
 
 
 using HTTP
@@ -18,26 +20,26 @@ using Base64: base64encode
 # The backend contract (AR-QUALIFIED-EXTENSION): bare `using`, extended by
 # qualification below. A bare `using` of an alias binds the module's *real*
 # name, so the extension sites read BackendModule.*.
-using ProjecturedDomain.BackendModule
-import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
+using ProjecturedKernel.BackendModule
+import ProjecturedVisual.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import ProjecturedDomain.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedDomain.ColorModule: StyleColor
-import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity
-import ProjecturedDomain.FontModule: StyleFont, font_logical_size
-import ProjecturedDomain.CellModule: Cell, ComputedCell, is_cell_up_to_date
-import ProjecturedDomain.EventModule: WindowInput, ModifierKeys,
+import ProjecturedBase.CollectionModule: ListNode, CellVector, ComputedCellVector
+import ProjecturedVisual.ColorModule: StyleColor
+import ProjecturedVisual.GeometryModule: AffineTransform, affine_identity
+import ProjecturedVisual.FontModule: StyleFont, font_logical_size
+import ProjecturedKernel.CellModule: Cell, ComputedCell, is_cell_up_to_date
+import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
-import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
+import ProjecturedVisual.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedKernel.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the SDL-free TrueType measurer, so the web backend needs no SDL/SDL_ttf at all.
 # `truetype_measure_text` is the shared font-metrics utility (TrueTypeModule),
 # also used by the PDF backend and every projection example.
-import ProjecturedDomain.TrueTypeModule: truetype_measure_text
+import ProjecturedVisual.TrueTypeModule: truetype_measure_text
 
 export WebBackend, web_key_to_symbol
 

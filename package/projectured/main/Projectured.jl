@@ -1,30 +1,63 @@
 """
     Projectured
 
-Umbrella package — a thin **REPL convenience**. Depends on `ProjecturedKernel` (the
-headless engine) and `ProjecturedDomain` (all concrete documents/projections/backends),
-and re-exports their combined public API as a single flat namespace (`using Projectured`)
-plus their submodules as `Projectured.XxxModule` aliases for qualified access.
+Umbrella package — a thin **REPL convenience**. It depends on the three engine
+packages and on every concrete domain, and re-exports their combined public API as
+a single flat namespace (`using Projectured`) plus their submodules as
+`Projectured.XxxModule` aliases for qualified access.
 
 The re-exports are **generated mechanically** by the loop below — one pass over the
-submodules of the two source packages — so adding a document/projection/symbol upstream
-needs no edit here. The exported *set* may change freely; this is a
+submodules of every source package — so adding a document, a projection or a symbol
+upstream needs no edit here. The exported *set* may change freely; this is a
 convenience front-door, not a curated API boundary, so it re-exports every public name
-of every kernel/domain submodule.
+of every submodule.
+
+Adding a **new domain package** does need an edit here: put it in the `import` list
+and in `_SOURCES`. That is the only place the full set is written down.
 
 Sources are brought in with `import` (not `using`) so this loop is the sole source of
 re-exports — nothing is pulled into the flat namespace except via the pass below. There
-are no name collisions between the kernel/domain submodules (verified), so the per-symbol
-`using` is unambiguous.
+are no name collisions between the submodules (verified by
+`ProjecturedTest.test_export_collisions`), so the per-symbol `using` is unambiguous.
 """
 module Projectured
 
 import ProjecturedKernel
 import ProjecturedBase
 import ProjecturedVisual
-import ProjecturedDomain
 
-const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+# The concrete domains, in dependency order: the ones that need no other domain,
+# then the ones that build on them, then the application on top.
+import ProjecturedJson
+import ProjecturedYaml
+import ProjecturedXml
+import ProjecturedMarkdown
+import ProjecturedRst
+import ProjecturedBook
+import ProjecturedMath
+import ProjecturedJulia
+import ProjecturedSql
+import ProjecturedDatabase
+import ProjecturedFileSystem
+import ProjecturedGraph
+import ProjecturedChart
+import ProjecturedSequenceChart
+import ProjecturedDbCatalog
+import ProjecturedFormula
+import ProjecturedFsm
+import ProjecturedProcess
+import ProjecturedConversation
+import ProjecturedWorkbench
+
+const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+                  ProjecturedJson, ProjecturedYaml, ProjecturedXml,
+                  ProjecturedMarkdown, ProjecturedRst, ProjecturedBook,
+                  ProjecturedMath, ProjecturedJulia, ProjecturedSql,
+                  ProjecturedDatabase, ProjecturedFileSystem, ProjecturedGraph,
+                  ProjecturedChart, ProjecturedSequenceChart,
+                  ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm,
+                  ProjecturedProcess, ProjecturedConversation,
+                  ProjecturedWorkbench)
 
 # A binding is re-exported when it is a submodule this source defines, or a
 # submodule of a package this source reaches but the list does not name. The

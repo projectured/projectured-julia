@@ -50,7 +50,7 @@ runtime is brought into scope first, so the probes resolve.
 function realize_into(model::ProcessModel, context::Module;
                       instrumentation::Symbol = :position)
     Base.include_string(context,
-        "using ProjecturedDomain.ProcessRuntimeModule: process_at!, ProcessTrace\n")
+        "using ProjecturedProcess.ProcessRuntimeModule: process_at!, ProcessTrace\n")
     Base.include_string(context, realize_process_text(model; instrumentation = instrumentation))
     Base.invokelatest(getfield, context, Symbol(model.name))
 end

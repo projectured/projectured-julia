@@ -9,7 +9,12 @@ their pure projections stay in `ProjecturedDomain` — only live querying lives 
 """
 module ProjecturedOdbc
 
-using ProjecturedDomain
+using ProjecturedKernel
+using ProjecturedBase
+using ProjecturedVisual
+using ProjecturedDatabase
+using ProjecturedDbCatalog
+using ProjecturedSql
 
 module OdbcAdapterModule
 
@@ -17,7 +22,7 @@ import ODBC
 import DBInterface
 import Tables
 
-import ProjecturedDomain.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
+import ProjecturedDatabase.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
                          db_connect!, db_close!, db_alive, db_rowid_column,
                          db_query, db_execute_raw,
                          db_insert!, db_update!, db_delete!,
@@ -263,9 +268,9 @@ end # module OdbcAdapterModule
 
 module ConnectionPoolModule
 
-import ProjecturedDomain.DatabaseModule: db_connect!, db_close!, db_alive
+import ProjecturedDatabase.DatabaseModule: db_connect!, db_close!, db_alive
 import ..OdbcAdapterModule: OdbcDatabaseAdapter
-import ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstance
+import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 
 export OdbcConnectionPool, with_connection, dsn_for, close_pool!
 
@@ -377,20 +382,20 @@ end # module ConnectionPoolModule
 
 module SqlToCellTableModule
 
-import ProjecturedDomain.CellModule: Cell, ComputedCell
-import ProjecturedDomain.CollectionModule: CellVector, ComputedCellVector, CellTable
-import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
+import ProjecturedKernel.CellModule: Cell, ComputedCell
+import ProjecturedBase.CollectionModule: CellVector, ComputedCellVector, CellTable
+import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedDomain.SqlDocumentModule: SqlSelectStatement
-import ProjecturedDomain.SqlToSyntaxModule: SqlToSyntax
-import ProjecturedDomain.SyntaxToTextModule: SyntaxToText
-import ProjecturedDomain.TextToStringModule: TextToString
-import ProjecturedDomain.RecursiveProjectionModule: RecursiveProjection
-import ProjecturedDomain.ChainingProjectionModule: ChainingProjection
-import ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstance
-import ProjecturedDomain.DatabaseModule: RawDatabaseResult, db_execute_raw
+import ProjecturedSql.SqlDocumentModule: SqlSelectStatement
+import ProjecturedSql.SqlToSyntaxModule: SqlToSyntax
+import ProjecturedVisual.SyntaxToTextModule: SyntaxToText
+import ProjecturedVisual.TextToStringModule: TextToString
+import ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
+import ProjecturedBase.ChainingProjectionModule: ChainingProjection
+import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
+import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, db_execute_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
-import ProjecturedDomain.IoMapModule: SimpleIoMap
+import ProjecturedKernel.IoMapModule: SimpleIoMap
 
 export SqlToCellTable
 
@@ -427,20 +432,20 @@ end # module SqlToCellTableModule
 
 module DatabaseInstanceToDbCatalogModule
 
-import ProjecturedDomain.CollectionModule: CellVector, ComputedCellVector
-import ProjecturedDomain.DatabaseInstanceDocumentModule: DatabaseInstance
-import ProjecturedDomain.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
+import ProjecturedBase.CollectionModule: CellVector, ComputedCellVector
+import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
+import ProjecturedDbCatalog.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
-import ProjecturedDomain.DatabaseModule: db_catalog_databases, db_catalog_schemas,
+import ProjecturedDatabase.DatabaseModule: db_catalog_databases, db_catalog_schemas,
                          db_catalog_tables, db_catalog_columns
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
-import ProjecturedDomain.IoMapModule: SimpleIoMap
-import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
+import ProjecturedKernel.IoMapModule: SimpleIoMap
+import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedDomain.CellModule: set_cell_function!
-import ProjecturedDomain.ReferenceModule: EmptyReference
-import ProjecturedDomain.ReferenceModule: var"@reference_case"
-import ProjecturedDomain.ReferenceModule: var"@reference"
+import ProjecturedKernel.CellModule: set_cell_function!
+import ProjecturedKernel.ReferenceModule: EmptyReference
+import ProjecturedKernel.ReferenceModule: var"@reference_case"
+import ProjecturedKernel.ReferenceModule: var"@reference"
 
 export DatabaseInstanceToDbCatalog
 

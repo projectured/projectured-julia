@@ -14,9 +14,9 @@ Four cases:
 """
 
 using Test
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.JsonFileModule
-using ProjecturedDomain.JsonModule
+using ProjecturedBase.FileProjectModule
+using ProjecturedJson.JsonFileModule
+using ProjecturedJson.JsonModule
 
 _s5_stub_at(obj::JsonObject, key::AbstractString) = begin
     for e in getfield(obj, :entries)[]

@@ -10,8 +10,8 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedDomain.JuliaParserModule: juliaparse
-using ProjecturedDomain.NaturalFormatModule: document_to_text
+using ProjecturedJulia.JuliaParserModule: juliaparse
+using ProjecturedVisual.NaturalFormatModule: document_to_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.

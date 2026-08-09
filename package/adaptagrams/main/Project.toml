@@ -5,5 +5,5 @@ authors = []
 entryfile = "ProjecturedAdaptagrams.jl"
 
 [deps]
+ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
-ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"

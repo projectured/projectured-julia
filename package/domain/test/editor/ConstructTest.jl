@@ -43,11 +43,11 @@ using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, E
                                          try_evaluate_reference, PositionReferenceStep,
                                          annotate_reference_types
 using ProjecturedBase.CollectionModule: CellVector, ComputedCellVector
-using ProjecturedDomain.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
+using ProjecturedJson.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                                     JsonObject, JsonObjectEntry, JsonInsertion
-using ProjecturedDomain.YamlModule: YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence,
+using ProjecturedYaml.YamlModule: YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence,
                                     YamlMapping, YamlMappingEntry, YamlInsertion
-using ProjecturedDomain.XmlModule: XmlElement, XmlAttribute, XmlText, XmlInsertion
+using ProjecturedXml.XmlModule: XmlElement, XmlAttribute, XmlText, XmlInsertion
 
 # A mutable stand-in for the editor: construction repeatedly swaps the whole root
 # (JsonNothing → JsonInsertion/JsonNumber/…), so — like ReplTest's `_ReplEditor` —

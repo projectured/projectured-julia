@@ -7,12 +7,12 @@ byte of the file that names it.
 """
 
 using Test
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.JuliaFileModule
-using ProjecturedDomain.JsonFileModule
-using ProjecturedDomain.MarkdownFileModule
-using ProjecturedDomain.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
-using ProjecturedDomain.NaturalFormatModule: document_to_text
+using ProjecturedBase.FileProjectModule
+using ProjecturedJulia.JuliaFileModule
+using ProjecturedJson.JsonFileModule
+using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
+using ProjecturedVisual.NaturalFormatModule: document_to_text
 
 const _MV_SOURCE = """
 using Foo
@@ -184,8 +184,8 @@ function test_marker_vocabulary()
         d = mktempdir()
         try
             write(joinpath(d, "steps.jl"), _MV_SOURCE)
-            root = JsonFile("root.json", ProjecturedDomain.JsonModule.JsonObject(
-                "fragment" => ProjecturedDomain.JsonModule.JsonString(
+            root = JsonFile("root.json", ProjecturedJson.JsonModule.JsonObject(
+                "fragment" => ProjecturedJson.JsonModule.JsonString(
                     "<<definition(file(\"steps.jl\"), \"LIMIT\")>>")))
             save_project!(root, d)
             before = read(joinpath(d, "root.json"), String)

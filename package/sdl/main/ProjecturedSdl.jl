@@ -15,7 +15,9 @@ submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
 module ProjecturedSdl
 
-using ProjecturedDomain
+using ProjecturedKernel
+using ProjecturedBase
+using ProjecturedVisual
 
 
 using SimpleDirectMediaLayer
@@ -24,34 +26,34 @@ using SimpleDirectMediaLayer.LibSDL2
 # extended by qualification below. A bare `using` of an alias binds the
 # module's *real* name, so the extension sites read BackendModule.*;
 # DeviceModule supplies the `Device` type used in the render signatures.
-using ProjecturedDomain.BackendModule
-using ProjecturedDomain.DeviceModule
-import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+using ProjecturedKernel.BackendModule
+using ProjecturedKernel.DeviceModule
+import ProjecturedVisual.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
-import ProjecturedDomain.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedDomain.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
-import ProjecturedDomain.ColorModule: StyleColor
-import ProjecturedDomain.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
+import ProjecturedBase.CollectionModule: ListNode, CellVector, ComputedCellVector
+import ProjecturedVisual.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ProjecturedVisual.ColorModule: StyleColor
+import ProjecturedVisual.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
-import ProjecturedDomain.EventModule: WindowQuit
-import ProjecturedDomain.ScreenDocumentModule: ScreenDocument, WindowDocument
-import ProjecturedDomain.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
-import ProjecturedDomain.EventModule: ModifierKeys
-import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ProjecturedDomain.ImageModule: ImageFile
-import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
-import ProjecturedDomain.OperationModule: Operation, evaluate_operation
-import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
-import ProjecturedDomain.SelectionModule: clear_selection!, set_selection!
-import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.CellModule: Cell, ComputedCell, is_cell_up_to_date
-import ProjecturedDomain.ReferenceModule: EmptyReference
-import ProjecturedDomain.IoMapModule: SimpleIoMap
+import ProjecturedKernel.EventModule: WindowQuit
+import ProjecturedVisual.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
+import ProjecturedKernel.EventModule: ModifierKeys
+import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
+import ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedVisual.ImageModule: ImageFile
+import ProjecturedKernel.ProjectionApiModule: print_document, read_intent, Projection
+import ProjecturedKernel.OperationModule: Operation, evaluate_operation
+import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
+import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
+import ProjecturedKernel.PrinterContextModule: PrinterContext
+import ProjecturedKernel.CellModule: Cell, ComputedCell, is_cell_up_to_date
+import ProjecturedKernel.ReferenceModule: EmptyReference
+import ProjecturedKernel.IoMapModule: SimpleIoMap
 
 export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
        write_image, GraphicsCanvasToImageFile,

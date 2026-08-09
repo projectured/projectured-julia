@@ -7,11 +7,11 @@ so the marker round-trips cleanly.
 """
 
 using Test
-using ProjecturedDomain.CellModule
-using ProjecturedDomain.CollectionModule
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.XmlFileModule
-using ProjecturedDomain.XmlModule
+using ProjecturedKernel.CellModule
+using ProjecturedBase.CollectionModule
+using ProjecturedBase.FileProjectModule
+using ProjecturedXml.XmlFileModule
+using ProjecturedXml.XmlModule
 
 function test_xml_file()
 @testset "S7: XmlFile round-trip" begin

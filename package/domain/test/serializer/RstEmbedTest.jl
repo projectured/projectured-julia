@@ -9,21 +9,21 @@ an embed below the first title only reaches the widget renderer because
 """
 
 using Test
-using ProjecturedDomain.CellModule: Cell, AbstractCell
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.RstFileModule
-using ProjecturedDomain.RstModule: RstRoot, RstSection, RstDirective
-using ProjecturedDomain.RstParserModule: rstparse
-using ProjecturedDomain.NaturalFormatModule: document_to_text
+using ProjecturedKernel.CellModule: Cell, AbstractCell
+using ProjecturedBase.FileProjectModule
+using ProjecturedRst.RstFileModule
+using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
+using ProjecturedRst.RstParserModule: rstparse
+using ProjecturedVisual.NaturalFormatModule: document_to_text
 using ProjecturedVisual.NaturalProjectionModule: NaturalToGraphics
-using ProjecturedDomain.GraphicsModule: GraphicsCanvas
-using ProjecturedDomain.ProjectionApiModule: print_document, read_intent
-using ProjecturedDomain.EventModule: MousePress, KeyPress, ModifierKeys
-using ProjecturedDomain.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
+using ProjecturedVisual.GraphicsModule: GraphicsCanvas
+using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys
+using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                                          evaluate_operation
-using ProjecturedDomain.PrimitiveModule: ReplaceStringRangeOperation
-using ProjecturedDomain.ReferenceModule: FieldReferenceStep
-using ProjecturedDomain.SelectionModule: set_selection!, get_selection
+using ProjecturedBase.PrimitiveModule: ReplaceStringRangeOperation
+using ProjecturedKernel.ReferenceModule: FieldReferenceStep
+using ProjecturedKernel.SelectionModule: set_selection!, get_selection
 
 const _RE_PAGE = """
 Title

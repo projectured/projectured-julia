@@ -5,10 +5,12 @@ authors = []
 entryfile = "ProjecturedVideo.jl"
 
 [deps]
-FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-ProjecturedDomain = "e0912940-0f50-4a55-a142-7b4aed3d6e35"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 
 [sources]
-ProjecturedDomain = {path = "../../domain/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedSdl = {path = "../../sdl/main"}
+ProjecturedVisual = {path = "../../visual/main"}

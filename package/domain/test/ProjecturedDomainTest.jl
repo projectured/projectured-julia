@@ -32,7 +32,27 @@ using Test
 import ProjecturedKernel
 import ProjecturedBase
 import ProjecturedVisual
-import ProjecturedDomain
+# The concrete domains, in dependency order.
+import ProjecturedJson
+import ProjecturedYaml
+import ProjecturedXml
+import ProjecturedMarkdown
+import ProjecturedRst
+import ProjecturedBook
+import ProjecturedMath
+import ProjecturedJulia
+import ProjecturedSql
+import ProjecturedDatabase
+import ProjecturedFileSystem
+import ProjecturedGraph
+import ProjecturedChart
+import ProjecturedSequenceChart
+import ProjecturedDbCatalog
+import ProjecturedFormula
+import ProjecturedFsm
+import ProjecturedProcess
+import ProjecturedConversation
+import ProjecturedWorkbench
 using ProjecturedKernelTest
 using ProjecturedBaseTest
 using ProjecturedVisualTest
@@ -48,7 +68,8 @@ import ProjecturedVisualTest: _find_text_iomap, _pipeline_measure, _seg_x_at,
 # exactly like the `Projectured` umbrella's re-export loop (but without
 # re-exporting): alias every submodule and `using` its exported names into
 # scope.
-const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+                  ProjecturedJson, ProjecturedYaml, ProjecturedXml, ProjecturedMarkdown, ProjecturedRst, ProjecturedBook, ProjecturedMath, ProjecturedJulia, ProjecturedSql, ProjecturedDatabase, ProjecturedFileSystem, ProjecturedGraph, ProjecturedChart, ProjecturedSequenceChart, ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm, ProjecturedProcess, ProjecturedConversation, ProjecturedWorkbench)
 
 # A submodule this source defines, or a submodule of a package this source
 # reaches but the list does not name — a concrete domain that already left
@@ -151,17 +172,33 @@ include("editor/ConstructTest.jl")
 """
     test_domain_layering()
 
-Static layered-architecture guard for `ProjecturedDomain` (see
-`ProjecturedKernelTest.check_layering`). The domain source is organized into
-slice folders whose ordering is enforced by the topological include-order
-check; no layer indices are declared.
+Static layered-architecture guard for every domain package (see
+`ProjecturedKernelTest.check_layering`). Each domain is one package holding one
+slice, so the guard runs once per package over that package's own include order.
 """
 function test_domain_layering()
-    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedDomain.jl
-    # is not under a src/), so derive the package root from `pathof`.
-    main = normpath(dirname(pathof(ProjecturedDomain)))
-    check_layering(main, joinpath(main, "ProjecturedDomain.jl"); name = "domain")
+    for pkg in _SOURCES
+        pkg in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual) && continue
+        # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedX.jl
+        # is not under a src/), so derive the package root from `pathof`.
+        main = normpath(dirname(pathof(pkg)))
+        check_layering(main, joinpath(main, String(nameof(pkg)) * ".jl");
+                       name = lowercase(chopprefix(String(nameof(pkg)), "Projectured")),
+                       extra_aliases = _bound_module_aliases(pkg))
+    end
 end
+
+"""
+    _bound_module_aliases(pkg) -> Set{Symbol}
+
+Every module `pkg`'s root module binds that another package defines. A domain
+package binds them with a loop rather than a written table, so the static guard
+cannot read them off the file and takes this measured set instead.
+"""
+_bound_module_aliases(pkg) = Set{Symbol}(
+    n for n in names(pkg; all = true)
+      if isdefined(pkg, n) && getfield(pkg, n) isa Module &&
+         getfield(pkg, n) !== pkg && parentmodule(getfield(pkg, n)) !== pkg)
 
 """
     test_domain()

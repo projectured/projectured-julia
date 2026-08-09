@@ -665,7 +665,8 @@ function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
                         check_private_imports = false,
                         interface_files = Dict{String, Symbol}(),
-                        qualified_files = Set{String}())
+                        qualified_files = Set{String}(),
+                        extra_aliases = Set{Symbol}())
     @testset "$name layered-architecture guard" begin
         reached, entries, file_owner, _ = walk_includes(top_file, src_root)
 
@@ -695,7 +696,12 @@ function check_layering(src_root, top_file; name = "package",
             @test length(names) == length(unique(names))
         end
 
-        aliases = alias_names(top_file)
+        # A module the top file binds as a literal `const`, plus whatever the
+        # caller knows the file binds another way. A package whose root module
+        # binds its dependencies' submodules with a loop rather than a written
+        # table has no `const` line to read, so the caller passes the set it
+        # measured from the loaded package.
+        aliases = union(alias_names(top_file), extra_aliases)
 
         @testset "includes are a valid topological order" begin
             errs = topo_errors(entries, aliases)

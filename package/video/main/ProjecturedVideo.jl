@@ -15,18 +15,19 @@ Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo; record_video(doc, p
 """
 module ProjecturedVideo
 
-using ProjecturedDomain
+using ProjecturedKernel
+using ProjecturedVisual
 import FFMPEG
 
-import ProjecturedDomain.BackendModule: record_video
-import ProjecturedDomain.GraphicsModule: GraphicsCanvas
-import ProjecturedDomain.ProjectionApiModule: print_document, read_intent
-import ProjecturedDomain.OperationModule: evaluate_operation
-import ProjecturedDomain.SelectionModule: clear_selection!, set_selection!
-import ProjecturedDomain.PrinterContextModule: PrinterContext
-import ProjecturedDomain.CellModule: Cell, ComputedCell
-import ProjecturedDomain.ClockModule: Clock, set_clock_time!
-import ProjecturedDomain.ReferenceModule: EmptyReference
+import ProjecturedKernel.BackendModule: record_video
+import ProjecturedVisual.GraphicsModule: GraphicsCanvas
+import ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+import ProjecturedKernel.OperationModule: evaluate_operation
+import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
+import ProjecturedKernel.PrinterContextModule: PrinterContext
+import ProjecturedKernel.CellModule: Cell, ComputedCell
+import ProjecturedKernel.ClockModule: Clock, set_clock_time!
+import ProjecturedKernel.ReferenceModule: EmptyReference
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
 

@@ -12,12 +12,12 @@ format's natural escape:
 """
 
 using Test
-using ProjecturedDomain.CellModule
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.JuliaFileModule
-using ProjecturedDomain.JuliaModule
-using ProjecturedDomain.MarkdownFileModule
-using ProjecturedDomain.MarkdownModule
+using ProjecturedKernel.CellModule
+using ProjecturedBase.FileProjectModule
+using ProjecturedJulia.JuliaFileModule
+using ProjecturedJulia.JuliaModule
+using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedMarkdown.MarkdownModule
 
 _arg1(call::JuliaCall) = begin
     v = getfield(call, :arguments)[]

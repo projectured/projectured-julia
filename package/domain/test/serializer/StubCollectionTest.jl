@@ -9,10 +9,10 @@ asked about instead of reaching every other document the session holds.
 """
 
 using Test
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.MarkdownFileModule
-using ProjecturedDomain.JuliaFileModule
-using ProjecturedDomain.TextFileModule
+using ProjecturedBase.FileProjectModule
+using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedJulia.JuliaFileModule
+using ProjecturedBase.TextFileModule
 
 # One page, one marker at the named target.
 _stub_page(dir, name, marker) =

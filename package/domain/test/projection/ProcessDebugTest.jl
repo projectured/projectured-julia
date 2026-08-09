@@ -11,7 +11,7 @@ function _drain_context(name::Symbol)
     # scope wherever it is loaded — `realize_into` does this for the modules it
     # creates, and a test that loads the text by hand does it here.
     Base.include_string(context,
-        "using ProjecturedDomain.ProcessRuntimeModule: process_at!\n" *
+        "using ProjecturedProcess.ProcessRuntimeModule: process_at!\n" *
         "const SENT = Any[]\nsend!(x) = push!(SENT, x)\n")
     context
 end

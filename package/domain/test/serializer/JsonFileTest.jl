@@ -7,9 +7,9 @@ marker into a `ReferenceStub` in the same slot.
 """
 
 using Test
-using ProjecturedDomain.FileProjectModule
-using ProjecturedDomain.JsonFileModule
-using ProjecturedDomain.JsonModule
+using ProjecturedBase.FileProjectModule
+using ProjecturedJson.JsonFileModule
+using ProjecturedJson.JsonModule
 
 # Access the underlying cell of a @document field so we can inspect a
 # slot without going through the auto-generated property getter (which

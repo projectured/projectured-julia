@@ -31,7 +31,27 @@ using Profile
 import ProjecturedKernel
 import ProjecturedBase
 import ProjecturedVisual
-import ProjecturedDomain
+# The concrete domains, in dependency order.
+import ProjecturedJson
+import ProjecturedYaml
+import ProjecturedXml
+import ProjecturedMarkdown
+import ProjecturedRst
+import ProjecturedBook
+import ProjecturedMath
+import ProjecturedJulia
+import ProjecturedSql
+import ProjecturedDatabase
+import ProjecturedFileSystem
+import ProjecturedGraph
+import ProjecturedChart
+import ProjecturedSequenceChart
+import ProjecturedDbCatalog
+import ProjecturedFormula
+import ProjecturedFsm
+import ProjecturedProcess
+import ProjecturedConversation
+import ProjecturedWorkbench
 using ProjecturedKernelExample
 using ProjecturedVisualExample
 import ProjecturedKernelExample: Example, make_typein_gestures
@@ -40,7 +60,8 @@ import ProjecturedKernelExample: Example, make_typein_gestures
 # Build the same flat namespace over the four main-package sources — one mechanical
 # pass, exactly like the `Projectured` umbrella's re-export loop (but without
 # re-exporting).
-const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedDomain)
+const _SOURCES = (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+                  ProjecturedJson, ProjecturedYaml, ProjecturedXml, ProjecturedMarkdown, ProjecturedRst, ProjecturedBook, ProjecturedMath, ProjecturedJulia, ProjecturedSql, ProjecturedDatabase, ProjecturedFileSystem, ProjecturedGraph, ProjecturedChart, ProjecturedSequenceChart, ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm, ProjecturedProcess, ProjecturedConversation, ProjecturedWorkbench)
 
 # A submodule this source defines, or a submodule of a package this source
 # reaches but the list does not name — a concrete domain that already left
