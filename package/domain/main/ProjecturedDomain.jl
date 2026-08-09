@@ -23,9 +23,8 @@ using ProjecturedVisual
 
 # ── Kernel submodule aliases (make relative ..XxxModule refs resolve into the
 #    kernel; see the module docstring) ──────────────────────────────────────
-# Some aliases carry a second, deprecated name (e.g. BackendApiModule) so files
-# that still reference it keep resolving to the canonical module.
-const BackendApiModule = ProjecturedKernel.BackendModule
+# Every alias carries the module's own name, so a domain file names a module
+# exactly as the module names itself.
 const BackendModule = ProjecturedKernel.BackendModule
 const IntentModule = ProjecturedKernel.IntentModule
 const CollectionModule = ProjecturedBase.CollectionModule
@@ -33,19 +32,12 @@ const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
 const DomainModule = ProjecturedBase.DomainModule
 const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
 const DeviceModule = ProjecturedKernel.DeviceModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
-const ReferenceApiModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
-const SelectionApiModule = ProjecturedKernel.SelectionModule
 const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
-const ProjectionReferenceStepApiModule = ProjecturedKernel.ProjectionReferenceStepModule
 const PointReferenceStepModule = ProjecturedVisual.PointReferenceStepModule
-const PointReferenceStepApiModule = ProjecturedVisual.PointReferenceStepModule
 const TextSpanReferenceStepModule = ProjecturedVisual.TextSpanReferenceStepModule
-const TextSpanReferenceStepApiModule = ProjecturedVisual.TextSpanReferenceStepModule
 const TextColumnReferenceStepModule = ProjecturedVisual.TextColumnReferenceStepModule
-const TextColumnReferenceStepApiModule = ProjecturedVisual.TextColumnReferenceStepModule
 const ClockModule = ProjecturedKernel.ClockModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
@@ -59,9 +51,7 @@ const ToolModule = ProjecturedKernel.ToolModule
 const AgentServerModule = ProjecturedKernel.AgentServerModule
 const AgentModule = ProjecturedKernel.AgentModule
 const NestingProjectionModule = ProjecturedBase.NestingProjectionModule
-const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationModule = ProjecturedKernel.OperationModule
-const OperationRerootingModule = ProjecturedKernel.OperationModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const PredicateDispatchingProjectionModule = ProjecturedBase.PredicateDispatchingProjectionModule
 const IdentityProjectionModule = ProjecturedBase.IdentityProjectionModule
@@ -72,8 +62,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CellModule = ProjecturedKernel.CellModule
 const CellStructModule = ProjecturedKernel.CellStructModule
 const RecursiveProjectionModule = ProjecturedBase.RecursiveProjectionModule
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
-const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceDispatchingProjectionModule = ProjecturedBase.ReferenceDispatchingProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ScreenDocumentModule = ProjecturedVisual.ScreenDocumentModule
@@ -175,6 +163,9 @@ include("workbench/Workspace.jl")
 include("graph/Graph.jl")
 include("graph/GraphLayout.jl")
 include("graph/GraphLayoutEngine.jl")
+# The plot vocabulary both plotted notations share: the arithmetic and the
+# colour/marker cycles. Neither the chart nor the sequence chart owns it.
+include("chart/PlotStyle.jl")
 include("chart/ChartGeometry.jl")
 include("chart/ChartSampleReferenceStep.jl")
 include("chart/Chart.jl")
@@ -205,10 +196,14 @@ include("sql/SqlParser.jl")
 include("workbench/Workbench.jl")
 include("gesturemap/GestureHelpDecorator.jl")
 # DocumentInsertionToSyntax before every domain ToSyntax: it defines the shared
-# insertion leaf (typed-name buffer with live completion), the per-domain
-# delegates (JuliaInsertionToSyntaxLeaf, …) those projections register, and the
-# shared *Nothing placeholder leaf — and it depends on no domain projection.
+# insertion leaf (typed-name buffer with live completion) and the shared
+# *Nothing placeholder leaf. It names no domain at all — a domain builds its own
+# source insertion from this leaf, in a file it already has.
 include("insertion/InsertionToSyntax.jl")
+# The Julia source hole: the keyword scaffolds and the JuliaInsertion leaf. It
+# needs the generic insertion leaf above and the Julia parser, and JuliaToSyntax
+# needs it, so it sits between them.
+include("julia/JuliaInsertionToSyntax.jl")
 include("json/JsonToSyntax.jl")
 include("json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
 include("julia/JuliaFile.jl") # FileDocument wrapping a JuliaDocument

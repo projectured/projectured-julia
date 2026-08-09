@@ -29,7 +29,8 @@ import ..SqlDocumentModule: SqlNothing, SqlSelectStatement, SqlSelectClause, Sql
                             SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
                             SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
                             SqlStatementList, SqlInsertion
-import ..DocumentInsertionToSyntaxModule: SqlInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf, parse_completion,
+                                          InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
@@ -40,13 +41,14 @@ import ..IoMapModule: ChildrenIoMap
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
 import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..PrinterContextModule: make_child_context
 
-export SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+export SqlInsertionToSyntaxLeaf,
+       SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
        SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
        SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
@@ -2048,9 +2050,30 @@ function SqlToSyntax()
     )
 end
 
+# ── The SQL source insertion ────────────────────────────────────────────────
+import ..SqlParserModule: sqlparse
+
+# Commit SQL source by parsing it; partial / invalid source can't commit.
+function _sql_commit(value::AbstractString)
+    isempty(strip(value)) && return nothing
+    try
+        sqlparse(value)
+    catch
+        nothing
+    end
+end
+
+"""
+    SqlInsertionToSyntaxLeaf()
+
+A SQL source insertion, committing `value` via `sqlparse`; the buffer is
+green when it parses as a complete statement, red otherwise.
+"""
+SqlInsertionToSyntaxLeaf() =
+    InsertionToSyntaxLeaf(_sql_commit; completion = parse_completion(sqlparse))
+
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
-import ..SqlParserModule: sqlparse
 import ..SqlDocumentModule: SqlDocument
 import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
 import ..DocumentFileModule: new_document_seed

@@ -24,8 +24,8 @@ import ..SequenceChartModule: SequenceChart, SequenceChartNothing, SequenceChart
 import ..SequenceChartPlotModule: SequenceChartPlot
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
 
 export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
 

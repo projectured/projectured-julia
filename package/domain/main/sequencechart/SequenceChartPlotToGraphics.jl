@@ -62,8 +62,7 @@ import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
                                       arc_geometry, arc_height, split_arrow, arrow_route,
                                       decimate_events, arrow_coverage_dedup, band_intervals
 import ..ChartGeometryModule: AxisScale, to_pixel, to_data
-import ..ChartModule: series_color
-import ..ChartPlotToGraphicsModule: marker_polygon
+import ..PlotStyleModule: series_color, marker_polygon
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsSpline, GraphicsViewport, layout_none
@@ -77,8 +76,8 @@ import ..EventModule: MousePress, MouseMove, MouseLeave, MouseScroll
 import ..OperationModule: Operation, ReplaceSelectionOperation,
                           ReplaceReferencedValueOperation, CompoundOperation
 import ..ReferenceModule: get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
 
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
        resolve_window, lane_cross_position,

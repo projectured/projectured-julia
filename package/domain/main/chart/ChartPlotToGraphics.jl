@@ -36,8 +36,8 @@ import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
                       ChartLineSeries, ChartScatterSeries, ChartBarSeries,
                       ChartHistogramSeries, ChartStripSeries,
                       chart_series_family, chart_axis_family,
-                      series_color, series_symbol,
                       strip_state_name, strip_state_color
+import ..PlotStyleModule: series_color, series_symbol, marker_polygon
 import ..ChartPlotModule: ChartPlot, ChartView
 import ..ChartGeometryModule: AxisScale, to_pixel, to_data,
                               column_bounds, merge_bounds, pad_range,
@@ -61,12 +61,11 @@ import ..EventModule: MousePress, MouseMove, MouseLeave, MouseDown, MouseUp,
 import ..OperationModule: Operation, ReplaceSelectionOperation,
                           ReplaceReferencedValueOperation, CompoundOperation
 import ..ReferenceModule: get_reference_node_type, EmptyReference
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
 
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
-       legend_item_rects, chart_part_reference, chart_series_reference,
-       marker_polygon
+       legend_item_rects, chart_part_reference, chart_series_reference
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -718,38 +717,6 @@ end
 _dash_pattern(style::Symbol) =
     style === :dotted ? (1, 3) :
     style === :dashed ? (6, 4) : nothing
-
-# The vertices of a regular `n`-gon of radius `r` about a centre, first vertex
-# pointing whichever way `phase` says (a quarter turn back puts it at the top).
-_regular_polygon(x::Int, y::Int, r::Int, n::Int, phase::Real=-pi/2) =
-    [(round(Int, x + r * cos(phase + 2pi * k / n)),
-      round(Int, y + r * sin(phase + 2pi * k / n))) for k in 0:(n-1)]
-
-# A five-pointed star: outer and inner radii alternating around ten vertices.
-# Concave, which is why it needs a real polygon rather than a triangle fan.
-function _star_polygon(x::Int, y::Int, r::Int)
-    inner = max(round(Int, r * 0.4), 1)
-    [(round(Int, x + (isodd(k) ? inner : r) * cos(-pi/2 + pi * k / 5)),
-      round(Int, y + (isodd(k) ? inner : r) * sin(-pi/2 + pi * k / 5))) for k in 0:9]
-end
-
-"""
-    marker_polygon(shape, x, y, r) -> Vector{Tuple{Int,Int}} | nothing
-
-The outline of a filled marker shape, or `nothing` for a shape that is not a
-polygon.
-"""
-function marker_polygon(shape::Symbol, x::Int, y::Int, r::Int)
-    shape === :diamond && return [(x, y - r), (x + r, y), (x, y + r), (x - r, y)]
-    shape === :triangle_up && return _regular_polygon(x, y, r, 3)
-    shape === :triangle_down && return _regular_polygon(x, y, r, 3, pi/2)
-    shape === :triangle_left && return _regular_polygon(x, y, r, 3, pi)
-    shape === :triangle_right && return _regular_polygon(x, y, r, 3, 0.0)
-    shape === :pentagon && return _regular_polygon(x, y, r, 5)
-    shape === :hexagon && return _regular_polygon(x, y, r, 6)
-    shape === :star && return _star_polygon(x, y, r)
-    nothing
-end
 
 # Marker shapes. The straight-edged ones are filled polygons; the rest are the
 # primitives whose shape they already are.

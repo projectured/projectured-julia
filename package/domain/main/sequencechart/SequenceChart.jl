@@ -42,13 +42,13 @@ using ..DomainModule
 using ..EventPatternModule
 using ..GestureBindingModule
 
-import ..ChartModule: default_color_cycle
+import ..PlotStyleModule: default_color_cycle
 import ..SequenceChartRowReferenceStepModule: SequenceChartRowReferenceStep
 import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           ElementReferenceStep, EmptyReference,
                           annotate_reference_types, get_reference_node_type
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference_case"
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
                           ReplaceSelectionOperation
 

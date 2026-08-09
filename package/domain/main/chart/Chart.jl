@@ -30,10 +30,8 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-import ..ColorModule: StyleColor,
-    color_solarized_blue, color_solarized_red, color_solarized_green,
-    color_solarized_orange, color_solarized_violet, color_solarized_cyan,
-    color_solarized_magenta, color_solarized_yellow
+import ..ColorModule: StyleColor
+import ..PlotStyleModule: default_color_cycle, default_symbol_cycle, series_color
 import ..ChartGeometryModule: bin_values
 import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
 import ..ReferenceModule
@@ -41,14 +39,12 @@ import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           ElementReferenceStep, EmptyReference,
                           annotate_reference_types, concat_references,
                           get_reference_node_type
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
                           insert_elements, delete_elements
 
 export ChartSeries, chart_series_family, chart_axis_family,
-       default_color_cycle, default_symbol_cycle,
-       series_color, series_symbol,
        selected_series_index, move_series, remove_series,
        chart_parts, chart_part_index,
        chart_sample, chart_sample_reference, selected_sample
@@ -61,31 +57,8 @@ Common supertype of every data series a `Chart` can hold.
 abstract type ChartSeries <: ChartDocument end
 
 # ── Style ────────────────────────────────────────────────────────────────
-
-"""
-    default_color_cycle() -> Vector{StyleColor}
-
-The per-series color cycle: the Solarized accents, in the order a chart hands
-them out to series that leave `color` unset.
-"""
-default_color_cycle() = StyleColor[
-    color_solarized_blue, color_solarized_red, color_solarized_green,
-    color_solarized_orange, color_solarized_violet, color_solarized_cyan,
-    color_solarized_magenta, color_solarized_yellow]
-
-"""
-    default_symbol_cycle() -> Vector{Symbol}
-
-The per-series marker cycle, ordered so that consecutive series stay
-distinguishable at a glance rather than by shape family.
-
-The full set is `:circle`, `:square`, `:diamond`, `:triangle_up`,
-`:triangle_down`, `:triangle_left`, `:triangle_right`, `:pentagon`,
-`:hexagon`, `:star`, `:plus`, `:cross`, `:dot`, `:hline`, `:vline` and
-`:none`.
-"""
-default_symbol_cycle() = Symbol[:circle, :square, :triangle_up, :diamond, :plus,
-                                :star, :cross, :triangle_down, :pentagon, :dot]
+# The colour and marker cycles themselves live in `PlotStyleModule`, beside the
+# plot arithmetic: a sequence chart hands colours out by the same rule.
 
 """
 Chart-wide visual style. Every field defaults, so `ChartStyle()` constructs and a
@@ -437,31 +410,6 @@ The counterpart of [`chart_series_family`](@ref) for an x axis.
 chart_axis_family(::Any) = :unknown
 chart_axis_family(::ChartAxis) = :xy
 chart_axis_family(::ChartCategoryAxis) = :category
-
-"""
-    series_color(series, index, cycle) -> StyleColor
-
-A series' own `color`, or the `index`-th entry of the chart's color cycle when
-it left the field unset. Cycling is by position in the series list, so inserting
-a series shifts the colors after it — the same rule OMNeT++'s native charts use.
-"""
-function series_color(color, index::Integer, cycle)
-    color === nothing || return color
-    isempty(cycle) && return color_solarized_blue
-    cycle[mod1(index, length(cycle))]
-end
-
-"""
-    series_symbol(symbol, index, cycle) -> Symbol
-
-The marker shape for a series: its own `symbol` unless that is `:cycle`, in
-which case the `index`-th entry of the style's symbol cycle.
-"""
-function series_symbol(symbol::Symbol, index::Integer, cycle)
-    symbol === :cycle || return symbol
-    isempty(cycle) && return :circle
-    cycle[mod1(index, length(cycle))]
-end
 
 # ── Samples ──────────────────────────────────────────────────────────────
 

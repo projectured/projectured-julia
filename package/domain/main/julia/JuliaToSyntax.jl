@@ -42,7 +42,7 @@ import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_sol
 import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..DocumentInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
+import ..JuliaInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 

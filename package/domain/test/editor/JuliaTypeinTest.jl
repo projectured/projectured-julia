@@ -19,7 +19,7 @@
 using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedDomainExample: make_julia_document_example
 
-const _JT_M      = DocumentInsertionToSyntaxModule
+const _JT_M      = JuliaInsertionToSyntaxModule
 const _jt_reroot = OperationModule.reroot_operation
 
 # `value{0}` — an empty hole's own char cursor.

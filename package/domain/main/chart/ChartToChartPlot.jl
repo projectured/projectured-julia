@@ -25,8 +25,8 @@ import ..ChartPlotModule: ChartPlot
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference,
                           get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 
 export ChartToChartPlot, ChartToChartPlotIoMap
 
