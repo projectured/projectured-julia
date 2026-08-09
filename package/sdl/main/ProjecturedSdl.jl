@@ -110,8 +110,9 @@ instead so the default fills one monitor, not the span.
 function sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
     # Ensure the scale is known before converting device → logical, since this
-    # may run before `initialize_backend!` (early detection is window-free: env + Xft.dpi).
-    _BASE_DISPLAY_SCALE[] == 1.0 && _detect_display_scale!()
+    # may run before `initialize_backend!` (early detection is window-free: env
+    # + Xft.dpi). The probe latches itself, so repeated calls cost nothing.
+    _detect_display_scale!()
 
     # Detect the SDL-collapses-multiple-monitors case and prefer the real
     # primary-monitor size. Only when SDL reports a single display (so we do
@@ -546,24 +547,40 @@ end
 #
 # Two-phase detection:
 #
-#   _detect_display_scale!() — called from initialize_backend!, before any window exists:
+#   _detect_display_scale!() — called from initialize_backend! and from
+#   sdl_display_size, before any window exists:
 #     1. PROJECTURED_DISPLAY_SCALE env var — explicit override, always respected.
 #     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
 #        Xft.dpi = 96 × scale, e.g. 192 for 200%).
 #
 #   _update_display_scale!(win, renderer) — called when a window opens, only if
-#   the early detection left _DISPLAY_SCALE at the default 1.0:
+#   the window-free phase found nothing:
 #     3. SDL renderer-output / window-size ratio — macOS Retina, native Wayland.
 #     4. SDL_GetDisplayDPI / 96 — Windows fallback.
 #
 # Falls back to _DISPLAY_SCALE = 1.0 (no scaling) if nothing fires.
+#
+# Both phases are latched, because the scale value alone cannot say whether a
+# probe already ran: a 1× display detects as exactly 1.0, which is also the
+# default. Without the latches every caller re-runs `xrdb`, and phase 4
+# overwrites a correct 1.0 with SDL's slightly-off DPI ratio (e.g. 96.04 / 96).
+#
+#   _DISPLAY_SCALE_PROBED   — the window-free probe ran; do not spawn xrdb again.
+#   _DISPLAY_SCALE_DETECTED — a real scale was found; no later phase may change it.
+const _DISPLAY_SCALE_PROBED   = Ref(false)
+const _DISPLAY_SCALE_DETECTED = Ref(false)
+
 function _detect_display_scale!()
+    _DISPLAY_SCALE_PROBED[] && return _DISPLAY_SCALE_DETECTED[]
+    _DISPLAY_SCALE_PROBED[] = true
+
     # 1. Explicit override.
     env_val = get(ENV, "PROJECTURED_DISPLAY_SCALE", "")
     if !isempty(env_val)
         scale = tryparse(Float64, env_val)
         if scale !== nothing && scale > 0
             _BASE_DISPLAY_SCALE[] = scale; recompute_display_scale!()
+            _DISPLAY_SCALE_DETECTED[] = true
             println("Display scale: $(_BASE_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
             return true
         end
@@ -579,6 +596,7 @@ function _detect_display_scale!()
                 xft_dpi = parse(Float64, m.captures[1])
                 if xft_dpi > 0
                     _BASE_DISPLAY_SCALE[] = xft_dpi / 96.0; recompute_display_scale!()
+                    _DISPLAY_SCALE_DETECTED[] = true
                     println("Display scale: $(_BASE_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
                     return true
                 end
@@ -592,8 +610,8 @@ function _detect_display_scale!()
 end
 
 function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
-    # Skip if already resolved during initialize_backend!.
-    _BASE_DISPLAY_SCALE[] != 1.0 && return
+    # Skip if a window-free phase already found the scale.
+    _DISPLAY_SCALE_DETECTED[] && return
 
     # SDL renderer output size vs logical window size.
     dw = Ref{Cint}(0); dh = Ref{Cint}(0)
@@ -602,6 +620,7 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     SDL_GetWindowSize(win, ww, wh)
     if ww[] > 0 && dw[] > ww[]
         _BASE_DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[]); recompute_display_scale!()
+        _DISPLAY_SCALE_DETECTED[] = true
         println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL renderer ratio)")
         return
     end
@@ -614,6 +633,7 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
         _BASE_DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0; recompute_display_scale!()
+        _DISPLAY_SCALE_DETECTED[] = true
         println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
     end
 end
