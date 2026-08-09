@@ -752,6 +752,20 @@ two paints — it compiles the parser and stub-walk halves, which a first paint
 does not exercise. That is the level doing its job: `:minimal` for a working
 day, more only when the extra path is the one being shown.
 
+**The demo click did not move, and could not have.** Measured on the `jo`
+session after this landed: `open_page!` 1.271 s, first paint 4.404 s — the same
+5.7 s as before. A `jo` session never loads `ProjecturedRepl`, so no workload
+runs in it. The leaf has to be the *last package the session loads*, and for
+`jo` that is an omnetpp package. This is structural, not an oversight: the
+omnetpp-julia half is required for the click, and the inet-julia half for `ji`.
+
+What did move is a `jp` session, which is what `ProjecturedRepl` is for: first
+paint 8.360 s to 0.657 s.
+
+The scratch probe already measured what the omnetpp leaf is worth, since it was
+one in all but name: the click at 0.55 s with a workload, 0.24 s with
+`@recompile_invalidations` as well, against 5.98 s with neither.
+
 **Still owed here**: the environments, the per-stem extensions, and the
 `ProjecturedTest` decision they wait on (step 13).
 
