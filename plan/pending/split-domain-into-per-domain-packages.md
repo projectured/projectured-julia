@@ -506,8 +506,40 @@ the same type. Add an assertion in the registry that rejects a duplicate key.
 
   `Fail` and `Error` are 0 on both sides; `Broken` is unchanged (1 visual, 5 domain).
 - [ ] Step 2 — extract the 20 main packages
-- [ ] Step 2 — extract the 20 main packages
-- [ ] Step 3 — dissolve the umbrella package
+- [x] **Step 2 — extract the 20 main packages** (`4cd8e734`). Every slice folder is now
+  a package under `package/`, with its own UUID and a root module that binds its
+  dependencies' submodules with the mechanical loop rather than a written table. The
+  dependency edges in the tables above are declared in the `Project.toml` files.
+
+  **One real regression, found by the tests.** The kernel's `execute_julia_code`
+  sandbox built its namespace with the same `parentmodule(sub) === source` guard the
+  umbrella used, so a domain that moved into its own package vanished from scratch
+  code and `editor.document isa WorkbenchAssistant` stopped resolving. The guard in
+  `tool/CodeExecution.jl` now also accepts a submodule whose parent package the source
+  list does not name — the same relaxation the umbrella, the example package and the
+  test package needed. Watch for this shape wherever a `parentmodule` guard walks a
+  package's bindings.
+
+  Verified: `test_domain()` 209281 pass, 5 broken, 0 fail — identical to Step 1.
+- [x] **Step 3 — dissolve the umbrella package** (`03648d7f`). `package/domain/main/`
+  is deleted.
+  - `Projectured` imports the 20 directly. Its `_SOURCES` tuple is the one place the
+    full set is written down; a new domain package needs an edit there and nowhere
+    else.
+  - `Sdl`, `Web`, `Video` and `Tulip` named 21 modules through `ProjecturedDomain` and
+    **not one was a domain module**. They now depend on the engine packages only.
+    `Odbc` depends on `Database`, `DbCatalog` and `Sql`; `Adaptagrams` on `Graph`.
+  - `package/executable/main/Manifest.toml` is deleted — it pinned a package that no
+    longer exists.
+  - `test_domain_layering()` runs the guard once per domain package. That needed one
+    change to the shared guard: `check_layering` read a package's module aliases off
+    the literal `const` lines of the root module, and a domain root module binds them
+    with a loop. It gained an `extra_aliases` keyword, and the test measures the set
+    from the loaded package.
+
+  Verified: `test_domain()` 209395 pass, 5 broken, 0 fail. The rise from 209281 is the
+  layering guard running 20 times rather than once, 6 assertions each. All six opt-in
+  packages load, SDL and Tulip included.
 - [ ] Step 4 — the example tier
 - [ ] Step 5 — the test tier
 - [ ] Step 6 — documentation and guards
