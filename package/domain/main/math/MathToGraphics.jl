@@ -27,7 +27,7 @@ module MathToGraphicsModule
 
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, IoMap, var"@iomap"
@@ -54,10 +54,10 @@ import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
                           annotate_reference_types
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation, replace_document
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: reroot_operation
 import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPress
 import ..EventPatternModule: var"@event_case"
-import ..ReferenceBuilderModule: var"@reference_step"
+import ..ReferenceModule: var"@reference_step"
 
 export MathIoMap, MathConfig, MathMetrics, math_metrics, MathToGraphics,
        math_to_graphics_dispatch,

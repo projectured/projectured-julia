@@ -47,8 +47,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf

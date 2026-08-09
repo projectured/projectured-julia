@@ -21,7 +21,7 @@ module GestureLogModule
 
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference, strip_reference_types
 import ..EventModule: Event, ModifierKeys, KeyDown, KeyUp, KeyPress,

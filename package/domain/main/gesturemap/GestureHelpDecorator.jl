@@ -26,7 +26,7 @@ import ..IntentModule: Intent, CollectIntents
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureMapModule: gesture_map
 

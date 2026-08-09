@@ -44,8 +44,8 @@ import ..StyleTextModule: StyleText, DStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
 import ..ProjectionTemplateModule: var"@projection_template", bound, project
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 
 export FsmDiagramToGraph, FsmDiagramToGraphIoMap,
        FsmStateToSyntaxLabel, FsmTransitionToSyntaxLabel

@@ -26,7 +26,7 @@ module BookToSyntaxModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ImageModule: ImageFile
-import ..BackendApiModule: decode_image
+import ..BackendModule: decode_image
 import ..GraphicsModule: GraphicsDocument
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -44,8 +44,8 @@ import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionRefer
                          Reference, EmptyReference, extend_reference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference,
                                         is_introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat

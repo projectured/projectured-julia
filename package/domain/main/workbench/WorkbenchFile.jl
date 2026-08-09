@@ -16,7 +16,7 @@ and is applied by `evaluate_operation`.
 """
 module WorkbenchFileModule
 
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..WorkbenchModule: WorkbenchEditor
 import ..DocumentFileModule: write_document_file, read_document_file
 import ..EventModule: KeyDown

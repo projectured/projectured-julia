@@ -28,7 +28,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 import ..GestureLogModule: GestureLog, record_gesture!, default_gesture_log_filter
 
 export GestureLogRecordingProjection, GestureLogRecordingProjectionIoMap

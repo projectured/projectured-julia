@@ -439,8 +439,8 @@ import ProjecturedDomain.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedDomain.CellModule: set_cell_function!
 import ProjecturedDomain.ReferenceModule: EmptyReference
-import ProjecturedDomain.ReferenceCaseModule: var"@reference_case"
-import ProjecturedDomain.ReferenceBuilderModule: var"@reference"
+import ProjecturedDomain.ReferenceModule: var"@reference_case"
+import ProjecturedDomain.ReferenceModule: var"@reference"
 
 export DatabaseInstanceToDbCatalog
 

@@ -9,7 +9,7 @@ turn has a role + a list of `ConversationPart`s wrapping arbitrary content.
 module ConversationModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextModule: TextBlock, TextString

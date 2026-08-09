@@ -18,7 +18,7 @@ using Base64: base64encode
 # The backend contract (AR-QUALIFIED-EXTENSION): bare `using`, extended by
 # qualification below. A bare `using` of an alias binds the module's *real*
 # name, so the extension sites read BackendModule.*.
-using ProjecturedDomain.BackendApiModule
+using ProjecturedDomain.BackendModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,

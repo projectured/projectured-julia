@@ -37,8 +37,8 @@ import ..IntentModule: Intent, CollectIntents
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: ComputedCellVector
-import ..DocumentApiModule: Document
-import ..OperationApiModule: Operation
+import ..DocumentModule: Document
+import ..OperationModule: Operation
 import ..OperationModule: DoNothingOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
 import ..EventModule: KeyDown, KeyPress

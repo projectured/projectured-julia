@@ -29,7 +29,7 @@ module ConversationEditorModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
@@ -44,7 +44,7 @@ import ..JuliaParserModule: juliaparse
 import ..JsonParserModule: jsonparse
 import ..XmlParserModule: xmlparse
 import ..ToolModule: execute_julia_code, last_evaluated_value
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, HorizontalLayout
 import ..StyleTextModule: StyleText

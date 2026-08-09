@@ -42,8 +42,8 @@ import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionRefer
                           Reference, EmptyReference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
 import ..JuliaToSyntaxModule: JuliaToSyntax
 

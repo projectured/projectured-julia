@@ -42,8 +42,8 @@ import ..ReferenceModule: ConcreteReference, EmptyReference, Reference,
                            ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
                            FieldReferenceStep, extend_reference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..PrinterContextModule: make_child_context
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..OperationModule: ReplaceSelectionOperation

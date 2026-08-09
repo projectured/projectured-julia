@@ -49,8 +49,8 @@ import ..ProjectionModule: var"@projection"
 import ..IoMapModule: IoMap, var"@iomap"
 import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: FieldReferenceStep, EmptyReference, ConcreteReference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString, TextBlock
 import ..StyleTextModule: StyleText, DStyleText

@@ -32,8 +32,8 @@ import ..IoMapModule: ChildrenIoMap
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap

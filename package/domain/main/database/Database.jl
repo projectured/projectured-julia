@@ -8,10 +8,10 @@ the mutations the projection reader produces.
 module DatabaseDocumentModule
 
 import ..CellModule: Cell, ComputedCell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 
 export DatabaseDocument, DatabaseUpdateOperation, DatabaseInsertOperation
 

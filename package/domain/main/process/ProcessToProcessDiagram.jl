@@ -23,8 +23,8 @@ import ..ProcessModule: ProcessModel, ProcessNothing, ProcessInsertion
 import ..ProcessDiagramModule: ProcessDiagram
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 
 export ProcessToProcessDiagram, ProcessToProcessDiagramIoMap
 

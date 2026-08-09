@@ -39,11 +39,11 @@ import ..PrimitiveModule: ReplaceNumberRangeOperation, ReplaceStringRangeOperati
 import ..IoMapModule: ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: reroot_operation
 import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyPress, KeyDown
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,

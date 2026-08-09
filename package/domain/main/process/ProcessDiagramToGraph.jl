@@ -78,8 +78,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project
 import ..ReferenceModule: EmptyReference, try_evaluate_reference, search_references,
                           get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 
 export ProcessDiagramToGraph, ProcessDiagramToGraphIoMap,
        ProcessStepToSyntaxLabel, ProcessDecisionToSyntaxLabel,

@@ -33,7 +33,7 @@ import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, Markdown
                          MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
 import ..TextModule: TextString, hinted_text, TextGraphics
 import ..ImageModule: ImageFile
-import ..BackendApiModule: decode_image
+import ..BackendModule: decode_image
 import ..GraphicsModule: GraphicsDocument
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
                      font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
@@ -51,8 +51,8 @@ import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           EmptyReference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection

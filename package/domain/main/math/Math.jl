@@ -17,7 +17,7 @@ module MathModule
 
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 export MathDocument, _operator_string, math_operator_glyph, math_operator_class,

@@ -52,7 +52,7 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaFunction,
                       JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
                       JuliaTypeAnnotation
-import ..DocumentApiModule: search_documents
+import ..DocumentModule: search_documents
 import ..NaturalFormatModule: document_to_text
 
 export realize_process, realize_process_text, export_process,

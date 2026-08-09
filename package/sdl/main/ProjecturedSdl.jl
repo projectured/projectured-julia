@@ -24,7 +24,7 @@ using SimpleDirectMediaLayer.LibSDL2
 # extended by qualification below. A bare `using` of an alias binds the
 # module's *real* name, so the extension sites read BackendModule.*;
 # DeviceModule supplies the `Device` type used in the render signatures.
-using ProjecturedDomain.BackendApiModule
+using ProjecturedDomain.BackendModule
 using ProjecturedDomain.DeviceModule
 import ProjecturedDomain.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
@@ -45,9 +45,9 @@ import ProjecturedDomain.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedDomain.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedDomain.ImageModule: ImageFile
 import ProjecturedDomain.ProjectionApiModule: print_document, read_intent, Projection
-import ProjecturedDomain.OperationApiModule: Operation, evaluate_operation
+import ProjecturedDomain.OperationModule: Operation, evaluate_operation
 import ProjecturedDomain.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
-import ProjecturedDomain.SelectionApiModule: clear_selection!, set_selection!
+import ProjecturedDomain.SelectionModule: clear_selection!, set_selection!
 import ProjecturedDomain.PrinterContextModule: PrinterContext
 import ProjecturedDomain.CellModule: Cell, ComputedCell, is_cell_up_to_date
 import ProjecturedDomain.ReferenceModule: EmptyReference
@@ -2095,7 +2095,7 @@ function sdl_render_canvas(canvas::GraphicsCanvas)
 end
 
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
-# through the generic BackendApiModule seams without naming SdlBackendModule, so the
+# through the generic BackendModule seams without naming SdlBackendModule, so the
 # SDL backend can move into an optional extension.
 BackendModule.render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
 

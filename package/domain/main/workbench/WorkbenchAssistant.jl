@@ -27,7 +27,7 @@ Internal helpers:
 """
 module WorkbenchAssistantModule
 
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..ProjectionApiModule: read_intent, print_document
 import ..CellModule: Cell, ComputedCell
 import ..TextModule: TextBlock, TextString
@@ -52,8 +52,8 @@ import ..XmlParserModule: xmlparse
 import ..YamlParserModule: yamlparse
 import ..MarkdownParserModule: markdownparse
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
                               ConversationThinking, thinking_part
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
@@ -74,7 +74,7 @@ import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage, LlmContent,
                      LlmRedactedThinkingBlock,
                      LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
                      LlmTurnEnd, LlmFailure
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
                                     finalize_draft!, reset_draft!, SUBMIT_HANDLER

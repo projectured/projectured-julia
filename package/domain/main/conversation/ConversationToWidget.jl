@@ -23,7 +23,7 @@ module ConversationToWidgetModule
 
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm, eval_kind_label

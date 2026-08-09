@@ -9,7 +9,7 @@ assistant).
 module WorkbenchModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextModule: TextBlock
@@ -18,7 +18,7 @@ import ..ConversationModule: ConversationConversation, ConversationTurn, Convers
 import ..LlmModule: Llm
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, is_element_reference_step
 import ..WorkspaceModule: Workspace, WorkspaceFolder
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: insert_elements, delete_elements
 import ..JsonParserModule: jsonparse_file
 import ..XmlParserModule: xmlparse_file

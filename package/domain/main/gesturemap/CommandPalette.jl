@@ -21,7 +21,7 @@ at its end, as a type-in buffer is.
 module CommandPaletteModule
 
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: var"@document"
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference

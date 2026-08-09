@@ -63,14 +63,14 @@ import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_yellow, color_solarized_orange
 import ..StyleTextModule: StyleText, DStyleText
 import ..ImageModule: ImageFile
-import ..BackendApiModule: decode_image
+import ..BackendModule: decode_image
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
                           EmptyReference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,

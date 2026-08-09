@@ -18,7 +18,7 @@ import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, reconcile_child_iomaps

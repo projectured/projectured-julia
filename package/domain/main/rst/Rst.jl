@@ -27,7 +27,7 @@ string too: the set of roles is open (a document defines its own with
 module RstModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document, @forward_vector_protocol
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
