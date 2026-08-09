@@ -77,3 +77,26 @@ leaving every routing ancestor's `selection` cell untouched — so partial
 rendering repaints only the caret.
 """
 function replace_selection! end
+
+"""
+    keeps_dormant_selection(document) -> Bool
+
+Whether `document` keeps a selection the live one has left behind, instead of
+having it cleared.
+
+`false` for every document by default, so nothing changes for a document that
+does not ask. A document answers `true` when its children are alternatives and it
+has to remember which one it was showing — a tab group is the case this exists
+for: the tab it shows is the tab its own selection names, so clearing that
+selection makes it forget.
+
+What a keeper keeps is **dormant**: still stored, still drawable, never acted on.
+See [`SelectionDocument`](@ref).
+
+The question is asked at a divergence, starting at the divergence node itself and
+walking down the branch that is being abandoned. The first `true` keeps the whole
+branch below the divergence. The node itself is included because the two trees
+that need this put the keeper on opposite sides: a pane group sits below the
+divergence, while a tabbed pane **is** the divergence.
+"""
+function keeps_dormant_selection end

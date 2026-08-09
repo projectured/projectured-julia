@@ -13,7 +13,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
-import ..SelectionModule: replace_selection!
+import ..SelectionModule: replace_selection!, keeps_dormant_selection
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
@@ -1964,6 +1964,22 @@ end
 # ReplaceReferencedValueOperation: the WidgetButton reader emits
 # `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)`. See
 # plan/done/consolidate-operations-replace.md (step 2).
+
+# ── Dormant selections ─────────────────────────────────────────────────────
+#
+# A tabbed pane shows the tab its own selection names, so clearing that selection
+# makes it forget which tab it was showing, and forget the caret inside that tab
+# with it. Both keep what the live selection leaves behind.
+#
+# The pane answers as well as the page because the two sit on opposite sides of
+# the divergence: switching tabs diverges at the pane's own `selector_element_pairs`
+# collection, where the abandoned branch starts at the page, while a selection
+# leaving the pane altogether diverges above it.
+keeps_dormant_selection(::WidgetTabbedPane) = true
+keeps_dormant_selection(::WidgetTabPage) = true
+# A split pane's selection names which side had the focus, so the same holds for a
+# nested split when the focus comes back from outside it.
+keeps_dormant_selection(::WidgetSplitPane) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 

@@ -6,10 +6,23 @@
 
 get_selection(document::Document) = document.selection
 
+# No document keeps a dormant selection unless it says so.
+keeps_dormant_selection(::Any) = false
+
+# The path a `selection` cell holds, live or dormant.
+#
+# `get_selection` answers only the live one, because the property read unwraps a
+# dormant selection to `nothing`. The writers below need the path either way: what
+# they are abandoning is exactly what a dormant node still holds.
+_stored_path(value) = value
+_stored_path(value::SelectionDocument) = value.primary
+_stored_selection(document) =
+    hasproperty(document, :selection) ? _stored_path(getfield(document, :selection)[]) : nothing
+
 function clear_selection!(document)
     hasproperty(document, :selection) || return
     sel = getfield(document, :selection)
-    path = sel[]
+    path = _stored_path(sel[])
     sel[] = nothing
     path isa ConcreteReference || return
     # Descend into the child this step routes to and clear it too.
@@ -36,6 +49,69 @@ Base.showerror(io::IO, e::SelectionMismatch) =
     print(io, "SelectionMismatch: selection path ", e.path,
           " does not match a document of type ", typeof(e.document))
 
+# ── Dormant selections ─────────────────────────────────────────────────────
+#
+# At a divergence the old branch used to be cleared unconditionally. It is now
+# either cleared, exactly as before, or kept and marked dormant when a document on
+# it asks to keep it. Marking costs the same walk the clearing did: it writes a
+# flag instead of erasing a path.
+
+# Whether the branch `divergence` is abandoning is kept. The walk starts at the
+# divergence node **itself** and goes down the abandoned path; the first `true`
+# keeps the whole branch. Inclusive because a pane group sits below the divergence
+# while a tabbed pane is the divergence.
+function _keeps_branch(divergence, old_path)
+    keeps_dormant_selection(divergence) && return true
+    node = divergence
+    path = old_path
+    while path isa ConcreteReference
+        node = _selection_child(node, path)
+        node === nothing && return false
+        keeps_dormant_selection(node) && return true
+        path = path.tail
+    end
+    false
+end
+
+# Mark this node and everything below it on its own stored path as dormant. The
+# paths stay exactly where they are; only the flag changes.
+function _mark_dormant!(document)
+    hasproperty(document, :selection) || return
+    cell = getfield(document, :selection)
+    value = cell[]
+    path = _stored_path(value)
+    path === nothing && return
+    if value isa SelectionDocument
+        value.live && (value.live = false)
+    else
+        cell[] = SelectionDocument(; primary = path, live = false)
+    end
+    path isa ConcreteReference || return
+    child = _selection_child(document, path)
+    child === nothing || _mark_dormant!(child)
+end
+
+# A path that ends on a keeper holding a dormant selection is extended by it, so
+# the focus coming back makes the whole branch live again. `path` must already be
+# canonical; the caller re-validates the result and falls back when it is stale.
+function _restored_selection(document, path)
+    node = document
+    rest = path
+    while rest isa ConcreteReference
+        child = _selection_child(node, rest)
+        child === nothing && return path
+        node = child
+        rest = rest.tail
+    end
+    keeps_dormant_selection(node) || return path
+    hasproperty(node, :selection) || return path
+    value = getfield(node, :selection)[]
+    (value isa SelectionDocument && !value.live) || return path
+    dormant = value.primary
+    dormant isa ConcreteReference || return path
+    concat_references(path, dormant)
+end
+
 # Canonicalize `path` against `document` (see `set_selection!`) and require it to
 # still match before any selection cell is written — throwing `SelectionMismatch`
 # without touching the stored selection when it does not. `nothing` (a clear)
@@ -46,7 +122,13 @@ function _matched_selection(document, path)
     path === nothing && return nothing
     canonical = annotate_reference_types(document, strip_reference_types(path))
     _selection_matches(document, canonical) || throw(SelectionMismatch(document, canonical))
-    canonical
+    restored = _restored_selection(document, canonical)
+    restored === canonical && return canonical
+    # A dormant path can name a node an edit has since removed. Canonicalize and
+    # match the extension too, and fall back to the plain path when it no longer
+    # holds — a stale memory must not fail the write that woke it.
+    extended = annotate_reference_types(document, strip_reference_types(restored))
+    _selection_matches(document, extended) ? extended : canonical
 end
 
 # A canonical selection matches `document` iff its **routing** resolves — every
@@ -158,7 +240,10 @@ end
 function _sync_selection!(document, path)
     hasproperty(document, :selection) || return path
     cell = getfield(document, :selection)
-    old = cell[]
+    stored = cell[]
+    old = _stored_path(stored)
+    # A live write through a node revives it: the wrapper goes, the path stays.
+    stored isa SelectionDocument && (cell[] = old)
     (old isa Reference && path isa Reference && is_reference_equal(old, path)) && return old
 
     if old isa ConcreteReference && path isa ConcreteReference
@@ -179,10 +264,13 @@ function _sync_selection!(document, path)
         end
     end
 
-    # Divergence: clear the old branch hanging here, install the new suffix.
+    # Divergence: the old branch hanging here is cleared, or kept and marked
+    # dormant when a document on it asks to keep it. Then install the new suffix.
     if old isa ConcreteReference
         oc = _selection_child(document, old)
-        oc === nothing || clear_selection!(oc)
+        if oc !== nothing
+            _keeps_branch(document, old) ? _mark_dormant!(oc) : clear_selection!(oc)
+        end
     end
     cell[] = path
     if path isa ConcreteReference
