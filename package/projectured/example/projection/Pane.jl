@@ -39,3 +39,11 @@ function make_widget_split_projection_example(; measure=truetype_measure_text)
     renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
     WidgetHoverTrackingProjection(inner=renderer)
 end
+
+# The projection of `make_widget_split_tabs_document_example`. Same shape as the
+# other two: the document is a widget already, so the natural renderer draws the
+# split, the two tab groups, and each page's own domain.
+function make_widget_split_tabs_projection_example(; measure=truetype_measure_text)
+    renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
+    WidgetHoverTrackingProjection(inner=renderer)
+end

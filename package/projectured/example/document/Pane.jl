@@ -56,3 +56,21 @@ function make_widget_split_document_example(; width = 900)
                                      make_xml_document_example()];
                     sizes = [div(width, 2), div(width, 2)])
 end
+
+# A split pane holding two tab groups, two tab pages each. This is the layout that
+# tests whether a tab group loses the tab it was showing when the focus moves to
+# the other group: both groups are on the screen at once, so the answer is visible
+# without switching anything.
+#
+#   +-------------------+-------------------+
+#   | data.json|data.xml| other.xml|other.js|
+#   +-------------------+-------------------+
+function make_widget_split_tabs_document_example(; width = 1000)
+    left  = WidgetTabbedPane([("data.json",  make_json_document_example()),
+                              ("data.xml",   make_xml_document_example())];
+                             border = Inset(4, 4, 4, 4))
+    right = WidgetTabbedPane([("other.xml",  make_xml_document_example()),
+                              ("other.json", make_json_document_example())];
+                             border = Inset(4, 4, 4, 4))
+    WidgetSplitPane(:horizontal, Any[left, right]; sizes = [div(width, 2), div(width, 2)])
+end

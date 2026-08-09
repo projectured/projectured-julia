@@ -61,6 +61,9 @@ const widget_tabs_example    = Example("widget_tabs",    make_widget_tabs_docume
 # sides are on the screen at once, so the live caret and a dormant one are visible
 # together — which the tabbed pane cannot show.
 const widget_split_example   = Example("widget_split",   make_widget_split_document_example,   make_widget_split_projection_example; render_width=900, render_height=500)
+# A split pane holding two tab groups. The layout that shows whether a group keeps
+# the tab it was showing when the focus moves to the other group.
+const widget_split_tabs_example = Example("widget_split_tabs", make_widget_split_tabs_document_example, make_widget_split_tabs_projection_example; render_width=1000, render_height=560)
 # `lazy_example` / `lazy_bidirectional_example` are deliberately kept OUT of the
 # `examples` registry below. Their documents are infinite lazy linked lists, so
 # the enumeration-based suites (test_printers / test_readers / test_position_navigations /
@@ -164,6 +167,7 @@ const domain_examples = Example[
     pane_json_example,
     widget_tabs_example,
     widget_split_example,
+    widget_split_tabs_example,
     math_example,
     julia_example,
     graphics_image_example,

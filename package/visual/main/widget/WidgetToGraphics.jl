@@ -63,6 +63,7 @@ import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
+import ..SelectionModule: get_stored_selection
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
@@ -2767,7 +2768,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     selector_cv = ComputedCellVector(() -> begin
         g = geom[]
         sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
-        active = _active_idx(sel_cell[], length(tabs))
+        active = _active_idx(get_stored_selection(w), length(tabs))
         result = Any[]
         tab_radius = _sc(p.corner_radius)
         # Muted track behind the whole tab row.
@@ -2818,7 +2819,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     content_cv = ComputedCellVector(() -> begin
         cims = all_cims[]
         sel_h = geom[][4]
-        active = _active_idx(sel_cell[], length(cims))
+        active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
         cim === nothing ? Any[] : Any[_make_canvas(cox, coy + sel_h, Any[cim.output])]
@@ -2992,7 +2993,7 @@ end
 function _route_selected_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     w = iomap.input
     w isa WidgetTabbedPane || return nothing
-    idx = _tab_index_from_selection(getfield(w, :selection)[], length(child_iomaps))
+    idx = _tab_index_from_selection(get_stored_selection(w), length(child_iomaps))
     idx == 0 && return nothing
     entry = child_iomaps[idx]
     entry === nothing && return nothing
@@ -3078,7 +3079,7 @@ end
 
 function _active_tab_index(w::WidgetTabbedPane, n::Int)
     n == 0 && return 0
-    i = _tab_index_from_selection(getfield(w, :selection)[], n)
+    i = _tab_index_from_selection(get_stored_selection(w), n)
     i == 0 ? 1 : i
 end
 
