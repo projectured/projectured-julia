@@ -365,33 +365,78 @@ rather than by inheritance, and write the decision down.
 An example package should not need the test standard library. Move whatever uses
 it into `InetQueuingTest`.
 
-### The one that looks wrong: DataFrames
+### DataFrames: the readers keep it, in a package nothing loads by default
 
-You are right that it should not be needed, though not quite for the reason you
-gave — it is not the plotting library. It is the **table type of the legacy
-result reader**:
+It is not the plotting library. It is the **table type of the legacy result
+reader**:
 
 - `package/legacy/main/src/simulation/ResultReader.jl` — 30 references. Reads
   OMNeT++ `.sca` and `.vec` files into `DataFrame`s.
 - `package/legacy/main/src/document/Simulation.jl` — 6 references.
   `simulation_plot(df::AbstractDataFrame)` builds a plot document from one.
 
-That is one file's worth of table handling, for results produced by the **C++**
-OMNeT++. The Julia simulator has its own result store, accumulators and charts;
-nothing in the live path touches a `DataFrame`. What the reader actually needs
-is columns by name, `eachrow` and filtering — which a column table of our own
-supplies, and which the result store already is.
+Those results come from the **C++** OMNeT++. The Julia simulator has its own
+result store, accumulators and charts, and nothing in the live path touches a
+`DataFrame`. DataFrames is also the single largest source of invalidation:
+SentinelArrays (4371 + 1332), InlineStrings (4111) and Tables (1226) arrive with
+it, about 11000 of the 15286 instances.
 
-DataFrames is also the single largest source of invalidation: SentinelArrays
-(4371 + 1332), InlineStrings (4111) and Tables (1226) all arrive with it, about
-11000 of the 15286 instances.
+**Decision: keep the readers as they are, and move them into a stem of their own
+that nothing depends on by default.** Rewriting a working reader buys nothing
+once it is not loaded.
 
-**CairoMakie deserves the same question, and there your reason does hold.**
-`OmnetppLegacyPlot` uses it to render a `SimulationPlotDocument` to a PNG
-headlessly. We render line, bar, scatter, histogram and colour-strip charts
-ourselves — they have pages in the demo catalog. If our own charts can write a
-PNG, CairoMakie goes, and GeometryBasics (2400 + 2049), StructArrays (1028) and
-the other source of `JSON` go with it.
+```
+OmnetppLegacyResult       -> OmnetppLegacy, OmnetppUnits   + DataFrames
+OmnetppLegacyResultExample-> OmnetppLegacyResult, OmnetppLegacyExample
+OmnetppLegacyResultTest   -> OmnetppLegacyResultExample
+```
+
+What moves: `ResultReader.jl` whole, the `simulation_plot(::AbstractDataFrame)`
+method, and `attach_units!`. What stays in `OmnetppLegacy`:
+`SimulationPlotDocument` and `PlotSeries`, which are documents and hold no table.
+`OmnetppLegacyPlot` renders that document and never sees a `DataFrame`, so it is
+untouched.
+
+Two callers follow the reader out: `make_simulation_plot_document_example` in
+`package/legacy/example/src/document/Simulation.jl:64`, and the `attach_units!`
+cases in `package/legacy/test/src/simulation/QuantityTest.jl`.
+
+**`Omnetpp`, `OmnetppExample`, `OmnetppTest` and `OmnetppRepl` must not depend on
+it** — that is the whole point, and the layering test asserts it. The
+consequence to accept knowingly: `using OmnetppLegacyResult` at the prompt loads
+a package after the leaf, so that session pays a one-off recompilation. Reading
+a C++ result file is a rare and deliberate act, and that is the right place for
+the cost. `test_all()` will not run `OmnetppLegacyResultTest`; call it directly,
+and have CI call both.
+
+A note on names: `Plot` and `Result` are **stems**, not kinds. The five reserved
+suffixes are the kinds — nothing, `Example`, `Test`, `Repl`, `Build` — so this
+stem's own kinds are `OmnetppLegacyResultExample` and `OmnetppLegacyResultTest`.
+
+### CairoMakie: removed
+
+Not relocated — removed. `OmnetppLegacyPlot` has three uses of it, and every one
+has an answer in code we already own. GeometryBasics (2400 + 2049), StructArrays
+(1028), MathTeXEngine and one of the two sources of `JSON` leave with it, and so
+does `LaTeXStrings`.
+
+1. **`SimulationPlotToGraphics`** today rasterizes the document with CairoMakie,
+   decodes the PNG back to RGBA with `sdl_decode_image`, and embeds it as a
+   `GraphicsImage`. Replace it with what its name says: a real projection from
+   `SimulationPlotDocument` to a `GraphicsCanvas`, drawn with our own primitives.
+   The presentation package already draws line, bar, scatter, histogram and
+   colour-strip charts this way, each with a page in the demo catalog; a
+   `PlotSeries` maps onto them. This also removes a raster round trip and turns a
+   picture back into a projection the reader can select in.
+2. **`save_simulation_plot`** becomes `write_image(doc, SimulationPlotToGraphics(),
+   path)`. `ProjecturedSdl` already provides `write_image` and
+   `OmnetppLegacyPlot` already depends on it.
+3. **`save_formula_image`** renders a LaTeX formula to a PNG through
+   MathTeXEngine. It has exactly **one** caller —
+   `package/legacy/example/src/document/Mm1k.jl:479`, one formula in the M/M/1/K
+   study. We have a math domain with its own projections; render it there and
+   write the PNG the same way as 2. If that is more than the one picture is
+   worth, drop the picture.
 
 **`OmnetppBenchPlot` is already dead.** It depends on `Plots`, `CSV` and
 `DataFrames`, and `Plots` is not installed in the root environment — the package
@@ -402,6 +447,55 @@ the NED and INI parsers in `OmnetppFormat`, two real grammars. It costs 2796
 instances by defining `hash(::Lerche.Token)`. Keep it, and keep it named — it is
 the reason `OmnetppFormat` is a slice of its own rather than part of the
 simulator.
+
+## The exceptions that remain
+
+After the removals above, every third-party dependency left in the three
+repositories is here. Each one needs a line in `documentation/packages.md`
+saying which package owns it and why; the list below is that text in draft.
+
+### Keep, and write down why
+
+| dependency | owner | why it stays |
+| --- | --- | --- |
+| `Unitful` | `OmnetppUnits` | quantities carry their units through the whole simulator; this is a modelling decision, not a convenience |
+| `DataStructures` | `OmnetppSimulator` | the event queue |
+| `Lerche` | `OmnetppFormat` | the NED and INI grammars are real grammars |
+| `SDL2_jll`, `SimpleDirectMediaLayer` | `ProjecturedSdl` | a window and a pointer have to come from somewhere |
+| `Libdl` | `ProjecturedAdaptagrams` | loads the layout shim |
+| `FFMPEG` | `ProjecturedVideo` | encodes a recording |
+| `HTTP`, `JSON3` | `ProjecturedLlm`, `ProjecturedWeb` | a wire protocol we do not define |
+| `ModelContextProtocol` | `ProjecturedMcp` | likewise |
+| `OrdinaryDiffEqCore`, `OrdinaryDiffEqTsit5`, `StaticArrays` | `OmnetppDynamics` | the continuous half of hybrid dynamics is a solver, and writing one is not this project's business |
+| `DBInterface`, `ODBC`, `Tables` | `ProjecturedOdbc` | a database driver |
+| `MathOptInterface`, `Tulip` | `ProjecturedTulip` | a linear programming solver |
+| `PackageCompiler`, `FixedPointNumbers` | `ProjecturedExecutable` | a leaf; nothing depends on it |
+| `PrecompileTools` | the example packages that hold a workload body, and the leaves | the mechanism itself |
+| `Preferences` | the leaves | the workload level |
+| `SQLite`, `DBInterface` | `OmnetppSimulatorTest` | a test writes results to a database |
+| `DataFrames` | `OmnetppLegacyResult` | the C++ result readers, in a package nothing loads by default |
+
+`Unitful` is worth a second look, because it is an invalidator too:
+`(:)(::Any, ::Quantity)` cost 3044 instances in the whole-session pass. It is
+nonetheless in the right place — the lowest package that needs it — so
+everything above is compiled with it present and nothing above is voided. That
+is the general rule stated as an example: **an unavoidable invalidator belongs
+as low as it can go.**
+
+### Decide, rather than inherit
+
+| dependency | the question |
+| --- | --- |
+| `ODBC`, `Tulip`, `FFMPEG` via `ProjecturedTest` | should `test_all()` from the prompt load a driver manager, an LP solver and a video encoder? If yes, say so in `packages.md`; if no, they move to a second aggregator and CI runs both |
+| `OrdinaryDiffEq*` via `OmnetppPresentationExample` | the demo has hybrid-dynamics pages and `src/OmnetppPresentationExample.jl:27` imports `OmnetppDynamics` to register its doctype module, so this one is real. Keep it, and know that the demo session carries a solver stack |
+
+### Remove
+
+| dependency | where | what to do |
+| --- | --- | --- |
+| `BlackBoxOptim` | `OmnetppPresentationExample` `[deps]` | used only from `watch/adaptive.jl`, which runs in the watch environment where it is installed, and `OmnetppSimulator` reaches it through an extension. Nothing under `src/` imports it. Drop it from the package |
+| `CairoMakie`, `LaTeXStrings` | `OmnetppLegacyPlot` | replaced by our own charts, above |
+| `Plots`, `CSV`, `DataFrames` | `OmnetppBenchPlot` | the package cannot resolve — `Plots` is not installed. Delete it or rebuild it on our own charts |
 
 ## Guards
 
@@ -457,11 +551,15 @@ and the existing guides point at it.
 - [ ] 12. `InetQueuingExample` stops depending on `Test`.
 - [ ] 13. Decide `ProjecturedTest`'s optional slices deliberately, and write the
       decision into `documentation/packages.md`.
-- [ ] 14. Replace `DataFrames` in the legacy result reader with a column table
-      of our own, or state why it stays.
-- [ ] 15. Replace `CairoMakie` in `OmnetppLegacyPlot` with our own charts
-      rendered to PNG, or state why it stays.
+- [ ] 14. `OmnetppLegacyResult` — the `.sca` and `.vec` readers and their
+      `DataFrames` move there, and nothing depends on it by default.
+- [ ] 15. `CairoMakie` and `LaTeXStrings` out of `OmnetppLegacyPlot`:
+      `SimulationPlotToGraphics` becomes a real projection over our own chart
+      primitives, `save_simulation_plot` goes through `write_image`, and the one
+      formula picture is rendered by the math domain or dropped.
 - [ ] 16. Delete or rebuild `OmnetppBenchPlot` — `Plots` does not resolve.
+- [ ] 16a. `BlackBoxOptim` out of `OmnetppPresentationExample`'s `[deps]` —
+      only `watch/adaptive.jl` uses it, and that runs in the watch environment.
 - [ ] 17. `documentation/packages.md` in each repository, and the pointers from
       `architecture.md`, `terminology.md` and `CLAUDE.md`.
 - [ ] 18. Re-measure the first click in each repository, at each level.
