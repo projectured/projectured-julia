@@ -1,0 +1,447 @@
+# Split and dissolve `ProjecturedDomain` into one package per domain
+
+## Goal
+
+Dissolve the `ProjecturedDomain` umbrella package. Give every concrete domain its own
+package, with its own `main/`, `test/`, `example/` and `doc/` tiers. Sink the parts that
+are not domains into `ProjecturedVisual`. After the split, `package/domain/` no longer
+exists.
+
+Three things drive this:
+
+1. A domain is the natural consumer boundary. A user who wants JSON must not load the
+   SQL parser, the process debugger and the workbench assistant.
+2. `AR-DOMAINS-INDEPENDENT` already states the rule. The single package hides every
+   breach of it, because a slice can import a sibling slice with no visible cost.
+3. Four opt-in packages (`Sdl`, `Web`, `Video`, `Tulip`) depend on `ProjecturedDomain`
+   today, but use **no** domain module at all. The split makes that honest.
+
+## Decisions taken on 2026-08-09
+
+The user settled three questions before this plan was written:
+
+- **Layout.** The new packages are flat under `package/`, like `kernel`, `base` and
+  `visual`. There is no second nesting level.
+- **Tiers.** Every domain gets all three tiers: `main/`, `test/` and `example/`.
+- **Sink set.** The generic insertion core, the plot geometry, `gesturemap`,
+  `gesturelog` and `component` sink into `ProjecturedVisual`. The `graph` slice does
+  **not** sink; it stays a domain package.
+
+## Measured facts
+
+All numbers below come from a scan of `package/domain/main/` on 2026-08-09.
+
+### The slice graph is almost acyclic already
+
+24 slice folders. Only these slice-to-slice edges exist:
+
+| From | To |
+| --- | --- |
+| `conversation` | `insertion`, `json`, `julia`, `xml` |
+| `dbcatalog` | `sql` |
+| `formula` | `julia` |
+| `fsm` | `graph`, `insertion`, `julia` |
+| `insertion` | `book`, `filesystem`, `graph`, `json`, `julia`, `markdown`, `math`, `rst`, `sql`, `xml` |
+| `json`, `julia`, `sql`, `xml`, `yaml` | `insertion` |
+| `process` | `graph`, `insertion`, `julia` |
+| `sequencechart` | `chart` |
+| `workbench` | `conversation`, `filesystem`, `json`, `julia`, `markdown`, `xml`, `yaml` |
+
+The one cycle runs through `insertion`. Every other edge is a clean layer edge that a
+package dependency expresses directly.
+
+### The `insertion` slice is three unrelated things in one folder
+
+- `InsertionToSyntax.jl` (688 lines) — a **generic** insertion leaf plus a **Julia** and
+  a **SQL** specialization. Code use of `JsonInsertion`, `XmlInsertion` and
+  `SqlInsertion` is zero; those three imports are dead. The real domain use is
+  `JuliaModule` (types), `juliaparse` and `sqlparse`.
+- `EmbedToSyntax.jl` (378 lines) — imports **no** domain module. `ReferenceStub` comes
+  from `base/serialization/FileProject.jl`.
+- `NaturalProjection.jl` (282 lines) — the true cross-domain aggregator. It names ten
+  domains to build one `TypeDispatchingProjection` table.
+
+### Four opt-in packages do not use the domain at all
+
+`ProjecturedSdl`, `ProjecturedWeb`, `ProjecturedVideo` and `ProjecturedTulip` reach
+`ProjecturedDomain` only through its kernel and visual alias table (`ColorModule`,
+`GraphicsModule`, `ScreenDocumentModule`, `ConstraintSolverModule`, …). They reference
+no domain module. `ProjecturedOdbc` uses `database`, `dbcatalog` and `sql`.
+`ProjecturedAdaptagrams` uses `graph`.
+
+### The natural-format seam is the pattern to copy
+
+`visual/fileformat/NaturalFormat.jl` declares `natural_syntax_projection` /
+`natural_extension` / `parse_natural` as open generics. Six domain files already
+register their own methods. `NaturalProjection.jl` needs the same treatment, with a
+type key instead of an instance key.
+
+---
+
+## What sinks into `ProjecturedVisual`
+
+| From | To | Why |
+| --- | --- | --- |
+| the generic half of `insertion/InsertionToSyntax.jl` | `visual/syntax/InsertionToSyntax.jl` | `InsertionToSyntaxLeaf`, `DocumentInsertionToSyntaxLeaf`, `DomainInsertionToSyntaxLeaf`, `InsertionNothingToSyntaxLeaf`, `name_completion`. It imports Syntax, Font, Color and `@domain` only. Five domains need it, so it is a framework. |
+| `insertion/EmbedToSyntax.jl` | `visual/fileformat/EmbedToSyntax.jl` | Zero domain imports. It belongs beside `DocumentFile` and `NaturalFormat`, which own the marker and the stub. |
+| `chart/ChartGeometry.jl`, plus `series_color` and `default_color_cycle` from `ChartModule` and `marker_polygon` from `ChartPlotToGraphicsModule` | new slice `visual/plot/PlotGeometry.jl` | `AxisScale`, `to_pixel`, `to_data`, `nice_ticks`, `format_tick` and the marker/colour vocabulary. Both `chart` and `sequencechart` need them. |
+| `gesturemap/` (6 files) | `visual/gesturehelp/` | A domain-neutral help feature that renders to Syntax and to the screen. `plan/done/base-package-structure.md` already earmarked it. |
+| `gesturelog/` (4 files) | `visual/gesturelog/` | Same reason. The recorder decorates any projection. |
+| `component/Component.jl` | `visual/component/Component.jl` | 83 lines, kernel imports only, no projection yet. Already earmarked. |
+
+`insertion/NaturalProjection.jl` does **not** move as it stands. See the seam below.
+
+### The `natural_to_syntax` seam
+
+`NaturalToGraphics` moves to `visual/naturalprojection/NaturalProjection.jl`, but its
+dispatch table stops being a literal. Add one open generic to `NaturalFormatModule`:
+
+```julia
+natural_syntax_projection(::Type{<:Document}) -> Projection
+```
+
+Each domain package registers its own type in the `*ToSyntax.jl` file it already has,
+exactly as it registers the instance-keyed method today:
+
+```julia
+natural_syntax_projection(::Type{JsonDocument}) = JsonToSyntax()
+```
+
+`NaturalToGraphics` builds its `TypeDispatchingProjection` from the registered types at
+construction time. The `GraphGraph` entry, the widget entries and the layout entries
+follow the same rule. The result: the last cross-domain file in `main/` disappears, and
+the `insertion` slice folder disappears with it.
+
+**Risk to watch.** A `TypeDispatchingProjection` built from a registry sees only the
+domain packages that are loaded. `Projectured` loads all of them, so the umbrella
+behaves as today. A user who loads `ProjecturedJson` alone gets a smaller table, which
+is the point of the split.
+
+---
+
+## The 20 domain packages
+
+Every package sits at `package/<name>/` with `main/`, `test/`, `example/` and `doc/`.
+Every package depends on `ProjecturedKernel`, `ProjecturedBase` and `ProjecturedVisual`.
+The table lists only the extra edges.
+
+### Tier 1 — no domain dependency
+
+| Package | Directory | Source files | Extra deps |
+| --- | --- | --- | --- |
+| `ProjecturedJson` | `package/json/` | `Json`, `JsonParser`, `JsonToSyntax`, `JsonFile` | — |
+| `ProjecturedYaml` | `package/yaml/` | `Yaml`, `YamlParser`, `YamlToSyntax` | — |
+| `ProjecturedXml` | `package/xml/` | `Xml`, `XmlParser`, `XmlToSyntax`, `XmlFile` | — |
+| `ProjecturedMarkdown` | `package/markdown/` | `Markdown`, `MarkdownParser`, `MarkdownToSyntax`, `MarkdownToLayout`, `MarkdownFile` | `Markdown` stdlib |
+| `ProjecturedRst` | `package/rst/` | `Rst`, `RstParser`, `RstToSyntax`, `RstToLayout`, `RstFile` | — |
+| `ProjecturedBook` | `package/book/` | `Book`, `BookToSyntax` | — |
+| `ProjecturedMath` | `package/math/` | `Math`, `MathToSyntax`, `MathToGraphics` | — |
+| `ProjecturedJulia` | `package/julia/` | `Julia`, `JuliaParser`, `JuliaToSyntax`, `JuliaFile`, **`JuliaInsertionToSyntax`** | — |
+| `ProjecturedSql` | `package/sql/` | `Sql`, `SqlParser`, `SqlToSyntax` | — |
+| `ProjecturedDatabase` | `package/database/` | `DatabaseInstance`, `Database`, `DatabaseAdapters` | — |
+| `ProjecturedFileSystem` | `package/filesystem/` | `FileSystem`, `FileSystemToSyntax`, `FileSystemToWidget` | — |
+| `ProjecturedGraph` | `package/graph/` | `Graph`, `GraphLayout`, `GraphLayoutEngine`, `GraphToGraphLayout`, `GraphLayoutToGraphics` | — |
+| `ProjecturedChart` | `package/chart/` | `Chart`, `ChartSampleReferenceStep`, `ChartPlot`, `ChartToChartPlot`, `ChartPlotToGraphics` | — |
+| `ProjecturedSequenceChart` | `package/sequencechart/` | `SequenceChart`, `SequenceChartRowReferenceStep`, `SequenceChartGeometry`, `SequenceChartPlot`, `SequenceChartToSequenceChartPlot`, `SequenceChartPlotToGraphics` | — |
+
+`sequencechart` loses its edge to `chart` once the plot geometry sinks to visual. Check
+this when the move lands. If a residual symbol remains, add the `ProjecturedChart` edge
+rather than duplicate the symbol.
+
+### Tier 2 — one domain dependency layer
+
+| Package | Directory | Extra deps |
+| --- | --- | --- |
+| `ProjecturedDbCatalog` | `package/dbcatalog/` | `ProjecturedSql` |
+| `ProjecturedFormula` | `package/formula/` | `ProjecturedJulia` |
+| `ProjecturedFsm` | `package/fsm/` | `ProjecturedJulia`, `ProjecturedGraph` |
+| `ProjecturedProcess` | `package/process/` | `ProjecturedJulia`, `ProjecturedGraph` |
+| `ProjecturedConversation` | `package/conversation/` | `ProjecturedJson`, `ProjecturedJulia`, `ProjecturedXml` |
+
+### Tier 3 — the application
+
+| Package | Directory | Extra deps |
+| --- | --- | --- |
+| `ProjecturedWorkbench` | `package/workbench/` | `ProjecturedConversation`, `ProjecturedFileSystem`, `ProjecturedJson`, `ProjecturedJulia`, `ProjecturedMarkdown`, `ProjecturedXml`, `ProjecturedYaml` |
+
+### The `SqlInsertionToSyntaxLeaf` and `JuliaInsertionToSyntaxLeaf` split
+
+`SqlInsertionToSyntaxLeaf` is three lines. It moves into `sql/SqlToSyntax.jl`. The Julia
+half is larger: the keyword scaffolds, the six `@insertion` registrations,
+`JuliaInsertionToSyntaxLeaf` and the whole `@gestures JuliaInsertion` block. It becomes
+its own file `julia/JuliaInsertionToSyntax.jl` in `ProjecturedJulia`.
+
+---
+
+## The root module of a domain package
+
+Do not copy the 130-line alias table of `ProjecturedDomain.jl` into 20 packages. Bind
+the submodules with the same loop the `Projectured` umbrella already uses, so the source
+files keep their relative `..XxxModule` imports unchanged:
+
+```julia
+module ProjecturedFsm
+
+using ProjecturedKernel, ProjecturedBase, ProjecturedVisual
+using ProjecturedJulia, ProjecturedGraph
+
+# Bind every submodule of the packages below as a const, so `..SyntaxModule`
+# inside a submodule of this package resolves through this binding.
+for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+             ProjecturedJulia, ProjecturedGraph)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
+include("Fsm.jl")
+include("FsmDiagram.jl")
+include("FsmToSyntax.jl")
+include("FsmToFsmDiagram.jl")
+include("FsmDiagramToGraph.jl")
+include("FsmToJuliaCode.jl")
+
+end
+```
+
+The `parentmodule` guard is what stops a re-exported alias of a lower package from being
+bound twice. The umbrella proves the pattern.
+
+**Prerequisite.** The loop binds only canonical module names. `ProjecturedDomain.jl`
+also defines twelve deprecated second names. Sweep them away first (Step 0):
+
+| Deprecated name | Canonical name |
+| --- | --- |
+| `BackendApiModule` | `BackendModule` |
+| `DocumentApiModule` | `DocumentModule` |
+| `ReferenceApiModule`, `ReferenceBuilderModule`, `ReferenceCaseModule` | `ReferenceModule` |
+| `SelectionApiModule` | `SelectionModule` |
+| `OperationApiModule`, `OperationRerootingModule` | `OperationModule` |
+| `ProjectionReferenceStepApiModule` | `ProjectionReferenceStepModule` |
+| `PointReferenceStepApiModule` | `PointReferenceStepModule` |
+| `TextSpanReferenceStepApiModule` | `TextSpanReferenceStepModule` |
+| `TextColumnReferenceStepApiModule` | `TextColumnReferenceStepModule` |
+
+**Alternative, rejected for now.** Rewrite every import to the absolute form
+(`import ProjecturedVisual.SyntaxModule: SyntaxLeaf`). This removes the loop, but it
+touches about 120 files and makes the diff of this plan unreadable. Do it later as its
+own change if the loop proves fragile.
+
+---
+
+## The example tier
+
+`ProjecturedDomainExample` dissolves. Each domain example package holds the factories
+for its own domain, and builds the flat namespace with the same loop over its own main
+package plus kernel, base and visual.
+
+Twenty example packages get content: `package/<name>/example/`, one per domain, taking
+the matching `document/X.jl` and `projection/X.jl` pair.
+
+These files are cross-domain and rise to `ProjecturedExample` (the umbrella example
+package, which already owns the registry):
+
+- `Gallery.jl` — `run_example` and its workbench, tooltip, inspector and clipboard
+  wrappers.
+- `FileEditor.jl` — the editor domain table wires json, text and xml.
+- `Examples.jl`, `Precompile.jl`.
+- `document/` and `projection/` for `Mixed`, `Natural`, `Wrapper`, `Embed`, `Table`,
+  `Clipboard`, `Navigator`, `Focusing`, `Pane`, `Dragging`, `Versioning`, `Graphics`.
+
+`GestureMap.jl` follows its slice into `ProjecturedVisualExample`.
+
+`ProjecturedSdlExample`, `ProjecturedOdbcExample`, `ProjecturedAdaptagramsExample` and
+`ProjecturedTulipExample` need no change. They depend on `Projectured` and
+`ProjecturedExample`, both of which keep their names.
+
+## The test tier
+
+`ProjecturedDomainTest` dissolves. `test_domain()` and `test_domain_layering()` go away.
+Each domain test package exports `test_json()`, `test_fsm()` and so on, plus a
+`test_<domain>()` aggregator that runs its own suite.
+
+Seventeen of the twenty test packages get content today:
+
+| Package | Test files that move in |
+| --- | --- |
+| json | `JsonTest`, `JsonParserTest`, `JsonToSyntaxTest`, `JsonContentClicksTest`, `JsonPlaceholderNavTest`, `JsonFileTest` |
+| julia | `JuliaParserTest`, `JuliaTypeinTest` |
+| xml | `XmlToSyntaxTest`, `XmlFileTest` |
+| sql | `SqlDocumentTest`, `SqlParserTest`, `SqlToSyntaxTest` |
+| rst | `RstParserTest`, `RstEmbedTest`, `fixture/rst/` |
+| markdown | `MarkdownEmbedTest` |
+| math | `MathToGraphicsTest` |
+| fsm | `FsmTest`, `FsmToSyntaxTest`, `FsmDiagramTest`, `FsmToJuliaCodeTest` |
+| process | `ProcessTest`, `ProcessToSyntaxTest`, `ProcessDiagramTest`, `ProcessToJuliaCodeTest`, `ProcessDebugTest` |
+| chart | `ChartTest` |
+| sequencechart | `SequenceChartTest`, `SequenceChartGeometryTest` |
+| graph | `GraphTest` |
+| filesystem | `FileSystemToSyntaxTest` |
+| formula | `FormulaToSyntaxTest` |
+| conversation | `ConversationEditorTest`, `ConversationPanelTest`, `ConversationParsingTest`, `ConversationSerializationTest` |
+| workbench | `WorkbenchContentPaneTest`, `WorkbenchTabClickTest`, `WorkbenchFileTest`, `AssistantMvpTest` |
+| dbcatalog | `DbCatalogSqlTest` |
+
+`yaml`, `book` and `database` get an empty test package that declares the home. Their
+first test lands there.
+
+These tests are cross-domain and rise to `ProjecturedTest`: `ConstructTest`,
+`SyntaxTreeSelectionTest`, `TableSelectionTest`, `TableNavigationTest`,
+`DocumentInsertionTest`, `DraggingTest`, `HoverProbeTest`, `SerializationTest`,
+`StubCollectionTest`, `MarkerVocabularyTest`, `FileProjectS4Test`, `FileProjectS5Test`,
+`JuliaAndMarkdownFileTest`, `GalleryWrapperTest`, `McpTest`, `TypeReferenceTest`,
+`SelectionEnumeration.jl`.
+
+`ChartGeometryTest`, `CommandPaletteTest`, `GestureHelpTest` and `GestureLogTest` follow
+their slices into `ProjecturedVisualTest`. `ConsoleBackendTest` and `PdfTest` follow
+their fixture: both drive a JSON pipeline, so they go to `ProjecturedJsonTest`.
+
+## Downstream packages
+
+| Package | Change |
+| --- | --- |
+| `ProjecturedSdl` | Drop the `ProjecturedDomain` dep. Depend on `ProjecturedVisual`. Rewrite the `ProjecturedDomain.XxxModule` references to the owning package. |
+| `ProjecturedWeb` | Same. |
+| `ProjecturedVideo` | Same, plus keep its `ProjecturedSdl` dep. |
+| `ProjecturedTulip` | Same. It uses only `ConstraintSolverModule`. |
+| `ProjecturedOdbc` | Depend on `ProjecturedDatabase`, `ProjecturedDbCatalog`, `ProjecturedSql` and `ProjecturedVisual`. |
+| `ProjecturedAdaptagrams` | Depend on `ProjecturedGraph`. |
+| `Projectured` | Import all 20 domain packages instead of `ProjecturedDomain`. The re-export loop needs no other change. |
+| `ProjecturedExample` | Import the 20 example packages. Take over the gallery and the cross-domain examples. |
+| `ProjecturedTest` | Import the 20 test packages. Take over the cross-domain tests. |
+| root `Project.toml`, `bench/` | Add the 60 new `[deps]` and `[sources]` entries. Remove the three `ProjecturedDomain*` entries. |
+
+Keep the umbrella and the root environment in step. A dep that reaches only one of the
+two makes the `jp` REPL alias resolve differently from a test run.
+
+---
+
+## Ordered steps
+
+Do the work in a dedicated git worktree. Make one commit per step. The tree must load
+and pass its targeted tests after every step.
+
+### Step 0 — prepare inside the current package
+
+No package boundary moves. The tree stays green.
+
+1. Delete the three dead imports in `insertion/InsertionToSyntax.jl` (`JsonInsertion`,
+   `XmlInsertion`, `SqlInsertion`).
+2. Sweep the twelve deprecated module aliases to their canonical names, then delete them
+   from `ProjecturedDomain.jl`.
+3. Split `insertion/InsertionToSyntax.jl` into the generic core, `julia/JuliaInsertionToSyntax.jl`
+   and three lines in `sql/SqlToSyntax.jl`.
+4. Split `chart/ChartGeometry.jl` into the plot geometry and what stays chart-specific.
+   Move `series_color`, `default_color_cycle` and `marker_polygon` with the geometry.
+5. Add the type-keyed `natural_syntax_projection(::Type)` generic to
+   `NaturalFormatModule`. Register every domain type. Rebuild the `NaturalToGraphics`
+   table from the registry.
+
+Verify: `test_domain()` and `test_visual()`.
+
+### Step 1 — sink the six items into `ProjecturedVisual`
+
+`git mv` the generic insertion core, `EmbedToSyntax.jl`, the plot geometry, `gesturemap/`,
+`gesturelog/`, `component/` and `NaturalProjection.jl` into visual. Update
+`ProjecturedVisual.jl` and `ProjecturedDomain.jl`. Move their tests and examples into the
+visual test and example packages.
+
+Verify: `test_visual()`, then `test_domain()`.
+
+After this step, `package/domain/main/` holds 20 slices and its slice graph is acyclic.
+
+### Step 2 — extract the 20 main packages, bottom-up
+
+Extract in dependency order: the 14 tier-1 packages first, then dbcatalog, formula, fsm,
+process, conversation, then workbench. For each package:
+
+1. Create `package/<name>/main/` with `Project.toml` (new UUID) and the root module.
+2. `git mv` the slice folder contents into it.
+3. Add the package to `ProjecturedDomain`'s deps and to its alias set, so the slices that
+   are still inside keep resolving.
+4. Add the package to the root `Project.toml` `[deps]` and `[sources]`.
+5. Verify the load and the narrowest test that covers the slice.
+
+`ProjecturedDomain` shrinks by one slice per commit and stays loadable throughout.
+
+### Step 3 — dissolve the umbrella package
+
+When the last slice leaves, `package/domain/main/` is empty. Then:
+
+1. Repoint `Projectured` to the 20 packages.
+2. Repoint `Sdl`, `Web`, `Video`, `Tulip`, `Odbc`, `Adaptagrams`.
+3. Delete `package/domain/main/` and its root Project entries.
+
+Verify: load `Projectured`, then run one example end to end.
+
+### Step 4 — the example tier
+
+Create the 20 example packages. Move the cross-domain examples and the gallery up to
+`ProjecturedExample`. Delete `package/domain/example/`.
+
+Verify: `run_example("json")`, `run_example("workbench")`, `print_example`.
+
+### Step 5 — the test tier
+
+Create the 20 test packages. Move the cross-domain tests up to `ProjecturedTest`. Delete
+`package/domain/test/`.
+
+Verify: each `test_<domain>()`, then `test_all()` once, and diff the counts against the
+baseline (see Risks).
+
+### Step 6 — documentation and guards
+
+1. Move `package/domain/doc/<domain>.md` into each package's `doc/`. `versioning.md`
+   goes to `base/doc/` because versioning already lives in base.
+2. Rewrite the package chain in `documentation/architecture.md` (lines about 75-160 and
+   about 300-400).
+3. Update the per-domain guide links in `CLAUDE.md` and `README.md`.
+4. Replace `test_domain_layering()`. Each domain package is a single slice, so the
+   per-package layer guard becomes trivial. Add one guard that reads every
+   `package/*/main/Project.toml` and asserts the package dependency graph is acyclic and
+   matches the table in this plan.
+
+---
+
+## Risks
+
+**A wide refactor needs a baseline diff.** Targeted tests will not catch a regression
+that only shows on a shared seam. Record a full `test_all()` summary on clean `main`
+before Step 0, and diff against it after Step 5. A change in the pass count with no
+change in `Fail` or `Error` is normal when the cell count moves; a new `Fail` is not.
+
+**A reactive-reuse bug hides from a direct read.** The insertion split and the
+`natural_to_syntax` registry both change what a printer sees. Verify them in a real
+editor, not only through a direct `print_document` call.
+
+**Precompile cost.** 60 packages precompile separately. The first load after a change to
+`ProjecturedVisual` invalidates every domain package. Measure the `jp` alias load time
+before and after; if it grows too much, consider merging the smallest test packages.
+
+**Three empty test packages.** `yaml`, `book` and `database` start with no test file.
+They exist to declare the home.
+
+**A registry-built dispatch table is order-sensitive.** Two domains must not register
+the same type. Add an assertion in the registry that rejects a duplicate key.
+
+## Open questions
+
+- `sequencechart` should lose its `chart` edge entirely once the plot geometry sinks.
+  Confirm during Step 1. If a symbol remains, keep the package edge.
+- `graph` stays a domain package by the user's decision. If `NaturalProjection` turns out
+  to need `GraphGraph` in a way the registry cannot express, revisit the question of
+  sinking `graph` into visual.
+- `Base64` is listed as a domain dep but no source file uses it. Confirm and drop it.
+
+## Status
+
+- [ ] Step 0 — prepare inside the current package
+- [ ] Step 1 — sink the six items into `ProjecturedVisual`
+- [ ] Step 2 — extract the 20 main packages
+- [ ] Step 3 — dissolve the umbrella package
+- [ ] Step 4 — the example tier
+- [ ] Step 5 — the test tier
+- [ ] Step 6 — documentation and guards
