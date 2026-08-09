@@ -45,8 +45,8 @@ atoms compile through the projection its reader will actually meet.
 function precompile_atoms(atoms;
                           projection = NaturalToGraphics(measure = truetype_measure_text))
     context = PrinterContext(EmptyReference(),
-                             ProjecturedKernel.CellModule.Cell(1200),
-                             ProjecturedKernel.CellModule.Cell(800),
+                             Cell(1200),
+                             Cell(800),
                              Dict{Symbol,Any}())
     rendered = 0
     for atom in atoms
@@ -131,13 +131,48 @@ function precompile_atom_walks(atoms)
     walked
 end
 
+"""
+    precompile_workload(level::Symbol = :minimal; atoms = atomic_documents()) -> Nothing
+
+The body a leaf package's `@compile_workload` calls. It is an ordinary function
+rather than code inside the macro, so the same definition serves the REPL leaf
+and the executable, and so it can be called and timed without a rebuild.
+
+`level` says how much to compile. Each level includes the ones before it:
+
+| level | what it runs | measured on the demo |
+| --- | --- | --- |
+| `:none` | nothing | the click costs 5.98 s |
+| `:minimal` | the atoms rendered and forced | |
+| `:demo` | and their parsers and stub walks | the click costs 0.55 s |
+| `:full` | the same as `:demo` here | |
+
+`:full` is not larger than `:demo` in this package because there is no page to
+open below the domains. A downstream package's `precompile_workload` calls this
+one and adds what only it can reach — `OmnetppExample` opens a catalog page —
+so `:full` is where the levels differ downstream.
+
+The workload must *run* the pipeline: the chain is lazy, printing builds thunks,
+and `precompile` on the signatures reached under half the render for twice the
+build cost. See the module comment above.
+"""
+function precompile_workload(level::Symbol = :minimal; atoms = atomic_documents())
+    level === :none && return nothing
+    level in (:minimal, :demo, :full) ||
+        error("precompile_workload: level must be :none, :minimal, :demo or :full, got ",
+              repr(level))
+    precompile_atoms(atoms)
+    level === :minimal && return nothing
+    precompile_atom_parsers(atoms)
+    precompile_atom_walks(atoms)
+    nothing
+end
+
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs
     # compiling, and doing it here keeps the measured region to the pipeline.
-    _atoms = AtomicDocument[visual_atomic_documents; domain_atomic_documents]
+    _atoms = atomic_documents()
     @compile_workload begin
-        precompile_atoms(_atoms)
-        precompile_atom_parsers(_atoms)
-        precompile_atom_walks(_atoms)
+        precompile_workload(:demo; atoms = _atoms)
     end
 end

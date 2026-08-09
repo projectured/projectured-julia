@@ -891,7 +891,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["Profile", "Projectured", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDatabaseExample", "ProjecturedDbCatalogExample", "ProjecturedFileSystemExample", "ProjecturedFormulaExample", "ProjecturedFsmExample", "ProjecturedGraphExample", "ProjecturedJsonExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedProcessExample", "ProjecturedRstExample", "ProjecturedSequenceChartExample", "ProjecturedSqlExample", "ProjecturedVisualExample", "ProjecturedWorkbenchExample", "ProjecturedXmlExample", "ProjecturedYamlExample"]
+deps = ["PrecompileTools", "Profile", "Projectured", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDatabaseExample", "ProjecturedDbCatalogExample", "ProjecturedFileSystemExample", "ProjecturedFormulaExample", "ProjecturedFsmExample", "ProjecturedGraphExample", "ProjecturedJsonExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedProcessExample", "ProjecturedRstExample", "ProjecturedSequenceChartExample", "ProjecturedSqlExample", "ProjecturedVisualExample", "ProjecturedWorkbenchExample", "ProjecturedXmlExample", "ProjecturedYamlExample"]
 entryfile = "ProjecturedExample.jl"
 path = "package/projectured/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
