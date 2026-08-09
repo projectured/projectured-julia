@@ -17,7 +17,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.CellModule: Cell, ComputedCell
-using ProjecturedDomainExample: make_julia_document_example
+using ProjecturedExample: make_julia_document_example
 
 const _JT_M      = JuliaInsertionToSyntaxModule
 const _jt_reroot = OperationModule.reroot_operation

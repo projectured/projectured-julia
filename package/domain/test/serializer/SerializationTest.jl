@@ -4,7 +4,7 @@
 # plus the four editor operations and the format guards.
 
 using Test
-using ProjecturedDomainExample: json_example, xml_example, sql_syntax_example, julia_example
+using ProjecturedExample: json_example, xml_example, sql_syntax_example, julia_example
 
 # evaluate_operation is duck-typed on editor.{document,iomap}; a mutable stand-in
 # is enough to exercise the operations without a backend.

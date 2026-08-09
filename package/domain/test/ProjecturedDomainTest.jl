@@ -58,7 +58,7 @@ using ProjecturedBaseTest
 using ProjecturedVisualTest
 # The real domain-tier example factories and the tier's registry slice — the
 # mirrored Fixtures.jl copies are gone (plan/done/example-package-split.md).
-using ProjecturedDomainExample
+using ProjecturedExample
 import ProjecturedVisualTest: test_tree_navigation
 import ProjecturedVisualTest: _find_text_iomap, _pipeline_measure, _seg_x_at,
                               _path_contains_projection_ref
@@ -136,7 +136,7 @@ include("editor/JsonPlaceholderNavTest.jl")
 # ── moved down from the umbrella: tests whose fixtures are domain documents ───
 # (JSON/Julia/SQL/DbCatalog/Workbench/Conversation/GestureMap). Each drives a
 # domain projection or the domain-coupled editor loop; none needs an opt-in
-# package. Their example factories live in ProjecturedDomainExample.
+# package. Their example factories live in ProjecturedExample.
 include("editor/AssistantMvpTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/ConversationParsingTest.jl")

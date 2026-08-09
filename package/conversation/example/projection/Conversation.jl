@@ -1,3 +1,28 @@
+# Render a widget tree (from ConversationToWidget / the composer) to graphics,
+# including the part-content documents embedded in the cards.
+#
+# This is the generic `NaturalToGraphics`, so a conversation part can hold *any*
+# content document — not just the few types the assistant historically listed —
+# and still render (unknown types degrade to the reflective `Any` fallback). The
+# example-specific Julia/JSON/XML projections are kept as `extra` overrides to
+# preserve their established styling, and a bare graphics document passes straight
+# through so the layout sizes/places it (the generic graphics_size seam); prose,
+# layouts, widgets, every other domain, and the `Any` backstop come from
+# `NaturalToGraphics`.
+_conversation_widget_graphics(; measure=truetype_measure_text) =
+    NaturalToGraphics(measure=measure, extra=Pair{Type,Any}[
+        JuliaDocument    => make_julia_projection_example(measure=measure),
+        JsonDocument     => make_json_projection_example(measure=measure),
+        YamlDocument     => make_yaml_projection_example(measure=measure),
+        XmlDocument      => make_xml_projection_example(measure=measure),
+        # Assistant chat shows *rendered* markdown; the model still receives the raw
+        # source (WorkbenchAssistant `_block_text`/`_doc_source` use the source chain).
+        MarkdownDocument => make_markdown_rendered_projection_example(measure=measure),
+        # Pass a graphics document straight through; the layout sizes/places it
+        # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
+        GraphicsDocument => IdentityProjection(),
+    ])
+
 # Standalone conversation projection: `ConversationConversation → Graphics`,
 # rooted at the conversation itself (no `WorkbenchToWidget` stage). Mirrors the
 # conversation slot of `make_assistant_projection_example`, so what renders here

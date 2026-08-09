@@ -339,7 +339,7 @@ function test_command_palette_decorator()
     @testset "a command runs through the real editor pipeline" begin
         arr = mkarr()
         # Wrapped exactly as `run_example(...; command_palette=true)` wraps it.
-        composed = ProjecturedDomainExample._multi_window_projection(
+        composed = ProjecturedExample._multi_window_projection(
             [make_command_palette_projection(make_json_projection_example())])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)

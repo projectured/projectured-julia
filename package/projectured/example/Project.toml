@@ -6,13 +6,51 @@ version = "0.1.0"
 
 [deps]
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
-ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
+ProjecturedJsonExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
+ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
+ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
+ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
+ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
+ProjecturedJuliaExample = "4bcc8087-a0d3-44e8-950a-3c1c95d942c2"
+ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
+ProjecturedDatabaseExample = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
+ProjecturedFileSystemExample = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
+ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
+ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
+ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
+ProjecturedDbCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
+ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
+ProjecturedFsmExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
+ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
+ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
+ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedLlm = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
 
 [sources]
-ProjecturedDomainExample = {path = "../../domain/example"}
+ProjecturedJsonExample = {path = "../../json/example"}
+ProjecturedYamlExample = {path = "../../yaml/example"}
+ProjecturedXmlExample = {path = "../../xml/example"}
+ProjecturedMarkdownExample = {path = "../../markdown/example"}
+ProjecturedRstExample = {path = "../../rst/example"}
+ProjecturedBookExample = {path = "../../book/example"}
+ProjecturedMathExample = {path = "../../math/example"}
+ProjecturedJuliaExample = {path = "../../julia/example"}
+ProjecturedSqlExample = {path = "../../sql/example"}
+ProjecturedDatabaseExample = {path = "../../database/example"}
+ProjecturedFileSystemExample = {path = "../../filesystem/example"}
+ProjecturedGraphExample = {path = "../../graph/example"}
+ProjecturedChartExample = {path = "../../chart/example"}
+ProjecturedSequenceChartExample = {path = "../../sequencechart/example"}
+ProjecturedDbCatalogExample = {path = "../../dbcatalog/example"}
+ProjecturedFormulaExample = {path = "../../formula/example"}
+ProjecturedFsmExample = {path = "../../fsm/example"}
+ProjecturedProcessExample = {path = "../../process/example"}
+ProjecturedConversationExample = {path = "../../conversation/example"}
+ProjecturedWorkbenchExample = {path = "../../workbench/example"}
 ProjecturedVisualExample = {path = "../../visual/example"}
 ProjecturedKernelExample = {path = "../../kernel/example"}

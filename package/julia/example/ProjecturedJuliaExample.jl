@@ -1,0 +1,63 @@
+"""
+    ProjecturedJuliaExample
+
+The Julia tier of the example-package DAG: the document and projection
+factories this domain's examples are built from.
+
+The registry that names them (`examples`, `atomic_documents`) and the gallery
+that runs them live in the `ProjecturedExample` umbrella, which is where a
+cross-domain composition belongs.
+
+The factories were written against the flat `Projectured` namespace, so the
+loop below rebuilds that namespace over this package's sources.
+"""
+module ProjecturedJuliaExample
+
+import ProjecturedBase
+import ProjecturedJulia
+import ProjecturedKernel
+import ProjecturedVisual
+using ProjecturedKernelExample
+using ProjecturedVisualExample
+import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
+
+const _SOURCES = (ProjecturedBase, ProjecturedJulia, ProjecturedKernel, ProjecturedVisual)
+
+for _src in _SOURCES
+    _srcname = nameof(_src)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+        _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
+        isempty(_syms) && continue
+        Core.eval(@__MODULE__, Expr(:using, Expr(:(:),
+            Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
+    end
+end
+
+include("document/Julia.jl")
+include("projection/Julia.jl")
+
+export make_julia_bool_document_example, make_julia_break_document_example, make_julia_char_document_example
+export make_julia_continue_document_example, make_julia_float_document_example, make_julia_identifier_document_example
+export make_julia_integer_document_example, make_julia_string_document_example, make_julia_symbol_document_example
+export make_julia_nothing_document_example, make_julia_insertion_document_example, make_julia_binary_op_document_example
+export make_julia_call_document_example, make_julia_assignment_document_example, make_julia_block_document_example
+export make_julia_function_document_example, make_julia_array_document_example, make_julia_begin_document_example
+export make_julia_field_access_document_example, make_julia_for_iterator_document_example, make_julia_for_document_example
+export make_julia_if_document_example, make_julia_index_document_example, make_julia_lambda_document_example
+export make_julia_range_document_example, make_julia_return_document_example, make_julia_ternary_document_example
+export make_julia_try_document_example, make_julia_tuple_document_example, make_julia_type_annotation_document_example
+export make_julia_unary_op_document_example, make_julia_using_document_example, make_julia_while_document_example
+export make_julia_abstract_type_document_example, make_julia_anonymous_type_annotation_document_example, make_julia_broadcast_document_example
+export make_julia_comprehension_document_example, make_julia_const_document_example, make_julia_curly_document_example
+export make_julia_do_document_example, make_julia_docstring_document_example, make_julia_empty_document_example
+export make_julia_function_declaration_document_example, make_julia_interpolation_document_example, make_julia_let_document_example
+export make_julia_macro_call_document_example, make_julia_module_def_document_example, make_julia_named_tuple_document_example
+export make_julia_splat_document_example, make_julia_string_chunk_document_example, make_julia_string_interpolation_document_example
+export make_julia_struct_document_example, make_julia_subtype_document_example, make_julia_where_document_example
+export make_julia_where_parameters_document_example, make_julia_document_example, make_julia_projection_example
+
+end # module ProjecturedJuliaExample

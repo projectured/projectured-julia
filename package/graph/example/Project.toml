@@ -1,0 +1,31 @@
+name = "ProjecturedGraphExample"
+uuid = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedGraphExample.jl"
+
+# The Graph tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedXmlExample = {path = "../../xml/example"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedGraph = {path = "../../graph/main"}
+ProjecturedJson = {path = "../../json/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedXml = {path = "../../xml/main"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedVisualExample = {path = "../../visual/example"}

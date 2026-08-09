@@ -172,7 +172,7 @@ function test_hover_probe_pipeline()
                                x = 100, y = 100, width = 1200, height = 600,
                                content = doc)
         screen = ScreenDocument([win])
-        composed = ProjecturedDomainExample._multi_window_projection_inspector(
+        composed = ProjecturedExample._multi_window_projection_inspector(
                        [proj]; pointer = () -> (50, 60))
         iomap = print_document(composed, screen)
 

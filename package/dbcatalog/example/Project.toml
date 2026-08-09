@@ -1,0 +1,27 @@
+name = "ProjecturedDbCatalogExample"
+uuid = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedDbCatalogExample.jl"
+
+# The DbCatalog tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedSql = {path = "../../sql/main"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedDbCatalog = {path = "../../dbcatalog/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedVisualExample = {path = "../../visual/example"}

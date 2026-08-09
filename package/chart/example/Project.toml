@@ -1,0 +1,25 @@
+name = "ProjecturedChartExample"
+uuid = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedChartExample.jl"
+
+# The Chart tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedChart = {path = "../../chart/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedVisualExample = {path = "../../visual/example"}

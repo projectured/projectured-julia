@@ -1,0 +1,61 @@
+name = "ProjecturedWorkbenchExample"
+uuid = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedWorkbenchExample.jl"
+
+# The Workbench tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
+ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
+ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
+ProjecturedJsonExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+ProjecturedJuliaExample = "4bcc8087-a0d3-44e8-950a-3c1c95d942c2"
+ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
+ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
+ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
+ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
+ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
+ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedConversationExample = {path = "../../conversation/example"}
+ProjecturedMath = {path = "../../math/main"}
+ProjecturedBookExample = {path = "../../book/example"}
+ProjecturedJsonExample = {path = "../../json/example"}
+ProjecturedJuliaExample = {path = "../../julia/example"}
+ProjecturedMarkdownExample = {path = "../../markdown/example"}
+ProjecturedSqlExample = {path = "../../sql/example"}
+ProjecturedXmlExample = {path = "../../xml/example"}
+ProjecturedYamlExample = {path = "../../yaml/example"}
+ProjecturedBase = {path = "../../base/main"}
+ProjecturedBook = {path = "../../book/main"}
+ProjecturedConversation = {path = "../../conversation/main"}
+ProjecturedFileSystem = {path = "../../filesystem/main"}
+ProjecturedJson = {path = "../../json/main"}
+ProjecturedJulia = {path = "../../julia/main"}
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedMarkdown = {path = "../../markdown/main"}
+ProjecturedSql = {path = "../../sql/main"}
+ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedWorkbench = {path = "../../workbench/main"}
+ProjecturedXml = {path = "../../xml/main"}
+ProjecturedYaml = {path = "../../yaml/main"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedVisualExample = {path = "../../visual/example"}

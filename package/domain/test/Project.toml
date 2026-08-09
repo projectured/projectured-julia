@@ -11,6 +11,7 @@ entryfile = "ProjecturedDomainTest.jl"
 # ProjecturedVisualTest.
 
 [deps]
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
 ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
@@ -33,7 +34,26 @@ ProjecturedFsm = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
 ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
-ProjecturedDomainExample = "5393e5bd-6135-44b9-9645-408b92f5eb98"
+ProjecturedJsonExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
+ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
+ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
+ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
+ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
+ProjecturedJuliaExample = "4bcc8087-a0d3-44e8-950a-3c1c95d942c2"
+ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
+ProjecturedDatabaseExample = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
+ProjecturedFileSystemExample = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
+ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
+ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
+ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
+ProjecturedDbCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
+ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
+ProjecturedFsmExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
+ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
+ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
+ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
@@ -41,6 +61,7 @@ ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedExample = {path = "../../projectured/example"}
 ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedBase = {path = "../../base/main"}
 ProjecturedVisual = {path = "../../visual/main"}
@@ -64,7 +85,26 @@ ProjecturedFsm = {path = "../../fsm/main"}
 ProjecturedProcess = {path = "../../process/main"}
 ProjecturedConversation = {path = "../../conversation/main"}
 ProjecturedWorkbench = {path = "../../workbench/main"}
-ProjecturedDomainExample = {path = "../example"}
+ProjecturedJsonExample = {path = "../../json/example"}
+ProjecturedYamlExample = {path = "../../yaml/example"}
+ProjecturedXmlExample = {path = "../../xml/example"}
+ProjecturedMarkdownExample = {path = "../../markdown/example"}
+ProjecturedRstExample = {path = "../../rst/example"}
+ProjecturedBookExample = {path = "../../book/example"}
+ProjecturedMathExample = {path = "../../math/example"}
+ProjecturedJuliaExample = {path = "../../julia/example"}
+ProjecturedSqlExample = {path = "../../sql/example"}
+ProjecturedDatabaseExample = {path = "../../database/example"}
+ProjecturedFileSystemExample = {path = "../../filesystem/example"}
+ProjecturedGraphExample = {path = "../../graph/example"}
+ProjecturedChartExample = {path = "../../chart/example"}
+ProjecturedSequenceChartExample = {path = "../../sequencechart/example"}
+ProjecturedDbCatalogExample = {path = "../../dbcatalog/example"}
+ProjecturedFormulaExample = {path = "../../formula/example"}
+ProjecturedFsmExample = {path = "../../fsm/example"}
+ProjecturedProcessExample = {path = "../../process/example"}
+ProjecturedConversationExample = {path = "../../conversation/example"}
+ProjecturedWorkbenchExample = {path = "../../workbench/example"}
 ProjecturedKernelTest = {path = "../../kernel/test"}
 ProjecturedBaseTest = {path = "../../base/test"}
 ProjecturedVisualTest = {path = "../../visual/test"}

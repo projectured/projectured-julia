@@ -82,6 +82,9 @@ include("projection/Reversing.jl")
 include("projection/Filtering.jl")
 include("projection/Searching.jl")
 include("projection/Sorting.jl")
+# The table projection: NaturalToGraphics with the sans chrome font. It names no
+# domain, and both the graph example and the table example need it.
+include("projection/Table.jl")
 
 include("Examples.jl")
 include("Harness.jl")
@@ -133,6 +136,7 @@ export make_widget_menu_item_document_example, make_widget_option_document_examp
 export make_widget_popup_document_example, make_widget_popup_projection_example
 export make_widget_progress_document_example, make_widget_projection_example
 export make_gesture_map_document_example
+export make_table_projection_example, make_math_table_projection_example
 export make_pane_document_example, make_empty_pane_document_example, make_pane_projection_example
 export make_widget_radio_group_document_example, make_widget_scroll_bar_document_example
 export make_widget_scroll_pane_document_example, make_widget_select_document_example

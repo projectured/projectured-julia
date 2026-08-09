@@ -7,7 +7,7 @@
 # reaches the screen through the wrappers.
 
 using Test
-using ProjecturedDomainExample: make_dragging_document, make_dragging_projection,
+using ProjecturedExample: make_dragging_document, make_dragging_projection,
                           make_shell_document, make_shell_projection,
                           make_command_palette_projection,
                           _build_window_scene

@@ -117,7 +117,7 @@ function test_gesture_help()
         arr = mkarr()
         decorated = GestureHelpProjection(inner = make_json_projection_example(),
                                           state = GestureHelpState())
-        composed = ProjecturedDomainExample._multi_window_projection([decorated])
+        composed = ProjecturedExample._multi_window_projection([decorated])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
@@ -138,7 +138,7 @@ function test_gesture_help()
     # help window opens.
     @testset "an undecorated pipeline opens no help window" begin
         arr = mkarr()
-        composed = ProjecturedDomainExample._multi_window_projection([make_json_projection_example()])
+        composed = ProjecturedExample._multi_window_projection([make_json_projection_example()])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 

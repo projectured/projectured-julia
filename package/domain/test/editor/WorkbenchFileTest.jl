@@ -5,7 +5,7 @@
 # WorkbenchEditorToWidgetScrollPane actually lights up @gestures WorkbenchEditor.
 
 using Test
-using ProjecturedDomainExample: make_workbench_document, make_workbench_projection,
+using ProjecturedExample: make_workbench_document, make_workbench_projection,
                           _build_window_scene, _multi_window_projection
 
 # evaluate_operation is duck-typed on editor.{document,iomap}.

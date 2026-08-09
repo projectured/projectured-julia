@@ -38,7 +38,7 @@ import ProjecturedKernel.CellModule: Cell, ComputedCell
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
 # next round of SSE events) is a test double, so it lives in
 # `ProjecturedKernelExample` (fakes never sit in `main`); it reaches this suite
-# through `using ProjecturedDomainExample`. The `_tool_use_script` /
+# through `using ProjecturedExample`. The `_tool_use_script` /
 # `_final_text_script` builders below produce the same event-vector shape it consumes.
 
 # ── Test fixture ────────────────────────────────────────────────────────
@@ -266,13 +266,13 @@ function _canvas_max_absright(node, ax = 0)
 end
 
 function _render_conversation_widget(doc, ctx)
-    proj = ProjecturedDomainExample.make_conversation_widget_projection_example(
+    proj = ProjecturedExample.make_conversation_widget_projection_example(
         measure = (t, _f) -> (length(t) * 10, 20))
     print_document(proj, proj, doc, ctx).output
 end
 
 function _all_expanded_conversation()
-    doc = ProjecturedDomainExample.make_conversation_document_example()
+    doc = ProjecturedExample.make_conversation_document_example()
     for t in doc.turns
         t.collapsed = false
         for p in t.parts
@@ -286,7 +286,7 @@ function _mvp_test_collapse_containment()
     @testset "collapse layout: no balloon + body containment" begin
         # Stage 2 — collapsing a part does not widen any card.
         out_default  = _render_conversation_widget(
-            ProjecturedDomainExample.make_conversation_document_example(), PrinterContext())
+            ProjecturedExample.make_conversation_document_example(), PrinterContext())
         out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
         # @broken: pre-existing drift; canvas maxw differs between default/expanded conversation renders
         @test_broken _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
@@ -297,7 +297,7 @@ function _mvp_test_collapse_containment()
                     with_available_size(PrinterContext(); width = Cell(760)),
                     with_available_size(PrinterContext(); width = Cell(1200)))
             out = _render_conversation_widget(
-                ProjecturedDomainExample.make_conversation_document_example(), ctx)
+                ProjecturedExample.make_conversation_document_example(), ctx)
             @test _canvas_max_absright(out) <= Int(out.w)
         end
     end
@@ -360,8 +360,8 @@ end
 function _mvp_test_collapse_click()
     @testset "collapse on header click" begin
         fake_measure(_text, _font) = (length(_text) * 10, 20)
-        doc  = ProjecturedDomainExample.make_conversation_document_example()
-        proj = ProjecturedDomainExample.make_conversation_widget_projection_example(measure = fake_measure)
+        doc  = ProjecturedExample.make_conversation_document_example()
+        proj = ProjecturedExample.make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())
 
         # Resolve both header clicks from the *same* fresh projection (a toggle

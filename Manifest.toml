@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "dbb1751052bc82cdcddbef33599347c0bb1ed3e4"
+project_hash = "7226982d6b0469687abbd6645dfda1f303d79e2e"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -785,6 +785,13 @@ path = "package/book/main"
 uuid = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 version = "0.1.0"
 
+[[deps.ProjecturedBookExample]]
+deps = ["ProjecturedBase", "ProjecturedBook", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedBookExample.jl"
+path = "package/book/example"
+uuid = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
+version = "0.1.0"
+
 [[deps.ProjecturedBuilder]]
 deps = ["Pkg"]
 entryfile = "ProjecturedBuilder.jl"
@@ -799,11 +806,25 @@ path = "package/chart/main"
 uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 version = "0.1.0"
 
+[[deps.ProjecturedChartExample]]
+deps = ["ProjecturedBase", "ProjecturedChart", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedChartExample.jl"
+path = "package/chart/example"
+uuid = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
+version = "0.1.0"
+
 [[deps.ProjecturedConversation]]
 deps = ["ProjecturedBase", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual", "ProjecturedXml"]
 entryfile = "ProjecturedConversation.jl"
 path = "package/conversation/main"
 uuid = "99f175d3-497d-4a02-8497-78e6e06c4369"
+version = "0.1.0"
+
+[[deps.ProjecturedConversationExample]]
+deps = ["ProjecturedBase", "ProjecturedConversation", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
+entryfile = "ProjecturedConversationExample.jl"
+path = "package/conversation/example"
+uuid = "347e843b-c443-43c2-b8df-78595927ced1"
 version = "0.1.0"
 
 [[deps.ProjecturedDatabase]]
@@ -813,6 +834,13 @@ path = "package/database/main"
 uuid = "a8e362de-fb06-4734-b6cc-4acfede009df"
 version = "0.1.0"
 
+[[deps.ProjecturedDatabaseExample]]
+deps = ["ProjecturedBase", "ProjecturedDatabase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedDatabaseExample.jl"
+path = "package/database/example"
+uuid = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
+version = "0.1.0"
+
 [[deps.ProjecturedDbCatalog]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedSql", "ProjecturedVisual"]
 entryfile = "ProjecturedDbCatalog.jl"
@@ -820,22 +848,22 @@ path = "package/dbcatalog/main"
 uuid = "b1d9ff6e-938d-43f9-b327-c16571782863"
 version = "0.1.0"
 
-[[deps.ProjecturedDomainExample]]
-deps = ["PrecompileTools", "Profile", "ProjecturedBase", "ProjecturedBook", "ProjecturedChart", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedFileSystem", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGraph", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedProcess", "ProjecturedRst", "ProjecturedSequenceChart", "ProjecturedSql", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedYaml"]
-entryfile = "ProjecturedDomainExample.jl"
-path = "package/domain/example"
-uuid = "5393e5bd-6135-44b9-9645-408b92f5eb98"
+[[deps.ProjecturedDbCatalogExample]]
+deps = ["ProjecturedBase", "ProjecturedDbCatalog", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedSql", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedDbCatalogExample.jl"
+path = "package/dbcatalog/example"
+uuid = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
 version = "0.1.0"
 
 [[deps.ProjecturedDomainTest]]
-deps = ["ProjecturedBase", "ProjecturedBaseTest", "ProjecturedBook", "ProjecturedChart", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomainExample", "ProjecturedFileSystem", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGraph", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedProcess", "ProjecturedRst", "ProjecturedSequenceChart", "ProjecturedSql", "ProjecturedVisual", "ProjecturedVisualTest", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedYaml", "Test"]
+deps = ["ProjecturedBase", "ProjecturedBaseTest", "ProjecturedBook", "ProjecturedBookExample", "ProjecturedChart", "ProjecturedChartExample", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedDatabase", "ProjecturedDatabaseExample", "ProjecturedDbCatalog", "ProjecturedDbCatalogExample", "ProjecturedExample", "ProjecturedFileSystem", "ProjecturedFileSystemExample", "ProjecturedFormula", "ProjecturedFormulaExample", "ProjecturedFsm", "ProjecturedFsmExample", "ProjecturedGraph", "ProjecturedGraphExample", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedMath", "ProjecturedMathExample", "ProjecturedProcess", "ProjecturedProcessExample", "ProjecturedRst", "ProjecturedRstExample", "ProjecturedSequenceChart", "ProjecturedSequenceChartExample", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedVisual", "ProjecturedVisualTest", "ProjecturedWorkbench", "ProjecturedWorkbenchExample", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample", "Test"]
 entryfile = "ProjecturedDomainTest.jl"
 path = "package/domain/test"
 uuid = "5a3bf5be-5cdd-4f4d-8463-417e5a608a2d"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["Profile", "Projectured", "ProjecturedDomainExample", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedVisualExample"]
+deps = ["Profile", "Projectured", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDatabaseExample", "ProjecturedDbCatalogExample", "ProjecturedFileSystemExample", "ProjecturedFormulaExample", "ProjecturedFsmExample", "ProjecturedGraphExample", "ProjecturedJsonExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedLlm", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedProcessExample", "ProjecturedRstExample", "ProjecturedSequenceChartExample", "ProjecturedSqlExample", "ProjecturedVisualExample", "ProjecturedWorkbenchExample", "ProjecturedXmlExample", "ProjecturedYamlExample"]
 entryfile = "ProjecturedExample.jl"
 path = "package/projectured/example"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
@@ -848,11 +876,25 @@ path = "package/filesystem/main"
 uuid = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 version = "0.1.0"
 
+[[deps.ProjecturedFileSystemExample]]
+deps = ["ProjecturedBase", "ProjecturedFileSystem", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedFileSystemExample.jl"
+path = "package/filesystem/example"
+uuid = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
+version = "0.1.0"
+
 [[deps.ProjecturedFormula]]
 deps = ["ProjecturedBase", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedFormula.jl"
 path = "package/formula/main"
 uuid = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
+version = "0.1.0"
+
+[[deps.ProjecturedFormulaExample]]
+deps = ["ProjecturedBase", "ProjecturedFormula", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedFormulaExample.jl"
+path = "package/formula/example"
+uuid = "e12fc55c-24d9-46de-99d8-255849114e23"
 version = "0.1.0"
 
 [[deps.ProjecturedFsm]]
@@ -862,11 +904,25 @@ path = "package/fsm/main"
 uuid = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 version = "0.1.0"
 
+[[deps.ProjecturedFsmExample]]
+deps = ["ProjecturedBase", "ProjecturedFsm", "ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedFsmExample.jl"
+path = "package/fsm/example"
+uuid = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
+version = "0.1.0"
+
 [[deps.ProjecturedGraph]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedGraph.jl"
 path = "package/graph/main"
 uuid = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
+version = "0.1.0"
+
+[[deps.ProjecturedGraphExample]]
+deps = ["ProjecturedBase", "ProjecturedGraph", "ProjecturedJson", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedXml", "ProjecturedXmlExample"]
+entryfile = "ProjecturedGraphExample.jl"
+path = "package/graph/example"
+uuid = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 version = "0.1.0"
 
 [[deps.ProjecturedJson]]
@@ -876,11 +932,25 @@ path = "package/json/main"
 uuid = "975d7430-285c-49f1-8705-4e3c002513ca"
 version = "0.1.0"
 
+[[deps.ProjecturedJsonExample]]
+deps = ["ProjecturedBase", "ProjecturedJson", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedJsonExample.jl"
+path = "package/json/example"
+uuid = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+version = "0.1.0"
+
 [[deps.ProjecturedJulia]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedJulia.jl"
 path = "package/julia/main"
 uuid = "8625b742-6071-4be0-bd92-d89876019251"
+version = "0.1.0"
+
+[[deps.ProjecturedJuliaExample]]
+deps = ["ProjecturedBase", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedJuliaExample.jl"
+path = "package/julia/example"
+uuid = "4bcc8087-a0d3-44e8-950a-3c1c95d942c2"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
@@ -917,11 +987,25 @@ path = "package/markdown/main"
 uuid = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 version = "0.1.0"
 
+[[deps.ProjecturedMarkdownExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedMarkdownExample.jl"
+path = "package/markdown/example"
+uuid = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+version = "0.1.0"
+
 [[deps.ProjecturedMath]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedMath.jl"
 path = "package/math/main"
 uuid = "80f7b254-0441-42e3-ab4d-62a480615fad"
+version = "0.1.0"
+
+[[deps.ProjecturedMathExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMath", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedMathExample.jl"
+path = "package/math/example"
+uuid = "73f1f682-f993-4b23-8fb6-96106c481b86"
 version = "0.1.0"
 
 [[deps.ProjecturedMcp]]
@@ -959,11 +1043,25 @@ path = "package/process/main"
 uuid = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 version = "0.1.0"
 
+[[deps.ProjecturedProcessExample]]
+deps = ["ProjecturedBase", "ProjecturedGraph", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedProcess", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedProcessExample.jl"
+path = "package/process/example"
+uuid = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
+version = "0.1.0"
+
 [[deps.ProjecturedRst]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedRst.jl"
 path = "package/rst/main"
 uuid = "831b768c-bfea-4983-ba67-a56f379c3222"
+version = "0.1.0"
+
+[[deps.ProjecturedRstExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedRst", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedRstExample.jl"
+path = "package/rst/example"
+uuid = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 version = "0.1.0"
 
 [[deps.ProjecturedSdl]]
@@ -994,11 +1092,25 @@ path = "package/sequencechart/main"
 uuid = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
 version = "0.1.0"
 
+[[deps.ProjecturedSequenceChartExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedSequenceChart", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedSequenceChartExample.jl"
+path = "package/sequencechart/example"
+uuid = "5b64cb16-3395-4b64-9318-fc74b96892aa"
+version = "0.1.0"
+
 [[deps.ProjecturedSql]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedSql.jl"
 path = "package/sql/main"
 uuid = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+version = "0.1.0"
+
+[[deps.ProjecturedSqlExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedSql", "ProjecturedVisual", "ProjecturedVisualExample"]
+entryfile = "ProjecturedSqlExample.jl"
+path = "package/sql/example"
+uuid = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
@@ -1078,6 +1190,13 @@ path = "package/workbench/main"
 uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 version = "0.1.0"
 
+[[deps.ProjecturedWorkbenchExample]]
+deps = ["ProjecturedBase", "ProjecturedBook", "ProjecturedBookExample", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedFileSystem", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedMath", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
+entryfile = "ProjecturedWorkbenchExample.jl"
+path = "package/workbench/example"
+uuid = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
+version = "0.1.0"
+
 [[deps.ProjecturedXml]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedXml.jl"
@@ -1085,11 +1204,25 @@ path = "package/xml/main"
 uuid = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 version = "0.1.0"
 
+[[deps.ProjecturedXmlExample]]
+deps = ["ProjecturedBase", "ProjecturedJson", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedXml"]
+entryfile = "ProjecturedXmlExample.jl"
+path = "package/xml/example"
+uuid = "903c9982-1817-4ad4-896f-97194f4d58e8"
+version = "0.1.0"
+
 [[deps.ProjecturedYaml]]
 deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedVisual"]
 entryfile = "ProjecturedYaml.jl"
 path = "package/yaml/main"
 uuid = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+version = "0.1.0"
+
+[[deps.ProjecturedYamlExample]]
+deps = ["ProjecturedBase", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedVisual", "ProjecturedVisualExample", "ProjecturedYaml"]
+entryfile = "ProjecturedYamlExample.jl"
+path = "package/yaml/example"
+uuid = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 version = "0.1.0"
 
 [[deps.PulseAudio_jll]]
