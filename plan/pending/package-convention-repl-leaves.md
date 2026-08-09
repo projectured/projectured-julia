@@ -85,14 +85,14 @@ plan says it.
 Foo            -> Bar,  and every sub-stem of Foo
 FooExample     -> Foo,  BarExample
 FooTest        -> Foo,  BarTest, FooExample
-FooAll         -> Foo,  and every separate stem of the repository
-FooAllTest     -> FooAll, FooTest, and every separate stem's Test
-FooRepl        -> FooAllTest                                       (leaf)
+FooRepl        -> nothing but PrecompileTools and Preferences      (leaf)
 FooBuild       -> FooExample                                       (leaf)
 ```
 
 A stem's main package **aggregates its sub-stems**, so `Foo` is the one name a
 consumer needs, and `FooTest` depends on `Foo` whole rather than on the pieces.
+
+Which stems are *present* is not a package's business at all — see rule 2d.
 
 **Nothing may depend on a `Repl` or a `Build` package.** That is the whole
 mechanism; a dependency on a leaf makes it not a leaf.
@@ -124,14 +124,9 @@ So:
   separate stems reach the prompt through the leaf**, which is where "everything
   I want available" belongs:
 
-```
-ProjecturedAll     -> Projectured, Sdl, Adaptagrams, Odbc, Tulip, Video, Llm, Mcp, Web
-ProjecturedAllTest -> ProjecturedAll, ProjecturedTest, SdlTest, OdbcTest,
-                      TulipTest, VideoTest
-```
-
-That settles what `test_all()` covers: `StemAll` decides, in one written list,
-and the cost is load time rather than compile time.
+That settles what `test_all()` covers: the **environment** decides which stems
+and which suites are present, and the cost is load time rather than compile
+time.
 
 ### 2c. Optional wiring goes in an extension, not in a dependency
 
@@ -163,29 +158,40 @@ What an extension **cannot** do, so nobody expects it to:
   and installed. What it saves is the load, and the invalidation that comes with
   the load.
 
-### 2d. One list of everything, in `StemAll`
+### 2d. Configuration is an environment, not a package
 
-An explicit "everything" package is worth having, on one condition: **the list
-lives in exactly one place.** Two lists — one in `StemAll`, one in `StemRepl` —
-will drift, and the second will be the one that is wrong.
+An "everything" package would be a second list beside the one the leaf holds,
+and the two would drift. Julia already has a first-class unit for "the set of
+packages present", and it is a `Project.toml`. Keep several per repository, all
+checked in:
 
 ```
-StemAll     -> Stem, and every separate stem of this repository
-StemAllTest -> StemAll, StemTest, and every separate stem's Test
-StemRepl    -> StemAllTest                                   (leaf)
+env/core    Projectured, ProjecturedSdl, the Repl leaf        — daily work
+env/demo    + Adaptagrams, Llm                                — the catalog
+env/full    + Odbc, Tulip, Video, Web, Mcp, every *Test       — everything
+env/ci      = full, without Revise
 ```
 
-`StemAll` is a stem under rule 1, so its kinds are `StemAllExample` and
-`StemAllTest`; `All` is not a sixth kind. Nothing else in the repository may
-depend on `StemAll` — a package that needs ODBC names ODBC.
+The alias selects one:
 
-The leaf then holds no list at all, only `Preferences`, `PrecompileTools` and the
-workload call. That is the split worth having: `StemAll` says *what is in the
-session*, `StemRepl` says *how it is prepared*.
+```
+jo:  julia --project=$OMNETPP/env/full  -e 'using Revise, OmnetppRepl'
+jod: julia --project=$OMNETPP/env/demo  -e 'using Revise, OmnetppRepl'
+```
 
-This changes nothing about speed. Whatever `StemAll` does not name is still
-invalidating if it is loaded at the prompt afterwards. Extensions are about not
-being forced to load; the leaf is about what is compiled last.
+One question — which heavy stems exist — asked once, and answered the same way
+for the session, the workload and the binary. `PackageCompiler` takes a project
+too, so a lean binary and a full binary differ by `--project`, not by a second
+package.
+
+The leaf therefore holds **no dependency list**. It declares each heavy stem as
+a weak dependency with an extension that carries that stem's part of the
+workload, so the extension exists only in an environment where the stem does.
+`env/core` never compiles the ODBC or solver paths, because there is no
+extension to compile.
+
+One consequence to accept: a weak dependency is still resolved and installed. An
+environment saves the load, not the download.
 
 ### 3. A workload lives in a leaf
 
@@ -384,9 +390,7 @@ the leaf fixes on its own.
 | `ProjecturedWeb` | Domain | HTTP, JSON3 |
 | `<Stem>Example` | `<Stem>`, the Examples below it | PrecompileTools where it holds a body |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `ProjecturedAll` | Projectured, Sdl, Adaptagrams, Odbc, Tulip, Video, Llm, Mcp, Web | — |
-| `ProjecturedAllTest` | ProjecturedAll, ProjecturedTest, and each stem's Test | — |
-| `ProjecturedRepl` **(leaf)** | ProjecturedAllTest | PrecompileTools, Preferences |
+| `ProjecturedRepl` **(leaf)** | nothing; weakdeps on Sdl, Odbc, Tulip, Video, Llm, Mcp, Web, each with an extension carrying that stem's workload | PrecompileTools, Preferences |
 | `ProjecturedExecutable` **(leaf)** | ProjecturedExample, Projectured, Llm, Sdl | PackageCompiler, FixedPointNumbers |
 | `ProjecturedBuilder` (tool) | — | Pkg |
 
@@ -405,9 +409,7 @@ the leaf fixes on its own.
 | `Omnetpp` **(umbrella)** | Description, Format, Legacy, Presentation, Simulator, Units — not Dynamics, Plot or Result, which own dependencies | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | BlackBoxOptim (presentation only) |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `OmnetppAll` | Omnetpp, Dynamics, LegacyPlot, ProjecturedAll | — |
-| `OmnetppAllTest` | OmnetppAll, OmnetppTest, and each stem's Test | — |
-| `OmnetppRepl` **(leaf)** | OmnetppAllTest | PrecompileTools, Preferences |
+| `OmnetppRepl` **(leaf)** | nothing; weakdeps on Dynamics, LegacyPlot, LegacyResult, each with an extension carrying that stem's workload | PrecompileTools, Preferences |
 
 ### inet-julia
 
@@ -421,9 +423,7 @@ the leaf fixes on its own.
 | `Inet` **(umbrella)** | Common, LinkLayer, Packet, Queuing, Runner, OmnetppSimulator, ProjecturedVisual | — |
 | `<Stem>Example` | `<Stem>`, the Examples below it | — |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `InetAll` | Inet, OmnetppAll | — |
-| `InetAllTest` | InetAll, InetTest | — |
-| `InetRepl` **(leaf)** | InetAllTest | PrecompileTools, Preferences |
+| `InetRepl` **(leaf)** | nothing; weakdeps as needed | PrecompileTools, Preferences |
 
 ### The domains, after the split
 
@@ -641,8 +641,8 @@ and the existing guides point at it.
 
 - `documentation/packages.md` in each of the three repositories: the five kinds,
   the dependency direction, the full table of what depends on what, the external
-  dependency of each package and why it has one, and which package is the leaf
-  the alias loads.
+  dependency of each package and why it has one, the environments and what each
+  is for, and which package is the leaf the alias loads.
 - [documentation/architecture.md](../../documentation/architecture.md) in
   projectured-julia gains the leaf and workload rules next to the existing
   layer and slice vocabulary, and links to `packages.md`. The division
@@ -655,12 +655,19 @@ and the existing guides point at it.
 
 ## Steps
 
+**Held.** Nothing here starts until the domain package split lands on
+projectured-julia `main`. The split moves the packages this convention is about
+to name, and step 5 wants a file the split is editing. See "The domain split, in
+flight".
+
+- [ ] 0. The split lands. Re-read the dependency tables against the packages it
+      produced, then start.
 - [ ] 1. This plan, and companion plans in omnetpp-julia and inet-julia.
 - [ ] 2. `precompile_workload(level)` in `ProjecturedExample`, wrapping the
       bodies that exist. No call-site moves yet.
-- [ ] 3. `ProjecturedAll` and `ProjecturedAllTest` — the one list — then
-      `ProjecturedRepl` on top, with the Preferences-driven level and
-      `set_workload!`.
+- [ ] 3. `env/core`, `env/demo`, `env/full`, `env/ci`, then `ProjecturedRepl`
+      with the Preferences-driven level, `set_workload!`, and one extension per
+      heavy stem carrying that stem's part of the workload.
 - [ ] 4. `ProjecturedExecutable` calls `precompile_workload(:full)`.
 - [ ] 5. Move the call sites out of `ProjecturedDomainExample` and
       `ProjecturedVisualExample`. **After the domain split lands.**
