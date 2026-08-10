@@ -235,7 +235,7 @@ native layout instead of assuming the pair is always complete.
 registry testset. The three failures and two errors are the pre-existing Rule C
 ones and are unchanged.
 
-## 1.2 Let `copy_document` choose the layout
+## 1.2 Let `copy_document` choose the layout — **DONE**
 
 `copy_document(K, doc)` builds through `Base.typename(T).wrapper`, which is the
 source's own layout. Build through the registry instead, and pick the target from
@@ -247,8 +247,41 @@ source's own layout. Build through the registry instead, and pick the target fro
 A source of any layout then copies into the layout the target kind wants. This
 alone fixes Fact 2, because `copy_shadow_element` calls exactly this function.
 
-Keep the rule in one private helper, so `copy_document` and `sync_document!`
-cannot drift apart.
+**As built, every kind targets the cell layout.** A kind is a property of a cell,
+so a kinded copy only means something in a tree that has cells. Routing
+`MutableCell` to the native struct instead is Open Question 2 and is deferred: it
+would change what an existing caller gets, and no caller asks for it. The four
+call sites in this repository that pass a kind all pass `ImmutableCell`.
+
+The two arities now differ in layout as well as in kind. `copy_document(doc)`
+preserves the layout, so a native document copies into a native one.
+`copy_document(K, doc)` targets `document_cell_type`.
+
+One rule needed care. The old code wrapped a field in `K` when the **source**
+field held a cell. That is wrong once the source can be native, because the target
+is a cell layout whose every field is a cell slot. The test is now the target:
+`_declared_value_types` is emitted for exactly the macro-emitted schemas, so its
+presence says every field of the cell layout is a cell. A hand-written document
+has no such method, so there the source's own field shape stays the truth and the
+behaviour is what it was.
+
+A schema with no cell layout raises a plain error rather than calling `nothing`.
+
+**Measured.**
+
+| Suite | Clean main | With the change |
+| --- | --- | --- |
+| `test_kernel()` | 1461 / 3 / 2 | 1479 / 3 / 2 |
+| `test_base()` | 387 / 0 / 0 | 387 / 0 / 0 |
+| `test_visual()` | 52659 pass, 1 broken | 52659 pass, 1 broken |
+
+The 18 extra kernel passes are the new assertions: 8 for the registry, 10 for the
+layout rules. The three failures and two errors are the pre-existing Rule C ones.
+`test_visual()` is byte-identical, which is the evidence that the change is a
+no-op for every document that exists today — this repository has no native
+document, and for a cell-layout source the new code path is the old one.
+
+Both new testsets were checked against the unfixed file: they fail without it.
 
 ## 1.3 Let `sync_document!` read the kind from the tree, not the node
 

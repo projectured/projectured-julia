@@ -14,7 +14,8 @@ Covers:
 
 using Test
 using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.CellModule: Cell, ComputedCell, ImmutableCell, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, ComputedCell, ImmutableCell, ReactiveCell,
+                                    AbstractCell, is_cell_up_to_date
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
@@ -25,6 +26,14 @@ using ProjecturedKernel.ReferenceModule: EmptyReference, Reference,
 @document struct ToyNode
     label::String
     child::Union{ToyNode, Nothing}
+end
+
+# A field typed `Document` rather than one schema. That is what lets a *native*
+# node into a tree of any layout, because a native node is a `Document`, and so it
+# is the shape the layout rules are about. `ToyNode.child` above is typed to one
+# schema and cannot hold a native node at all.
+@document struct ToyBox
+    content::Union{Document, Nothing} = nothing
 end
 
 function test_document_contract()
@@ -89,6 +98,39 @@ function test_document_contract()
         node = ToyNode(callback, nothing, nothing)
         @test copy_document(node).label === callback
         @test copy_document(ImmutableCell, node).label === callback
+    end
+
+    @testset "a kinded copy targets the cell layout, a plain copy keeps the layout" begin
+        native = ToyNodeMut("root", nothing, nothing)
+        # A kind is a property of a cell, so a kinded copy of a native source has to
+        # convert. Copying the source's own layout is what let a native node into a
+        # cell shadow, where nothing could ever invalidate it.
+        reactive = copy_document(ReactiveCell, native)
+        @test reactive isa ToyNode
+        @test getfield(reactive, :label) isa ReactiveCell
+        @test reactive.label == "root"
+        @test copy_document(ImmutableCell, native) isa ToyNode
+        @test getfield(copy_document(ImmutableCell, native), :label) isa ImmutableCell
+        # The plain copy preserves the layout, so a native document copies into one.
+        @test copy_document(native) isa ToyNodeMut
+    end
+
+    @testset "a new native child reaches a cell shadow as a cell node" begin
+        source = ToyBoxMut(nothing, nothing)
+        shadow = ToyBox(nothing, nothing)
+        source.content = ToyNodeMut("first", nothing, nothing)
+        sync_document!(shadow, source)
+        # The child is rebuilt in the shadow's own layout, not copied across as it was.
+        @test shadow.content isa ToyNode
+        @test getfield(shadow.content, :label) isa AbstractCell
+
+        # The point of the shadow: a reader of it runs again when the source moves.
+        # A native child would read correctly here and never invalidate.
+        seen = ComputedCell(() -> shadow.content === nothing ? "" : shadow.content.label)
+        @test seen[] == "first"
+        source.content.label = "second"
+        sync_document!(shadow, source)
+        @test seen[] == "second"
     end
 
 end
