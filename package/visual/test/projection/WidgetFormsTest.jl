@@ -53,6 +53,42 @@ end
                           MousePress(:left, 2, 2, ModifierKeys())) === nothing
 end
 
+@testset "toggle group picks the segment under the press" begin
+    g  = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast", "Express"]; selected=2)
+    io = print_document(proj, g)
+    w  = Int(io.output.w[])
+    # Positions are taken from the control's own edges rather than from segment
+    # widths the test computes for itself: the far left is the first segment and
+    # the far right is the last, whatever the font measures them at.
+    left, right = 2, w - 3
+
+    # The answer is a value write, the way a select's picked option answers — a
+    # segment is a control's value, not a place in a document.
+    first = read_intent(proj, io, MousePress(:left, left, 4, ModifierKeys()))
+    @test first isa ReplaceReferencedValueOperation
+    @test first.document === g
+    @test first.value == 1
+    @test read_intent(proj, io, MousePress(:left, right, 4, ModifierKeys())).value == 3
+
+    # The segment already on is not a change, so there is no edit to report.
+    on_first = print_document(proj, WidgetToggleGroup(Point2D(0, 0),
+                                                      ["Run", "Fast", "Express"]; selected=1))
+    @test read_intent(proj, on_first, MousePress(:left, left, 4, ModifierKeys())) === nothing
+
+    # Past the right edge is outside the control, which every widget declines.
+    @test read_intent(proj, io, MousePress(:left, w + 5, 4, ModifierKeys())) === nothing
+
+    # A right press is not a pick, and a disabled group is inert.
+    @test read_intent(proj, io, MousePress(:right, left, 4, ModifierKeys())) === nothing
+    dis = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast"]; selected=2, enabled=false)
+    @test read_intent(proj, print_document(proj, dis),
+                      MousePress(:left, 4, 4, ModifierKeys())) === nothing
+    # An invisible one draws nothing and answers nothing.
+    inv = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast"]; visible=false)
+    @test read_intent(proj, print_document(proj, inv),
+                      MousePress(:left, 4, 4, ModifierKeys())) === nothing
+end
+
 @testset "numeric_validator accepts digits, rejects letters" begin
     v = numeric_validator()
     @test v("123") === true

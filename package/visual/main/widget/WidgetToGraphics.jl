@@ -95,6 +95,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
        widget_theme_slate_light, widget_theme_slate_dark,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
+       WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
        WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
@@ -4471,10 +4472,23 @@ end
     ring_color::StyleColor             # focus ring when selected
 end
 
+# The segment widths, so a press can be answered by the segment it landed in.
+# They are derived from the same measurement the printer draws with, in the same
+# build, rather than measured a second time in the reader — a reader that
+# measured for itself would answer for a layout the screen never had.
+# @iomap so the reader reads `iomap.segment_widths` transparently;
+# AR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetToggleGroupToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    segment_widths::Any
+end
+
 function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::WidgetToggleGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
         selected = Int(w.selected)
         padding_x = _sc(Int(p.padding.left[]))
@@ -4508,10 +4522,60 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
             x += segment_width
         end
         _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
-        (width=control_width, height=control_height, elements=elements)
-    end))
+        (width=control_width, height=control_height, elements=elements,
+         segment_widths=segment_widths)
+    end)
+    canvas = _reactive_canvas_cell(_origin(position)..., build)
+    WidgetToggleGroupToGraphicsCanvasIoMap(p, w, canvas,
+                                           ComputedCell(() -> build[].segment_widths))
 end
-@_printer_only WidgetToggleGroupToGraphicsCanvas
+
+# A segmented control is a positioned leaf that nothing points into: it has one
+# value, and that value is a field rather than a place in a document.
+map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
+
+# Invisible group (the printer returned a bare empty canvas): inert.
+read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# Which segment holds `x`, counting from the group's own left edge, or nothing
+# when the widths do not reach it. The widths are the printer's own, so this
+# lands where the reader can see a segment drawn.
+function _toggle_group_segment(widths, x::Real)
+    left = 0
+    for i in eachindex(widths)
+        right = left + widths[i]
+        left <= x < right && return i
+        left = right
+    end
+    nothing
+end
+
+# A left press picks the segment under it. The answer is a write of `selected`,
+# the way `WidgetSelect` answers a picked option and `WidgetSpinBox` answers a
+# stepper — a control states its own value. It is NOT a `ReplaceSelectionOperation`:
+# that is what `WidgetList` answers with, because a list's selection is a place in
+# a document and a segment is not.
+function read_intent(::WidgetToggleGroupToGraphicsCanvas,
+                     iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    w = iomap.input
+    w.enabled === false && return nothing
+    @event_case evt begin
+        MousePress(button, x, y) => begin
+            button === :left || return nothing
+            canvas = iomap.output
+            segment = _toggle_group_segment(iomap.segment_widths, x - Int(canvas.x[]))
+            # Pressing the segment that is already on is not a change. Answering
+            # nothing rather than a write of the same value keeps an enclosing
+            # projection from seeing an edit that edits nothing.
+            segment === nothing && return nothing
+            segment == Int(w.selected) && return nothing
+            ReplaceReferencedValueOperation(w, "selected", segment)
+        end
+        _ => nothing
+    end
+end
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
