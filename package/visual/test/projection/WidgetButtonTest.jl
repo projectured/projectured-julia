@@ -30,6 +30,29 @@ function _button_doc()
     (button, count)
 end
 
+@testset "a widget declines a position outside what it drew" begin
+    # A container is expected to clip before handing an event down, and every
+    # container here does — but a widget can be put into anything, or into
+    # nothing at all when it is the root, and a contract nothing enforces is not
+    # one to build on. Each widget therefore checks itself.
+    button, count = _button_doc()          # 120x40 at the origin
+    proj = _proj()
+    iomap = print_document(proj, nothing, button, PrinterContext())
+
+    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) !== nothing
+    for (x, y) in ((200, 10), (10, 300), (900, 500), (-5, 10), (10, -5))
+        @test read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys())) === nothing
+    end
+    # The reader is pure (AR-READER-IS-PURE): it answers with the operation and
+    # never performs it, so the action has not run and the count is still zero.
+    @test count[] == 0
+
+    # A crossing is the container saying the pointer arrived or left, and a
+    # leave is outside by definition — judging it would suppress the very event
+    # that clears the hover.
+    @test read_intent(proj, iomap, MouseLeave(900, 500, :none, ModifierKeys())) !== nothing
+end
+
 @testset "button click invokes its action via InvokeActionOperation" begin
     button, count = _button_doc()
     proj = _proj()
