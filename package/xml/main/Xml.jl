@@ -59,7 +59,7 @@ end
 # `attrs` and `children` are both `CellVector`, so the macro can't tell an
 # attribute vector from a child vector; these disambiguate by element type.
 # The `<:` covariance matters — after the `@document` refactor, callers pass
-# `[XmlAttribute(...)]` which is `Vector{RXmlAttribute}`, and `Vector{XmlAttribute}`
+# `[XmlAttribute(...)]` which is `Vector{CRXmlAttribute}`, and `Vector{XmlAttribute}`
 # (invariant) would silently miss it and fall through to the `<:XmlDocument`
 # overload, routing attrs into the children slot.
 XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}) =

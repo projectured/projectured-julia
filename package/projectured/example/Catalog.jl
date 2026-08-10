@@ -40,7 +40,7 @@ const BRIDGES = Function[
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
     # `truetype_measure_text` (the same default `run_example` uses). Output is an
-    # `RGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render via `run_example`.
+    # `CRGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render via `run_example`.
     _TEXT_TO_GRAPHICS,
 ]
 
@@ -175,13 +175,13 @@ runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/
 # A document whose own gestures can change its type: a domain's insertion buffer (Enter
 # commits it to a concrete node) or its nothing placeholder (Insert turns it into that
 # insertion). A bare single-type leaf cannot reproject the swapped type — reprinting an
-# `RJuliaNothing` walk after `:insert` through `JuliaNothingToSyntaxLeaf` throws once the
+# `CRJuliaNothing` walk after `:insert` through `JuliaNothingToSyntaxLeaf` throws once the
 # document has become a `JuliaInsertion` — so such an atom's syntax variant must use the
 # domain's whole-tree dispatching projection instead (what its text/graphics variants
 # already chain through). `domain_insertion(D)` names the domain's insertion for any of
 # its documents; `nothing_document` names the matching placeholder.
 #
-# `D` here is the *reactive* document type — `@document` makes `RJuliaNothing` an alias for
+# `D` here is the *reactive* document type — `@document` makes `CRJuliaNothing` an alias for
 # `JuliaNothing{cell kinds…}`, a parameterization of the base `JuliaNothing` — while the
 # domain traits return the base types. Compare with `<:`, not `===`, so the parameterized
 # reactive type still matches (the insertion/nothing types are concrete leaves, so `<:`

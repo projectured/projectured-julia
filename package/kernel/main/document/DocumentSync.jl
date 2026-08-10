@@ -21,7 +21,7 @@
 # thousand-entry collection is the same traversal, stopped earlier.
 
 # `true` when `a` and `b` are the same document IGNORING variant — a reactive
-# `RFoo`, an immutable `IFoo`, and the native mutable `FooMut` all answer `true`,
+# `CRFoo`, an immutable `CIFoo`, and the native mutable `FooMut` all answer `true`,
 # via `document_family` (the schema's abstract family type; for a plain type it
 # falls back to the name wrapper, so this is equivalent to the old wrapper test
 # everywhere except that it now also unifies the two struct layouts). The shape

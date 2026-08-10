@@ -53,7 +53,7 @@ end
 
 # The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
 # keeps the untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
-# the typed cell so it inlines — the same typed cells the `IFoo`/`MFoo` aliases build.
+# the typed cell so it inlines — the same typed cells the `CIFoo`/`CMFoo` aliases build.
 _default_cell_type(kind, vt) =
     kind === :immutable ? Expr(:curly, ImmutableCell, vt) :
     kind === :mutable   ? Expr(:curly, MutableCell,  vt) :
@@ -147,19 +147,26 @@ _emit_accessors(plan) = (
 """
     _emit_kind_aliases(plan, arg_names) -> Vector
 
-The kind aliases `RFoo` / `IFoo` / `MFoo` / `DFoo`, the value-accepting typed
-constructors `IFoo(…)` / `MFoo(…)`, and the `_declared_value_types` method
+The spelling aliases `CRFoo` / `CIFoo` / `CMFoo` / `DFoo`, the value-accepting
+typed constructors `CIFoo(…)` / `CMFoo(…)`, and the `_declared_value_types` method
 `copy_document(K, …)` reads a field's declared type from.
 
+A spelling is one concrete parameter list of the **cell** layout, which is what
+the leading `C` says. That letter is what keeps a spelling apart from a layout:
+`CMFoo` is an immutable struct holding one `MutableCell` box per field, while
+`MFoo` — the mutable native layout — is a single mutable object with its fields
+inline. The two used to be spelled `MFoo` and `FooMut`, which read alike and are
+not alike.
+
 `DFoo` is the concrete type the **bare** constructor builds (the per-field default
-combination); `RFoo` / `IFoo` / `MFoo` wrap every field in one kind's *typed* cells,
-so a fully-conforming node inhabits its alias.
+combination); `CRFoo` / `CIFoo` / `CMFoo` wrap every field in one kind's *typed*
+cells, so a fully-conforming node inhabits its alias.
 """
 function _emit_kind_aliases(plan, arg_names; default::Symbol = :reactive)
     n     = length(plan.field_names)
     Tvals = cell_struct_value_types(plan)
     kinds = cell_struct_field_kinds(plan; default = default)
-    r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("R", "I", "M", "D"))
+    r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("CR", "CI", "CM", "D"))
 
     alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
     # `DFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
@@ -197,8 +204,10 @@ end
 """
     _emit_keyword_ctors(plan) -> Vector
 
-Keyword constructors for `Foo`, `IFoo` and `MFoo` — fields with a default are
-optional keywords, fields without one required, à la `Base.@kwdef`.
+Keyword constructors for `Foo`, `CIFoo` and `CMFoo` — fields with a default are
+optional keywords, fields without one required, à la `Base.@kwdef`. The names must
+match the spelling aliases [`_emit_kind_aliases`](@ref) emits, or a keyword call on
+an alias finds no method.
 
 Gated on the **programmer** having declared ≥1 default (the injected `selection`
 does not count), or on the struct declaring no fields at all. A keyword
@@ -213,7 +222,7 @@ function _emit_keyword_ctors(plan)
     (plan.n_programmer_defaults > 0 || plan.n_declared == 0) || return Any[]
     kw_params = cell_struct_kw_params(plan.field_names, plan.defaults)
     [cell_struct_kwctor(Symbol(p, plan.name), plan.field_names, kw_params)
-     for p in ("", "I", "M")]
+     for p in ("", "CI", "CM")]
 end
 
 # The single collection field's position, or 0 when there is not exactly one. A

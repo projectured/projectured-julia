@@ -97,6 +97,26 @@ letter, then a kind letter, then the schema name.
 | `CDStem` | `CStem{per-field default}` |
 | `Stem` | a `const` alias for the variant the declaration picks. `CDStem` by default. |
 
+## How Part 2 lands, in four steps
+
+The old `IStem` (all-immutable spelling) and the new `IStem` (immutable native)
+are different things with one name, and so are the two `MStem`s. A rename that
+crossed them would be ambiguous mid-flight, so the spellings move out of the way
+first.
+
+| Step | What moves | Sites | State |
+| --- | --- | --- | --- |
+| 2a | `RStem`/`IStem`/`MStem` → `CRStem`/`CIStem`/`CMStem` | 19 | **DONE** |
+| 2b | `AbstractStem` → `AStem` | 43 | |
+| 2c | `StemMut` → `MStem` | 0 in this repository | |
+| 2d | stem struct → `CStem`, `const Stem = CDStem`, `DStem` → `Stem` | 476 + 2662 | |
+
+**2a taught one thing.** `_emit_keyword_ctors` builds a keyword constructor per
+alias from its own list of prefixes, so renaming the aliases alone left
+`CIStem(a = 1)` with no method while defining a stray `IStem` function. The two
+lists must move together. The representative suite caught it as one error, which
+is why every step runs the set rather than a targeted test.
+
 Three rules make the system regular.
 
 1. **The coded name is always the type's real name.** `Stem` is always a `const`

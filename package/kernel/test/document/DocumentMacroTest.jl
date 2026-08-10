@@ -144,16 +144,16 @@ end
 end
 
 @testset "the kind aliases and their typed ctors are emitted" begin
-    @test RDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell}
+    @test CRDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell}
 
     # The typed kind ctors take the *full* arity — `selection` included. They are
     # the machinery's constructors (copy_document builds through them), not sugar,
     # so they fill nothing in: Rule Y is emitted for the bare name only.
-    @test IDmRuleY(1, 2, "z", true, nothing) isa IDmRuleY
-    @test MDmRuleY(1, 2, "z", true, nothing) isa MDmRuleY
-    @test IDmRuleY(1, 2, "z", true, nothing).a == 1
+    @test CIDmRuleY(1, 2, "z", true, nothing) isa CIDmRuleY
+    @test CMDmRuleY(1, 2, "z", true, nothing) isa CMDmRuleY
+    @test CIDmRuleY(1, 2, "z", true, nothing).a == 1
     # The kind aliases do get the keyword ctor, which does fill defaults in.
-    @test IDmRuleY(a = 1, b = 2).c == "c"
+    @test CIDmRuleY(a = 1, b = 2).c == "c"
 end
 
 @testset "the layout registry answers for every variant" begin

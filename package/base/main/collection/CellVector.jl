@@ -64,8 +64,8 @@ ComputedCellVector(f::Function) = CellVector(Computed(f))
 
 # Value-vector conveniences for the non-reactive kinds (the macro-emitted 2-arg
 # kind ctors remain the general form).
-ICellVector(items::AbstractVector) = ICellVector(collect(Any, items), nothing)
-MCellVector(items::AbstractVector) = MCellVector(collect(Any, items), nothing)
+CICellVector(items::AbstractVector) = CICellVector(collect(Any, items), nothing)
+CMCellVector(items::AbstractVector) = CMCellVector(collect(Any, items), nothing)
 
 # The protocol dispatches on the STRUCT PARAMETER (the `elements` field cell's
 # kind), not on runtime storage checks: `RCV` — a CellVector whose elements field
