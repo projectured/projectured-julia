@@ -1,5 +1,13 @@
 # Full `@document` variant family with native per-kind layouts
 
+> **Status: PARTLY SUPERSEDED.** Phases 1 to 3 are done and this file is their
+> record, together with the measurements and the four companion `.jl` proofs.
+> Phases 1, 4, 6 and 7 are superseded by
+> [document-layouts-and-names.md](document-layouts-and-names.md), which carries
+> the decided naming scheme and the layout registry. Two corrections to this file
+> are marked **CORRECTION** below. Read the new plan before you act on Phase 1 or
+> Phase 4 here.
+
 Make every `@document Foo` generate a complete family of variants, each compiled to
 its **optimal native representation**, so one schema serves the whole pipeline with
 no duplication: the simulator mutates the **mutable** variant at plain-`mutable
@@ -205,6 +213,24 @@ but not a native `BarMut` child. Consequences:
   the same problem `is_collection_field_type` solves via an opt-in trait) **and** make
   `copy_document`/`walk` family-aware so a cross-layout rebuild produces the target
   kind.
+
+> **CORRECTION 1 — the limitation does not hold, and the bug is live.** The
+> argument above assumes a document-typed field names one schema. Many do not.
+> 102 fields in this repository are declared `::Document` or
+> `::Union{…, Document}`, and 155 more are `::CellVector`. A native `BarMut` is a
+> `Document`, so it goes into such a field with no trouble. A native parent
+> therefore nests a native child today, and `copy_document(ReactiveCell, FooMut)`
+> returning a native node is reachable, not latent.
+>
+> Reproduced on this checkout. A cell shadow received a native child, and a
+> `ComputedCell` over that child then never ran again while the source value moved
+> from 7 to 99. See **What is wrong**, Fact 2, in the new plan.
+
+> **CORRECTION 2 — Phase 1's naming target is replaced.** This file makes the bare
+> name `Foo` the abstract family. The decided scheme puts the family on `AFoo` and
+> gives the bare name to the default cell spelling, so that a field typed `Foo` is
+> concrete and inlines. See **Part 2** of the new plan for the reasoning and the
+> measured evidence.
 
 ## Integration prototype — "projectured watches a simulation"
 

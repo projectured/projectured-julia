@@ -1,7 +1,14 @@
 # Document layouts and their names
 
-> **Status: PENDING.** No code is written yet. Part 1 to Part 4 are decided. The
-> work needs permission to edit two sealed files. See **Sealed files**.
+> **Status: IN PROGRESS.** Part 1 to Part 4 are decided. The owner authorized both
+> sealed files on 2026-08-10, and asked that a sealed file this plan edits is left
+> **unsealed**, so that the owner knows to review it again. See **Sealed files**.
+>
+> This plan supersedes Phases 1, 4, 6 and 7 of
+> [document-native-variant-layouts.md](document-native-variant-layouts.md). That
+> file stays as the record of its Phases 1 to 3, which are done, and of its
+> measurements and its four companion `.jl` proofs. Two corrections to it are
+> marked there.
 
 `@document` emits one schema as many types. Today the *name* of a type is the
 only way to ask for a layout, so a call site that wants the plain mutable struct
