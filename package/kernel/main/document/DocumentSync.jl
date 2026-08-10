@@ -31,9 +31,20 @@ is_same_document_type(a, b) = document_family(a) === document_family(b)
 
 # A source element rebuilt for a shadow of cell kind `K`: a document is copied in
 # that kind, a plain value passes through. Written into a shadow slot whose source
-# element changed type and so cannot be synced in place.
-copy_shadow_element(K, x, policy = nothing, depth::Int = 0) =
-    x isa Document ? copy_document(K, x, policy, depth) : x
+# element changed type and so cannot be synced in place. The one place a child is
+# built, so both walks below rebuild by the same rule.
+#
+# `K === nothing` says the shadow tree holds no cells — a native document, or a
+# hand-written one whose first field is raw. Nothing in such a tree can invalidate
+# a reader, so it is not a shadow. Say that here; the walk would otherwise fail
+# several frames down as a `copy_document` method that does not exist.
+function copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
+    x isa Document || return x
+    K === nothing && error("sync_document!: a shadow holds cells and this one does not, " *
+                           "so a child cannot be rebuilt in it. Build the shadow with " *
+                           "copy_document(ReactiveCell, source), or from a cell-layout constructor.")
+    copy_document(K, x, policy, depth)
+end
 
 # Contract documented at the `sync_document!` declaration in `DocumentInterface.jl`.
 function sync_document!(shadow::Document, source::Document, policy = nothing, depth::Int = 0)
@@ -55,7 +66,7 @@ function _synced_child(cur, sv, K, policy, depth)
     end
     cur isa Document && is_same_document_type(cur, sv) &&
         (sync_document!(cur, sv, policy, depth); return nothing)      # recurse in place
-    copy_document(K, sv, policy, depth)                               # rebuild in shadow's kind
+    copy_shadow_element(K, sv, policy, depth)                         # rebuild in shadow's kind
 end
 
 # Record sync: match children by field name. A child document is synced in place

@@ -283,13 +283,33 @@ document, and for a cell-layout source the new code path is the old one.
 
 Both new testsets were checked against the unfixed file: they fail without it.
 
-## 1.3 Let `sync_document!` read the kind from the tree, not the node
+## 1.3 Say what a shadow is — **DONE**
 
 `sync_document!` reads `K = get_cell_struct_kind(shadow)`, which returns `nothing`
 for a native node. A native node inside a reactive shadow therefore crashes the
-walk on the next new child. Carry the shadow's kind down the walk instead of
-re-reading it per node. After 1.2 a native node can no longer get into a reactive
-shadow, so this is the guard rail, not the fix.
+walk on the next new child. After 1.2 a native node can no longer get into a
+reactive shadow, so this is the guard rail, not the fix.
+
+**Built differently from the sketch above, and here is why.** The sketch said to
+carry the root's kind down the walk instead of re-reading it per node. That would
+change a working case: a shadow may hold a subtree of a different kind, and
+re-reading builds a new child in the kind that is actually there, which is the
+faithful answer. So the per-node read stays.
+
+What is left is the case where the shadow tree has no cells at all — a native
+document, or a hand-written one whose first field is raw. Nothing in such a tree
+can invalidate a reader, so it is not a shadow. The walk now says that, in one
+sentence, at the one place a child is built. Before, it failed several frames down
+as a `copy_document` method that does not exist.
+
+This cannot break a working case, because every case it catches already threw.
+
+`copy_shadow_element` became the single place a child is rebuilt.
+`_synced_child` now calls it instead of repeating the rule, which is what the
+sketch asked for in its last line.
+
+`test_kernel()` 1479 → 1481 for the two new assertions. `test_base()` unchanged at
+387, and `BoundedSyncTest.jl` — the main `sync_document!` user — lives there.
 
 ## 1.4 Make a reference layout-independent
 

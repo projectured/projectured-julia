@@ -122,6 +122,12 @@ writable kind (`ReactiveCell` or `MutableCell`); `source` may be any kind.
 Both shapes are handled: a **record** (children are named fields) syncs
 field-by-field, and a **positional collection** (`is_element_collection`) syncs
 its elements by index through the vector protocol.
+
+The shadow must be a **cell layout**, and the source may be either layout. A
+native tree holds no cells, so nothing in it can invalidate a reader and it is
+not a shadow. Syncing into one raises an error the moment a child has to be
+built. `source` may be a native document: a rebuilt child converts to the
+shadow's layout, which is what [`copy_document`](@ref) does for a kind.
 """
 function sync_document! end
 

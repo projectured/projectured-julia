@@ -133,5 +133,15 @@ function test_document_contract()
         @test seen[] == "second"
     end
 
+    @testset "a tree that holds no cells is not a shadow" begin
+        source = ToyBoxMut(nothing, nothing)
+        source.content = ToyNodeMut("first", nothing, nothing)
+        # Nothing in a native tree can invalidate a reader, so it cannot serve as a
+        # shadow. The walk used to fail as a copy_document method that does not exist.
+        @test_throws ErrorException sync_document!(ToyBoxMut(nothing, nothing), source)
+        # A cell shadow of the same schema takes the very same source.
+        @test sync_document!(ToyBox(nothing, nothing), source).content isa ToyNode
+    end
+
 end
 end # test_document_contract
