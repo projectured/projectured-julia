@@ -43,7 +43,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
                        WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
-                       toggle_group_write,
+                       resolve_toggle_group_write,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation, CloseTabRequestOperation,
@@ -4560,7 +4560,7 @@ end
 #
 # What the write names is the group's `target` when it has one, so a control that
 # is *for* something says so in the operation itself. Nothing above has to work
-# out which control was pressed — see `toggle_group_write`.
+# out which control was pressed — see `resolve_toggle_group_write`.
 function read_intent(::WidgetToggleGroupToGraphicsCanvas,
                      iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -4576,7 +4576,7 @@ function read_intent(::WidgetToggleGroupToGraphicsCanvas,
             # projection from seeing an edit that edits nothing.
             segment === nothing && return nothing
             segment == Int(w.selected) && return nothing
-            document, field, value = toggle_group_write(w, segment)
+            document, field, value = resolve_toggle_group_write(w, segment)
             ReplaceReferencedValueOperation(document, field, value)
         end
         _ => nothing

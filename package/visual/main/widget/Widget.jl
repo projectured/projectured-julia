@@ -33,7 +33,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        inset_bottom_right, set_cell_function!,
        widget_list_selection, widget_list_selected,
        widget_table_row_selection, widget_table_selected_row,
-       toggle_group_write
+       resolve_toggle_group_write
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -1458,12 +1458,12 @@ WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visib
                       Cell(values), Cell(target), Cell(String(field)), Cell(nothing))
 
 """
-    toggle_group_write(w, segment) -> (document, field, value)
+    resolve_toggle_group_write(w, segment) -> (document, field, value)
 
 What picking segment `segment` of `w` writes: its target and field when it has
 one, its own `selected` when it has not, and the value that segment means.
 """
-function toggle_group_write(w::WidgetToggleGroup, segment::Int)
+function resolve_toggle_group_write(w::WidgetToggleGroup, segment::Int)
     target = w.target
     target === nothing && return (w, "selected", segment)
     values = w.values
