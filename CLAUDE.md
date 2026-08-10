@@ -76,7 +76,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferenceInterface.jl`
   - 🔒 `reference/ReferenceStep.jl`
   - 🔒 `reference/ReferencePath.jl`
-  - 🔒 `reference/ReferenceEvaluation.jl`
+  - ⬜ `reference/ReferenceEvaluation.jl`
   - 🔒 `reference/ReferenceSearch.jl`
   - 🔒 `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceGlob.jl`

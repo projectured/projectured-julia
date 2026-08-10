@@ -311,27 +311,82 @@ sketch asked for in its last line.
 `test_kernel()` 1479 → 1481 for the two new assertions. `test_base()` unchanged at
 387, and `BoundedSyncTest.jl` — the main `sync_document!` user — lives there.
 
-## 1.4 Make a reference layout-independent
+## 1.4 Make a reference layout-independent — **DONE, by a different token**
 
-Change `get_reference_node_type` to return `document_family(document)`.
+The sketch said to return `document_family(document)`. **Do not.** It was measured
+and it breaks the reference layer.
 
-A checkpoint then names the schema, not the layout, and a path built while the
-simulator runs matches the same node in the shadow the editor draws. Both sides of
-every comparison are computed by this one function, so the change is neutral for a
-document that has one layout.
+| Suite | Before | With `document_family` |
+| --- | --- | --- |
+| `test_kernel()` | 1481 / 3 / 2 | 1472 / **12** / 2 |
+| `test_visual()` | 52659 pass, 1 broken | 52606 pass, **24** fail, **5** error |
 
-A literal type name inside `@reference` and `@reference_case` must name the family
-after this change, so those literals join the Part 4 sweep and become `AStem`. A
-hand-built type checkpoint already follows the rule "use `reference_node_type`,
-never `typeof`", so a conforming site needs no edit.
+The plan claimed "both sides of every comparison are computed by this one
+function". That is false, and the two failure shapes say why.
 
-## 1.5 Tests
+```
+Evaluated: ::AbstractEvalDoc.child::AbstractEvalChild.n  ==  ::EvalDoc.child::EvalChild.n
+Evaluated: AbstractEvalBranch === EvalBranch
+```
 
-1. A native source and a cell shadow. A new child appears. Assert the shadow child
-   holds cells, and assert a `ComputedCell` over it runs again after the next sync.
-2. `copy_document(ReactiveCell, native)` returns the cell layout.
-   `copy_document(MutableCell, cell_doc)` returns the native layout.
-3. A reference built on the native node evaluates on the cell node.
+1. Reference equality is `a.type === b.type`. One side is annotated at run time,
+   the other is a literal the `@reference` macro emitted. Widening one alone
+   parts them.
+2. Pattern matching is `_type_step_matches(nodetype, T) = … || nodetype <: T`. The
+   family is a **supertype** of the stem, so `AbstractFoo <: Foo` is false and
+   every `::Foo` arm stops matching.
+
+So a family token would need every reference literal and every pattern swept
+first, which couples this step to Part 4.
+
+**Built with the cell layout as the token instead.**
+
+```julia
+get_reference_node_type(document) = document_cell_type(document)
+```
+
+For a cell-layout node this is what it always was, because a schema's
+`document_cell_type` **is** its name wrapper. For a native node it now answers the
+same token as its cell twin. So a path built while the simulator runs equals a path
+built on the shadow the editor draws, and it still matches a pattern written with
+the bare name. Nothing has to be swept, and the token stays a subtype relationship
+that `<:` accepts.
+
+| Suite | Clean | With the change |
+| --- | --- | --- |
+| `test_kernel()` | 1481 / 3 / 2 | 1486 / 3 / 2 (five new assertions) |
+| `test_base()` | 387 | 387 |
+| `test_visual()` | 52659 pass, 1 broken | 52659 pass, 1 broken |
+| `test_json()` | 169 | 169 |
+
+**One gap stays open, deliberately.** Validation is `document isa path.type`. A
+**native** document is not `isa` its cell layout, so `is_valid_reference` still
+fails against a native tree. The direction that matters works: the editor
+validates against the shadow, which is a cell tree. Fix it when a caller wants to
+validate against the simulator's own tree; it is one predicate, in a sealed file.
+
+## 1.5 Tests — **DONE**
+
+Written with each step rather than after them all.
+
+1. A native source and a cell shadow. A new child appears. The shadow child holds
+   cells, and a `ComputedCell` over it runs again after the next sync.
+   `DocumentContractTest.jl`.
+2. `copy_document(ReactiveCell, native)` returns the cell layout, and the plain
+   `copy_document(native)` still returns a native one. `DocumentContractTest.jl`.
+   The `copy_document(MutableCell, cell_doc)` half is not written, because 1.2
+   deliberately routes every kind to the cell layout. It belongs with Open
+   Question 2.
+3. A path annotated on a native node equals the path annotated on its cell twin,
+   and evaluates on the cell tree. `ReferenceEvalTest.jl`.
+
+Each testset was checked against the unfixed source and fails without it.
+
+One thing the tests taught. `EvalBranchMut.left` is typed to one schema, so it
+holds a **cell** leaf and not a native one — the limit the older plan described,
+and it is real for a field that names a schema. A field typed `Document` takes
+either layout, which is why the bug in Fact 2 was reachable. Both statements are
+true and they are about different field types.
 
 ---
 

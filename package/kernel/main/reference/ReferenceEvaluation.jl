@@ -121,19 +121,33 @@ is_valid_reference(document, path::Reference) =
 """
     get_reference_node_type(document) -> Type
 
-The kind-agnostic type token a reference records for `document`: the UnionAll
-wrapper of a kind-parameterized `@document` type
-(`JsonString{ImmutableCell{String},…}` → `JsonString`), or the type itself for
-a non-parametric (hand-written) document. Recording the wrapper makes the type
-kind-agnostic — a reference typed on a reactive node still `isa`-matches its
-immutable snapshot, and matches the bare names the `@reference` macro emits.
+The kind-agnostic and layout-agnostic type token a reference records for
+`document`: the schema's **cell layout**, which is the UnionAll wrapper of a
+kind-parameterized `@document` type (`JsonString{ImmutableCell{String},…}` →
+`JsonString`), or the type itself for a hand-written document.
+
+Recording the cell layout makes the token agnostic on both axes. A reference typed
+on a reactive node still `isa`-matches its immutable snapshot, which is the kind
+axis. A reference built on a native node records the same token as one built on
+the node's cell twin, which is the layout axis — so a path built while a simulator
+mutates its native tree is the path the editor navigates in the shadow. And the
+token stays the bare name the `@reference` macro emits, which the pattern matcher
+compares with `<:`.
+
+The family would be the obvious token and is the wrong one: it is a *supertype* of
+the cell layout, so `AbstractJsonString <: JsonString` is false and every `::T`
+pattern arm would stop matching.
+
+Validation is `document isa path.type`, so a **native** document does not validate
+against this token — it is not `isa` its cell layout. The editor validates against
+the shadow, which is a cell tree.
 
 Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
 here — e.g. a whole-element selection mapped across a projection carries
 `get_reference_node_type(output_document)`.
 """
-get_reference_node_type(document) = Base.typename(typeof(document)).wrapper
+get_reference_node_type(document) = document_cell_type(document)
 
 const _node_type = get_reference_node_type
 

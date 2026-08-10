@@ -206,5 +206,27 @@ function test_reference_eval()
         @test !is_reference_prefix(deep, base)
     end
 
+    @testset "a reference names a schema, not the layout it was built on" begin
+        # The simulator mutates the native tree while the editor navigates the cell
+        # shadow. A path built on one has to be the path built on the other, or a
+        # selection cannot cross between them.
+        # `EvalBranchMut.left` is typed to one schema, so it holds a cell leaf, not
+        # a native one. That is the limit of a schema-typed field; a field typed
+        # `Document` takes either layout. The node under test here is the root.
+        native = EvalBranchMut(root.left, root.right, nothing)
+        @test get_reference_node_type(native) === get_reference_node_type(root)
+        @test get_reference_node_type(native) === EvalBranch
+
+        skeleton = strip_reference_types(@reference ::EA.left::EB)
+        @test annotate_reference_types(native, skeleton) ==
+              annotate_reference_types(root, skeleton)
+
+        # The token is still the bare name a pattern is written with, so a path
+        # annotated on the native tree matches and evaluates on the cell tree.
+        annotated = annotate_reference_types(native, skeleton)
+        @test annotated.type === EvalBranch
+        @test evaluate_reference(root, strip_reference_types(annotated)) === root.left
+    end
+
 end
 end # test_reference_eval
