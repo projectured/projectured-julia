@@ -52,6 +52,11 @@ described in the next section.)
 
 ## Package layout — the 4-package chain
 
+The **kinds** of package (main, example, test, repl, build), what each may
+depend on, and why the leaf the alias loads is the only place a
+`@compile_workload` may live, are in [packages.md](packages.md).
+
+
 ProjecturEd is organized as **four packages** with strictly layered
 dependencies (`kernel ← base ← visual ← domain`). Each package's layer
 ordering — no upward `..XxxModule` imports inside a declared layer — is

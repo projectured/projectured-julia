@@ -5,7 +5,7 @@ per kind of division. Every architecture document in this repository uses them
 in exactly this sense; when writing docs, comments, or plans, use these words
 and no synonyms.
 
-## The four terms
+## The terms
 
 - **Package** — a Julia package with its own `Project.toml`. The project
   consists of packages: the four main packages in the dependency chain
@@ -34,6 +34,16 @@ and no synonyms.
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
   (or slice) contains one or more modules; module names are de-facto public
   API because the umbrella re-exports them.
+
+- **Leaf** — a package **nothing depends on and nothing loads after**:
+  `ProjecturedRepl`, which the alias loads, and `ProjecturedExecutable`, which a
+  binary is compiled from. The word carries a rule rather than a description. A
+  package image is built with exactly its own dependencies present, so compiled
+  code survives only in a leaf; everything below one has its compiled code
+  invalidated as the session finishes loading. That is why a
+  `@compile_workload` may appear only in a leaf, and why depending on one makes
+  it stop being one. `test_package_graph()` asserts both. See
+  [packages.md](packages.md).
 
 Files are below all of this: a file is a readability boundary only and is
 **not** part of the terminology — fragments share their aggregator module's
