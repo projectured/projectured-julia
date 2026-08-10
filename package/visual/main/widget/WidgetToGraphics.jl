@@ -43,6 +43,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
                        WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
+                       toggle_group_write,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation, CloseTabRequestOperation,
@@ -4551,11 +4552,15 @@ function _toggle_group_segment(widths, x::Real)
     nothing
 end
 
-# A left press picks the segment under it. The answer is a write of `selected`,
-# the way `WidgetSelect` answers a picked option and `WidgetSpinBox` answers a
-# stepper — a control states its own value. It is NOT a `ReplaceSelectionOperation`:
-# that is what `WidgetList` answers with, because a list's selection is a place in
-# a document and a segment is not.
+# A left press picks the segment under it. The answer is a value write, the way
+# `WidgetSelect` answers a picked option and `WidgetSpinBox` answers a stepper —
+# a control states its own value. It is NOT a `ReplaceSelectionOperation`: that is
+# what `WidgetList` answers with, because a list's selection is a place in a
+# document and a segment is not.
+#
+# What the write names is the group's `target` when it has one, so a control that
+# is *for* something says so in the operation itself. Nothing above has to work
+# out which control was pressed — see `toggle_group_write`.
 function read_intent(::WidgetToggleGroupToGraphicsCanvas,
                      iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -4571,7 +4576,8 @@ function read_intent(::WidgetToggleGroupToGraphicsCanvas,
             # projection from seeing an edit that edits nothing.
             segment === nothing && return nothing
             segment == Int(w.selected) && return nothing
-            ReplaceReferencedValueOperation(w, "selected", segment)
+            document, field, value = toggle_group_write(w, segment)
+            ReplaceReferencedValueOperation(document, field, value)
         end
         _ => nothing
     end

@@ -78,6 +78,20 @@ end
     # Past the right edge is outside the control, which every widget declines.
     @test read_intent(proj, io, MousePress(:left, w + 5, 4, ModifierKeys())) === nothing
 
+    # With a target, the pick names what it changes: a group that is *for*
+    # something writes that thing's field, and `values` says what a segment means.
+    # This is what keeps an enclosing projection from having to guess which
+    # control was pressed.
+    holder = WidgetLabel(Point2D(0, 0), "")          # any document will do as a target
+    aimed  = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast", "Express"]; selected=2,
+                               values = [:run, :fast, :express],
+                               target = holder, field = "text")
+    aimed_io = print_document(proj, aimed)
+    picked = read_intent(proj, aimed_io, MousePress(:left, 2, 4, ModifierKeys()))
+    @test picked isa ReplaceReferencedValueOperation
+    @test picked.document === holder
+    @test picked.value === :run
+
     # A right press is not a pick, and a disabled group is inert.
     @test read_intent(proj, io, MousePress(:right, left, 4, ModifierKeys())) === nothing
     dis = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast"]; selected=2, enabled=false)

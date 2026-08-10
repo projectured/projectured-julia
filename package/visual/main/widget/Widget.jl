@@ -32,7 +32,8 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
        inset_bottom_right, set_cell_function!,
        widget_list_selection, widget_list_selected,
-       widget_table_row_selection, widget_table_selected_row
+       widget_table_row_selection, widget_table_selected_row,
+       toggle_group_write
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -1425,9 +1426,19 @@ WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
 """
-    WidgetToggleGroup(position, options; selected=1)
+    WidgetToggleGroup(position, options; selected=1, values=nothing, target=nothing, field="selected")
 
 A segmented control: a row of options with one selected segment.
+
+`options` is what each segment says. `values` is what each one **means** — the
+value written when it is picked — and with none the value is the segment's index.
+
+`target` is what a pick writes to and `field` is which of its fields. With no
+target the group writes its own `selected`, which is a control that remembers its
+own state and tells nobody. A target is how a segmented control says what it is
+*for*: [`WidgetOption`](@ref) carries its `select` the same way, so a pick names
+what it changes instead of leaving an enclosing projection to work out which
+control was pressed.
 """
 @document struct WidgetToggleGroup <: WidgetDocument
     position::Point2D
@@ -1435,10 +1446,29 @@ A segmented control: a row of options with one selected segment.
     selected::Int
     visible::Bool
     enabled::Bool
+    values::Any        # what each option means, or nothing = its index
+    target::Any        # what a pick writes to, or nothing = this group
+    field::String      # which field of the target a pick writes
 end
-WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
+WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true,
+                  enabled::Bool=true, values=nothing, target=nothing,
+                  field::AbstractString="selected") =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                      Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(nothing))
+                      Cell(Int(selected)), Cell(visible), Cell(enabled),
+                      Cell(values), Cell(target), Cell(String(field)), Cell(nothing))
+
+"""
+    toggle_group_write(w, segment) -> (document, field, value)
+
+What picking segment `segment` of `w` writes: its target and field when it has
+one, its own `selected` when it has not, and the value that segment means.
+"""
+function toggle_group_write(w::WidgetToggleGroup, segment::Int)
+    target = w.target
+    target === nothing && return (w, "selected", segment)
+    values = w.values
+    (target, String(w.field), values === nothing ? segment : collect(values)[segment])
+end
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
