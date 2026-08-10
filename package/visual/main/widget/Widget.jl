@@ -10,7 +10,7 @@ module WidgetModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..DocumentApiModule: Document
-import ..DocumentModule: @document
+import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
@@ -1855,6 +1855,39 @@ function Action(label;
                shortcut=nothing,
                callback=nothing)
     Action(Cell(label), Cell(icon), Cell(enabled), Cell(shortcut), Cell(callback))
+end
+
+"""
+    show(io::IO, x::Action)
+
+The generic document rendering, with the `callback` named rather than printed.
+
+A callback is a closure, and printing a closure prints what it captured. An
+action a projection reader builds captures the io map and the document under
+it, so the generic `show` turns one command into megabytes of text — which the
+editor then pays for on every operation it logs. Everything else an action
+carries is small, so the other fields print as they always did.
+"""
+function Base.show(io::IO, x::Action)
+    depth = get(io, :document_depth, 0)
+    print(io, "Action(")
+    if depth ≥ DOCUMENT_SHOW_MAX_DEPTH
+        print(io, "…")
+    else
+        inner = IOContext(io, :document_depth => depth + 1)
+        first = true
+        for f in fieldnames(typeof(x))
+            f === :selection && continue
+            first || print(io, ", ")
+            if f === :callback
+                print(io, getproperty(x, f) === nothing ? "nothing" : "callback")
+            else
+                show(inner, getproperty(x, f))
+            end
+            first = false
+        end
+    end
+    print(io, ")")
 end
 
 # How a control acquires its `Action` — the one place the sugar forms resolve.
