@@ -325,6 +325,13 @@ constructors are the exception and need a default you declared yourself.
    (`Foo(callee, [args])`) or all default (`Foo([a, b])`, plus the variadic
    `Foo(a, b)` when the collection is the sole content).
 
+7. **The layout registry** — [`document_cell_type`](@ref) answers the stem and
+   [`document_native_type`](@ref) answers the native `mutable struct`, both keyed on
+   the family so either takes any variant. A caller asks for a layout through these
+   rather than by naming a type, which is what lets `copy_document` rebuild a source
+   into the layout its target needs instead of the layout the source happened to
+   have.
+
 Since the stem is immutable, a node's field *cells* can never be swapped after
 construction (`setfield!` is gone); all mutation flows through the cells, and
 construction-time cell sharing replaces field-level retargeting.
@@ -385,7 +392,15 @@ macro document(args...)
     arg_names = [gensym(f) for f in plan.field_names]
 
     native_struct = _emit_native_mutable(plan, family, native)
+    # The layout registry, keyed on the family so either accessor takes any variant.
+    # This is what lets a caller ask for a layout instead of naming one: before it,
+    # the type name was the only way to reach a layout, and `copy_document` therefore
+    # rebuilt whatever layout the source already had.
     family_method = :((::typeof($document_family))(::Type{<:$family}) = $family)
+    cell_type_method   = :((::typeof($document_cell_type))(::Type{<:$family}) =
+                               $(plan.name))
+    native_type_method = :((::typeof($document_native_type))(::Type{<:$family}) =
+                               $native)
     # Native-layout constructors targeting `FooMut`'s auto (all-args) ctor — the same
     # Rule Y positional-defaults + keyword forms the stem gets, but storing raw values
     # (no cell wrapping), so building the mutable variant is as ergonomic as the stem.
@@ -405,7 +420,7 @@ macro document(args...)
              getprop, setprop,
              native_struct,
              native_ctors...,
-             family_method,
+             family_method, cell_type_method, native_type_method,
              Expr(:export, family, native),
              _emit_kind_aliases(plan, arg_names; default = default)...,
              _emit_keyword_ctors(plan)...,

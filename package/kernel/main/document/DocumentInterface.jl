@@ -45,6 +45,36 @@ variant of one schema answers the same family.
 function document_family end
 
 """
+    document_cell_type(x) -> Type
+    document_cell_type(::Type) -> Type
+
+The **cell layout** of a schema: the parametric struct whose fields hold cells.
+Together with [`document_native_type`](@ref) this is the layout registry — the way
+to ask for a layout without naming a type. Before it existed the only way to reach
+a layout was to write its name, which is why a caller that wanted the plain struct
+had to spell `FooMut`.
+
+Takes any variant, because every variant of a schema subtypes its family. Defaults
+to the type's own name wrapper, so a hand-written document is its own cell layout
+and a copy of one rebuilds exactly what it was.
+"""
+function document_cell_type end
+
+"""
+    document_native_type(x) -> Type | Nothing
+    document_native_type(::Type) -> Type | Nothing
+
+The **native layout** of a schema: the plain struct whose fields hold the declared
+value types with no cell around them. The companion of
+[`document_cell_type`](@ref).
+
+Returns `nothing` when a schema has no native layout, which is the default and is
+what every hand-written document answers. A caller that builds a layout must
+handle `nothing` rather than assume the pair is always complete.
+"""
+function document_native_type end
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are

@@ -210,7 +210,7 @@ they were not looking at.
 The fix for Fact 1, Fact 2 and Fact 3. It changes no name, so it lands first and
 alone, before Part 2 renames anything.
 
-## 1.1 Emit the registry
+## 1.1 Emit the registry — **DONE**
 
 `@document` already emits `document_family`. Emit two more methods beside it, one
 per layout.
@@ -223,6 +223,17 @@ document_native_type(::Type{<:AStem}) = MStem     # nothing when M is not emitte
 
 Both accessors take any variant, because every variant subtypes the family. A
 hand-written document falls back to itself for both, so the protocol is total.
+
+As built, under today's names: `document_cell_type` answers the stem and
+`document_native_type` answers `FooMut`. The fallbacks live in
+`DocumentDefaults.jl` — a plain type is its own cell layout and has no native one,
+so a hand-written document copies into exactly what it was. `document_native_type`
+returns `nothing` rather than a type, so a caller must handle a schema with no
+native layout instead of assuming the pair is always complete.
+
+`test_kernel()` went from 1461/3/2 to 1469/3/2. The eight new assertions are the
+registry testset. The three failures and two errors are the pre-existing Rule C
+ones and are unchanged.
 
 ## 1.2 Let `copy_document` choose the layout
 

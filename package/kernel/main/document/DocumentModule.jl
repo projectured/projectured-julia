@@ -29,6 +29,7 @@ using ..CellModule
 using ..CellStructModule
 
 export Document, copy_document, sync_document!, document_family,
+       document_cell_type, document_native_type,
        should_descend_sync, sync_element_limit, unsynced_placeholder, HiddenElements,
        is_element_collection, is_walk_opaque, is_collection_field_type, search_documents,
        @document, @forward_protocol, @forward_vector_protocol, @adapt_map_protocol

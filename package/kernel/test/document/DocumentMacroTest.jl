@@ -139,6 +139,23 @@ end
     @test IDmRuleY(a = 1, b = 2).c == "c"
 end
 
+@testset "the layout registry answers for every variant" begin
+    # The point of the registry: a caller asks for a layout instead of naming one.
+    # Both accessors are keyed on the family, so either variant answers the same.
+    @test document_cell_type(DmRuleY(1, 2))       === DmRuleY
+    @test document_cell_type(DmRuleYMut(1, 2))    === DmRuleY
+    @test document_native_type(DmRuleY(1, 2))     === DmRuleYMut
+    @test document_native_type(DmRuleYMut(1, 2))  === DmRuleYMut
+    # The type-taking form, which is what the copy walk uses.
+    @test document_cell_type(DmRuleYMut)          === DmRuleY
+    @test document_native_type(typeof(DmRuleY(1, 2))) === DmRuleYMut
+
+    # A hand-written document is its own cell layout and has no native one, so a
+    # copy of one rebuilds exactly what it was.
+    @test document_cell_type(CellVector([]))   === CellVector
+    @test document_native_type(CellVector([])) === nothing
+end
+
 @testset "an explicit `selection` field overrides the injected default" begin
     # A value-document types its selection `Nothing` (non-selectable) instead of the
     # injected `Reference`, so the bare ctor builds an isbits form.
