@@ -78,7 +78,26 @@ function set_workload!(level::Symbol)
     level
 end
 
-export WORKLOAD, set_workload!
+export WORKLOAD, get_workload, set_workload!
+
+"""
+    get_workload() -> Symbol
+
+The level **this session was built with** — the same value as [`WORKLOAD`](@ref),
+as a function, so it pairs with [`set_workload!`](@ref).
+
+It also answers the question `WORKLOAD` cannot: whether the level stored for the
+next build still matches the one in this image. `set_workload!` writes a
+preference and a preference only takes effect on a rebuild, so a session where
+the two differ is a session that has not been restarted yet, and this says so.
+"""
+function get_workload()
+    stored = Symbol(@load_preference("workload", "minimal"))
+    if stored !== WORKLOAD
+        @warn "this session was built with another level; restart to pick the stored one up" built=WORKLOAD stored=stored
+    end
+    WORKLOAD
+end
 
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs
