@@ -160,12 +160,12 @@ end
     # The point of the registry: a caller asks for a layout instead of naming one.
     # Both accessors are keyed on the family, so either variant answers the same.
     @test document_cell_type(DmRuleY(1, 2))       === DmRuleY
-    @test document_cell_type(DmRuleYMut(1, 2))    === DmRuleY
-    @test document_native_type(DmRuleY(1, 2))     === DmRuleYMut
-    @test document_native_type(DmRuleYMut(1, 2))  === DmRuleYMut
+    @test document_cell_type(MDmRuleY(1, 2))    === DmRuleY
+    @test document_native_type(DmRuleY(1, 2))     === MDmRuleY
+    @test document_native_type(MDmRuleY(1, 2))  === MDmRuleY
     # The type-taking form, which is what the copy walk uses.
-    @test document_cell_type(DmRuleYMut)          === DmRuleY
-    @test document_native_type(typeof(DmRuleY(1, 2))) === DmRuleYMut
+    @test document_cell_type(MDmRuleY)          === DmRuleY
+    @test document_native_type(typeof(DmRuleY(1, 2))) === MDmRuleY
 
     # A hand-written document is its own cell layout and has no native one, so a
     # copy of one rebuilds exactly what it was.
@@ -175,10 +175,10 @@ end
 
 @testset "the layout list says which layouts a schema emits" begin
     # The default list is what a declaration always emitted.
-    @test document_native_type(DmRuleY(1, 2)) === DmRuleYMut
+    @test document_native_type(DmRuleY(1, 2)) === MDmRuleY
 
     # `[C]` emits no native layout at all, and the default accessor says so.
-    @test !isdefined(@__MODULE__, :DmCellOnlyMut)
+    @test !isdefined(@__MODULE__, :MDmCellOnly)
     @test document_native_type(DmCellOnly(a = 1)) === nothing
     @test document_cell_type(DmCellOnly(a = 1)) === DmCellOnly
     # The cell layout is untouched by the list, so the schema still copies.

@@ -107,9 +107,14 @@ first.
 | Step | What moves | Sites | State |
 | --- | --- | --- | --- |
 | 2a | `RStem`/`IStem`/`MStem` → `CRStem`/`CIStem`/`CMStem` | 19 | **DONE** |
-| 2b | `AbstractStem` → `AStem` | 43 | |
-| 2c | `StemMut` → `MStem` | 0 in this repository | |
+| 2b | `AbstractStem` → `AStem` | 42 in `.jl`, 5 in `.md` | **DONE** |
+| 2c | `StemMut` → `MStem` | 17, all of them tests and prose | **DONE** |
 | 2d | stem struct → `CStem`, `const Stem = CDStem`, `DStem` → `Stem` | 476 + 2662 | |
+
+2b and 2c landed together. Neither renames a call site that does real work —
+`StemMut` had no production use in this repository at all — and both were checked
+against the six suites before the commit. A collision check ran first for each:
+no `AStem` and no `MStem` name existed before its rename.
 
 **2a taught one thing.** `_emit_keyword_ctors` builds a keyword constructor per
 alias from its own list of prefixes, so renaming the aliases alone left

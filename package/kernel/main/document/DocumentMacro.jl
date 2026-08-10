@@ -155,7 +155,7 @@ A spelling is one concrete parameter list of the **cell** layout, which is what
 the leading `C` says. That letter is what keeps a spelling apart from a layout:
 `CMFoo` is an immutable struct holding one `MutableCell` box per field, while
 `MFoo` — the mutable native layout — is a single mutable object with its fields
-inline. The two used to be spelled `MFoo` and `FooMut`, which read alike and are
+inline. The two used to be spelled `MFoo` and `MFoo`, which read alike and are
 not alike.
 
 `DFoo` is the concrete type the **bare** constructor builds (the per-field default
@@ -422,8 +422,8 @@ function _document_expr(args)
     # recognizes every variant of one schema as the same document even though the
     # two layouts share no type wrapper. Additive for now — the bare name is still
     # the stem, and existing `Foo`/`Foo{…}` dispatch and aliases are unchanged.
-    family = Symbol("Abstract", plan.name)
-    native = Symbol(plan.name, "Mut")
+    family = Symbol("A", plan.name)
+    native = Symbol("M", plan.name)
 
     # ── Inject the selection field ────────────────────────────────────────────
     # Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
@@ -474,7 +474,7 @@ function _document_expr(args)
     # `document_native_type` answers `nothing` for it — which is what a caller
     # reads to find out.
     #
-    # Native-layout constructors target `FooMut`'s auto (all-args) ctor — the same
+    # Native-layout constructors target `MFoo`'s auto (all-args) ctor — the same
     # Rule Y positional-defaults + keyword forms the stem gets, but storing raw
     # values (no cell wrapping), so building the native variant is as ergonomic as
     # building the stem.

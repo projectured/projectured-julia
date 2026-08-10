@@ -210,10 +210,10 @@ function test_reference_eval()
         # The simulator mutates the native tree while the editor navigates the cell
         # shadow. A path built on one has to be the path built on the other, or a
         # selection cannot cross between them.
-        # `EvalBranchMut.left` is typed to one schema, so it holds a cell leaf, not
+        # `MEvalBranch.left` is typed to one schema, so it holds a cell leaf, not
         # a native one. That is the limit of a schema-typed field; a field typed
         # `Document` takes either layout. The node under test here is the root.
-        native = EvalBranchMut(root.left, root.right, nothing)
+        native = MEvalBranch(root.left, root.right, nothing)
         @test get_reference_node_type(native) === get_reference_node_type(root)
         @test get_reference_node_type(native) === EvalBranch
 

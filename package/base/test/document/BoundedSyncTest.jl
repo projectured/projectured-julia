@@ -39,7 +39,7 @@ bounded_shadow(source, depth::Int) =
 # How deep the real (non-marker) chain goes.
 function sync_depth(d)
     k = 0
-    while d isa AbstractSyncNode && d.child isa AbstractSyncNode
+    while d isa ASyncNode && d.child isa ASyncNode
         k += 1; d = d.child
     end
     k
@@ -47,8 +47,8 @@ end
 
 # The chain's one marker — what a UI would put a chevron on.
 function shadow_marker(d)
-    while d isa AbstractSyncNode
-        d.child isa AbstractUnsyncedDocument && return d.child
+    while d isa ASyncNode
+        d.child isa AUnsyncedDocument && return d.child
         d = d.child
     end
     error("no marker in this shadow")
@@ -57,9 +57,9 @@ end
 # Depth of the first marker, or -1 if the chain runs to a real leaf.
 function sync_marker_depth(d)
     k = 0
-    while d isa AbstractSyncNode
-        d.child isa AbstractUnsyncedDocument && return k + 1
-        d.child isa AbstractSyncNode || return -1
+    while d isa ASyncNode
+        d.child isa AUnsyncedDocument && return k + 1
+        d.child isa ASyncNode || return -1
         k += 1; d = d.child
     end
     -1
@@ -110,7 +110,7 @@ end
         @test a.label == b.label
         a, b = a.child, b.child
     end
-    @test b isa AbstractSyncNode && b.child isa AbstractUnsyncedDocument
+    @test b isa ASyncNode && b.child isa AUnsyncedDocument
 end
 
 # ── Identity survives, which is the whole basis for storing state in the shadow ──
@@ -130,7 +130,7 @@ end
 @testset "marker carries kind and size" begin
     m = shadow_marker(bounded_shadow(source, 1))
 
-    @test m isa AbstractUnsyncedDocument
+    @test m isa AUnsyncedDocument
     @test string(m.kind) == "SyncNode"
     @test m.size == 2                         # a SyncNode has two fields
     @test m.requested == false                # nobody asked yet
@@ -143,9 +143,9 @@ end
     sync_document!(shadow, src, DepthPolicy(2))
 
     for side in (shadow.left, shadow.right)
-        @test side isa AbstractSyncNode
-        @test side.child isa AbstractSyncNode
-        @test side.child.child isa AbstractUnsyncedDocument
+        @test side isa ASyncNode
+        @test side.child isa ASyncNode
+        @test side.child.child isa AUnsyncedDocument
     end
 end
 
@@ -159,9 +159,9 @@ end
 
     @test length(shadow) == 3
     for e in shadow
-        @test e isa AbstractSyncNode
-        @test e.child isa AbstractSyncNode         # depth 2
-        @test e.child.child isa AbstractUnsyncedDocument
+        @test e isa ASyncNode
+        @test e.child isa ASyncNode         # depth 2
+        @test e.child.child isa AUnsyncedDocument
     end
 end
 
@@ -175,7 +175,7 @@ end
     shadow = copy_document(get_cell_struct_kind(big), big, policy)
     @test length(shadow) == 9                      # 8 elements + one tail marker
     tail = shadow[9]
-    @test tail isa AbstractUnsyncedDocument
+    @test tail isa AUnsyncedDocument
     @test tail.size == 9_992                       # ...which says how many are behind it
 
     sync_document!(shadow, big, policy)            # and syncing changes nothing
@@ -207,7 +207,7 @@ end
     shadow = copy_document(get_cell_struct_kind(small), small, policy)
 
     @test length(shadow) == 3
-    @test !any(e -> e isa AbstractUnsyncedDocument, shadow)
+    @test !any(e -> e isa AUnsyncedDocument, shadow)
 
     pop!(small); sync_document!(shadow, small, policy)   # and it tracks a shrinking source
     @test length(shadow) == 2
@@ -282,7 +282,7 @@ end
     request_sync!(m)
     sync_document!(shadow, source, DepthPolicy(1))
 
-    @test !(shadow.child.child isa AbstractUnsyncedDocument)   # m was consumed
+    @test !(shadow.child.child isa AUnsyncedDocument)   # m was consumed
     @test m.requested                                          # the discarded marker still says so
     deeper = shadow_marker(shadow)
     @test deeper !== m && !deeper.requested                    # ...but the new one does not
@@ -293,14 +293,14 @@ end
     request_sync!(sh.left.child)
     sh.left = unsynced_marker(sh.left)          # collapse the parent, request and all
     sync_document!(sh, src, DepthPolicy(1))
-    @test sh.left isa AbstractUnsyncedDocument  # stays collapsed; the inner request is gone
+    @test sh.left isa AUnsyncedDocument  # stays collapsed; the inner request is gone
 end
 
 # ── A marker is an ordinary document, so references reach it ──────────────
 # It has to be, or a projection could not address one to flag it.
 @testset "a marker is addressable" begin
     shadow = bounded_shadow(source, 1)
-    found = search_documents(shadow, d -> d isa AbstractUnsyncedDocument)
+    found = search_documents(shadow, d -> d isa AUnsyncedDocument)
 
     @test length(found) == 1
     @test found[1] === shadow.child.child

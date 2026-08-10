@@ -101,7 +101,7 @@ function test_document_contract()
     end
 
     @testset "a kinded copy targets the cell layout, a plain copy keeps the layout" begin
-        native = ToyNodeMut("root", nothing, nothing)
+        native = MToyNode("root", nothing, nothing)
         # A kind is a property of a cell, so a kinded copy of a native source has to
         # convert. Copying the source's own layout is what let a native node into a
         # cell shadow, where nothing could ever invalidate it.
@@ -112,13 +112,13 @@ function test_document_contract()
         @test copy_document(ImmutableCell, native) isa ToyNode
         @test getfield(copy_document(ImmutableCell, native), :label) isa ImmutableCell
         # The plain copy preserves the layout, so a native document copies into one.
-        @test copy_document(native) isa ToyNodeMut
+        @test copy_document(native) isa MToyNode
     end
 
     @testset "a new native child reaches a cell shadow as a cell node" begin
-        source = ToyBoxMut(nothing, nothing)
+        source = MToyBox(nothing, nothing)
         shadow = ToyBox(nothing, nothing)
-        source.content = ToyNodeMut("first", nothing, nothing)
+        source.content = MToyNode("first", nothing, nothing)
         sync_document!(shadow, source)
         # The child is rebuilt in the shadow's own layout, not copied across as it was.
         @test shadow.content isa ToyNode
@@ -134,11 +134,11 @@ function test_document_contract()
     end
 
     @testset "a tree that holds no cells is not a shadow" begin
-        source = ToyBoxMut(nothing, nothing)
-        source.content = ToyNodeMut("first", nothing, nothing)
+        source = MToyBox(nothing, nothing)
+        source.content = MToyNode("first", nothing, nothing)
         # Nothing in a native tree can invalidate a reader, so it cannot serve as a
         # shadow. The walk used to fail as a copy_document method that does not exist.
-        @test_throws ErrorException sync_document!(ToyBoxMut(nothing, nothing), source)
+        @test_throws ErrorException sync_document!(MToyBox(nothing, nothing), source)
         # A cell shadow of the same schema takes the very same source.
         @test sync_document!(ToyBox(nothing, nothing), source).content isa ToyNode
     end

@@ -56,7 +56,7 @@ import ..DocumentModule: Document, @document, sync_document!, copy_document,
                          should_descend_sync, sync_element_limit, unsynced_placeholder
 import ..ReferenceModule: Reference
 
-export UnsyncedDocument, AbstractUnsyncedDocument,
+export UnsyncedDocument, AUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,
        unsynced_size, unsynced_marker, request_sync!
 
@@ -108,7 +108,7 @@ other document.
 The flag is consumed by the expansion: the marker is *replaced* by the real
 child, so a request cannot outlive the node it was made on.
 """
-request_sync!(m::AbstractUnsyncedDocument) = (m.requested = true; m)
+request_sync!(m::AUnsyncedDocument) = (m.requested = true; m)
 
 # ── policies ──────────────────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ DepthPolicy(; depth::Integer = 1, elements::Integer = 32) =
     DepthPolicy(Int(depth), Int(elements))
 
 should_descend_sync(p::DepthPolicy, depth::Int, slot) =
-    slot isa AbstractUnsyncedDocument ? slot.requested :
+    slot isa AUnsyncedDocument ? slot.requested :
     slot isa Document                 ? true :
                                         depth <= p.depth
 
@@ -225,12 +225,12 @@ copy_document(K::Type{<:AbstractCell}, doc::Document, policy::SyncPolicy) =
 # already-placed marker is handed straight back and the shadow keeps its identity
 # — the kernel writes only when this returns something new.
 unsynced_placeholder(::SyncPolicy, source, current) =
-    current isa AbstractUnsyncedDocument ? current : unsynced_marker(source)
+    current isa AUnsyncedDocument ? current : unsynced_marker(source)
 
 # A tail placeholder reports how many elements are behind it, not the child count
 # of whichever one happens to stand first.
 unsynced_placeholder(::SyncPolicy, source::AbstractVector, current) =
-    current isa AbstractUnsyncedDocument ?
+    current isa AUnsyncedDocument ?
         (current.size == length(source) || (current.size = length(source));
          current.requested = false;                    # the request is spent
          current) :
@@ -246,7 +246,7 @@ _unwrap(x) = x isa AbstractCell ? x[] : x
 function sync_element_limit(p::DepthPolicy, source, shadow)
     total = length(source)
     nc = length(shadow)
-    tail = nc > 0 && shadow[nc] isa AbstractUnsyncedDocument ? shadow[nc] : nothing
+    tail = nc > 0 && shadow[nc] isa AUnsyncedDocument ? shadow[nc] : nothing
     shown = tail === nothing ? nc : nc - 1
     limit = max(p.elements, shown)
     tail !== nothing && tail.requested && (limit += p.elements)

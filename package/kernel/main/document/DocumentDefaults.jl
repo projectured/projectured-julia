@@ -42,7 +42,7 @@ document_family(::Type{T}) where {T} = Base.typename(T).wrapper
 # The layout registry. A plain type is its own cell layout and has no native one,
 # so a hand-written document copies into exactly what it was. `@document` overrides
 # both per schema, on the family, so either accessor takes any variant. The
-# `::Type{<:AbstractFoo}` methods the macro emits are more specific than these, and
+# `::Type{<:AFoo}` methods the macro emits are more specific than these, and
 # so win for every variant of a schema.
 document_cell_type(x) = document_cell_type(typeof(x))
 document_cell_type(::Type{T}) where {T} = Base.typename(T).wrapper

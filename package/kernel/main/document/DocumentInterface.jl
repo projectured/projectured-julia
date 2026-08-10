@@ -52,7 +52,7 @@ The **cell layout** of a schema: the parametric struct whose fields hold cells.
 Together with [`document_native_type`](@ref) this is the layout registry — the way
 to ask for a layout without naming a type. Before it existed the only way to reach
 a layout was to write its name, which is why a caller that wanted the plain struct
-had to spell `FooMut`.
+had to spell `MFoo`.
 
 Takes any variant, because every variant of a schema subtypes its family. Defaults
 to the type's own name wrapper, so a hand-written document is its own cell layout

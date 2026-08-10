@@ -75,7 +75,7 @@ end
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
     marker = shadow.children[2].children
-    @test marker isa AbstractUnsyncedDocument
+    @test marker isa AUnsyncedDocument
     @test !marker.requested
 
     @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
@@ -112,7 +112,7 @@ end
 
     @test [1, 2] in iomap.output.collapsed
     @test !("a = 1" in tree_labels(iomap.output.roots[1]))
-    @test shadow.children[2].children isa AbstractUnsyncedDocument
+    @test shadow.children[2].children isa AUnsyncedDocument
 end
 
 # A capped collection's tail is a marker like any other, so the same click opens

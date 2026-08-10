@@ -40,9 +40,9 @@ policy = DepthPolicy(depth = 1, elements = 4)
     @test (name.label, name.value) == ("name", "root")
     @test name.children === nothing                  # a leaf has no children slot
 
-    @test inner.children isa AbstractUnsyncedDocument
+    @test inner.children isa AUnsyncedDocument
     @test inner.children.size == 2                   # ...and the marker says how many
-    @test data.children isa AbstractUnsyncedDocument
+    @test data.children isa AUnsyncedDocument
     @test data.children.size == 1000
 
     # a parameterised type keeps its parameters — `Array` would lose the point
@@ -109,7 +109,7 @@ end
     reflect_kid(n, 2).children = unsynced_marker(reflect_kid(n, 2).children)
     for _ in 1:3
         sync_reflection!(n, obj, policy)
-        @test reflect_kid(n, 2).children isa AbstractUnsyncedDocument
+        @test reflect_kid(n, 2).children isa AUnsyncedDocument
     end
 end
 

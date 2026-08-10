@@ -37,8 +37,8 @@ import ..CellModule: Cell, ComputedCell
 import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep
-import ..DocumentReflectionModule: AbstractReflectedNode, SetReflectedDisclosureOperation
-import ..BoundedSyncModule: AbstractUnsyncedDocument
+import ..DocumentReflectionModule: AReflectedNode, SetReflectedDisclosureOperation
+import ..BoundedSyncModule: AUnsyncedDocument
 
 export ReflectionToWidget
 
@@ -78,7 +78,7 @@ function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, colla
     nodes[copy(path)] = node
     kids = node.children
 
-    if kids isa AbstractUnsyncedDocument
+    if kids isa AUnsyncedDocument
         push!(collapsed, copy(path))
         # A chevron is drawn only for a node that has children, so a collapsed
         # node needs one to stand on. It is never rendered — the path is in
@@ -93,7 +93,7 @@ function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, colla
     for i in 1:length(kids)
         child = kids[i]
         push!(path, i)
-        push!(children, child isa AbstractUnsyncedDocument ?
+        push!(children, child isa AUnsyncedDocument ?
                         WidgetTreeNode("", _hidden_summary(child)) :
                         _tree_node(p, child, path, nodes, collapsed))
         pop!(path)

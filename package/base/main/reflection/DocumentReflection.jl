@@ -28,11 +28,11 @@ import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
                          HiddenElements
-import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AbstractUnsyncedDocument,
+import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AUnsyncedDocument,
                             UnsyncedDocument, unsynced_marker, request_sync!
 import ..OperationModule: Operation, evaluate_operation
 
-export ReflectedNode, AbstractReflectedNode, SetReflectedDisclosureOperation,
+export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
        reflect_document, sync_reflection!,
        reflect_child_count, reflect_child_pairs, reflect_children,
        is_reflection_leaf, reflection_value
@@ -83,8 +83,8 @@ end
 function evaluate_operation(editor, op::SetReflectedDisclosureOperation)
     for (node, expanded) in op.changes
         if expanded
-            node.children isa AbstractUnsyncedDocument && request_sync!(node.children)
-        elseif !(node.children isa AbstractUnsyncedDocument)
+            node.children isa AUnsyncedDocument && request_sync!(node.children)
+        elseif !(node.children isa AUnsyncedDocument)
             node.children = unsynced_marker(node.children)
         end
     end
@@ -190,7 +190,7 @@ Bring `node` up to date with `object`, stopping where `policy` says to. Nodes
 already materialised keep their identity, so a widget holding one keeps holding
 it; a `requested` marker in a `children` slot is filled in one level.
 """
-function sync_reflection!(node::AbstractReflectedNode, object,
+function sync_reflection!(node::AReflectedNode, object,
                           policy::SyncPolicy = DepthPolicy(1))
     _sync_reflection!(node, object, policy, 0)
     node
@@ -211,7 +211,7 @@ function _sync_reflection!(node, object, policy::SyncPolicy, depth::Int)
 
     cur = node.children
     if !should_descend_sync(policy, depth + 1, cur)
-        cur isa AbstractUnsyncedDocument || (node.children = _collapsed_marker(object))
+        cur isa AUnsyncedDocument || (node.children = _collapsed_marker(object))
         return node
     end
 
@@ -228,7 +228,7 @@ _collapsed_marker(object) =
 function _sync_reflected_children!(kids, object, policy::SyncPolicy, depth::Int)
     ns = reflect_child_count(object)
     nc = length(kids)
-    tail = nc > 0 && kids[nc] isa AbstractUnsyncedDocument ? kids[nc] : nothing
+    tail = nc > 0 && kids[nc] isa AUnsyncedDocument ? kids[nc] : nothing
     shown = tail === nothing ? nc : nc - 1
     limit = sync_element_limit(policy, ns, shown, tail !== nothing && tail.requested)
 

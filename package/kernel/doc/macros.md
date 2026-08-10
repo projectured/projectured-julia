@@ -72,14 +72,14 @@ as the last field — a `Reference` for what is selected inside this node, or
 a **native mutable layout**:
 
 ```julia
-abstract type AbstractJsonString <: JsonDocument end   # the family both layouts share
+abstract type AJsonString <: JsonDocument end   # the family both layouts share
 
-struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: AbstractJsonString
+struct JsonString{C1 <: AbstractCell, C2 <: AbstractCell} <: AJsonString
     value::C1          # a cell holding the String
     selection::C2      # injected by the macro: a cell holding the selection
 end
 
-mutable struct JsonStringMut <: AbstractJsonString      # the native layout
+mutable struct MJsonString <: AJsonString      # the native layout
     value::String                          # the declared type, with no cell box
     selection::Union{Nothing, Reference}
 end
@@ -90,14 +90,14 @@ end
 | Type | What it is |
 |---|---|
 | `Foo{C1, …}` — the **stem** | The bare name. An immutable struct, one cell per field; every kind alias is a parameterization of it. |
-| `FooMut` — the **native layout** | A real `mutable struct` holding the declared value types directly. No cell box, so `getproperty` / `setproperty!` are the default `getfield` / `setfield!` — byte-for-byte the struct you would have written by hand. It gets the same Rule Y positional and keyword constructors as the stem. |
-| `AbstractFoo` — the **family** | The abstract type both layouts subtype, so `document_family(T)` answers `AbstractFoo` for either one and `x isa AbstractFoo` covers both. |
+| `MFoo` — the **native layout** | A real `mutable struct` holding the declared value types directly. No cell box, so `getproperty` / `setproperty!` are the default `getfield` / `setfield!` — byte-for-byte the struct you would have written by hand. It gets the same Rule Y positional and keyword constructors as the stem. |
+| `AFoo` — the **family** | The abstract type both layouts subtype, so `document_family(T)` answers `AFoo` for either one and `x isa AFoo` covers both. |
 
 The family sits between the stem and the supertype you wrote, so the domain
 dispatch you declared is unchanged — `JsonString <: JsonDocument` still holds,
 transitively. The two layouts are additive: the bare name is still the stem, and
 every existing `Foo` / `Foo{…}` dispatch and alias means what it meant before.
-The macro exports `AbstractFoo` and `FooMut` itself.
+The macro exports `AFoo` and `MFoo` itself.
 
 **Declaring `selection` by hand.** You normally never write it. The one reason to
 is a **value document** that must pin the field's *value* type — the isbits pivot:
@@ -312,7 +312,7 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for the bare name, the
-`I`-prefixed and `M`-prefixed kinds, and the native `FooMut` layout — but only
+`I`-prefixed and `M`-prefixed kinds, and the native `MFoo` layout — but only
 when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free

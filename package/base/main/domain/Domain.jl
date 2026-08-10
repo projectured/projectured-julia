@@ -199,7 +199,7 @@ function _is_domain_entry(T::Type)
     domain_insertion(insertion_root(T)) === T
 end
 
-# A native mutable-layout struct (`FooMut`) is the same document as its stem (`Foo`)
+# A native mutable-layout struct (`MFoo`) is the same document as its stem (`Foo`)
 # — they share a `document_family` — just a different variant layout. Reflection
 # over *document types* must see one type per schema, so we skip the concrete
 # layout variants: a concrete type whose family is not its own name-wrapper is a

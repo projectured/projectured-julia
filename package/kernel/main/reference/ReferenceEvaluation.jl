@@ -135,7 +135,7 @@ token stays the bare name the `@reference` macro emits, which the pattern matche
 compares with `<:`.
 
 The family would be the obvious token and is the wrong one: it is a *supertype* of
-the cell layout, so `AbstractJsonString <: JsonString` is false and every `::T`
+the cell layout, so `AJsonString <: JsonString` is false and every `::T`
 pattern arm would stop matching.
 
 Validation is `document isa path.type`, so a **native** document does not validate
