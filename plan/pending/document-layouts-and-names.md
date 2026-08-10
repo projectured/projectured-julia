@@ -145,7 +145,22 @@ required work, not an option.
 
 ---
 
-# Part 3 — how a declaration picks its variants (decided)
+# Part 3 — how a declaration picks its variants — **DONE, except the bare name**
+
+The grammar, the emission control and `@document_preset` are built. The **first
+entry binds the bare name** rule is not, because before Part 2 the bare name is
+the stem's own struct name and there is no renaming machinery to move it. The list
+today decides only *which* layouts a schema emits. The binding rule lands with
+Part 2.
+
+The default list is `[C, M]`, today's emission, so nothing changed for any
+existing declaration.
+
+| Suite | Before Part 3 | After |
+| --- | --- | --- |
+| `test_kernel()` | 1486 / 3 / 2 | 1498 / 3 / 2 (twelve new assertions) |
+| `test_base()` | 387 | 387 |
+| `test_visual()` | 52659 pass, 1 broken | 52659 pass, 1 broken |
 
 ## The grammar
 
@@ -173,6 +188,17 @@ A list with no `C` is allowed, for a document nothing ever observes.
 `document_cell_type` then returns `nothing`, and `sync_document!` must say so
 plainly rather than fail deep in the walk.
 
+**As built, two codes are refused by name rather than emitted.**
+
+- `I`, the immutable native struct, does not exist. Open Question 1 says do not
+  emit it until a caller asks, so the list says that instead of accepting the code
+  and ignoring it.
+- A list with no `C`. The cell layout carries the four aliases, the auto-wrapping
+  constructor, the accessors and Rule Y, so leaving it out is a restructure of the
+  whole expansion and no caller wants one yet.
+
+Both raise an error that names the reason. Add either when something asks.
+
 ## Presets, not a module-level default
 
 A preset defines a macro. The call site names it, so a reader of one file always
@@ -193,6 +219,13 @@ they were not looking at.
 | Hidden input | none | **yes** | none |
 | Change the set later | 127 edits | 1 edit | 1 edit |
 | One file tells the reader | yes | **no** | yes |
+
+**Built, and one thing it taught.** A preset cannot expand into a `@document`
+macrocall: the caller's struct definition would go through a second round of
+hygiene and come out renamed. The whole expansion is now a function,
+`_document_expr(args)`, that both `@document` and a preset call. A preset is the
+same expansion with a layout list put in front of the arguments, which is also why
+a field-kind marker still reaches it: `@native_document ImmutableCell struct …`.
 
 ## The two presets that exist after this plan
 

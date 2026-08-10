@@ -10,6 +10,47 @@
 # The reactive default a bare `Foo(…)` wraps a raw value in: the untyped `Cell`.
 const _REACTIVE_ANY = ReactiveCell{Any}
 
+# ── The layout list ───────────────────────────────────────────────────────────
+# `@document [C, M] struct Foo … end` says which layouts the schema emits. A code
+# names a layout and nothing else: `C` the cell layout, `M` the mutable native
+# struct, `I` the immutable native struct. The family and the four spelling
+# aliases are never listed — the family is what two layouts share, and an alias is
+# a `const` whose absence would only surprise.
+#
+# The default is every layout that exists today, so a declaration that says
+# nothing emits what it always did.
+const _DEFAULT_LAYOUTS = (:C, :M)
+const _KNOWN_LAYOUTS   = (:C, :M, :I)
+
+"""
+    _take_layout_list(args) -> (layouts::Tuple{Vararg{Symbol}}, rest)
+
+Pull the layout list out of a `@document` argument list, wherever it sits, and
+return it with the remaining arguments for [`cell_struct_macro_default`](@ref).
+The canonical order writes the field-kind marker first
+(`@document ImmutableCell [C] struct …`), but a list is recognised in any leading
+position, so no spelling of it is rejected.
+"""
+function _take_layout_list(args)
+    i = findfirst(a -> a isa Expr && a.head === :vect, args)
+    i === nothing && return (_DEFAULT_LAYOUTS, args)
+    codes = args[i].args
+    all(c -> c isa Symbol, codes) ||
+        error("@document: a layout list holds layout codes, one of $(join(_KNOWN_LAYOUTS, ", "))")
+    for c in codes
+        c in _KNOWN_LAYOUTS ||
+            error("@document: `$c` is not a layout code. Use one of $(join(_KNOWN_LAYOUTS, ", ")).")
+        c === :I &&
+            error("@document: the immutable native layout `I` is not emitted yet, " *
+                  "because nothing asks for one. Add it when a caller does.")
+    end
+    :C in codes ||
+        error("@document: a layout list must include `C` for now. A schema with no cell " *
+              "layout has no aliases, no auto-wrapping constructor and no shadow, and " *
+              "nothing asks for one yet.")
+    (Tuple(codes), args[[j for j in eachindex(args) if j != i]])
+end
+
 # The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
 # keeps the untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
 # the typed cell so it inlines — the same typed cells the `IFoo`/`MFoo` aliases build.
@@ -266,10 +307,21 @@ function _emit_native_mutable(plan, family, native)
 end
 
 """
-    @document struct T [<: Super] ... end
+    @document [Kind] [[layouts]] struct T [<: Super] ... end
 
 Annotate a Document struct whose fields are transparent cells. The programmer
 writes real value types.
+
+An optional **layout list** says which layouts the schema emits: `C` the cell
+layout, `M` the mutable native struct. A code names a layout and nothing else —
+the family and the four spelling aliases are never listed, because the family is
+what two layouts share and an alias is a `const` whose absence would only
+surprise. The default emits both, so a declaration that says nothing emits what it
+always did. The canonical order writes the field-kind marker first, as in
+`@document ImmutableCell [C] struct …`.
+
+A package that wants the same list on every schema declares it once with
+[`@document_preset`](@ref) and writes the preset's name instead.
 
 Every document gets a **`selection::Union{Nothing, Reference} = nothing`** field, appended as its
 last field by the macro — the programmer never writes it, and declaring it by hand
@@ -337,7 +389,16 @@ construction (`setfield!` is gone); all mutation flows through the cells, and
 construction-time cell sharing replaces field-level retargeting.
 """
 macro document(args...)
-    default, structdef = cell_struct_macro_default(args)
+    _document_expr(args)
+end
+
+# The whole expansion, as a function of the argument list. `@document_preset`
+# calls it too, so a preset is the same expansion with a layout list prepended —
+# not a macro that expands into another macro, which would put the caller's struct
+# definition through a second round of hygiene.
+function _document_expr(args)
+    layouts, rest = _take_layout_list(args)
+    default, structdef = cell_struct_macro_default(rest)
     structdef.head === :struct || error("@document expects a struct definition")
     plan = cell_struct_plan(structdef)
 
@@ -391,23 +452,34 @@ macro document(args...)
     # One gensym'd argument list, shared by the inner ctor and the kind ctors.
     arg_names = [gensym(f) for f in plan.field_names]
 
-    native_struct = _emit_native_mutable(plan, family, native)
     # The layout registry, keyed on the family so either accessor takes any variant.
     # This is what lets a caller ask for a layout instead of naming one: before it,
     # the type name was the only way to reach a layout, and `copy_document` therefore
     # rebuilt whatever layout the source already had.
-    family_method = :((::typeof($document_family))(::Type{<:$family}) = $family)
-    cell_type_method   = :((::typeof($document_cell_type))(::Type{<:$family}) =
-                               $(plan.name))
-    native_type_method = :((::typeof($document_native_type))(::Type{<:$family}) =
-                               $native)
-    # Native-layout constructors targeting `FooMut`'s auto (all-args) ctor — the same
-    # Rule Y positional-defaults + keyword forms the stem gets, but storing raw values
-    # (no cell wrapping), so building the mutable variant is as ergonomic as the stem.
-    native_ctors = Any[cell_struct_positional_ctors(plan, native)...]
-    if plan.n_programmer_defaults > 0 || plan.n_declared == 0
-        push!(native_ctors, cell_struct_kwctor(native, plan.field_names,
-                            cell_struct_kw_params(plan.field_names, plan.defaults)))
+    family_method    = :((::typeof($document_family))(::Type{<:$family}) = $family)
+    cell_type_method = :((::typeof($document_cell_type))(::Type{<:$family}) =
+                             $(plan.name))
+
+    # The mutable native layout, emitted only when the layout list asks for it. A
+    # schema that leaves `M` out has no native type at all, and the default
+    # `document_native_type` answers `nothing` for it — which is what a caller
+    # reads to find out.
+    #
+    # Native-layout constructors target `FooMut`'s auto (all-args) ctor — the same
+    # Rule Y positional-defaults + keyword forms the stem gets, but storing raw
+    # values (no cell wrapping), so building the native variant is as ergonomic as
+    # building the stem.
+    native_parts = Any[]
+    if :M in layouts
+        push!(native_parts, _emit_native_mutable(plan, family, native))
+        append!(native_parts, cell_struct_positional_ctors(plan, native))
+        if plan.n_programmer_defaults > 0 || plan.n_declared == 0
+            push!(native_parts, cell_struct_kwctor(native, plan.field_names,
+                                cell_struct_kw_params(plan.field_names, plan.defaults)))
+        end
+        push!(native_parts, :((::typeof($document_native_type))(::Type{<:$family}) =
+                                  $native))
+        push!(native_parts, Expr(:export, native))
     end
 
     structdef = _emit_stem!(plan)
@@ -418,10 +490,9 @@ macro document(args...)
              :(abstract type $family <: $supertype end),
              :(Base.@__doc__ $structdef),
              getprop, setprop,
-             native_struct,
-             native_ctors...,
-             family_method, cell_type_method, native_type_method,
-             Expr(:export, family, native),
+             native_parts...,
+             family_method, cell_type_method,
+             Expr(:export, family),
              _emit_kind_aliases(plan, arg_names; default = default)...,
              _emit_keyword_ctors(plan)...,
              # Rule Y (the cell layer's, generic over any cell struct), each arity
@@ -429,4 +500,37 @@ macro document(args...)
              cell_struct_positional_ctors(plan, plan.name;
                                           each_arity = k -> _emit_collection_ctor_at(plan, k))...,
              _emit_collection_ctors(plan)...))
+end
+
+"""
+    @document_preset name [layouts]
+
+Define `@name` as [`@document`](@ref) with a fixed layout list. A package that
+wants the same list on every schema declares the preset once and then writes the
+preset's name, so a reader of any one file knows what a declaration emits.
+
+```julia
+@document_preset native_document [M, C]     # once, in the package root module
+
+@native_document struct TicTocMessage1      # and then at every declaration
+    name::String
+end
+```
+
+The alternative was a module-level default that `@document` reads at expansion
+time. It works, and it was rejected: two declarations that look the same would
+expand differently, and the reader would have to find a file they were not looking
+at. A preset costs one longer name at the call site and says what it does there.
+
+A preset's own arguments are passed through, so a field-kind marker still works:
+`@native_document ImmutableCell struct …`.
+"""
+macro document_preset(name::Symbol, layouts)
+    # Validated here rather than at first use, so a typo in a preset is an error
+    # where the preset is written.
+    layouts isa Expr && layouts.head === :vect ||
+        error("@document_preset: expected a layout list, as in `@document_preset name [M, C]`")
+    _take_layout_list((layouts,))
+    esc(Expr(:macro, Expr(:call, name, Expr(:..., :args)),
+             :($(_document_expr)(($(QuoteNode(layouts)), args...)))))
 end

@@ -56,6 +56,23 @@ end
     b::String = "b"
 end
 
+# ── The layout list: this schema emits the cell layout and no native one ──
+@document [C] struct DmCellOnly
+    a::Int = 0
+end
+
+# ── A preset: `@document` with a fixed layout list, named once ────────────
+@document_preset dm_cell_document [C]
+
+@dm_cell_document struct DmViaPreset
+    a::Int = 0
+end
+
+# A preset passes its own arguments through, so a field-kind marker still works.
+@dm_cell_document ImmutableCell struct DmPresetKinded
+    a::Int = 0
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -154,6 +171,39 @@ end
     # copy of one rebuilds exactly what it was.
     @test document_cell_type(CellVector([]))   === CellVector
     @test document_native_type(CellVector([])) === nothing
+end
+
+@testset "the layout list says which layouts a schema emits" begin
+    # The default list is what a declaration always emitted.
+    @test document_native_type(DmRuleY(1, 2)) === DmRuleYMut
+
+    # `[C]` emits no native layout at all, and the default accessor says so.
+    @test !isdefined(@__MODULE__, :DmCellOnlyMut)
+    @test document_native_type(DmCellOnly(a = 1)) === nothing
+    @test document_cell_type(DmCellOnly(a = 1)) === DmCellOnly
+    # The cell layout is untouched by the list, so the schema still copies.
+    @test copy_document(ReactiveCell, DmCellOnly(a = 1)) isa DmCellOnly
+
+    # A code names a layout and nothing else, and a schema needs its cell layout.
+    @test_throws LoadError @eval @document [X] struct DmBadCode
+        a::Int = 0
+    end
+    @test_throws LoadError @eval @document [M] struct DmNoCellLayout
+        a::Int = 0
+    end
+    # The immutable native layout has no caller yet, so it is refused by name
+    # rather than emitted and left unused.
+    @test_throws LoadError @eval @document [C, I] struct DmImmutableNative
+        a::Int = 0
+    end
+end
+
+@testset "a preset is @document with a fixed layout list" begin
+    @test document_native_type(DmViaPreset(a = 1)) === nothing
+    @test document_cell_type(DmViaPreset(a = 1)) === DmViaPreset
+    # The marker reached the expansion through the preset.
+    @test getfield(DmPresetKinded(a = 1), :a) isa ImmutableCell{Int}
+    @test document_native_type(DmPresetKinded(a = 1)) === nothing
 end
 
 @testset "an explicit `selection` field overrides the injected default" begin
