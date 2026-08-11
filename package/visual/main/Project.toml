@@ -4,16 +4,27 @@ version = "0.1.0"
 authors = []
 entryfile = "ProjecturedVisual.jl"
 
-# ProjecturedVisual is the rendering substrate layered between the domain-
-# independent base package and the concrete domain slices (kernel ← base ←
-# visual ← domain). It owns the style/screen/graphics/layout/text/widget/
-# syntax slices plus the two dependency-free backends (Console, Pdf) — see
-# plan/done/domain-layered-architecture.md for the full slice inventory.
+# ProjecturedVisual is the rendering substrate: the style, screen, graphics,
+# focus, layout, text, widget, pane and syntax slices plus the two
+# dependency-free backends (Console, Pdf). Each slice is becoming a package of
+# its own; see plan/pending/splice-base-and-visual-packages.md.
 
 [deps]
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedDragging = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedReflection = "0807f717-a2ae-4bc5-a9a1-1eb2de00c335"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 
 [sources]
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedBase = {path = "../../base/main"}
+ProjecturedCollection = {path = "../../collection/main"}
+ProjecturedDomain = {path = "../../domain/main"}
+ProjecturedDragging = {path = "../../dragging/main"}
+ProjecturedPrimitive = {path = "../../primitive/main"}
+ProjecturedProjection = {path = "../../projection/main"}
+ProjecturedReflection = {path = "../../reflection/main"}
+ProjecturedSerialization = {path = "../../serialization/main"}

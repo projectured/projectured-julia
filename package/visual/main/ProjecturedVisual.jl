@@ -1,8 +1,7 @@
 """
     ProjecturedVisual
 
-The rendering substrate — layered between `ProjecturedBase` and
-`ProjecturedDomain` (kernel ← base ← visual ← domain). Owns everything about
+The rendering substrate. It owns everything about
 *how documents become visible*: style atoms, the screen/window model, the
 render-target documents (Graphics, Layout, Text, Widget, Syntax) with their
 projections, and the dependency-free backends (Console, Pdf).
@@ -46,15 +45,24 @@ clipboard/tooltip/inspector → backend
   and the HoverProbe decorator (a pointer-following reference-inspector window).
 - **backend/** — Console.jl, Pdf.jl (the dependency-free concrete backends).
 
-Kernel/base aliases below let files inside this package keep their relative
-`..XxxModule` references unchanged.
+The aliases below let files inside this package keep their relative
+`..XxxModule` references unchanged. Each concept folder becomes a package of
+its own (see plan/pending/splice-base-and-visual-packages.md); while the
+splice runs, this module re-aliases what has already left.
 """
 module ProjecturedVisual
 
 using ProjecturedKernel
-using ProjecturedBase
+using ProjecturedCollection
+using ProjecturedDomain
+using ProjecturedDragging
+using ProjecturedPrimitive
+using ProjecturedProjection
+using ProjecturedReflection
+using ProjecturedSerialization
 
-# ── Kernel + base submodule aliases ────────────────────────────────────────
+# ── Aliases of the packages this one builds on, and of the packages it was
+# ── spliced into ──────────────────────────────────────────────────────────
 # Some aliases carry a second, deprecated name (e.g. DocumentApiModule,
 # BackendApiModule) so files that still use it keep resolving to the canonical
 # module.
@@ -79,19 +87,19 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
-const CollectionModule = ProjecturedBase.CollectionModule
-const PrimitiveModule = ProjecturedBase.PrimitiveModule
-const DocumentCoreModule = ProjecturedBase.DocumentCoreModule
-const DomainModule = ProjecturedBase.DomainModule
-const BoundedSyncModule = ProjecturedBase.BoundedSyncModule
-const DocumentReflectionModule = ProjecturedBase.DocumentReflectionModule
-const BinarySerializationModule = ProjecturedBase.BinarySerializationModule
-const FileProjectModule = ProjecturedBase.FileProjectModule
+const CollectionModule = ProjecturedCollection.CollectionModule
+const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
+const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
+const DomainModule = ProjecturedDomain.DomainModule
+const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
+const DocumentReflectionModule = ProjecturedReflection.DocumentReflectionModule
+const BinarySerializationModule = ProjecturedSerialization.BinarySerializationModule
+const FileProjectModule = ProjecturedSerialization.FileProjectModule
 # ScreenDocumentModule is local to this package (screen slice); no alias.
-const CopyingProjectionModule = ProjecturedBase.CopyingProjectionModule
+const CopyingProjectionModule = ProjecturedProjection.CopyingProjectionModule
 # MoveRangeOperation — the identity-preserving relocation of CellVector elements
 # the pane slice moves a tab with.
-const DraggingProjectionModule = ProjecturedBase.DraggingProjectionModule
+const DraggingProjectionModule = ProjecturedDragging.DraggingProjectionModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
@@ -99,19 +107,19 @@ const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
-# The concrete generic + higher-order projections now live in ProjecturedBase.
-const IdentityProjectionModule = ProjecturedBase.IdentityProjectionModule
-const TypeDispatchingProjectionModule = ProjecturedBase.TypeDispatchingProjectionModule
-const PredicateDispatchingProjectionModule = ProjecturedBase.PredicateDispatchingProjectionModule
-const ReferenceDispatchingProjectionModule = ProjecturedBase.ReferenceDispatchingProjectionModule
-const ChainingProjectionModule = ProjecturedBase.ChainingProjectionModule
-const NestingProjectionModule = ProjecturedBase.NestingProjectionModule
-const RecursiveProjectionModule = ProjecturedBase.RecursiveProjectionModule
-const SwitchingProjectionModule = ProjecturedBase.SwitchingProjectionModule
-const WindowInputUnwrappingProjectionModule = ProjecturedBase.WindowInputUnwrappingProjectionModule
-const FocusingProjectionModule = ProjecturedBase.FocusingProjectionModule
-const ReversingProjectionModule = ProjecturedBase.ReversingProjectionModule
-const ConstantProjectionModule = ProjecturedBase.ConstantProjectionModule
+# The concrete generic + higher-order projections live in ProjecturedProjection.
+const IdentityProjectionModule = ProjecturedProjection.IdentityProjectionModule
+const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
+const PredicateDispatchingProjectionModule = ProjecturedProjection.PredicateDispatchingProjectionModule
+const ReferenceDispatchingProjectionModule = ProjecturedProjection.ReferenceDispatchingProjectionModule
+const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
+const NestingProjectionModule = ProjecturedProjection.NestingProjectionModule
+const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
+const SwitchingProjectionModule = ProjecturedProjection.SwitchingProjectionModule
+const WindowInputUnwrappingProjectionModule = ProjecturedProjection.WindowInputUnwrappingProjectionModule
+const FocusingProjectionModule = ProjecturedProjection.FocusingProjectionModule
+const ReversingProjectionModule = ProjecturedProjection.ReversingProjectionModule
+const ConstantProjectionModule = ProjecturedProjection.ConstantProjectionModule
 const DeviceModule = ProjecturedKernel.DeviceModule
 const PerformanceCounterModule = ProjecturedKernel.PerformanceCounterModule
 const ClockModule = ProjecturedKernel.ClockModule
@@ -119,11 +127,11 @@ const LlmModule = ProjecturedKernel.LlmModule
 const ToolModule = ProjecturedKernel.ToolModule
 const AgentServerModule = ProjecturedKernel.AgentServerModule
 const AgentModule = ProjecturedKernel.AgentModule
-# Base's document-shaped projections used by visual bridges (Sorting is
-# imported from CollectionToSyntax indirectly, but exposing it costs nothing).
-const SortingProjectionModule = ProjecturedBase.SortingProjectionModule
-const FilteringProjectionModule = ProjecturedBase.FilteringProjectionModule
-const SearchingProjectionModule = ProjecturedBase.SearchingProjectionModule
+# The document-shaped projections the visual bridges use (Sorting is imported
+# from CollectionToSyntax indirectly, but exposing it costs nothing).
+const SortingProjectionModule = ProjecturedProjection.SortingProjectionModule
+const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModule
+const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 
 # ── Slice 1 — style (pure value types every visual thing shares) ─────────
