@@ -4,8 +4,9 @@ Turn `package/base` and `package/visual` into 28 peer packages under `package/`.
 After this change the kernel is the only layered package. Every other package is
 one concept, and the dependency direction is a package-to-package DAG.
 
-Status: **in progress**. Part 1 is under way. The work happens in the
-`worktree-splice-packages` worktree.
+Status: **done**. Every step below is implemented, on the
+`worktree-splice-packages` branch. What the work found, and where it departed
+from the plan, is recorded in each step.
 
 ## Goal
 
@@ -402,26 +403,69 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
    `ProjecturedVisual` in each `main/Project.toml` with the exact set from
    Part 3. Change the `for _src in (…)` alias loop in each package root module
    to name the same set. Run that package's own suite.
+   **Done.** The set came from a scan of each package's own module
+   references, and it matched the table of Part 3 for all twenty-five
+   consumers. Two things needed a fix that the plan did not foresee. A
+   single-package alias loop needs a trailing comma, or `for _src in
+   (ProjecturedKernel)` iterates the module rather than a tuple —
+   `ProjecturedDatabase` is the one package with one source. And the
+   code-execution sandbox in `kernel/main/tool/CodeExecution.jl` built its flat
+   namespace with an absolute `using` path, which only reaches a package the
+   *active project* declares; it now reads the loaded Projectured packages at
+   run time and binds them through a relative path.
 5. **Delete the two aggregators.** Remove `package/base` and `package/visual`
    once no `main` package names them. Remove them from the root
    `Project.toml`, and add the 28 new `[deps]` and `[sources]` entries.
+   **Done**, together with step 7: the two folders also held the base test
+   package and the visual example and test packages, so nothing could be
+   deleted until those had a home. The stale entries in the root
+   `Manifest.toml` had to go by hand; `Pkg.resolve` refuses to run while it
+   names a path that no longer exists.
 6. **Update the umbrella.** Put the 28 packages in the `import` list and in
    `_SOURCES` of [Projectured.jl](package/projectured/main/Projectured.jl).
-   Run `test_export_collisions()`.
-7. **Split example and test.** Write a one-off script that loads
-   `ProjecturedRepl`, parses each example or test file, and for every free
-   identifier asks `parentmodule` which package owns it. That gives an exact
-   dependency set per file. Group the files by stem, create
-   `package/<stem>/example` and `package/<stem>/test`, and give each the
-   computed `[deps]`. Keep the alias loop of each new Example package, so the
-   files keep using flat names.
-8. **Update the guards.** `test_base_layering()` and `test_visual_layering()`
-   disappear. Give each new package a trivial `check_layering` call over its
-   own folder. Extend `test_package_graph()` to assert that the
-   package-to-package graph is acyclic and that no package lists a dependency
-   whose modules it never imports.
-9. **Update the documents.** Part 8.
-10. **Move this plan to `plan/done/`.**
+   Run `test_export_collisions()`. **Done**, and the umbrella needed no other
+   change: its `_reexport` rule already bound a submodule of a package the
+   list does not name, which is how it kept working through every step of the
+   move.
+7. **Split example and test.** **Done, the second way of open question 3:**
+   one `ProjecturedSubstrateExample` and one `ProjecturedSubstrateTest` under
+   `package/substrate/`, covering all twenty-eight packages. No symbol scan was
+   needed. `test_substrate()` replaces `test_base()` and `test_visual()`, and
+   the registry slice `visual_examples` becomes `substrate_examples`.
+
+   Two files carried the same name in the two test trees. The visual
+   `document/SelectionEnumeration.jl` is the text-leaf extension of the
+   generic one, so it became `document/TextSelectionEnumeration.jl`.
+
+   Every domain example and test package gets all twenty-eight in its
+   `[deps]` and in its source list. A domain's own alias table is not enough:
+   `package/json/example/projection/Json.jl` names `ScreenDocument`, which the
+   JSON package never imports. The plan's own note says it — these files use
+   the flat namespace, so their dependency lists cannot come from import
+   lines.
+8. **Update the guards.** **Done.** `test_substrate_layering()` loops over the
+   twenty-eight packages and runs `check_layering` on each.
+   `test_package_graph()` gained the second assertion, and it earned its keep
+   at once: it caught two packages that declared a dependency they never name,
+   and two gaps in the guard itself. A docstring that shows a `using` line as
+   an example is prose, not a dependency, and the umbrella package name has no
+   suffix, so a `Projectured\w+` pattern misses it. `ProjecturedExecutable`
+   declares `ProjecturedLlm` and names it nowhere, because a built application
+   finds the backend by reflection; that one is written down as a side-effect
+   dependency.
+
+   Two more guards named the aggregators. `ExportCollisionTest` tested
+   membership of a written-down set of package roots, which is now a test on
+   the name. `ProjecturedBuilder`'s `CORE_BACKEND_MODULES` named the packages a
+   built application already carries.
+9. **Update the documents.** Part 8. **Done**, and two documents needed more
+   than the plan said. `documentation/terminology.md` now says that **layer**
+   and **slice** are kernel notions, and `documentation/architecture.md`
+   carries the inventory of the twenty-eight packages in place of the base and
+   visual layer and slice lists. The two `doc/architecture.md` files of base
+   and visual were not folded in: they described a structure that no longer
+   exists, so the new section was written from the package graph itself.
+10. **Move this plan to `plan/done/`.** **Done.**
 
 ## Part 8 — documents to change
 
@@ -444,22 +488,34 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
   change.
 - [README.md](README.md) — the reading order.
 
-## Part 9 — open questions
+## Part 9 — the open questions, answered
+
+1. **`ProjecturedDomain` as a name.** **Kept.** The name is free and it says
+   what the package is. One thing did resurface: the string
+   `"ProjecturedDomain"` sat in the source-preference list of the
+   code-execution sandbox, left from the old domain aggregator. It now reads
+   the loaded packages instead of naming any.
+
+   The original text follows.
 
 1. **`ProjecturedDomain` as a name.** The word "domain" also names the twenty
    source domains. `ProjecturedDomainKit` removes the overlap at the cost of a
    longer name. My recommendation is `ProjecturedDomain`.
-2. **`ProjecturedFocus` as a package.** It is about 110 lines. The alternative
-   is to keep the focus walk inside `ProjecturedLayout`, which `ProjecturedWidget`
-   already depends on. That is one package fewer and one concept less clear.
-3. **How far to split `example` and `test`.** 28 more Example packages and 28
-   more Test packages is 56 more `Project.toml` files. The alternative is one
-   `ProjecturedSubstrateExample` and one `ProjecturedSubstrateTest` that cover
-   all 28. Step 7 can go either way, and the answer does not block steps 1
-   to 6.
+2. **`ProjecturedFocus` as a package.** **Kept as a package.** It is 118 lines
+   and both `ProjecturedLayout` and `ProjecturedWidget` depend on it, which is
+   the shape that made the old folder cycle. Its private
+   `_next_focusable_in` became the exported `next_focusable_index`, because a
+   private name may not cross a package boundary.
+3. **How far to split `example` and `test`.** **Answered: two packages.**
+   `ProjecturedSubstrateExample` and `ProjecturedSubstrateTest` under
+   `package/substrate/` cover all 28. The 56 per-package files buy per-package
+   granularity that no file in either tree is written for.
 4. **Precompile cost.** 28 packages instead of 2 means 28 precompile units.
-   The gain is that a change to one no longer invalidates the others. Measure
-   a cold `jp` before step 1 and after step 6.
+   The gain is that a change to one no longer invalidates the others. **Not
+   measured.** A cold `jp` before and after is still worth a number; what the
+   work did show is that a targeted suite now precompiles only the packages it
+   names, and that a change to one substrate package rebuilds a fraction of
+   what a change to visual used to.
 
 ## Appendix — the two facts that constrain the design
 
