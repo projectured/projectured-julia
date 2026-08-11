@@ -35,6 +35,7 @@ module ProjecturedBase
 using ProjecturedKernel
 using ProjecturedCollection
 using ProjecturedPrimitive
+using ProjecturedDomain
 
 # ── Aliases of the packages this one was spliced into ─────────────────────
 # Each concept folder becomes its own package (see
@@ -43,6 +44,8 @@ using ProjecturedPrimitive
 # resolving `..XxxModule`.
 const CollectionModule = ProjecturedCollection.CollectionModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
+const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
+const DomainModule = ProjecturedDomain.DomainModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -88,18 +91,11 @@ include("backend/DefaultBackend.jl")
 # layers: vocabulary → projection algebra → feature slices → persistence, each
 # module included after the modules it imports.
 
-# vocabulary — the documents every slice/domain reuses
-include("domain/DocumentCore.jl")     # DocumentBase/Nothing/Insertion/Reference
-
 # reflection/ — a bounded shadow of a large/live object. DocumentReflection
 # consumes BoundedSync's UnsyncedDocument marker + SyncPolicy/DepthPolicy, which
 # implement the kernel's policy-parameterised sync_document! seam.
 include("reflection/BoundedSync.jl")
 include("reflection/DocumentReflection.jl")
-
-# domain/ — the @domain macro (per-domain root/Nothing/Insertion kit + Insert
-# gesture + insertion traits) and the reflection-based insertion completion.
-include("domain/Domain.jl")
 
 # dragging/ — the DraggingState reorder wrapper document; its projection is below.
 include("dragging/Dragging.jl")

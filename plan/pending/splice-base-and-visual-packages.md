@@ -35,6 +35,13 @@ I built the graph from the source, not from the documents:
 3. I mapped module to folder, then folder to folder.
 4. I ran Tarjan on the module graph. **The module graph is acyclic.** The two
    cycles below exist only at folder level, so three file moves remove them.
+4b. The scan reads `..XModule` references alone, so it says nothing about a
+   standard-library import. There are exactly three in base and visual:
+   `InteractiveUtils` in `domain/Domain.jl` and in
+   `backend/DefaultBackend.jl`, and `Serialization` in
+   `serialization/BinarySerialization.jl`. `ProjecturedDomain` therefore
+   carries InteractiveUtils, and `ProjecturedBase` drops it when
+   `DefaultBackend.jl` leaves for the example package.
 5. For every other package I collected the same `..XModule` references. A
    submodule in Julia does not inherit the parent module's `using` bindings, so
    a `main` package must import each module by name. The `main` dependency
@@ -175,7 +182,7 @@ module of it. Julia needs each direct dependency in `[deps]`.
 | --- | --- | --- |
 | `ProjecturedCollection` | Kernel | — |
 | `ProjecturedPrimitive` | Kernel | — |
-| `ProjecturedDomain` | Kernel | — |
+| `ProjecturedDomain` | Kernel | InteractiveUtils |
 | `ProjecturedSerialization` | Kernel | Serialization |
 | `ProjecturedProjection` | Collection, Primitive | — |
 | `ProjecturedReflection` | Collection | — |
