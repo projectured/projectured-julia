@@ -53,7 +53,9 @@ for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
         # a submodule defined *by* this source (skip re-exported aliases of the other source)
-        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
         # alias the submodule so `XxxModule.foo` keeps resolving
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
         # bring its exported names into scope

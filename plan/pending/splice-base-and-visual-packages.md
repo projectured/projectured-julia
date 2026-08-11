@@ -360,6 +360,15 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
    packages, and reported no folder cycle. The root `Project.toml` gains no
    entry here: a package whose entry file does not exist yet must stay
    invisible to the root environment.
+2b. **Relax the flat-namespace alias loops.** 62 packages build the flat
+   namespace with a loop that keeps a module only when
+   `parentmodule(_m) === _src`. That test drops a module the aggregator
+   re-aliases, so the first move out of `ProjecturedBase` would empty the flat
+   namespace of every example and test package. The test becomes
+   `parentmodule(_m) !== Main`: every submodule of a Projectured package this
+   source binds, whichever package defines it. The umbrella already had the
+   relaxed rule, and so did `ProjecturedTest`.
+
 3. **Move the source, lowest package first.** The order is a topological sort
    of Part 3: collection, primitive, domain, serialization, style, component,
    projection, reflection, dragging, focus, versioning, plot, graphics,

@@ -29,7 +29,9 @@ for _src in _SOURCES
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
-        (_m isa Module && _m !== _src && parentmodule(_m) === _src) || continue
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
         _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
         isempty(_syms) && continue
