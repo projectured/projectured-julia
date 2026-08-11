@@ -32,11 +32,10 @@ using ProjecturedReflection
 using ProjecturedDragging
 using ProjecturedVersioning
 
-# ── Aliases of the packages this one was spliced into ─────────────────────
-# Each concept folder becomes its own package (see
-# plan/pending/splice-base-and-visual-packages.md). While the splice runs,
-# ProjecturedBase re-aliases what has already left, so every consumer keeps
-# resolving `..XxxModule`.
+# Every concept folder is now a package of its own. ProjecturedBase re-aliases
+# what left, so every consumer keeps resolving `..XxxModule` until step 4
+# rewires it.
+# The aliases of the packages this one was spliced into follow.
 const CollectionModule = ProjecturedCollection.CollectionModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule

@@ -391,6 +391,13 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
    `ProjecturedBase` and `ProjecturedVisual` become thin aggregators as the
    moves proceed. Nothing else in the repository changes yet, so every suite
    stays runnable at every commit.
+
+   **A path relative to `@__DIR__` moves with the file.** A concept folder sits
+   one level deeper in the aggregator (`package/visual/main/style/`) than in
+   its own package (`package/style/main/`), so every `../` count changes.
+   There is exactly one such path in base and visual: `_FONT_DIR` in
+   `style/Font.jl`. It cost 919 failures and 97 errors in `test_visual()`
+   until the count went from four to three.
 4. **Rewire the 28 consumer packages.** Replace `ProjecturedBase` and
    `ProjecturedVisual` in each `main/Project.toml` with the exact set from
    Part 3. Change the `for _src in (…)` alias loop in each package root module

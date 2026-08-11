@@ -60,6 +60,10 @@ using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedReflection
 using ProjecturedSerialization
+using ProjecturedStyle
+using ProjecturedComponent
+using ProjecturedFocus
+using ProjecturedPlot
 
 # ── Aliases of the packages this one builds on, and of the packages it was
 # ── spliced into ──────────────────────────────────────────────────────────
@@ -133,30 +137,18 @@ const SortingProjectionModule = ProjecturedProjection.SortingProjectionModule
 const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModule
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
-
-# ── Slice 1 — style (pure value types every visual thing shares) ─────────
-# Load order: Color and Font first (no forward references); Geometry, Image,
-# StyleStroke, StyleText follow. StyleText imports Font + Color; StyleStroke
-# imports Color.
-include("style/Color.jl")
-include("style/Font.jl")
-# TrueType parser + SDL-free measurer (truetype_measure_text). Needs FontModule
-# (StyleFont, font_logical_size), so it follows Font.jl; the PDF/web backends and
-# the projection examples all reach their text metrics through it.
-include("style/TrueType.jl")
-include("style/Geometry.jl")
-include("style/Image.jl")
-include("style/StyleStroke.jl")
-include("style/StyleText.jl")
-
-# ── Slice — plot (the vocabulary every plotted notation shares) ─────────
-# PlotGeometry is the arithmetic: axis scaling, tick selection, data-to-pixel
-# mapping, and the decimation and folding that keep a plot's cost proportional
-# to its pixels. It imports nothing at all. PlotStyle is the colour cycle, the
-# marker cycle and the marker outlines, so it follows style/Color.jl.
-# A chart and a sequence chart both need these, so neither owns them.
-include("plot/PlotGeometry.jl")
-include("plot/PlotStyle.jl")
+# The aliases of the packages this one was spliced into follow.
+const PlotGeometryModule = ProjecturedPlot.PlotGeometryModule
+const PlotStyleModule = ProjecturedPlot.PlotStyleModule
+const FocusModule = ProjecturedFocus.FocusModule
+const ComponentModule = ProjecturedComponent.ComponentModule
+const ColorModule = ProjecturedStyle.ColorModule
+const FontModule = ProjecturedStyle.FontModule
+const GeometryModule = ProjecturedStyle.GeometryModule
+const ImageModule = ProjecturedStyle.ImageModule
+const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
+const StyleTextModule = ProjecturedStyle.StyleTextModule
+const TrueTypeModule = ProjecturedStyle.TrueTypeModule
 
 # ── Slice 2 — screen (the window model + its management) ────────────────
 # ScreenDocument holds a list of WindowDocument (windows + their events/ops).
@@ -184,13 +176,6 @@ include("screen/ScreenToScreen.jl")
 # GraphicsCaching wraps it with a caching layer for identity-stable output.
 include("graphics/Graphics.jl")
 include("graphics/GraphicsCaching.jl")
-
-# ── Slice — focus (which leaf a Tab press lands on) ──────────────────────
-# The generic walk that finds the first / last focusable leaf in a document
-# subtree, plus the open trait `is_focusable_document` a document domain
-# answers. It names Cell, Document, CellVector and the reference steps only,
-# so it precedes every renderer that traverses focus.
-include("focus/Focus.jl")
 
 # ── Slice 4 — layout (spatial arrangement) ───────────────────────────────
 # Layout is the container domain; ConstraintSolver is the layout algebra;
@@ -244,10 +229,6 @@ include("widget/CellTableToWidgetTable.jl")
 include("widget/WidgetHoverTracking.jl")
 include("widget/ProjectionConfiguring.jl")
 include("widget/WidgetPopupResolver.jl")
-
-# ── Slice — component (a named, reusable widget composition) ─────────────
-# A component is a widget-composition concept, so it sits above widget/.
-include("component/Component.jl")
 
 # ── Slice 7 — pane (tab groups and splits: the screen layout) ────────────
 # Pane is the layout document (PaneTree/PaneSplit/PaneGroup/PaneTab); PaneSurgery

@@ -178,7 +178,8 @@ end
 
 # ── Font directory ─────────────────────────────────────────────────────────────
 
-const _FONT_DIR = joinpath(@__DIR__, "../../../../asset/font")
+# This file sits at package/style/main/, so the repository root is three levels up.
+const _FONT_DIR = joinpath(@__DIR__, "../../../asset/font")
 
 # ── Inconsolata ───────────────────────────────────────────────────────────────
 
