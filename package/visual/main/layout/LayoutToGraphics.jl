@@ -41,9 +41,9 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
-# Focus-path helpers live in the document-layer WidgetModule, included before this
-# module, so layout containers can share Tab traversal with the widget readers.
-import ..WidgetModule: first_focusable_path, last_focusable_path, _next_focusable_in
+# The focus walk is generic and names no widget type, so layout containers share
+# Tab traversal with the widget readers without importing the widget domain.
+import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context, with_available_size
@@ -250,7 +250,7 @@ function _layout_tab(w, entries::Vector, evt)
         op, slot = deleg
         return reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(slot - 1, slot)))
     end
-    j = _next_focusable_in(w.children, i, reverse)
+    j = next_focusable_index(w.children, i, reverse)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
     sub === nothing && return nothing

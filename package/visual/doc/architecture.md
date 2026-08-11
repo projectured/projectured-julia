@@ -15,21 +15,15 @@ deliberate exception: the Display *device* and the display-size seam stay in
 the kernel (`device/Display.jl` + `backend/BackendInterface.jl`) because
 they are the interface the editor writes to, not the graphics themselves.
 
-## The 12 slices and their include order
+## The slices and their include order
 
 The slices form an acyclic dependency DAG; the include list below is a
 topological order of it — each slice imports only slices listed before it:
 
 ```
-style → screen → graphics → layout → text → widget → pane → syntax →
+style → screen → graphics → focus → layout → text → widget → pane → syntax →
 clipboard → tooltip → inspector → backend
 ```
-
-`LayoutToGraphics`'s Widget focus-path helpers are slated to move down into
-`layout/` as open generics, with widget/ adding methods beside its types.
-Until that lands, LayoutToGraphics + WidgetToGraphics are reordered in the
-include list (loaded after Widget); this is order-only, not a semantic
-change.
 
 ## Per-slice guides
 
@@ -72,6 +66,17 @@ editor loop and gesture recognizer, not document concepts.
 
 `Graphics.jl` (the drawing domain: text/rect/canvas/viewport/image/
 fence), `GraphicsCaching.jl` (an identity-stable caching wrapper).
+
+### focus/ — which leaf a Tab press lands on
+
+`Focus.jl` (`first_focusable_path`, `last_focusable_path`,
+`next_focusable_index`): the generic walk that finds the first or last focusable
+leaf in a document subtree, as a relative whole-element (∅) path. It names
+`Cell`, `Document`, `CellVector` and the reference steps alone. The open trait
+`is_focusable_document` is how a document domain declares its own stops;
+`WidgetModule` adds the one method, for its enabled interactive leaves. Both
+`LayoutToGraphics` and `WidgetToGraphics` read the walk, which is why it sits
+below them.
 
 ### layout/ — spatial arrangement
 

@@ -16,6 +16,9 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..SelectionModule: replace_selection!, keeps_dormant_selection
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
+# The focus walk is generic; this module answers its open trait for the
+# interactive widget leaves.
+import ..FocusModule
 import ..ColorModule: StyleColor
 import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep,
@@ -2066,17 +2069,10 @@ function evaluate_operation(editor, op::InvokeActionOperation)
     end
 end
 
-# ── Focus traversal (Stage 2): finding focusable leaves ─────────────────────
+# ── Focus traversal (Stage 2): which widgets are Tab stops ──────────────────
 #
-# Focus is selection. These pure helpers locate the *first* / *last* focusable
-# leaf in a subtree as a relative whole-element (∅) path, mirroring the generic
-# field/element descent the selection machinery uses so the produced path matches
-# the projection readers' re-rooting (`elements[i]` / `children[i]`, with
-# `RangeReferenceStep(i-1, i)` for the i-th element). They live in this document-layer
-# module so both `WidgetToGraphics` and the earlier-included `LayoutToGraphics`
-# can share them for Tab traversal. See plan/pending/widget-focus-traversal.md.
-
-export first_focusable_path, last_focusable_path
+# The walk itself is generic and lives in `FocusModule`. This is the widget
+# domain's one answer to its open trait. See plan/pending/widget-focus-traversal.md.
 
 # The interactive widget types that are Tab stops — exactly the Stage-1
 # `enabled`-bearing leaves. A disabled instance is *not* a stop.
@@ -2084,95 +2080,7 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
     WidgetTextarea, WidgetSelect, WidgetSwitch, WidgetSlider, WidgetToggle,
     WidgetToggleGroup, WidgetRadioGroup, WidgetMenuItem}
 
-# True when `w` is an enabled interactive leaf (every FocusableWidget carries the
-# `enabled` cell, so the read is safe).
-_is_focusable_widget(w) = w isa FocusableWidget && !(getfield(w, :enabled)[] === false)
-
-# `(steps::Tuple, child)` pairs for each child Document of `node`, in document
-# order — a CellVector field yields one pair per element (`field[i]`), a single
-# sub-document field yields one pair (`field`). `selection` and scalar/leaf fields
-# are skipped.
-function _child_document_refs(node)
-    refs = Tuple{Tuple,Any}[]
-    if node isa CellVector
-        for i in 1:length(node)
-            push!(refs, ((RangeReferenceStep(i - 1, i),), node[i]))
-        end
-        return refs
-    end
-    T = typeof(node)
-    isstructtype(T) || return refs
-    for fname in fieldnames(T)
-        fname === :selection && continue
-        fv = getfield(node, fname)
-        v = fv isa Cell ? fv[] : fv
-        v === nothing && continue
-        if v isa CellVector
-            for i in 1:length(v)
-                push!(refs, ((FieldReferenceStep(string(fname)), RangeReferenceStep(i - 1, i)), v[i]))
-            end
-        elseif v isa Document
-            push!(refs, ((FieldReferenceStep(string(fname)),), v))
-        end
-    end
-    refs
-end
-
-# Prepend `steps` (outermost-first tuple) onto `path`.
-function _prepend_steps(steps::Tuple, path::Reference)
-    for s in Base.reverse(steps)
-        path = ConcreteReference(s, path)
-    end
-    path
-end
-
-# Relative ∅-path to the first (last, when `reverse`) enabled interactive leaf in
-# `node`'s subtree, or `nothing` if it holds no focusable widget. `visited` guards
-# against cycles in the document graph: an embedded `ListNode` is a doubly-linked
-# list (`prev`/`next` both point at Documents), so a naive walk recurses
-# `next → prev → next …` forever (this is what made Tab stack-overflow on the
-# workbench/assistant, which embed ListNode-backed text/syntax). Acyclic trees (the
-# widget examples) visit each node once regardless, so their focus order is unchanged.
-function _focusable_path(node, reverse::Bool, visited::Set{UInt}=Set{UInt}())
-    node === nothing && return nothing
-    _is_focusable_widget(node) && return EmptyReference()
-    id = objectid(node)
-    id in visited && return nothing
-    push!(visited, id)
-    refs = _child_document_refs(node)
-    for (steps, child) in (reverse ? Base.reverse(refs) : refs)
-        sub = _focusable_path(child, reverse, visited)
-        sub === nothing || return _prepend_steps(steps, sub)
-    end
-    nothing
-end
-
-"""
-    first_focusable_path(node) -> Reference
-    last_focusable_path(node)  -> Reference
-
-The relative whole-element (∅) selection path to the first / last enabled
-interactive widget in `node`'s subtree, or `nothing` if there is none. Disabled
-widgets (Stage 1) are skipped.
-"""
-first_focusable_path(node) = _focusable_path(node, false)
-last_focusable_path(node)  = _focusable_path(node, true)
-
-# The next slot after `after` (in `reverse` direction) among `children` whose
-# subtree contains a focusable widget; 0 if there is none. `children` is any
-# 1-indexed collection of child documents (a CellVector or Vector).
-function _next_focusable_in(children, after::Int, reverse::Bool)
-    n = length(children)
-    if reverse
-        for j in (after - 1):-1:1
-            _focusable_path(children[j], true) === nothing || return j
-        end
-    else
-        for j in (after + 1):n
-            _focusable_path(children[j], false) === nothing || return j
-        end
-    end
-    0
-end
+# Every FocusableWidget carries the `enabled` cell, so the read is safe.
+FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
 
 end # module

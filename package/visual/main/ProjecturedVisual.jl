@@ -12,7 +12,7 @@ projections, and the dependency-free backends (Console, Pdf).
 Each slice imports only slices to its left:
 
 ```
-style → screen → graphics → layout → text → widget → pane → syntax →
+style → screen → graphics → focus → layout → text → widget → pane → syntax →
 clipboard/tooltip/inspector → backend
 ```
 
@@ -23,6 +23,8 @@ clipboard/tooltip/inspector → backend
 - **screen/** — ScreenDocument (windows + window events/ops) + WindowManaging +
   ScreenToScreen: the window model.
 - **graphics/** — Graphics + GraphicsCaching: the retained drawing target.
+- **focus/** — the generic focus walk and its open trait
+  `is_focusable_document`: which leaf a Tab press lands on.
 - **layout/** — Layout + ConstraintSolver + LayoutToGraphics +
   CollectionToLayout: spatial arrangement.
 - **text/** — Text + its projections/decorators + PrimitiveToText +
@@ -175,13 +177,20 @@ include("screen/ScreenToScreen.jl")
 include("graphics/Graphics.jl")
 include("graphics/GraphicsCaching.jl")
 
+# ── Slice — focus (which leaf a Tab press lands on) ──────────────────────
+# The generic walk that finds the first / last focusable leaf in a document
+# subtree, plus the open trait `is_focusable_document` a document domain
+# answers. It names Cell, Document, CellVector and the reference steps only,
+# so it precedes every renderer that traverses focus.
+include("focus/Focus.jl")
+
 # ── Slice 4 — layout (spatial arrangement) ───────────────────────────────
 # Layout is the container domain; ConstraintSolver is the layout algebra;
 # LayoutToGraphics renders a laid-out tree onto a canvas; CollectionToLayout
-# bridges a base CellVector into a layout container. LayoutToGraphics is
-# deferred to load after widget/ (see below).
+# bridges a base CellVector into a layout container.
 include("layout/Layout.jl")
 include("layout/ConstraintSolver.jl")
+include("layout/LayoutToGraphics.jl")
 include("layout/CollectionToLayout.jl")
 
 # ── Slice 5 — text (styled text + its renderings) ────────────────────────
@@ -218,11 +227,6 @@ include("text/ReferenceToText.jl")
 # Cell-field structs. The decorators (WidgetHoverTracking,
 # ProjectionConfiguring, WidgetPopupResolver) transform a widget tree.
 include("widget/Widget.jl")
-# LayoutToGraphics loads after widget/ because it imports WidgetModule's
-# focus-path helpers (first_focusable_path, last_focusable_path,
-# _next_focusable_in), so it precedes the widget files that import it
-# (WidgetPopupResolver).
-include("layout/LayoutToGraphics.jl")
 include("widget/WidgetToGraphics.jl")
 include("widget/ObjectToWidget.jl")
 # ReflectionToWidget — a bounded reflected-object shadow as a WidgetTree, where a

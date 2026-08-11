@@ -90,23 +90,33 @@ _is_focusable_widget(w) = w isa FocusableWidget && !(getfield(w, :enabled)[] ===
 `_next_focusable_in` name only `Cell`, `Document`, `CellVector` and the
 reference steps.
 
-- [ ] Create `visual/main/focus/Focus.jl` with `FocusModule`. Move
+- [x] Create `visual/main/focus/Focus.jl` with `FocusModule`. Move
       `_child_document_refs`, `_prepend_steps`, `_focusable_path`,
       `first_focusable_path`, `last_focusable_path` and `_next_focusable_in`
       into it. Lines 2040 to 2145 of
       [Widget.jl](package/visual/main/widget/Widget.jl) hold them today.
-- [ ] Declare the open trait in `FocusModule`:
+- [x] Declare the open trait in `FocusModule`:
       `is_focusable_document(x) = false`.
-- [ ] In `WidgetModule`, add the one method:
+- [x] In `WidgetModule`, add the one method:
       `FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)`.
-- [ ] Change the three importers to name `..FocusModule`:
+- [x] Change the three importers to name `..FocusModule`:
       `layout/LayoutToGraphics.jl`, `widget/WidgetToGraphics.jl`,
       `widget/WidgetHoverTracking.jl`.
-- [ ] Move the `include("layout/LayoutToGraphics.jl")` line back into the
+- [x] Move the `include("layout/LayoutToGraphics.jl")` line back into the
       layout block of `ProjecturedVisual.jl`. It no longer needs to wait for
       `widget/`.
+- [x] Rename `_next_focusable_in` to `next_focusable_index` and export it.
+      Three files import it. A private name that crosses a module boundary
+      breaks the shared-helper rule of
+      [architecture-rules.md](documentation/architecture-rules.md), and the
+      splice turns that boundary into a package boundary.
 
 Test after each move: `test_base()`, then `test_visual()`.
+
+`package/repl/PrecompileStatements.jl` names 117 signatures through
+`ProjecturedVisual.WidgetModule`, and the whole file names the module path of
+every package. A stale entry is skipped by design, so nothing breaks. Record
+the statements again after step 6.
 
 ## Part 2 — the new packages
 

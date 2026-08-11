@@ -49,8 +49,8 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-                       Action, InvokeActionOperation, action_shortcut_matches,
-                       first_focusable_path, last_focusable_path, _next_focusable_in
+                       Action, InvokeActionOperation, action_shortcut_matches
+import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
 import ..ImageModule: ImageDocument
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
@@ -1875,10 +1875,11 @@ function _selected_composite_slot(w::WidgetComposite, n::Int)
     1 <= slot <= n ? slot : 0
 end
 
-# The focus-path helpers (`first_focusable_path`, `last_focusable_path`,
-# `_next_focusable_in`, `_focusable_path`, `FocusableWidget`) live in `WidgetModule`
-# (document layer) so the `LayoutToGraphics` reader — included *before* this module
-# — can share them for Tab traversal. They are imported at the top of this file.
+# The focus walk (`first_focusable_path`, `last_focusable_path`,
+# `next_focusable_index`, `_focusable_path`) lives in `FocusModule`, which names no
+# widget type, so the `LayoutToGraphics` reader shares it for Tab traversal.
+# `WidgetModule` answers its `is_focusable_document` trait for `FocusableWidget`.
+# The three walk functions are imported at the top of this file.
 
 # ── Distributed Tab traversal (Stage 2, composite) ──────────────────────────
 #
@@ -1914,7 +1915,7 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
         return reroot_operation(op, (FieldReferenceStep("elements"), RangeReferenceStep(slot - 1, slot)))
     end
     # Child declined: advance to my next focusable sibling, entering its first leaf.
-    j = _next_focusable_in(w.elements, i, reverse)
+    j = next_focusable_index(w.elements, i, reverse)
     j == 0 && return nothing                      # no next sibling — I decline; parent advances.
     sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
     sub === nothing && return nothing
@@ -2617,7 +2618,7 @@ function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
                 (FieldReferenceStep("elements"), RangeReferenceStep(slot-1, slot))
         return reroot_operation(op, steps)
     end
-    j = _next_focusable_in(w.elements, i, reverse)
+    j = next_focusable_index(w.elements, i, reverse)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
     sub === nothing && return nothing

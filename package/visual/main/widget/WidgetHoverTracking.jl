@@ -44,9 +44,8 @@ import ..CellModule: Cell, ComputedCell
 import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..EventModule: KeyDown
-# The focus-path helpers live in WidgetModule (document layer), available for the
-# top-level Tab wrap-around rule.
-import ..WidgetModule: first_focusable_path, last_focusable_path
+# The generic focus walk, for the top-level Tab wrap-around rule.
+import ..FocusModule: first_focusable_path, last_focusable_path
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
 
