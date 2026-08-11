@@ -86,6 +86,14 @@ include(joinpath(_EXAMPLE_DIR, "DomainExamples.jl"))
 # The global interleaved registry, then the generated atomic catalog.
 include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
+# `default_backend` picks a loaded Backend subtype by its own type name. Only
+# the two harnesses below call it, so it lives with them rather than in a
+# package of the substrate. It reads the kernel's Backend type through the
+# alias, which is how every file that names a submodule reaches one here.
+const BackendModule = Projectured.BackendModule
+include(joinpath(_EXAMPLE_DIR, "DefaultBackend.jl"))
+using .DefaultBackendModule
+export default_backend
 # The gallery (`run_example` and its wrappers) and the file-editor harness: both
 # compose several domains, so both live at the umbrella.
 include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))

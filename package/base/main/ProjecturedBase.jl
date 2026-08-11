@@ -1,34 +1,24 @@
 """
     ProjecturedBase
 
-The domain-independent vocabulary and frameworks — layered between the
-kernel engine and the concrete domain slices (kernel ← base ← domain ←
-umbrella; opt-in packages still depend on domain).
+The domain-independent vocabulary and frameworks. The package owns no source
+file any more: each of its concept folders is now a package of its own, and
+this module is a transitional aggregator that binds them under the names its
+consumers still use. It disappears at step 5 of
+[the splice plan](plan/pending/splice-base-and-visual-packages.md).
 
-base is an **acyclic DAG of concept folders** (sliced like the `domain`
-package), not ordered layers. Each folder is one cohesive concept and holds
-whatever kinds it needs — its documents *and* its projections *and* its
-operations:
+The eight packages it aggregates:
 
-- **`domain/`** — what a document domain *is*: `DocumentCore` (the empty /
-  insertion / reference documents) and the `@domain` macro + insertion completion.
-- **`collection/`** — the reactive containers (`CellVector` / `CellMatrix` /
-  `CellTable` / `ListNode`).
-- **`primitive/`** — the scalar documents (`Primitive*` + the two
-  `Replace*RangeOperation`s).
-- **`projection/`** — the domain-free projection *algebra*: `generic/` +
-  `higherorder/` combinators, `compound/`, plus `Searching` / `Copying`, the
-  two collection-shaped projections (`Sorting`, `Filtering`) and
-  `ReaderDefaults`, the IoMap-typed `read_intent` methods.
-- **`dragging/`, `reflection/`** — optional feature slices, each a document
-  paired with its projection (`DraggingState` + `DraggingProjection`; the
-  `UnsyncedDocument` marker + `DocumentReflection`).
-- **`serialization/`** — exact/lossless binary persistence.
+- `ProjecturedCollection` — the reactive containers.
+- `ProjecturedPrimitive` — the scalar documents.
+- `ProjecturedDomain` — what a document domain is.
+- `ProjecturedProjection` — the domain-free projection algebra.
+- `ProjecturedReflection` — a bounded shadow of a live object.
+- `ProjecturedDragging` — the reorder wrapper and its reader.
+- `ProjecturedVersioning` — the version overlay and its projection.
+- `ProjecturedSerialization` — persistence.
 
-Kernel submodules are aliased below so files under this package's source
-folders can keep their relative `..XxxModule` references unchanged — inside
-a submodule of `ProjecturedBase`, `..CellModule` resolves through the
-`const CellModule = ProjecturedKernel.CellModule` binding.
+The kernel aliases below stay until the consumers name the kernel directly.
 """
 module ProjecturedBase
 
@@ -38,6 +28,9 @@ using ProjecturedPrimitive
 using ProjecturedDomain
 using ProjecturedSerialization
 using ProjecturedProjection
+using ProjecturedReflection
+using ProjecturedDragging
+using ProjecturedVersioning
 
 # ── Aliases of the packages this one was spliced into ─────────────────────
 # Each concept folder becomes its own package (see
@@ -70,6 +63,12 @@ const ReferenceDispatchingProjectionModule = ProjecturedProjection.ReferenceDisp
 const SwitchingProjectionModule = ProjecturedProjection.SwitchingProjectionModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
 const WindowInputUnwrappingProjectionModule = ProjecturedProjection.WindowInputUnwrappingProjectionModule
+const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
+const DocumentReflectionModule = ProjecturedReflection.DocumentReflectionModule
+const DraggingDocumentModule = ProjecturedDragging.DraggingDocumentModule
+const DraggingProjectionModule = ProjecturedDragging.DraggingProjectionModule
+const VersioningModule = ProjecturedVersioning.VersioningModule
+const VersioningToAnyProjectionModule = ProjecturedVersioning.VersioningToAnyProjectionModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -99,36 +98,5 @@ const ProjectionTemplateModule = ProjecturedKernel.ProjectionTemplateModule
 # higher-order projections import the projection gesture seam from it.
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
-# NOTE: the concrete generic + higher-order projections (Identity, Reversing,
-# Constant, Focusing, Chaining, TypeDispatching, Recursive, Switching,
-# PredicateDispatching, ReferenceDispatching, Nesting, WindowInputUnwrapping) are
-# now *defined* in this package's projection layer below — they are no longer
-# kernel submodules, so they must NOT be aliased here.
-
-# ── backend/ preamble ─────────────────────────────────────────────────────
-# Reflection-based `default_backend`: pick a loaded Backend subtype by type
-# name. Needs InteractiveUtils.subtypes (a base dependency, absent in kernel).
-include("backend/DefaultBackend.jl")
-
-# ── Concept folders, in topological include order ──────────────────────────
-# base is an acyclic DAG of concept folders (sliced like `domain`), not ordered
-# layers: vocabulary → projection algebra → feature slices → persistence, each
-# module included after the modules it imports.
-
-# reflection/ — a bounded shadow of a large/live object. DocumentReflection
-# consumes BoundedSync's UnsyncedDocument marker + SyncPolicy/DepthPolicy, which
-# implement the kernel's policy-parameterised sync_document! seam.
-include("reflection/BoundedSync.jl")
-include("reflection/DocumentReflection.jl")
-
-# dragging/ — the DraggingState reorder wrapper document; its projection is below.
-include("dragging/Dragging.jl")
-# versioning/ — the VersionedObject overlay document; its projection is below.
-include("versioning/Versioning.jl")
-
-# dragging/ projection — the press→drag→drop reader over DraggingState
-include("dragging/DraggingProjection.jl")
-# versioning/ projection — version-elimination (School-A reader over the value child)
-include("versioning/VersioningToAny.jl")
 
 end # module ProjecturedBase

@@ -8,8 +8,9 @@ factory, a backend just needs to be a loaded subtype). This lets a package that
 does not depend on a backend (e.g. the domain examples, which never name
 `SdlBackend`) still obtain one at runtime from whatever the session loaded.
 
-Lives in base rather than the kernel because it needs `InteractiveUtils.subtypes`
-and the kernel carries no dependencies.
+Lives in the example package because its only two callers are the gallery and
+the file-editor harness, and because it needs `InteractiveUtils.subtypes`,
+which no package of the substrate would otherwise carry.
 """
 module DefaultBackendModule
 
