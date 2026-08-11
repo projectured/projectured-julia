@@ -69,6 +69,11 @@ using ProjecturedScreen
 using ProjecturedLayout
 using ProjecturedText
 using ProjecturedWidget
+using ProjecturedSyntax
+using ProjecturedPane
+using ProjecturedClipboard
+using ProjecturedTooltip
+using ProjecturedInspector
 
 # ── Aliases of the packages this one builds on, and of the packages it was
 # ── spliced into ──────────────────────────────────────────────────────────
@@ -143,6 +148,25 @@ const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModul
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 # The aliases of the packages this one was spliced into follow.
+const HoverProbeProjectionModule = ProjecturedInspector.HoverProbeProjectionModule
+const ReferenceInspectorDocumentModule = ProjecturedInspector.ReferenceInspectorDocumentModule
+const ReferenceInspectorToTextModule = ProjecturedInspector.ReferenceInspectorToTextModule
+const TooltipDocumentModule = ProjecturedTooltip.TooltipDocumentModule
+const TooltipDecoratorProjectionModule = ProjecturedTooltip.TooltipDecoratorProjectionModule
+const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const ClipboardToAnyProjectionModule = ProjecturedClipboard.ClipboardToAnyProjectionModule
+const OsClipboardModule = ProjecturedClipboard.OsClipboardModule
+const PaneModule = ProjecturedPane.PaneModule
+const PaneGeometryModule = ProjecturedPane.PaneGeometryModule
+const PaneGesturesModule = ProjecturedPane.PaneGesturesModule
+const PaneSurgeryModule = ProjecturedPane.PaneSurgeryModule
+const PaneToWidgetModule = ProjecturedPane.PaneToWidgetModule
+const CollectionToSyntaxModule = ProjecturedSyntax.CollectionToSyntaxModule
+const DocumentInsertionToSyntaxModule = ProjecturedSyntax.DocumentInsertionToSyntaxModule
+const ObjectToSyntaxModule = ProjecturedSyntax.ObjectToSyntaxModule
+const PrimitiveToSyntaxModule = ProjecturedSyntax.PrimitiveToSyntaxModule
+const SyntaxModule = ProjecturedSyntax.SyntaxModule
+const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
 const CellTableToWidgetTableModule = ProjecturedWidget.CellTableToWidgetTableModule
 const ObjectToWidgetModule = ProjecturedWidget.ObjectToWidgetModule
 const ProjectionConfiguringProjectionModule = ProjecturedWidget.ProjectionConfiguringProjectionModule
@@ -187,33 +211,6 @@ const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
 
-# ── Slice 7 — pane (tab groups and splits: the screen layout) ────────────
-# Pane is the layout document (PaneTree/PaneSplit/PaneGroup/PaneTab); PaneSurgery
-# holds the tree edits, each of which builds a generic operation. The slice sits
-# above widget/ because it projects onto WidgetSplitPane / WidgetTabbedPane.
-include("pane/Pane.jl")
-include("pane/PaneSurgery.jl")
-include("pane/PaneGeometry.jl")
-include("pane/PaneGestures.jl")
-include("pane/PaneToWidget.jl")
-
-# ── Slice 7 — syntax (tree presentation, target of every source domain) ─
-# Syntax is the leaves/nodes/delimiters/indentation/collapsibles domain.
-# SyntaxToText flattens a syntax tree to styled text. The bridges (ObjectToSyntax,
-# CollectionToSyntax, PrimitiveToSyntax) are what every source domain
-# eventually funnels through.
-include("syntax/Syntax.jl")
-include("syntax/SyntaxToText.jl")
-include("syntax/ObjectToSyntax.jl")
-include("syntax/CollectionToSyntax.jl")
-include("syntax/PrimitiveToSyntax.jl")
-# InsertionToSyntax is the shared insert-by-typing leaf: a typed-name buffer with
-# live green/red completion, and the `*Nothing` placeholder leaf beside it. Every
-# domain's insertion goes through it and it names no domain, so it belongs here
-# rather than in any one of them. It needs Syntax + Text + the style vocabulary,
-# and base's `@domain` reflection for the candidate names.
-include("syntax/InsertionToSyntax.jl")
-
 # ── Slice — gesturehelp (what can I press here, and the command palette) ─
 # Domain-neutral editor features: the gesture map document, the command palette,
 # their syntax printers, and the two decorators that put them on the screen.
@@ -254,31 +251,6 @@ include("fileformat/EmbedToSyntax.jl")
 # and the embed rules above.
 include("naturalprojection/NaturalRegistry.jl")
 include("naturalprojection/NaturalProjection.jl")
-
-# ── Slice 8 — interaction decorators (clipboard / tooltip / inspector) ───
-# Domain-independent higher-order projections that decorate an arbitrary
-# wrapped content: clipboard copy/cut/paste (mirrored to the OS clipboard),
-# hover tooltips (driving screen windows), and the hover reference inspector.
-# Moved down from the domain package — none is domain-specific: they need only
-# the base document vocabulary plus visual's Text / Screen / ReferenceToText.
-# Each slice depends on text/ (and screen/ for tooltip + inspector), both
-# already loaded above.
-#
-# clipboard/: OsClipboard (host-clipboard shell-out seam), the ClipboardSlice/
-# ClipboardCollection documents, and the Clipboard*ToAny projections.
-include("clipboard/OsClipboard.jl")
-include("clipboard/Clipboard.jl")
-include("clipboard/ClipboardToAny.jl")
-# tooltip/: the TooltipSource wrapper + its decorator projection (opens/closes
-# screen windows via WindowManagingProjection).
-include("tooltip/Tooltip.jl")
-include("tooltip/TooltipDecorator.jl")
-# inspector/: the ReferenceInspector document, its text rendering, and the
-# HoverProbe decorator that follows the pointer with a reference-inspector
-# window.
-include("inspector/ReferenceInspector.jl")
-include("inspector/ReferenceInspectorToText.jl")
-include("inspector/HoverProbe.jl")
 
 # ── Slice 9 — backend (dependency-free concrete backends) ───────────────
 # Console renders the Text domain to an ANSI terminal; Pdf exports the
