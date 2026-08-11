@@ -1,6 +1,6 @@
 # Splice the base and visual packages into the package folder
 
-Turn `package/base` and `package/visual` into 29 peer packages under `package/`.
+Turn `package/base` and `package/visual` into 28 peer packages under `package/`.
 After this change the kernel is the only layered package. Every other package is
 one concept, and the dependency direction is a package-to-package DAG.
 
@@ -120,7 +120,7 @@ the statements again after step 6.
 
 ## Part 2 — the new packages
 
-29 packages come out of the two old ones. One file goes to an example package.
+28 packages come out of the two old ones. One file goes to an example package.
 
 | new stem | package | from | files | lines |
 | --- | --- | --- | ---: | ---: |
@@ -153,8 +153,8 @@ the statements again after step 6.
 | `console` | `ProjecturedConsole` | `visual/backend/Console.jl` | 1 | 346 |
 | `pdf` | `ProjecturedPdf` | `visual/backend/Pdf.jl` | 1 | 827 |
 
-The 29th is `focus`, counted above. One folder does not become a package: see
-Part 4.
+`focus` is new; the other 27 keep the name of the folder they come from. One
+folder does not become a package: see Part 4.
 
 ## Part 3 — the complete dependency table
 
@@ -352,9 +352,14 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
 1. **Break the cycles.** Do the three moves of Part 1 on the current layout.
    Run `test_base()` and `test_visual()`. Commit each move.
 2. **Add the package skeletons.** Create `package/<stem>/main/Project.toml`
-   for all 29, each with a fresh UUID, a `[deps]` block from the table of
+   for all 28, each with a fresh UUID, a `[deps]` block from the table of
    Part 3, and a `[sources]` block of relative paths
    (`{path = "../../collection/main"}`). Do not move any source yet.
+   **Done.** A static scan of the module graph, run after Part 1, produced the
+   same dependency set as the table of Part 3 for every one of the 28
+   packages, and reported no folder cycle. The root `Project.toml` gains no
+   entry here: a package whose entry file does not exist yet must stay
+   invisible to the root environment.
 3. **Move the source, lowest package first.** The order is a topological sort
    of Part 3: collection, primitive, domain, serialization, style, component,
    projection, reflection, dragging, focus, versioning, plot, graphics,
@@ -376,8 +381,8 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
    to name the same set. Run that package's own suite.
 5. **Delete the two aggregators.** Remove `package/base` and `package/visual`
    once no `main` package names them. Remove them from the root
-   `Project.toml`, and add the 29 new `[deps]` and `[sources]` entries.
-6. **Update the umbrella.** Put the 29 packages in the `import` list and in
+   `Project.toml`, and add the 28 new `[deps]` and `[sources]` entries.
+6. **Update the umbrella.** Put the 28 packages in the `import` list and in
    `_SOURCES` of [Projectured.jl](package/projectured/main/Projectured.jl).
    Run `test_export_collisions()`.
 7. **Split example and test.** Write a one-off script that loads
@@ -424,12 +429,12 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
 2. **`ProjecturedFocus` as a package.** It is about 110 lines. The alternative
    is to keep the focus walk inside `ProjecturedLayout`, which `ProjecturedWidget`
    already depends on. That is one package fewer and one concept less clear.
-3. **How far to split `example` and `test`.** 29 more Example packages and 29
-   more Test packages is 58 more `Project.toml` files. The alternative is one
+3. **How far to split `example` and `test`.** 28 more Example packages and 28
+   more Test packages is 56 more `Project.toml` files. The alternative is one
    `ProjecturedSubstrateExample` and one `ProjecturedSubstrateTest` that cover
-   all 29. Step 7 can go either way, and the answer does not block steps 1
+   all 28. Step 7 can go either way, and the answer does not block steps 1
    to 6.
-4. **Precompile cost.** 29 packages instead of 2 means 29 precompile units.
+4. **Precompile cost.** 28 packages instead of 2 means 28 precompile units.
    The gain is that a change to one no longer invalidates the others. Measure
    a cold `jp` before step 1 and after step 6.
 

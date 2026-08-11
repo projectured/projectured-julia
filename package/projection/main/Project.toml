@@ -1,0 +1,19 @@
+name = "ProjecturedProjection"
+uuid = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedProjection.jl"
+
+# The domain-free projection algebra: the generic and higher-order combinators,
+# the compound aggregates, Searching, Copying, Sorting, Filtering, and the
+# IoMap-typed reader defaults.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedCollection = {path = "../../collection/main"}
+ProjecturedPrimitive = {path = "../../primitive/main"}

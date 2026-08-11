@@ -1,0 +1,16 @@
+name = "ProjecturedFocus"
+uuid = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedFocus.jl"
+
+# The generic focus walk and its open trait is_focusable_document: which leaf a
+# Tab press lands on.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
+ProjecturedCollection = {path = "../../collection/main"}

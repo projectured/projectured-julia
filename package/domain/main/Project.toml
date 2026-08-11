@@ -1,0 +1,15 @@
+name = "ProjecturedDomain"
+uuid = "56e9f339-7147-459f-9ae1-7785cace5f24"
+version = "0.1.0"
+authors = []
+entryfile = "ProjecturedDomain.jl"
+
+# What a document domain is: the empty, insertion and reference documents, the
+# @domain macro, and insertion completion. The twenty source domains are its
+# consumers, not its namesakes.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../../kernel/main"}
