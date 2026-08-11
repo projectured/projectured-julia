@@ -45,7 +45,24 @@ const DOMAIN_EDGES = Dict(
                                    "ProjecturedYaml"],
 )
 
-const ENGINE = ["ProjecturedKernel", "ProjecturedBase", "ProjecturedVisual"]
+# The kernel is the one package every other package may reach. The substrate is
+# the twenty-eight packages between it and the domains; a domain may depend on
+# any of them, and none of them may depend on a domain.
+const KERNEL = "ProjecturedKernel"
+
+const SUBSTRATE = [
+    "ProjecturedCollection", "ProjecturedPrimitive", "ProjecturedDomain",
+    "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedComponent",
+    "ProjecturedProjection", "ProjecturedReflection", "ProjecturedDragging",
+    "ProjecturedFocus", "ProjecturedVersioning", "ProjecturedPlot",
+    "ProjecturedGraphics", "ProjecturedScreen", "ProjecturedLayout",
+    "ProjecturedText", "ProjecturedWidget", "ProjecturedSyntax",
+    "ProjecturedPane", "ProjecturedClipboard", "ProjecturedTooltip",
+    "ProjecturedInspector", "ProjecturedGestureHelp", "ProjecturedGestureLog",
+    "ProjecturedFileFormat", "ProjecturedNaturalProjection", "ProjecturedConsole",
+    "ProjecturedPdf",
+]
+
 
 """
     _read_package_graph() -> Dict{String,Vector{String}}
@@ -109,6 +126,75 @@ function _read_all_packages()
     packages
 end
 
+
+# A package that a leaf loads for its side effect alone: the type it defines is
+# found by reflection, so no file names it. The executable bakes the LLM backend
+# in this way, which is how a built application reaches a live model.
+const SIDE_EFFECT_DEPS = Dict("ProjecturedExecutable" => ["ProjecturedLlm"])
+
+"""
+    _named_packages(name) -> Set{String}
+
+The `Projectured*` packages a package's own source names: the owner of every
+`..XxxModule` reference, every `Package.XxxModule` path, and every
+`using`/`import` line. A declared dependency the source never names is a
+dependency the package does not have.
+"""
+function _named_packages(name)
+    isempty(_MODULE_OWNER) && _build_module_owner()
+    dir = _MAIN_DIR[name]
+    named = Set{String}()
+    for (root, _dirs, files) in walkdir(dir), f in files
+        endswith(f, ".jl") || continue
+        # A docstring may show a `using` line as an example, which is prose, not
+        # a dependency.
+        text = replace(read(joinpath(root, f), String), r"(?s)\"\"\".*?\"\"\"" => "")
+        for m in eachmatch(r"\.\.(\w+Module)\b", text)
+            owner = get(_MODULE_OWNER, m.captures[1], nothing)
+            owner === nothing || owner == name || push!(named, owner)
+        end
+        for m in eachmatch(r"\b(Projectured\w*)\.\w+Module\b", text)
+            m.captures[1] == name || push!(named, m.captures[1])
+        end
+        for m in eachmatch(r"(?m)^\s*(?:using|import) (Projectured\w*)", text)
+            m.captures[1] == name || push!(named, m.captures[1])
+        end
+    end
+    named
+end
+
+const _MODULE_OWNER = Dict{String,String}()
+const _MAIN_DIR = Dict{String,String}()
+
+"Fill `_MODULE_OWNER` (submodule => package) and `_MAIN_DIR` (package => folder)."
+function _build_module_owner()
+    for entry in sort(readdir(joinpath(_PACKAGE_ROOT, "package")))
+        dir = joinpath(_PACKAGE_ROOT, "package", entry, "main")
+        proj = joinpath(dir, "Project.toml")
+        isfile(proj) || continue
+        name = match(r"(?m)^name = \"([^\"]+)\"", read(proj, String)).captures[1]
+        _MAIN_DIR[name] = dir
+        for (root, _dirs, files) in walkdir(dir), f in files
+            endswith(f, ".jl") || continue
+            for m in eachmatch(r"(?m)^module\s+(\w+)\s*$", read(joinpath(root, f), String))
+                m.captures[1] == name || (_MODULE_OWNER[m.captures[1]] = name)
+            end
+        end
+    end
+    # The second, deprecated name of a kernel module resolves to the same owner.
+    for (alias, real) in ["DocumentApiModule" => "DocumentModule",
+                          "ReferenceApiModule" => "ReferenceModule",
+                          "ReferenceCaseModule" => "ReferenceModule",
+                          "ReferenceBuilderModule" => "ReferenceModule",
+                          "SelectionApiModule" => "SelectionModule",
+                          "OperationApiModule" => "OperationModule",
+                          "OperationRerootingModule" => "OperationModule",
+                          "BackendApiModule" => "BackendModule",
+                          "ProjectionReferenceStepApiModule" => "ProjectionReferenceStepModule"]
+        haskey(_MODULE_OWNER, real) && (_MODULE_OWNER[alias] = _MODULE_OWNER[real])
+    end
+end
+
 """
     test_package_graph()
 
@@ -163,21 +249,35 @@ function test_package_graph()
             end
         end
 
-        @testset "each domain depends on all three engine packages" begin
+        @testset "each domain depends on the kernel" begin
             for name in sort(collect(keys(DOMAIN_EDGES)))
                 haskey(graph, name) || continue
-                for e in ENGINE
-                    @test e in graph[name]
+                @test KERNEL in graph[name]
+            end
+        end
+
+        @testset "no kernel or substrate package depends on a domain" begin
+            for e in vcat([KERNEL], SUBSTRATE)
+                haskey(graph, e) || continue
+                for dep in graph[e]
+                    haskey(DOMAIN_EDGES, dep) &&
+                        println(stderr, "\n$e depends on the domain $dep")
+                    @test !haskey(DOMAIN_EDGES, dep)
                 end
             end
         end
 
-        @testset "no engine package depends on a domain" begin
-            for e in ENGINE
-                haskey(graph, e) || continue
-                for dep in graph[e]
-                    @test !haskey(DOMAIN_EDGES, dep)
-                end
+        @testset "every package declares exactly the packages it names" begin
+            for (name, declared) in sort(collect(graph))
+                named = _named_packages(name)
+                extra = setdiff(Set(declared), named, get(SIDE_EFFECT_DEPS, name, String[]))
+                missed = setdiff(named, Set(declared))
+                isempty(extra) &&
+                    isempty(missed) || println(stderr,
+                        "\n$name declares $(sort(collect(extra))) it never names, " *
+                        "and names $(sort(collect(missed))) it never declares")
+                @test isempty(extra)
+                @test isempty(missed)
             end
         end
 

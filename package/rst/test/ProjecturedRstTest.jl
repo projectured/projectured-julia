@@ -11,6 +11,34 @@ module ProjecturedRstTest
 
 using Test
 import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+import ProjecturedNaturalProjection
+import ProjecturedFileFormat
+import ProjecturedGestureLog
+import ProjecturedGestureHelp
+import ProjecturedInspector
+import ProjecturedTooltip
+import ProjecturedClipboard
+import ProjecturedPane
+import ProjecturedSyntax
+import ProjecturedWidget
+import ProjecturedText
+import ProjecturedLayout
+import ProjecturedScreen
+import ProjecturedGraphics
+import ProjecturedPlot
+import ProjecturedVersioning
+import ProjecturedFocus
+import ProjecturedDragging
+import ProjecturedReflection
+import ProjecturedProjection
+import ProjecturedComponent
+import ProjecturedStyle
+import ProjecturedSerialization
+import ProjecturedDomain
+import ProjecturedPrimitive
+import ProjecturedCollection
 import ProjecturedRst
 using ProjecturedKernelExample
 using ProjecturedSubstrateExample
@@ -18,7 +46,7 @@ using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 using ProjecturedRstExample
 
-const _SOURCES = (ProjecturedKernel, ProjecturedRst)
+const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedKernel, ProjecturedLayout, ProjecturedNaturalProjection, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedRst, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

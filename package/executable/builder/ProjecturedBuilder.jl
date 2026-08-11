@@ -44,10 +44,12 @@ const EXECUTABLE_DIR = normpath(joinpath(@__DIR__, ".."))
 # - the local dir to `develop` (for backends in their own opt-in package): derived
 #   from that module name by the `package/<short>/main` layout convention.
 #
-# Backends whose package the core app already pulls in (console lives in
-# `ProjecturedVisual`) need neither a `using` line nor a develop.
+# A backend whose package the core app already pulls in needs neither a `using`
+# line nor a develop. Console and Pdf are packages of the substrate, which the
+# umbrella aggregates, so the app has them already.
 const CORE_BACKEND_MODULES =
-    Set(["ProjecturedKernel", "ProjecturedBase", "ProjecturedVisual", "ProjecturedDomain"])
+    Set(["ProjecturedKernel", "ProjecturedConsole", "ProjecturedPdf",
+         "ConsoleBackendModule", "PdfBackendModule"])
 
 _backend_kind(T::Type)    = Symbol(lowercase(replace(String(nameof(T)), "Backend" => "")))
 _backend_module(T::Type)  = String(nameof(parentmodule(T)))

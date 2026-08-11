@@ -14,6 +14,34 @@ import ProjecturedConversation
 import ProjecturedJson
 import ProjecturedJulia
 import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+import ProjecturedNaturalProjection
+import ProjecturedFileFormat
+import ProjecturedGestureLog
+import ProjecturedGestureHelp
+import ProjecturedInspector
+import ProjecturedTooltip
+import ProjecturedClipboard
+import ProjecturedPane
+import ProjecturedSyntax
+import ProjecturedWidget
+import ProjecturedText
+import ProjecturedLayout
+import ProjecturedScreen
+import ProjecturedGraphics
+import ProjecturedPlot
+import ProjecturedVersioning
+import ProjecturedFocus
+import ProjecturedDragging
+import ProjecturedReflection
+import ProjecturedProjection
+import ProjecturedComponent
+import ProjecturedStyle
+import ProjecturedSerialization
+import ProjecturedDomain
+import ProjecturedPrimitive
+import ProjecturedCollection
 import ProjecturedXml
 using ProjecturedKernelExample
 using ProjecturedSubstrateExample
@@ -21,7 +49,7 @@ using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 using ProjecturedConversationExample
 
-const _SOURCES = (ProjecturedConversation, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedXml)
+const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedNaturalProjection, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedXml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

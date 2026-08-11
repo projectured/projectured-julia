@@ -26,7 +26,6 @@ ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
 ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
 ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
-ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
@@ -51,7 +50,6 @@ ProjecturedMathExample = {path = "../../math/example"}
 ProjecturedProcessExample = {path = "../../process/example"}
 ProjecturedRstExample = {path = "../../rst/example"}
 ProjecturedSequenceChartExample = {path = "../../sequencechart/example"}
-ProjecturedSerialization = {path = "../../serialization/main"}
 ProjecturedSqlExample = {path = "../../sql/example"}
 ProjecturedSubstrateExample = {path = "../../substrate/example"}
 ProjecturedWorkbenchExample = {path = "../../workbench/example"}

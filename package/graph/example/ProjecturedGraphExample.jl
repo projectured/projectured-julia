@@ -16,13 +16,41 @@ module ProjecturedGraphExample
 import ProjecturedGraph
 import ProjecturedJson
 import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+import ProjecturedNaturalProjection
+import ProjecturedFileFormat
+import ProjecturedGestureLog
+import ProjecturedGestureHelp
+import ProjecturedInspector
+import ProjecturedTooltip
+import ProjecturedClipboard
+import ProjecturedPane
+import ProjecturedSyntax
+import ProjecturedWidget
+import ProjecturedText
+import ProjecturedLayout
+import ProjecturedScreen
+import ProjecturedGraphics
+import ProjecturedPlot
+import ProjecturedVersioning
+import ProjecturedFocus
+import ProjecturedDragging
+import ProjecturedReflection
+import ProjecturedProjection
+import ProjecturedComponent
+import ProjecturedStyle
+import ProjecturedSerialization
+import ProjecturedDomain
+import ProjecturedPrimitive
+import ProjecturedCollection
 import ProjecturedXml
 using ProjecturedXmlExample
 using ProjecturedKernelExample
 using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedGraph, ProjecturedJson, ProjecturedKernel, ProjecturedXml)
+const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraph, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedKernel, ProjecturedLayout, ProjecturedNaturalProjection, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedXml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

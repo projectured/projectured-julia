@@ -21,10 +21,16 @@
 # lowest package whose API reaches all four (AR-LOWEST-PACKAGE).
 # ═══════════════════════════════════════════════════════════════════════════
 
-"The Projectured package roots whose modules AR-QUALIFIED-EXTENSION's bare
-`using` can pull in."
-const PROJECT_ROOTS = Set([:Projectured, :ProjecturedKernel, :ProjecturedBase,
-                           ::ProjecturedDomain])
+"""
+A module belongs to this project when the name of its root package starts with
+`Projectured`. The test is the name, not a written-down list: there are fifty
+packages and the list would go stale on the next one.
+"""
+is_project_root(name::Symbol) = startswith(String(name), "Projectured")
+
+"`own_roots` is either a set of package names or a predicate over one."
+_in_roots(name::Symbol, roots::Set) = name in roots
+_in_roots(name::Symbol, roots) = roots(name)
 
 """
     project_modules(roots, own_roots) -> Dict{Symbol, Module}
@@ -35,7 +41,8 @@ both names, exactly as a file that names either one would see it. Descent stops
 at anything whose root package is not in `own_roots` (Base, stdlib, SDL, …).
 """
 function project_modules(roots, own_roots)
-    is_ours(m) = nameof(Base.moduleroot(m)) in own_roots
+    is_ours(m) = _in_roots(nameof(Base.moduleroot(m)), own_roots)
+
     mods = Dict{Symbol, Module}()
     seen = Set{Module}()
     function visit(m)
@@ -54,13 +61,13 @@ function project_modules(roots, own_roots)
 end
 
 """
-    export_collisions(roots, own_roots = PROJECT_ROOTS) -> Vector{String}
+    export_collisions(roots, own_roots = is_project_root) -> Vector{String}
 
 Every name exported by two or more modules with **distinct bindings**. A
 re-export — the same binding object reached through several module names — is
 not reported: Julia resolves it without ambiguity.
 """
-function export_collisions(roots, own_roots = PROJECT_ROOTS)
+function export_collisions(roots, own_roots = is_project_root)
     mods = project_modules(roots, own_roots)
     owners = Dict{Symbol, Set{Module}}()
     for m in unique(values(mods)), sym in names(m)

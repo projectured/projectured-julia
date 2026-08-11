@@ -19,6 +19,34 @@ import ProjecturedFileSystem
 import ProjecturedJson
 import ProjecturedJulia
 import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+import ProjecturedNaturalProjection
+import ProjecturedFileFormat
+import ProjecturedGestureLog
+import ProjecturedGestureHelp
+import ProjecturedInspector
+import ProjecturedTooltip
+import ProjecturedClipboard
+import ProjecturedPane
+import ProjecturedSyntax
+import ProjecturedWidget
+import ProjecturedText
+import ProjecturedLayout
+import ProjecturedScreen
+import ProjecturedGraphics
+import ProjecturedPlot
+import ProjecturedVersioning
+import ProjecturedFocus
+import ProjecturedDragging
+import ProjecturedReflection
+import ProjecturedProjection
+import ProjecturedComponent
+import ProjecturedStyle
+import ProjecturedSerialization
+import ProjecturedDomain
+import ProjecturedPrimitive
+import ProjecturedCollection
 import ProjecturedMarkdown
 import ProjecturedSql
 import ProjecturedWorkbench
@@ -38,7 +66,7 @@ using ProjecturedKernelExample
 using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedBook, ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedMath, ProjecturedSql, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedBook, ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedMath, ProjecturedNaturalProjection, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedSql, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
