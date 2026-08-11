@@ -96,22 +96,33 @@ How much the build compiles is a Preference, so changing it rebuilds:
 
 ```julia
 julia> get_workload()          # what this session was built with
-julia> set_workload!(:full)    # then restart
+julia> set_workload!(:recorded)  # then restart
 ```
 
-| level | what it compiles |
+| level | what the build does |
 | --- | --- |
 | `:none` | nothing; for a day spent editing the kernel |
-| `:minimal` | every atom rendered and forced |
-| `:demo` | and their parsers and stub walks |
-| `:full` | the same as `:demo` here; downstream repositories add a page |
+| `:recorded` | replays `package/repl/PrecompileStatements.jl` — the default |
+| `:live` | runs `ProjecturedExample.precompile_workload()` |
+
+`:recorded` replays a list that a person recorded by driving the editor, rather
+than a workload somebody wrote. That is why it is the only level that compiles
+the **reader**: a workload prints atoms, and an atom is never read. Measured on
+the json example, the first click costs 475 ms at `:recorded` and 2600 ms at
+`:live`, of which the read half is 221 ms against 1494 ms.
+
+Record again with `record_precompile_statements()` when the list falls behind
+the code. It goes stale gracefully — a statement that names nothing is skipped —
+and the build says how many were skipped, warning past a tenth of them.
+Recording needs a display: the driver opens a real window.
 
 Each level caches its own image, so switching back to one you have built is
-instant — and `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly.
-`Pkg.gc()` clears what you no longer use.
+instant — and `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly
+(13 MB at `:none`, 149 MB at `:live`, 217 MB at `:recorded`). `Pkg.gc()` clears
+what you no longer use.
 
 A binary makes the same choice through its build spec:
-`build_executable(…; workload = :full)`, which renders `APP_WORKLOAD`. It
+`build_executable(…; workload = :live)`, which renders `APP_WORKLOAD`. It
 defaults to `:none`, because `precompile_warmup` already warms the domains the
 binary bakes and a catalog sweep would compile twenty domains into a
 single-domain app.

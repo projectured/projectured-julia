@@ -118,22 +118,71 @@ is a superset of the live workload and `:recorded` never loses to `:live`.
 
 Each step is a commit. Mark it here when it lands.
 
-1. **projectured-julia — the machinery.** Add `example/PrecompileRecording.jl`
-   to `ProjecturedExample` with the three entry points above, exported. No
-   behaviour change: nothing calls it yet.
-2. **projectured-julia — the workload loses its levels.**
-   `precompile_workload(; atoms)` always runs atoms, parsers and walks. Update
-   `ProjecturedExecutable`, whose `APP_WORKLOAD` becomes `:none` or `:live`.
-3. **projectured-julia — the leaf.** `ProjecturedRepl` gets the scope module,
-   the driver, the three levels and the generated list. Record against a
-   `:none` build, then measure build, image, session load and the first click.
-4. **omnetpp-julia — call the shared machinery.** Delete the copy in
-   `OmnetppRepl` and call `ProjecturedExample`'s, keeping the driver and the
-   list. Re-record only if the cleaning changed, and re-measure.
-5. **inet-julia — the leaf.** As step 3, with its own driver, and
-   `InetExample.precompile_workload()` losing its level argument.
-6. **The documentation.** The three leaf headers, `documentation/` where it
-   names the levels, and this plan moved to `plan/done/`.
+1. **Done — projectured-julia, the machinery.** `example/PrecompileRecording.jl`
+   in `ProjecturedExample`, exported, called by nobody yet. Commit `4c0813d4`.
+2. **Done, with step 3 — projectured-julia, the workload loses its levels.**
+   A level-free `precompile_workload` breaks the leaf, so the two landed
+   together. `ProjecturedExecutable` runs all of it or none.
+3. **Done — projectured-julia, the leaf.** Commit `0f2623ee`. 12760 statements
+   from 102 of the 103 examples; `rotating_vector` refused with
+   `Int64(::Nothing)`, its own defect. Measured:
+
+   | | `:none` | `:recorded` | `:live` |
+   | --- | ---: | ---: | ---: |
+   | build | 4.7 s | 92.1 s | 102.9 s |
+   | image | 13 MB | 217 MB | 149 MB |
+   | session load | 3.3 s | 4.2 s | 3.7 s |
+   | json, first paint | 7260 ms | 415 ms | 2559 ms |
+   | json, first click | 2650 ms | 475 ms | 2600 ms |
+   | — of which read | 1453 ms | 221 ms | 1494 ms |
+   | xml, first paint | 2005 ms | 25 ms | 230 ms |
+   | second click, any | 1–2 ms | 1–2 ms | 1–2 ms |
+
+   The `workbench` example refuses at every level with an under-typed
+   `@reference` in `WorkbenchToWidget.jl:543`. Not this change; worth its own
+   look.
+4. **Done — omnetpp-julia, call the shared machinery.** Commit `2139892`. The
+   copy in `OmnetppRepl` deleted, 142 lines for 30. Same list, same result:
+   14161 resolved, 138 skipped of 14299. The leaf gained `ProjecturedExample` as
+   a dependency, which needed `Pkg.resolve()`.
+5. **Done — inet-julia, the leaf.** Commit `523ee27`. 13765 statements from all
+   13 catalog pages and 102 of the 103 upstream examples, which a session here
+   can also open. Measured:
+
+   | | `:none` | `:recorded` | `:live` |
+   | --- | ---: | ---: | ---: |
+   | build | 4.0 s | 97.6 s | 102.9 s |
+   | image | 12 MB | 231 MB | 151 MB |
+   | session load | 3.0 s | 3.9 s | 3.6 s |
+   | the index, first paint | 7728 ms | 510 ms | 1985 ms |
+   | `PacketIsChunks.md`, first click | 8568 ms | 42 ms | 1691 ms |
+   | `Headers.md`, first click | 3271 ms | 41 ms | 399 ms |
+   | second click, any | 20–33 ms | 20–33 ms | 20–33 ms |
+
+6. **Done — the documentation.** The three leaf headers and the three
+   `documentation/packages.md`.
+
+## What the three recordings cost
+
+| | statements | file | skipped |
+| --- | ---: | ---: | ---: |
+| projectured-julia | 12760 | 5.6 MB | 1 |
+| omnetpp-julia | 14299 | 6.2 MB | 138 |
+| inet-julia | 13765 | 6.0 MB | 9 |
+
+They overlap heavily and still have to be three files: an image only helps the
+session that loads it, and a `jp` session never loads `OmnetppRepl`.
+
+## Left for another day
+
+- `rotating_vector` refuses to be driven in every repository —
+  `MethodError: no method matching Int64(::Nothing)`.
+- The `workbench` example refuses at every level with an under-typed
+  `@reference` in `WorkbenchToWidget.jl:543`.
+- `simulation_monitor_widget` refuses in omnetpp-julia with a `SelectionMismatch`
+  — a seeded selection that was not lifted to a screen-rooted path.
+- A recording cannot be regenerated headlessly, because the driver needs a
+  display.
 
 ## Measurements to take, per repository
 

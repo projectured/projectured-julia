@@ -15,9 +15,16 @@
 # Measured on the omnetpp-julia demo, which loads the same stack: with no
 # workload the first click costs 5.98 s, of which 3.88 s is `recompile_time` —
 # code that was compiled into the package images and then invalidated by
-# something loading later. With a workload compiled here it costs 0.55 s.
+# something loading later.
 #
-# See plan/pending/package-convention-repl-leaves.md.
+# What this build compiles is `WORKLOAD`. The default replays a recording rather
+# than running a workload, because a workload only compiles what somebody
+# thought to run and nobody thought to read: measured on the json example, the
+# read half of a first click is 221 ms replaying a recording and 1494 ms running
+# the workload.
+#
+# See plan/pending/package-convention-repl-leaves.md and
+# plan/pending/recorded-precompile-workload.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
 module ProjecturedRepl
