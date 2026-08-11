@@ -7,7 +7,7 @@
 # domain-agnostic — the gesture set (`nav_keys`) and the seed (`seed_gesture`
 # or an explicit `initial_selection`) parameterize it. The domain-flavored
 # instantiations live in the tiers that own the gesture vocabularies
-# (ProjecturedVisualTest: `test_position_navigation` over the character / word
+# (ProjecturedSubstrateTest: `test_position_navigation` over the character / word
 # / line position gestures, `test_tree_navigation` over the Alt+arrow
 # structural gestures); a later domain (e.g. vector collections) adds its own
 # preset without touching this driver.
@@ -29,7 +29,7 @@
 #   every selection enumerated by `collect(document)` (subset: enumerated ⊆
 #   reachable). The ground-truth enumerator is caller-supplied: enumerating
 #   selections needs document vocabulary above the kernel (the generic walk
-#   lives in ProjecturedBaseTest, projection-aware enumerators higher still).
+#   lives in ProjecturedSubstrateTest, projection-aware enumerators higher still).
 # ═══════════════════════════════════════════════════════════════════════════
 
 function explore_selections(document, projection;

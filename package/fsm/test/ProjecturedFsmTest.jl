@@ -10,24 +10,21 @@ Everything is aggregated by `test_fsm()`.
 module ProjecturedFsmTest
 
 using Test
-import ProjecturedBase
 import ProjecturedFsm
 import ProjecturedGraph
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedXmlExample
 using ProjecturedGraphExample
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 import ProjecturedJson
 import ProjecturedXml
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedFsmExample
 
-const _SOURCES = (ProjecturedXml, ProjecturedJson, ProjecturedBase, ProjecturedFsm, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedXml, ProjecturedJson, ProjecturedFsm, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

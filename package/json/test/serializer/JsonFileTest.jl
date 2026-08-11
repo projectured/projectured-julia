@@ -7,7 +7,7 @@ marker into a `ReferenceStub` in the same slot.
 """
 
 using Test
-using ProjecturedBase.FileProjectModule
+using ProjecturedSerialization.FileProjectModule
 using ProjecturedJson.JsonFileModule
 using ProjecturedJson.JsonModule
 

@@ -13,18 +13,16 @@ loop below rebuilds that namespace over this package's sources.
 """
 module ProjecturedGraphExample
 
-import ProjecturedBase
 import ProjecturedGraph
 import ProjecturedJson
 import ProjecturedKernel
-import ProjecturedVisual
 import ProjecturedXml
 using ProjecturedXmlExample
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedBase, ProjecturedGraph, ProjecturedJson, ProjecturedKernel, ProjecturedVisual, ProjecturedXml)
+const _SOURCES = (ProjecturedGraph, ProjecturedJson, ProjecturedKernel, ProjecturedXml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

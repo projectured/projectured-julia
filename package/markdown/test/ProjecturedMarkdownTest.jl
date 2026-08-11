@@ -10,18 +10,15 @@ Everything is aggregated by `test_markdown()`.
 module ProjecturedMarkdownTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
 import ProjecturedMarkdown
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedMarkdownExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedMarkdown, ProjecturedVisual)
+const _SOURCES = (ProjecturedKernel, ProjecturedMarkdown)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

@@ -8,26 +8,40 @@ entryfile = "ProjecturedMarkdownTest.jl"
 # ProjecturedTest, which is where a fixture that names several domains belongs.
 
 [deps]
-ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
-ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
-ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
-ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
+ProjecturedNaturalProjection = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
-ProjecturedBase = {path = "../../base/main"}
+ProjecturedFileFormat = {path = "../../fileformat/main"}
+ProjecturedGraphics = {path = "../../graphics/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedMarkdown = {path = "../../markdown/main"}
-ProjecturedVisual = {path = "../../visual/main"}
-ProjecturedMarkdownExample = {path = "../../markdown/example"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
 ProjecturedKernelTest = {path = "../../kernel/test"}
-ProjecturedBaseTest = {path = "../../base/test"}
-ProjecturedVisualTest = {path = "../../visual/test"}
+ProjecturedMarkdown = {path = "../../markdown/main"}
+ProjecturedMarkdownExample = {path = "../../markdown/example"}
+ProjecturedNaturalProjection = {path = "../../naturalprojection/main"}
+ProjecturedPrimitive = {path = "../../primitive/main"}
+ProjecturedProjection = {path = "../../projection/main"}
+ProjecturedSerialization = {path = "../../serialization/main"}
+ProjecturedStyle = {path = "../../style/main"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}
+ProjecturedSubstrateTest = {path = "../../substrate/test"}
+ProjecturedSyntax = {path = "../../syntax/main"}
+ProjecturedText = {path = "../../text/main"}
+ProjecturedWidget = {path = "../../widget/main"}

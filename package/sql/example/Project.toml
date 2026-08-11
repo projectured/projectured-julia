@@ -9,17 +9,13 @@ entryfile = "ProjecturedSqlExample.jl"
 # that runs them, live in the ProjecturedExample umbrella.
 
 [deps]
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
-ProjecturedBase = {path = "../../base/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedSql = {path = "../../sql/main"}
-ProjecturedVisual = {path = "../../visual/main"}
 ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}

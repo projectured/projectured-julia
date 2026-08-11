@@ -8,26 +8,24 @@ entryfile = "ProjecturedXmlTest.jl"
 # ProjecturedTest, which is where a fixture that names several domains belongs.
 
 [deps]
-ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
-ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
-ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
-ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
-ProjecturedBase = {path = "../../base/main"}
+ProjecturedCollection = {path = "../../collection/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
+ProjecturedKernelTest = {path = "../../kernel/test"}
+ProjecturedSerialization = {path = "../../serialization/main"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}
+ProjecturedSubstrateTest = {path = "../../substrate/test"}
 ProjecturedXml = {path = "../../xml/main"}
 ProjecturedXmlExample = {path = "../../xml/example"}
-ProjecturedKernelTest = {path = "../../kernel/test"}
-ProjecturedBaseTest = {path = "../../base/test"}
-ProjecturedVisualTest = {path = "../../visual/test"}

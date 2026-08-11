@@ -10,18 +10,15 @@ Everything is aggregated by `test_filesystem()`.
 module ProjecturedFileSystemTest
 
 using Test
-import ProjecturedBase
 import ProjecturedFileSystem
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedFileSystemExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedFileSystem, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedFileSystem, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

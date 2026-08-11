@@ -10,18 +10,15 @@ Everything is aggregated by `test_rst()`.
 module ProjecturedRstTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
 import ProjecturedRst
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedRstExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedRst, ProjecturedVisual)
+const _SOURCES = (ProjecturedKernel, ProjecturedRst)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

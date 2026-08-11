@@ -13,7 +13,6 @@ loop below rebuilds that namespace over this package's sources.
 """
 module ProjecturedWorkbenchExample
 
-import ProjecturedBase
 import ProjecturedBook
 import ProjecturedConversation
 import ProjecturedFileSystem
@@ -22,7 +21,6 @@ import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedMarkdown
 import ProjecturedSql
-import ProjecturedVisual
 import ProjecturedWorkbench
 import ProjecturedXml
 import ProjecturedYaml
@@ -37,10 +35,10 @@ using ProjecturedYamlExample
 using ProjecturedConversationExample
 using ProjecturedFileSystemExample
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedBase, ProjecturedBook, ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedMath, ProjecturedSql, ProjecturedVisual, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedBook, ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedMath, ProjecturedSql, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

@@ -17,7 +17,7 @@
 
 # ── The atomic-document registry (hand-authored; tier slices concatenated) ────────
 "The hand-authored atomic documents the catalog builds on, every tier's slice concatenated."
-atomic_documents() = AtomicDocument[visual_atomic_documents; domain_atomic_documents]
+atomic_documents() = AtomicDocument[substrate_atomic_documents; domain_atomic_documents]
 
 # ── Projection graph: edges = runnable whole-tree bridges (thunks for freshness) ──
 # The only declared graph metadata — ~O(domains). Each is `RecursiveProjection`-wrapped

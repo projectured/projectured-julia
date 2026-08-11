@@ -10,18 +10,14 @@ entryfile = "ProjecturedXmlExample.jl"
 
 [deps]
 ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
 ProjecturedJson = {path = "../../json/main"}
-ProjecturedBase = {path = "../../base/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedVisual = {path = "../../visual/main"}
 ProjecturedXml = {path = "../../xml/main"}
 ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}

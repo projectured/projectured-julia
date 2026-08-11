@@ -10,18 +10,15 @@ Everything is aggregated by `test_database_domain()`.
 module ProjecturedDatabaseTest
 
 using Test
-import ProjecturedBase
 import ProjecturedDatabase
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedDatabaseExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedDatabase, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedDatabase, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

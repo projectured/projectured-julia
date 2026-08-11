@@ -10,18 +10,15 @@ Everything is aggregated by `test_julia()`.
 module ProjecturedJuliaTest
 
 using Test
-import ProjecturedBase
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedJuliaExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedJulia, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedJulia, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

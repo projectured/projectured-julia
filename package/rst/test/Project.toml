@@ -8,26 +8,30 @@ entryfile = "ProjecturedRstTest.jl"
 # ProjecturedTest, which is where a fixture that names several domains belongs.
 
 [deps]
-ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedRst = "831b768c-bfea-4983-ba67-a56f379c3222"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
-ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
-ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
-ProjecturedVisualTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedNaturalProjection = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedRst = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
-ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
-ProjecturedBase = {path = "../../base/main"}
+ProjecturedFileFormat = {path = "../../fileformat/main"}
+ProjecturedGraphics = {path = "../../graphics/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedRst = {path = "../../rst/main"}
-ProjecturedVisual = {path = "../../visual/main"}
-ProjecturedRstExample = {path = "../../rst/example"}
+ProjecturedKernelExample = {path = "../../kernel/example"}
 ProjecturedKernelTest = {path = "../../kernel/test"}
-ProjecturedBaseTest = {path = "../../base/test"}
-ProjecturedVisualTest = {path = "../../visual/test"}
+ProjecturedNaturalProjection = {path = "../../naturalprojection/main"}
+ProjecturedPrimitive = {path = "../../primitive/main"}
+ProjecturedRst = {path = "../../rst/main"}
+ProjecturedRstExample = {path = "../../rst/example"}
+ProjecturedSerialization = {path = "../../serialization/main"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}
+ProjecturedSubstrateTest = {path = "../../substrate/test"}

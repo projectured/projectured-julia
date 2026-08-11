@@ -24,7 +24,7 @@
 "The Projectured package roots whose modules AR-QUALIFIED-EXTENSION's bare
 `using` can pull in."
 const PROJECT_ROOTS = Set([:Projectured, :ProjecturedKernel, :ProjecturedBase,
-                           :ProjecturedVisual, :ProjecturedDomain])
+                           ::ProjecturedDomain])
 
 """
     project_modules(roots, own_roots) -> Dict{Symbol, Module}

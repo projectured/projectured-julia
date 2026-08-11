@@ -10,21 +10,18 @@ Everything is aggregated by `test_graph()`.
 module ProjecturedGraphTest
 
 using Test
-import ProjecturedBase
 import ProjecturedGraph
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedXmlExample
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 import ProjecturedJson
 import ProjecturedXml
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedGraphExample
 
-const _SOURCES = (ProjecturedXml, ProjecturedJson, ProjecturedBase, ProjecturedGraph, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedXml, ProjecturedJson, ProjecturedGraph, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

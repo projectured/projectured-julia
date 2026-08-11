@@ -2,7 +2,7 @@
 # test/editor/ExampleSweeps.jl
 #
 # The all-examples sweeps over the generic drivers (`ProjecturedKernelTest`)
-# and the navigation presets (`ProjecturedVisualTest`). They stay in the
+# and the navigation presets (`ProjecturedSubstrateTest`). They stay in the
 # umbrella because only the umbrella depends on `ProjecturedExample` — the
 # generic `(label, document, projection)` driver forms are layer-agnostic and
 # imported from the lower test packages (see plan/done/test-package-split.md).

@@ -10,18 +10,15 @@ Everything is aggregated by `test_json()`.
 module ProjecturedJsonTest
 
 using Test
-import ProjecturedBase
 import ProjecturedJson
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedJsonExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedJson, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedJson, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

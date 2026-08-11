@@ -13,15 +13,13 @@ loop below rebuilds that namespace over this package's sources.
 """
 module ProjecturedSqlExample
 
-import ProjecturedBase
 import ProjecturedKernel
 import ProjecturedSql
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedSql, ProjecturedVisual)
+const _SOURCES = (ProjecturedKernel, ProjecturedSql)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

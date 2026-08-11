@@ -10,18 +10,15 @@ Everything is aggregated by `test_xml()`.
 module ProjecturedXmlTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
-import ProjecturedVisual
 import ProjecturedXml
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedXmlExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedVisual, ProjecturedXml)
+const _SOURCES = (ProjecturedKernel, ProjecturedXml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

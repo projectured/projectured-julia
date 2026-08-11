@@ -10,20 +10,17 @@ Everything is aggregated by `test_process()`.
 module ProjecturedProcessTest
 
 using Test
-import ProjecturedBase
 import ProjecturedGraph
 import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedProcess
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedProcessExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedProcess, ProjecturedVisual)
+const _SOURCES = (ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedProcess)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

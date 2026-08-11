@@ -8,8 +8,8 @@ so the marker round-trips cleanly.
 
 using Test
 using ProjecturedKernel.CellModule
-using ProjecturedBase.CollectionModule
-using ProjecturedBase.FileProjectModule
+using ProjecturedCollection.CollectionModule
+using ProjecturedSerialization.FileProjectModule
 using ProjecturedXml.XmlFileModule
 using ProjecturedXml.XmlModule
 

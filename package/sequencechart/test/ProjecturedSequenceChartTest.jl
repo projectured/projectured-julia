@@ -10,18 +10,15 @@ Everything is aggregated by `test_sequencechart()`.
 module ProjecturedSequenceChartTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
 import ProjecturedSequenceChart
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedSequenceChartExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedSequenceChart, ProjecturedVisual)
+const _SOURCES = (ProjecturedKernel, ProjecturedSequenceChart)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

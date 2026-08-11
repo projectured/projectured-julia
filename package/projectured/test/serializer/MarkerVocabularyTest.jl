@@ -7,13 +7,13 @@ byte of the file that names it.
 """
 
 using Test
-using ProjecturedBase.FileProjectModule
+using ProjecturedSerialization.FileProjectModule
 using ProjecturedJulia.JuliaFileModule
 import ProjecturedJson
 using ProjecturedJson.JsonFileModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
-using ProjecturedVisual.NaturalFormatModule: document_to_text
+using ProjecturedFileFormat.NaturalFormatModule: document_to_text
 
 const _MV_SOURCE = """
 using Foo

@@ -12,7 +12,7 @@ the methods when loaded) and `make_typein_gestures` (kernel keyboard events).
 
 There are no kernel-tier example *documents*: a runnable example pairs a document
 with a projection to a presentable output domain, which needs at least the visual
-package — the concrete examples start in `ProjecturedVisualExample`. What does
+package — the concrete examples start in `ProjecturedSubstrateExample`. What does
 live here are the **kernel-seam test doubles**: the in-process `FakeLlm` and the
 scripted `ScriptedLlm` backends (with their `make_scripted_*` builders) for the
 kernel's `LlmModule.Llm` seam, and the in-memory `HeadlessBackend` for the

@@ -10,7 +10,7 @@ Depends only on the three engine packages, and on no other domain.
 The loop below binds every submodule of the packages below this one as a `const`,
 so a source file here names a module exactly as the module names itself — inside
 a submodule of `ProjecturedJson`, `..SyntaxModule` resolves through the
-`const SyntaxModule = ProjecturedVisual.SyntaxModule` the loop wrote. The
+`const SyntaxModule = ProjecturedSyntax.SyntaxModule` the loop wrote. The
 `parentmodule` guard skips a package's re-exported aliases of a lower package, so
 each module is bound once, under its own name.
 """

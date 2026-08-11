@@ -10,18 +10,15 @@ Everything is aggregated by `test_book()`.
 module ProjecturedBookTest
 
 using Test
-import ProjecturedBase
 import ProjecturedBook
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedBookExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedBook, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedBook, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

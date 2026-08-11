@@ -10,18 +10,18 @@ an embed below the first title only reaches the widget renderer because
 
 using Test
 using ProjecturedKernel.CellModule: Cell, AbstractCell
-using ProjecturedBase.FileProjectModule
+using ProjecturedSerialization.FileProjectModule
 using ProjecturedRst.RstFileModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
 using ProjecturedRst.RstParserModule: rstparse
-using ProjecturedVisual.NaturalFormatModule: document_to_text
-using ProjecturedVisual.NaturalProjectionModule: NaturalToGraphics
-using ProjecturedVisual.GraphicsModule: GraphicsCanvas
+using ProjecturedFileFormat.NaturalFormatModule: document_to_text
+using ProjecturedNaturalProjection.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                                          evaluate_operation
-using ProjecturedBase.PrimitiveModule: ReplaceStringRangeOperation
+using ProjecturedPrimitive.PrimitiveModule: ReplaceStringRangeOperation
 using ProjecturedKernel.ReferenceModule: FieldReferenceStep
 using ProjecturedKernel.SelectionModule: set_selection!, get_selection
 

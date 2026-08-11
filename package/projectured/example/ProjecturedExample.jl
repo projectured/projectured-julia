@@ -6,7 +6,7 @@ using Profile
 # points) lives at the bottom of the example-package DAG; the name-lookup
 # variants defined here add methods to the imported functions.
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedJsonExample
 using ProjecturedYamlExample
 using ProjecturedXmlExample
@@ -29,13 +29,13 @@ using ProjecturedConversationExample
 using ProjecturedWorkbenchExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
                                  record_example_video, make_typein_gestures
-import ProjecturedVisualExample: print_example, write_example_pdf
+import ProjecturedSubstrateExample: print_example, write_example_pdf
 
 # Re-export the lower example packages' entire public API so
 # `using ProjecturedExample` keeps providing every example and factory
 # unchanged — the per-name `import` form also lets this module add the
 # name-lookup method variants below.
-for _src in (ProjecturedKernelExample, ProjecturedVisualExample,
+for _src in (ProjecturedKernelExample, ProjecturedSubstrateExample,
              ProjecturedJsonExample, ProjecturedYamlExample, ProjecturedXmlExample, ProjecturedMarkdownExample, ProjecturedRstExample, ProjecturedBookExample,
              ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSqlExample, ProjecturedDatabaseExample, ProjecturedFileSystemExample, ProjecturedGraphExample, ProjecturedChartExample,
              ProjecturedSequenceChartExample, ProjecturedDbCatalogExample, ProjecturedFormulaExample, ProjecturedFsmExample, ProjecturedProcessExample, ProjecturedConversationExample, ProjecturedWorkbenchExample)

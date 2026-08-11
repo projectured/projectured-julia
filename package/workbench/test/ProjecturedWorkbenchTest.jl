@@ -10,26 +10,23 @@ Everything is aggregated by `test_workbench()`.
 module ProjecturedWorkbenchTest
 
 using Test
-import ProjecturedBase
 import ProjecturedConversation
 import ProjecturedFileSystem
 import ProjecturedJson
 import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedMarkdown
-import ProjecturedVisual
 import ProjecturedWorkbench
 import ProjecturedXml
 import ProjecturedYaml
 using ProjecturedConversationExample
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedWorkbenchExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedVisual, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

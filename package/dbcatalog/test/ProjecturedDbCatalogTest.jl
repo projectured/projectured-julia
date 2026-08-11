@@ -10,19 +10,16 @@ Everything is aggregated by `test_dbcatalog()`.
 module ProjecturedDbCatalogTest
 
 using Test
-import ProjecturedBase
 import ProjecturedDbCatalog
 import ProjecturedKernel
 import ProjecturedSql
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedDbCatalogExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedDbCatalog, ProjecturedKernel, ProjecturedSql, ProjecturedVisual)
+const _SOURCES = (ProjecturedDbCatalog, ProjecturedKernel, ProjecturedSql)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

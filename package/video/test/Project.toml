@@ -10,7 +10,7 @@ entryfile = "ProjecturedVideoTest.jl"
 
 [deps]
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
-ProjecturedBaseTest = "13b5dafd-eba4-481d-8e1b-67ff5e19061b"
+ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

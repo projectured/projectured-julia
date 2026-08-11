@@ -14,7 +14,7 @@ Four cases:
 """
 
 using Test
-using ProjecturedBase.FileProjectModule
+using ProjecturedSerialization.FileProjectModule
 using ProjecturedJson.JsonFileModule
 using ProjecturedJson.JsonModule
 

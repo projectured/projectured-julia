@@ -21,8 +21,7 @@ using ProjecturedExample
 # the `Example`-typed overloads and the all-examples sweeps (ExampleSweeps.jl),
 # and extends the ground-truth selection enumerators for the domains it owns.
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedJsonTest
 using ProjecturedYamlTest
 using ProjecturedXmlTest
@@ -46,7 +45,7 @@ using ProjecturedWorkbenchTest
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_workbench()` as well as `test_all()`.
-for _src in (ProjecturedKernelTest, ProjecturedBaseTest, ProjecturedVisualTest,
+for _src in (ProjecturedKernelTest, ProjecturedSubstrateTest,
              ProjecturedJsonTest, ProjecturedYamlTest, ProjecturedXmlTest,
              ProjecturedMarkdownTest, ProjecturedRstTest, ProjecturedBookTest,
              ProjecturedMathTest, ProjecturedJuliaTest, ProjecturedSqlTest,
@@ -61,8 +60,8 @@ for _src in (ProjecturedKernelTest, ProjecturedBaseTest, ProjecturedVisualTest,
         Core.eval(@__MODULE__, Expr(:export, _n))
     end
 end
-import ProjecturedBaseTest: test_collection, test_copying_projection
-import ProjecturedVisualTest: test_projection_template_hygiene,
+import ProjecturedSubstrateTest: test_collection, test_copying_projection
+import ProjecturedSubstrateTest: test_projection_template_hygiene,
                               test_syntax, test_text, test_graphics, test_affine_transform,
                               test_graphics_layout, test_layout_allocator,
                               test_layout_constraint_helpers, test_primitive,
@@ -83,17 +82,17 @@ import ProjecturedVisualTest: test_projection_template_hygiene,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
                               _seg_x_at, _path_contains_projection_ref
 import ProjecturedKernelTest: test_kernel
-import ProjecturedBaseTest: test_base
-import ProjecturedVisualTest: test_visual
+import ProjecturedSubstrateTest: test_base
+import ProjecturedSubstrateTest: test_visual
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
                               test_event_case, test_gesture_binding, test_focusing,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
-import ProjecturedBaseTest: collect_position_selections, collect_tree_selections
+import ProjecturedSubstrateTest: collect_position_selections, collect_tree_selections
 # The navigation presets over the generic driver (position + tree gesture sets).
-import ProjecturedVisualTest: test_position_navigation, test_tree_navigation,
+import ProjecturedSubstrateTest: test_position_navigation, test_tree_navigation,
                               explore_position_selections, explore_tree_selections
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).

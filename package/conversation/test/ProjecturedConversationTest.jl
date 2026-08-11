@@ -10,21 +10,18 @@ Everything is aggregated by `test_conversation()`.
 module ProjecturedConversationTest
 
 using Test
-import ProjecturedBase
 import ProjecturedConversation
 import ProjecturedJson
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedVisual
 import ProjecturedXml
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedConversationExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedConversation, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedVisual, ProjecturedXml)
+const _SOURCES = (ProjecturedConversation, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedXml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

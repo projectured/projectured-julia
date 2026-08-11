@@ -10,20 +10,16 @@ entryfile = "ProjecturedFsmExample.jl"
 
 [deps]
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
 ProjecturedFsm = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
-ProjecturedVisualExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
 ProjecturedJulia = {path = "../../julia/main"}
-ProjecturedBase = {path = "../../base/main"}
 ProjecturedFsm = {path = "../../fsm/main"}
 ProjecturedGraph = {path = "../../graph/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedVisual = {path = "../../visual/main"}
 ProjecturedKernelExample = {path = "../../kernel/example"}
-ProjecturedVisualExample = {path = "../../visual/example"}
+ProjecturedSubstrateExample = {path = "../../substrate/example"}

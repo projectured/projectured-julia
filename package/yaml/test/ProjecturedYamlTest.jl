@@ -10,18 +10,15 @@ Everything is aggregated by `test_yaml()`.
 module ProjecturedYamlTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
-import ProjecturedVisual
 import ProjecturedYaml
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedYamlExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedVisual, ProjecturedYaml)
+const _SOURCES = (ProjecturedKernel, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

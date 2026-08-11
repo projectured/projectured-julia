@@ -9,7 +9,7 @@ entryfile = "ProjecturedKernelTest.jl"
 # kernel's own unit tests and (b) the shared generic test drivers
 # (test_printer, test_reader, test_repl, the navigation explorers, the
 # reflexive `_walk!` walker, and the static `check_layering` guard) that the
-# higher test packages (ProjecturedBaseTest, ProjecturedVisualTest,
+# higher test packages (ProjecturedSubstrateTest, ProjecturedSubstrateTest,
 # ProjecturedDomainTest) and the ProjecturedTest umbrella reuse.
 
 [deps]

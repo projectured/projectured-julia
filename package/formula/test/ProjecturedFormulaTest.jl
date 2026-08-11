@@ -10,19 +10,16 @@ Everything is aggregated by `test_formula()`.
 module ProjecturedFormulaTest
 
 using Test
-import ProjecturedBase
 import ProjecturedFormula
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedFormulaExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedFormula, ProjecturedJulia, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedFormula, ProjecturedJulia, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

@@ -10,18 +10,15 @@ Everything is aggregated by `test_chart()`.
 module ProjecturedChartTest
 
 using Test
-import ProjecturedBase
 import ProjecturedChart
 import ProjecturedKernel
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedChartExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedChart, ProjecturedKernel, ProjecturedVisual)
+const _SOURCES = (ProjecturedChart, ProjecturedKernel)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

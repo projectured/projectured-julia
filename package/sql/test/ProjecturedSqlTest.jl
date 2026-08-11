@@ -10,18 +10,15 @@ Everything is aggregated by `test_sql()`.
 module ProjecturedSqlTest
 
 using Test
-import ProjecturedBase
 import ProjecturedKernel
 import ProjecturedSql
-import ProjecturedVisual
 using ProjecturedKernelExample
-using ProjecturedVisualExample
+using ProjecturedSubstrateExample
 using ProjecturedKernelTest
-using ProjecturedBaseTest
-using ProjecturedVisualTest
+using ProjecturedSubstrateTest
 using ProjecturedSqlExample
 
-const _SOURCES = (ProjecturedBase, ProjecturedKernel, ProjecturedSql, ProjecturedVisual)
+const _SOURCES = (ProjecturedKernel, ProjecturedSql)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
