@@ -80,9 +80,23 @@ alongside it.
 ## Types
 
 - **Documents** are nouns (`CellVector`, `PrimitiveString`, `WindowDocument`).
-- **`I` prefix means the immutable variant** of a document type:
-  `ICellVector` is the immutable variant of `CellVector`. These are produced
-  consistently by the `@document` macro — never hand-roll one.
+- **A coded prefix names one variant of a document schema.** `@document Foo`
+  emits them all, they mean the same thing in every schema, and none of them is
+  ever hand-rolled.
+
+  | name | what it is |
+  |---|---|
+  | `Foo` | what the declaration says its bare name is. The cell layout by default. |
+  | `AFoo` | the family. Abstract, and it matches every variant. |
+  | `CFoo` | the cell layout, `CFoo{C1<:AbstractCell, …}`, one cell per field. |
+  | `MFoo` | the mutable native struct. Plain fields, no cell box. |
+  | `CRFoo` / `CIFoo` / `CMFoo` | the cell layout with every field reactive / immutable / mutable. |
+  | `CDFoo` | the cell layout with each field in its declared default kind. |
+
+  The leading `C` keeps a **spelling** apart from a **layout**. `CMFoo` is an
+  immutable struct holding one `MutableCell` box per field; `MFoo` is a single
+  mutable object with its fields inline. Without the letter the two names would
+  read alike, and they are not alike.
 - **Operations are verb-first phrases with the `Operation` suffix**:
   `ReplaceSelectionOperation`, `OpenWindowOperation`,
   `ReplaceNumberRangeOperation`. Even the null operation is verb-first:
@@ -190,7 +204,10 @@ Two shapes are exempt from the verb-first rule, and only these:
 | `<Stem>Projection` | projection; gerund stem | `FilteringProjection` |
 | `<Verb><Noun>Operation` | executable edit resolved from an intent; flows out of a reader | `CloseWindowOperation` |
 | `<Source><Action>` | event, flows into a reader | `WindowClose` |
-| `I<Document>` | immutable variant | `ICellVector` |
+| `A<Document>` | family, matches every variant | `ACellVector` |
+| `C<Document>` | cell layout | `CCellVector` |
+| `M<Document>` | mutable native struct | `MCellVector` |
+| `CI<Document>` | cell layout, every field immutable | `CICellVector` |
 | `<Event>Pattern` | gesture pattern | `KeyDownPattern` |
 | `get_<stem>` / `set_<stem>!` | getter / setter | `get_selection` |
 | `with_<stem>` | derived copy | `with_property` |

@@ -133,14 +133,18 @@ name is a UnionAll matching every kind, so `::JsonString` dispatch and
   values in `ReactiveCell{Any}` — exactly the historic untyped `Cell`, so the
   bare name builds the reactive kind with unchanged semantics. Cells (of any
   kind, even mixed per-field) pass through as-is.
-- **Kind aliases + ctors**: `IJsonString` / `MJsonString` put every field in the
-  immutable / mutable kind with *typed* cells (`ImmutableCell{String}` etc.),
-  each with value-accepting and keyword ctors. `RJsonString` names the
+- **Spelling aliases + ctors**: `CIJsonString` / `CMJsonString` put every field in
+  the immutable / mutable kind with *typed* cells (`ImmutableCell{String}` etc.),
+  each with value-accepting and keyword ctors. `CRJsonString` names the
   all-reactive combination (`ReactiveCell{Any}` per field) but is a **type alias
   only** — it has no constructor, so build that kind through the bare name.
   `CDJsonString` names the **default combination** the bare `JsonString(…)` ctor
-  builds: each field in the kind it declares, which equals `RJsonString` only
+  builds: each field in the kind it declares, which equals `CRJsonString` only
   when no field declares one. The macro exports the aliases itself.
+
+  The leading `C` says the alias is a *spelling* of the cell layout. That is what
+  keeps `CMJsonString` — an immutable struct holding one `MutableCell` box per
+  field — apart from `MJsonString`, the plain `mutable struct` layout.
 - **Kind conversion** happens through the generic functions, not ctors:
   `copy_document(doc)` deep-copies and preserves each cell's kind, and
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
