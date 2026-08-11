@@ -43,7 +43,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
                        WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
-                       resolve_toggle_group_write,
+                       resolve_toggle_group_write, resolve_slider_write,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        Inset, Point2D, inset_default,
                        SelectTabOperation, CloseTabRequestOperation,
@@ -98,6 +98,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        widget_theme_slate_light, widget_theme_slate_dark,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
+       WidgetSliderToGraphicsCanvasIoMap,
        WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
@@ -4114,10 +4115,13 @@ end
 function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    # Resolved once, here, and handed to both halves: the printer draws the track
+    # at this width and the reader turns a press into a value with it.
+    track_width = _resolve_width(ctx, _sc(Int(w.width)))
+    WidgetSliderToGraphicsCanvasIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
         value = clamp(Float64(w.value), 0.0, 1.0)
-        slider_width  = _resolve_width(ctx, _sc(Int(w.width)))
+        slider_width  = track_width
         slider_height = _sc(p.height)
         center_y = slider_height ÷ 2
         track_thickness = _sc(p.track_thickness)
@@ -4132,9 +4136,75 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
                                        border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color))
         _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
         (width=slider_width, height=slider_height, elements=elements)
-    end))
+    end), track_width)
 end
-@_printer_only WidgetSliderToGraphicsCanvas
+
+# The track width the printer drew with, so a press is turned into a value by the
+# same geometry the screen has. A reader that resolved the width for itself would
+# answer for a track the screen never had — the toggle group's segment widths are
+# carried for the same reason.
+@iomap struct WidgetSliderToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    track_width::Any
+end
+
+map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
+
+# Invisible slider (the printer returned a bare empty canvas): inert.
+read_intent(::WidgetSliderToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# Where along the track `x` falls, as a fraction. Clamped, so a drag that leaves
+# the control at either end pins rather than runs away — which is what a slider
+# does everywhere and what a reader that only accepted inside-the-track presses
+# would get wrong.
+_slider_value(track_width::Int, x::Real) =
+    track_width <= 0 ? 0.0 : clamp(Float64(x) / track_width, 0.0, 1.0)
+
+# A press picks a value and takes the knob; a move keeps writing while it is
+# held; a release lets go. Three events, because a slider is the one control here
+# whose whole point is the drag — a press-only slider would answer a click on the
+# track and ignore the gesture a person actually makes.
+#
+# The value write names the slider's `target` when it has one, so a control that
+# is *for* something says so in the operation itself.
+function read_intent(::WidgetSliderToGraphicsCanvas,
+                     iomap::WidgetSliderToGraphicsCanvasIoMap, evt)
+    w = iomap.input
+    w.enabled === false && return nothing
+    canvas = iomap.output
+    width  = Int(iomap.track_width)
+    @event_case evt begin
+        MousePress(button, x, y) => begin
+            button === :left || return nothing
+            _outside_widget(iomap, evt) && return nothing
+            document, field, value =
+                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[])))
+            # Taking the knob is a second write, and it is on the slider itself
+            # rather than on the target: what is held is a property of the
+            # control, not of the value it stands for.
+            CompoundOperation(Any[ReplaceReferencedValueOperation(w, "dragging", true),
+                                  ReplaceReferencedValueOperation(document, field, value)])
+        end
+        MouseMove(x, y) => begin
+            # Deliberately NOT gated on the pointer being inside: a drag that
+            # wanders off the control still moves it, which is the whole
+            # difference between a slider and a row of buttons.
+            w.dragging === true || return nothing
+            document, field, value =
+                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[])))
+            Float64(w.value) == value && return nothing
+            ReplaceReferencedValueOperation(document, field, value)
+        end
+        MouseUp(button, x, y) => begin
+            w.dragging === true || return nothing
+            ReplaceReferencedValueOperation(w, "dragging", false)
+        end
+        _ => nothing
+    end
+end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 

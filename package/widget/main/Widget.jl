@@ -37,7 +37,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        inset_bottom_right, set_cell_function!,
        widget_list_selection, widget_list_selected,
        widget_table_row_selection, widget_table_selected_row,
-       resolve_toggle_group_write
+       resolve_toggle_group_write, resolve_slider_write
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
 
@@ -1309,9 +1309,30 @@ A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
     width::Int
     visible::Bool
     enabled::Bool
+    dragging::Bool     # the knob is held: a move keeps writing until release
+    target::Any        # what a drag writes to, or nothing = this slider
+    field::String      # which field of the target a drag writes
 end
-WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true, enabled::Bool=true) =
-    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true,
+             enabled::Bool=true, target=nothing, field::AbstractString="value") =
+    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
+                 Cell(enabled), Cell(false), Cell(target), Cell(String(field)), Cell(nothing))
+
+"""
+    resolve_slider_write(w, value) -> (document, field, value)
+
+What a drag on `w` writes: the slider's `target` and `field` when it names one,
+and the slider's own `value` when it does not.
+
+The same shape as [`resolve_toggle_group_write`](@ref), and for the same reason:
+a control that is *for* something says so in the operation it answers with, so
+nothing above has to work out which control was moved.
+"""
+function resolve_slider_write(w::WidgetSlider, value::Float64)
+    target = w.target
+    target === nothing && return (w, "value", value)
+    (target, String(w.field), value)
+end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
