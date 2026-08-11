@@ -286,19 +286,46 @@ end
 
 # ── One frame ─────────────────────────────────────────────────────────
 
+# How many operations one frame may apply before it must repaint. A pointer in
+# motion delivers input for as long as it moves, so an unbounded drain would put
+# off the repaint for as long as the reader keeps moving the mouse. The bound is
+# what makes a frame finite. It is high enough that ordinary input never reaches
+# it, and whatever is left waits for the next frame.
+const MAX_OPERATIONS_PER_FRAME = 32
+
 """
     run_frame!(editor::Editor)
 
-Run one read-eval-print frame: poll input via the backend into an operation,
-apply it with `evaluate!`, and repaint with `print!`. `run_editor!` runs this
-once per tick; call it directly to drive an editor one frame at a time — a test
-harness, an embedder, or a scripted timeline that interleaves its own work
-between frames.
+Run one read-eval-print frame: apply everything the backend has waiting, then
+repaint once. `run_editor!` runs this once per tick; call it directly to drive an
+editor one frame at a time — a test harness, an embedder, or a scripted timeline
+that interleaves its own work between frames.
+
+`read!` answers one operation, so the frame loops it. Input arrives faster than a
+frame can paint, and a frame that applied a single operation made a burst of
+input cost one frame — plus one `sleep` — for each step in it. That is what made
+a hover highlight fall behind a pointer crossing several widgets. At most
+`MAX_OPERATIONS_PER_FRAME` operations are applied before the repaint.
+
+An operation that dropped the cached projection (a whole-root swap calls
+`invalidate_projection!`) ends the frame. `read!` reads against the stored IoMap
+and *discards* an input it has none for, so input behind such a swap has to wait
+for the repaint that rebuilds the projection, or it would be thrown away.
+
+The loop leaves the last applied operation in `editor.operation`. `read!` clears
+that field when the input runs out, and `perf!` reads it to tell a frame that did
+something from an idle one.
 """
 function run_frame!(editor::Editor)
-    @performance_time :read_time     read!(editor)
-    @performance_time :evaluate_time evaluate!(editor)
-    @performance_time :print_time    print!(editor)
+    applied = nothing
+    for _ in 1:MAX_OPERATIONS_PER_FRAME
+        (@performance_time :read_time read!(editor)) || break
+        @performance_time :evaluate_time evaluate!(editor)
+        applied = editor.operation
+        editor.iomap === nothing && break     # repaint before reading anything else
+    end
+    editor.operation = applied
+    @performance_time :print_time print!(editor)
 end
 
 # ── Main loop ──────────────────────────────────────────────────────────
@@ -307,10 +334,10 @@ end
     run_editor!(editor::Editor; mcp::Bool=false)
 
 Execute the read-eval-print loop. Each frame: `drain_operations!` applies
-whatever was posted from outside, `read!` pulls (at most) one operation
-from the backend, `evaluate!` applies it, `print!` repaints. `read!`
-internally swallows envelopes that don't translate to an operation, so no
-outer drain is needed. The trailing `sleep` yields to Julia's scheduler so
+whatever was posted from outside, then `run_frame!` applies every operation the
+backend has waiting and repaints once. `read!` internally swallows envelopes that
+don't translate to an operation, so no outer drain is needed. The trailing
+`sleep` yields to Julia's scheduler so
 cooperative `@async` tasks (e.g. the MCP server, a simulation driver) get to
 run between polls.
 

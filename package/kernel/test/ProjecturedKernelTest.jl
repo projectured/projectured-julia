@@ -81,6 +81,7 @@ include("editor/NavigationTest.jl")
 include("editor/ConstructTest.jl")
 include("editor/EscapeQuitTest.jl")
 include("editor/InboxTest.jl")
+include("editor/FrameDrainTest.jl")
 
 """
     test_kernel_layering()
@@ -155,6 +156,7 @@ function test_kernel()
         test_headless_backend()
         test_escape_quit()
         test_editor_inbox()
+        test_editor_frame_drain()
         test_agent_seam()
         test_construct_oracle()
     end
@@ -169,7 +171,7 @@ export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, 
        test_reference_builder, test_reference_eval, test_reference_rules, test_rerooting,
        test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
-       test_editor_inbox
+       test_editor_inbox, test_editor_frame_drain
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,
