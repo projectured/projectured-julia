@@ -36,6 +36,7 @@ using ProjecturedKernel
 using ProjecturedCollection
 using ProjecturedPrimitive
 using ProjecturedDomain
+using ProjecturedSerialization
 
 # ── Aliases of the packages this one was spliced into ─────────────────────
 # Each concept folder becomes its own package (see
@@ -46,6 +47,9 @@ const CollectionModule = ProjecturedCollection.CollectionModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
 const DomainModule = ProjecturedDomain.DomainModule
+const BinarySerializationModule = ProjecturedSerialization.BinarySerializationModule
+const FileProjectModule = ProjecturedSerialization.FileProjectModule
+const TextFileModule = ProjecturedSerialization.TextFileModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -133,15 +137,5 @@ include("versioning/VersioningToAny.jl")
 # compound aggregates
 include("projection/compound/HigherOrderCompound.jl")
 include("projection/compound/GenericCompound.jl")
-
-# persistence — exact/lossless binary via Julia's Serialization stdlib; a Cell
-# serialises as just its value, pruning the reactive graph at every cell boundary.
-include("serialization/BinarySerialization.jl")
-
-# persistence — natural-format save/load: every node marked as a file
-# document (`FileDocument`) becomes its own text file, with cross-file
-# references embedded as markers in the natural syntax of each format.
-include("serialization/FileProject.jl")
-include("serialization/TextFile.jl")   # the simplest concrete file document
 
 end # module ProjecturedBase

@@ -17,6 +17,7 @@ ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [sources]
@@ -24,3 +25,4 @@ ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedCollection = {path = "../../collection/main"}
 ProjecturedPrimitive = {path = "../../primitive/main"}
 ProjecturedDomain = {path = "../../domain/main"}
+ProjecturedSerialization = {path = "../../serialization/main"}
