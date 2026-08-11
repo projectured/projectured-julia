@@ -513,6 +513,11 @@ function _document_expr(args)
     family_method    = :((::typeof($document_family))(::Type{<:$family}) = $family)
     cell_type_method = :((::typeof($document_cell_type))(::Type{<:$family}) =
                              $(plan.name))
+    # The schema's own name, for a label. `nameof` would answer the coded name of
+    # whichever layout it was handed, and a schema that bound its bare name
+    # elsewhere would then read as its layout rather than as itself.
+    schema_name_method = :((::typeof($document_schema_name))(::Type{<:$family}) =
+                               $(QuoteNode(schema)))
 
     # The mutable native layout, emitted only when the layout list asks for it. A
     # schema that leaves `M` out has no native type at all, and the default
@@ -565,7 +570,7 @@ function _document_expr(args)
              :(Base.@__doc__ $structdef),
              getprop, setprop,
              native_parts...,
-             family_method, cell_type_method,
+             family_method, cell_type_method, schema_name_method,
              Expr(:export, family),
              _emit_kind_aliases(plan, arg_names; schema = schema, default = default)...,
              binding_parts...,

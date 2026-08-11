@@ -50,6 +50,9 @@ document_cell_type(::Type{T}) where {T} = Base.typename(T).wrapper
 document_native_type(x) = document_native_type(typeof(x))
 document_native_type(::Type{T}) where {T} = nothing
 
+document_schema_name(x) = document_schema_name(typeof(x))
+document_schema_name(::Type{T}) where {T} = nameof(T)
+
 """
 Maximum nesting depth printed by the generic document `show` before child
 documents are abbreviated to `…`. Bounds debug output for deeply nested trees.

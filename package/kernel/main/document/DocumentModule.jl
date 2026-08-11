@@ -29,7 +29,7 @@ using ..CellModule
 using ..CellStructModule
 
 export Document, copy_document, sync_document!, document_family,
-       document_cell_type, document_native_type,
+       document_cell_type, document_native_type, document_schema_name,
        should_descend_sync, sync_element_limit, unsynced_placeholder, HiddenElements,
        is_element_collection, is_walk_opaque, is_collection_field_type, search_documents,
        @document, @document_preset,

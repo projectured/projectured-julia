@@ -75,6 +75,23 @@ handle `nothing` rather than assume the pair is always complete.
 function document_native_type end
 
 """
+    document_schema_name(x) -> Symbol
+    document_schema_name(::Type) -> Symbol
+
+The **schema's** own name — what the programmer wrote after `struct`. Every
+variant of one schema answers it, so it is the name to show a reader.
+
+`nameof` cannot do this job. A coded name is a type's real name and the bare name
+is a `const` alias, so `nameof` of a schema that bound its bare name elsewhere
+answers the coded one: `nameof(ChainModel)` is `:MChainModel`. A label built that
+way reads as the layout rather than the thing.
+
+Defaults to `nameof(T)`, which is right for a hand-written document and for any
+schema that left its bare name where it was.
+"""
+function document_schema_name end
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are

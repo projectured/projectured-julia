@@ -23,7 +23,7 @@ the projection's business.
 module DocumentReflectionModule
 
 import ..CellModule: Cell, ComputedCell, MutableCell
-import ..DocumentModule: Document, @document
+import ..DocumentModule: Document, @document, document_schema_name
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
@@ -161,10 +161,11 @@ reflect_children(x) = collect(reflect_child_pairs(x))
 # label — and a deeply parameterised type has no useful tail.
 #
 # A document is the exception: every one of its type parameters is a cell kind,
-# so `SimulationRun{Cell, Cell, Cell, Cell, Cell}` says nothing a reader wants
-# and `…Mut` is the alias for one such spelling. The bare name is the type.
+# so `ACSimulationRun{Cell, Cell, Cell, Cell, Cell}` says nothing a reader wants.
+# The **schema** name is what a reader wants, and `document_schema_name` answers
+# it for every layout — `nameof` would say which layout it was handed.
 function _kind_of(x)
-    x isa Document && return string(nameof(typeof(x)))
+    x isa Document && return string(document_schema_name(typeof(x)))
     s = replace(string(typeof(x)), r"[A-Za-z_][A-Za-z0-9_!]*\." => "")
     length(s) <= 48 ? s : string(first(s, 45), "...")
 end
