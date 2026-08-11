@@ -1,9 +1,14 @@
 # Document layouts and their names
 
-> **Status: IN PROGRESS.** Part 1 to Part 4 are decided. Part 1, Part 3 and steps
-> 2a to 2c are built. The owner authorized both sealed files on 2026-08-10, and
-> asked that a sealed file this plan edits is left **unsealed**, so that the owner
-> knows to review it again. See **Sealed files**.
+> **Status: IMPLEMENTED.** Every part is built, across all three repositories.
+> What remains is listed under **What this plan leaves undone**, and none of it is
+> a step of this plan: `Packet` is one schema left for its own reading, and the
+> rest are defects this work uncovered rather than caused.
+>
+> Two sealed files were edited and are left **unsealed**, marked ⬜ in `CLAUDE.md`,
+> so that the owner knows to review them: `document/DocumentMacro.jl` and
+> `reference/ReferenceEvaluation.jl`. The owner authorized both on 2026-08-10 and
+> asked for the unsealing. See **Sealed files**.
 >
 > **Rule 3 changed on 2026-08-11.** The bare name binds **per schema**, and the
 > default is the cell layout — what it means today. Binding every schema's bare
@@ -618,11 +623,30 @@ Written with each step rather than after them all.
 
 Each testset was checked against the unfixed source and fails without it.
 
-One thing the tests taught. `EvalBranchMut.left` is typed to one schema, so it
+One thing the tests taught. `MEvalBranch.left` is typed to one schema, so it
 holds a **cell** leaf and not a native one — the limit the older plan described,
 and it is real for a field that names a schema. A field typed `Document` takes
 either layout, which is why the bug in Fact 2 was reachable. Both statements are
 true and they are about different field types.
+
+## 1.6 Let a schema say its own name — **DONE**
+
+Not foreseen here. It was forced by Part 4.2, and it belongs with the registry
+because it answers the same kind of question.
+
+`nameof` cannot name a schema. A coded name is a type's real name and the bare
+name is a `const` alias, so a schema that bound its bare name elsewhere answers
+the coded one — `nameof(ChainModel)` is `:MChainModel`. Anything that *displays*
+that name then reads as the layout rather than as the thing. omnetpp's catalog
+began showing `MChainModel — K tokens hop along a linear chain` in the user
+interface, and nine test failures followed it.
+
+`document_schema_name` answers what the programmer wrote after `struct`, for every
+layout, and defaults to `nameof` — right for a hand-written document and for any
+schema that left its bare name where it was.
+
+The reflection label in `_kind_of` now uses it. Part 2 had listed that as required
+work for the day a rebinding schema was reflected; this was that day.
 
 ---
 
@@ -650,16 +674,89 @@ named in three comments and built nowhere, and the only production call that
 copies with an explicit kind is `_pure_snapshot`, which lands on the default
 spelling for a value document.
 
-## 4.2 omnetpp-julia
+## 4.2 omnetpp-julia and inet-julia — **DONE**
 
-| Rewrite | Sites |
-| --- | --- |
-| `@document` → `@native_document` | 127 |
-| `DocNameMut` → `DocName` | 76 |
-| `AbstractDocName` → `ADocName` | 788 |
-| `::DocName`, split by side | 179 to inspect |
+It came in two halves, and the first was not optional. Both repositories resolve
+against projectured's live checkout, so the moment Part 2 landed on `main` neither
+of them loaded:
 
-The last row is the work, and it is not a mechanical rewrite. Each annotation
+```
+UndefVarError: `AbstractParameterAssignment` not defined in `OmnetppSimulator`
+```
+
+**Phase A, the restore.** Mechanical, forced, no decisions.
+
+| Rewrite | omnetpp | inet |
+| --- | --- | --- |
+| `Abstract<Doc>` → `A<Doc>`, this repository's own schemas | 846 | 154 |
+| `Abstract<Doc>` → `A<Doc>`, projectured's families named from here | 20 | — |
+| `<Doc>Mut` → `M<Doc>` | 260 | 21 |
+| `I<Doc>`/`D<Doc>` → `IC<Doc>`/`DC<Doc>` | 14 | 9 |
+| files | 117 | 18 |
+
+The generated `PrecompileStatements.jl` in each repository is left alone. It says
+not to edit it and is built to skip a statement that names nothing, so its stale
+entries cost coverage and nothing else. A first pass rewrote omnetpp's before that
+was noticed; a half-renamed record is worse than a stale one, so it was reverted.
+
+**Phase B, the bare name.** 25 schemas bind theirs to the struct the engine
+mutates — 8 in omnetpp, 17 in inet. Each was chosen on evidence, not by category:
+built through the native layout, never through the bare name.
+
+| | omnetpp | inet |
+| --- | --- | --- |
+| schemas | 128 | 21 |
+| rebound to `M` | 8 | 17 |
+| presets declared | 2 | 3 |
+
+The schemas that go the other way keep their default. inet's four diagram types
+are built only through the bare name and `PacketDiagram` carries five
+projection-side annotations, so for them the bare name stays the cell layout.
+
+**What Phase B found that this plan had not.** `nameof` is the wrong question once
+a bare name can be a `const` alias. Four places in omnetpp displayed a model's name
+that way, and the catalog began reading `MChainModel — K tokens hop along a linear
+chain` in the user interface. That produced `document_schema_name`, described in
+Part 1.6.
+
+**Measured, each at its own pre-existing baseline.**
+
+| Suite | Before | After |
+| --- | --- | --- |
+| omnetpp `test/runtests.jl` | did not load | 9188 passed, 3 failed, 1 errored |
+| inet `test/runtests.jl` | did not load | 2923 passed, 0 failed, 7 errored |
+
+Every one of those eleven predates this work, and each was checked against its
+subject rather than assumed:
+
+- Two omnetpp `FilesTest` failures compare `.ned` and `.ini` fixtures against an
+  external `omnetpp-cpp/samples/routing` checkout. The sweeps touched only `.jl`
+  and `.md`.
+- One `ModuleViewsTest` failure asserts a `→` in tree rows. `ModuleViews.jl` was
+  edited, and every line of that diff is `AbstractX` → `AX`: same type, same
+  dispatch.
+- Six inet errors are one signature drift. omnetpp's `record_tap!` takes a
+  `ScheduleContext` as of `00f7dff Wave D`; inet still passes a timestamp. The
+  name sweep touched that file and changed no `record_tap!` line.
+- Two runner test environments lack `Pkg`, and `package/simulator/test` lacks
+  `UUIDs`. No `Project.toml` was touched. These also mean a per-slice run tells
+  you less than it appears to: three slices never reach their first assertion, so
+  a grep for failures reports zero. Use the root environment.
+
+**Three mistakes, all the same shape, all caught by a suite.** A name added in one
+place while a second place keeps its own list: `_emit_keyword_ctors` with its own
+prefixes, the binding branch still testing `:CD` after the code became `:DC`, and
+two submodules with their own import lists. None would have been caught by a
+targeted test.
+
+### What was left for the earlier plan's annotation split
+
+The `::DocName` split described below was written before the per-schema binding
+existed. With 25 schemas rebound rather than all of them, the split applies only
+to those, and it was done as part of choosing each one. The reasoning stands and is
+kept:
+
+Each annotation belongs to one side of the sync, and the new names let it say which:
 belongs to one side of the sync, and the new names let it say which:
 
 - **Simulation side** — narrows to the bare name, which is now the native struct.
@@ -916,19 +1013,27 @@ These are not sealed and need no permission:
 | 1 | Part 1.1 to 1.5, the layout registry. Renames nothing. | **DONE** |
 | 2 | Part 3, the layout list and `@document_preset`. Default keeps today's emission. | **DONE** |
 | 3 | Part 2, steps 2a to 2c, the coded names for the spellings, the family and the native layout. | **DONE** |
-| 4 | Step 2d, `DStem` → `DCStem` and the `DC` code. | |
-| 5 | Step 2e, the three styles take `[DC]`; their 476 sites drop the prefix. | |
-| 6 | Step 2f, the bare-name binding rule and `const ACStem = Stem`. Unexercised here. | |
-| 7 | Part 4.2, omnetpp-julia. This is where 2f is proved. | |
-| 8 | inet-julia. | |
+| 4 | Step 2d, `DStem` → `DCStem`. | **DONE** |
+| 5 | Step 2f, the bare-name binding rule, the `DC` code, `const ACStem = Stem`. | **DONE** |
+| 6 | Step 2e, the three styles take `[DC]`; their 479 sites drop the prefix. | **DONE** |
+| 7 | Step 2g, every name reads as a phrase. | **DONE** |
+| 8 | Part 1.6, `document_schema_name`. Forced by step 9. | **DONE** |
+| 9 | Part 4.2, omnetpp-julia. This is where 2f is proved. | **DONE** |
+| 10 | inet-julia. | **DONE** |
 
-Every step runs the representative set: `test_kernel`, `test_base`, `test_visual`,
-`test_json`, `test_sql`, `test_julia`. About 55 000 assertions and two minutes.
-`test_all()` is not used — it takes 47 minutes, so it cannot be run on both sides
-of every step.
+Every projectured step runs the representative set: `test_kernel`, `test_base`,
+`test_visual`, `test_json`, `test_sql`, `test_julia`. About 55 000 assertions and
+two minutes. `test_all()` is not used — it takes 47 minutes, so it cannot be run
+on both sides of every step.
 
-The baseline the set holds at: kernel 1498/3/2, base 387, visual 52659 pass with
-1 broken, json 169, sql 353, julia 42.
+The baseline the set holds at, after this work: kernel 1526/3/2, base 387, visual
+52659 pass with 1 broken, json 169, sql 353, julia 42. It was 1461/3/2 for the
+kernel before Part 1; every added pass is an assertion this plan wrote.
+
+The other two repositories run their whole suite from the **root** environment,
+`julia -t 4 --project=. test/runtests.jl`. Three of omnetpp's test packages and one
+of inet's cannot resolve standalone, and a per-slice run therefore reports zero
+failures while never reaching its first assertion.
 
 ## Open questions
 
@@ -940,9 +1045,35 @@ The baseline the set holds at: kernel 1498/3/2, base 387, visual 52659 pass with
 3. Is `AStem` right, against the Julia idiom `AbstractStem`? `AStem` is regular
    with the other seven names. `AbstractStem` is what a Julia reader expects. The
    decision is `AStem`, for one system over one idiom.
-4. Does anything call `copy_document(ReactiveCell, ·)` on a style? That is the one
-   route by which a non-default spelling of the three `[DC]` schemas could reach a
-   `::StyleText` signature. Check it in step 5.
-5. Should `@document`'s default list drop `M`? Every projectured schema emits a
+4. Should `@document`'s default list drop `M`? Every projectured schema emits a
    native struct that nothing uses. It costs about 1.4 s of precompile and 107 KB
    across 435 schemas, so the reason would be namespace clarity, not cost.
+5. ~~Does anything call `copy_document(ReactiveCell, ·)` on a style?~~ **Answered:
+   no.** A reactive style is named in three comments and built nowhere, and the
+   only production call that copies with an explicit kind is `_pure_snapshot`,
+   which for a value document lands on the default spelling.
+
+## What this plan leaves undone
+
+1. **`Packet`, in both omnetpp-julia and inet-julia.** The one schema whose
+   evidence did not point one way — three native constructions against three bare
+   and ten annotations — and the type inet is built around. It wants reading, not
+   a rule. Every other schema in both repositories is settled.
+2. **inet-julia calls `record_tap!` with the old signature.** omnetpp's `Wave D`
+   changed the third parameter to a `ScheduleContext` and inet still passes a
+   timestamp, so six of its tests error. This predates this plan and nobody owns
+   it. It is the cross-repository drift hazard in its plainest form: inet resolves
+   against omnetpp's live `main`, so an omnetpp commit breaks inet while inet
+   changes nothing.
+3. **Three test environments cannot resolve standalone.** `package/runner/test`
+   and `package/simulator/test` in omnetpp, `package/runner/test` in inet. No
+   `Project.toml` was touched by this plan; the defects were already there, and
+   they make a per-slice run report zero failures while never reaching an
+   assertion.
+4. **The recorded precompile statements are 9.1 % stale in projectured**, against
+   a 10 % warning threshold, and 709 of the 1165 skips are this plan's renames.
+   The next change that moves a type name crosses the line. Recording needs a
+   display, so it is the owner's call. Both other repositories left their own
+   recordings untouched for the same reason.
+5. **Two sealed files are unsealed** and marked ⬜ in `CLAUDE.md`, awaiting review:
+   `document/DocumentMacro.jl` and `reference/ReferenceEvaluation.jl`.
