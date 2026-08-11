@@ -34,6 +34,7 @@ module ProjecturedBase
 
 using ProjecturedKernel
 using ProjecturedCollection
+using ProjecturedPrimitive
 
 # ── Aliases of the packages this one was spliced into ─────────────────────
 # Each concept folder becomes its own package (see
@@ -41,6 +42,7 @@ using ProjecturedCollection
 # ProjecturedBase re-aliases what has already left, so every consumer keeps
 # resolving `..XxxModule`.
 const CollectionModule = ProjecturedCollection.CollectionModule
+const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -87,7 +89,6 @@ include("backend/DefaultBackend.jl")
 # module included after the modules it imports.
 
 # vocabulary — the documents every slice/domain reuses
-include("primitive/Primitive.jl")     # Primitive* + Replace*RangeOperation
 include("domain/DocumentCore.jl")     # DocumentBase/Nothing/Insertion/Reference
 
 # reflection/ — a bounded shadow of a large/live object. DocumentReflection
