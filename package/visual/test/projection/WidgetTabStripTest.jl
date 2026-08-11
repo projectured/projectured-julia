@@ -21,7 +21,8 @@ function _sweep(proj, iomap, event_of)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
         op = read_intent(proj, iomap, event_of(x, y))
-        op isa Union{SelectTabOperation, CloseTabRequestOperation,
+        # A tab click is a ReplaceSelectionOperation now, so the sweep must keep one.
+        op isa Union{ReplaceSelectionOperation, CloseTabRequestOperation,
                      NewTabRequestOperation, DragTabOperation} || continue
         push!(found, (x, op))
     end
@@ -39,13 +40,21 @@ function _first_x(found, predicate)
     nothing
 end
 
+# A tab click is a plain selection replacement now: the strip names the tab it was
+# clicked on, in the pane's own coordinates, and the chain re-roots it. There is no
+# SelectTabOperation any more. Matched on the printed path so this file needs none
+# of the reference step types in scope.
+_select_tab(op, index) =
+    op isa ReplaceSelectionOperation &&
+    occursin("selector_element_pairs[$index]", string(op.path))
+
 @testset "a plain strip reports only tab clicks" begin
     pane = _pane()
     proj = _proj()
     iomap = print_document(proj, pane)
     found = _sweep(proj, iomap, _press)
-    @test any(op -> op isa SelectTabOperation && op.tab_index == 1, last.(found))
-    @test any(op -> op isa SelectTabOperation && op.tab_index == 2, last.(found))
+    @test any(op -> _select_tab(op, 1), last.(found))
+    @test any(op -> _select_tab(op, 2), last.(found))
     @test !any(op -> op isa CloseTabRequestOperation, last.(found))
     @test !any(op -> op isa NewTabRequestOperation, last.(found))
     # No grab either, until the pane is draggable.
@@ -58,9 +67,9 @@ end
     iomap = print_document(proj, pane)
     found = _sweep(proj, iomap, _press)
 
-    select1 = _first_x(found, op -> op isa SelectTabOperation && op.tab_index == 1)
+    select1 = _first_x(found, op -> _select_tab(op, 1))
     close1  = _first_x(found, op -> op isa CloseTabRequestOperation && op.tab_index == 1)
-    select2 = _first_x(found, op -> op isa SelectTabOperation && op.tab_index == 2)
+    select2 = _first_x(found, op -> _select_tab(op, 2))
     close2  = _first_x(found, op -> op isa CloseTabRequestOperation && op.tab_index == 2)
     @test all(!isnothing, (select1, close1, select2, close2))
     # Each tab's close button sits at its right edge, so the four run in order.
@@ -76,7 +85,7 @@ end
     iomap = print_document(proj, pane)
     found = _sweep(proj, iomap, _press)
     new_x = _first_x(found, op -> op isa NewTabRequestOperation)
-    last_tab = _first_x(found, op -> op isa SelectTabOperation && op.tab_index == 2)
+    last_tab = _first_x(found, op -> _select_tab(op, 2))
     @test new_x !== nothing
     @test last_tab < new_x
 end

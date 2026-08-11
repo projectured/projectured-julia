@@ -2869,6 +2869,16 @@ end
 # encoded; upstream projections (e.g. `WorkbenchPageToWidgetTabbedPane`)
 # decode it. Without a slot index this generic mapper has nothing to add.
 function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
+    # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
+    # it in its own input coordinates, so it maps back as itself; without the case
+    # the generic reader re-targets it to `nothing` and the click is dropped before
+    # any upstream projection can read it.
+    if reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+       reference.head.name == "selector_element_pairs"
+        t = reference.tail
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && t.tail isa EmptyReference) &&
+            return reference
+    end
     return nothing
 end
 

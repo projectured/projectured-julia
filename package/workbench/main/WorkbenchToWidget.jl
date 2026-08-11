@@ -672,11 +672,13 @@ _page_backward(_, _) = nothing
 
 function read_intent(p::WorkbenchWorkbenchToWidgetShell,
                           iomap::WorkbenchWorkbenchToWidgetShellIoMap, op)
-    # 1. Tab-strip click: a SelectTabOperation produced by the widget
-    # tabbed pane. Find which page owns the tab strip (by matching
-    # `op.widget` against each page's output) and convert via the page
-    # reader, then re-root under that page's workbench field name.
-    if op isa SelectTabOperation
+    # 1. Tab-strip click: a selection replacement naming a page's own
+    # `selector_element_pairs[i]`. Find which page owns the strip by offering it to
+    # each page reader, and re-root the answer under that page's workbench field
+    # name. It has to be claimed here, before the path-bearing branch below: that
+    # one maps with the *shell's* mapper, which cannot resolve a page-local path
+    # and would answer `nothing`, dropping the click.
+    if op isa ReplaceSelectionOperation && _strip_tab_index(op.path) !== nothing
         for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                           ("editing_page",     iomap.editing_page_iomap),
                                           ("information_page", iomap.information_page_iomap),
@@ -796,12 +798,22 @@ end
 # folded document-replace / sequence-splice ops) and CompoundOperation reroot too.
 _prefix_operation(op, prefix_steps::Tuple) = reroot_operation(op, prefix_steps)
 
+# The 1-based tab a bare `selector_element_pairs[i]` names, or `nothing`.
+function _strip_tab_index(path)
+    path isa ConcreteReference || return nothing
+    (path.head isa FieldReferenceStep && path.head.name == "selector_element_pairs") || return nothing
+    t = path.tail
+    (t isa ConcreteReference && t.head isa RangeReferenceStep && t.tail isa EmptyReference) || return nothing
+    Int(t.head.start) + 1
+end
+
 function read_intent(p::WorkbenchPageToWidgetTabbedPane,
                           iomap::WorkbenchPageToWidgetTabbedPaneIoMap, op)
-    # Convert a tab-strip click into a workbench-domain selection move.
-    if op isa SelectTabOperation
-        op.widget === iomap.output || return op
-        idx = op.tab_index
+    # Convert a tab-strip click into a workbench-domain selection move. The strip
+    # reports one as a selection replacement naming its own `selector_element_pairs[i]`,
+    # so this recognises that shape rather than a bespoke operation.
+    idx = op isa ReplaceSelectionOperation ? _strip_tab_index(op.path) : nothing
+    if idx !== nothing
         1 <= idx <= length(iomap.input.elements) || return op
         # The tabbed pane's active tab is a forward projection of the page
         # selection (see print_document), so moving the document selection
