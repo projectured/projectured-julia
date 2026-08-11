@@ -33,6 +33,14 @@ a submodule of `ProjecturedBase`, `..CellModule` resolves through the
 module ProjecturedBase
 
 using ProjecturedKernel
+using ProjecturedCollection
+
+# ── Aliases of the packages this one was spliced into ─────────────────────
+# Each concept folder becomes its own package (see
+# plan/pending/splice-base-and-visual-packages.md). While the splice runs,
+# ProjecturedBase re-aliases what has already left, so every consumer keeps
+# resolving `..XxxModule`.
+const CollectionModule = ProjecturedCollection.CollectionModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -79,7 +87,6 @@ include("backend/DefaultBackend.jl")
 # module included after the modules it imports.
 
 # vocabulary — the documents every slice/domain reuses
-include("collection/Collection.jl")   # CellVector/CellMatrix/CellTable/ListNode
 include("primitive/Primitive.jl")     # Primitive* + Replace*RangeOperation
 include("domain/DocumentCore.jl")     # DocumentBase/Nothing/Insertion/Reference
 
