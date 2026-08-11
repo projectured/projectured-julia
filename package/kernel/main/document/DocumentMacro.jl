@@ -17,14 +17,14 @@ const _REACTIVE_ANY = ReactiveCell{Any}
 # spelling aliases are never listed — the family is what two layouts share, and an
 # alias is a `const` whose absence would only surprise.
 #
-# `CD` is the odd one: it emits nothing that `C` does not, and only binds the bare
-# name to the default spelling. A field typed `Foo` is then concrete and inlines,
-# which is what a value document stored by value in a configuration cell wants.
+# `DC` is the odd one: it emits nothing that `C` does not, and only binds the bare
+# name to `DCFoo`, the default spelling. A field typed `Foo` is then concrete and
+# inlines, which is what a value document stored by value in a config cell wants.
 #
 # The default is every layout that exists today, with the bare name where it has
 # always been, so a declaration that says nothing changes in no way.
 const _DEFAULT_LAYOUTS = (:C, :M)
-const _KNOWN_LAYOUTS   = (:C, :CD, :M, :I)
+const _KNOWN_LAYOUTS   = (:C, :DC, :M, :I)
 
 """
     _take_layout_list(args) -> (layouts::Tuple{Vararg{Symbol}}, rest)
@@ -48,20 +48,20 @@ function _take_layout_list(args)
             error("@document: the immutable native layout `I` is not emitted yet, " *
                   "because nothing asks for one. Add it when a caller does.")
     end
-    # `CD` asks for the cell layout too — it only moves the bare name inside it.
-    (:C in codes || :CD in codes) ||
-        error("@document: a layout list must include `C` or `CD` for now. A schema with " *
+    # `DC` asks for the cell layout too — it only moves the bare name inside it.
+    (:C in codes || :DC in codes) ||
+        error("@document: a layout list must include `C` or `DC` for now. A schema with " *
               "no cell layout has no aliases, no auto-wrapping constructor and no " *
               "shadow, and nothing asks for one yet.")
     # Every path below asks "is the cell layout emitted" as `:C in layouts`, so a
-    # list that said `CD` carries both: the layout, and the binding in first place.
-    codes = :CD in codes && !(:C in codes) ? [codes..., :C] : codes
+    # list that said `DC` carries both: the layout, and the binding in first place.
+    codes = :DC in codes && !(:C in codes) ? [codes..., :C] : codes
     (Tuple(codes), args[[j for j in eachindex(args) if j != i]])
 end
 
 # The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
 # keeps the untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
-# the typed cell so it inlines — the same typed cells the `CIFoo`/`CMFoo` aliases build.
+# the typed cell so it inlines — the same typed cells the `ICFoo`/`MCFoo` aliases build.
 _default_cell_type(kind, vt) =
     kind === :immutable ? Expr(:curly, ImmutableCell, vt) :
     kind === :mutable   ? Expr(:curly, MutableCell,  vt) :
@@ -155,18 +155,19 @@ _emit_accessors(plan) = (
 """
     _emit_kind_aliases(plan, arg_names) -> Vector
 
-The spelling aliases `CRFoo` / `CIFoo` / `CMFoo` / `CDFoo`, the value-accepting
-typed constructors `CIFoo(…)` / `CMFoo(…)`, and the `_declared_value_types` method
+The spelling aliases `RCFoo` / `ICFoo` / `MCFoo` / `DCFoo`, the value-accepting
+typed constructors `ICFoo(…)` / `MCFoo(…)`, and the `_declared_value_types` method
 `copy_document(K, …)` reads a field's declared type from.
 
-A spelling is one concrete parameter list of the **cell** layout, which is what
-the leading `C` says. That letter is what keeps a spelling apart from a layout:
-`CMFoo` is an immutable struct holding one `MutableCell` box per field, while
-`MFoo` — the mutable native layout — is a single mutable object with its fields
-inline. Without the `C` the two names would read alike, and they are not alike.
+A spelling is one concrete parameter list of the **cell** layout. Each name
+abbreviates a phrase, adjective first — `MCFoo` is the mutable cell `Foo` — and
+the `C` says the variant keeps its fields in cells. That is what tells a spelling
+from a layout: `MCFoo` is an immutable struct holding one `MutableCell` box per
+field, while `MFoo`, the mutable native layout, is a single mutable object with
+its fields inline.
 
-`CDFoo` is the concrete type the **bare** constructor builds (the per-field default
-combination); `CRFoo` / `CIFoo` / `CMFoo` wrap every field in one kind's *typed*
+`DCFoo` is the concrete type the **bare** constructor builds (the per-field default
+combination); `RCFoo` / `ICFoo` / `MCFoo` wrap every field in one kind's *typed*
 cells, so a fully-conforming node inhabits its alias.
 """
 function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
@@ -176,15 +177,15 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     kinds = cell_struct_field_kinds(plan; default = default)
     # A spelling is named from the **schema**, not from the cell layout's own type
     # name. The two differ when the bare name was bound elsewhere, and a spelling
-    # of `Foo` must stay `CRFoo` rather than becoming `CRCFoo`.
-    r_name, i_name, m_name, d_name = (Symbol(p, schema) for p in ("CR", "CI", "CM", "CD"))
+    # of `Foo` must stay `RCFoo` rather than becoming `CRCFoo`.
+    r_name, i_name, m_name, d_name = (Symbol(p, schema) for p in ("RC", "IC", "MC", "DC"))
 
     alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
-    # `CDFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
+    # `DCFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
     # builds — each field in its default kind (`ReactiveCell{Any}`, or the struct
     # default from a leading macro kind). For a value-document (immutable default,
-    # `selection::ImmutableCell{Nothing}`) it is isbits, so `ImmutableCell{CDFoo}`
-    # inlines. `CRFoo`/`CIFoo`/`CMFoo` instead force one kind across every field.
+    # `selection::ImmutableCell{Nothing}`) it is isbits, so `ImmutableCell{DCFoo}`
+    # inlines. `RCFoo`/`ICFoo`/`MCFoo` instead force one kind across every field.
     aliases = [
         alias(r_name, fill(_REACTIVE_ANY, n)),
         alias(i_name, [Expr(:curly, ImmutableCell, T) for T in Tvals]),
@@ -215,7 +216,7 @@ end
 """
     _emit_keyword_ctors(plan) -> Vector
 
-Keyword constructors for `Foo`, `CIFoo` and `CMFoo` — fields with a default are
+Keyword constructors for `Foo`, `ICFoo` and `MCFoo` — fields with a default are
 optional keywords, fields without one required, à la `Base.@kwdef`. The names must
 match the spelling aliases [`_emit_kind_aliases`](@ref) emits, or a keyword call on
 an alias finds no method.
@@ -236,7 +237,7 @@ function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
     # name. When the bare name is bound to a spelling it reaches this method through
     # the forwarding constructor, and when it is bound to the native layout that
     # layout has a keyword constructor of its own.
-    names = [plan.name, Symbol("CI", schema), Symbol("CM", schema)]
+    names = [plan.name, Symbol("IC", schema), Symbol("MC", schema)]
     [cell_struct_kwctor(nm, plan.field_names, kw_params) for nm in names]
 end
 
@@ -321,7 +322,7 @@ The **mutable-layout** struct: a real `mutable struct native <: family` whose
 fields hold the declared **value** types *directly* — no `MutableCell` box — so an
 all-mutable document (`MFoo`) is byte-for-byte a plain `mutable struct`
 (`getproperty`/`setproperty!` are the default `getfield`/`setfield!`). The value
-types resolve here exactly as they already do in the `CIFoo` / `CMFoo` aliases, so
+types resolve here exactly as they already do in the `ICFoo` / `MCFoo` aliases, so
 this introduces no new forward reference.
 """
 function _emit_native_mutable(plan, family, native)
@@ -350,12 +351,12 @@ what a schema declares about how it is used:
 | First entry | `Foo` means | Fits |
 | --- | --- | --- |
 | `C`, the default | the cell layout, `Foo{C1, …}` | anything an editor holds |
-| `CD` | `CDFoo`, the concrete default spelling | a value document stored by value in a config cell, where a `Foo`-typed field must inline |
+| `DC` | `DCFoo`, the concrete default spelling | a value document stored by value in a config cell, where a `Foo`-typed field must inline |
 | `M` | `MFoo`, the plain `mutable struct` | a schema whose primary object is the one a simulator mutates |
 
-`CD` emits nothing that `C` does not; it only moves the bare name one step in. The
-coded name always works too: a `C` schema still gets `const CFoo = Foo`, so
-`CFoo` names the cell layout in every schema whichever binding was chosen.
+`DC` emits nothing that `C` does not; it only moves the bare name one step in. The
+coded name always works too: a `C` schema still gets `const ACFoo = Foo`, so
+`ACFoo` names the cell layout in every schema whichever binding was chosen.
 
 A package that wants the same list on every schema declares it once with
 [`@document_preset`](@ref) and writes the preset's name instead.
@@ -386,9 +387,9 @@ From the declared fields the macro generates the **kind-parameterized stem**:
    `Cell`), so the bare name builds the **reactive kind** with the plain
    untyped-cell semantics. Passing cells (of any kind, even mixed) stores them as-is.
 
-3. **Spelling aliases** — `CRFoo` (all fields `ReactiveCell{Any}`, what the bare
-   ctor builds), `CIFoo` (`ImmutableCell{declared-type}`), `CMFoo`
-   (`MutableCell{declared-type}`), plus value-accepting ctors `CIFoo(args…)` /
+3. **Spelling aliases** — `RCFoo` (all fields `ReactiveCell{Any}`, what the bare
+   ctor builds), `ICFoo` (`ImmutableCell{declared-type}`), `MCFoo`
+   (`MutableCell{declared-type}`), plus value-accepting ctors `ICFoo(args…)` /
    `MFoo(args…)` that wrap raw values in their kind's typed cells. Convert a
    whole subtree between kinds with [`copy_document`](@ref)`(K, doc)`.
 
@@ -396,7 +397,7 @@ Fields may carry `@kwdef`-style defaults (`field::T = value`). The injected
 `selection` is always one, so Rule Y and Rule C below always apply; the keyword
 constructors are the exception and need a default you declared yourself.
 
-4. **Keyword constructors** for `Foo`, `CIFoo` and `CMFoo` — fields with a default
+4. **Keyword constructors** for `Foo`, `ICFoo` and `MCFoo` — fields with a default
    are optional keywords, fields without one are required keywords. Emitted only
    when **you** declared ≥1 default (the injected `selection` does not count), or
    when the struct declares no fields at all.
@@ -446,7 +447,7 @@ function _document_expr(args)
 
     # ── The names of one schema ───────────────────────────────────────────────
     # `schema` is what the programmer wrote. Every coded name is built from it, so
-    # `AFoo`, `MFoo`, `CFoo` and the four spellings mean the same thing in every
+    # `AFoo`, `MFoo`, `ACFoo` and the four spellings mean the same thing in every
     # schema.
     #
     # `family` is an abstract type inserted between the cell layout and the
@@ -456,15 +457,15 @@ function _document_expr(args)
     schema = plan.name
     family = Symbol("A", schema)
     native = Symbol("M", schema)
-    default_spelling = Symbol("CD", schema)
+    default_spelling = Symbol("DC", schema)
 
     # ── The bare name ─────────────────────────────────────────────────────────
     # The first entry of the layout list says what the bare name is. `C` leaves it
     # on the cell layout, which is what it means with no list at all, so the struct
     # keeps the programmer's own name and `show` still prints it. Any other binding
-    # moves the cell layout to `CFoo` and makes the bare name a `const`.
+    # moves the cell layout to `ACFoo` and makes the bare name a `const`.
     binding  = first(layouts)
-    cell_name = binding === :C ? schema : Symbol("C", schema)
+    cell_name = binding === :C ? schema : Symbol("AC", schema)
 
     # ── Inject the selection field ────────────────────────────────────────────
     # Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
@@ -541,19 +542,19 @@ function _document_expr(args)
     #
     # A bare name bound to a **spelling** also needs a constructor. An inner
     # constructor is defined on the parametric name alone, so a concrete
-    # parameterization has no method of its own: `CDFoo(1, "z")` is a `MethodError`
+    # parameterization has no method of its own: `DCFoo(1, "z")` is a `MethodError`
     # without this. One catch-all covers Rule Y, Rule C and the keyword form, and a
     # domain's own `Foo(v::String)` stays more specific than it.
     binding_parts = Any[]
     if binding === :C
-        push!(binding_parts, Expr(:const, Expr(:(=), Symbol("C", schema), cell_name)))
+        push!(binding_parts, Expr(:const, Expr(:(=), Symbol("AC", schema), cell_name)))
     else
-        target = binding === :CD ? default_spelling : native
+        target = binding === :DC ? default_spelling : native
         push!(binding_parts, Expr(:const, Expr(:(=), schema, target)))
-        binding === :CD && push!(binding_parts,
+        binding === :DC && push!(binding_parts,
             :((::Type{$target})(args...; kw...) = $cell_name(args...; kw...)))
     end
-    push!(binding_parts, Expr(:export, schema, Symbol("C", schema)))
+    push!(binding_parts, Expr(:export, schema, Symbol("AC", schema)))
 
     structdef = _emit_stem!(plan)
     push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names; default = default))

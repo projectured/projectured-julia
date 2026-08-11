@@ -133,18 +133,19 @@ name is a UnionAll matching every kind, so `::JsonString` dispatch and
   values in `ReactiveCell{Any}` — exactly the historic untyped `Cell`, so the
   bare name builds the reactive kind with unchanged semantics. Cells (of any
   kind, even mixed per-field) pass through as-is.
-- **Spelling aliases + ctors**: `CIJsonString` / `CMJsonString` put every field in
+- **Spelling aliases + ctors**: `ICJsonString` / `MCJsonString` put every field in
   the immutable / mutable kind with *typed* cells (`ImmutableCell{String}` etc.),
-  each with value-accepting and keyword ctors. `CRJsonString` names the
+  each with value-accepting and keyword ctors. `RCJsonString` names the
   all-reactive combination (`ReactiveCell{Any}` per field) but is a **type alias
   only** — it has no constructor, so build that kind through the bare name.
-  `CDJsonString` names the **default combination** the bare `JsonString(…)` ctor
-  builds: each field in the kind it declares, which equals `CRJsonString` only
+  `DCJsonString` names the **default combination** the bare `JsonString(…)` ctor
+  builds: each field in the kind it declares, which equals `RCJsonString` only
   when no field declares one. The macro exports the aliases itself.
 
-  The leading `C` says the alias is a *spelling* of the cell layout. That is what
-  keeps `CMJsonString` — an immutable struct holding one `MutableCell` box per
-  field — apart from `MJsonString`, the plain `mutable struct` layout.
+  Each name abbreviates a phrase, adjective first: `MCJsonString` is the mutable
+  cell `JsonString`. The `C` says the variant keeps its fields in cells, which is
+  what tells it from `MJsonString`, the plain `mutable struct` layout — the first
+  holds one `MutableCell` box per field, the second its fields inline.
 - **Kind conversion** happens through the generic functions, not ctors:
   `copy_document(doc)` deep-copies and preserves each cell's kind, and
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
@@ -331,7 +332,7 @@ struct body, is spelled out in `plan/done/macro-default-field-values.md`.
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 
 The macros wrap *every* declared field in a `Cell` regardless of the type
-annotation. The annotation is what the **typed spellings** enforce: `CIFoo` / `CMFoo`
+annotation. The annotation is what the **typed spellings** enforce: `ICFoo` / `MCFoo`
 build their cells from it (`ImmutableCell{String}`, …), while the bare reactive
 kind stores every field as `Any`. So the rule is:
 
@@ -340,11 +341,11 @@ kind stores every field as `Any`. So the rule is:
   the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
   number whose text has been fully deleted — the annotation must include it
   (`::Union{Real, Nothing}`). A dishonest annotation stays silent under the bare
-  name and then bites twice: `CIFoo(…)` / `CMFoo(…)` **throw** on a value the
+  name and then bites twice: `ICFoo(…)` / `MCFoo(…)` **throw** on a value the
   annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
   `copy_document(ImmutableCell, doc)` does *not* throw — it falls back to the
   value's own type, so the copy quietly lands **off** the alias and
-  `copy isa CIFoo` is `false`.
+  `copy isa ICFoo` is `false`.
 - The macro takes care of the Cell wrapping for the runtime struct.
 
 The only time you'd annotate `::Cell` directly is when the field really
@@ -379,7 +380,7 @@ machinery, and with it the same three sharp edges:
   immutable struct, so `===` compares it field cell by field cell — but a
   `ReactiveCell` and a `MutableCell` are *mutable* objects, which `===` compares
   by identity. So two separately built `Foo`s (or `MFoo`s) with equal contents
-  are **not** `==`. `CIFoo` is immutable the whole way down, stem and cells, so it
+  are **not** `==`. `ICFoo` is immutable the whole way down, stem and cells, so it
   is the one kind that compares structurally. Reference/path types define `==` by
   hand. Code that needs value comparison (e.g. `search_references`) compares the
   unwrapped *leaf values*, not whole documents.

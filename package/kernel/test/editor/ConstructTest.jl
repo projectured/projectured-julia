@@ -48,7 +48,7 @@ _leaf_equal(a, b) = typeof(a) === typeof(b) && isequal(a, b)
 
 # Two structural nodes are the same *kind* when they share a type name. Compared
 # by `typename`, not `==`, because `@document` emits parametric reactive structs
-# (`CRJsonObject{…}`) whose cell-kind parameters may differ between two
+# (`RCJsonObject{…}`) whose cell-kind parameters may differ between two
 # independently-built instances of the same logical document type.
 _same_kind(a, b) = Base.typename(typeof(a)) === Base.typename(typeof(b))
 

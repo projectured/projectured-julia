@@ -135,7 +135,7 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
             push!(field_vals, fv)
         end
     end
-    # `typeof` is the node's cell-kind struct (`CRFoo`), which carries no
+    # `typeof` is the node's cell-kind struct (`RCFoo`), which carries no
     # constructor; the constructors live on the document's UnionAll wrapper
     # (`Foo`) and auto-wrap a plain value in a Cell.
     output = Base.typename(T).wrapper(field_vals...)

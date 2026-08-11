@@ -71,8 +71,8 @@ A font style value consisting of a file path and a point size.
 """
 # A value-document: `filename`/`size` are immutable by default; the selection is
 # typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a
-# config cell). `CRStyleFont` gives a reactive, selectable, editable font.
-@document ImmutableCell [CD] struct StyleFont
+# config cell). `RCStyleFont` gives a reactive, selectable, editable font.
+@document ImmutableCell [DC] struct StyleFont
     filename::String
     size::Int
     selection::Nothing

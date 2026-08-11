@@ -74,9 +74,9 @@ end
 end
 
 # ── The bare name: one schema per binding ─────────────────────────────────
-# `CD` binds it to the concrete default spelling, which is what a value document
+# `DC` binds it to the concrete default spelling, which is what a value document
 # stored by value in a configuration cell wants.
-@document ImmutableCell [CD] struct DmValue
+@document ImmutableCell [DC] struct DmValue
     a::Int
     b::Int = 7
     selection::ImmutableCell{Nothing}
@@ -158,16 +158,16 @@ end
 end
 
 @testset "the kind aliases and their typed ctors are emitted" begin
-    @test CRDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell}
+    @test RCDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell}
 
     # The typed kind ctors take the *full* arity — `selection` included. They are
     # the machinery's constructors (copy_document builds through them), not sugar,
     # so they fill nothing in: Rule Y is emitted for the bare name only.
-    @test CIDmRuleY(1, 2, "z", true, nothing) isa CIDmRuleY
-    @test CMDmRuleY(1, 2, "z", true, nothing) isa CMDmRuleY
-    @test CIDmRuleY(1, 2, "z", true, nothing).a == 1
+    @test ICDmRuleY(1, 2, "z", true, nothing) isa ICDmRuleY
+    @test MCDmRuleY(1, 2, "z", true, nothing) isa MCDmRuleY
+    @test ICDmRuleY(1, 2, "z", true, nothing).a == 1
     # The kind aliases do get the keyword ctor, which does fill defaults in.
-    @test CIDmRuleY(a = 1, b = 2).c == "c"
+    @test ICDmRuleY(a = 1, b = 2).c == "c"
 end
 
 @testset "the layout registry answers for every variant" begin
@@ -216,15 +216,15 @@ end
     # `C`, the default. The cell layout keeps the programmer's own name, so `show`
     # and `nameof` are unchanged, and the coded name works beside it.
     @test DmRuleY isa UnionAll
-    @test CDmRuleY === DmRuleY
+    @test ACDmRuleY === DmRuleY
     @test nameof(typeof(DmRuleY(1, 2))) === :DmRuleY
 
-    # `CD`. The bare name is the concrete default spelling, so a field typed with
+    # `DC`. The bare name is the concrete default spelling, so a field typed with
     # it inlines — which is the whole reason a value document asks for this.
-    @test DmValue === CDDmValue
+    @test DmValue === DCDmValue
     @test isconcretetype(DmValue)
     @test isbitstype(DmValue)
-    @test document_cell_type(DmValue(2)) === CDmValue
+    @test document_cell_type(DmValue(2)) === ACDmValue
     # A concrete parameterization has no constructor of its own, so the bare name
     # reaches the cell layout through the forwarding constructor. Rule Y, Rule C
     # and the keyword form all arrive there.
@@ -237,12 +237,12 @@ end
     @test DmNative === MDmNative
     @test !(getfield(DmNative(4), :a) isa AbstractCell)
     @test (n = DmNative(4); n.a = 9; n.a) == 9
-    @test document_cell_type(DmNative(4)) === CDmNative
+    @test document_cell_type(DmNative(4)) === ACDmNative
     # Both layouts still answer one family, and a shadow of the native one is a
     # cell document.
     @test DmNative(4) isa ADmNative
-    @test CDmNative(1, nothing) isa ADmNative
-    @test copy_document(ReactiveCell, DmNative(4)) isa CDmNative
+    @test ACDmNative(1, nothing) isa ADmNative
+    @test copy_document(ReactiveCell, DmNative(4)) isa ACDmNative
 end
 
 @testset "a preset is @document with a fixed layout list" begin

@@ -58,8 +58,8 @@ A color style value with RGBA components normalized to [0, 1].
 # A value-document: the RGBA components are immutable by default and the selection
 # is typed `Nothing`, so the bare form `StyleColor` is **isbits** (4×Float64) — it
 # inlines in config cells and stack-allocates in colour math, exactly like the plain
-# struct did. `CRStyleColor` is a reactive, selectable, editable colour.
-@document ImmutableCell [CD] struct StyleColor
+# struct did. `RCStyleColor` is a reactive, selectable, editable colour.
+@document ImmutableCell [DC] struct StyleColor
     red::Float64
     green::Float64
     blue::Float64

@@ -88,15 +88,19 @@ alongside it.
   |---|---|
   | `Foo` | what the declaration says its bare name is. The cell layout by default. |
   | `AFoo` | the family. Abstract, and it matches every variant. |
-  | `CFoo` | the cell layout, `CFoo{C1<:AbstractCell, …}`, one cell per field. |
+  | `ACFoo` | the cell layout, `ACFoo{C1<:AbstractCell, …}`, one cell per field. |
   | `MFoo` | the mutable native struct. Plain fields, no cell box. |
-  | `CRFoo` / `CIFoo` / `CMFoo` | the cell layout with every field reactive / immutable / mutable. |
-  | `CDFoo` | the cell layout with each field in its declared default kind. |
+  | `RCFoo` / `ICFoo` / `MCFoo` | the cell layout with every field reactive / immutable / mutable. |
+  | `DCFoo` | the cell layout with each field in its declared default kind. |
 
-  The leading `C` keeps a **spelling** apart from a **layout**. `CMFoo` is an
-  immutable struct holding one `MutableCell` box per field; `MFoo` is a single
-  mutable object with its fields inline. Without the letter the two names would
-  read alike, and they are not alike.
+  Every one of them abbreviates a phrase, adjective first: `ACFoo` is the
+  abstract cell `Foo`, `MCFoo` the mutable cell `Foo`, `MFoo` the mutable `Foo`.
+  So a reader who forgets the convention can say the name out and get it back.
+
+  A `C` says the variant keeps its fields in cells, and its absence says the
+  fields are plain. That is the whole of what tells `MCFoo` from `MFoo`: the
+  first is an immutable struct holding one `MutableCell` box per field, the
+  second a single mutable object with its fields inline.
 - **Operations are verb-first phrases with the `Operation` suffix**:
   `ReplaceSelectionOperation`, `OpenWindowOperation`,
   `ReplaceNumberRangeOperation`. Even the null operation is verb-first:
@@ -205,9 +209,9 @@ Two shapes are exempt from the verb-first rule, and only these:
 | `<Verb><Noun>Operation` | executable edit resolved from an intent; flows out of a reader | `CloseWindowOperation` |
 | `<Source><Action>` | event, flows into a reader | `WindowClose` |
 | `A<Document>` | family, matches every variant | `ACellVector` |
-| `C<Document>` | cell layout | `CCellVector` |
+| `AC<Document>` | cell layout | `ACCellVector` |
 | `M<Document>` | mutable native struct | `MCellVector` |
-| `CI<Document>` | cell layout, every field immutable | `CICellVector` |
+| `IC<Document>` | cell layout, every field immutable | `ICCellVector` |
 | `<Event>Pattern` | gesture pattern | `KeyDownPattern` |
 | `get_<stem>` / `set_<stem>!` | getter / setter | `get_selection` |
 | `with_<stem>` | derived copy | `with_property` |

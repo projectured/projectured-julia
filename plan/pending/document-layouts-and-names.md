@@ -89,20 +89,29 @@ The words below are the only words the code uses for these things.
 
 Part 2 comes first because the rest of the plan uses its names.
 
-`@document struct Stem … end` emits this system. A name is built from a layout
-letter, then a kind letter, then the schema name.
+`@document struct Stem … end` emits this system. **Every name abbreviates a
+phrase, adjective first**, so a reader who forgets the convention can say the name
+out and get it back.
 
-| Name | What it is |
-| --- | --- |
-| `AStem` | the family. Abstract. It matches every variant. |
-| `IStem` | the immutable native struct. Plain `struct`, value fields. |
-| `MStem` | the mutable native struct. Plain `mutable struct`, value fields. |
-| `CStem` | the cell layout. `CStem{C1<:AbstractCell, …}`, one cell per field. |
-| `CIStem` | `CStem{ImmutableCell{T}, …}` |
-| `CMStem` | `CStem{MutableCell{T}, …}` |
-| `CRStem` | `CStem{ReactiveCell{Any}, …}` |
-| `CDStem` | `CStem{per-field default}` |
-| `Stem` | **what the declaration says its bare name is.** The cell layout by default. |
+| Name | Reads as | What it is |
+| --- | --- | --- |
+| `AStem` | AbstractStem | the family. Abstract. It matches every variant. |
+| `IStem` | ImmutableStem | the immutable native struct. Plain `struct`, value fields. |
+| `MStem` | MutableStem | the mutable native struct. Plain `mutable struct`, value fields. |
+| `ACStem` | AbstractCellStem | the cell layout. `ACStem{C1<:AbstractCell, …}`, one cell per field. |
+| `ICStem` | ImmutableCellStem | `ACStem{ImmutableCell{T}, …}` |
+| `MCStem` | MutableCellStem | `ACStem{MutableCell{T}, …}` |
+| `RCStem` | ReactiveCellStem | `ACStem{ReactiveCell{Any}, …}` |
+| `DCStem` | DefaultCellStem | `ACStem{per-field default}` |
+| `Stem` | — | **what the declaration says its bare name is.** The cell layout by default. |
+
+A `C` says the variant keeps its fields in cells; its absence says the fields are
+plain. That is the whole of what tells `MCStem` from `MStem`.
+
+The cell layout carries an `A` because it **is** abstract: `ACStem` is a UnionAll
+with no instances of its own, and every spelling is one of its parameterizations.
+`AStem` is abstract over every variant, `ACStem` over the cell ones, and the two
+`A`s mean the same thing.
 
 ## How Part 2 lands, in four steps
 
@@ -113,15 +122,39 @@ first.
 
 | Step | What moves | Sites | State |
 | --- | --- | --- | --- |
-| 2a | `RStem`/`IStem`/`MStem` → `CRStem`/`CIStem`/`CMStem` | 19 | **DONE** |
+| 2a | `RStem`/`IStem`/`MStem` → `RCStem`/`ICStem`/`MCStem` | 19 | **DONE** |
 | 2b | `AbstractStem` → `AStem` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | 2c | `StemMut` → `MStem` | 17, all of them tests and prose | **DONE** |
-| 2d | `DStem` → `CDStem` | 480 | **DONE** |
-| 2f | the bare-name binding rule, the `CD` code, `const CStem = Stem` | 0 here | **DONE** |
-| 2e | the three style schemas take `[CD]`; their sites lose the `CD` | 479 | **DONE** |
+| 2d | `DStem` → `DCStem` | 480 | **DONE** |
+| 2f | the bare-name binding rule, the `DC` code, `const ACStem = Stem` | 0 here | **DONE** |
+| 2e | the three style schemas take `[DC]`; their sites lose the `DC` | 479 | **DONE** |
+| 2g | every name reads as a phrase: `C…` → `…C`, and the cell layout gains its `A` | 28 | **DONE** |
+
+**2g.** The scheme had the family adjective-first (`AStem`) and a spelling
+layout-first (`CIStem`), and `CIStem` expanded to no English at all. Now every
+name is an abbreviation read adjective-first, so a reader can say it out and get
+it back. The cell layout gained an `A` because it is a UnionAll with no instances
+of its own — it really is abstract, and the `A` on it means what the `A` on
+`AStem` means.
+
+One thing gets slightly worse and was accepted: `MStem` and `MCStem` now share a
+first letter, where `MStem` and `CMStem` differed at position 1. The trade is a
+difference you can *say* — "mutable stem" against "mutable cell stem" — for one
+you could only see.
+
+Two traps, both caught by the suites rather than by reading:
+
+1. The layout **code** `CD` had to move to `DC` with the name it binds, and the
+   binding branch still tested `binding === :CD`. It silently fell through to the
+   native target, so a `[DC]` schema tried to bind its bare name to an `MStem`
+   that it never emits.
+2. The docname list that drives every sweep was built by a regex expecting the
+   layout list *before* the field-kind marker. Seven schemas write
+   `@document ImmutableCell [DC] struct …` and were missed — including all three
+   styles. The regex now accepts the two markers in either order.
 
 **2e, and open question 4 answered: no.** Nothing builds a reactive style. The
-names `CRStyleText`, `CRStyleFont` and `CRStyleColor` appear in three comments and
+names `RCStyleText`, `RCStyleFont` and `RCStyleColor` appear in three comments and
 nowhere else, and the only production call that copies with an explicit kind is
 `_pure_snapshot`, which lands on the default spelling. So narrowing the three bare
 names could not lose a caller, and the six suites agree.
@@ -129,42 +162,42 @@ names could not lose a caller, and the six suites agree.
 What it bought, measured after the change:
 
 ```
-StyleText === CDStyleText    : true
+StyleText === DCStyleText    : true
 StyleText isconcretetype     : true     ← a config cell inlines it
 StyleText isbitstype         : false    ← it carries a font String, as it always did
 StyleColor isbitstype        : true
-cell layout is CStyleText    : true
+cell layout is ACStyleText    : true
 snapshot lands on it         : true
 ```
 
 One thing the sweep needed after it. `import ..StyleTextModule: StyleText,
-CDStyleText` collapsed into the same name twice on 36 lines. Julia tolerates it,
+DCStyleText` collapsed into the same name twice on 36 lines. Julia tolerates it,
 but it reads as a mistake, so those lists are deduplicated.
 
 **2f, as built.** `schema` and the cell layout's own type name are now two things
 in the macro. Every coded name is built from `schema`, so a spelling of `Foo` stays
-`CRFoo` and never becomes `CRCFoo`. The cell layout keeps the programmer's name
-under `C` and takes `CFoo` under any other binding, which is what keeps `show` and
+`RCFoo` and never becomes `CRCFoo`. The cell layout keeps the programmer's name
+under `C` and takes `ACFoo` under any other binding, which is what keeps `show` and
 `nameof` unchanged for a schema that does not rebind.
 
 Proved by a fixture per binding in `DocumentMacroTest.jl`:
 
 ```
-C   CDmRuleY === DmRuleY,  nameof(typeof(DmRuleY(1, 2))) === :DmRuleY
-CD  DmValue === CDDmValue, isconcretetype, isbitstype, DmValue(2).b == 7
+C   ACDmRuleY === DmRuleY,  nameof(typeof(DmRuleY(1, 2))) === :DmRuleY
+CD  DmValue === DCDmValue, isconcretetype, isbitstype, DmValue(2).b == 7
 M   DmNative === MDmNative, a field holds no cell, n.a = 9 is a setfield!
 ```
 
 The forwarding constructor was needed exactly where the measurement said. Under
-`CD` the bare name is a concrete parameterization with no constructor of its own,
+`DC` the bare name is a concrete parameterization with no constructor of its own,
 and one catch-all carries Rule Y, Rule C and the keyword form into the cell layout.
 
 `test_kernel()` 1498 → 1515 for seventeen new assertions. The other five suites are
 byte-identical.
 
-**2f moved ahead of 2e.** The `CD` code is a *binding*, so it means nothing until
+**2f moved ahead of 2e.** The `DC` code is a *binding*, so it means nothing until
 the binding rule exists. Adding it in 2d would have made
-`@document [CD] struct …` a code that is accepted and changes nothing, which is
+`@document [DC] struct …` a code that is accepted and changes nothing, which is
 the silent cap this plan warns against. It lands with the rule that gives it a
 meaning, and the styles opt in after that.
 
@@ -178,7 +211,7 @@ no `AStem` and no `MStem` name existed before its rename.
 
 **2a taught one thing.** `_emit_keyword_ctors` builds a keyword constructor per
 alias from its own list of prefixes, so renaming the aliases alone left
-`CIStem(a = 1)` with no method while defining a stray `IStem` function. The two
+`ICStem(a = 1)` with no method while defining a stray `IStem` function. The two
 lists must move together. The representative suite caught it as one error, which
 is why every step runs the set rather than a targeted test.
 
@@ -187,7 +220,7 @@ Three rules make the system regular.
 1. **A coded name is always a real type name.** Every variant has one, and it means
    the same thing in every schema.
 2. **`AStem` is the dispatch type.** It is strictly better than today's bare
-   `Stem`, which is the UnionAll `CStem{C1,…}` and matches every cell spelling but
+   `Stem`, which is the UnionAll `ACStem{C1,…}` and matches every cell spelling but
    no native layout. `AStem` matches both layouts.
 3. **`Stem` is whatever that schema is used as.** The declaration says so. The
    default is the cell layout, which is what the bare name means today, so a
@@ -201,16 +234,16 @@ cost is paid only by the schema that opts in.
 | First entry | `Stem` means | Fits |
 | --- | --- | --- |
 | `C` — the default | the cell layout UnionAll, exactly as today | every projectured-julia schema |
-| `CD` | the concrete default spelling | a value document, stored by value in a config cell |
+| `DC` | the concrete default spelling | a value document, stored by value in a config cell |
 | `M` | the mutable native struct | a schema whose primary object is the one a simulator mutates |
 
 ```julia
 @document struct JsonString <: JsonDocument      # C   → the UnionAll, unchanged
-@document ImmutableCell [CD] struct StyleText    # CD  → CDStyleText, concrete, inlines
+@document ImmutableCell [DC] struct StyleText    # CD  → DCStyleText, concrete, inlines
 @native_document struct SimulationInstance       # M,C → MSimulationInstance
 ```
 
-### Why `CD` is free for a value document and not for a reactive one
+### Why `DC` is free for a value document and not for a reactive one
 
 `_pure_snapshot` copies a projection's output to the immutable kind
 ([Projection.jl:67](package/kernel/main/projection/Projection.jl#L67)). Whether
@@ -218,13 +251,13 @@ that snapshot is the *same type* as the bare constructor's output decides whethe
 narrowing the bare name can lose a caller. Measured:
 
 ```
-StyleText   DStyleText === CIStyleText : true     snapshot === default form : true
-JsonString  DJsonString === CRJsonString: true    snapshot === default form : false
+StyleText   DCStyleText  === ICStyleText  : true    snapshot === default form : true
+JsonString  DCJsonString === RCJsonString : true    snapshot === default form : false
 ```
 
 For a value document the default spelling **is** the all-immutable spelling, so
 the snapshot lands on it and `::StyleText` keeps matching everything it matched.
-For a reactive schema the snapshot is a different type, so `[CD]` there would
+For a reactive schema the snapshot is a different type, so `[DC]` there would
 narrow `::JsonString` away from it. That is why the styles opt in and JSON does
 not: the UnionAll already means "the reactive form and the snapshots taken from
 it", and a JSON field is typed `Document` or `JsonDocument` anyway, so
@@ -241,7 +274,7 @@ delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, colo
 
 The comment at [StyleText.jl:28](package/visual/main/style/StyleText.jl#L28) says
 why: "`DStyleText` is concrete and inlines in config cells". A field cannot inline
-a UnionAll, so those sites had to reach past the bare name. With `[CD]` they write
+a UnionAll, so those sites had to reach past the bare name. With `[DC]` they write
 `ImmutableCell{StyleText}` and the `D` prefix leaves the source.
 
 ## What the constructor builds
@@ -262,7 +295,7 @@ One catch-all covers Rule Y, Rule C and the keyword form at once, and a
 hand-written `Stem(v::String)` in a domain stays more specific:
 
 ```julia
-(::Type{CDStem})(args...; kw...) = CStem(args...; kw...)
+(::Type{DCStem})(args...; kw...) = ACStem(args...; kw...)
 ```
 
 ## The consequences, and who pays them
@@ -271,7 +304,7 @@ hand-written `Stem(v::String)` in a domain stays more specific:
 | --- | --- |
 | `show` and `nameof` print the coded name | only a schema that rebinds. A `[C]` schema keeps its struct name, so `show` still prints `JsonString{Cell, Cell}`. |
 | `_kind_of` must label from the family | only if a rebinding schema is reflected. Do it when one is. |
-| `::Stem` narrows | only a rebinding schema, and for `[CD]` on a value document the measurement above says nothing narrows. |
+| `::Stem` narrows | only a rebinding schema, and for `[DC]` on a value document the measurement above says nothing narrows. |
 | An import must gain a name | only where a rebinding schema is imported selectively and annotated. |
 | `get_reference_node_type` | unchanged. It stays `document_cell_type`, which already crosses layouts. |
 
@@ -288,7 +321,7 @@ measured on this checkout, then reverted:
 | `get_reference_node_type` → `document_family` | forced, in the same commit |
 
 Two traps came out of it. A field declaration must not be swept — `left::EvalLeaf`
-widened to `::AEvalLeaf` makes `CIStem`/`CMStem` hold an abstract type, so nothing
+widened to `::AEvalLeaf` makes `ICStem`/`MCStem` hold an abstract type, so nothing
 inlines and a value document stops being isbits. And a hand-written type that
 shares a document's name must not be swept either; the kernel test's `CellVector`
 stand-in is one.
@@ -332,14 +365,14 @@ entry binds the bare name**, per Rule 3 in Part 2:
 
 | First entry | `Stem` binds to |
 | --- | --- |
-| `C` — the default | `CStem`, the cell layout UnionAll. Today's meaning. |
-| `CD` | `CDStem`, the concrete default spelling. |
+| `C` — the default | `ACStem`, the cell layout UnionAll. Today's meaning. |
+| `DC` | `DCStem`, the concrete default spelling. |
 | `M` | `MStem`, the mutable native struct. |
 | `I` | `IStem`, the immutable native struct. Not emitted yet. |
 
-`CD` is a *binding*, not a fourth layout: it emits nothing that `C` does not
-already emit, and only says which name the bare one points at. So `[CD]` and
-`[CD, M]` still emit the cell layout, and `[CD]` is `[C]` with the bare name moved
+`DC` is a *binding*, not a fourth layout: it emits nothing that `C` does not
+already emit, and only says which name the bare one points at. So `[DC]` and
+`[CD, M]` still emit the cell layout, and `[DC]` is `[C]` with the bare name moved
 one step in.
 
 The existing field-kind marker keeps its place and comes first when both appear.
@@ -350,8 +383,8 @@ It does not select a layout. One word must not carry two meanings.
 | Emission | Rule |
 | --- | --- |
 | `AStem` | always. Two layouts must share a family. |
-| `IStem`, `MStem`, `CStem` | opt in. Each is a real struct with constructors. |
-| `CIStem`, `CMStem`, `CRStem`, `CDStem` | come with `C`, never listed. A `const` costs nothing. |
+| `IStem`, `MStem`, `ACStem` | opt in. Each is a real struct with constructors. |
+| `ICStem`, `MCStem`, `RCStem`, `DCStem` | come with `C`, never listed. A `const` costs nothing. |
 
 A list with no `C` is allowed, for a document nothing ever observes.
 `document_cell_type` then returns `nothing`, and `sync_document!` must say so
@@ -400,8 +433,8 @@ a field-kind marker still reaches it: `@native_document ImmutableCell struct …
 
 | Preset | List | Bare name | Who uses it |
 | --- | --- | --- | --- |
-| `@document` | `[C, M]` today, `[C]` once the native emission is dropped | `CStem` | projectured-julia, 432 schemas |
-| written out, `[CD]` | `[CD]` | `CDStem` | the three value documents: `StyleText`, `StyleFont`, `StyleColor` |
+| `@document` | `[C, M]` today, `[C]` once the native emission is dropped | `ACStem` | projectured-julia, 432 schemas |
+| written out, `[DC]` | `[DC]` | `DCStem` | the three value documents: `StyleText`, `StyleFont`, `StyleColor` |
 | `@native_document` | `[M, C]` | `MStem` | omnetpp-julia, 127 schemas |
 
 `I`, the immutable native struct, has no caller yet. Do not emit it until one asks.
@@ -420,7 +453,7 @@ per layout.
 
 ```julia
 document_family(::Type{<:AStem})      = AStem     # exists today
-document_cell_type(::Type{<:AStem})   = CStem     # nothing when C is not emitted
+document_cell_type(::Type{<:AStem})   = ACStem     # nothing when C is not emitted
 document_native_type(::Type{<:AStem}) = MStem     # nothing when M is not emitted
 ```
 
@@ -603,11 +636,11 @@ in projectured-julia those are three.
 
 | Rewrite | Sites | State |
 | --- | --- | --- |
-| `RDocName` / `IDocName` / `MDocName` → `CRDocName` / `CIDocName` / `CMDocName` | 19 | **DONE** |
+| `RDocName` / `IDocName` / `MDocName` → `RCDocName` / `ICDocName` / `MCDocName` | 19 | **DONE** |
 | `AbstractDocName` → `ADocName` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | `DocNameMut` → `MDocName` | 17 | **DONE** |
-| `DDocName` → `CDDocName` | 480, of which 455 are `DStyleText` | **DONE** |
-| the three styles take `[CD]`; their sites drop the `CD` | the same 479 | **DONE** |
+| `DDocName` → `DCDocName` | 480, of which 455 are `DStyleText` | **DONE** |
+| the three styles take `[DC]`; their sites drop the `DC` | the same 479 | **DONE** |
 | `::StyleText` / `::StyleFont` / `::StyleColor` annotations | 371, inspected, none rewritten | **DONE** |
 
 The last row was the only place narrowing could bite, and it did not. 267 of the
@@ -638,12 +671,12 @@ belongs to one side of the sync, and the new names let it say which:
 - **User-interface side** — gains a `C`. A projection's printer must be typed to
   the cell layout, because its cells read fields and have to register a
   dependency. `print_document(p, recursion, instance::SimulationInstance, ctx)`
-  becomes `instance::CSimulationInstance`, and the body does not change.
+  becomes `instance::ACSimulationInstance`, and the body does not change.
 
 That type is load-bearing, not decoration. A printer that accepted the native
 struct would run `set_cell_function!(w, () -> instance.prepared)` against a plain
 field, register no dependency, and paint once and never again. Typing it
-`CSimulationInstance` makes that a method error instead of a silent freeze.
+`ACSimulationInstance` makes that a method error instead of a silent freeze.
 
 Nothing about syncing changes. It is one generic call and stays one
 ([SimulatorMonitor.jl:21-25](../omnetpp-julia/package/simulator/main/src/telemetry/SimulatorMonitor.jl#L21-L25)):
@@ -665,7 +698,7 @@ rename also rewrites `"AbstractFoo.jl"` inside an `include` call and inside a
 documentation link. Exclude string literals, then read the diff for every `.jl`
 and `.md` token that moved.
 
-Check for a collision before each sweep. A coded name such as `AStem` or `CStem`
+Check for a collision before each sweep. A coded name such as `AStem` or `ACStem`
 must not already name something else in the same module.
 
 ---
@@ -710,7 +743,7 @@ A value-document opts in, once, and then reads as what it is.
     selection::Nothing
 end
 # after
-@document ImmutableCell [CD] struct StyleText
+@document ImmutableCell [DC] struct StyleText
     font::StyleFont
     color::StyleColor
     selection::Nothing
@@ -766,7 +799,7 @@ SequentialSimulator(n_modules::Int) = SequentialSimulatorMut(_initial_sim_fields
 reactive_simulator(n_modules::Int)  = SequentialSimulator(_initial_sim_fields(n_modules)...)
 # after
 SequentialSimulator(n_modules::Int) = MSequentialSimulator(_initial_sim_fields(n_modules)...)
-reactive_simulator(n_modules::Int)  = CSequentialSimulator(_initial_sim_fields(n_modules)...)
+reactive_simulator(n_modules::Int)  = ACSequentialSimulator(_initial_sim_fields(n_modules)...)
 ```
 
 An export list shortens.
@@ -776,8 +809,8 @@ An export list shortens.
 export TicTocMessage1, TicTocMessage1Mut, AbstractTicTocMessage1,
        TicTocMessage2, TicTocMessage2Mut, AbstractTicTocMessage2, dup
 # after
-export TicTocMessage1, CTicTocMessage1, ATicTocMessage1,
-       TicTocMessage2, CTicTocMessage2, ATicTocMessage2, dup
+export TicTocMessage1, ACTicTocMessage1, ATicTocMessage1,
+       TicTocMessage2, ACTicTocMessage2, ATicTocMessage2, dup
 ```
 
 ### The two sides of the sync, said in the signatures
@@ -817,14 +850,14 @@ end
 # after — the bare name is the native struct, so the printer says C to keep
 # meaning what it meant.
 function print_document(p::SimulationInstanceToWidget, recursion,
-                        instance::CSimulationInstance, ctx)
+                        instance::ACSimulationInstance, ctx)
     ...unchanged body...
 end
 ```
 
 That type is load-bearing. A printer that accepted the native struct would run
 `set_cell_function!(w, () -> instance.prepared)` against a plain field, register
-no dependency, and paint once and never again. Typing it `CSimulationInstance`
+no dependency, and paint once and never again. Typing it `ACSimulationInstance`
 turns a silent freeze into a method error.
 
 ---
@@ -883,9 +916,9 @@ These are not sealed and need no permission:
 | 1 | Part 1.1 to 1.5, the layout registry. Renames nothing. | **DONE** |
 | 2 | Part 3, the layout list and `@document_preset`. Default keeps today's emission. | **DONE** |
 | 3 | Part 2, steps 2a to 2c, the coded names for the spellings, the family and the native layout. | **DONE** |
-| 4 | Step 2d, `DStem` → `CDStem` and the `CD` code. | |
-| 5 | Step 2e, the three styles take `[CD]`; their 476 sites drop the prefix. | |
-| 6 | Step 2f, the bare-name binding rule and `const CStem = Stem`. Unexercised here. | |
+| 4 | Step 2d, `DStem` → `DCStem` and the `DC` code. | |
+| 5 | Step 2e, the three styles take `[DC]`; their 476 sites drop the prefix. | |
+| 6 | Step 2f, the bare-name binding rule and `const ACStem = Stem`. Unexercised here. | |
 | 7 | Part 4.2, omnetpp-julia. This is where 2f is proved. | |
 | 8 | inet-julia. | |
 
@@ -903,12 +936,12 @@ The baseline the set holds at: kernel 1498/3/2, base 387, visual 52659 pass with
    today. Do not emit it until one asks.
 2. Should `copy_document(MutableCell, doc)` really pick the native layout, or
    should the caller pass a layout beside the kind? The first is terse. The second
-   is explicit and cannot surprise a caller who wants `CMStem`.
+   is explicit and cannot surprise a caller who wants `MCStem`.
 3. Is `AStem` right, against the Julia idiom `AbstractStem`? `AStem` is regular
    with the other seven names. `AbstractStem` is what a Julia reader expects. The
    decision is `AStem`, for one system over one idiom.
 4. Does anything call `copy_document(ReactiveCell, ·)` on a style? That is the one
-   route by which a non-default spelling of the three `[CD]` schemas could reach a
+   route by which a non-default spelling of the three `[DC]` schemas could reach a
    `::StyleText` signature. Check it in step 5.
 5. Should `@document`'s default list drop `M`? Every projectured schema emits a
    native struct that nothing uses. It costs about 1.4 s of precompile and 107 KB
