@@ -36,7 +36,7 @@ import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
 import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap
@@ -63,7 +63,7 @@ export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode,
 # `@projection_template` leaf (no `bound`): the engine wires ∅↔∅ and nothing else.
 
 @projection struct BookInsertionToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template BookInsertionToSyntaxLeaf BookInsertion (prj, doc) ->
@@ -90,9 +90,9 @@ end
 # Titles use a proportional (sans) font, distinct from the monospace body, and a
 # larger size; the author line is italic.
 @projection struct BookBookToSyntaxNode
-    title::ImmutableCell{DStyleText}        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
-    author_prefix::ImmutableCell{DStyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    author::ImmutableCell{DStyleText}       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
+    title::ImmutableCell{CDStyleText}        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
+    author_prefix::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    author::ImmutableCell{CDStyleText}       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
 end
 
 
@@ -265,10 +265,10 @@ end
 # into the same leaf. A `bound(:field)`/KeySlot binds a single field with no offset.
 
 @projection struct BookChapterToSyntaxNode
-    title::ImmutableCell{DStyleText} = StyleText(font_ubuntu_bold_24, color_solarized_blue)
+    title::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_bold_24, color_solarized_blue)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::ImmutableCell{DStyleText} = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
+    numbering::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
 end
 
 
@@ -438,9 +438,9 @@ end
 # Selection forward:  .content → .value
 
 @projection struct BookParagraphToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    placeholder::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # A single bound leaf (like XmlTextToSyntaxLeaf / MarkdownTextToSyntaxLeaf): the
@@ -472,7 +472,7 @@ end
 # builds a node from x's *fields* — neither expresses "wrap the whole element".
 
 @projection struct BookListToSyntaxNode
-    bullet::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    bullet::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
     indentation::Int = 2
 end
 
@@ -572,8 +572,8 @@ end
 # placeholder. Written as an `@projection_template` fixed-children node.
 
 @projection struct BookPictureToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
-    placeholder::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    placeholder::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # The value span for a picture's content: when the content is a path to an image

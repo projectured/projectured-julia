@@ -273,9 +273,9 @@ rename as an API migration, not a local refactor.
 
 **A field's declared type must admit every value the field can hold.** The
 annotation is preserved verbatim into the generated immutable snapshot
-(`IFoo`), where it becomes enforced. If a field can ever hold `nothing` as an
+(`CIFoo`), where it becomes enforced. If a field can ever hold `nothing` as an
 empty sentinel, annotate it `Union{…, Nothing}`; a dishonest annotation stays
-silent until the first `snapshot`/`IFoo(foo)` throws. Type honestly for
+silent until the first `snapshot`/`CIFoo(foo)` throws. Type honestly for
 *representability*, not just for the well-formed case: a field that is too
 tight silently forecloses an *intermediate* state the user's mental model
 passes through on the way between two valid ones (product requirement

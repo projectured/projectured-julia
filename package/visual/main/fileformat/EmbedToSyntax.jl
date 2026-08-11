@@ -53,7 +53,7 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString, TextBlock
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_solarized_gray
 import ..GeometryModule: Point2D
@@ -105,7 +105,7 @@ has no place for one. `card_width` is the card's width where no parent
 allocates one.
 """
 @projection struct ReferenceStubToSyntax
-    style::ImmutableCell{DStyleText} =
+    style::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     unforced::Symbol = :syntax
     wrap::Symbol = :none
@@ -165,7 +165,7 @@ is written in, and `wrap` frames the content, as for
 [`ReferenceStubToSyntax`](@ref).
 """
 @projection struct FileDocumentToSyntax
-    style::ImmutableCell{DStyleText} =
+    style::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     unforced::Symbol = :syntax
     wrap::Symbol = :none

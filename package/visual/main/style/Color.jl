@@ -56,7 +56,7 @@ export StyleColor, make_style_color,
 A color style value with RGBA components normalized to [0, 1].
 """
 # A value-document: the RGBA components are immutable by default and the selection
-# is typed `Nothing`, so the bare form `DStyleColor` is **isbits** (4×Float64) — it
+# is typed `Nothing`, so the bare form `CDStyleColor` is **isbits** (4×Float64) — it
 # inlines in config cells and stack-allocates in colour math, exactly like the plain
 # struct did. `CRStyleColor` is a reactive, selectable, editable colour.
 @document ImmutableCell struct StyleColor

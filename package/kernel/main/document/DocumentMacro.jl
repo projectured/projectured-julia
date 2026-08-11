@@ -147,7 +147,7 @@ _emit_accessors(plan) = (
 """
     _emit_kind_aliases(plan, arg_names) -> Vector
 
-The spelling aliases `CRFoo` / `CIFoo` / `CMFoo` / `DFoo`, the value-accepting
+The spelling aliases `CRFoo` / `CIFoo` / `CMFoo` / `CDFoo`, the value-accepting
 typed constructors `CIFoo(…)` / `CMFoo(…)`, and the `_declared_value_types` method
 `copy_document(K, …)` reads a field's declared type from.
 
@@ -155,10 +155,9 @@ A spelling is one concrete parameter list of the **cell** layout, which is what
 the leading `C` says. That letter is what keeps a spelling apart from a layout:
 `CMFoo` is an immutable struct holding one `MutableCell` box per field, while
 `MFoo` — the mutable native layout — is a single mutable object with its fields
-inline. The two used to be spelled `MFoo` and `MFoo`, which read alike and are
-not alike.
+inline. Without the `C` the two names would read alike, and they are not alike.
 
-`DFoo` is the concrete type the **bare** constructor builds (the per-field default
+`CDFoo` is the concrete type the **bare** constructor builds (the per-field default
 combination); `CRFoo` / `CIFoo` / `CMFoo` wrap every field in one kind's *typed*
 cells, so a fully-conforming node inhabits its alias.
 """
@@ -166,14 +165,14 @@ function _emit_kind_aliases(plan, arg_names; default::Symbol = :reactive)
     n     = length(plan.field_names)
     Tvals = cell_struct_value_types(plan)
     kinds = cell_struct_field_kinds(plan; default = default)
-    r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("CR", "CI", "CM", "D"))
+    r_name, i_name, m_name, d_name = (Symbol(p, plan.name) for p in ("CR", "CI", "CM", "CD"))
 
     alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
-    # `DFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
+    # `CDFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
     # builds — each field in its default kind (`ReactiveCell{Any}`, or the struct
     # default from a leading macro kind). For a value-document (immutable default,
-    # `selection::ImmutableCell{Nothing}`) it is isbits, so `ImmutableCell{DFoo}`
-    # inlines. `RFoo`/`IFoo`/`MFoo` instead force one kind across every field.
+    # `selection::ImmutableCell{Nothing}`) it is isbits, so `ImmutableCell{CDFoo}`
+    # inlines. `CRFoo`/`CIFoo`/`CMFoo` instead force one kind across every field.
     aliases = [
         alias(r_name, fill(_REACTIVE_ANY, n)),
         alias(i_name, [Expr(:curly, ImmutableCell, T) for T in Tvals]),
@@ -306,7 +305,7 @@ The **mutable-layout** struct: a real `mutable struct native <: family` whose
 fields hold the declared **value** types *directly* — no `MutableCell` box — so an
 all-mutable document (`MFoo`) is byte-for-byte a plain `mutable struct`
 (`getproperty`/`setproperty!` are the default `getfield`/`setfield!`). The value
-types resolve here exactly as they already do in the `IFoo` / `MFoo` aliases, so
+types resolve here exactly as they already do in the `CIFoo` / `CMFoo` aliases, so
 this introduces no new forward reference.
 """
 function _emit_native_mutable(plan, family, native)
@@ -358,9 +357,9 @@ From the declared fields the macro generates the **kind-parameterized stem**:
    `Cell`), so the bare name builds the **reactive kind** with the plain
    untyped-cell semantics. Passing cells (of any kind, even mixed) stores them as-is.
 
-3. **Kind aliases** — `RFoo` (all fields `ReactiveCell{Any}`, what the bare ctor
-   builds), `IFoo` (`ImmutableCell{declared-type}`), `MFoo`
-   (`MutableCell{declared-type}`), plus value-accepting ctors `IFoo(args…)` /
+3. **Spelling aliases** — `CRFoo` (all fields `ReactiveCell{Any}`, what the bare
+   ctor builds), `CIFoo` (`ImmutableCell{declared-type}`), `CMFoo`
+   (`MutableCell{declared-type}`), plus value-accepting ctors `CIFoo(args…)` /
    `MFoo(args…)` that wrap raw values in their kind's typed cells. Convert a
    whole subtree between kinds with [`copy_document`](@ref)`(K, doc)`.
 
@@ -368,7 +367,7 @@ Fields may carry `@kwdef`-style defaults (`field::T = value`). The injected
 `selection` is always one, so Rule Y and Rule C below always apply; the keyword
 constructors are the exception and need a default you declared yourself.
 
-4. **Keyword constructors** for `Foo`, `IFoo` and `MFoo` — fields with a default
+4. **Keyword constructors** for `Foo`, `CIFoo` and `CMFoo` — fields with a default
    are optional keywords, fields without one are required keywords. Emitted only
    when **you** declared ≥1 default (the injected `selection` does not count), or
    when the struct declares no fields at all.

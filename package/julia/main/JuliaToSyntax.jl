@@ -39,7 +39,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..JuliaInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
@@ -78,7 +78,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
 # variable colour (violet), separate from keywords (magenta), function names
 # (blue, applied by `JuliaCallToSyntaxNode`), literals (green) and operators.
 @projection struct JuliaIdentifierToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
 end
 
 @projection_template JuliaIdentifierToSyntaxLeaf JuliaIdentifier (p, v) ->
@@ -87,7 +87,7 @@ end
 # ── JuliaIntegerToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct JuliaIntegerToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JuliaIntegerToSyntaxLeaf JuliaInteger (p, v) ->
@@ -96,7 +96,7 @@ end
 # ── JuliaFloatToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct JuliaFloatToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JuliaFloatToSyntaxLeaf JuliaFloat (p, v) ->
@@ -105,8 +105,8 @@ end
 # ── JuliaStringToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct JuliaStringToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaStringToSyntaxLeaf JuliaString (p, v) ->
@@ -117,7 +117,7 @@ end
 # ── JuliaBoolToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JuliaBoolToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 # Guard the `? :` against a transient non-`Bool` value (a mid-edit `bound` read can clear
@@ -129,7 +129,7 @@ end
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct JuliaNothingToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaNothingToSyntaxLeaf JuliaNothing (p, v) ->
@@ -138,7 +138,7 @@ end
 # ── JuliaSymbolToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct JuliaSymbolToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JuliaSymbolToSyntaxLeaf JuliaSymbol (p, v) ->
@@ -148,8 +148,8 @@ end
 # ── JuliaCharToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JuliaCharToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaCharToSyntaxLeaf JuliaChar (p, v) ->
@@ -195,7 +195,7 @@ _julia_parenthesize(marker, style) =
 # ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaBinaryOpToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaBinaryOpToSyntaxNode JuliaBinaryOp (p, m) ->
@@ -215,7 +215,7 @@ end
 # ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct JuliaUnaryOpToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # A unary operator binds tighter than every binary one, so a binary operand is
@@ -230,9 +230,9 @@ end
 # ── JuliaCallToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JuliaCallToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     # A call's function name is coloured distinctly from a plain variable.
-    callee::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    callee::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 # F1 (nested `(args)` sub-node) + F3 (callee override): a bare identifier callee is
@@ -251,8 +251,8 @@ end
 # each projected via its own type dispatch.
 
 @projection struct JuliaMacroCallToSyntaxNode
-    name_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    sep_style::ImmutableCell{DStyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    name_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    sep_style::ImmutableCell{CDStyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaMacroCallToSyntaxNode JuliaMacroCall (p, m) ->
@@ -267,7 +267,7 @@ end
 # assignment. Keyword uses the JuliaKeyword palette color (magenta).
 
 @projection struct JuliaConstToSyntaxNode
-    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaConstToSyntaxNode JuliaConst (p, c) ->
@@ -284,8 +284,8 @@ end
 # triple-quote fences and the subject land on their own lines.
 
 @projection struct JuliaDocstringToSyntaxNode
-    doc_style::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    fence_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    doc_style::ImmutableCell{CDStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    fence_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaDocstringToSyntaxNode JuliaDocstring (p, d) ->
@@ -299,8 +299,8 @@ end
 # ── JuliaAbstractTypeToSyntaxNode ──────────────────────────────────────────
 
 @projection struct JuliaAbstractTypeToSyntaxNode
-    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    sep_style::ImmutableCell{CDStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaAbstractTypeToSyntaxNode JuliaAbstractType (p, a) ->
@@ -313,8 +313,8 @@ end
 # ── JuliaStructToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct JuliaStructToSyntaxNode
-    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    sep_style::ImmutableCell{CDStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaStructToSyntaxNode JuliaStruct (p, s) ->
@@ -336,9 +336,9 @@ end
 # neither node writes a newline before `end`.
 
 @projection struct JuliaModuleDefToSyntaxNode
-    keyword_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    name_style::ImmutableCell{DStyleText}    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    sep_style::ImmutableCell{DStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    name_style::ImmutableCell{CDStyleText}    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    sep_style::ImmutableCell{CDStyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaModuleDefToSyntaxNode JuliaModuleDef (p, m) ->
@@ -354,7 +354,7 @@ end
 # ── JuliaSubtypeToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaSubtypeToSyntaxNode
-    op_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    op_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 # `A <: B`, and `<:B` for the anonymous bound — where there is nothing on the
@@ -369,7 +369,7 @@ end
 # ── JuliaCurlyToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct JuliaCurlyToSyntaxNode
-    brace_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    brace_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaCurlyToSyntaxNode JuliaCurly (p, c) ->
@@ -384,7 +384,7 @@ end
 # ── JuliaTernaryToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct JuliaTernaryToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaTernaryToSyntaxNode JuliaTernary (p, t) ->
@@ -401,7 +401,7 @@ end
 # ── JuliaIndexToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaIndexToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaIndexToSyntaxNode JuliaIndex (p, x) ->
@@ -414,7 +414,7 @@ end
 # ── JuliaFieldAccessToSyntaxNode ────────────────────────────────────────────
 
 @projection struct JuliaFieldAccessToSyntaxNode
-    dot::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    dot::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaFieldAccessToSyntaxNode JuliaFieldAccess (p, f) ->
@@ -425,7 +425,7 @@ end
 # ── JuliaTupleToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaTupleToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaTupleToSyntaxNode JuliaTuple (p, t) ->
@@ -437,7 +437,7 @@ end
 # ── JuliaArrayToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaArrayToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaArrayToSyntaxNode JuliaArray (p, a) ->
@@ -449,7 +449,7 @@ end
 # ── JuliaRangeToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaRangeToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # F2: the child list depends on the optional `step` — a reactive marker thunk.
@@ -462,7 +462,7 @@ end
 # ── JuliaTypeAnnotationToSyntaxNode ─────────────────────────────────────────
 
 @projection struct JuliaTypeAnnotationToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaTypeAnnotationToSyntaxNode JuliaTypeAnnotation (p, t) ->
@@ -473,7 +473,7 @@ end
 # The anonymous `::T` form — nothing before the `::`, just the type.
 
 @projection struct JuliaAnonymousTypeAnnotationToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaAnonymousTypeAnnotationToSyntaxNode JuliaAnonymousTypeAnnotation (p, t) ->
@@ -493,7 +493,7 @@ end
 # ── JuliaAssignmentToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct JuliaAssignmentToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 @projection_template JuliaAssignmentToSyntaxNode JuliaAssignment (p, a) ->
@@ -506,7 +506,7 @@ end
 # ── JuliaForIteratorToSyntaxNode ────────────────────────────────────────────
 
 @projection struct JuliaForIteratorToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaForIteratorToSyntaxNode JuliaForIterator (p, it) ->
@@ -519,8 +519,8 @@ end
 # ── JuliaForToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JuliaForToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaForToSyntaxNode JuliaFor (p, f) ->
@@ -533,7 +533,7 @@ end
 # ── JuliaWhileToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaWhileToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaWhileToSyntaxNode JuliaWhile (p, w) ->
@@ -546,7 +546,7 @@ end
 # ── JuliaReturnToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct JuliaReturnToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 # F2: bare `return` vs `return <value>` — a reactive marker thunk on optional `value`.
@@ -560,8 +560,8 @@ end
 # ── JuliaLambdaToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct JuliaLambdaToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    arrow::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    arrow::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
@@ -582,15 +582,15 @@ const _JULIA_DELIM  = StyleText(font_ubuntu_monospace_regular_20, color_solarize
 const _JULIA_KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 
 @projection struct JuliaSplatToSyntaxNode
-    delim::ImmutableCell{DStyleText} = _JULIA_DELIM
+    delim::ImmutableCell{CDStyleText} = _JULIA_DELIM
 end
 
 @projection_template JuliaSplatToSyntaxNode JuliaSplat (p, s) ->
     SyntaxNode([project(:value)]; close=TextString("...", p.delim))
 
 @projection struct JuliaBroadcastToSyntaxNode
-    delim::ImmutableCell{DStyleText}  = _JULIA_DELIM
-    callee::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    delim::ImmutableCell{CDStyleText}  = _JULIA_DELIM
+    callee::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 @projection_template JuliaBroadcastToSyntaxNode JuliaBroadcast (p, b) ->
@@ -604,7 +604,7 @@ end
 # else inside a dollar-brace. The quotes belong to the whole thing, not to the chunks,
 # which is why this is a node and not a leaf.
 @projection struct JuliaStringInterpolationToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JuliaStringInterpolationToSyntaxNode JuliaStringInterpolation (p, s) ->
@@ -614,14 +614,14 @@ end
 
 # A literal run inside an interpolated string: its text, and nothing around it.
 @projection struct JuliaStringChunkToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JuliaStringChunkToSyntaxLeaf JuliaStringChunk (p, c) ->
     SyntaxLeaf(TextString(() -> c.text, p.style))
 
 @projection struct JuliaInterpolationToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JuliaInterpolationToSyntaxNode JuliaInterpolation (p, i) ->
@@ -629,8 +629,8 @@ end
                open=TextString("\$(", p.delim), close=TextString(")", p.delim))
 
 @projection struct JuliaWhereToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
-    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+    keyword::ImmutableCell{CDStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{CDStyleText}   = _JULIA_DELIM
 end
 
 @projection_template JuliaWhereToSyntaxNode JuliaWhere (p, w) ->
@@ -644,8 +644,8 @@ end
 # before the bracket when there is one; `JuliaEmpty` prints nothing, so the
 # untyped form needs no separate rule.
 @projection struct JuliaComprehensionToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
-    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+    keyword::ImmutableCell{CDStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{CDStyleText}   = _JULIA_DELIM
 end
 
 @projection_template JuliaComprehensionToSyntaxNode JuliaComprehension (p, c) ->
@@ -661,7 +661,7 @@ end
                            close=TextString(c.brackets ? "]" : ")", p.delim))])
 
 @projection struct JuliaDoToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
+    keyword::ImmutableCell{CDStyleText} = _JULIA_KEYWORD
 end
 
 # `call do params` … `end`, in the shape every other block-bodied construct
@@ -676,8 +676,8 @@ end
                           SyntaxLeaf(TextString("end", p.keyword)) ])
 
 @projection struct JuliaLetToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _JULIA_KEYWORD
-    delim::ImmutableCell{DStyleText}   = _JULIA_DELIM
+    keyword::ImmutableCell{CDStyleText} = _JULIA_KEYWORD
+    delim::ImmutableCell{CDStyleText}   = _JULIA_DELIM
 end
 
 @projection_template JuliaLetToSyntaxNode JuliaLet (p, l) ->
@@ -688,7 +688,7 @@ end
                           SyntaxLeaf(TextString("end", p.keyword)) ])
 
 @projection struct JuliaNamedTupleToSyntaxNode
-    delim::ImmutableCell{DStyleText} = _JULIA_DELIM
+    delim::ImmutableCell{CDStyleText} = _JULIA_DELIM
 end
 
 @projection_template JuliaNamedTupleToSyntaxNode JuliaNamedTuple (p, n) ->
@@ -700,8 +700,8 @@ end
 # ── JuliaUsingToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaUsingToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    path::ImmutableCell{DStyleText}    = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    path::ImmutableCell{CDStyleText}    = StyleText(font_ubuntu_monospace_regular_20, color_default)
 end
 
 # `using`/`import` keyword (highlighted) followed by the module path leaf. Both
@@ -716,7 +716,7 @@ end
 # ── JuliaBreakToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct JuliaBreakToSyntaxLeaf
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaBreakToSyntaxLeaf JuliaBreak (p, b) ->
@@ -725,7 +725,7 @@ end
 # ── JuliaContinueToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct JuliaContinueToSyntaxLeaf
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaContinueToSyntaxLeaf JuliaContinue (p, c) ->
@@ -734,7 +734,7 @@ end
 # ── JuliaTryToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JuliaTryToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 # F2 + F1: an optional `catch`/`catch <var>`/`finally` child list (reactive marker
@@ -760,7 +760,7 @@ end
 # ── JuliaBeginToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct JuliaBeginToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaBeginToSyntaxNode JuliaBegin (p, b) ->
@@ -781,7 +781,7 @@ end
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────
 
 @projection struct JuliaIfToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 # `if cond … [else …] end`. The template renders every element
@@ -825,8 +825,8 @@ _is_empty_else(x) =
 # ── JuliaFunctionToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct JuliaFunctionToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # The result type prints after the parameter list; `JuliaEmpty` prints nothing,
@@ -851,8 +851,8 @@ end
 # ` where {T, S}` — printed by the clause itself, so a function without one
 # holds a `JuliaEmpty` and prints nothing.
 @projection struct JuliaWhereParametersToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    delim::ImmutableCell{DStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    delim::ImmutableCell{CDStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JuliaWhereParametersToSyntaxNode JuliaWhereParameters (p, w) ->
@@ -862,7 +862,7 @@ end
                sep=TextString(", ", p.delim))
 
 @projection struct JuliaFunctionDeclarationToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
 end
 
 @projection_template JuliaFunctionDeclarationToSyntaxNode JuliaFunctionDeclaration (p, f) ->
@@ -968,7 +968,7 @@ end
 # the leaf text so the printer emits them literally.
 
 @projection struct ReferenceStubToJuliaSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template ReferenceStubToJuliaSyntaxLeaf ReferenceStub (p, s) ->
@@ -980,7 +980,7 @@ _stub_marker_call(stub::ReferenceStub) =
 # ── EmbeddedFileDocumentToJuliaSyntaxLeaf ───────────────────────────────────
 
 @projection struct EmbeddedFileDocumentToJuliaSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template EmbeddedFileDocumentToJuliaSyntaxLeaf FileDocument (p, f) ->

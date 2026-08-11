@@ -39,7 +39,7 @@ import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
                                    bound, project, collection
@@ -67,7 +67,7 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
@@ -78,7 +78,7 @@ end
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct MathVariableToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
 function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -110,7 +110,7 @@ end
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection struct MathBinaryOperationToSyntaxNode
-    op::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    op::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # Selection mapping (School A). The output node's children are
@@ -207,7 +207,7 @@ end
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct MathParenthesizedToSyntaxNode
-    delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # Selection mapping (School A). The single content child is output index 1; the
@@ -275,7 +275,7 @@ end
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct MathAssignmentToSyntaxNode
-    eq::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    eq::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 # Selection mapping (School A). Output children are
@@ -411,7 +411,7 @@ end
 # referent name.
 
 @projection struct MathSymbolToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = _SYMBOL
+    style::ImmutableCell{CDStyleText} = _SYMBOL
 end
 
 @projection_template MathSymbolToSyntaxLeaf MathSymbol (p, doc) ->
@@ -420,7 +420,7 @@ end
 # ── MathTextToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct MathTextToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = _WORD
+    style::ImmutableCell{CDStyleText} = _WORD
 end
 
 @projection_template MathTextToSyntaxLeaf MathText (p, doc) ->
@@ -429,7 +429,7 @@ end
 # ── MathSpaceToSyntaxLeaf ────────────────────────────────────────────────────
 
 @projection struct MathSpaceToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = _CHROME
+    style::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathSpaceToSyntaxLeaf MathSpace (p, doc) ->
@@ -440,7 +440,7 @@ end
 # Juxtaposition prints as its elements with one space between them.
 
 @projection struct MathRowToSyntaxNode
-    style::ImmutableCell{DStyleText} = _CHROME
+    style::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathRowToSyntaxNode MathRow (p, doc) ->
@@ -449,8 +449,8 @@ end
 # ── MathUnaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection struct MathUnaryOperationToSyntaxNode
-    op::ImmutableCell{DStyleText} = _OPERATOR
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    op::ImmutableCell{CDStyleText} = _OPERATOR
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathUnaryOperationToSyntaxNode MathUnaryOperation (p, doc) ->
@@ -466,8 +466,8 @@ end
 # ── MathFractionToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct MathFractionToSyntaxNode
-    op::ImmutableCell{DStyleText} = _OPERATOR
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    op::ImmutableCell{CDStyleText} = _OPERATOR
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathFractionToSyntaxNode MathFraction (p, doc) ->
@@ -482,7 +482,7 @@ end
 # ── MathScriptToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct MathScriptToSyntaxNode
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathScriptToSyntaxNode MathScript (p, doc) ->
@@ -499,8 +499,8 @@ end
 # ── MathRadicalToSyntaxNode ──────────────────────────────────────────────────
 
 @projection struct MathRadicalToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathRadicalToSyntaxNode MathRadical (p, doc) ->
@@ -520,8 +520,8 @@ end
 # ── MathBigOperatorToSyntaxNode ──────────────────────────────────────────────
 
 @projection struct MathBigOperatorToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathBigOperatorToSyntaxNode MathBigOperator (p, doc) ->
@@ -537,7 +537,7 @@ end
 # ── MathDifferentialToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct MathDifferentialToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
+    name::ImmutableCell{CDStyleText} = _NAME
 end
 
 @projection_template MathDifferentialToSyntaxNode MathDifferential (p, doc) ->
@@ -548,9 +548,9 @@ end
 # ── MathDerivativeToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct MathDerivativeToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    op::ImmutableCell{DStyleText} = _OPERATOR
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    op::ImmutableCell{CDStyleText} = _OPERATOR
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 # `d(P)/d(t)`, and `d^2(P)/d(t)^2` for a higher order.
@@ -570,8 +570,8 @@ end
 # ── MathFunctionToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct MathFunctionToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathFunctionToSyntaxNode MathFunction (p, doc) ->
@@ -590,8 +590,8 @@ end
 # ── MathAccentToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct MathAccentToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathAccentToSyntaxNode MathAccent (p, doc) ->
@@ -606,8 +606,8 @@ end
 # structure survives the one-line form.
 
 @projection struct MathMatrixToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathMatrixToSyntaxNode MathMatrix (p, doc) ->
@@ -621,7 +621,7 @@ end
 # ── MathCaseToSyntaxNode / MathCasesToSyntaxNode ─────────────────────────────
 
 @projection struct MathCaseToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _NAME
+    keyword::ImmutableCell{CDStyleText} = _NAME
 end
 
 @projection_template MathCaseToSyntaxNode MathCase (p, doc) ->
@@ -637,8 +637,8 @@ end
     end)
 
 @projection struct MathCasesToSyntaxNode
-    name::ImmutableCell{DStyleText} = _NAME
-    chrome::ImmutableCell{DStyleText} = _CHROME
+    name::ImmutableCell{CDStyleText} = _NAME
+    chrome::ImmutableCell{CDStyleText} = _CHROME
 end
 
 @projection_template MathCasesToSyntaxNode MathCases (p, doc) ->

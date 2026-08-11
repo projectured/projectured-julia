@@ -110,8 +110,8 @@ worked example:
 
 ```julia
 @document ImmutableCell struct StyleText
-    font::DStyleFont
-    color::DStyleColor
+    font::CDStyleFont
+    color::CDStyleColor
     selection::Nothing
 end
 ```
@@ -138,7 +138,7 @@ name is a UnionAll matching every kind, so `::JsonString` dispatch and
   each with value-accepting and keyword ctors. `RJsonString` names the
   all-reactive combination (`ReactiveCell{Any}` per field) but is a **type alias
   only** — it has no constructor, so build that kind through the bare name.
-  `DJsonString` names the **default combination** the bare `JsonString(…)` ctor
+  `CDJsonString` names the **default combination** the bare `JsonString(…)` ctor
   builds: each field in the kind it declares, which equals `RJsonString` only
   when no field declares one. The macro exports the aliases itself.
 - **Kind conversion** happens through the generic functions, not ctors:
@@ -312,7 +312,7 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for the bare name, the
-`I`-prefixed and `M`-prefixed kinds, and the native `MFoo` layout — but only
+`CI`-prefixed and `CM`-prefixed spellings, and the native `MFoo` layout — but only
 when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free
@@ -327,7 +327,7 @@ struct body, is spelled out in `plan/done/macro-default-field-values.md`.
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 
 The macros wrap *every* declared field in a `Cell` regardless of the type
-annotation. The annotation is what the **typed kinds** enforce: `IFoo` / `MFoo`
+annotation. The annotation is what the **typed spellings** enforce: `CIFoo` / `CMFoo`
 build their cells from it (`ImmutableCell{String}`, …), while the bare reactive
 kind stores every field as `Any`. So the rule is:
 
@@ -336,11 +336,11 @@ kind stores every field as `Any`. So the rule is:
   the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
   number whose text has been fully deleted — the annotation must include it
   (`::Union{Real, Nothing}`). A dishonest annotation stays silent under the bare
-  name and then bites twice: `IFoo(…)` / `MFoo(…)` **throw** on a value the
+  name and then bites twice: `CIFoo(…)` / `CMFoo(…)` **throw** on a value the
   annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
   `copy_document(ImmutableCell, doc)` does *not* throw — it falls back to the
   value's own type, so the copy quietly lands **off** the alias and
-  `copy isa IFoo` is `false`.
+  `copy isa CIFoo` is `false`.
 - The macro takes care of the Cell wrapping for the runtime struct.
 
 The only time you'd annotate `::Cell` directly is when the field really
@@ -375,7 +375,7 @@ machinery, and with it the same three sharp edges:
   immutable struct, so `===` compares it field cell by field cell — but a
   `ReactiveCell` and a `MutableCell` are *mutable* objects, which `===` compares
   by identity. So two separately built `Foo`s (or `MFoo`s) with equal contents
-  are **not** `==`. `IFoo` is immutable the whole way down, stem and cells, so it
+  are **not** `==`. `CIFoo` is immutable the whole way down, stem and cells, so it
   is the one kind that compares structurally. Reference/path types define `==` by
   hand. Code that needs value comparison (e.g. `search_references`) compares the
   unwrapped *leaf values*, not whole documents.

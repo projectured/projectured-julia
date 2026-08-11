@@ -79,7 +79,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_orange, color_solarized_red
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
@@ -154,9 +154,9 @@ end
 # ── ProcessModelToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct ProcessModelToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    name::ImmutableCell{DStyleText}    = _NAME
-    chrome::ImmutableCell{DStyleText}  = _CHROME
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    name::ImmutableCell{CDStyleText}    = _NAME
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
 end
 
 @projection_template ProcessModelToSyntaxNode ProcessModel (p, doc) ->
@@ -180,11 +180,11 @@ end
 # neither still renders its description leaf so there is somewhere to type.
 
 @projection struct ProcessStepToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    text::ImmutableCell{DStyleText}    = _TEXT
-    chrome::ImmutableCell{DStyleText}  = _CHROME
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    text::ImmutableCell{CDStyleText}    = _TEXT
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -215,10 +215,10 @@ end
 # one (the `JuliaIf` precedent, for the same reason).
 
 @projection struct ProcessDecisionToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    chrome::ImmutableCell{DStyleText}  = _CHROME
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -238,10 +238,10 @@ end
 # ── ProcessWhileToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct ProcessWhileToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    chrome::ImmutableCell{DStyleText}  = _CHROME
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -257,10 +257,10 @@ end
 # ── ProcessForeachToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct ProcessForeachToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    chrome::ImmutableCell{DStyleText}  = _CHROME
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -279,9 +279,9 @@ end
 # ── Jumps ────────────────────────────────────────────────────────────────────
 
 @projection struct ProcessBreakToSyntaxLeaf
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -289,9 +289,9 @@ end
     SyntaxLeaf(TextString(() -> "break", _keyword_style(p, doc)))
 
 @projection struct ProcessContinueToSyntaxLeaf
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 
@@ -299,10 +299,10 @@ end
     SyntaxLeaf(TextString(() -> "continue", _keyword_style(p, doc)))
 
 @projection struct ProcessReturnToSyntaxNode
-    keyword::ImmutableCell{DStyleText} = _KEYWORD
-    chrome::ImmutableCell{DStyleText}  = _CHROME
-    current::ImmutableCell{DStyleText}    = _CURRENT
-    breakpoint::ImmutableCell{DStyleText} = _BREAKPOINT
+    keyword::ImmutableCell{CDStyleText} = _KEYWORD
+    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    current::ImmutableCell{CDStyleText}    = _CURRENT
+    breakpoint::ImmutableCell{CDStyleText} = _BREAKPOINT
     session::Any = nothing
 end
 

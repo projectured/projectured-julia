@@ -72,7 +72,7 @@ import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_default, color_solarized_green, color_solarized_violet,
                       color_solarized_gray, color_solarized_magenta, color_solarized_cyan
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project
@@ -94,7 +94,7 @@ export ProcessDiagramToGraph, ProcessDiagramToGraphIoMap,
 # inline both its branches into the box the branches hang off.
 
 @projection struct ProcessStepToSyntaxLabel
-    text::ImmutableCell{DStyleText} =
+    text::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
@@ -115,7 +115,7 @@ end
     end)
 
 @projection struct ProcessDecisionToSyntaxLabel
-    chrome::ImmutableCell{DStyleText} =
+    chrome::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
@@ -125,9 +125,9 @@ end
                                    project(:condition) ])
 
 @projection struct ProcessWhileToSyntaxLabel
-    keyword::ImmutableCell{DStyleText} =
+    keyword::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    chrome::ImmutableCell{DStyleText} =
+    chrome::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
@@ -138,9 +138,9 @@ end
                                    project(:condition) ])
 
 @projection struct ProcessForeachToSyntaxLabel
-    keyword::ImmutableCell{DStyleText} =
+    keyword::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    chrome::ImmutableCell{DStyleText} =
+    chrome::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
@@ -156,7 +156,7 @@ end
     end)
 
 @projection struct ProcessTerminalToSyntaxLabel
-    style::ImmutableCell{DStyleText} =
+    style::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
 end
 
@@ -164,7 +164,7 @@ end
     SyntaxLeaf(TextString(() -> String(doc.kind), p.style))
 
 @projection struct ProcessEdgeLabelToSyntaxLeaf
-    style::ImmutableCell{DStyleText} =
+    style::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 

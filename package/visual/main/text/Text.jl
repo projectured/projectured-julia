@@ -33,8 +33,8 @@ import ..DomainModule
 import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection, clear_selection!, set_selection!
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, DStyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, DStyleColor, color_default, color_solarized_gray
+import ..FontModule: StyleFont, CDStyleFont, font_ubuntu_monospace_regular_20
+import ..ColorModule: StyleColor, CDStyleColor, color_default, color_solarized_gray
 import ..StyleTextModule: StyleText
 import ..GeometryModule: Inset
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
@@ -137,8 +137,8 @@ reactive — as the conversation editor does for a live commit colour. The remai
 style fields stay reactive (highlighting writes `fill_color`).
 
 - `content::Cell`                         — holds `AbstractString`
-- `font::ImmutableCell{DStyleFont}`        — font specification (immutable by default)
-- `font_color::ImmutableCell{DStyleColor}` — text colour (immutable by default)
+- `font::ImmutableCell{CDStyleFont}`        — font specification (immutable by default)
+- `font_color::ImmutableCell{CDStyleColor}` — text colour (immutable by default)
 - `fill_color::Cell` — holds background fill color or `nothing`
 - `line_color::Cell` — holds border/line color or `nothing`
 - `padding::Cell`    — holds inset/padding value or `nothing`
@@ -148,8 +148,8 @@ refers to the cursor within the span's `content` field:  `.content{k}`
 """
 @document struct TextString <: TextDocument
     content::AbstractString
-    font::ImmutableCell{DStyleFont}
-    font_color::ImmutableCell{DStyleColor}
+    font::ImmutableCell{CDStyleFont}
+    font_color::ImmutableCell{CDStyleColor}
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset

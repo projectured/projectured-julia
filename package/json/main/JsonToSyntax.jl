@@ -17,7 +17,7 @@ import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, Insertion
 import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
@@ -32,7 +32,7 @@ export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, Js
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonNullToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
@@ -51,7 +51,7 @@ JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument)
 # ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonBoolToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
 # `bound` editing can transiently clear the value (the reactive `value` cell is
@@ -66,7 +66,7 @@ end
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonNumberToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
@@ -77,8 +77,8 @@ end
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonStringToSyntaxLeaf
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
@@ -90,8 +90,8 @@ end
 # ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JsonArrayToSyntaxNode
-    delimiter_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delimiter_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
@@ -106,8 +106,8 @@ end
 # than inlining, so a bare `JsonObjectEntry` also projects on its own.
 
 @projection struct JsonObjectEntryToSyntaxNode
-    key_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    key_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    colon_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonObjectEntryToSyntaxNode JsonObjectEntry (prj, e) ->
@@ -123,8 +123,8 @@ end
 # ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct JsonObjectToSyntaxNode
-    delimiter_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delimiter_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    separator_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
@@ -163,8 +163,8 @@ end
 # same quote-then-value-then-quote structure JsonStringToSyntaxLeaf produces.
 
 @projection struct ReferenceStubToJsonSyntaxLeaf
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template ReferenceStubToJsonSyntaxLeaf ReferenceStub (prj, stub) ->
@@ -181,8 +181,8 @@ _stub_marker_body(stub::ReferenceStub) = json_escape(marker_text(stub))
 # form only holds the reference.
 
 @projection struct EmbeddedFileDocumentToJsonSyntaxLeaf
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 @projection_template EmbeddedFileDocumentToJsonSyntaxLeaf FileDocument (prj, file) ->

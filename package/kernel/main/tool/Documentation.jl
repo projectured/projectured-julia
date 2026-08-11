@@ -199,7 +199,7 @@ end
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
 _is_gensym_name(sname::AbstractString) = occursin('#', sname)
 
-# True for the `IFoo` interface type `@document` generates next to each document
+# True for the `CIFoo` interface type `@document` generates next to each document
 # type `Foo` — internal plumbing the caller should not see. Only treats a name as
 # an interface when the sibling `Foo` actually exists in the module, so legitimate
 # I-prefixed names (`Inset`, …) are kept.

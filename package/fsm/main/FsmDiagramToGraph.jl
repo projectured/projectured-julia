@@ -40,7 +40,7 @@ import ..TextModule: TextString, hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_default, color_solarized_green, color_solarized_violet,
                       color_solarized_gray, color_solarized_blue
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
 import ..ProjectionTemplateModule: var"@projection_template", bound, project
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference
@@ -57,7 +57,7 @@ export FsmDiagramToGraph, FsmDiagramToGraphIoMap,
 # repeating it on the label would be noise.
 
 @projection struct FsmStateToSyntaxLabel
-    name::ImmutableCell{DStyleText} =
+    name::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
 end
 
@@ -67,11 +67,11 @@ end
                                  "state", p.name)))
 
 @projection struct FsmTransitionToSyntaxLabel
-    keyword::ImmutableCell{DStyleText} =
+    keyword::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    ref::ImmutableCell{DStyleText} =
+    ref::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
-    chrome::ImmutableCell{DStyleText} =
+    chrome::ImmutableCell{CDStyleText} =
         StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 

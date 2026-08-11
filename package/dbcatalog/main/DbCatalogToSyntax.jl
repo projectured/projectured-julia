@@ -34,7 +34,7 @@ import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_red, color_solarized_green, color_solarized_magenta
-import ..StyleTextModule: StyleText, DStyleText
+import ..StyleTextModule: StyleText, CDStyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -54,7 +54,7 @@ export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaT
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct DbCatalogColumnToSyntaxLeaf
-    style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
@@ -251,7 +251,7 @@ end
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct DbCatalogTableToSyntaxNode
-    name::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    name::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
 end
 
 function print_document(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
@@ -273,7 +273,7 @@ read_intent(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSele
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
 @projection struct DbCatalogSchemaToSyntaxNode
-    name::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    name::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
 function print_document(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
@@ -295,7 +295,7 @@ read_intent(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSel
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
 @projection struct DbCatalogDatabaseToSyntaxNode
-    name::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    name::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 function print_document(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
@@ -317,7 +317,7 @@ read_intent(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceS
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
 @projection struct DbCatalogRdbmsToSyntaxNode
-    name::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    name::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 
 function print_document(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)

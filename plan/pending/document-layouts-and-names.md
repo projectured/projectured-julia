@@ -116,9 +116,15 @@ first.
 | 2a | `RStem`/`IStem`/`MStem` → `CRStem`/`CIStem`/`CMStem` | 19 | **DONE** |
 | 2b | `AbstractStem` → `AStem` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | 2c | `StemMut` → `MStem` | 17, all of them tests and prose | **DONE** |
-| 2d | `DStem` → `CDStem`, and the `CD` layout code | 476 | |
-| 2e | the three style schemas take `[CD]`; their sites lose the `D` | 476 | |
-| 2f | the bare-name binding rule, plus `const CStem = Stem` everywhere | 0 here | |
+| 2d | `DStem` → `CDStem` | 480 | **DONE** |
+| 2f | the bare-name binding rule, the `CD` code, `const CStem = Stem` | 0 here | |
+| 2e | the three style schemas take `[CD]`; their sites lose the `CD` | 476 | |
+
+**2f moved ahead of 2e.** The `CD` code is a *binding*, so it means nothing until
+the binding rule exists. Adding it in 2d would have made
+`@document [CD] struct …` a code that is accepted and changes nothing, which is
+the silent cap this plan warns against. It lands with the rule that gives it a
+meaning, and the styles opt in after that.
 
 Step 2f is what omnetpp-julia uses at every declaration and projectured-julia uses
 nowhere, so it lands here unexercised and is proved in the next repository.
@@ -558,7 +564,7 @@ in projectured-julia those are three.
 | `RDocName` / `IDocName` / `MDocName` → `CRDocName` / `CIDocName` / `CMDocName` | 19 | **DONE** |
 | `AbstractDocName` → `ADocName` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | `DocNameMut` → `MDocName` | 17 | **DONE** |
-| `DDocName` → `CDDocName` | 476, of which 454 are `DStyleText` | |
+| `DDocName` → `CDDocName` | 480, of which 455 are `DStyleText` | **DONE** |
 | the three styles take `[CD]`; their sites drop the `CD` | the same 476 | |
 | `::StyleText` / `::StyleFont` / `::StyleColor` annotations | to inspect, not to rewrite | |
 
