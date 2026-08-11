@@ -16,7 +16,7 @@ module ProjecturedDatabase
 
 using ProjecturedKernel
 
-for _src in (ProjecturedKernel)
+for _src in (ProjecturedKernel,)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
