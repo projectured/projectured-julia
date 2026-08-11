@@ -187,6 +187,11 @@ the editor's `GestureRecognizer`'s job, not the backend's.
 SDL `windowID` to `WindowDocument.id`, used when translating raw SDL
 events into `WindowInput`s. Both are reconciled by
 `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`.
+
+`pending_input` and `pending_motion` are the one-event buffers
+`read_from_devices` needs to collapse a run of pointer motion into its newest
+sample. They live on the backend rather than at module level, so two backends in
+one process never hand each other an event.
 """
 mutable struct SdlBackend <: Backend
     # Multi-window reconciliation state.
@@ -198,6 +203,11 @@ mutable struct SdlBackend <: Backend
     #   debug_dirty    — outline the repainted region in red
     partial_render::Bool
     debug_dirty::Bool
+    # Input coalescing state (see `read_from_devices`):
+    #   pending_input  — the event that arrived behind a held motion, owed next call
+    #   pending_motion — the newest motion sample not yet delivered
+    pending_input::Union{WindowInput, Nothing}
+    pending_motion::Union{WindowInput, Nothing}
 end
 
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
@@ -209,7 +219,8 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
     SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
-               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty)
+               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
+               nothing, nothing)
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -2450,9 +2461,15 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     _detect_display_scale!()
     _PARTIAL_RENDER[] = backend.partial_render
     _DEBUG_DIRTY[]    = backend.debug_dirty
+    # Start with no input owed: a backend that is opened again must not answer
+    # with an event left over from its last life.
+    backend.pending_input = nothing
+    backend.pending_motion = nothing
 end
 
-function BackendModule.quit_backend!(::SdlBackend)
+function BackendModule.quit_backend!(backend::SdlBackend)
+    backend.pending_input = nothing
+    backend.pending_motion = nothing
     SDL_StopTextInput()
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()
@@ -2483,7 +2500,7 @@ backend-agnostic inner event:
 - `SDL_TEXTINPUT`                      → `WindowInput(<id>, KeyPress)`
 - `SDL_MOUSEBUTTONDOWN`                → `WindowInput(<id>, MouseDown)`
 - `SDL_MOUSEBUTTONUP`                  → `WindowInput(<id>, MouseUp)`
-- `SDL_MOUSEMOTION` (btn held)         → `WindowInput(<id>, MouseMove)`
+- `SDL_MOUSEMOTION`                    → `WindowInput(<id>, MouseMove)` (coalesced)
 - `SDL_MOUSEWHEEL`                     → `WindowInput(<id>, MouseScroll)`
 
 `<id>` is the `WindowDocument.id` of the originating window (looked up
@@ -2492,24 +2509,92 @@ id or refers to a window the backend does not track.
 
 The backend emits only raw events; the `MousePress` click is synthesised from
 the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
+
+## Pointer motion is coalesced
+
+A pointer reports its position far more often than a frame can act on one, so a
+poll finds a run of motion events queued. Only the newest of them says where the
+pointer *is*; the older ones say where it was. This call collapses such a run and
+answers with the newest sample, rather than answering with the oldest and
+leaving the newer ones for a later call to discard — which is what made the
+highlight trail the pointer by a frame.
+
+Order is preserved. An event that is not motion ends the run: the held motion is
+answered first and the other event is kept in `backend.pending_input` for the
+next call, so a click never overtakes the motion that led to it.
+
+Idle motion (no button held) is still rate-limited to one sample per
+`_HOVER_MOTION_INTERVAL`. A blocked sample is *held* in
+`backend.pending_motion`, not dropped: a pointer that stops sends nothing more,
+and dropping its last sample would leave the highlight one step behind for as
+long as the pointer rests there. A held sample is answered anyway when another
+event waits behind it, because order outranks the rate limit.
 """
 function BackendModule.read_from_devices(backend::SdlBackend, devices)
+    # What a previous call owes: the event that ended a motion run.
+    if backend.pending_input !== nothing
+        owed = backend.pending_input
+        backend.pending_input = nothing
+        return owed
+    end
+    # The newest motion sample so far — carried over from a call the rate limit
+    # blocked, then overwritten by anything newer this poll finds.
+    motion = backend.pending_motion
+    backend.pending_motion = nothing
+    while true
+        other, newer = _poll_window_input(backend)
+        if newer !== nothing
+            motion = newer                # a newer sample replaces the older one
+            continue
+        end
+        other === nothing && break        # queue empty
+        # An event that is not motion ends the run. Answer the motion first.
+        motion === nothing && return other
+        backend.pending_input = other
+        return motion
+    end
+    motion === nothing && return nothing
+    # A drag (a button held) is never rate-limited: it must track the pointer.
+    if motion.event isa MouseMove && motion.event.buttons == :none
+        now = time()
+        if (now - _LAST_HOVER_MOTION[]) < _HOVER_MOTION_INTERVAL
+            backend.pending_motion = motion       # hold it; answer on a later call
+            return nothing
+        end
+        _LAST_HOVER_MOTION[] = now
+    end
+    motion
+end
+
+"""
+    _poll_window_input(backend) -> (other, motion)
+
+Pop SDL events until one of them surfaces as a `WindowInput`, and answer a pair
+in which exactly one member is non-`nothing`: `motion` for a `MouseMove`,
+`other` for every other input. An SDL event the backend does not surface (a
+window event it ignores, a text input that maps to no key) is skipped here, so
+`(nothing, nothing)` means the queue is empty and nothing else.
+
+This is the whole of the former `read_from_devices` body. It is split out so
+that the caller can run it in a loop and keep only the newest motion.
+"""
+function _poll_window_input(backend::SdlBackend)
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
         t = evt.type
 
         if t == SDL_QUIT
-            return WindowInput(:none, WindowQuit())
+            return (WindowInput(:none, WindowQuit()), nothing)
 
         elseif t == 0x00000200  # SDL_WINDOWEVENT
             # event byte 1 = SDL_WindowEventID
             sub = evt.window.event
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
-                return WindowInput(wid, WindowClose())
+                return (WindowInput(wid, WindowClose()), nothing)
             elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
-                return WindowInput(wid, WindowDefocus())
+                return (WindowInput(wid, WindowDefocus()), nothing)
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1))
@@ -2522,7 +2607,7 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
                     res.width = nw
                     res.height = nh
                 end
-                return WindowInput(wid, WindowResize(nw, nh))
+                return (WindowInput(wid, WindowResize(nw, nh)), nothing)
             end
             # Other window events are not currently surfaced; keep polling.
             continue
@@ -2536,49 +2621,43 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
             # the insertion, the command palette and every other reader that binds
             # it. The editor loop quits on an Escape that nothing handled.
             is_repeat = evt.key.repeat != 0
-            return WindowInput(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat))
+            return (WindowInput(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat)), nothing)
 
         elseif t == 0x00000301  # SDL_KEYUP
             wid = _lookup_window_id(backend, evt.key.windowID)
-            return WindowInput(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod))
+            return (WindowInput(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod)), nothing)
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
             kp = sdl_to_keypress(evt)
             kp === nothing && continue
             wid = _lookup_window_id(backend, evt.text.windowID)
-            return WindowInput(wid, kp)
+            return (WindowInput(wid, kp), nothing)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return WindowInput(wid, MouseDown(button, x, y, mods))
+            return (WindowInput(wid, MouseDown(button, x, y, mods)), nothing)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return WindowInput(wid, MouseUp(button, x, y, mods))
+            return (WindowInput(wid, MouseUp(button, x, y, mods)), nothing)
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
             buttons = _held_button(bstate)
-            # Idle (no-button) motion drives hover features but is rate-limited
-            # so a hover probe does not run on every pixel; drag motion (a
-            # button held) is forwarded unthrottled.
-            if buttons == :none
-                now = time()
-                (now - _LAST_HOVER_MOTION[]) < _HOVER_MOTION_INTERVAL && continue
-                _LAST_HOVER_MOTION[] = now
-            end
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.motion.windowID)
-            return WindowInput(wid,
+            # The motion slot of the pair. The caller keeps only the newest of a
+            # run of these, and applies the rate limit to what it keeps.
+            return (nothing, WindowInput(wid,
                 MouseMove(_to_logical(Int(evt.motion.x)), _to_logical(Int(evt.motion.y)),
-                          buttons, mods))
+                          buttons, mods)))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2589,11 +2668,12 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
             if mods.shift && dx == 0
                 dx, dy = dy, 0
             end
-            return WindowInput(wid,
-                MouseScroll(dx, dy, _to_logical(Int(mx_ref[])), _to_logical(Int(my_ref[])), mods))
+            return (WindowInput(wid,
+                MouseScroll(dx, dy, _to_logical(Int(mx_ref[])), _to_logical(Int(my_ref[])), mods)),
+                nothing)
         end
     end
-    return nothing
+    return (nothing, nothing)
 end
 
 # Map an SDL windowID to the matching WindowDocument.id, or :none when

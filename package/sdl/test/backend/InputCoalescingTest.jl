@@ -1,0 +1,99 @@
+# `read_from_devices` collapses a run of pointer motion into its newest sample.
+# The events are pushed onto the real SDL queue, so what is tested is the path
+# the editor actually runs, not a stand-in for it.
+
+# The SDL bindings, reached through the backend package: this test package
+# depends on `ProjecturedSdl`, not on SDL itself.
+const _SDL = ProjecturedSdl.SimpleDirectMediaLayer.LibSDL2
+
+const _SDL_MOUSEMOTION     = 0x00000400
+const _SDL_MOUSEBUTTONDOWN = 0x00000401
+const _SDL_BUTTON_LEFT     = 0x01
+
+# Write one event of type `T` into an `SDL_Event` blob and push it on the queue.
+function _push_sdl_event!(payload::T) where {T}
+    event = Ref{_SDL.SDL_Event}()
+    GC.@preserve event begin
+        base = Base.unsafe_convert(Ptr{_SDL.SDL_Event}, event)
+        unsafe_store!(convert(Ptr{T}, base), payload)
+        _SDL.SDL_PushEvent(event)
+    end
+end
+
+_push_motion!(x, y) =
+    _push_sdl_event!(_SDL.SDL_MouseMotionEvent(_SDL_MOUSEMOTION, UInt32(0), UInt32(0),
+                                               UInt32(0), UInt32(0),
+                                               Int32(x), Int32(y), Int32(0), Int32(0)))
+
+_push_button_down!(x, y) =
+    _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONDOWN, UInt32(0), UInt32(0),
+                                               UInt32(0), _SDL_BUTTON_LEFT, UInt8(1),
+                                               UInt8(1), UInt8(0), Int32(x), Int32(y)))
+
+# Start from an empty queue and an expired rate limit, so each case sees only
+# what it pushed.
+function _reset_input!()
+    _SDL.SDL_PumpEvents()
+    _SDL.SDL_FlushEvents(UInt32(0), typemax(UInt32))
+    ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0
+end
+
+_logical(v) = ProjecturedSdl._to_logical(Int(v))
+
+function test_input_coalescing()
+@testset "pointer motion is coalesced" begin
+
+    backend = SdlBackend()
+
+    @testset "a run of motion answers with the newest sample" begin
+        _reset_input!()
+        for (x, y) in ((10, 10), (20, 20), (30, 30), (44, 55))
+            _push_motion!(x, y)
+        end
+        input = read_from_devices(backend, Device[])
+        @test input isa WindowInput
+        @test input.event isa MouseMove
+        # The newest sample, not the oldest. Answering with (10, 10) here is what
+        # left the highlight a frame behind the pointer.
+        @test (input.event.x, input.event.y) == (_logical(44), _logical(55))
+        # The whole run was consumed, so nothing stale is owed.
+        @test read_from_devices(backend, Device[]) === nothing
+    end
+
+    @testset "an event behind a run does not overtake it" begin
+        _reset_input!()
+        _push_motion!(1, 1)
+        _push_motion!(7, 9)
+        _push_button_down!(7, 9)
+        first_input = read_from_devices(backend, Device[])
+        @test first_input.event isa MouseMove
+        @test (first_input.event.x, first_input.event.y) == (_logical(7), _logical(9))
+        second_input = read_from_devices(backend, Device[])
+        @test second_input.event isa MouseDown          # the press, after the motion
+        @test read_from_devices(backend, Device[]) === nothing
+    end
+
+    @testset "a sample the rate limit blocks is held, not dropped" begin
+        _reset_input!()
+        _push_motion!(12, 34)
+        probe = read_from_devices(backend, Device[])
+        @test probe.event isa MouseMove
+        # The rate limit applies to idle motion only. A button held during the
+        # run makes it a drag, which is never rate-limited; skip the case then.
+        if probe.event.buttons === :none
+            ProjecturedSdl._LAST_HOVER_MOTION[] = time()   # the limit is now active
+            _push_motion!(60, 70)
+            @test read_from_devices(backend, Device[]) === nothing   # held, not answered
+            ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0     # the interval has passed
+            held = read_from_devices(backend, Device[])   # the queue is empty by now
+            @test held isa WindowInput
+            @test held.event isa MouseMove
+            # A pointer that stops sends nothing more. Dropping this sample would
+            # leave the highlight one step behind for as long as it rests there.
+            @test (held.event.x, held.event.y) == (_logical(60), _logical(70))
+        end
+        _reset_input!()
+    end
+
+end
+end # test_input_coalescing
