@@ -87,6 +87,15 @@ end
     a::Int
 end
 
+# `I` first binds it to the immutable native struct — a value a hot path copies
+# rather than mutates. `selection::Nothing` is written out for the same reason it
+# is on a value document: the injected union is over heap types, and one of them
+# in the struct is what would stop it being isbits.
+@document ImmutableCell [I, C] struct DmImmutableNative
+    a::Int
+    selection::Nothing
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -205,11 +214,29 @@ end
     @test_throws LoadError @eval @document [M] struct DmNoCellLayout
         a::Int = 0
     end
-    # The immutable native layout has no caller yet, so it is refused by name
-    # rather than emitted and left unused.
-    @test_throws LoadError @eval @document [C, I] struct DmImmutableNative
+    # One schema has one native struct, so a list asking for both is refused.
+    @test_throws LoadError @eval @document [C, M, I] struct DmTwoNatives
         a::Int = 0
     end
+end
+
+@testset "the immutable native layout is a plain immutable struct" begin
+    # `I` emits the native struct that `M` does, and the only difference is the
+    # one that matters to a value on a hot path: a `mutable struct` is never
+    # isbits, however small its fields are.
+    @test document_native_type(IDmImmutableNative) === IDmImmutableNative
+    @test !ismutabletype(IDmImmutableNative)
+    @test ismutabletype(MDmRuleY)
+    @test isbitstype(IDmImmutableNative)
+
+    # It is a document like any other: it carries the declared value types
+    # directly, and it copies into any cell kind.
+    value = DmImmutableNative(7)
+    @test value.a === 7
+    @test document_cell_type(value) === ACDmImmutableNative
+    @test document_schema_name(value) === :DmImmutableNative
+    @test copy_document(ReactiveCell, value) isa RCDmImmutableNative
+    @test copy_document(ReactiveCell, value).a == 7
 end
 
 @testset "the first layout code says what the bare name is" begin

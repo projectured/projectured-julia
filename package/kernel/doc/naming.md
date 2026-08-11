@@ -89,12 +89,13 @@ alongside it.
   | `Foo` | what the declaration says its bare name is. The cell layout by default. |
   | `AFoo` | the family. Abstract, and it matches every variant. |
   | `ACFoo` | the cell layout, `ACFoo{C1<:AbstractCell, …}`, one cell per field. |
-  | `MFoo` | the mutable native struct. Plain fields, no cell box. |
+  | `MFoo` / `IFoo` | the native struct, mutable or immutable. Plain fields, no cell box. |
   | `RCFoo` / `ICFoo` / `MCFoo` | the cell layout with every field reactive / immutable / mutable. |
   | `DCFoo` | the cell layout with each field in its declared default kind. |
 
   Every one of them abbreviates a phrase, adjective first: `ACFoo` is the
-  abstract cell `Foo`, `MCFoo` the mutable cell `Foo`, `MFoo` the mutable `Foo`.
+  abstract cell `Foo`, `MCFoo` the mutable cell `Foo`, `MFoo` the mutable `Foo`,
+  `IFoo` the immutable `Foo`.
   So a reader who forgets the convention can say the name out and get it back.
 
   A `C` says the variant keeps its fields in cells, and its absence says the
@@ -211,6 +212,7 @@ Two shapes are exempt from the verb-first rule, and only these:
 | `A<Document>` | family, matches every variant | `ACellVector` |
 | `AC<Document>` | cell layout | `ACCellVector` |
 | `M<Document>` | mutable native struct | `MCellVector` |
+| `I<Document>` | immutable native struct | `IEthernetFcs` |
 | `IC<Document>` | cell layout, every field immutable | `ICCellVector` |
 | `<Event>Pattern` | gesture pattern | `KeyDownPattern` |
 | `get_<stem>` / `set_<stem>!` | getter / setter | `get_selection` |

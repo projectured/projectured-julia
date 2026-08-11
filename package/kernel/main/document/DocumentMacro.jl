@@ -44,10 +44,12 @@ function _take_layout_list(args)
     for c in codes
         c in _KNOWN_LAYOUTS ||
             error("@document: `$c` is not a layout code. Use one of $(join(_KNOWN_LAYOUTS, ", ")).")
-        c === :I &&
-            error("@document: the immutable native layout `I` is not emitted yet, " *
-                  "because nothing asks for one. Add it when a caller does.")
     end
+    # One schema has one native struct, because `document_native_type` gives one
+    # answer. A schema that wanted both would have to say which one that is.
+    (:M in codes && :I in codes) &&
+        error("@document: a schema declares `M` or `I`, not both. They are two " *
+              "spellings of one native layout, and `document_native_type` names one.")
     # `DC` asks for the cell layout too — it only moves the bare name inside it.
     (:C in codes || :DC in codes) ||
         error("@document: a layout list must include `C` or `DC` for now. A schema with " *
@@ -324,19 +326,22 @@ function _emit_collection_ctors(plan)
 end
 
 """
-    _emit_native_mutable(plan, family, native) -> Expr
+    _emit_native(plan, family, native; mutable) -> Expr
 
-The **mutable-layout** struct: a real `mutable struct native <: family` whose
-fields hold the declared **value** types *directly* — no `MutableCell` box — so an
-all-mutable document (`MFoo`) is byte-for-byte a plain `mutable struct`
-(`getproperty`/`setproperty!` are the default `getfield`/`setfield!`). The value
-types resolve here exactly as they already do in the `ICFoo` / `MCFoo` aliases, so
-this introduces no new forward reference.
+The **native-layout** struct: a real `struct native <: family` whose fields hold
+the declared **value** types *directly* — no cell box — so a native document is
+byte-for-byte a plain struct (`getproperty`/`setproperty!` are the default
+`getfield`/`setfield!`). The value types resolve here exactly as they already do
+in the `ICFoo` / `MCFoo` aliases, so this introduces no new forward reference.
+
+`mutable` picks the layout: `MFoo` is a `mutable struct` and `IFoo` is an
+immutable one. The immutable layout is what a value on a hot path wants, because
+a `mutable struct` is never isbits, however small its fields are.
 """
-function _emit_native_mutable(plan, family, native)
+function _emit_native(plan, family, native; mutable::Bool)
     vts = cell_struct_value_types(plan)
     fields = Any[:($(plan.field_names[i])::$(vts[i])) for i in eachindex(plan.field_names)]
-    Expr(:struct, true, Expr(:(<:), native, family), Expr(:block, fields...))
+    Expr(:struct, mutable, Expr(:(<:), native, family), Expr(:block, fields...))
 end
 
 """
@@ -476,7 +481,11 @@ function _document_expr(args)
     # layouts share no type wrapper.
     schema = plan.name
     family = Symbol("A", schema)
-    native = Symbol("M", schema)
+    # One native struct per schema, and the layout list says which spelling it
+    # takes: `M` a mutable one, `I` an immutable one. Both carry the declared
+    # value types directly, so only mutability and the letter differ.
+    native_mutable = :I ∉ layouts
+    native = Symbol(native_mutable ? "M" : "I", schema)
     default_spelling = Symbol("DC", schema)
 
     # ── The bare name ─────────────────────────────────────────────────────────
@@ -543,18 +552,18 @@ function _document_expr(args)
     schema_name_method = :((::typeof($document_schema_name))(::Type{<:$family}) =
                                $(QuoteNode(schema)))
 
-    # The mutable native layout, emitted only when the layout list asks for it. A
-    # schema that leaves `M` out has no native type at all, and the default
+    # The native layout, emitted only when the layout list asks for it. A schema
+    # that leaves both `M` and `I` out has no native type at all, and the default
     # `document_native_type` answers `nothing` for it — which is what a caller
     # reads to find out.
     #
-    # Native-layout constructors target `MFoo`'s auto (all-args) ctor — the same
-    # Rule Y positional-defaults + keyword forms the stem gets, but storing raw
-    # values (no cell wrapping), so building the native variant is as ergonomic as
-    # building the stem.
+    # Native-layout constructors target the native's auto (all-args) ctor — the
+    # same Rule Y positional-defaults + keyword forms the stem gets, but storing
+    # raw values (no cell wrapping), so building the native variant is as
+    # ergonomic as building the stem.
     native_parts = Any[]
-    if :M in layouts
-        push!(native_parts, _emit_native_mutable(plan, family, native))
+    if :M in layouts || :I in layouts
+        push!(native_parts, _emit_native(plan, family, native; mutable = native_mutable))
         append!(native_parts, cell_struct_positional_ctors(plan, native))
         if plan.n_programmer_defaults > 0 || plan.n_declared == 0
             push!(native_parts, cell_struct_kwctor(native, plan.field_names,

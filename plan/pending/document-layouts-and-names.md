@@ -373,7 +373,7 @@ entry binds the bare name**, per Rule 3 in Part 2:
 | `C` — the default | `ACStem`, the cell layout UnionAll. Today's meaning. |
 | `DC` | `DCStem`, the concrete default spelling. |
 | `M` | `MStem`, the mutable native struct. |
-| `I` | `IStem`, the immutable native struct. Not emitted yet. |
+| `I` | `IStem`, the immutable native struct. |
 
 `DC` is a *binding*, not a fourth layout: it emits nothing that `C` does not
 already emit, and only says which name the bare one points at. So `[DC]` and
@@ -397,9 +397,9 @@ plainly rather than fail deep in the walk.
 
 **As built, two codes are refused by name rather than emitted.**
 
-- `I`, the immutable native struct, does not exist. Open Question 1 says do not
-  emit it until a caller asks, so the list says that instead of accepting the code
-  and ignoring it.
+- `M` and `I` together. One schema has one native struct, because
+  `document_native_type` gives one answer, so a list that asked for two is refused
+  by name rather than resolved by a rule nobody would remember.
 - A list with no `C`. The cell layout carries the four aliases, the auto-wrapping
   constructor, the accessors and Rule Y, so leaving it out is a restructure of the
   whole expansion and no caller wants one yet.
@@ -442,7 +442,10 @@ a field-kind marker still reaches it: `@native_document ImmutableCell struct …
 | written out, `[DC]` | `[DC]` | `DCStem` | the three value documents: `StyleText`, `StyleFont`, `StyleColor` |
 | `@native_document` | `[M, C]` | `MStem` | omnetpp-julia, 127 schemas |
 
-`I`, the immutable native struct, has no caller yet. Do not emit it until one asks.
+`I`, the immutable native struct, has a caller: `inet-julia`'s `@header` emits
+`[I, C]`. A header is a value on a simulation's hot path, and a `mutable struct`
+is never isbits however small its fields are — `EthernetFcs` is 4 bytes inline as
+`IEthernetFcs` and a heap reference as `MEthernetFcs`.
 
 ---
 
@@ -1037,8 +1040,9 @@ failures while never reaching its first assertion.
 
 ## Open questions
 
-1. Does the immutable native layout `IStem` have a caller? It does not exist
-   today. Do not emit it until one asks.
+1. ~~Does the immutable native layout `IStem` have a caller?~~ **Answered.**
+   `inet-julia`'s `@header` asks for one, so `I` is emitted. A header is an
+   immutable value and a `mutable struct` is never isbits.
 2. Should `copy_document(MutableCell, doc)` really pick the native layout, or
    should the caller pass a layout beside the kind? The first is terse. The second
    is explicit and cannot surprise a caller who wants `MCStem`.
