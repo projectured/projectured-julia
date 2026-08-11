@@ -134,9 +134,16 @@ editor in a browser instead of a native window (see the
 
 This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default
 `Display()`, `Keyboard()`, `Mouse()`), populates their physical properties from the
-backend with `configure_devices!`, constructs the `Editor`, and runs the loop. Native windows are not pre-allocated — the backend opens them on demand
-the first time `write_to_devices` sees a `ScreenDocument` output (the pipeline is
-expected to end in one). `quit_backend!(backend)` cleanup is in a `finally` block. Pass
+backend with `configure_devices!`, opens the native windows with
+`open_native_windows!`, constructs the `Editor`, and runs the loop. The windows
+are opened before the first frame, and the document is corrected to the geometry
+the window system granted: a manager may grant less than it is asked for, and it
+answers only once the window exists, so a document projected first is projected
+at a size the window never has and computes a second time when the answer
+arrives. A window a projection opens later — a tooltip, a popup — is still
+opened on demand, by `write_to_devices` against the `ScreenDocument` output (the
+pipeline is expected to end in one).
+`quit_backend!(backend)` cleanup is in a `finally` block. Pass
 `mcp=true` to start an MCP server alongside the loop. A backend that drives a
 different channel passes its own `devices` (the `ConsoleBackend` uses
 `devices = Device[Keyboard()]` — no `Display`/`Mouse`).

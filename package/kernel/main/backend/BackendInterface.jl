@@ -43,6 +43,24 @@ doing nothing.
 function write_to_devices end
 
 """
+    open_native_windows!(backend, document)
+
+Open the native window of every window `document` names, then correct `document`
+to the geometry the window system granted.
+
+Called once, before the first projection. A window system is free to refuse the
+size it is asked for — a manager that keeps a window inside the work area grants
+less height than a decorated window asks for — and it answers only after the
+window exists. A document laid out before that answer is laid out at a size the
+window never has, so the answer arrives as a resize and the whole document
+computes a second time. Opening the windows first turns that second layout into
+none.
+
+A backend with no windows of its own leaves this at the no-op default.
+"""
+function open_native_windows! end
+
+"""
     read_from_devices(backend, devices) -> WindowInput or nothing
 
 Poll all input devices in one shot and return the next event — a `WindowInput`

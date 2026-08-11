@@ -18,12 +18,13 @@ fragments that share this namespace:
   `Backend` type and the open generics a backend package answers.
 - [`BackendDefaults.jl`](BackendDefaults.jl) — the fallback behaviours the
   contract supplies itself, for the capabilities a backend may decline (pointer
-  position, display size, device configuration).
+  position, display size, device configuration, native windows).
 """
 module BackendModule
 
 export Backend, initialize_backend!, quit_backend!, measure_text,
        write_to_devices, read_from_devices, get_display_size, configure_devices!,
+       open_native_windows!,
        write_image, record_video, render_canvas, decode_image, get_pointer_position
 
 include("BackendInterface.jl")  # the backend contract (declaration-only)

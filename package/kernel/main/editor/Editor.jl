@@ -394,10 +394,13 @@ backend can reconcile native windows against it; pipelines whose
 output is a bare `GraphicsCanvas` go unrendered (use `write_image`
 for offscreen).
 
-Native windows are not pre-allocated here — the backend opens them
-on demand the first time `write_to_devices` sees a `ScreenDocument`
-output. `Editor.devices` only carries the hardware kinds the editor
-needs: `Display`, `Keyboard`, `Mouse`.
+The native windows are opened before the first frame, by
+`open_native_windows!`, which also corrects `document` to the geometry the
+window system granted. A window system may grant less than it was asked for, and
+it answers only once the window exists; a document projected before that answer
+is projected at a size the window never has, and the answer then arrives as a
+resize that computes the whole document again. `Editor.devices` only carries the
+hardware kinds the editor needs: `Display`, `Keyboard`, `Mouse`.
 
 Pass `mcp=true` to start an MCP server alongside the loop.
 
@@ -416,6 +419,11 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)
+        # Before the first projection, so the document is laid out once, at the
+        # size the window system granted rather than at the size it was asked
+        # for. Nothing has read a cell yet, so the correction invalidates
+        # nothing.
+        open_native_windows!(backend, document)
         editor = Editor(backend, document, projection, devices)
         run_editor!(editor; mcp=mcp, on_start=on_start)
     finally

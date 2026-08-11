@@ -2689,6 +2689,114 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
+    open_native_windows!(backend::SdlBackend, screen::ScreenDocument)
+
+Open a native window for each window `screen` names, then write the size the
+window manager granted back into the `WindowDocument`.
+
+A manager is free to grant less than it is asked for. It keeps a window inside
+the work area, and a decorated window needs its title bar to fit there too, so a
+window asked to be as tall as the whole work area is made shorter by the height
+of its own title bar. The editor calls this before the first projection, so the
+document is laid out once at the size the window really has. A document laid out
+first is laid out at a size the window never has, and the manager's answer then
+arrives as a resize that computes the whole document a second time.
+
+This runs before `write_to_devices` ever sees a `ScreenDocument`, and it fills
+the same `backend.windows` / `backend.window_ids` tables, so the reconciler
+finds the windows already open and updates them instead of opening them.
+"""
+function BackendModule.open_native_windows!(backend::SdlBackend, screen::ScreenDocument)
+    opened = UInt32[]
+    for w in screen.windows
+        w isa WindowDocument || continue
+        haskey(backend.windows, w.id) && continue
+        res = _open_native_window!(w)
+        backend.windows[w.id] = res
+        backend.window_ids[res.sdl_id] = res.id
+        push!(opened, res.sdl_id)
+    end
+    isempty(opened) && return nothing
+    _settle_native_windows!(backend, opened)
+    for w in screen.windows
+        w isa WindowDocument || continue
+        res = get(backend.windows, w.id, nothing)
+        res === nothing && continue
+        res.sdl_id in opened || continue
+        w.width  = res.width
+        w.height = res.height
+    end
+    nothing
+end
+
+# How long to wait for the window manager to answer, and how long the size must
+# hold still before the answer counts as final.
+const _WINDOW_SETTLE_TIMEOUT = 0.25
+const _WINDOW_SETTLE_QUIET   = 0.02
+const _WINDOW_SETTLE_POLL    = 0.005
+
+# Wait for the manager's answer and record it on the resources.
+#
+# `SDL_CreateWindow` returns before the manager has answered, so the size read
+# straight after it is still the size that was asked for. SDL learns the real one
+# when it pumps the event queue, which is also where the size change is delivered
+# as an event. Both are handled here: the loop pumps until the size holds still,
+# and `_take_window_size_events!` keeps the size changes of these windows out of
+# the queue, so the editor does not read a resize for a size the document already
+# has.
+function _settle_native_windows!(backend::SdlBackend, opened::Vector{UInt32})
+    resources = [res for res in values(backend.windows) if res.sdl_id in opened]
+    deadline = time() + _WINDOW_SETTLE_TIMEOUT
+    quiet_since = time()
+    last = [_native_window_size(res) for res in resources]
+    while time() < deadline
+        _take_window_size_events!(opened)
+        current = [_native_window_size(res) for res in resources]
+        if current == last
+            time() - quiet_since >= _WINDOW_SETTLE_QUIET && break
+        else
+            last = current
+            quiet_since = time()
+        end
+        sleep(_WINDOW_SETTLE_POLL)
+    end
+    for (res, (w, h)) in zip(resources, last)
+        res.width  = w
+        res.height = h
+    end
+    nothing
+end
+
+# The window's current size in logical pixels. SDL reports device pixels, which
+# is what `WindowDocument` sizes are converted to when the window is created.
+function _native_window_size(res::SdlWindowResources)
+    w = Ref{Cint}(0); h = Ref{Cint}(0)
+    SDL_GetWindowSize(res.win, w, h)
+    (_to_logical(Int(w[])), _to_logical(Int(h[])))
+end
+
+# Pump the event queue, and drop the size changes belonging to the windows just
+# opened. Everything else is put back, so a key pressed while the editor starts
+# is still read.
+function _take_window_size_events!(opened::Vector{UInt32})
+    kept = SDL_Event[]
+    event_ref = Ref{SDL_Event}()
+    SDL_PumpEvents()
+    while Bool(SDL_PollEvent(event_ref))
+        evt = event_ref[]
+        is_own_resize = evt.type == 0x00000200 &&        # SDL_WINDOWEVENT
+                        evt.window.event == UInt8(5) &&  # SDL_WINDOWEVENT_RESIZED
+                        UInt32(evt.window.windowID) in opened
+        is_own_resize || push!(kept, evt)
+    end
+    for evt in kept
+        ref = Ref(evt)
+        SDL_PushEvent(ref)
+    end
+    nothing
+end
+
+"""
     write_to_devices(backend::SdlBackend, devices, screen::ScreenDocument)
 
 Reconcile live native SDL windows against the projection-output

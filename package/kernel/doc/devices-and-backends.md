@@ -428,8 +428,8 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 `quit_backend!`, `measure_text`, `read_from_devices`, `write_to_devices`,
-`get_display_size`, `configure_devices!`, `write_image`, `record_video`,
-`render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
+`get_display_size`, `configure_devices!`, `open_native_windows!`, `write_image`,
+`record_video`, `render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
 (SDL, Web, Console, Headless, …) live in opt-in packages that subtype `Backend`
 and add methods for their own `::MyBackend` type. A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
@@ -443,8 +443,9 @@ no per-backend registration.
 so every generic there is a bodiless `function f end`. The fallback behaviours
 the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
 capabilities a backend may decline: `get_pointer_position` answers `(-1, -1)`,
-`get_display_size` answers `(1280, 800)`, and `configure_devices!` is a no-op
-that leaves the devices at their default properties — each a legal answer
+`get_display_size` answers `(1280, 800)`, `configure_devices!` is a no-op that
+leaves the devices at their default properties, and `open_native_windows!` is a
+no-op for a backend that has no native windows to open — each a legal answer
 rather than a missing implementation. The batch generics deliberately have no
 such fallback: an unimplemented `measure_text` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
