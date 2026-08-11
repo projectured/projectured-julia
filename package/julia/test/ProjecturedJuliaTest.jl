@@ -38,6 +38,7 @@ for _src in _SOURCES
 end
 
 include("document/JuliaParserTest.jl")
+include("document/JuliaDefinitionTest.jl")
 include("editor/JuliaTypeinTest.jl")
 
 """
@@ -66,11 +67,12 @@ function test_julia()
     @testset "ProjecturedJulia" begin
         test_julia_layering()
         test_julia_parser()
+        test_julia_definition()
         test_julia_typein()
     end
 end
 
-export test_julia, test_julia_layering, test_julia_parser
+export test_julia, test_julia_layering, test_julia_parser, test_julia_definition
 export test_julia_typein
 
 end # module ProjecturedJuliaTest

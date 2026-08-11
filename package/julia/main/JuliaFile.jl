@@ -167,6 +167,11 @@ A docstring is named by what it documents, and a macro call by its
 first argument — so `@document struct Foo … end` is found under
 `"Foo"`, and asking for a documented definition yields the docstring
 with it rather than the bare definition.
+
+A macro that DECLARES rather than decorates states the name itself
+instead of wrapping a definition that carries one, so its first
+argument is the name: `@header Ipv4Header begin … end` is found under
+`"Ipv4Header"`.
 """
 julia_definition_name(::Any) = nothing
 julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
@@ -179,7 +184,13 @@ julia_definition_name(n::JuliaDocstring)    = julia_definition_name(n.subject)
 function julia_definition_name(n::JuliaMacroCall)
     args = getfield(n, :arguments)[]
     isempty(args) && return nothing
-    julia_definition_name(args[1] isa Cell ? args[1][] : args[1])
+    subject = args[1] isa Cell ? args[1][] : args[1]
+    name = julia_definition_name(subject)
+    # The inner definition names it where there is one. Where there is not, the
+    # first argument is the name: a declaring macro takes the identifier it
+    # introduces, and `@header Member <: Family` takes the left side of the `<:`
+    # exactly as a struct header does.
+    return name === nothing ? _julia_header_name(subject) : name
 end
 
 # The name inside a definition header: a plain identifier, the callee of
