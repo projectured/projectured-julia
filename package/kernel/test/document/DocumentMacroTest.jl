@@ -73,6 +73,20 @@ end
     a::Int = 0
 end
 
+# ── The bare name: one schema per binding ─────────────────────────────────
+# `CD` binds it to the concrete default spelling, which is what a value document
+# stored by value in a configuration cell wants.
+@document ImmutableCell [CD] struct DmValue
+    a::Int
+    b::Int = 7
+    selection::ImmutableCell{Nothing}
+end
+
+# `M` first binds it to the mutable native struct — the object a simulator mutates.
+@document [M, C] struct DmNative
+    a::Int
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -196,6 +210,39 @@ end
     @test_throws LoadError @eval @document [C, I] struct DmImmutableNative
         a::Int = 0
     end
+end
+
+@testset "the first layout code says what the bare name is" begin
+    # `C`, the default. The cell layout keeps the programmer's own name, so `show`
+    # and `nameof` are unchanged, and the coded name works beside it.
+    @test DmRuleY isa UnionAll
+    @test CDmRuleY === DmRuleY
+    @test nameof(typeof(DmRuleY(1, 2))) === :DmRuleY
+
+    # `CD`. The bare name is the concrete default spelling, so a field typed with
+    # it inlines — which is the whole reason a value document asks for this.
+    @test DmValue === CDDmValue
+    @test isconcretetype(DmValue)
+    @test isbitstype(DmValue)
+    @test document_cell_type(DmValue(2)) === CDmValue
+    # A concrete parameterization has no constructor of its own, so the bare name
+    # reaches the cell layout through the forwarding constructor. Rule Y, Rule C
+    # and the keyword form all arrive there.
+    @test DmValue(2) isa DmValue
+    @test DmValue(2).b == 7
+    @test DmValue(a = 3).b == 7
+
+    # `M` first. The bare name is the plain mutable struct: a field holds a value,
+    # not a cell, and writing one is a `setfield!`.
+    @test DmNative === MDmNative
+    @test !(getfield(DmNative(4), :a) isa AbstractCell)
+    @test (n = DmNative(4); n.a = 9; n.a) == 9
+    @test document_cell_type(DmNative(4)) === CDmNative
+    # Both layouts still answer one family, and a shadow of the native one is a
+    # cell document.
+    @test DmNative(4) isa ADmNative
+    @test CDmNative(1, nothing) isa ADmNative
+    @test copy_document(ReactiveCell, DmNative(4)) isa CDmNative
 end
 
 @testset "a preset is @document with a fixed layout list" begin

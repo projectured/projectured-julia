@@ -117,8 +117,29 @@ first.
 | 2b | `AbstractStem` → `AStem` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | 2c | `StemMut` → `MStem` | 17, all of them tests and prose | **DONE** |
 | 2d | `DStem` → `CDStem` | 480 | **DONE** |
-| 2f | the bare-name binding rule, the `CD` code, `const CStem = Stem` | 0 here | |
+| 2f | the bare-name binding rule, the `CD` code, `const CStem = Stem` | 0 here | **DONE** |
 | 2e | the three style schemas take `[CD]`; their sites lose the `CD` | 476 | |
+
+**2f, as built.** `schema` and the cell layout's own type name are now two things
+in the macro. Every coded name is built from `schema`, so a spelling of `Foo` stays
+`CRFoo` and never becomes `CRCFoo`. The cell layout keeps the programmer's name
+under `C` and takes `CFoo` under any other binding, which is what keeps `show` and
+`nameof` unchanged for a schema that does not rebind.
+
+Proved by a fixture per binding in `DocumentMacroTest.jl`:
+
+```
+C   CDmRuleY === DmRuleY,  nameof(typeof(DmRuleY(1, 2))) === :DmRuleY
+CD  DmValue === CDDmValue, isconcretetype, isbitstype, DmValue(2).b == 7
+M   DmNative === MDmNative, a field holds no cell, n.a = 9 is a setfield!
+```
+
+The forwarding constructor was needed exactly where the measurement said. Under
+`CD` the bare name is a concrete parameterization with no constructor of its own,
+and one catch-all carries Rule Y, Rule C and the keyword form into the cell layout.
+
+`test_kernel()` 1498 → 1515 for seventeen new assertions. The other five suites are
+byte-identical.
 
 **2f moved ahead of 2e.** The `CD` code is a *binding*, so it means nothing until
 the binding rule exists. Adding it in 2d would have made
