@@ -64,6 +64,9 @@ using ProjecturedStyle
 using ProjecturedComponent
 using ProjecturedFocus
 using ProjecturedPlot
+using ProjecturedGraphics
+using ProjecturedScreen
+using ProjecturedLayout
 
 # ── Aliases of the packages this one builds on, and of the packages it was
 # ── spliced into ──────────────────────────────────────────────────────────
@@ -138,6 +141,16 @@ const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModul
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 # The aliases of the packages this one was spliced into follow.
+const CollectionToLayoutModule = ProjecturedLayout.CollectionToLayoutModule
+const ConstraintSolverModule = ProjecturedLayout.ConstraintSolverModule
+const LayoutModule = ProjecturedLayout.LayoutModule
+const LayoutToGraphicsModule = ProjecturedLayout.LayoutToGraphicsModule
+const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
+const ScreenToScreenModule = ProjecturedScreen.ScreenToScreenModule
+const WindowManagingProjectionModule = ProjecturedScreen.WindowManagingProjectionModule
+const GraphicsModule = ProjecturedGraphics.GraphicsModule
+const GraphicsCachingModule = ProjecturedGraphics.GraphicsCachingModule
+const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
 const PlotGeometryModule = ProjecturedPlot.PlotGeometryModule
 const PlotStyleModule = ProjecturedPlot.PlotStyleModule
 const FocusModule = ProjecturedFocus.FocusModule
@@ -149,42 +162,6 @@ const ImageModule = ProjecturedStyle.ImageModule
 const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
-
-# ── Slice 2 — screen (the window model + its management) ────────────────
-# ScreenDocument holds a list of WindowDocument (windows + their events/ops).
-# WindowManagingProjection wraps a projection that consumes ScreenDocument
-# input, applying open/close/resize/defocus operations lifted from below.
-# Window things are visual per the architecture rules (only the Display device
-# and display-size seam stay in the kernel, as the interface the editor writes
-# to). The couple travels together: WindowManaging references ScreenDocument's
-# types.
-include("screen/ScreenDocument.jl")
-include("screen/WindowManaging.jl")
-# PointReferenceStep is the graphics-domain reference step (pixel coordinates
-# relative to an element); it registers its own `.point(x, y)` DSL entries
-# with the kernel's reference DSL. Loaded here — before ScreenToScreen — so
-# that ScreenToScreen can `import ..PointReferenceStepModule: PointReferenceStep`.
-# (PointReferenceStep depends only on DocumentModule + ReferenceModule, both
-# kernel constants already in scope; no graphics types are needed.)
-include("graphics/PointReferenceStep.jl")
-# ScreenToScreen: an identity projection over the window tree; imports only
-# visual (screen) + kernel/base.
-include("screen/ScreenToScreen.jl")
-
-# ── Slice 3 — graphics (retained drawing target) ─────────────────────────
-# Graphics is the drawing domain (text/rect/canvas/viewport/image/fence).
-# GraphicsCaching wraps it with a caching layer for identity-stable output.
-include("graphics/Graphics.jl")
-include("graphics/GraphicsCaching.jl")
-
-# ── Slice 4 — layout (spatial arrangement) ───────────────────────────────
-# Layout is the container domain; ConstraintSolver is the layout algebra;
-# LayoutToGraphics renders a laid-out tree onto a canvas; CollectionToLayout
-# bridges a base CellVector into a layout container.
-include("layout/Layout.jl")
-include("layout/ConstraintSolver.jl")
-include("layout/LayoutToGraphics.jl")
-include("layout/CollectionToLayout.jl")
 
 # ── Slice 5 — text (styled text + its renderings) ────────────────────────
 # Text is the styled-text domain (TextBlock/TextString/TextNewline…);
