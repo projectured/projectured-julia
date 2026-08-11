@@ -70,9 +70,9 @@ export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_dev
 A font style value consisting of a file path and a point size.
 """
 # A value-document: `filename`/`size` are immutable by default; the selection is
-# typed `Nothing` (non-selectable, so `CDStyleFont` — the bare form — inlines in a
+# typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a
 # config cell). `CRStyleFont` gives a reactive, selectable, editable font.
-@document ImmutableCell struct StyleFont
+@document ImmutableCell [CD] struct StyleFont
     filename::String
     size::Int
     selection::Nothing

@@ -21,17 +21,17 @@ import ..GestureMapModule: GestureMap, GestureRow
 import ..TextModule: TextString
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..PrinterContextModule: PrinterContext
 
 export GestureMapToSyntax
 
 @projection struct GestureMapToSyntax
-    header::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    gesture::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
-    description::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
-    muted::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    header::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    gesture::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    description::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    muted::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading

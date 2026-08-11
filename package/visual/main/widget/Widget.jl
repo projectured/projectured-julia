@@ -16,7 +16,7 @@ import ..OperationApiModule: Operation, evaluate_operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 import ..ColorModule: StyleColor
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep,
                           EmptyReference, FieldReferenceStep, RangeReferenceStep
 import ..GeometryModule: Inset, Point2D, inset_default,
@@ -65,7 +65,7 @@ A positioned, non-interactive label..
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
     content::Any
-    text_style::ImmutableCell{CDStyleText}   # per-label font+color override (nothing → theme label style)
+    text_style::ImmutableCell{StyleText}   # per-label font+color override (nothing → theme label style)
     visible::Bool
     margin::Inset
     margin_color::StyleColor

@@ -19,7 +19,7 @@ import ..TextModule: TextDocument, TextBlock, TextString
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..ColorModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, PositionReferenceStep, Reference, Position
@@ -97,7 +97,7 @@ _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToText
-    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
@@ -121,7 +121,7 @@ end
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
 @projection struct PrimitiveNumberToText
-    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
@@ -145,11 +145,11 @@ end
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
 
 @projection struct PrimitiveStringToTextBlock <: Projection
-    style::ImmutableCell{CDStyleText}
+    style::ImmutableCell{StyleText}
     # Hint shown when the value is empty. `placeholder == ""` disables it, so
     # the projection keeps its plain (placeholder-free) behavior by default.
     placeholder::ImmutableCell{String}
-    placeholder_style::ImmutableCell{CDStyleText}
+    placeholder_style::ImmutableCell{StyleText}
 end
 PrimitiveStringToTextBlock(; style=StyleText(font_ubuntu_monospace_regular_20, color_solarized_green),
                             placeholder="", placeholder_style=style) =

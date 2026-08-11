@@ -37,7 +37,7 @@ import ..EventModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default
@@ -137,8 +137,8 @@ A Julia source-insertion hole. Renders the typed buffer plus a pale-green keywor
 completion continuation; all editing/commit is `@gestures JuliaInsertion`.
 """
 @projection struct JuliaInsertionToSyntaxLeaf <: Projection
-    value::ImmutableCell{CDStyleText}
-    completion::ImmutableCell{CDStyleText}
+    value::ImmutableCell{StyleText}
+    completion::ImmutableCell{StyleText}
 end
 
 JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(

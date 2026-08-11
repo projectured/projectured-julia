@@ -58,7 +58,7 @@ import ..GeometryModule: AffineTransform, affine_identity, affine_translate, aff
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..StyleStrokeModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
@@ -395,12 +395,12 @@ end
 
 @projection struct WidgetLabelToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}        # font + color of the label
+    text::ImmutableCell{StyleText}        # font + color of the label
 end
 
 @projection struct WidgetTextToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}            # font + color of the non-editable form
+    text::ImmutableCell{StyleText}            # font + color of the non-editable form
     background_color::StyleColor
     border_color::StyleColor    # input outline
     corner_radius::Int
@@ -427,7 +427,7 @@ end
 # transparent; the factory may pass plain values or Cells.
 @projection struct WidgetButtonToGraphicsCanvas
     measure::Function
-    label::ImmutableCell{CDStyleText}            # font + color of the button text
+    label::ImmutableCell{StyleText}            # font + color of the button text
     background_color::StyleColor # resting surface
     hover_color::StyleColor      # surface while the pointer is inside
     active_color::StyleColor     # surface while pressed (held down)
@@ -442,7 +442,7 @@ end
 
 @projection struct WidgetTooltipToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}             # font + popover foreground
+    text::ImmutableCell{StyleText}             # font + popover foreground
     surface_color::StyleColor    # popover fill
     border::StyleStroke
     corner_radius::Int
@@ -456,7 +456,7 @@ end
 
 @projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}             # font + foreground
+    text::ImmutableCell{StyleText}             # font + foreground
     disabled_foreground::StyleColor   # label color when disabled (item or bound command)
     hover_color::StyleColor           # hover surface behind the item (Stage 6)
 end
@@ -472,8 +472,8 @@ end
 
 @projection struct WidgetTitlePaneToGraphicsCanvas
     measure::Function
-    title_text::ImmutableCell{CDStyleText}        # bold title
-    content_text::ImmutableCell{CDStyleText}      # string-content body
+    title_text::ImmutableCell{StyleText}        # bold title
+    content_text::ImmutableCell{StyleText}      # string-content body
     title_gap::Int
 end
 
@@ -906,7 +906,7 @@ end
 # projection-introduced placeholder and its reference maps are no-ops.
 @projection struct WidgetInsertionToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}
+    text::ImmutableCell{StyleText}
 end
 
 function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
@@ -1394,8 +1394,8 @@ end
 
 @projection struct WidgetDialogToGraphicsCanvas
     measure::Function
-    title::ImmutableCell{CDStyleText}        # title font + color
-    body::ImmutableCell{CDStyleText}         # content/label fallback font + color
+    title::ImmutableCell{StyleText}        # title font + color
+    body::ImmutableCell{StyleText}         # content/label fallback font + color
     card_color::StyleColor  # card fill
     border::StyleStroke      # card outline
     corner_radius::Int
@@ -3478,7 +3478,7 @@ end
 
 @projection struct WidgetStatusBarToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     gap::Int
 end
@@ -3659,10 +3659,10 @@ end
 
 @projection struct WidgetCardToGraphicsCanvas
     measure::Function
-    title_text::ImmutableCell{CDStyleText}
-    description_text::ImmutableCell{CDStyleText}
-    content_text::ImmutableCell{CDStyleText}
-    footer_text::ImmutableCell{CDStyleText}
+    title_text::ImmutableCell{StyleText}
+    description_text::ImmutableCell{StyleText}
+    content_text::ImmutableCell{StyleText}
+    footer_text::ImmutableCell{StyleText}
     surface_color::StyleColor      # card fill
     border::StyleStroke
     corner_radius::Int
@@ -4088,7 +4088,7 @@ end
 
 @projection struct WidgetRadioGroupToGraphicsCanvas
     measure::Function
-    label_text::ImmutableCell{CDStyleText}          # option labels
+    label_text::ImmutableCell{StyleText}          # option labels
     button_size::Int               # outer circle diameter
     label_gap::Int                 # gap between button and label
     row_gap::Int
@@ -4144,7 +4144,7 @@ end
 
 @projection struct WidgetAvatarToGraphicsCanvas
     measure::Function
-    initials::ImmutableCell{CDStyleText}          # font + color of the initials
+    initials::ImmutableCell{StyleText}          # font + color of the initials
     background_color::StyleColor  # circle fill
 end
 
@@ -4169,7 +4169,7 @@ end
 @projection struct WidgetAlertToGraphicsCanvas
     measure::Function
     title_font::StyleFont
-    description_text::ImmutableCell{CDStyleText}        # muted description
+    description_text::ImmutableCell{StyleText}        # muted description
     background_color::StyleColor
     padding::Int                       # uniform alert padding
     title_gap::Int                     # gap between title and description
@@ -4587,7 +4587,7 @@ end
 
 @projection struct WidgetSelectToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}            # value font + color
+    text::ImmutableCell{StyleText}            # value font + color
     background_color::StyleColor
     border::StyleStroke         # input outline
     padding::Inset
@@ -4692,7 +4692,7 @@ end
 
 @projection struct WidgetOptionToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     padding::Inset
 end
@@ -4741,7 +4741,7 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
 
 @projection struct WidgetSpinBoxToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     border::StyleStroke
     padding::Inset
@@ -4821,7 +4821,7 @@ end
 
 @projection struct WidgetListToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}
+    text::ImmutableCell{StyleText}
     background_color::StyleColor
     border::StyleStroke
     selected_color::StyleColor
@@ -4919,7 +4919,7 @@ end
 
 @projection struct WidgetTextareaToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{CDStyleText}            # content font + color
+    text::ImmutableCell{StyleText}            # content font + color
     background_color::StyleColor
     border::StyleStroke         # input outline
     padding::Inset
@@ -4960,8 +4960,8 @@ end
 
 @projection struct WidgetAccordionToGraphicsCanvas
     measure::Function
-    title_text::ImmutableCell{CDStyleText}        # bold title
-    body_text::ImmutableCell{CDStyleText}          # muted body
+    title_text::ImmutableCell{StyleText}        # bold title
+    body_text::ImmutableCell{StyleText}          # muted body
     rule::StyleStroke             # hairline between items
     padding::Inset                # horizontal + vertical row padding
     gap::Int                      # space before the trailing chevron
@@ -5033,8 +5033,8 @@ end
 # own sub-pipeline and is drawn there.
 
 @projection struct WidgetTableToGraphicsCanvas
-    cell_text::ImmutableCell{CDStyleText}          # (kept for theming parity; cells render via recursion)
-    header_text::ImmutableCell{CDStyleText}        # header strip text style
+    cell_text::ImmutableCell{StyleText}          # (kept for theming parity; cells render via recursion)
+    header_text::ImmutableCell{StyleText}        # header strip text style
     rule::StyleStroke             # border / hairline rules
     header_fill::StyleColor       # header strip background
 end
@@ -5764,8 +5764,8 @@ end
 
 @projection struct WidgetTreeToGraphicsCanvas
     measure::Function
-    label_text::ImmutableCell{CDStyleText}         # node labels
-    icon_text::ImmutableCell{CDStyleText}          # node icon glyphs (own column)
+    label_text::ImmutableCell{StyleText}         # node labels
+    icon_text::ImmutableCell{StyleText}          # node icon glyphs (own column)
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
     icon_column::Int              # width reserved for the icon glyph

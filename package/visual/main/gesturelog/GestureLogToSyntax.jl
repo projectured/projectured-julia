@@ -26,18 +26,18 @@ import ..GestureLogModule: GestureLog, GestureLogEntry
 import ..TextModule: TextString
 import ..FontModule: font_dejavu_monospace_regular_16, font_dejavu_monospace_bold_16
 import ..ColorModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..PrinterContextModule: PrinterContext
 
 export GestureLogToSyntax
 
 @projection struct GestureLogToSyntax
-    index::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray159)
-    gesture::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    operation::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
-    muted::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
-    empty::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray159)
+    gesture::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    operation::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
+    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
 end
 
 # The width of the gesture column, in characters. The font is monospaced, so a

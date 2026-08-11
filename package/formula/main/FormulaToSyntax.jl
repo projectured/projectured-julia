@@ -32,7 +32,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
@@ -60,7 +60,7 @@ _empty(font) = TextString("", font, color_default)
 # input value, so the default forward mapper (proj-unwrapping) is correct.
 
 @projection struct FormulaInsertionToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
@@ -77,7 +77,7 @@ end
 # selects the whole reference).
 
 @projection struct FormulaReferenceToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
 end
 
 function print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
@@ -103,10 +103,10 @@ end
 # delegation; its output child index depends on the mode.
 
 @projection struct FormulaFormulaToSyntaxNode
-    name::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    op::ImmutableCell{CDStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    op::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
     # The result run shares the op font but is coloured distinctly (green).
-    result::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    result::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
 # Flatten a result TextBlock into a single rendered string.

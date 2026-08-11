@@ -67,7 +67,7 @@ import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_mo
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green,
                       color_solarized_gray, color_solarized_magenta, color_solarized_violet,
                       color_solarized_cyan, color_solarized_orange
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
@@ -101,8 +101,8 @@ FsmInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(FsmDocument)
 # ── FsmTimerToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct FsmTimerToSyntaxLeaf
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
 end
 
 @projection_template FsmTimerToSyntaxLeaf FsmTimer (p, doc) ->
@@ -113,8 +113,8 @@ end
 # ── FsmEventToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct FsmEventToSyntaxLeaf
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
 end
 
 @projection_template FsmEventToSyntaxLeaf FsmEvent (p, doc) ->
@@ -129,9 +129,9 @@ end
 # through the shared recursion; absent ones contribute no child at all.
 
 @projection struct FsmVariableToSyntaxNode
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
-    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
+    chrome::ImmutableCell{StyleText}  = _CHROME
 end
 
 @projection_template FsmVariableToSyntaxNode FsmVariable (p, doc) ->
@@ -159,9 +159,9 @@ end
 # of this transition.
 
 @projection struct FsmTransitionToSyntaxNode
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    ref::ImmutableCell{CDStyleText}     = _REF
-    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    ref::ImmutableCell{StyleText}     = _REF
+    chrome::ImmutableCell{StyleText}  = _CHROME
 end
 
 # `on EVENT` / `on timeout(TIMER)`; a condition-only transition has no trigger
@@ -199,9 +199,9 @@ end
 # so each transition lands on its own indented line.
 
 @projection struct FsmStateToSyntaxNode
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
-    chrome::ImmutableCell{CDStyleText}  = _CHROME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
+    chrome::ImmutableCell{StyleText}  = _CHROME
 end
 
 @projection_template FsmStateToSyntaxNode FsmState (p, doc) ->
@@ -228,9 +228,9 @@ end
 # ── FsmMachineToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct FsmMachineToSyntaxNode
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
-    ref::ImmutableCell{CDStyleText}     = _REF
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
+    ref::ImmutableCell{StyleText}     = _REF
 end
 
 @projection_template FsmMachineToSyntaxNode FsmMachine (p, doc) ->
@@ -260,8 +260,8 @@ end
 # use simply do not appear.
 
 @projection struct FsmComponentToSyntaxNode
-    keyword::ImmutableCell{CDStyleText} = _KEYWORD
-    name::ImmutableCell{CDStyleText}    = _NAME
+    keyword::ImmutableCell{StyleText} = _KEYWORD
+    name::ImmutableCell{StyleText}    = _NAME
 end
 
 @projection_template FsmComponentToSyntaxNode FsmComponent (p, doc) ->

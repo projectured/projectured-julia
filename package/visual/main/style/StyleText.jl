@@ -10,8 +10,8 @@ than separate fonts and colors. Mirrors the plain-value convention of
 """
 module StyleTextModule
 
-import ..FontModule: StyleFont, CDStyleFont
-import ..ColorModule: StyleColor, CDStyleColor
+import ..FontModule: StyleFont
+import ..ColorModule: StyleColor
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document
 
@@ -24,12 +24,14 @@ export StyleText, make_style_text
 
 A text style value: the `font` to draw with and the `color` to draw in.
 """
-# A value-document: `font`/`color` are the concrete default forms, so the bare
-# `CDStyleText` is concrete and inlines in config cells (not isbits — it carries a
-# font `String` — but neither was the plain form; neutral). `CRStyleText` is editable.
-@document ImmutableCell struct StyleText
-    font::CDStyleFont
-    color::CDStyleColor
+# A value-document. `[CD]` binds the bare name to the default spelling, so
+# `StyleText` is concrete and inlines in a config cell — which is what 455 uses of
+# `ImmutableCell{StyleText}` ask for. It is not isbits, because it carries a font
+# `String`; neither was the plain form, so that is neutral. `CStyleText` names the
+# cell layout, and `CRStyleText` is its reactive, selectable, editable spelling.
+@document ImmutableCell [CD] struct StyleText
+    font::StyleFont
+    color::StyleColor
     selection::Nothing
 end
 

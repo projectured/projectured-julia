@@ -14,7 +14,7 @@ import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
-import ..FontModule: StyleFont, CDStyleFont, font_ubuntu_monospace_regular_20
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
@@ -30,7 +30,7 @@ export TextLineNumbering, LineNumbering
 @projection struct TextLineNumbering <: Projection
     width::ImmutableCell{Int}      # 0 = auto (derived from total line count)
     separator::ImmutableCell{String}
-    font::ImmutableCell{CDStyleFont}
+    font::ImmutableCell{StyleFont}
 end
 
 TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20) =

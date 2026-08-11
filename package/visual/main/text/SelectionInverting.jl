@@ -27,7 +27,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat, text_caret_flat
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ColorModule: StyleColor, CDStyleColor, color_solarized_background_dark, color_solarized_content_lighter
+import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
@@ -62,8 +62,8 @@ There is no pattern cell: the trigger is the input's own selection, so the
 projection is stateless beyond its style options.
 """
 @projection struct SelectionInverting <: Projection
-    default_bg::ImmutableCell{CDStyleColor}
-    default_fg::ImmutableCell{CDStyleColor}
+    default_bg::ImmutableCell{StyleColor}
+    default_fg::ImmutableCell{StyleColor}
     block_cursor::ImmutableCell{Bool}
 end
 

@@ -110,8 +110,8 @@ worked example:
 
 ```julia
 @document ImmutableCell struct StyleText
-    font::CDStyleFont
-    color::CDStyleColor
+    font::StyleFont
+    color::StyleColor
     selection::Nothing
 end
 ```

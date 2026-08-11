@@ -24,7 +24,7 @@ import ..TextModule: TextString
 import ..FontModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
                       color_solarized_violet, color_default
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..PrinterContextModule: PrinterContext
 
@@ -34,14 +34,14 @@ export CommandPaletteToSyntax
 # glyphs, and SDL draws a tofu box for a glyph the font lacks — it does no
 # fallback. Ubuntu Mono lacks both.
 @projection struct CommandPaletteToSyntax
-    query::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+    query::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
     # A group heading is not the text the user typed, so it must not look like it.
     # Violet reads as structure beside the blue query, and stays clear of the green
     # of the chosen row and the gray of a row that cannot run.
-    header::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
-    selected::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
-    command::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_20, color_default)
-    muted::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    header::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
+    selected::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
+    command::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_default)
+    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
 end
 
 # The caret sits at the end of the query: the palette has one selection and it names

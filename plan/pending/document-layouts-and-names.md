@@ -118,7 +118,28 @@ first.
 | 2c | `StemMut` → `MStem` | 17, all of them tests and prose | **DONE** |
 | 2d | `DStem` → `CDStem` | 480 | **DONE** |
 | 2f | the bare-name binding rule, the `CD` code, `const CStem = Stem` | 0 here | **DONE** |
-| 2e | the three style schemas take `[CD]`; their sites lose the `CD` | 476 | |
+| 2e | the three style schemas take `[CD]`; their sites lose the `CD` | 479 | **DONE** |
+
+**2e, and open question 4 answered: no.** Nothing builds a reactive style. The
+names `CRStyleText`, `CRStyleFont` and `CRStyleColor` appear in three comments and
+nowhere else, and the only production call that copies with an explicit kind is
+`_pure_snapshot`, which lands on the default spelling. So narrowing the three bare
+names could not lose a caller, and the six suites agree.
+
+What it bought, measured after the change:
+
+```
+StyleText === CDStyleText    : true
+StyleText isconcretetype     : true     ← a config cell inlines it
+StyleText isbitstype         : false    ← it carries a font String, as it always did
+StyleColor isbitstype        : true
+cell layout is CStyleText    : true
+snapshot lands on it         : true
+```
+
+One thing the sweep needed after it. `import ..StyleTextModule: StyleText,
+CDStyleText` collapsed into the same name twice on 36 lines. Julia tolerates it,
+but it reads as a mistake, so those lists are deduplicated.
 
 **2f, as built.** `schema` and the cell layout's own type name are now two things
 in the macro. Every coded name is built from `schema`, so a spelling of `Foo` stays
@@ -586,14 +607,15 @@ in projectured-julia those are three.
 | `AbstractDocName` → `ADocName` | 42 in `.jl`, 5 in `.md` | **DONE** |
 | `DocNameMut` → `MDocName` | 17 | **DONE** |
 | `DDocName` → `CDDocName` | 480, of which 455 are `DStyleText` | **DONE** |
-| the three styles take `[CD]`; their sites drop the `CD` | the same 476 | |
-| `::StyleText` / `::StyleFont` / `::StyleColor` annotations | to inspect, not to rewrite | |
+| the three styles take `[CD]`; their sites drop the `CD` | the same 479 | **DONE** |
+| `::StyleText` / `::StyleFont` / `::StyleColor` annotations | 371, inspected, none rewritten | **DONE** |
 
-The last row is the only place narrowing could bite, and the measurement says it
-does not: for a value document the snapshot **is** the default spelling. One thing
-to confirm while doing it — whether anything calls
-`copy_document(ReactiveCell, ·)` on a style, since that is the single route by
-which a non-default spelling of those three could reach such a signature.
+The last row was the only place narrowing could bite, and it did not. 267 of the
+371 are field declarations, where a concrete type is the point. The rest are
+signatures, and nothing can hand them a non-default spelling: a reactive style is
+named in three comments and built nowhere, and the only production call that
+copies with an explicit kind is `_pure_snapshot`, which lands on the default
+spelling for a value document.
 
 ## 4.2 omnetpp-julia
 

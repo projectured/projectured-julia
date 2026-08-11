@@ -18,7 +18,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_solarized_gray
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
@@ -32,8 +32,8 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
 @projection struct CollectionCellVectorToSyntax
-    delim::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    sep::ImmutableCell{CDStyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    sep::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
 function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap, reference)

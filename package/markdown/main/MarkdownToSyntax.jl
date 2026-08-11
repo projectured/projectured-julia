@@ -42,7 +42,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bol
 import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
@@ -78,7 +78,7 @@ const _MONO_BOLD = font_ubuntu_monospace_bold_20
 # ── MarkdownInsertionToSyntaxLeaf ─────────────────────────────────────────────
 
 @projection struct MarkdownInsertionToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
 @projection_template MarkdownInsertionToSyntaxLeaf MarkdownInsertion (prj, doc) ->
@@ -87,7 +87,7 @@ end
 # ── MarkdownTextToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection struct MarkdownTextToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_black)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
 end
 
 @projection_template MarkdownTextToSyntaxLeaf MarkdownText (prj, doc) ->
@@ -98,8 +98,8 @@ end
 # `tick` is the delimiter shown around the code (`` ` `` in source, "" rendered).
 
 @projection struct MarkdownCodeToSyntaxLeaf
-    value_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_green)
-    tick_style::ImmutableCell{CDStyleText}  = StyleText(_MONO, color_solarized_gray)
+    value_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_green)
+    tick_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_gray)
     tick::String           = "`"
 end
 
@@ -113,7 +113,7 @@ end
 # `text` is "---" in source, a `───` rule (DejaVu box-drawing) when rendered.
 
 @projection struct MarkdownThematicBreakToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
     text::String     = "---"
 end
 
@@ -123,7 +123,7 @@ end
 # ── MarkdownEmphasisToSyntaxNode / MarkdownStrongToSyntaxNode (source) ─────────
 
 @projection struct MarkdownEmphasisToSyntaxNode
-    marker_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
 @projection_template MarkdownEmphasisToSyntaxNode MarkdownEmphasis (prj, doc) ->
@@ -132,7 +132,7 @@ end
                close=TextString("*", prj.marker_style))
 
 @projection struct MarkdownStrongToSyntaxNode
-    marker_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
 @projection_template MarkdownStrongToSyntaxNode MarkdownStrong (prj, doc) ->
@@ -150,7 +150,7 @@ end
 # ── MarkdownHeadingToSyntaxNode (source; `#…` open marker) ─────────────────────
 
 @projection struct MarkdownHeadingToSyntaxNode
-    hash_style::ImmutableCell{CDStyleText} = StyleText(_MONO_BOLD, color_solarized_blue)
+    hash_style::ImmutableCell{StyleText} = StyleText(_MONO_BOLD, color_solarized_blue)
 end
 
 @projection_template MarkdownHeadingToSyntaxNode MarkdownHeading (prj, doc) ->
@@ -162,7 +162,7 @@ end
 # `open_marker`/`sep_marker` prefix each quoted line (`> ` source, `▏ ` rendered).
 
 @projection struct MarkdownQuoteToSyntaxNode
-    marker_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
     open_marker::String     = "> "
     sep_marker::String      = "\n> "
 end
@@ -177,7 +177,7 @@ end
 # `bullet` is `- ` (source) or `• ` (rendered). Ordered numbering is deferred.
 
 @projection struct MarkdownListItemToSyntaxNode
-    bullet_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    bullet_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
     bullet::String          = "- "
 end
 
@@ -195,7 +195,7 @@ end
     SyntaxNode(collection(:items); sep=TextString("\n"), indentation=0)
 
 @projection struct MarkdownRootToSyntaxNode
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_black)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
 end
 
 @projection_template MarkdownRootToSyntaxNode MarkdownRoot (prj, doc) ->
@@ -206,8 +206,8 @@ end
 # ── MarkdownLinkToSyntaxNode (source `[content](url)`) ────────────────────────
 
 @projection struct MarkdownLinkToSyntaxNode
-    bracket_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
-    url_style::ImmutableCell{CDStyleText}     = StyleText(_MONO, color_solarized_violet)
+    bracket_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+    url_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_violet)
 end
 
 @projection_template MarkdownLinkToSyntaxNode MarkdownLink (prj, doc) ->
@@ -222,9 +222,9 @@ end
 # ── MarkdownImageToSyntaxNode (source `![alt](url)`) ──────────────────────────
 
 @projection struct MarkdownImageToSyntaxNode
-    bracket_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
-    alt_style::ImmutableCell{CDStyleText}     = StyleText(_MONO, color_solarized_cyan)
-    url_style::ImmutableCell{CDStyleText}     = StyleText(_MONO, color_solarized_violet)
+    bracket_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+    alt_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_cyan)
+    url_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_violet)
 end
 
 @projection_template MarkdownImageToSyntaxNode MarkdownImage (prj, doc) ->
@@ -240,9 +240,9 @@ end
 # ── MarkdownCodeBlockToSyntaxNode (fenced; shared) ────────────────────────────
 
 @projection struct MarkdownCodeBlockToSyntaxNode
-    fence_style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
-    lang_style::ImmutableCell{CDStyleText}  = StyleText(_MONO, color_solarized_magenta)
-    code_style::ImmutableCell{CDStyleText}  = StyleText(_MONO, color_solarized_green)
+    fence_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+    lang_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_magenta)
+    code_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_green)
     open_fence::String     = "```"     # "" rendered
     close_fence::String    = "\n```"   # "" rendered
 end
@@ -283,7 +283,7 @@ end
 # difference is the font, taken from the ambient `:md_style` (or the body default).
 
 @projection struct MarkdownStyledTextToSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = _BODY
+    style::ImmutableCell{StyleText} = _BODY
 end
 
 function map_reference_forward(::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
@@ -422,8 +422,8 @@ end
 #   .alt[k] → .children[1].value[k]   .url[k] → .children[2].value[k]
 
 @projection struct MarkdownImageToStyledNode
-    caption_style::ImmutableCell{CDStyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    placeholder::ImmutableCell{CDStyleText}   = StyleText(_MONO, color_solarized_gray)
+    caption_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    placeholder::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_gray)
 end
 
 # The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
@@ -497,7 +497,7 @@ end
 #   .items[i].rest ↔ .children[i].content.<item-mapped rest>
 
 @projection struct MarkdownListToStyledNode
-    marker_style::ImmutableCell{CDStyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    marker_style::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
 end
 
 _md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
@@ -645,7 +645,7 @@ end
 # verbatim.
 
 @projection struct ReferenceStubToMarkdownSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
 @projection_template ReferenceStubToMarkdownSyntaxLeaf ReferenceStub (p, s) ->
@@ -659,7 +659,7 @@ _stub_marker_fence(stub::ReferenceStub) =
 # ── EmbeddedFileDocumentToMarkdownSyntaxLeaf ────────────────────────────────
 
 @projection struct EmbeddedFileDocumentToMarkdownSyntaxLeaf
-    style::ImmutableCell{CDStyleText} = StyleText(_MONO, color_solarized_gray)
+    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
 @projection_template EmbeddedFileDocumentToMarkdownSyntaxLeaf FileDocument (p, f) ->

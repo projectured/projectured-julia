@@ -64,7 +64,7 @@ import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
 import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
-import ..StyleTextModule: StyleText, CDStyleText
+import ..StyleTextModule: StyleText
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell
@@ -417,7 +417,7 @@ generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
 @projection struct InsertionNothingToSyntaxLeaf <: Projection
-    style::ImmutableCell{CDStyleText}
+    style::ImmutableCell{StyleText}
 end
 
 InsertionNothingToSyntaxLeaf() =
