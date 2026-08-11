@@ -68,8 +68,8 @@ projection.
 `RecursiveProjection` over `RuleIoMap`. It is projection code that names one
 primitive operation.
 
-- [ ] `git mv package/base/main/primitive/ReaderDefaults.jl package/base/main/projection/`
-- [ ] Move its `include` line.
+- [x] `git mv package/base/main/primitive/ReaderDefaults.jl package/base/main/projection/`
+- [x] Move its `include` line.
 
 Result: `ProjecturedPrimitive` depends on the kernel alone.
 

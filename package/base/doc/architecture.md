@@ -43,15 +43,13 @@ The container how-to is [collection.md](collection.md).
   `OperationModule` so the pre-order walk driving `SelectNextInsertionOperation`
   picks up `CellVector` elements without the kernel naming the concrete type.
 
-### primitive/ — the scalar documents and their reader
+### primitive/ — the scalar documents
 
 - **`Primitive.jl`** — `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`,
   `PrimitiveInsertion`: the editable scalar documents with selection + identity.
   Owns `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` and registers
-  their `reroot_operation` methods onto the kernel's `OperationModule`.
-- **`ReaderDefaults.jl`** — the Primitive-op branches of the default `read_intent`
-  (`read_intent(::Projection, iomap, ::Replace…RangeOperation)`), more specific
-  than the kernel's catch-all via multiple dispatch. Primitive's reader half.
+  their `reroot_operation` methods onto the kernel's `OperationModule`. Imports
+  the kernel alone. Its reader half is `projection/ReaderDefaults.jl`.
 
 ### projection/ — the domain-free projection algebra (no documents)
 
@@ -66,9 +64,8 @@ operate over *any* input by structure.
   `TypeDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`,
   `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`,
   `NestingProjection`, `WindowInputUnwrappingProjection`. (The two `RuleIoMap`
-  disambiguations keyed on `RecursiveProjection` live in
-  `primitive/ReaderDefaults.jl`, since the kernel's `ProjectionTemplate` cannot
-  name a base projection.)
+  disambiguations keyed on `RecursiveProjection` live in `ReaderDefaults.jl`,
+  since the kernel's `ProjectionTemplate` cannot name a base projection.)
 - **`compound/`** — `HigherOrderCompound.jl` / `GenericCompound.jl`: the compound
   projection aggregates (build on `Recursive` / `ReferenceDispatching` / `Nesting`).
 - **`Searching.jl`** (`SearchingProjection`, collects objects whose field matches a
@@ -77,6 +74,10 @@ operate over *any* input by structure.
 - **`Sorting.jl`** (`SortingProjection`) and **`Filtering.jl`**
   (`FilteringProjection`) — the collection-shaped projections (sort / keep by a
   key or predicate); they dispatch on `CellVector`.
+- **`ReaderDefaults.jl`** — the Primitive-op branches of the default `read_intent`
+  (`read_intent(::Projection, iomap, ::Replace…RangeOperation)`), more specific
+  than the kernel's catch-all via multiple dispatch. It names one primitive
+  operation, so it is projection code, not primitive code.
 
 ### dragging/, versioning/, reflection/ — optional feature slices
 

@@ -15,11 +15,11 @@ operations:
 - **`collection/`** — the reactive containers (`CellVector` / `CellMatrix` /
   `CellTable` / `ListNode`).
 - **`primitive/`** — the scalar documents (`Primitive*` + the two
-  `Replace*RangeOperation`s) and `ReaderDefaults`, the IoMap-typed `read_intent`
-  methods that go with them.
+  `Replace*RangeOperation`s).
 - **`projection/`** — the domain-free projection *algebra*: `generic/` +
-  `higherorder/` combinators, `compound/`, plus `Searching` / `Copying` and the
-  two collection-shaped projections (`Sorting`, `Filtering`).
+  `higherorder/` combinators, `compound/`, plus `Searching` / `Copying`, the
+  two collection-shaped projections (`Sorting`, `Filtering`) and
+  `ReaderDefaults`, the IoMap-typed `read_intent` methods.
 - **`dragging/`, `reflection/`** — optional feature slices, each a document
   paired with its projection (`DraggingState` + `DraggingProjection`; the
   `UnsyncedDocument` marker + `DocumentReflection`).
@@ -121,7 +121,7 @@ include("projection/Filtering.jl")
 include("projection/Searching.jl")
 include("projection/Copying.jl")
 # ReaderDefaults — the IoMap-typed Primitive-op branches of read_intent
-include("primitive/ReaderDefaults.jl")
+include("projection/ReaderDefaults.jl")
 # dragging/ projection — the press→drag→drop reader over DraggingState
 include("dragging/DraggingProjection.jl")
 # versioning/ projection — version-elimination (School-A reader over the value child)
