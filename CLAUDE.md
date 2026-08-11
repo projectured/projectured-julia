@@ -150,7 +150,7 @@ Read the guides in [documentation/](documentation/) before making non-trivial ch
 The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
 
 1. [documentation/concepts.md](documentation/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
-2. [documentation/architecture.md](documentation/architecture.md) — the package chain, layer/slice structure, and module inventory.
+2. [documentation/architecture.md](documentation/architecture.md) — the package graph, the kernel's layers, and the module inventory.
 2b. [documentation/packages.md](documentation/packages.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
 3. [package/kernel/doc/cell.md](package/kernel/doc/cell.md) — the pull-based reactive cell system that powers incrementality.
 4. [package/kernel/doc/macros.md](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap`.

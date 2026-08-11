@@ -321,7 +321,7 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Building something? Read next
 
-5. [Architecture](documentation/architecture.md) — the package chain, layer/slice structure, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
+5. [Architecture](documentation/architecture.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
 6. [Reactive cells](package/kernel/doc/cell.md) — the `Cell` system that powers incrementality.
 7. [Macros](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap` macros.
 8. [Projection system](package/kernel/doc/projection-system.md) — the four projection interface functions and the printer/reader pair.
