@@ -12,14 +12,22 @@
 # compiles the pairs and nothing else. `test_catalog_coverage` is what keeps the
 # registry honest about which pairs it can still not reach.
 #
-# `precompile(…)` on the signatures instead does NOT work, and the reason is
-# worth keeping: the chain is lazy. Printing builds thunks, the printers run
-# when the cells are forced, and much of the cost is in closures called
-# dynamically through the cell machinery — which a `precompile` call cannot name.
-# Measured, the signature sweep reached under half the render for twice the
-# build cost. The workload has to run the pipeline and force the output.
+# Sweeping `precompile(…)` over the METHOD TABLE instead does NOT work, and the
+# reason is worth keeping: the chain is lazy. Printing builds thunks, the
+# printers run when the cells are forced, and much of the cost is in closures
+# called dynamically through the cell machinery. A method table describes what a
+# reader accepts, not which closure it will be handed, so the sweep cannot name
+# them. Measured, it reached under half the render for twice the build cost.
 #
-# See plan/pending/precompile-workloads.md.
+# A RECORDING can name them, and this is the distinction to keep: Julia's gensym
+# names for closures are stable and nameable, so a `--trace-compile` list writes
+# them down and reads them back — measured, 555 of 555 closure statements
+# resolved in a later session. That is what `PrecompileRecording.jl` beside this
+# file is for. This workload remains what runs when a build must not depend on a
+# checked-in list, and what a recording is checked against.
+#
+# See plan/pending/precompile-workloads.md and
+# plan/pending/recorded-precompile-workload.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # PrecompileTools is not used here — the macro call sites live in the leaves.

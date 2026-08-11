@@ -92,8 +92,11 @@ include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
-# The workload body comes last, so it can reach everything above it.
+# The workload body comes last, so it can reach everything above it. The
+# recording machinery beside it reaches nothing here — what to drive and which
+# list to replay belong to the leaf being built.
 include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
+include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
 
 export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example
 export build_file_editor, clipboard_example, conversation_editor_example, conversation_example
@@ -250,6 +253,9 @@ export versioning_example, warm_file_editor, workbench_example, xml_example, yam
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export precompile_atoms, precompile_atom_parsers, precompile_atom_walks
 export precompile_workload
+export record_precompile_statements, replay_precompile_statements,
+       clean_precompile_trace, write_precompile_statements,
+       bind_loaded_modules!, PRECOMPILE_STALE_RATIO
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
