@@ -126,8 +126,13 @@ function precompile_warmup()
     # per node type across every domain, so a binary that bakes a single domain
     # leaves it at `:none` and warms only what it bakes. A config generated
     # before this knob existed has no `APP_WORKLOAD`, hence the guard.
+    #
+    # The workload has no levels any more, so anything that is not `:none` runs
+    # all of it. A binary cannot replay a recorded list the way a REPL leaf does:
+    # a list is recorded against a session, and this is a binary that bakes its
+    # own set of domains.
     _workload = @isdefined(APP_WORKLOAD) ? APP_WORKLOAD : :none
-    _workload === :none || ProjecturedExample.precompile_workload(_workload)
+    _workload === :none || ProjecturedExample.precompile_workload()
     for domain in APP_DOMAINS
         doc, proj, _name = build_file_editor(domain; workbench = APP_WORKBENCH)
         if haskey(APP_BACKENDS, :sdl)

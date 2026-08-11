@@ -146,31 +146,17 @@ The body a leaf package's `@compile_workload` calls. It is an ordinary function
 rather than code inside the macro, so the same definition serves the REPL leaf
 and the executable, and so it can be called and timed without a rebuild.
 
-`level` says how much to compile. Each level includes the ones before it:
-
-| level | what it runs | measured on the demo |
-| --- | --- | --- |
-| `:none` | nothing | the click costs 5.98 s |
-| `:minimal` | the atoms rendered and forced | |
-| `:demo` | and their parsers and stub walks | the click costs 0.55 s |
-| `:full` | the same as `:demo` here | |
-
-`:full` is not larger than `:demo` in this package because there is no page to
-open below the domains. A downstream package's `precompile_workload` calls this
-one and adds what only it can reach — `OmnetppExample` opens a catalog page —
-so `:full` is where the levels differ downstream.
+It runs the atoms, their parsers and their stub walks — everything this package
+can reach. There are no levels: they graded build time against the first click,
+and a recording settles that trade, so a build now either replays a recorded
+list or runs this. See `ProjecturedRepl.WORKLOAD`.
 
 The workload must *run* the pipeline: the chain is lazy, printing builds thunks,
-and `precompile` on the signatures reached under half the render for twice the
-build cost. See the module comment above.
+and a sweep of `precompile` over the method table reached under half the render
+for twice the build cost. See the module comment above.
 """
-function precompile_workload(level::Symbol = :minimal; atoms = atomic_documents())
-    level === :none && return nothing
-    level in (:minimal, :demo, :full) ||
-        error("precompile_workload: level must be :none, :minimal, :demo or :full, got ",
-              repr(level))
+function precompile_workload(; atoms = atomic_documents())
     precompile_atoms(atoms)
-    level === :minimal && return nothing
     precompile_atom_parsers(atoms)
     precompile_atom_walks(atoms)
     nothing
