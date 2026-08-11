@@ -37,6 +37,7 @@ using ProjecturedCollection
 using ProjecturedPrimitive
 using ProjecturedDomain
 using ProjecturedSerialization
+using ProjecturedProjection
 
 # ── Aliases of the packages this one was spliced into ─────────────────────
 # Each concept folder becomes its own package (see
@@ -50,6 +51,25 @@ const DomainModule = ProjecturedDomain.DomainModule
 const BinarySerializationModule = ProjecturedSerialization.BinarySerializationModule
 const FileProjectModule = ProjecturedSerialization.FileProjectModule
 const TextFileModule = ProjecturedSerialization.TextFileModule
+const CopyingProjectionModule = ProjecturedProjection.CopyingProjectionModule
+const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModule
+const ReaderDefaultsModule = ProjecturedProjection.ReaderDefaultsModule
+const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
+const SortingProjectionModule = ProjecturedProjection.SortingProjectionModule
+const GenericCompoundModule = ProjecturedProjection.GenericCompoundModule
+const HigherOrderCompoundModule = ProjecturedProjection.HigherOrderCompoundModule
+const ConstantProjectionModule = ProjecturedProjection.ConstantProjectionModule
+const FocusingProjectionModule = ProjecturedProjection.FocusingProjectionModule
+const IdentityProjectionModule = ProjecturedProjection.IdentityProjectionModule
+const ReversingProjectionModule = ProjecturedProjection.ReversingProjectionModule
+const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
+const NestingProjectionModule = ProjecturedProjection.NestingProjectionModule
+const PredicateDispatchingProjectionModule = ProjecturedProjection.PredicateDispatchingProjectionModule
+const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
+const ReferenceDispatchingProjectionModule = ProjecturedProjection.ReferenceDispatchingProjectionModule
+const SwitchingProjectionModule = ProjecturedProjection.SwitchingProjectionModule
+const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
+const WindowInputUnwrappingProjectionModule = ProjecturedProjection.WindowInputUnwrappingProjectionModule
 
 # ── Kernel submodule aliases ──────────────────────────────────────────────
 # One entry per kernel submodule this package's files touch. The order
@@ -106,36 +126,9 @@ include("dragging/Dragging.jl")
 # versioning/ — the VersionedObject overlay document; its projection is below.
 include("versioning/Versioning.jl")
 
-# projection algebra — the domain-free generic + higher-order combinators. The
-# only intra-order edge is Identity → Reversing; Sorting imports IdentityProjection
-# and the compound aggregates import Recursive/ReferenceDispatching/Nesting.
-include("projection/generic/Identity.jl")
-include("projection/generic/Reversing.jl")
-include("projection/generic/Constant.jl")
-include("projection/higherorder/Chaining.jl")
-include("projection/higherorder/TypeDispatching.jl")
-include("projection/higherorder/Recursive.jl")
-include("projection/higherorder/Switching.jl")
-include("projection/higherorder/PredicateDispatching.jl")
-include("projection/higherorder/ReferenceDispatching.jl")
-include("projection/higherorder/Nesting.jl")
-include("projection/higherorder/WindowInputUnwrapping.jl")
-include("projection/generic/Focusing.jl")
-
-# collection-shaped projections (dispatch on CellVector)
-include("projection/Sorting.jl")
-include("projection/Filtering.jl")
-# Searching + Copying consume any input → generic algebra
-include("projection/Searching.jl")
-include("projection/Copying.jl")
-# ReaderDefaults — the IoMap-typed Primitive-op branches of read_intent
-include("projection/ReaderDefaults.jl")
 # dragging/ projection — the press→drag→drop reader over DraggingState
 include("dragging/DraggingProjection.jl")
 # versioning/ projection — version-elimination (School-A reader over the value child)
 include("versioning/VersioningToAny.jl")
-# compound aggregates
-include("projection/compound/HigherOrderCompound.jl")
-include("projection/compound/GenericCompound.jl")
 
 end # module ProjecturedBase
