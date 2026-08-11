@@ -74,6 +74,10 @@ using ProjecturedPane
 using ProjecturedClipboard
 using ProjecturedTooltip
 using ProjecturedInspector
+using ProjecturedGestureHelp
+using ProjecturedGestureLog
+using ProjecturedFileFormat
+using ProjecturedNaturalProjection
 
 # ── Aliases of the packages this one builds on, and of the packages it was
 # ── spliced into ──────────────────────────────────────────────────────────
@@ -148,6 +152,21 @@ const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModul
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 # The aliases of the packages this one was spliced into follow.
+const NaturalProjectionModule = ProjecturedNaturalProjection.NaturalProjectionModule
+const NaturalRegistryModule = ProjecturedNaturalProjection.NaturalRegistryModule
+const DocumentFileModule = ProjecturedFileFormat.DocumentFileModule
+const EmbedToSyntaxModule = ProjecturedFileFormat.EmbedToSyntaxModule
+const NaturalFormatModule = ProjecturedFileFormat.NaturalFormatModule
+const GestureLogModule = ProjecturedGestureLog.GestureLogModule
+const GestureLogOverlayProjectionModule = ProjecturedGestureLog.GestureLogOverlayProjectionModule
+const GestureLogRecordingProjectionModule = ProjecturedGestureLog.GestureLogRecordingProjectionModule
+const GestureLogToSyntaxModule = ProjecturedGestureLog.GestureLogToSyntaxModule
+const CommandPaletteModule = ProjecturedGestureHelp.CommandPaletteModule
+const CommandPaletteDecoratorProjectionModule = ProjecturedGestureHelp.CommandPaletteDecoratorProjectionModule
+const CommandPaletteToSyntaxModule = ProjecturedGestureHelp.CommandPaletteToSyntaxModule
+const GestureHelpDecoratorProjectionModule = ProjecturedGestureHelp.GestureHelpDecoratorProjectionModule
+const GestureMapModule = ProjecturedGestureHelp.GestureMapModule
+const GestureMapToSyntaxModule = ProjecturedGestureHelp.GestureMapToSyntaxModule
 const HoverProbeProjectionModule = ProjecturedInspector.HoverProbeProjectionModule
 const ReferenceInspectorDocumentModule = ProjecturedInspector.ReferenceInspectorDocumentModule
 const ReferenceInspectorToTextModule = ProjecturedInspector.ReferenceInspectorToTextModule
@@ -210,47 +229,6 @@ const ImageModule = ProjecturedStyle.ImageModule
 const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
-
-# ── Slice — gesturehelp (what can I press here, and the command palette) ─
-# Domain-neutral editor features: the gesture map document, the command palette,
-# their syntax printers, and the two decorators that put them on the screen.
-# They print to Syntax and open windows, so they follow syntax/ and screen/.
-include("gesturehelp/GestureMap.jl")
-include("gesturehelp/CommandPalette.jl")
-include("gesturehelp/GestureMapToSyntax.jl")
-include("gesturehelp/CommandPaletteToSyntax.jl")
-include("gesturehelp/CommandPaletteDecorator.jl")
-include("gesturehelp/GestureHelpDecorator.jl")
-
-# ── Slice — gesturelog (what was pressed, as a panel over anything) ──────
-# The log document, its syntax printer, the recorder that decorates an arbitrary
-# projection, and the overlay that draws the panel.
-include("gesturelog/GestureLog.jl")
-include("gesturelog/GestureLogToSyntax.jl")
-include("gesturelog/GestureLogRecorder.jl")
-include("gesturelog/GestureLogOverlay.jl")
-
-# ── Slice — fileformat (natural text I/O + the document-file entry point) ───
-# NaturalFormat renders a document to text via the domain's ToSyntax + the shared
-# SyntaxToText → TextToString tail (so it lives here, not base); DocumentFile
-# bridges it with base's binary serializer. Domains register the per-domain seams
-# (natural_syntax_projection / natural_extension / parse_natural / new_document_seed).
-include("fileformat/NaturalFormat.jl")
-include("fileformat/DocumentFile.jl")
-# EmbedToSyntax makes a cross-file embed part of the shared to-syntax fabric, so
-# a document spliced in by a marker renders as itself rather than as the marker's
-# text. It is neutral about the host format and belongs beside the marker and the
-# file document it prints.
-include("fileformat/EmbedToSyntax.jl")
-
-# ── Slice — naturalprojection (render anything, from a registry) ────────────
-# NaturalRegistry holds the two tables the renderer is built from. They hold no
-# entry of their own: each domain registers its own row from a file it already
-# has, so the renderer never names a domain. NaturalProjection is the renderer
-# itself, so it follows every stage it splices — widget, layout, text, syntax,
-# and the embed rules above.
-include("naturalprojection/NaturalRegistry.jl")
-include("naturalprojection/NaturalProjection.jl")
 
 # ── Slice 9 — backend (dependency-free concrete backends) ───────────────
 # Console renders the Text domain to an ANSI terminal; Pdf exports the
