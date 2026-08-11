@@ -90,7 +90,7 @@ Two things stay outside the panel:
 
 The panel is not interactive. A click goes through it to the content below.
 
-The slice is [domain/main/gesturelog/](../package/visual/main/gesturelog/):
+The slice is [domain/main/gesturelog/](../package/gesturelog/main/):
 `GestureLog.jl` (the buffer and the rendering of a gesture and an operation),
 `GestureLogToSyntax.jl` (one line per entry), `GestureLogRecorder.jl` (the
 decorator that records) and `GestureLogOverlay.jl` (the decorator that draws).
@@ -114,7 +114,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[visual/example/Harness.jl](../package/visual/example/Harness.jl). It calls
+[visual/example/Harness.jl](../package/substrate/example/Harness.jl). It calls
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
@@ -170,7 +170,7 @@ find it, and forward-project through a truncated chain to see the document each 
 actually works on:
 
 ```julia
-julia> using ProjecturedBase.ChainingProjectionModule: ChainingProjection
+julia> using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
 julia> outof(iomap) = (o = iomap.output; o isa Cell ? o[] : o);
 
 # What does the *text* layer see? Project the input through all but the last stage.

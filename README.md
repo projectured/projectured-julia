@@ -341,7 +341,7 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Per-domain guides
 
-[json](package/json/doc/json.md) · [xml](package/xml/doc/xml.md) · [rst](package/rst/doc/rst.md) · [text](package/visual/doc/text.md) · [syntax](package/visual/doc/syntax.md) · [graphics](package/visual/doc/graphics.md) · [widget](package/visual/doc/widget.md) · [workbench](package/workbench/doc/workbench.md) · [collection](package/base/doc/collection.md)
+[json](package/json/doc/json.md) · [xml](package/xml/doc/xml.md) · [rst](package/rst/doc/rst.md) · [text](package/text/doc/text.md) · [syntax](package/syntax/doc/syntax.md) · [graphics](package/graphics/doc/graphics.md) · [widget](package/widget/doc/widget.md) · [workbench](package/workbench/doc/workbench.md) · [collection](package/collection/doc/collection.md)
 
 ### Working in the REPL
 

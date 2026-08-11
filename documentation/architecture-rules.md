@@ -103,14 +103,15 @@ The three kinds form **parallel DAGs with identical shape** (the module names ke
 the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-main:      kernel ← base ← visual ← domain ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
-tests:     kernel/test ← base/test ← visual/test ← domain/test ← projectured/test
-examples:  kernel/example ← visual/example ← domain/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
+main:      kernel ← the 28 substrate packages ← the 20 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
+tests:     kernel/test ← substrate/test ← <domain>/test ← projectured/test
+examples:  kernel/example ← substrate/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```
 
-(There is no `base/example`: every runnable example projects through the visual
-render fabric, so the example DAG skips the base package — see
-[plan/done/example-package-split.md](../plan/done/example-package-split.md).)
+The substrate shares **one** example package and **one** test package
+(`package/substrate/{example, test}`) rather than one per package: the files of
+both were written against the flat namespace, so a static scan cannot say which
+of the twenty-eight owns which file.
 
 The example DAG's leaves are the **opt-in example packages** — one per engine,
 each under its opt-in package's folder: `package/odbc/example`
@@ -190,7 +191,7 @@ package whose document walk can express them.
   files they already have** — multiple dispatch *is* the registration; a couple of
   methods never earns a new file. Precedents: operation traversal and rerooting,
   reader defaults, insertion, serialization, the projection template's children
-  container, layout focus-paths.
+  container, the focus walk's `is_focusable_document`.
 - **Shared helpers are exported API; internals never cross a module boundary.** No
   module may `import` a name another module does not export — not across layers, and
   not between sibling modules in the same layer. If code outside a module needs a

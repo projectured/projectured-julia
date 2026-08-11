@@ -54,7 +54,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")              # vector PDF, select
 write_example_pdf("widget", "/tmp/book.pdf"; paginate=true) # flow tall content onto pages
 ```
 
-See [the graphics guide](../package/visual/doc/graphics.md) for the `write_image` and
+See [the graphics guide](../package/graphics/doc/graphics.md) for the `write_image` and
 `write_pdf` APIs.
 
 ## Inspecting document structure

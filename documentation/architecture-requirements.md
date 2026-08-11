@@ -314,7 +314,7 @@ knows nothing about how it is displayed or about other domains; a document
 imports only its own slice and packages below it. All cross-domain coupling
 lives in projections (the edges), never in documents (the nodes) — this is what
 makes the domain package sliceable. Anything two slices both need is a
-framework and sinks to `base` (or `visual` if it renders), not into either
+framework and sinks to the substrate package that owns the concept, not into either
 slice.
 
 ### AR-DOMAIN-OWNS-EDITS
@@ -827,7 +827,7 @@ conflict AR-PER-EDITOR-STATE targets.
 ### AR-PACKAGE-CHAIN
 
 **Respect the package chain and the four-level division.** Dependencies flow
-one way, `kernel → base → visual → domain → umbrella` (plus opt-in packages);
+one way, `kernel → substrate → domain → umbrella` (plus opt-in packages);
 create a **package** only for a new external dependency or a distinct consumer
 set, a **layer** for a distinct dependency height (a layer imports only lower
 layers), a **slice** for a feature within one layer (slice→slice edges stay
@@ -1083,7 +1083,7 @@ and asserts a valid topological include order, correct layer/slice membership,
 and same-or-lower-layer edges (slice acyclicity follows from the topological
 order); the export-only cross-layer-import check and the interface-purity check
 (AR-INTERFACE-DECLARES-ONLY) are enabled on the kernel guard today and extend
-to base/visual/domain as they come clean. Run `test_kernel_layering()`
+to the substrate and the domains as they come clean. Run `test_kernel_layering()`
 (…`test_domain_layering()`) after any structural change; the guard runs in ~1s
 without loading the package, and its error messages are prescriptive — they
 name the offending file, the module, and the fix — so treat those messages as

@@ -8,28 +8,29 @@ and no synonyms.
 ## The terms
 
 - **Package** — a Julia package with its own `Project.toml`. The project
-  consists of packages: the four main packages in the dependency chain
-  `kernel ← base ← visual ← domain`, the `Projectured` umbrella, their
-  sibling test/example packages, and the opt-in packages (`sdl`, `web`,
-  `odbc`, `video`, `tulip`, `llm`, `mcp`, …). A package is a boundary of
-  dependencies and consumers.
+  consists of packages: the `ProjecturedKernel` engine, the twenty-eight
+  packages of the substrate, the twenty domain packages, the `Projectured`
+  umbrella, their sibling test and example packages, and the opt-in packages
+  (`sdl`, `web`, `odbc`, `video`, `tulip`, `llm`, `mcp`, …). A package is one
+  concept and a boundary of dependencies and consumers. The packages form an
+  acyclic graph, not a chain.
 
 - **Layer** — a horizontal stratum inside a package. Layers are **ordered**:
   a layer may depend only on **lower** layers, never sideways or up. The
-  kernel is seventeen layers (`cell` → `clock` → `event` → `device` → `gesture` → `backend` →
-  `document` → `reference` → `selection` → `operation` → `binding` → `iomap` → `projection` →
-  `tool` → `llm` → `agent` → `editor`); base is three (`document` → `projection` → `serialization`).
+  kernel is the one layered package, with seventeen layers (`cell` → `clock` →
+  `event` → `device` → `gesture` → `backend` → `document` → `reference` →
+  `selection` → `operation` → `binding` → `iomap` → `projection` → `tool` →
+  `llm` → `agent` → `editor`). Every other package is one concept and declares
+  no layer.
 
 - **Slice** — a **vertical** split of a single layer. Where a layer stacks
   code by dependency height, slices split one layer side by side by
   *feature*: each slice groups everything about one feature (a document with
   its parser, projections, decorators). Slices are **not ordered** — a slice
   may depend on another slice of the same layer only if the slice→slice
-  edges stay **acyclic** (a DAG, not a stack). The visual package is split
-  into 11 slices (style, screen, graphics, layout, text, widget, syntax,
-  clipboard, tooltip, inspector, backend); the domain package into ~16
-  source slices (json, xml, sql, graph, …) with the application slices
-  (workbench, conversation) in the layer above them.
+  edges stay **acyclic** (a DAG, not a stack). Slice is a **kernel-only**
+  notion now: the concept folders that were slices of base and visual are each
+  a package of their own, and so is each source domain.
 
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
   (or slice) contains one or more modules; module names are de-facto public
@@ -54,18 +55,18 @@ enforce.
 
 ```
 project
-└─ packages                 kernel ← base ← visual ← domain ← umbrella  (+ opt-in)
-   └─ layers                ordered: depend only on lower layers
-      └─ slices             vertical splits of one layer; acyclic slice→slice DAG
-         └─ modules         one or more Julia modules per layer/slice
+└─ packages                 kernel ← substrate ← domains ← umbrella  (+ opt-in)
+   │                        an acyclic graph; each package is one concept
+   └─ layers                the kernel alone: ordered, depend only on lower layers
+      └─ modules            one or more Julia modules per package or layer
 ```
 
-Whether a layer or slice is materialised as a folder is a code-organisation
-detail, not part of the definition. Today each layer and slice happens to be a
-folder, and the static layering guard
+Whether a layer is materialised as a folder is a code-organisation detail, not
+part of the definition. Today each kernel layer happens to be a folder, and the
+static layering guard
 ([CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)) enforces
-both rules — ordered layers where a package declares them (kernel, base), and
-the acyclic slice DAG elsewhere (visual, domain).
+both rules — the ordered layers of the kernel, which is the one package that
+declares them, and the topological include order of every other package.
 
 ## Words to avoid
 

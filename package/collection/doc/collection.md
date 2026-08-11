@@ -4,7 +4,7 @@
 
 The collection domain provides four generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
-[package/base/main/document/Collection.jl](../../../package/base/main/document/Collection.jl)
+[package/collection/main/Collection.jl](../../../package/collection/main/Collection.jl)
 and subtype `Document` so they participate in the selection mechanism. This guide
 covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
 (2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.
@@ -16,7 +16,7 @@ const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
 ## Where Collection and Primitive sit
 
 Collection is one of the two **shipped engine documents** that make up layer 1
-of the `ProjecturedBase` package — the concrete, domain-independent documents
+of the `ProjecturedCollection` package — the concrete, domain-independent documents
 every domain reuses:
 
 - **Collection** — `CellVector` (reactive sequence container), `CellMatrix`,

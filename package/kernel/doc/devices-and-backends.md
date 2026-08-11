@@ -90,7 +90,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [package/visual/main/backend/Console.jl](../../../package/visual/main/backend/Console.jl))
+`ConsoleBackend` (in [package/console/main/Console.jl](../../../package/console/main/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -237,13 +237,13 @@ file:
 
 - **`write_image`** ([package/sdl/main/ProjecturedSdl.jl](../../../package/sdl/main/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([package/visual/main/backend/Pdf.jl](../../../package/visual/main/backend/Pdf.jl)) walks the same
+- **`write_pdf`** ([package/pdf/main/Pdf.jl](../../../package/pdf/main/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
   `sdl_measure_text`.
 
-See [the graphics guide](../../../package/visual/doc/graphics.md) for both APIs.
+See [the graphics guide](../../../package/graphics/doc/graphics.md) for both APIs.
 
 ## Projections that need the backend
 
@@ -434,7 +434,7 @@ Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 and add methods for their own `::MyBackend` type. A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
 pick a backend without depending on its package uses
-[`ProjecturedBase.default_backend`](../../base/main/backend/DefaultBackend.jl),
+[`ProjecturedExample.default_backend`](../../projectured/example/DefaultBackend.jl),
 which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.

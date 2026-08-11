@@ -50,26 +50,26 @@ described in the next section.)
 
 ---
 
-## Package layout — the 4-package chain
+## Package layout — the package graph
 
 The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [packages.md](packages.md).
 
-
-ProjecturEd is organized as **four packages** with strictly layered
-dependencies (`kernel ← base ← visual ← domain`). Each package's layer
-ordering — no upward `..XxxModule` imports inside a declared layer — is
-statically enforced by the shared
-[layered-architecture guard](../package/kernel/test/layering/CheckLayering.jl),
-applied per package by its test package (`test_kernel_layering()`, …).
+ProjecturEd is organized as **one engine, twenty-eight substrate packages and
+twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
+is the one *layered* package: its seventeen layers depend only downward, and
+the ordering is enforced statically by the shared
+[layered-architecture guard](../package/kernel/test/layering/CheckLayering.jl).
+Every other package is **one concept**, so it declares no layer index; the
+guard checks its include order and its file inventory alone.
 
 Each main package is one third of a **triad** in one folder:
-`package/<name>/{main, test, example}` — its code, its tests
-(`ProjecturedKernelTest`, …), and its examples (`ProjecturedKernelExample`, …)
-as three separate packages under the same directory. The three kinds form
-parallel DAGs of identical shape, and every piece lives in the lowest package
-of its DAG whose API it hard-references (seam calls don't count). See
+`package/<name>/{main, test, example}` — its code, its tests and its examples
+as separate packages under the same directory. The substrate shares one
+example package and one test package
+(`ProjecturedSubstrateExample`, `ProjecturedSubstrateTest`), because the files
+of both were written against the flat namespace. See
 [architecture-rules.md](architecture-rules.md#the-triad--every-main-package-has-its-code-its-tests-and-its-examples)
 for the rules.
 
@@ -79,46 +79,47 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      document → reference → selection → operation → binding →
         │                      iomap → projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
-ProjecturedBase (base/)        the domain-independent vocabulary & frameworks
-        ▲                      3 layers: document (Collection, DocumentCore, Primitive,
-        │                      Dragging) + projection (Sorting/Filtering/Searching/
-        │                      Copying/ReaderDefaults/DraggingProjection) +
-        │                      serialization (BinarySerialization).
-        │                      Deps: kernel + Serialization stdlib.
-ProjecturedVisual (visual/)    the rendering substrate
-        ▲                      13 slices (acyclic DAG; include order: style, plot,
-        │                      screen, graphics, layout, text, widget, component,
-        │                      pane, syntax (+ the shared insertion leaf),
+The substrate: 28 packages     one concept each, an acyclic package graph
+        ▲                      the vocabulary — collection, primitive, domain,
+        │                      serialization;
+        │                      the algebra — projection, reflection, dragging,
+        │                      versioning;
+        │                      the rendering — style, component, focus, plot,
+        │                      graphics, screen, layout, text, widget, syntax,
+        │                      pane;
+        │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fileformat,
-        │                      naturalprojection, interaction decorators
-        │                      (clipboard + tooltip + inspector), backend
-        │                      (Console, Pdf)).
-        │                      Deps: kernel + base.
-The twenty domain packages       one package per concrete source domain
+        │                      naturalprojection;
+        │                      the two dependency-free backends — console, pdf.
+        │                      Each declares the exact set it imports; the table
+        │                      is in [packages.md](packages.md).
+The twenty domain packages     one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ filesystem/ graph/ chart/
         │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
-        │                      conversation/ workbench/. Each holds one slice —
-        │                      its documents, its parser, its projections.
-        │                      Deps: kernel + base + visual, and the domains it
-        │                      embeds. See [domains.md](domains.md).
+        │                      conversation/ workbench/. Each holds its
+        │                      documents, its parser and its projections.
+        │                      Deps: the kernel, the substrate packages it uses,
+        │                      and the domains it embeds. See
+        │                      [domains.md](domains.md).
 Projectured (projectured/)     umbrella: `using Projectured` re-exports every
                                package above as a single flat public API.
 
 Opt-in packages (depend on the above; loaded only when you `using` them):
-  Sdl  (sdl/)   → Visual  SDL2/SimpleDirectMediaLayer/FFMPEG  SdlBackend, write_image, record_video
-  Web  (web/)   → Visual  HTTP/JSON3                          WebBackend; assets in web/assets/
-  Video(video/) → Visual  FFMPEG                              record_video method on the kernel seam
-  Odbc (odbc/)  → Sql, DbCatalog, Database  ODBC/DBInterface/Tables  OdbcDatabaseAdapter, make_database_adapter(:odbc), live-query projections
-  Adaptagrams   → Graph   native C++ shim                     the graph layout engine
-  Mcp  (mcp/)   → Kernel  ModelContextProtocol               McpServer, make_agent_server(:mcp)
-  Llm  (llm/)   → Kernel  HTTP/JSON3                          stream_turn(::AnthropicLlm) — Anthropic Messages client
+  Sdl  (sdl/)   → Collection, Graphics, Screen, Style  SDL2/SimpleDirectMediaLayer  SdlBackend, write_image
+  Web  (web/)   → Collection, Graphics, Screen, Style  HTTP/JSON3                   WebBackend; assets in web/assets/
+  Video(video/) → Graphics, Sdl                        FFMPEG                       record_video method on the kernel seam
+  Tulip(tulip/) → Layout                               MathOptInterface/Tulip       the linear-programming constraint solver
+  Odbc (odbc/)  → Sql, DbCatalog, Database             ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
+  Adaptagrams   → Graph                                native C++ shim              the graph layout engine
+  Mcp  (mcp/)   → Kernel                               ModelContextProtocol         McpServer, make_agent_server(:mcp)
+  Llm  (llm/)   → Kernel                               HTTP/JSON3                   stream_turn(::AnthropicLlm)
 ```
 
-The four-level division rule: **package** = external dependency or consumer
-boundary; **layer** = direction-of-dependency boundary inside a package
-(layers depend only on lower layers); **slice** = vertical split of a single
-layer by feature (slice→slice edges must stay acyclic); **module** =
+The four-level division rule: **package** = one concept, or an
+external dependency boundary; **layer** = direction-of-dependency boundary
+inside a package, which the kernel alone declares; **slice** = vertical split
+of a single layer by feature, which is now a kernel-only notion; **module** =
 namespace/import surface. Files sit below all four levels as readability
 boundaries only: fragments (0-module files that share their aggregator's
 namespace) let a module split across files with zero API cost. See
@@ -142,17 +143,17 @@ per-domain reference guides that used to live at the top level. The kernel set
 [agent](../package/kernel/doc/agent.md),
 [editor](../package/kernel/doc/editor.md),
 [naming](../package/kernel/doc/naming.md)) is the largest; the per-domain guides
-live in [visual/doc/](../package/visual/doc/), [domain/doc/](../package/domain/doc/),
-and [base/doc/](../package/base/doc/). Each package's own `doc/architecture.md`
-indexes its guides.
+live next to the code, in the `doc/` folder of the package they document —
+[widget](../package/widget/doc/widget.md), [text](../package/text/doc/text.md),
+[collection](../package/collection/doc/collection.md) and the rest.
 
 Optional engines plug into **factory seams** owned by the kernel
 (`make_agent_server(kind, …)`) or the domain (`make_database_adapter(kind)`):
 generic code requests one by symbol and the opt-in package registers the method
 on load. Display backends use a lighter mechanism — no seam: name the type
 directly (`SdlBackend()`) where the package is a dependency, or let
-`ProjecturedBase.default_backend` pick a loaded `Backend` subtype by type-name
-reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
+`ProjecturedExample.default_backend` pick a loaded `Backend` subtype by
+type-name reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
 `ProjecturedSql` and `ProjecturedDbCatalog` (they need nothing external) — only
 **live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
@@ -320,16 +321,16 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── ProjecturedBase ◄── ProjecturedVisual ◄── the 20 domains ◄── Projectured
-       ▲                                          ▲                     ▲          (umbrella)
-       │                                          │                     │
-   Mcp, Llm                              Sdl, Web, Video, Tulip    Odbc, Adaptagrams
-   (opt-in)                                    (opt-in)                (opt-in)
+ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains ◄── Projectured
+       ▲                          ▲                        ▲            (umbrella)
+       │                          │                        │
+   Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
+   (opt-in)                    (opt-in)                 (opt-in)
 ```
 
-The twenty domain packages form their own DAG. Fourteen depend on nothing but
-the three engine packages; five build on one layer of domains; the workbench
-application sits on top. [domains.md](domains.md) has the table.
+The substrate packages form their own DAG, and so do the twenty domains.
+[packages.md](packages.md) has the substrate table; [domains.md](domains.md)
+has the domain table.
 
 **Inside ProjecturedKernel — 17 layers**, in include order; each imports only layers
 above it in this list:
@@ -368,44 +369,41 @@ above it in this list:
 17 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
-**Inside ProjecturedBase — 3 layers** (plus a `backend/DefaultBackend.jl` preamble
-that picks a loaded `Backend` subtype by reflection):
+**The twenty-eight substrate packages**, in a topological order. Each is one
+concept, and each declares the exact set of packages it imports:
 
 ```
- 1 document       Collection (CellVector, …), Primitive, DocumentCore, Dragging
- 2 projection     the domain-independent algebra — generic (Identity, Reversing,
-                  Constant, Focusing) + higher-order (Chaining, TypeDispatching,
-                  Recursive, Switching, PredicateDispatching, ReferenceDispatching,
-                  Nesting, WindowInputUnwrapping) + Sorting / Filtering / Searching /
-                  Copying / ReaderDefaults / DraggingProjection
- 3 serialization  BinarySerialization
-```
-
-**Inside ProjecturedVisual — 13 slices**, an acyclic DAG in include order:
-
-```
- 1 style     Color, Font, TrueType, Geometry, Image, strokes and text styles
- 2 plot      the plot arithmetic (axis scaling, ticks, decimation, folding) and
-             the colour/marker vocabulary a chart and a sequence chart share
- 3 screen    ScreenDocument, WindowManaging
- 4 graphics  Graphics, GraphicsCaching, PointReferenceStep
- 5 layout    Layout, the constraint solver, CollectionToLayout
- 6 text      Text, TextToGraphics, word-wrapping, line-numbering, filtering,
-             highlighting, TextRange/Column/SpanReference, ReferenceToText
- 7 widget    Widget, WidgetToGraphics, ObjectToWidget, ProjectionConfiguring
- 8 component a named, reusable widget composition
- 9 pane      the tab/split layout and its widget projection
-10 syntax    Syntax, SyntaxToText, ObjectToSyntax, CollectionToSyntax,
-             PrimitiveToSyntax, InsertionToSyntax (the shared insert-by-typing
-             leaf and the *Nothing placeholder every domain prints through)
-11 gesturehelp / gesturelog   what can I press here, the command palette, and
-             the gesture log overlay — domain-neutral editor features
-12 fileformat  NaturalFormat, DocumentFile, EmbedToSyntax
-13 naturalprojection  NaturalRegistry (the two tables) and NaturalToGraphics
-                      (render anything). Neither names a domain: each domain
-                      registers its own row.
-   interaction decorators   clipboard + tooltip + inspector (one slice, three folders)
-   backend   the dependency-free concrete backends: Console, Pdf
+   collection      CellVector, CellMatrix, CellTable, ListNode
+   primitive       PrimitiveBool / Number / String / Insertion and their range operations
+   domain          DocumentCore, the @domain macro, insertion completion
+   serialization   BinarySerialization, FileProject, TextFile
+   style           Color, Font, TrueType, Geometry, Image, strokes and text styles
+   component       a named, reusable widget composition
+   projection      the domain-free algebra: the generic and higher-order combinators,
+                   the compound aggregates, Searching, Copying, Sorting, Filtering,
+                   ReaderDefaults
+   reflection      BoundedSync and DocumentReflection
+   dragging        DraggingState and its press-drag-drop reader
+   focus           the generic focus walk and the is_focusable_document trait
+   versioning      VersionedObject and its version-eliminating projection
+   plot            the plot arithmetic and the colour and marker vocabulary
+   graphics        Graphics, GraphicsCaching, PointReferenceStep
+   screen          ScreenDocument, WindowManaging, ScreenToScreen
+   layout          Layout, the constraint solver, LayoutToGraphics, CollectionToLayout
+   text            Text, TextToGraphics, the decorators, the three reference steps,
+                   PrimitiveToText, ReferenceToText
+   widget          Widget, WidgetToGraphics, ObjectToWidget, the decorators
+   syntax          Syntax, SyntaxToText, the three bridges, InsertionToSyntax
+   pane            the tab and split layout and its widget projection
+   clipboard       copy, cut and paste over any wrapped content
+   tooltip         the TooltipSource wrapper and its decorator
+   inspector       the reference inspector and the hover probe
+   gesturehelp     the gesture map, the command palette and their two decorators
+   gesturelog      the log document, its printer, its recorder and its overlay
+   fileformat      NaturalFormat, DocumentFile, EmbedToSyntax
+   naturalprojection  NaturalRegistry and NaturalProjection: render anything
+   console         the ANSI terminal backend
+   pdf             the vector PDF backend
 ```
 
 **The twenty domain packages** — one package per concrete source domain, each

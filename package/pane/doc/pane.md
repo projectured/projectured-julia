@@ -2,7 +2,7 @@
 
 The pane tree is the generic way to organize documents on the screen: tab groups,
 splits between them, and the gestures that rearrange the lot. It is implemented in
-[package/visual/main/pane/](../../../package/visual/main/pane/) and rendered by
+[package/pane/main/](../../../package/pane/main/) and rendered by
 
 ```
 PaneTree ──PaneToWidget──► WidgetSplitPane / WidgetTabbedPane ──WidgetToGraphics──► GraphicsCanvas
@@ -15,7 +15,7 @@ mouse.
 ## Document types
 
 All subtype `PaneDocument` (`<: Document`), defined in
-[pane/Pane.jl](../../../package/visual/main/pane/Pane.jl).
+[pane/Pane.jl](../../../package/pane/main/Pane.jl).
 
 | Type | Role |
 |---|---|
@@ -87,7 +87,7 @@ Two rules hold across all of them:
 
 ## Geometry
 
-[PaneGeometry.jl](../../../package/visual/main/pane/PaneGeometry.jl) gives every
+[PaneGeometry.jl](../../../package/pane/main/PaneGeometry.jl) gives every
 group a rectangle in the unit square by one walk of the tree with its weights. No
 font, no measurement, and no backend takes part.
 
@@ -107,7 +107,7 @@ pane a click landed in, and it is not a pixel-accurate model of the drawing.
 ## Keyboard
 
 The table is `@gestures PaneTree` in
-[PaneGestures.jl](../../../package/visual/main/pane/PaneGestures.jl).
+[PaneGestures.jl](../../../package/pane/main/PaneGestures.jl).
 
 | Gesture | Effect |
 |---|---|

@@ -4,20 +4,19 @@ The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../plan/done/test-package-split.md)):
 
 ```
-main:     ProjecturedKernel ← ProjecturedBase ← ProjecturedVisual ← the 20 domains ← Projectured ← {Example, Sdl, …}
-tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTest ← the 20 domain test packages ← ProjecturedTest
+main:     ProjecturedKernel ← the 28 substrate packages ← the 20 domains ← Projectured ← {Example, Sdl, …}
+tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubstrateTest ← the 20 domain test packages ← ProjecturedTest
 ```
 
 - [package/kernel/test](../package/kernel/test/ProjecturedKernelTest.jl) —
   kernel unit tests + the **shared generic drivers** (`test_printer`,
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
-- [package/base/test](../package/base/test/ProjecturedBaseTest.jl) —
-  collection/copying tests + the ground-truth selection enumerators.
-  Aggregator: `test_base()`.
-- [package/visual/test](../package/visual/test/ProjecturedVisualTest.jl) —
-  syntax/text/graphics/layout documents, text/graphics/widget projections, the
-  type-in and click-roundtrip drivers. Aggregator: `test_visual()`.
+- [package/substrate/test](../package/substrate/test/ProjecturedSubstrateTest.jl) —
+  the unit tests of all twenty-eight substrate packages: the collection and
+  copying tests, the ground-truth selection enumerators, the syntax, text,
+  graphics and layout documents, the text, graphics and widget projections, and
+  the type-in and click-roundtrip drivers. Aggregator: `test_substrate()`.
 - `package/<domain>/test` — one test package per domain, holding the suites
   whose fixtures are that domain's documents: its parser, its `*ToSyntax`
   projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
@@ -45,8 +44,8 @@ tests:    ProjecturedKernelTest ← ProjecturedBaseTest ← ProjecturedVisualTes
   `using ProjecturedTest` alone gives you `test_json()` as well as `test_all()`.
 
 The examples follow the same split (`package/kernel/example` — the `Example`
-harness core; `package/visual/example` / `package/domain/example` — the
-per-package example sets with `visual_examples` / `domain_examples` registry
+harness core; `package/substrate/example` / `package/domain/example` — the
+per-package example sets with `substrate_examples` / `domain_examples` registry
 subsets; the
 opt-in example packages — `package/odbc/example`, `package/tulip/example`,
 `package/adaptagrams/example`, and `package/sdl/example` (the `LiveExample`
@@ -55,7 +54,7 @@ window/record timelines) — hold the examples that need a native dependency; th
 file editor and the cross-domain compositions — a registry that names every
 domain belongs to none of them). Each test package depends on its example
 package: the `Example`-typed driver overloads live beside the drivers.
-`test_visual()` sweeps its own package's examples; the concrete-domain sweep is
+`test_substrate()` sweeps its own package's examples; the concrete-domain sweep is
 `test_domain_examples()` at the umbrella.
 
 Each test package only depends on the main package it tests (plus the packages
@@ -81,8 +80,8 @@ julia> using Projectured, ProjecturedExample, ProjecturedTest
 julia> test_all()
 ```
 
-Runs everything: the four per-package suites (`test_kernel()`, `test_base()`,
-`test_visual()`, and one `test_<domain>()` per domain — each includes its package's static
+Runs everything: the four per-package suites (`test_kernel()`, `test_substrate()`,
+`test_substrate()`, and one `test_<domain>()` per domain — each includes its package's static
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
@@ -96,8 +95,7 @@ sequence; pick the one you actually need and skip the rest.
 | Function | What it covers |
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
-| `test_base()` | `test_collection()`, `test_copying_projection()`, the base layering guard. |
-| `test_visual()` | `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the visual layering guard, and the package's example printer sweep (`test_visual_examples()`). |
+| `test_substrate()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of each of the twenty-eight packages, and the package's example printer sweep (`test_substrate_examples()`). |
 | `test_json()` … `test_workbench()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database_domain()` is the odd one out — `test_database` belongs to the ODBC live-connection suite. |
 | `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all twenty. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
@@ -281,7 +279,7 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **Asserts:** `compare_content(reached, target)` — a strict recursive content-equality (types compared by name, cells unwrapped, `:selection`/`:ref` skipped) that returns the **first mismatch path** (`.field` / `[i]`), or empty when equal. Strict on scalar type, so `42 ≠ 42.0`.
 - **A failure means:** an editor authoring gap (a kind with no gesture recipe), a reader/operation bug (wrong shape or non-inverting leaf), or a located content regression. Covers JSON scalars and arrays today; the cross-domain `test_construct(example::Example)` sweep is still pending (see [plan/pending/live-example-construction.md](../plan/pending/live-example-construction.md)).
 
-> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../package/visual/test/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../package/projectured/test/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
+> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../package/substrate/test/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../package/projectured/test/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
 
 ## The walker helpers (non-`@testset` variants)
 
@@ -296,9 +294,9 @@ every test has a sibling that does the same work without wrapping it in
 | `walk_reader_events(doc, proj)` | [kernel/test ReaderTest.jl](../package/kernel/test/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
 | `walk_repl_loop(doc, proj)` | [kernel/test ReplTest.jl](../package/kernel/test/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
 | `explore_selections(doc, proj; nav_keys, seed_gesture)` | [kernel/test NavigationTest.jl](../package/kernel/test/editor/NavigationTest.jl) | The generic navigation BFS over reachable selection states, parameterized by gesture set and seed. Returns `(state_count, errors, visited)`. |
-| `explore_position_selections(doc, proj[, initial])` / `explore_tree_selections(doc, proj)` | [visual/test NavigationPresets.jl](../package/visual/test/editor/NavigationPresets.jl) | The two presets over `explore_selections`: position (caret) navigation keys and Alt+arrow structural navigation. |
-| `collect_position_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../package/base/test/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all positions/carets / all whole-element nodes), for the completeness suites to check against. |
-| `walk_typein(doc, proj; positions=:all)` | [visual/test TypeinTest.jl](../package/visual/test/editor/TypeinTest.jl) | Types a character at every character boundary of every reachable string — undoing each edit so the next boundary starts from the same string — and verifies the cursor renders and the edit lands. The boundary carets (`0` and `n`) are the ones that catch a character landing in the neighbouring chrome. Returns one `(ref, position, length, ok, message)` result per (string, position); `positions=:ends` / `:first` trade coverage for time. |
+| `explore_position_selections(doc, proj[, initial])` / `explore_tree_selections(doc, proj)` | [visual/test NavigationPresets.jl](../package/substrate/test/editor/NavigationPresets.jl) | The two presets over `explore_selections`: position (caret) navigation keys and Alt+arrow structural navigation. |
+| `collect_position_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../package/substrate/test/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all positions/carets / all whole-element nodes), for the completeness suites to check against. |
+| `walk_typein(doc, proj; positions=:all)` | [visual/test TypeinTest.jl](../package/substrate/test/editor/TypeinTest.jl) | Types a character at every character boundary of every reachable string — undoing each edit so the next boundary starts from the same string — and verifies the cursor renders and the edit lands. The boundary carets (`0` and `n`) are the ones that catch a character landing in the neighbouring chrome. Returns one `(ref, position, length, ok, message)` result per (string, position); `positions=:ends` / `:first` trade coverage for time. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
 `explore_position_selections` keep their plain return values for REPL use; each also
@@ -387,7 +385,7 @@ The standard `Pkg` workflow also works and is what CI uses:
 
 ```julia
 julia> using Pkg
-julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedBaseTest / ProjecturedVisualTest / ProjecturedJsonTest / …
+julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedSubstrateTest / ProjecturedSubstrateTest / ProjecturedJsonTest / …
 ```
 
 Each test package ships a one-line `test/runtests.jl` that calls its
@@ -408,7 +406,7 @@ keep the SDL backend initialised between runs (`__init__` in
   against the affected example give you a fast failure surface; the latter
   also catches reader/operation mismatches.
 - **Changed the kernel/base/visual/domain source layering.** The per-package
-  layering guards (`test_kernel_layering()`, `test_base_layering()`, …) parse
+  layering guards (`test_kernel_layering()`, `test_substrate_layering()`) parse
   the real `import ..XxxModule` headers and re-check the include order in ~1s.
 - **Suspected reactive bug.** `test_cell()` first, then
   `walk_printer_output` (which forces every reachable cell) on the

@@ -15,8 +15,9 @@ macro, the projection-template engine, gesture bindings), the input-device
 abstraction, the editor read-eval-print loop, and the agent control surface.
 **No concrete projections** live here — the domain-independent projection
 algebra (higher-order combinators + generic projections) lives in the
-`ProjecturedBase` package. **No concrete documents** either — Collection and
-Primitive live in `ProjecturedBase`, and ScreenDocument in `ProjecturedVisual`.
+substrate. **No concrete documents** either — Collection and Primitive live in
+`ProjecturedCollection` and `ProjecturedPrimitive`, and ScreenDocument in
+`ProjecturedScreen`.
 The kernel now has **zero concrete-document imports**. **No backends** either —
 the dependency-free in-memory `HeadlessBackend` test double lives in
 `ProjecturedKernelExample`, not here. **No runtime dependencies** —
@@ -40,7 +41,7 @@ Layer 9  — selection/  the selection primitives (get/clear/set/replace_selecti
 Layer 10 — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
 Layer 12 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
-Layer 13 — projection/ ProjectionApi/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedBase)
+Layer 13 — projection/ ProjectionApi/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
 Layer 14 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
 Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
 Layer 16 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
@@ -78,7 +79,7 @@ higher *package* — extends them by adding methods at its own definition site, 
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
 the clearest case: `ProjectionReferenceStep` (layer 13), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
-(all in `ProjecturedVisual`) subtype it and register
+(all in the substrate) subtype it and register
 their navigation through `evaluate_reference_step`, with no edit to layer 8.
 
 **The agent stack is a side-stack.** The editor (layer 17) reaches it only through
@@ -160,7 +161,7 @@ Each layer lives in its own folder under [main/](../main/):
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`) and the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`) |
-| `projection/` | the projection interface and infrastructure only — ProjectionApi, Intent, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators moved to `ProjecturedBase`. |
+| `projection/` | the projection interface and infrastructure only — ProjectionApi, Intent, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |

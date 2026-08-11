@@ -74,8 +74,7 @@ import ProjecturedSubstrateTest: test_projection_template_hygiene,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
                               _seg_x_at, _path_contains_projection_ref
 import ProjecturedKernelTest: test_kernel
-import ProjecturedSubstrateTest: test_base
-import ProjecturedSubstrateTest: test_visual
+import ProjecturedSubstrateTest: test_substrate
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
@@ -166,7 +165,7 @@ include("projection/CatalogCoverageTest.jl")
     test_documents()
 
 Umbrella-only document suites — the per-layer document tests now run inside
-`test_kernel()` / `test_base()` / `test_visual()` / `test_domain()`.
+`test_kernel()` / `test_substrate()` / `test_domain()`.
 """
 function test_documents()
     @testset "Documents" begin
@@ -179,7 +178,7 @@ end
     test_projections()
 
 Umbrella-only projection suites (example/editor/SDL-coupled) — the per-layer
-projection tests now run inside `test_visual()` / `test_domain()`.
+projection tests now run inside `test_substrate()` / `test_domain()`.
 """
 function test_projections()
     @testset "Projections" begin
@@ -228,12 +227,11 @@ loop, SDL/Tulip/Video-coupled suites, live-DB-optional checks).
 """
 function test_all()
     @testset "Projectured" begin
-    # The per-layer suites (kernel unit tests, base/visual/domain documents and
-    # projections, the four layering guards).
+    # The per-package suites: the kernel unit tests, the substrate documents and
+    # projections, every domain, and the layering guard of each package.
     test_package_graph()
     test_kernel()
-    test_base()
-    test_visual()
+    test_substrate()
     test_json()
     test_yaml()
     test_xml()
@@ -319,7 +317,7 @@ function test_table()
 end
 
 export test_all, test_domain_examples, test_package_graph
-export test_kernel, test_base, test_visual, test_domain
+export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization

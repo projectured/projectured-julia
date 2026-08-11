@@ -32,9 +32,9 @@ true of that content and nothing else:
 - the **file wrapper**, if the domain reads and writes a file extension.
 
 Each package is a triad — `package/<name>/{main, test, example}` — plus a
-`doc/` where a guide exists. Every package depends on the three engine
-packages (`ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`) and on
-whichever domains it embeds.
+`doc/` where a guide exists. Every package depends on `ProjecturedKernel`, on
+the substrate packages it actually imports, and on whichever domains it
+embeds. [packages.md](packages.md) has the substrate table.
 
 ## The dependency table
 
@@ -70,17 +70,20 @@ statement, the workbench opens documents of every kind.
 
 ## What is NOT a domain package
 
-Three kinds of thing look like a domain and are not. They live in
-`ProjecturedVisual`, below every domain:
+Three kinds of thing look like a domain and are not. Each lives in a substrate
+package, below every domain:
 
-- **A framework several domains share.** The insert-by-typing leaf, the
-  `*Nothing` placeholder, the plot arithmetic and the colour/marker cycles.
-  Two domains needing the same thing is what makes it a framework.
-- **A domain-neutral editor feature.** The gesture help map, the command
-  palette, the gesture log. They render a *projection*, not a content kind.
-- **The render-anything projection.** `NaturalToGraphics` draws any document,
-  so it cannot name any domain. Both its tables come from
-  `NaturalRegistryModule`, and each domain registers its own row.
+- **A framework several domains share.** The insert-by-typing leaf and the
+  `*Nothing` placeholder (`ProjecturedSyntax`), the plot arithmetic and the
+  colour and marker cycles (`ProjecturedPlot`). Two domains needing the same
+  thing is what makes it a framework.
+- **A domain-neutral editor feature.** The gesture help map and the command
+  palette (`ProjecturedGestureHelp`), the gesture log
+  (`ProjecturedGestureLog`). They render a *projection*, not a content kind.
+- **The render-anything projection.** `NaturalToGraphics`
+  (`ProjecturedNaturalProjection`) draws any document, so it cannot name any
+  domain. Both its tables come from `NaturalRegistryModule`, and each domain
+  registers its own row.
 
 ## The root module
 
@@ -91,10 +94,14 @@ names a module exactly as the module names itself:
 ```julia
 module ProjecturedFsm
 
-using ProjecturedKernel, ProjecturedBase, ProjecturedVisual
+using ProjecturedKernel, ProjecturedCollection, ProjecturedDomain
+using ProjecturedFileFormat, ProjecturedProjection, ProjecturedStyle
+using ProjecturedSyntax, ProjecturedText
 using ProjecturedJulia, ProjecturedGraph
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual,
+for _src in (ProjecturedKernel, ProjecturedCollection, ProjecturedDomain,
+             ProjecturedFileFormat, ProjecturedProjection, ProjecturedStyle,
+             ProjecturedSyntax, ProjecturedText,
              ProjecturedJulia, ProjecturedGraph)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue

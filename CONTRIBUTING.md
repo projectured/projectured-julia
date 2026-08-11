@@ -45,7 +45,7 @@ using ProjecturedTest
 test_all()          # full suite
 
 # Or the narrowest scope that covers your change (preferred):
-test_kernel()       # one package's suite (also: test_base(), test_visual(), test_json(), …)
+test_kernel()       # one package's suite (also: test_substrate(), test_json(), …)
 test_json()         # one domain
 test_printer(json_example)  # one example
 ```
@@ -132,7 +132,7 @@ A domain is a package. [documentation/domains.md](documentation/domains.md) has
 the full rules; the short version:
 
 - [ ] `package/mydomain/main/Project.toml` — a fresh UUID, deps on
-      `ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`, plus any
+      `ProjecturedKernel`, the substrate packages it imports, plus any
       domain you embed.
 - [ ] `package/mydomain/main/ProjecturedMyDomain.jl` — the root module: the
       submodule-binding loop, then the includes.

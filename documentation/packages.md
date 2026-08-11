@@ -129,26 +129,77 @@ single-domain app.
 
 ## What depends on what
 
+Every dependency below is **direct**: the package imports a module of it. Julia
+needs each direct dependency in `[deps]`, and
+`ProjecturedTest.test_package_graph()` asserts that a package declares exactly
+the packages its own source names — no more and no less.
+
+The kernel depends on nothing. A row names it only where it is the one
+dependency.
+
+### The twenty-eight packages of the substrate
+
 | package | depends on | third-party |
 | --- | --- | --- |
-| `ProjecturedKernel` | — | — |
-| `ProjecturedBase` | Kernel | — |
-| `ProjecturedVisual` | Base, Kernel | — |
-| the twenty domains | Base, Kernel, Visual, and each other per [domains.md](domains.md) | — |
-| `Projectured` (umbrella) | Base, Kernel, Visual, the domains | — |
-| `ProjecturedSdl` | Base, Kernel, Visual | SDL2_jll, SimpleDirectMediaLayer |
-| `ProjecturedAdaptagrams` | Graph | Libdl |
-| `ProjecturedOdbc` | Base, Database, DbCatalog, Kernel, Sql, Visual | DBInterface, ODBC, Tables |
-| `ProjecturedTulip` | Visual | MathOptInterface, Tulip |
-| `ProjecturedVideo` | Kernel, Sdl, Visual | FFMPEG |
+| `ProjecturedCollection` | Kernel | — |
+| `ProjecturedPrimitive` | Kernel | — |
+| `ProjecturedDomain` | Kernel | InteractiveUtils |
+| `ProjecturedSerialization` | Kernel | Serialization |
+| `ProjecturedStyle` | Kernel | — |
+| `ProjecturedComponent` | Kernel | — |
+| `ProjecturedProjection` | Collection, Primitive | — |
+| `ProjecturedReflection` | Collection | — |
+| `ProjecturedDragging` | Collection | — |
+| `ProjecturedFocus` | Collection | — |
+| `ProjecturedVersioning` | Collection, Domain, Primitive | — |
+| `ProjecturedPlot` | Style | — |
+| `ProjecturedGraphics` | Collection, Projection, Style | — |
+| `ProjecturedScreen` | Collection, Graphics, Primitive | — |
+| `ProjecturedLayout` | Collection, Focus, Graphics, Projection | — |
+| `ProjecturedText` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
+| `ProjecturedWidget` | Collection, Focus, Graphics, Layout, Primitive, Projection, Reflection, Screen, Style, Text | — |
+| `ProjecturedSyntax` | Collection, Domain, Primitive, Projection, Style, Text | — |
+| `ProjecturedPane` | Collection, Domain, Dragging, Layout, Primitive, Projection, Widget | — |
+| `ProjecturedClipboard` | Collection, Domain, Primitive, Text | — |
+| `ProjecturedTooltip` | Screen | — |
+| `ProjecturedInspector` | Screen, Style, Text | — |
+| `ProjecturedGestureHelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
+| `ProjecturedGestureLog` | Collection, Graphics, Projection, Style, Syntax, Text | — |
+| `ProjecturedFileFormat` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedNaturalProjection` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedConsole` | Style, Text | — |
+| `ProjecturedPdf` | Graphics, Style | — |
+
+### The twenty domains
+
+Each domain depends on the kernel, on the substrate packages it uses, and on
+the domains it embeds. [domains.md](domains.md) has the table.
+
+### The packages that own a third-party dependency
+
+| package | depends on | third-party |
+| --- | --- | --- |
 | `ProjecturedLlm` | Kernel | HTTP, JSON3 |
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
-| `ProjecturedWeb` | Base, Kernel, Visual | Base64, HTTP, JSON3 |
-| `<Stem>Example` | `<Stem>`, the Examples below it | — |
-| `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it | — |
-| `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl | PrecompileTools, Preferences |
-| `ProjecturedExecutable` **(leaf)** | Projectured, Example, Llm, Sdl | PackageCompiler, FixedPointNumbers |
-| `ProjecturedBuilder` (tool) | — | Pkg |
+| `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
+| `ProjecturedVideo` | Graphics, Kernel, Sdl | FFMPEG |
+| `ProjecturedAdaptagrams` | Graph | Libdl |
+| `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
+| `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
+| `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
+
+### The aggregate and the leaves
+
+| package | depends on |
+| --- | --- |
+| `Projectured` (umbrella) | Kernel, the 28 substrate packages, the 20 domains |
+| `ProjecturedSubstrateExample` | the 28 substrate packages, KernelExample |
+| `ProjecturedSubstrateTest` | the 28 substrate packages, KernelTest, SubstrateExample |
+| `<Stem>Example` | `<Stem>`, the Examples below it |
+| `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
+| `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl |
+| `ProjecturedExecutable` **(leaf)** | Projectured, Example, Llm, Sdl |
+| `ProjecturedBuilder` (tool) | — |
 
 ### Why each third-party dependency is there
 

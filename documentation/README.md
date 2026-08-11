@@ -6,8 +6,8 @@ Guides come in two kinds. **Cross-cutting guides** — concepts, the whole-syste
 architecture, onboarding, and the repo-wide tooling — live here in
 `documentation/`. **Per-package reference guides** live next to the code they
 document, in each package's `doc/` directory
-([kernel](../package/kernel/doc/), [base](../package/base/doc/),
-[visual](../package/visual/doc/), and one per domain such as
+([kernel](../package/kernel/doc/), one per substrate package such as
+[widget](../package/widget/doc/), and one per domain such as
 [json](../package/json/doc/)). The AI
 agent sees both sets through `list_guides` / `read_guide`.
 
@@ -68,7 +68,7 @@ Then read the guide for the domain or area you are touching:
 - Selection mechanism: [selection guide](../package/kernel/doc/selection.md)
 - Finding / selecting nodes by content: [finding-and-selecting guide](../package/kernel/doc/finding-and-selecting.md)
 - Backends and devices: [devices and backends guide](../package/kernel/doc/devices-and-backends.md)
-- Per-package: [visual/doc/](../package/visual/doc/), [base/doc/](../package/base/doc/), and each domain's own `doc/` — see [domains.md](domains.md)
+- Per-package: each package's own `doc/`, for example [widget/doc/](../package/widget/doc/) and [collection/doc/](../package/collection/doc/) — see [domains.md](domains.md)
 
 ---
 
@@ -114,11 +114,10 @@ Read it first; it will point you here and to the specific guides you need.
 | [Design decisions](design-decisions.md) | Rationale for key architectural choices |
 | [Requirements](requirements.md) | Implementation-independent behavior/capability spec |
 
-Each package also documents its own internal structure in its `doc/architecture.md`:
-[kernel](../package/kernel/doc/architecture.md) ·
-[base](../package/base/doc/architecture.md) ·
-[visual](../package/visual/doc/architecture.md) ·
-[domain](../documentation/domains.md).
+The kernel documents its own internal structure in
+[its `doc/architecture.md`](../package/kernel/doc/architecture.md); it is the
+one layered package. Every other package is one concept, and the graph they
+form is in [architecture.md](architecture.md) and [domains.md](domains.md).
 
 ### The projection system (kernel)
 
@@ -148,10 +147,10 @@ Each package also documents its own internal structure in its `doc/architecture.
 | [JSON domain](../package/json/doc/json.md) | JSON | domain |
 | [XML domain](../package/xml/doc/xml.md) | XML | domain |
 | [Workbench domain](../package/workbench/doc/workbench.md) | Workbench (IDE shell) | domain |
-| [Versioning domain](../package/base/doc/versioning.md) | Versioning overlay | domain |
-| [Text domain](../package/visual/doc/text.md) | Text | visual |
-| [Syntax domain](../package/visual/doc/syntax.md) | Syntax (intermediate) | visual |
-| [Graphics domain](../package/visual/doc/graphics.md) | Graphics + write_image + write_pdf | visual |
-| [Widget domain](../package/visual/doc/widget.md) | Widgets | visual |
-| [Collection domain](../package/base/doc/collection.md) | CellVector and ListNode | base |
-| [Bounded sync](../package/base/doc/bounded-sync.md) | shadowing something too big to walk whole | base |
+| [Versioning domain](../package/versioning/doc/versioning.md) | Versioning overlay | substrate |
+| [Text domain](../package/text/doc/text.md) | Text | substrate |
+| [Syntax domain](../package/syntax/doc/syntax.md) | Syntax (intermediate) | substrate |
+| [Graphics domain](../package/graphics/doc/graphics.md) | Graphics + write_image + write_pdf | substrate |
+| [Widget domain](../package/widget/doc/widget.md) | Widgets | substrate |
+| [Collection domain](../package/collection/doc/collection.md) | CellVector and ListNode | substrate |
+| [Bounded sync](../package/reflection/doc/bounded-sync.md) | shadowing something too big to walk whole | substrate |
