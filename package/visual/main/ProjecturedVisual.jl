@@ -1,58 +1,25 @@
 """
     ProjecturedVisual
 
-The rendering substrate. It owns everything about
-*how documents become visible*: style atoms, the screen/window model, the
-render-target documents (Graphics, Layout, Text, Widget, Syntax) with their
-projections, and the dependency-free backends (Console, Pdf).
+The rendering substrate. The package owns no source file any more: each of its
+slices is now a package of its own, and this module is a transitional
+aggregator that binds them under the names its consumers still use. It
+disappears at step 5 of
+[the splice plan](plan/pending/splice-base-and-visual-packages.md).
 
-## Slice order
+The twenty packages it aggregates: Style, Component, Focus, Plot, Graphics,
+Screen, Layout, Text, Widget, Syntax, Pane, Clipboard, Tooltip, Inspector,
+GestureHelp, GestureLog, FileFormat, NaturalProjection, Console and Pdf.
 
-Each slice imports only slices to its left:
-
-```
-style → screen → graphics → focus → layout → text → widget → pane → syntax →
-clipboard/tooltip/inspector → backend
-```
-
-## Slice inventory
-
-- **style/** — Color, Font, Geometry, Image, StyleText, StyleStroke: pure
-  value types every visual thing shares.
-- **screen/** — ScreenDocument (windows + window events/ops) + WindowManaging +
-  ScreenToScreen: the window model.
-- **graphics/** — Graphics + GraphicsCaching: the retained drawing target.
-- **focus/** — the generic focus walk and its open trait
-  `is_focusable_document`: which leaf a Tab press lands on.
-- **layout/** — Layout + ConstraintSolver + LayoutToGraphics +
-  CollectionToLayout: spatial arrangement.
-- **text/** — Text + its projections/decorators + PrimitiveToText +
-  ReferenceToText.
-- **widget/** — Widget + its projections + ObjectToWidget + hover/config/popup
-  decorators.
-- **pane/** — the pane tree (PaneTree/PaneSplit/PaneGroup/PaneTab), its
-  surgery, its geometry, and its projection onto split and tabbed panes:
-  the generic way to organize documents on the screen.
-- **syntax/** — Syntax + its bridges (ObjectToSyntax, CollectionToSyntax,
-  PrimitiveToSyntax) + SyntaxToText + InsertionToSyntax +
-  NaturalProjection.
-- **clipboard/** — the ClipboardSlice/ClipboardCollection documents, the
-  OsClipboard shell-out seam, and the Clipboard*ToAny projections (copy/cut/
-  paste over any wrapped content, mirrored to the OS clipboard).
-- **tooltip/** — the TooltipSource wrapper + TooltipDecoratorProjection
-  (a show/hide state machine driving screen windows).
-- **inspector/** — the ReferenceInspector document, ReferenceInspectorToText,
-  and the HoverProbe decorator (a pointer-following reference-inspector window).
-- **backend/** — Console.jl, Pdf.jl (the dependency-free concrete backends).
-
-The aliases below let files inside this package keep their relative
-`..XxxModule` references unchanged. Each concept folder becomes a package of
-its own (see plan/pending/splice-base-and-visual-packages.md); while the
-splice runs, this module re-aliases what has already left.
+It also re-aliases the substrate that came out of base, and the kernel, under
+the names its consumers use. Those aliases stay until the consumers name each
+package directly.
 """
 module ProjecturedVisual
 
 using ProjecturedKernel
+using ProjecturedConsole
+using ProjecturedPdf
 using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedDragging
@@ -152,6 +119,8 @@ const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModul
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 # The aliases of the packages this one was spliced into follow.
+const ConsoleBackendModule = ProjecturedConsole.ConsoleBackendModule
+const PdfBackendModule = ProjecturedPdf.PdfBackendModule
 const NaturalProjectionModule = ProjecturedNaturalProjection.NaturalProjectionModule
 const NaturalRegistryModule = ProjecturedNaturalProjection.NaturalRegistryModule
 const DocumentFileModule = ProjecturedFileFormat.DocumentFileModule
@@ -229,11 +198,5 @@ const ImageModule = ProjecturedStyle.ImageModule
 const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
-
-# ── Slice 9 — backend (dependency-free concrete backends) ───────────────
-# Console renders the Text domain to an ANSI terminal; Pdf exports the
-# Graphics domain as a vector PDF (SDL-free).
-include("backend/Console.jl")
-include("backend/Pdf.jl")
 
 end # module ProjecturedVisual
