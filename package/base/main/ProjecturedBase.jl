@@ -13,13 +13,13 @@ operations:
 - **`domain/`** — what a document domain *is*: `DocumentCore` (the empty /
   insertion / reference documents) and the `@domain` macro + insertion completion.
 - **`collection/`** — the reactive containers (`CellVector` / `CellMatrix` /
-  `CellTable` / `ListNode`) and their collection-shaped projections
-  (`SortingProjection`, `FilteringProjection`).
+  `CellTable` / `ListNode`).
 - **`primitive/`** — the scalar documents (`Primitive*` + the two
   `Replace*RangeOperation`s) and `ReaderDefaults`, the IoMap-typed `read_intent`
   methods that go with them.
 - **`projection/`** — the domain-free projection *algebra*: `generic/` +
-  `higherorder/` combinators, `compound/`, plus `Searching` / `Copying`.
+  `higherorder/` combinators, `compound/`, plus `Searching` / `Copying` and the
+  two collection-shaped projections (`Sorting`, `Filtering`).
 - **`dragging/`, `reflection/`** — optional feature slices, each a document
   paired with its projection (`DraggingState` + `DraggingProjection`; the
   `UnsyncedDocument` marker + `DocumentReflection`).
@@ -115,8 +115,8 @@ include("projection/higherorder/WindowInputUnwrapping.jl")
 include("projection/generic/Focusing.jl")
 
 # collection-shaped projections (dispatch on CellVector)
-include("collection/Sorting.jl")
-include("collection/Filtering.jl")
+include("projection/Sorting.jl")
+include("projection/Filtering.jl")
 # Searching + Copying consume any input → generic algebra
 include("projection/Searching.jl")
 include("projection/Copying.jl")

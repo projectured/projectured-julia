@@ -4,7 +4,8 @@ Turn `package/base` and `package/visual` into 29 peer packages under `package/`.
 After this change the kernel is the only layered package. Every other package is
 one concept, and the dependency direction is a package-to-package DAG.
 
-Status: **pending**. Nothing below is implemented.
+Status: **in progress**. Part 1 is under way. The work happens in the
+`worktree-splice-packages` worktree.
 
 ## Goal
 
@@ -53,10 +54,10 @@ Do these first, on the current package layout. Each is a small, testable commit.
 `base/projection/compound/GenericCompound.jl` imports `SortingProjectionModule`.
 That is the cycle.
 
-- [ ] `git mv package/base/main/collection/Sorting.jl package/base/main/projection/`
-- [ ] `git mv package/base/main/collection/Filtering.jl package/base/main/projection/`
-- [ ] Move the two `include` lines in `ProjecturedBase.jl` below the generic
-      combinators.
+- [x] `git mv package/base/main/collection/Sorting.jl package/base/main/projection/`
+- [x] `git mv package/base/main/collection/Filtering.jl package/base/main/projection/`
+- [x] Move the two `include` lines in `ProjecturedBase.jl` below the generic
+      combinators. They already sat below them, so only the path changed.
 
 Result: `collection/` holds documents only. `projection/` holds every
 projection.

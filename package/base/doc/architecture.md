@@ -33,7 +33,7 @@ structure). `Collection`, `Primitive`, `Versioning` pass; `Json`, `Xml`, … don
   `complete_insertion`, `resolve_insertion`). `DocumentNothing` /
   `DocumentInsertion` implement the traits it anchors.
 
-### collection/ — the reactive containers and their projections
+### collection/ — the reactive containers
 
 The container how-to is [collection.md](collection.md).
 
@@ -42,9 +42,6 @@ The container how-to is [collection.md](collection.md).
   reuses. Registers `child_reference_steps(::CellVector)` onto the kernel's
   `OperationModule` so the pre-order walk driving `SelectNextInsertionOperation`
   picks up `CellVector` elements without the kernel naming the concrete type.
-- **`Sorting.jl`** (`SortingProjection`) and **`Filtering.jl`**
-  (`FilteringProjection`) — the collection-shaped projections (sort / keep by a
-  key or predicate); they dispatch on `CellVector`.
 
 ### primitive/ — the scalar documents and their reader
 
@@ -77,6 +74,9 @@ operate over *any* input by structure.
 - **`Searching.jl`** (`SearchingProjection`, collects objects whose field matches a
   `Regex`) and **`Copying.jl`** (`CopyingProjection`, domain-independent deep copy;
   the workhorse most compound projections build on).
+- **`Sorting.jl`** (`SortingProjection`) and **`Filtering.jl`**
+  (`FilteringProjection`) — the collection-shaped projections (sort / keep by a
+  key or predicate); they dispatch on `CellVector`.
 
 ### dragging/, versioning/, reflection/ — optional feature slices
 
