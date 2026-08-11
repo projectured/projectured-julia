@@ -11,6 +11,7 @@ recreation after external deletion.
 using Test
 using ProjecturedSerialization.FileProjectModule
 using ProjecturedSerialization.TextFileModule
+using ProjecturedSerialization.FileProjectModule: register_marker_type_resolver!
 
 function test_file_project()
 @testset "FileProject: TextFile round-trip" begin
@@ -116,6 +117,41 @@ function test_file_project()
         finally
             rm(d; recursive=true, force=true)
         end
+    end
+
+    @testset "a marker may name a type, and then it constructs one" begin
+        # A document is a data structure, and a constructor is how one is
+        # written down. Nothing is registered per type: the capital is what
+        # tells `MarkdownFile(…)` from `file(…)`.
+        ctx = LoaderContext(".")
+        resolver = name -> name == "TextFile" ? TextFile :
+                           error("test resolver: no type named ", name)
+        register_marker_type_resolver!(resolver)
+        try
+            built = evaluate_marker("TextFile(\"page.txt\", \"hello\")", ctx)
+            @test built isa TextFile
+            @test filename(built) == "page.txt"
+            # A type the resolver refuses is refused here, so a file cannot
+            # build what it has no business building.
+            @test_throws ErrorException evaluate_marker("NotOffered()", ctx)
+        finally
+            register_marker_type_resolver!(nothing)
+        end
+    end
+
+    @testset "keywords are in the marker subset" begin
+        # `UdpHeader(source_port = 5000)` and the `\$doctype` object with the
+        # same fields are one statement in two spellings.
+        @test parse_marker_text("<<Header(port = 5000)>>") == "Header(port = 5000)"
+        @test parse_marker_text("<<Header(; port = 5000)>>") == "Header(; port = 5000)"
+        @test parse_marker_text("<<f(1, b = 2, c = \"x\")>>") == "f(1, b = 2, c = \"x\")"
+        # A keyword's value is an argument like any other, so it is restricted
+        # the same way: a bare name is still out.
+        @test parse_marker_text("<<Header(port = some_binding)>>") === nothing
+        @test parse_marker_text("<<Header(port = 1 + 1)>>") === nothing
+        # And arithmetic is not a marker at all: `+` is a call with a symbol
+        # callee like any other, so the callee has to be an identifier.
+        @test parse_marker_text("<<1 + 1>>") === nothing
     end
 
     @testset "ReferenceStub: constructor and printing" begin

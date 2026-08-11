@@ -58,6 +58,7 @@ never execute arbitrary code, and a marker is still analyzable data.
 
     <<file("child.json")>>                          the parsed file document
     <<definition(file("steps.jl"), "queue_step")>>   one definition inside it
+    <<UdpHeader(source_port = 5000)>>                a document, constructed
 
 The vocabulary is the extension seam: each function is registered by
 the package that owns its machinery, with
@@ -91,6 +92,7 @@ export FileDocument, is_file_document,
        resolve_stubs!, LoaderContext,
        register_file_document_type!, file_document_type,
        register_marker_function!, marker_function, evaluate_marker,
+       register_marker_type_resolver!,
        marker_text, parse_marker_text, file_marker_text, document_section
 
 # ── FileDocument: abstract type + is_file_document trait ──────────────────
@@ -544,14 +546,90 @@ function _evaluate_marker_expression(e::Expr, ctx::LoaderContext)
     # other place a drain can meet a file the session already parsed.
     haskey(ctx.intern, key) && return _feed_sink!(ctx, ctx.intern[key])
     name = e.args[1]::Symbol
+    value = _is_type_name(name) ? _construct_marker_document(name, e, ctx) :
+                                  _call_marker_function(name, e, ctx, key)
+    ctx.intern[key] = value
+    value
+end
+
+# A lower-case callee is one of the vocabulary functions: `file`, `definition`,
+# `realize`.
+function _call_marker_function(name::Symbol, e::Expr, ctx::LoaderContext, key::AbstractString)
     f = marker_function(name)
     f === nothing &&
         error("marker: unknown function ", name, " in ", key,
               " — the vocabulary is (", join(marker_function_names(), ", "), ")")
-    args = Any[a isa Expr ? _evaluate_marker_expression(a, ctx) : a for a in e.args[2:end]]
-    value = f(ctx, args...)
-    ctx.intern[key] = value
-    value
+    positional, keywords = _marker_arguments(e, ctx)
+    return isempty(keywords) ? f(ctx, positional...) : f(ctx, positional...; keywords...)
+end
+
+# A capitalised callee is a TYPE, and a marker naming one constructs it. Nobody
+# registers a type to make this work: a document is a data structure, and its
+# constructor is how a data structure is written down. `UdpHeader(source_port =
+# 5000)` and `{"\$doctype": "UdpHeader", "source_port": 5000}` are the same
+# statement, and a page may write whichever reads better.
+#
+# What a name may resolve to is the resolver's business — see
+# `register_marker_type_resolver!`. Without one, only the capital tells a type
+# from a function, and a marker naming a type says so.
+function _construct_marker_document(name::Symbol, e::Expr, ctx::LoaderContext)
+    resolve = _MARKER_TYPE_RESOLVER[]
+    resolve === nothing &&
+        error("marker: ", name, " looks like a type, and nothing here can resolve one ",
+              "— a package registers `register_marker_type_resolver!` to say which ",
+              "types a file may construct")
+    T = resolve(String(name))
+    positional, keywords = _marker_arguments(e, ctx)
+    isempty(keywords) && return T(positional...)
+    isempty(positional) && return T(; keywords...)
+    return T(positional...; keywords...)
+end
+
+# The arguments of a marker call, evaluated: a nested call is a marker in its own
+# right, a keyword keeps its name, and a literal is itself.
+function _marker_arguments(e::Expr, ctx::LoaderContext)
+    positional = Any[]
+    keywords = Pair{Symbol,Any}[]
+    for argument in @view e.args[2:end]
+        if argument isa Expr && argument.head === :parameters
+            for kw in argument.args
+                push!(keywords, kw.args[1] => _marker_argument(kw.args[2], ctx))
+            end
+        elseif argument isa Expr && argument.head === :kw
+            push!(keywords, argument.args[1] => _marker_argument(argument.args[2], ctx))
+        else
+            push!(positional, _marker_argument(argument, ctx))
+        end
+    end
+    return positional, keywords
+end
+
+_marker_argument(x, ::LoaderContext) = x
+_marker_argument(e::Expr, ctx::LoaderContext) = _evaluate_marker_expression(e, ctx)
+
+# A type name, by the convention every `@document` follows: an identifier that
+# starts with a capital. It is the whole difference between `file("a.md")` and
+# `MarkdownFile("a.md")` — one names a vocabulary function, the other a type.
+_is_type_name(name::Symbol) =
+    (text = String(name); Base.isidentifier(text) && isuppercase(first(text)))
+
+# How a marker resolves a type name. `nothing` until a package sets one: the
+# serialization layer knows nothing about which modules a project may name, and
+# the package that does know registers the answer.
+const _MARKER_TYPE_RESOLVER = Ref{Any}(nothing)
+
+"""
+    register_marker_type_resolver!(f) -> f
+
+Say how a marker naming a type resolves it. `f(name::AbstractString) -> Type`,
+and it is the function that decides which types a file may construct — it should
+refuse anything a file has no business building.
+
+Runtime state, so register it from `__init__`.
+"""
+function register_marker_type_resolver!(f)
+    _MARKER_TYPE_RESOLVER[] = f
+    return f
 end
 
 # Parse a marker body, returning the expression when it is in the
@@ -564,18 +642,35 @@ function _parse_marker_expression(body::AbstractString)
 end
 
 # The subset: a call whose head is a plain name and whose arguments are
-# literals or, recursively, calls. No assignment, no control flow, no
-# bare names, no keyword arguments — a marker is data that happens to
-# read as Julia.
+# literals, keyword arguments, or recursively such calls. No assignment, no
+# control flow, no bare names — a marker is data that happens to read as Julia.
+#
+# Keywords are in the subset because a document is CONSTRUCTED by naming its
+# fields: `UdpHeader(source_port = 5000)` is the same statement as
+# `{"$doctype": "UdpHeader", "source_port": 5000}`, and a page should be able
+# to write whichever reads better. A keyword's value is an argument like any
+# other, so it is restricted the same way.
 _is_marker_call(::Any) = false
 function _is_marker_call(e::Expr)
     e.head === :call || return false
     isempty(e.args) && return false
-    e.args[1] isa Symbol || return false
-    all(a -> _is_marker_call(a) || _is_marker_literal(a), @view e.args[2:end])
+    # An identifier, so an operator is not a marker: `1 + 1` parses as a call to
+    # `+` with two literal arguments, and it is arithmetic rather than data.
+    (e.args[1] isa Symbol && Base.isidentifier(String(e.args[1]))) || return false
+    all(_is_marker_argument, @view e.args[2:end])
 end
 
-_is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char || x === nothing
+_is_marker_argument(x) = _is_marker_call(x) || _is_marker_literal(x)
+
+function _is_marker_argument(e::Expr)
+    e.head === :parameters && return all(_is_marker_argument, e.args)   # f(; a = 1)
+    e.head === :kw && return Base.length(e.args) == 2 && e.args[1] isa Symbol &&
+                             _is_marker_argument(e.args[2])
+    return _is_marker_call(e)
+end
+
+_is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
+                        x isa Bool || x === nothing
 
 # The intern key: the expression printed in one canonical form, so
 # `file("a.json")` and `file( "a.json" )` name the same value.
@@ -586,9 +681,22 @@ function _canonical_marker(e::Expr)
 end
 
 function _print_canonical(io::IO, e::Expr)
+    # A keyword prints as `name = value`, and the ones written after a `;` print
+    # the same way as the ones written inline — two spellings of one call must
+    # give one intern key.
+    e.head === :kw && return (print(io, e.args[1], " = "); _print_canonical(io, e.args[2]))
+    if e.head === :parameters
+        for (i, a) in enumerate(e.args)
+            i > 1 && print(io, ", ")
+            _print_canonical(io, a)
+        end
+        return
+    end
     print(io, e.args[1], "(")
-    for (i, a) in enumerate(@view e.args[2:end])
-        i > 1 && print(io, ", ")
+    first = true
+    for a in @view e.args[2:end]
+        first || print(io, ", ")
+        first = false
         _print_canonical(io, a)
     end
     print(io, ")")
