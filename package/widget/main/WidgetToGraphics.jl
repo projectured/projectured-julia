@@ -3486,7 +3486,13 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     child_cells = reconcile_child_iomaps(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
-        (i, item) -> print_child(recursion, item, ctx))
+        # A toolbar lays its items out at their own size, side by side, so it
+        # allocates nothing on the main axis: it CLEARS `available_width` rather
+        # than passing its own down. Without this every width-bearing child —
+        # `_resolve_width` treats an authored width as a minimum and fills a
+        # seeded allocation — takes the whole band, so a 140-pixel slider drawn
+        # in a toolbar came out 800 wide.
+        (i, item) -> print_child(recursion, item, with_available_size(ctx; width = nothing)))
     build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         item_gap = p.item_gap
