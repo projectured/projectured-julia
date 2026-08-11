@@ -67,6 +67,8 @@ using ProjecturedPlot
 using ProjecturedGraphics
 using ProjecturedScreen
 using ProjecturedLayout
+using ProjecturedText
+using ProjecturedWidget
 
 # ── Aliases of the packages this one builds on, and of the packages it was
 # ── spliced into ──────────────────────────────────────────────────────────
@@ -141,6 +143,28 @@ const FilteringProjectionModule = ProjecturedProjection.FilteringProjectionModul
 const SearchingProjectionModule = ProjecturedProjection.SearchingProjectionModule
 # WindowManagingProjectionModule is local to this package (screen slice); no alias.
 # The aliases of the packages this one was spliced into follow.
+const CellTableToWidgetTableModule = ProjecturedWidget.CellTableToWidgetTableModule
+const ObjectToWidgetModule = ProjecturedWidget.ObjectToWidgetModule
+const ProjectionConfiguringProjectionModule = ProjecturedWidget.ProjectionConfiguringProjectionModule
+const ReflectionToWidgetModule = ProjecturedWidget.ReflectionToWidgetModule
+const WidgetModule = ProjecturedWidget.WidgetModule
+const WidgetHoverTrackingProjectionModule = ProjecturedWidget.WidgetHoverTrackingProjectionModule
+const WidgetPopupResolverProjectionModule = ProjecturedWidget.WidgetPopupResolverProjectionModule
+const WidgetToGraphicsModule = ProjecturedWidget.WidgetToGraphicsModule
+const TextLineNumberingModule = ProjecturedText.TextLineNumberingModule
+const PrimitiveToTextModule = ProjecturedText.PrimitiveToTextModule
+const ReferenceToTextModule = ProjecturedText.ReferenceToTextModule
+const SelectionInvertingModule = ProjecturedText.SelectionInvertingModule
+const TextModule = ProjecturedText.TextModule
+const TextColumnReferenceStepModule = ProjecturedText.TextColumnReferenceStepModule
+const TextFilteringModule = ProjecturedText.TextFilteringModule
+const TextFirstLineModule = ProjecturedText.TextFirstLineModule
+const TextHighlightingModule = ProjecturedText.TextHighlightingModule
+const TextRangeReferenceStepModule = ProjecturedText.TextRangeReferenceStepModule
+const TextSpanReferenceStepModule = ProjecturedText.TextSpanReferenceStepModule
+const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
+const TextToStringModule = ProjecturedText.TextToStringModule
+const WordWrappingModule = ProjecturedText.WordWrappingModule
 const CollectionToLayoutModule = ProjecturedLayout.CollectionToLayoutModule
 const ConstraintSolverModule = ProjecturedLayout.ConstraintSolverModule
 const LayoutModule = ProjecturedLayout.LayoutModule
@@ -162,50 +186,6 @@ const ImageModule = ProjecturedStyle.ImageModule
 const StyleStrokeModule = ProjecturedStyle.StyleStrokeModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
-
-# ── Slice 5 — text (styled text + its renderings) ────────────────────────
-# Text is the styled-text domain (TextBlock/TextString/TextNewline…);
-# TextToGraphics/TextToString are the render endpoints; the decorators
-# (LineNumbering, WordWrapping, TextFiltering, TextFirstLine,
-# TextHighlighting, SelectionInverting) are Text→Text transforms;
-# PrimitiveToText and ReferenceToText are the base→text and reference→text
-# bridges.
-# TextSpanReferenceStep / TextColumnReferenceStep / TextRangeReferenceStep — the three
-# text-domain selection reference steps over the same flat character range:
-# a bounding box, a column box (reserved / deferred), and the character
-# cursor/selection stream, respectively. Included first in the text slice so
-# every text file below can import them via `..Text<Variant>ReferenceModule`.
-include("text/TextSpanReferenceStep.jl")
-include("text/TextColumnReferenceStep.jl")
-include("text/TextRangeReferenceStep.jl")
-include("text/Text.jl")
-include("text/TextToGraphics.jl")
-include("text/TextToString.jl")
-include("text/LineNumbering.jl")
-include("text/WordWrapping.jl")
-include("text/TextFiltering.jl")
-include("text/TextFirstLine.jl")
-include("text/TextHighlighting.jl")
-include("text/SelectionInverting.jl")
-include("text/PrimitiveToText.jl")
-include("text/ReferenceToText.jl")
-
-# ── Slice 6 — widget (UI widget system) ──────────────────────────────────
-# Widget is the widget domain (labels, buttons, panes, menus, dropdowns…).
-# WidgetToGraphics is the big canvas renderer; ObjectToWidget is the
-# reflection-driven form for
-# Cell-field structs. The decorators (WidgetHoverTracking,
-# ProjectionConfiguring, WidgetPopupResolver) transform a widget tree.
-include("widget/Widget.jl")
-include("widget/WidgetToGraphics.jl")
-include("widget/ObjectToWidget.jl")
-# ReflectionToWidget — a bounded reflected-object shadow as a WidgetTree, where a
-# chevron drives the sync (requests a marker) rather than merely hiding a row.
-include("widget/ReflectionToWidget.jl")
-include("widget/CellTableToWidgetTable.jl")
-include("widget/WidgetHoverTracking.jl")
-include("widget/ProjectionConfiguring.jl")
-include("widget/WidgetPopupResolver.jl")
 
 # ── Slice 7 — pane (tab groups and splits: the screen layout) ────────────
 # Pane is the layout document (PaneTree/PaneSplit/PaneGroup/PaneTab); PaneSurgery
