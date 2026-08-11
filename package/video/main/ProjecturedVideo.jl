@@ -15,12 +15,17 @@ Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo; record_video(doc, p
 """
 module ProjecturedVideo
 
+using ProjecturedGraphics
+using ProjecturedGraphics
+using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedVisual
+using ProjecturedSdl
+using ProjecturedSdl
+using ProjecturedSdl
 import FFMPEG
 
 import ProjecturedKernel.BackendModule: record_video
-import ProjecturedVisual.GraphicsModule: GraphicsCanvas
+import ProjecturedGraphics.GraphicsModule: GraphicsCanvas
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 import ProjecturedKernel.OperationModule: evaluate_operation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!

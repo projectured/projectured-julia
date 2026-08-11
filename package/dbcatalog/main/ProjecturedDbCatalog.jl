@@ -14,12 +14,16 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedDbCatalog
 
+using ProjecturedCollection
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedProjection
+using ProjecturedSql
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
 using ProjecturedSql
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedSql)
+for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedProjection, ProjecturedSql, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

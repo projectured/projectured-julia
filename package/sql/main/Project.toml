@@ -7,11 +7,23 @@ entryfile = "ProjecturedSql.jl"
 # The SQL source domain.
 
 [deps]
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedNaturalProjection = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
 
 [sources]
+ProjecturedCollection = {path = "../../collection/main"}
+ProjecturedDomain = {path = "../../domain/main"}
+ProjecturedFileFormat = {path = "../../fileformat/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedBase = {path = "../../base/main"}
-ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedNaturalProjection = {path = "../../naturalprojection/main"}
+ProjecturedProjection = {path = "../../projection/main"}
+ProjecturedStyle = {path = "../../style/main"}
+ProjecturedSyntax = {path = "../../syntax/main"}
+ProjecturedText = {path = "../../text/main"}

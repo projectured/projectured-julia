@@ -9,9 +9,21 @@ their pure projections stay in `ProjecturedDomain` — only live querying lives 
 """
 module ProjecturedOdbc
 
+using ProjecturedCollection
+using ProjecturedDatabase
+using ProjecturedDbCatalog
+using ProjecturedCollection
+using ProjecturedDatabase
+using ProjecturedDbCatalog
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedProjection
+using ProjecturedSql
+using ProjecturedSyntax
+using ProjecturedText
+using ProjecturedProjection
+using ProjecturedSql
+using ProjecturedSyntax
+using ProjecturedText
 using ProjecturedDatabase
 using ProjecturedDbCatalog
 using ProjecturedSql
@@ -383,15 +395,15 @@ end # module ConnectionPoolModule
 module SqlToCellTableModule
 
 import ProjecturedKernel.CellModule: Cell, ComputedCell
-import ProjecturedBase.CollectionModule: CellVector, ComputedCellVector, CellTable
+import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedSql.SqlDocumentModule: SqlSelectStatement
 import ProjecturedSql.SqlToSyntaxModule: SqlToSyntax
-import ProjecturedVisual.SyntaxToTextModule: SyntaxToText
-import ProjecturedVisual.TextToStringModule: TextToString
-import ProjecturedBase.RecursiveProjectionModule: RecursiveProjection
-import ProjecturedBase.ChainingProjectionModule: ChainingProjection
+import ProjecturedSyntax.SyntaxToTextModule: SyntaxToText
+import ProjecturedText.TextToStringModule: TextToString
+import ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
+import ProjecturedProjection.ChainingProjectionModule: ChainingProjection
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, db_execute_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
@@ -432,7 +444,7 @@ end # module SqlToCellTableModule
 
 module DatabaseInstanceToDbCatalogModule
 
-import ProjecturedBase.CollectionModule: CellVector, ComputedCellVector
+import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 import ProjecturedDbCatalog.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn

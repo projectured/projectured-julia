@@ -5,16 +5,20 @@ authors = []
 entryfile = "ProjecturedSdl.jl"
 
 [deps]
-ProjecturedBase = "b83f0000-1a2b-4c3d-8e5f-6a7b8c9d0e1f"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedVisual = "c94a1234-2b3c-4d5e-8f6a-7b8c9d0e1f23"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
 SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 
 [sources]
-ProjecturedBase = {path = "../../base/main"}
+ProjecturedCollection = {path = "../../collection/main"}
+ProjecturedGraphics = {path = "../../graphics/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
-ProjecturedVisual = {path = "../../visual/main"}
+ProjecturedScreen = {path = "../../screen/main"}
+ProjecturedStyle = {path = "../../style/main"}
 
 [compat]
 SDL2_jll = "2.32.10"

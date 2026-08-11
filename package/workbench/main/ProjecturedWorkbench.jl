@@ -16,9 +16,23 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedWorkbench
 
+using ProjecturedCollection
+using ProjecturedConversation
+using ProjecturedFileFormat
+using ProjecturedFileSystem
+using ProjecturedJson
+using ProjecturedJulia
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedLayout
+using ProjecturedMarkdown
+using ProjecturedPrimitive
+using ProjecturedProjection
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
+using ProjecturedWidget
+using ProjecturedXml
+using ProjecturedYaml
 using ProjecturedConversation
 using ProjecturedFileSystem
 using ProjecturedJson
@@ -27,7 +41,7 @@ using ProjecturedMarkdown
 using ProjecturedXml
 using ProjecturedYaml
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedConversation, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedMarkdown, ProjecturedXml, ProjecturedYaml)
+for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget, ProjecturedXml, ProjecturedYaml)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

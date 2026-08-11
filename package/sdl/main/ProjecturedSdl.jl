@@ -15,9 +15,15 @@ submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
 module ProjecturedSdl
 
+using ProjecturedCollection
+using ProjecturedGraphics
+using ProjecturedCollection
+using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedScreen
+using ProjecturedStyle
+using ProjecturedScreen
+using ProjecturedStyle
 
 
 using SimpleDirectMediaLayer
@@ -28,24 +34,24 @@ using SimpleDirectMediaLayer.LibSDL2
 # DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.DeviceModule
-import ProjecturedVisual.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
+import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
-import ProjecturedBase.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedVisual.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
-import ProjecturedVisual.ColorModule: StyleColor
-import ProjecturedVisual.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
+import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
+import ProjecturedStyle.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ProjecturedStyle.ColorModule: StyleColor
+import ProjecturedStyle.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
 import ProjecturedKernel.EventModule: WindowQuit
-import ProjecturedVisual.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedScreen.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
 import ProjecturedKernel.EventModule: ModifierKeys
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ProjecturedVisual.ImageModule: ImageFile
+import ProjecturedStyle.ImageModule: ImageFile
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation

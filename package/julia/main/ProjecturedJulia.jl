@@ -17,11 +17,18 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedJulia
 
+using ProjecturedCollection
+using ProjecturedDomain
+using ProjecturedFileFormat
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedNaturalProjection
+using ProjecturedProjection
+using ProjecturedSerialization
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedNaturalProjection, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

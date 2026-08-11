@@ -2,13 +2,19 @@
 # namespace it evaluates into.
 
 # The umbrella `Projectured` package (loaded, but not a dependency of the kernel —
-# that would be circular) re-exports every kernel/base/visual/domain submodule.
-# Prefer it, so scratch code can reach any loaded domain type. In a per-package
-# test environment the
-# umbrella is absent, so fall back to whichever source packages ARE loaded and
-# flat-re-export each of their submodules ourselves — the same names then resolve.
-const _SOURCE_PREFERENCE = ("Projectured", "ProjecturedDomain", "ProjecturedVisual",
-                            "ProjecturedBase", "ProjecturedKernel")
+# that would be circular) re-exports every submodule of every package below it,
+# so it alone is enough. In a per-package test environment the umbrella is
+# absent, so fall back to every loaded Projectured package and flat-re-export
+# each of their submodules — the same names then resolve. The set is read at
+# run time rather than written down, because the packages below the umbrella
+# are many and each test environment loads a different subset.
+function _scratch_sources()
+    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
+    haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
+    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
+    isempty(packages) && return Module[parentmodule(@__MODULE__)]
+    Module[loaded[n] for n in packages]
+end
 
 function _flat_reexport!(m::Module, source::Module, sources)
     srcname = nameof(source)
@@ -26,8 +32,12 @@ function _flat_reexport!(m::Module, source::Module, sources)
         (parent === source || (parent !== Main && !(parent in sources))) || continue
         syms = [s for s in names(sub) if s !== nameof(sub) && isdefined(sub, s)]
         isempty(syms) && continue
+        # A *relative* path (`using .Source.Module: …`) resolves `Source` in the
+        # scratch module, where the caller bound it. An absolute path would ask
+        # the package loader instead, and fail for every package the active
+        # project does not declare.
         Core.eval(m, Expr(:using, Expr(:(:),
-            Expr(:., srcname, n), (Expr(:., s) for s in syms)...)))
+            Expr(:., :., srcname, n), (Expr(:., s) for s in syms)...)))
     end
 end
 
@@ -39,18 +49,18 @@ end
 function _scratch_module(set::ToolSet)
     set.scratch === nothing || return set.scratch
     m = Module(:ToolScratch)
-    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
-    srcs = Module[loaded[n] for n in _SOURCE_PREFERENCE if haskey(loaded, n)]
-    isempty(srcs) && push!(srcs, parentmodule(@__MODULE__))
-    # Bind each source under its own name, so qualified access still works, and
-    # alias the highest-preference one as `Projectured`.
+    srcs = _scratch_sources()
+    # Bind each source under its own name, so qualified access still works.
     for src in srcs
         Core.eval(m, :(const $(nameof(src)) = $src))
     end
-    Core.eval(m, :(const Projectured = $(srcs[1])))
     for src in srcs
         _flat_reexport!(m, src, srcs)
     end
+    # `Projectured` names the umbrella when it is loaded, and the scratch module
+    # itself otherwise: after the re-export the scratch module holds the same
+    # flat namespace, so `Projectured.CellVector` resolves either way.
+    Core.eval(m, :(const Projectured = $(nameof(srcs[1]) === :Projectured ? srcs[1] : m)))
     set.scratch = m
 end
 

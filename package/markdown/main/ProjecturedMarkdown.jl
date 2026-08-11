@@ -14,11 +14,21 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedMarkdown
 
+using ProjecturedCollection
+using ProjecturedFileFormat
+using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedLayout
+using ProjecturedNaturalProjection
+using ProjecturedPrimitive
+using ProjecturedProjection
+using ProjecturedSerialization
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
+using ProjecturedWidget
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
+for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, ProjecturedKernel, ProjecturedLayout, ProjecturedNaturalProjection, ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

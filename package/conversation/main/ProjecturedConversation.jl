@@ -17,14 +17,24 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedConversation
 
+using ProjecturedCollection
+using ProjecturedDomain
+using ProjecturedJson
+using ProjecturedJulia
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
+using ProjecturedLayout
+using ProjecturedPrimitive
+using ProjecturedProjection
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
+using ProjecturedWidget
+using ProjecturedXml
 using ProjecturedJson
 using ProjecturedJulia
 using ProjecturedXml
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual, ProjecturedJson, ProjecturedJulia, ProjecturedXml)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget, ProjecturedXml)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

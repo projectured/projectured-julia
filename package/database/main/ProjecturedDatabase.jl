@@ -15,10 +15,8 @@ lower package, so each module is bound once, under its own name.
 module ProjecturedDatabase
 
 using ProjecturedKernel
-using ProjecturedBase
-using ProjecturedVisual
 
-for _src in (ProjecturedKernel, ProjecturedBase, ProjecturedVisual)
+for _src in (ProjecturedKernel)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
