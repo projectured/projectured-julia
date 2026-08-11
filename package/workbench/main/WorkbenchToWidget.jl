@@ -53,7 +53,7 @@ import ..OperationModule: reroot_operation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..EventModule: KeyDown, KeyPress
 import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference, try_evaluate_reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..ReferenceModule: var"@reference_case"
@@ -672,24 +672,38 @@ _page_backward(_, _) = nothing
 
 function read_intent(p::WorkbenchWorkbenchToWidgetShell,
                           iomap::WorkbenchWorkbenchToWidgetShellIoMap, op)
-    # 1. Tab-strip click: a selection replacement naming a page's own
-    # `selector_element_pairs[i]`. Find which page owns the strip by offering it to
-    # each page reader, and re-root the answer under that page's workbench field
-    # name. It has to be claimed here, before the path-bearing branch below: that
-    # one maps with the *shell's* mapper, which cannot resolve a page-local path
-    # and would answer `nothing`, dropping the click.
-    if op isa ReplaceSelectionOperation && _strip_tab_index(op.path) !== nothing
+    # 1. Tab-strip click: a selection replacement whose path ends in a pane's own
+    # `selector_element_pairs[i]`, prefixed by the widget route from this shell's
+    # output down to that pane. Resolve the prefix to find which pane was clicked,
+    # match it against each page's output, convert through that page's reader, and
+    # re-root the answer under the page's workbench field name.
+    #
+    # It has to be claimed here, before the path-bearing branch below: that one maps
+    # the whole path with the shell's own mapper, which does not resolve a strip step
+    # and answers `nothing`, dropping the click.
+    tab_click = op isa ReplaceSelectionOperation ? _split_tab_click(op.path) : nothing
+    if tab_click !== nothing
+        (prefix, index) = tab_click
+        pane = try_evaluate_reference(iomap.output, prefix)
+        local_op = ReplaceSelectionOperation(
+            ConcreteReference(FieldReferenceStep("selector_element_pairs"),
+                              ConcreteReference(ElementReferenceStep(index), EmptyReference())))
         for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
                                           ("editing_page",     iomap.editing_page_iomap),
                                           ("information_page", iomap.information_page_iomap),
                                           ("control_page",     iomap.control_page_iomap))
             page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
-            result = read_intent(WorkbenchPageToWidgetTabbedPane(), page_iomap, op)
+            # Identity, not an index range: two pages can both have a third tab, and
+            # only the one the click landed in may answer.
+            page_iomap.output === pane || continue
+            result = read_intent(WorkbenchPageToWidgetTabbedPane(), page_iomap, local_op)
             result isa ReplaceSelectionOperation || continue
             return ReplaceSelectionOperation(
                 ConcreteReference(FieldReferenceStep(field_name), result.path))
         end
-        return nothing
+        # No page owns that pane, so this is not a page's tab strip — a nested pane
+        # inside a tab names its tabs the same way. Fall through and let the ordinary
+        # mapper below answer, rather than swallow the operation here.
     end
     # 2. Path-bearing op from a deeper reader: translate its widget-domain
     # reference into workbench-domain via `map_reference_backward`.
@@ -805,6 +819,23 @@ function _strip_tab_index(path)
     t = path.tail
     (t isa ConcreteReference && t.head isa RangeReferenceStep && t.tail isa EmptyReference) || return nothing
     Int(t.head.start) + 1
+end
+
+# A tab-strip click arrives re-rooted: the widget tree between the shell's output
+# and the tabbed pane is already prefixed onto the path, so the strip's own
+# `selector_element_pairs[i]` sits at the **end**. Split it into that prefix (which
+# names the pane that was clicked) and the 1-based tab index. `nothing` when the
+# path does not end that way.
+function _split_tab_click(path)
+    prefix_steps = Any[]
+    node = path
+    while node isa ConcreteReference
+        idx = _strip_tab_index(node)
+        idx === nothing || return (foldr(ConcreteReference, prefix_steps; init = EmptyReference()), idx)
+        push!(prefix_steps, node.head)
+        node = node.tail
+    end
+    nothing
 end
 
 function read_intent(p::WorkbenchPageToWidgetTabbedPane,

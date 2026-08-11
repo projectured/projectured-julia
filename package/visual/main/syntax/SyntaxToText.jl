@@ -14,7 +14,8 @@ module SyntaxToTextModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..SelectionModule: map_selection_forward, get_stored_selection
+import ..SelectionModule: map_selection_forward, get_stored_selection, is_live_selection
+import ..DocumentModule: SelectionDocument
 import ..PrinterContextModule: make_child_context
 import ..IntentModule: Intent
 import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
@@ -599,8 +600,11 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         # stored path to the composer and gives the image back carrying the node's
         # own live/dormant state, so a dormant caret stays dormant all the way to
         # the Text domain, where the painter turns it into a pale colour.
+        # `map_missing`: case 4 of the composer promotes a *child's* caret when the
+        # node holds no selection of its own, so this hop must map an absent one too.
         ComputedCell(() -> map_selection_forward(node,
-            path -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[], path))))
+            path -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[], path);
+            map_missing = true)))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
@@ -816,7 +820,12 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
         loc === nothing && continue
         pf = _text_elem_path_to_flat(iomap.output.elements, ranges[i].start + loc[1] - 1, loc[2])
         pf < 0 && continue
-        return _flat_text_path(pf)
+        image = _flat_text_path(pf)
+        # The promoted caret belongs to the child, so it carries the child's state.
+        # The node holds no selection of its own in this case, so the caller has
+        # none to give it.
+        return is_live_selection(cim.output) ? image :
+               SelectionDocument(; primary = image, live = false)
     end
     return nothing                                                            # case 5
 end

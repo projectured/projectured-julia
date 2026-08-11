@@ -415,8 +415,12 @@ function _atomic_print(p, doc, out)
     # answers `nothing` for a dormant selection, so a plain read would drop the
     # live/dormant state at this hop and the painter at the end of the chain would
     # have nothing left to paint pale.
+    # `map_missing`: this branch mapped an absent selection too, and a projection
+    # that introduces one answers a real image for `nothing`. A guard here would
+    # make such an introduced caret unreachable.
     sel = wiring.bound_field === nothing ?
-              ComputedCell(() -> map_selection_forward(doc, path -> map_reference_forward(p, nothing, path))) :
+              ComputedCell(() -> map_selection_forward(doc, path -> map_reference_forward(p, nothing, path);
+                                                       map_missing = true)) :
           wiring.bound_field === :value  ? getfield(doc, :selection) :
                                            ComputedCell(() -> begin
                                                im = iomap_cell[]

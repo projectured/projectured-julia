@@ -21,9 +21,18 @@ is_live_selection(document) = _is_live_value(hasproperty(document, :selection) ?
 _is_live_value(value) = true
 _is_live_value(value::SelectionDocument) = value.live
 
-function map_selection_forward(source, map)
+# Map a document's selection forward through `map` and carry the live/dormant
+# state onto the image. A live selection maps to a bare reference, exactly as a
+# plain `map_reference_forward` did; a dormant one maps to a wrapper that says so,
+# which is what lets the state survive a projection chain.
+#
+# `map_missing` decides what happens when the source holds no selection at all. It
+# is `false` by default, because most callers guard on `nothing` before mapping.
+# A projection that **introduces** a selection maps `nothing` to a real image, so
+# such a caller passes `true` and lets the mapper answer for the missing path.
+function map_selection_forward(source, map; map_missing::Bool = false)
     path = get_stored_selection(source)
-    path === nothing && return nothing
+    (path === nothing && !map_missing) && return nothing
     image = map(path)
     image === nothing && return nothing
     is_live_selection(source) ? image : SelectionDocument(; primary = image, live = false)

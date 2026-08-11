@@ -241,6 +241,32 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
      stored at all — `_forward_selection!` makes it a computed image
      ([PaneToWidget.jl:172](../../package/visual/main/pane/PaneToWidget.jl#L172)). Only the
      method on the pane documents fires.
+5. **A printer maps an absent selection too.** `map_selection_forward` answers
+   `nothing` for a document that holds no selection. That is right for a hop which
+   only re-expresses the selection it was given. Two hops do more than that, and
+   both pass `map_missing = true`:
+   - `_compose_node_selection` case 4 promotes the **first child's** caret when the
+     node holds none of its own
+     ([SyntaxToText.jl](../../package/visual/main/syntax/SyntaxToText.jl)). A guard on
+     that hop made every promoted caret unreachable — measured as 35 lost positions
+     in `SqlToSyntax nested`, 205 down to 170, with no test failing.
+   - `_atomic_print`'s unbound branch called the mapper unconditionally before this
+     work ([ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl)).
+     No suite measures the difference. The call is restored for parity, because a
+     projection that *introduces* a selection answers a real image for `nothing`.
+
+   The promoted caret is the child's, so case 4 carries the **child's** live state
+   onto the image. The node has none of its own to lend it.
+6. **A tab click arrives re-rooted.** The strip emits its own
+   `selector_element_pairs[i]`, but the widget tree prefixes the route from the
+   reader's output down to that pane. The workbench shell sees
+   `.content.elements[2].child.elements[1].child.selector_element_pairs[3]`, not a
+   bare path. A reader that claims the click matches the **tail**, resolves the
+   prefix to find which pane was clicked, and matches that pane against its own
+   children by identity. An index-range check is not enough: two pages can both own
+   a third tab. When no child owns the pane the reader falls through instead of
+   swallowing the operation, because a nested pane inside a tab names its tabs the
+   same way ([WorkbenchToWidget.jl](../../package/workbench/main/WorkbenchToWidget.jl)).
 
 ## What the rendering costs
 
