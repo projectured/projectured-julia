@@ -442,7 +442,19 @@ end
 # calls it too, so a preset is the same expansion with a layout list prepended —
 # not a macro that expands into another macro, which would put the caller's struct
 # definition through a second round of hygiene.
+# A kind marker may arrive **qualified** when another macro emits this one —
+# `PacketModule.ImmutableCell` rather than `ImmutableCell`, because hygiene
+# resolves a name the emitting macro wrote. The kind is a name, not a value, and
+# the module part carries nothing, so it is normalised away. Without this a macro
+# in another package cannot pass a kind at all: it can only write the name bare
+# and hope it is in scope wherever its own callers sit.
+_bare_kind(a) = (a isa Expr && a.head === :. && length(a.args) == 2 &&
+                 a.args[2] isa QuoteNode && a.args[2].value isa Symbol) ?
+                a.args[2].value : a
+
 function _document_expr(args)
+    args = isempty(args) ? args :
+           (map(_bare_kind, args[1:end-1])..., args[end])
     layouts, rest = _take_layout_list(args)
     default, structdef = cell_struct_macro_default(rest)
     structdef.head === :struct || error("@document expects a struct definition")
