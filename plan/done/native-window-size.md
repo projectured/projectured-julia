@@ -122,19 +122,24 @@ output from it, so the output carries the granted size from its first print.
 
 ## Result
 
-The JSON gallery example, driven one frame at a time, asking for the whole work
-area of 1853×1168:
+The omnetpp-julia demo catalog, driven one frame at a time, asking for the whole
+work area of 1853×1168:
 
-| | frame 1 | frame 2 | document |
-| --- | --- | --- | --- |
-| before | 7306 ms | 716 ms, `ResizeWindowOperation` | 1168 → 1131 at frame 2 |
-| after | 7109 ms | 660 ms, no operation | 1131 from frame 1 |
+| | before | after |
+| --- | --- | --- |
+| open the windows | inside frame 1 | 934 ms |
+| frame 1 | 1838 ms | 1154 ms |
+| frame 2 | 441 ms, `ResizeWindowOperation` | 1.6 ms, no operation |
+| until the window holds still | 2279 ms | 2088 ms |
+| the document at frame 1 | 1853×1168, wrong | 1853×1131, what the window has |
 
-Those two runs are in a worktree with no package image, so the frame times are
-mostly compilation and only the operation column means anything. The cost of the
-second layout was measured on the omnetpp-julia demo catalog, which does have
-one: frame 1 = 986 ms, frame 2 = **321 ms** for the resize, frame 3 = 9.5 ms.
+The second layout is gone, which is what the plan is for. The total is 191 ms
+shorter, which is less than the 441 ms the resize frame cost, because the window
+and its renderer now open before frame 1 instead of inside it.
 
-The demo catalog cannot be re-measured from this worktree: omnetpp-julia's
-`[sources]` reach the main projectured-julia checkout, so the change has to land
-on `main` first.
+Most of the 934 ms is compiled once and never again: a bare process spends
+308 ms opening the window and its renderer, and 155 ms in the settle, of which
+the wait for the manager is 0.4 ms and the quiet period 20 ms. The rest is the
+first call of the new path. `OmnetppRepl` compiles ahead of time from a
+recording, and no recording covers this path yet, so re-recording the workload
+would take that cost out of the first window.
