@@ -21,5 +21,9 @@ package/*/example/Manifest.toml
 # Generated run output (vector files, plots) — never source.
 results/
 
+# Allocation profiles that julia --track-allocation writes next to each source
+# file it loads. The name holds the process id of that run.
+*.mem
+
 # The workload level is a person's choice, not the project's.
 LocalPreferences.toml
