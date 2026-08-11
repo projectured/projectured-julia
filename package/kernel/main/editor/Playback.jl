@@ -126,7 +126,9 @@ end
 Bootstrap overload: initialise the backend, wire up an `Editor`, and run the
 scripted live loop above. Like [`run_editor!`](@ref), the pipeline is expected to
 produce a `ScreenDocument` so the backend opens a real window; `window_id` is the
-`WindowDocument.id` scripted events are routed to.
+`WindowDocument.id` scripted events are routed to. The windows open before the
+first frame, so a recording does not start with the document reflowing to the
+size the window system granted.
 """
 function play_live!(backend::Backend, projection, document, timeline;
                     window_id::Symbol, initial_hold::Real=0.5,
@@ -134,6 +136,7 @@ function play_live!(backend::Backend, projection, document, timeline;
     initialize_backend!(backend)
     try
         devices = Device[Display(), Keyboard(), Mouse()]
+        open_native_windows!(backend, document)
         editor = Editor(backend, document, projection, devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
                    op_prefix=op_prefix)
