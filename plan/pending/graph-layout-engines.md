@@ -419,3 +419,26 @@ names the C++ file it came from.
   tree into one is the caller's question.
 - It does not port `arrowcoords.cc`, `geometry.cc`'s drawing helpers, or the
   layouter's debug drawing. A debug window is Qtenv's, not ours.
+- It does not port `Friction`, `PointConstraint`, `LineConstraint` or
+  `CircleConstraint`. `ForceDirectedGraphLayouter` never constructs any of them,
+  and a force nothing constructs is not part of the picture.
+- It does not port `addEdgeToBorder`. It is `LeastExpandedSpring` and the wall
+  bodies, both of which are here, but a `GraphEdge` has no way to name the
+  enclosing module as an endpoint. Whoever gives it one wires this up.
+- It does not teach libcola about constraints. `AdaptagramsLayout` honours
+  `:pin` by placing the vertex after the native run, so the contract holds and
+  the neighbours were arranged without knowing about it. A wider C ABI is
+  someone else's plan.
+
+## 7. What landed
+
+Nine new files under `package/graph/main/omnetpp/`, one per C++ file, plus
+`GraphLayoutChoice.jl` for the choice and `bench/graphlayoutbench.jl` for the
+measurements. About 3500 lines of ported layouter, and ten scenarios asserted
+against `libopplayout` — four for the spring embedder, six for the
+force-directed one — every one of them agreeing to six decimals.
+
+A reader's entry point is
+[`package/graph/doc/graph-layout.md`](../../package/graph/doc/graph-layout.md):
+the seam, the engines, the constraint vocabulary, what makes a layout
+repeatable, and which ported file came from which original.

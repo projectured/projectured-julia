@@ -17,6 +17,7 @@ A domain with a reference guide keeps it in its own package:
 - [sequencechart.md](../package/sequencechart/doc/sequencechart.md) — the sequence chart domain
 - [fsm.md](../package/fsm/doc/fsm.md) — the state machine domain
 - [process.md](../package/process/doc/process.md) — the process domain
+- [graph-layout.md](../package/graph/doc/graph-layout.md) — the graph domain's layout engines
 - [workbench.md](../package/workbench/doc/workbench.md) — the workbench application
 
 ## What a domain package is

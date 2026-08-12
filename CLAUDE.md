@@ -164,7 +164,7 @@ specific domain, also consult:
 
 - [package/kernel/doc/reference.md](package/kernel/doc/reference.md) and [package/kernel/doc/selection.md](package/kernel/doc/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
 - [documentation/domains.md](documentation/domains.md) — the twenty domain packages, what depends on what, and how to add one.
-- Per-domain guides: [json](package/json/doc/json.md), [xml](package/xml/doc/xml.md), [rst](package/rst/doc/rst.md), [fsm](package/fsm/doc/fsm.md), [process](package/process/doc/process.md), [math](package/math/doc/math.md), [workbench](package/workbench/doc/workbench.md), [versioning](package/versioning/doc/versioning.md); [text](package/text/doc/text.md), [syntax](package/syntax/doc/syntax.md), [graphics](package/graphics/doc/graphics.md), [widget](package/widget/doc/widget.md), [collection](package/collection/doc/collection.md) and [bounded-sync](package/reflection/doc/bounded-sync.md) (substrate).
+- Per-domain guides: [json](package/json/doc/json.md), [xml](package/xml/doc/xml.md), [rst](package/rst/doc/rst.md), [fsm](package/fsm/doc/fsm.md), [process](package/process/doc/process.md), [graph-layout](package/graph/doc/graph-layout.md), [math](package/math/doc/math.md), [workbench](package/workbench/doc/workbench.md), [versioning](package/versioning/doc/versioning.md); [text](package/text/doc/text.md), [syntax](package/syntax/doc/syntax.md), [graphics](package/graphics/doc/graphics.md), [widget](package/widget/doc/widget.md), [collection](package/collection/doc/collection.md) and [bounded-sync](package/reflection/doc/bounded-sync.md) (substrate).
 
 When iterating in the REPL or running the test suite:
 
