@@ -58,7 +58,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_reg
 import ..ColorModule: color_solarized_gray
 import ..GeometryModule: Point2D
 import ..LayoutModule: HorizontalLayout
-import ..OperationModule: ReplaceSelectionOperation, Operation
+import ..OperationModule: ReplaceSelectionOperation
 import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,

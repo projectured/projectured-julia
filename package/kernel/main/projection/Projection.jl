@@ -212,7 +212,11 @@ function read_intent(projection::Projection, iomap, operation)
         # `read_intent(::Projection, iomap, ::TheOperation)` method, which would
         # collide with the catch-all reader of every concrete projection.
         reference = operation_reference(operation)
-        reference === nothing && return nothing
+        # An operation that names no reference either carries its own subject —
+        # and travels — or is one this level cannot place, and is dropped. The
+        # two branches above are the kernel's own instances of the first case.
+        reference === nothing &&
+            return operation_travels_unchanged(operation) ? operation : nothing
         input_reference = map_reference_backward(projection, iomap, reference)
         input_reference === nothing && return nothing
         return retarget_operation(operation, input_reference)

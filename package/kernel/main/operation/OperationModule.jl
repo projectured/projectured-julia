@@ -43,7 +43,8 @@ export Operation, evaluate_operation, invalidate_projection!,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
        # from Rerooting.jl
-       reroot_reference, reroot_operation, operation_reference, retarget_operation
+       reroot_reference, reroot_operation, operation_reference, retarget_operation,
+       operation_travels_unchanged
 
 include("Interface.jl")   # Operation + evaluate_operation + invalidate_projection!
 include("Operations.jl")  # concrete ops, splice helpers, traversal seam

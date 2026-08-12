@@ -30,6 +30,7 @@ module ConversationEditorModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationModule: Operation, evaluate_operation, ReplaceSelectionOperation
+import ..OperationModule
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
@@ -192,6 +193,16 @@ part to `TextBlock`, dropping a trailing blank typein.
 struct ComposerSubmitOperation <: Operation
     draft::ConversationDraft
 end
+
+# Every operation above names the DRAFT it acts on rather than a path into one,
+# so there is nothing for a projection to re-root and nothing for one to place.
+# They travel up the chain as they are — which is what lets a composer rendered
+# inside a page reach the editor at all.
+OperationModule.operation_travels_unchanged(::Union{
+    ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
+    ComposerInsertPartOperation, ComposerCommitChooserOperation,
+    ComposerCommitSourceOperation, ComposerEvaluateOperation,
+    ComposerRevertOperation, ComposerSubmitOperation}) = true
 
 # ═══════════════════════════════════════════════════════════════════════
 # evaluate_operation

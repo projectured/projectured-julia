@@ -76,3 +76,25 @@ operation_reference(op) = nothing
 function retarget_operation end
 
 retarget_operation(op, reference) = op
+
+"""
+    operation_travels_unchanged(op) -> Bool
+
+Whether `op` should be passed up the chain as it is, rather than dropped, when it
+names no reference.
+
+An operation either says WHERE it acts or says WHAT it acts on. One that names a
+reference is re-targeted at every level, through `operation_reference` and
+`retarget_operation`. One that names its subject — the widget it toggles, the
+draft it types into — has nothing to re-target, and the only two useful answers
+are to forward it or to drop it. Forwarding is right whenever the subject is the
+operation's own and not something a projection could have re-rooted.
+
+The default is `false`, because a projection that answers an operation it does
+not understand is worse than one that declines: the kernel drops what it cannot
+place. A package whose operations carry their subject says so with one method,
+and the kernel names none of them.
+"""
+function operation_travels_unchanged end
+
+operation_travels_unchanged(op) = false
