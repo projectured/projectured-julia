@@ -1,5 +1,11 @@
 # Single-line INSERT and UPDATE support
 
+> **Status (2026-08-12): IN PROGRESS.** Document model, projection, examples, and
+> tests are implemented and passing (re-confirmed today). The parser (§3) is
+> still **not implemented** — `package/sql/main/SqlParser.jl` still dispatches
+> only `SELECT`/`CREATE`; no INSERT/UPDATE parsing exists. That remains the one
+> open item blocking this plan from DONE.
+
 > **Status (as-built):** document model, projection, examples, and tests are
 > **implemented and passing**. The parser (§3) was **deferred** — it remains the
 > only open item. Sections below have been updated to match what actually shipped;
@@ -11,7 +17,9 @@
 > **OPEN** — `parse_sql` in `package/sql/main/SqlParser.jl:325` still
 > dispatches only `SELECT`/`CREATE`, no INSERT/UPDATE. Per-step evidence inline below.
 > Note: old `program/src/...` and top-level `Projectured.jl` re-export paths in the
-> text are pre-restructure; symbols now live/export under `package/<subpkg>/src/...`.
+> text are pre-restructure; symbols now live/export under `package/<subpkg>/main/...`
+> (source) and `package/<subpkg>/example/...` / `package/<subpkg>/test/...`
+> (examples and tests), not `package/<subpkg>/src/...`.
 
 Flesh out the two statement stubs `SqlInsertStatement` and `SqlUpdateStatement`
 ([program/src/document/Sql.jl:314-322](program/src/document/Sql.jl#L314-L322)) into
@@ -26,18 +34,20 @@ INSERT INTO persons (name, age) VALUES ('Ada', 36)
 UPDATE persons SET age = 37 WHERE name = 'Ada'
 ```
 
-This builds on the model designed in [sql-statement.md](sql-statement.md) and reuses
+This builds on the model designed in [sql-statement.md](../done/sql-statement.md) and reuses
 its leaf types (`SqlTableName`, `SqlColumnName`, `SqlScalarValue`) and the existing
 `SqlWhereClause` / boolean-expression subtree unchanged.
 
 ---
 
-## 1. Document model (`program/src/document/Sql.jl`)
+## 1. Document model (`package/sql/main/Sql.jl`)
 
 **✅ DONE (verified):** all types/constructors exist in
-`package/sql/example/document/Sql.jl` — `SqlInsertStatement` (314-325, incl. zero-arg
-+ ergonomic ctors), `SqlUpdateAssignment` (329-335), `SqlUpdateStatement` (338-351,
-incl. zero-arg + ergonomic ctors). Exported from `SqlDocumentModule` (Sql.jl:48-50).
+`package/sql/main/Sql.jl` (not `package/sql/example/document/Sql.jl` — that file
+holds only the `make_sql_*_document_example` builders, not the struct
+definitions) — `SqlInsertStatement` (216-226), `SqlUpdateAssignment` (228-232),
+`SqlUpdateStatement` (234-244), plus the zero-arg/ergonomic constructors
+(331-336). Exported from `SqlDocumentModule`.
 **⛔ OBSOLETE sub-point:** the "re-export from `Projectured.jl:255-269`/`:551+`"
 wiring is pre-restructure path; exports now flow via the domain module export list.
 
@@ -111,7 +121,7 @@ Add four projection types following the exact pattern already used by
 `_kw`, `ChildrenIoMap`, `iomap_cell` + `sel` cell, `map_reference_forward` /
 `map_reference_backward`, and the `projection_read(::ReplaceSelectionOperation)`
 flat-position fallback). Each needs a matching reader — projections are bidirectional
-(see [CLAUDE.md](CLAUDE.md) conventions and [guide/projection-system.md](guide/projection-system.md)).
+(see [CLAUDE.md](../../CLAUDE.md) conventions and [package/kernel/doc/projection-system.md](../../package/kernel/doc/projection-system.md)).
 
 1. **`SqlInsertStatementToSyntaxNode`** — renders
    `INSERT INTO <table> (<col>, …) VALUES (<val>, …)`.
@@ -190,43 +200,42 @@ separately without touching the rest of this work.
 
 ## 4. Examples
 
-**✅ DONE (verified):** `make_sql_insert_document_example` /
-`make_sql_update_document_example` in `package/example/src/document/Sql.jl:6,14`;
+**✅ DONE (re-verified 2026-08-12):** `make_sql_insert_document_example` /
+`make_sql_update_document_example` in `package/sql/example/document/Sql.jl:60,68`;
 `make_sql_insert_syntax_projection_example` / `…_update_…` in
-`package/example/src/projection/Sql.jl:9,17`. Registered as `sql_insert_syntax_example`
-/ `sql_update_syntax_example` in `package/example/src/Examples.jl:129-130` and the
-example list at 191-192; exported from `ProjecturedExample.jl:206-207`.
+`package/sql/example/projection/Sql.jl:9,17`. Registered as `sql_insert_syntax_example`
+/ `sql_update_syntax_example` in `package/projectured/example/DomainExamples.jl:97-98`
+and the example list at 179-180; exported via `package/projectured/example/Examples.jl:42-43`
+and `package/projectured/example/ProjecturedExample.jl`.
 
-In [example/src/document/Sql.jl](example/src/document/Sql.jl) add:
+In [package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) (already present):
 
 ```julia
 make_sql_insert_document_example()  # INSERT INTO persons (name, age) VALUES ('Ada', 36)
 make_sql_update_document_example()  # UPDATE persons SET age = 37 WHERE name = 'Ada'
 ```
 
-In [example/src/projection/Sql.jl](example/src/projection/Sql.jl) add matching
-`make_sql_insert_syntax_projection_example` / `…_update_…` (same three-stage
-`SqlToSyntax → SyntaxToText → TextToGraphics` pipeline as
+In [package/sql/example/projection/Sql.jl](../../package/sql/example/projection/Sql.jl)
+(already present): matching `make_sql_insert_syntax_projection_example` / `…_update_…`
+(same three-stage `SqlToSyntax → SyntaxToText → TextToGraphics` pipeline as
 `make_sql_syntax_projection_example`).
 
-Register `sql_insert_syntax_example` and `sql_update_syntax_example` in
-[example/src/Examples.jl:112-114](example/src/Examples.jl#L112-L114) and the example
-list at [Examples.jl:160-162](example/src/Examples.jl#L160-L162).
+Registered as `sql_insert_syntax_example` and `sql_update_syntax_example` in
+[package/projectured/example/DomainExamples.jl](../../package/projectured/example/DomainExamples.jl)
+and the example list there.
 
 ---
 
 ## 5. Tests
 
-**✅ DONE (verified):** in `package/test/src/projection/SqlToSyntaxTest.jl` the four
-render checks exist (51, 57, 65, 71 — incl. empty-column and no-WHERE branches) and the
-self-contained `test_sql_insert_update_selection()` (75-116) covers INSERT
+**✅ DONE (re-verified 2026-08-12):** in `package/sql/test/projection/SqlToSyntaxTest.jl` the four
+render checks exist (incl. empty-column and no-WHERE branches) and the
+self-contained `test_sql_insert_update_selection()` covers INSERT
 table/columns[i]/values[i] and UPDATE table/assignments[i].column_name/value plus a
 `where_clause.condition.expression.left` sub-reference, asserting backward∘forward==path.
-Exported (207) and wired into `test_projections()` (`ProjecturedTest.jl:131`).
-`ReferencePath`/`map_reference_forward`/`map_reference_backward` are imported in
-`ProjecturedTest.jl:18-19`.
+Exported and wired into `test_projections()` (`package/projectured/test/ProjecturedTest.jl`).
 
-In [test/src/projection/SqlToSyntaxTest.jl](test/src/projection/SqlToSyntaxTest.jl):
+In [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/projection/SqlToSyntaxTest.jl):
 
 - Replace the "Stubs compile" asserts with real round-trip rendering checks via the
   `sql_text` helper already defined there. Cover the index-shifting/optional branches,
@@ -236,25 +245,26 @@ In [test/src/projection/SqlToSyntaxTest.jl](test/src/projection/SqlToSyntaxTest.
   - `UPDATE persons SET age = 37 WHERE name = 'Ada'` (with WHERE)
   - `UPDATE persons SET name = 'Ada', age = 37` (no WHERE, multiple assignments)
 - Add a **self-contained** selection round-trip test, `test_sql_insert_update_selection()`.
-  **As-built / gotcha:** the original plan said to "mirror `test_sql_to_syntax_selection`",
-  but that existing test calls a `test_selection` helper that is **defined nowhere in
-  the repo** — so `test_sql_to_syntax_selection()` is already broken on this branch and
-  cannot be mirrored. Instead the new test stands alone: `projection_print` the doc,
-  take `iomap.projection` (RecursiveProjection unwraps to the concrete node projection),
-  and assert `map_reference_backward(p, iomap, map_reference_forward(p, iomap, path)) == path`
+  **As-built / gotcha (historical):** at the time this was written, `test_sql_to_syntax_selection()`
+  called a `test_selection` helper that was **defined nowhere in the repo**, so it could
+  not be mirrored and the new test stood alone. **Since fixed:** the live
+  `test_sql_to_syntax_selection()` now calls `test_position_navigation("SqlToSyntax nested",
+  doc, proj)` — the current, working equivalent (see
+  [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md)). The
+  standalone `test_sql_insert_update_selection()` still exists and still works the
+  original way: `projection_print` the doc, take `iomap.projection` (RecursiveProjection
+  unwraps to the concrete node projection), and assert
+  `map_reference_backward(p, iomap, map_reference_forward(p, iomap, path)) == path`
   for `table`, `columns[i]`, `values[i]` (INSERT) and `table`, `assignments[i].column_name`,
   `assignments[i].value`, and a `where_clause.condition.expression.left` sub-reference
-  (UPDATE). Build multi-step paths with `ReferencePath(steps...)` — note
-  `ConcreteReferencePath` only takes one step or `(step, ReferencePath)`, so passing
-  bare steps as varargs constructs a malformed path.
-- This needs `ReferencePath`, `map_reference_forward`, `map_reference_backward` added to
-  the `using Projectured: …` import list in
-  [ProjecturedTest.jl](test/src/ProjecturedTest.jl), and the new test wired into
-  `test_projections()` + the module `export`.
+  (UPDATE). Build multi-step paths with `Reference(steps...)`.
+- Needs `Reference`, `map_reference_forward`, `map_reference_backward` imported in
+  [package/projectured/test/ProjecturedTest.jl](../../package/projectured/test/ProjecturedTest.jl),
+  and the new test wired into `test_projections()` + the module `export` — already done.
 
 ### Verifying
 
-Per [CLAUDE.md](CLAUDE.md) "Testing a change", use the narrowest scope:
+Per [CLAUDE.md](../../CLAUDE.md) "Testing a change", use the narrowest scope:
 
 ```julia
 test_sql_document()                  # document model still loads

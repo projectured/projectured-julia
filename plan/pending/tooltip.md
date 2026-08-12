@@ -1,5 +1,11 @@
 # Tooltip Support — Remaining Work
 
+> **Status (2026-08-12): IN PROGRESS.** Steps 1, 6, 5, 7, and 8 below are
+> still open — re-checked directly against the current tree, same gaps as
+> the last check. Step 9 is done (see its own section). Paths are updated for
+> the current package layout (`package/sdl/main/`, `package/projectured/example/Gallery.jl`,
+> `package/substrate/test/projection/TooltipTest.jl`).
+
 > The v1 design (see [plan/done/tooltip.md](../done/tooltip.md)) is in
 > place: `TooltipSource`, `TooltipDecoratorProjection`,
 > `WindowManagerProjection`, `OpenWindowOperation` / `CloseWindowOperation`,
@@ -10,16 +16,12 @@
 
 ## Step 1 (cont.) — Backend `:tooltip` style
 
-**⏳ OPEN (verified):** `_WINDOW_FLAGS_TOOLTIP` in
-[package/sdl/src/ProjecturedSdl.jl:446](../../package/sdl/src/ProjecturedSdl.jl)
+**⏳ OPEN (re-verified 2026-08-12):** `_WINDOW_FLAGS_TOOLTIP` in
+[package/sdl/main/ProjecturedSdl.jl:481](../../package/sdl/main/ProjecturedSdl.jl)
 still only sets `SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP |
-SDL_WINDOW_ALLOW_HIGHDPI` — no UTILITY/SKIP_TASKBAR/no-input-focus flag. No
+SDL_WINDOW_ALLOW_HIGHDPI` (plus `SDL_WINDOW_SHOWN`) — no UTILITY/SKIP_TASKBAR/no-input-focus flag. No
 `screen_origin` symbol exists anywhere in `package/` (grep finds it only in plan
 docs). Both sub-items below remain open.
-
-Currently `_WINDOW_FLAGS_TOOLTIP` in
-[program/src/backend/Sdl.jl](../../program/src/backend/Sdl.jl) sets
-`SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_ALLOW_HIGHDPI`.
 
 Missing:
 
@@ -35,16 +37,18 @@ Missing:
 
 ## Step 6 — Real position derivation
 
-**⏳ OPEN (verified):** `_multi_window_projection_tooltipped` in
-[package/example/src/Examples.jl:474-502](../../package/example/src/Examples.jl)
-still hard-codes `position = _ -> (100, 100, 1200, 600)` — no `char_to_coord`
-lookup, no `screen_origin` combination, no display clamp, no `(0, 0)` auto-size.
+**⏳ OPEN (re-verified 2026-08-12):** `_multi_window_projection_tooltipped` is now in
+[package/projectured/example/Gallery.jl:513-521](../../package/projectured/example/Gallery.jl)
+(moved from `Examples.jl` — that file is gone; the examples now live in
+`Gallery.jl`) and still hard-codes `position = _ -> (100, 100, 1200, 600)` — no
+`char_to_coord` lookup, no `screen_origin` combination, no display clamp, no
+`(0, 0)` auto-size.
 
-Today the example tooltip uses a fixed `(100, 100, 1200, 200)` placement
+Today the example tooltip uses a fixed `(100, 100, 1200, 600)` placement
 inside `_multi_window_projection_tooltipped` in
-[example/src/Examples.jl](../../example/src/Examples.jl). The plan called
-for the position to be derived from the decorated node's screen
-coordinates.
+[package/projectured/example/Gallery.jl](../../package/projectured/example/Gallery.jl).
+The plan called for the position to be derived from the decorated node's
+screen coordinates.
 
 Required:
 
@@ -62,8 +66,8 @@ Required:
 
 ## Step 5 (cont.) — Verify show delay with examples
 
-**⏳ OPEN (verified):**
-[package/test/src/projection/TooltipTest.jl](../../package/test/src/projection/TooltipTest.jl)
+**⏳ OPEN (re-verified 2026-08-12):**
+[package/substrate/test/projection/TooltipTest.jl](../../package/substrate/test/projection/TooltipTest.jl)
 has no `delay_ms` always-on trigger, no flicker trigger, and no test exercising
 the delay threshold — its triggers are plain `show[]` refs only.
 
@@ -75,7 +79,7 @@ isn't:
 - A "flicker" trigger that flips on every selection move and therefore
   never crosses the delay threshold.
 
-Plus tests covering both cases in [TooltipTest.jl](../../test/src/projection/TooltipTest.jl).
+Plus tests covering both cases in [TooltipTest.jl](../../package/substrate/test/projection/TooltipTest.jl).
 
 ## Step 7 (cont.) — Additional example tooltips
 
@@ -96,9 +100,9 @@ entry for that content type.
 
 ## Step 8 (cont.) — Multi-tooltip test
 
-**⏳ OPEN (verified):** TooltipTest.jl only ever builds a single `TooltipSource`
-(ids `:tt` / `:dup`); no scenario wraps two sources in different sub-trees, so
-independent open/close is untested.
+**⏳ OPEN (re-verified 2026-08-12):** `package/substrate/test/projection/TooltipTest.jl` only ever builds a single `TooltipSource`
+(ids `:tt` / `:dup`, two occurrences total); no scenario wraps two sources in
+different sub-trees, so independent open/close is untested.
 
 Architecturally supported (decorator state is keyed by `source.id`), but
 no test exercises it. Add a scenario with two `TooltipSource` wrappers in
@@ -107,14 +111,14 @@ keeps both windows open and closed independently.
 
 ## Step 9 — Optional: pointer-based hover — DONE (via the hover inspector)
 
-**✅ DONE (verified):** `HoverProbeProjection`
-([package/visual/main/inspector/HoverProbe.jl](../../package/visual/main/inspector/HoverProbe.jl)),
+**✅ DONE (re-verified 2026-08-12):** `HoverProbeProjection`
+([package/inspector/main/HoverProbe.jl](../../package/inspector/main/HoverProbe.jl)),
 `ReferenceInspector` document + test
-([package/test/src/projection/HoverProbeTest.jl](../../package/test/src/projection/HoverProbeTest.jl)),
+([package/projectured/test/projection/HoverProbeTest.jl](../../package/projectured/test/projection/HoverProbeTest.jl)),
 the `inspector=true` pipeline
-([package/example/src/Examples.jl:516 `_multi_window_projection_inspector`](../../package/example/src/Examples.jl)),
+([package/projectured/example/Gallery.jl:556 `_multi_window_projection_inspector`](../../package/projectured/example/Gallery.jl)),
 and throttled idle `MouseMove` forwarding in the SDL backend
-([package/sdl/src/ProjecturedSdl.jl:1985-1994](../../package/sdl/src/ProjecturedSdl.jl))
+([package/sdl/main/ProjecturedSdl.jl:548-549,2569](../../package/sdl/main/ProjecturedSdl.jl))
 all exist.
 
 **Implemented** by the hover click-reference inspector — see

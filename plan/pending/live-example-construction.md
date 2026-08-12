@@ -1,10 +1,10 @@
 # Live example construction test
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): IN PROGRESS.** JSON, YAML, and XML reconstruct fully
+> (confirmed against `package/projectured/test/editor/ConstructTest.jl`); SQL, the
+> text/graph domains, Julia insertion-domain recipes, and the generic
+> `test_construct(example::Example)` sweep across all domains (Phase 4) are still
+> open, matching this plan's own "Next" list below.
 
 A new end-to-end test that **rebuilds each example document from an empty seed using only the
 editor's own gestures**, then asserts the reconstruction deeply equals the original example.
@@ -86,7 +86,7 @@ from the payload. This keeps probing side-effect-free and cheap.
 | Enumerate gestures at a state | ✅ exists | `collect_gesture_bindings(proj, recursion, iomap)` [`projection/GestureBindings.jl:54`], filter via `get_applicable_gesture_bindings(bindings, doc, sel)` [`binding/GestureBinding.jl:230`]; descriptor `GestureBinding{pattern, operation, applicable, description, domain}` [`binding/GestureBinding.jl:60`] |
 | Empty seed | ✅ exists | `@domain` generates `XNothing`/`XInsertion` [`base/main/document/Domain.jl:488`]; e.g. `JuliaNothing()` [`domain/main/julia/Julia.jl:74`]; `insertion_candidates` / `make_insertion_document` / `resolve_insertion` [`Domain.jl:213,128,320`] |
 | Drive keystrokes headless | ✅ exists | `read_intent(proj, iomap, ev)` → `evaluate_operation((document=doc,), op)` → `print_document`; manual loop in [`documentation/debugging.md:87`]; events `KeyPress`/`KeyDown` [`event/KeyboardEvent.jl:24`], `Modifiers` [`event/Modifiers.jl:17`] |
-| Place selection by path | ✅ exists | `set_selection!(doc, @reference(doc, …))` [`selection/Selection.jl:75`, `reference/ReferenceBuilder.jl:174`]; enumerate sites `collect_tree_selections` / `collect_position_selections` [`base/test/document/SelectionEnumeration.jl:130,100`] |
+| Place selection by path | ✅ exists | `set_selection!(doc, @reference(doc, …))` [`selection/Selection.jl:75`, `reference/ReferenceBuilder.jl:174`]; enumerate sites `collect_tree_selections` / `collect_position_selections` [now `package/substrate/test/document/SelectionEnumeration.jl` — `package/base` no longer exists; a near-duplicate copy also lives at `package/projectured/test/document/SelectionEnumeration.jl`] |
 | Recursive content-equality | ⚠️ **build** | *No* `Base.==` on `@document` nodes — they compare by identity. New generic oracle (below). |
 
 ## The oracle (the only new primitive)
@@ -145,7 +145,9 @@ choose_recipe(model, ctx, goal):                    # cached by (ctx.kind, goal)
 
 **Oracle** in `package/kernel/test/editor/ConstructTest.jl` (kernel-tier — it needs only kernel
 primitives), exported from `ProjecturedKernelTest`. **Engine** (`reconstruct` / `test_construct` /
-per-domain cases) in `package/domain/test/editor/ConstructTest.jl` — *not* kernel-tier as first
+per-domain cases) in `package/projectured/test/editor/ConstructTest.jl` (moved from the old
+`package/domain/test/editor/ConstructTest.jl` when `ProjecturedDomain` was dissolved into
+per-domain packages) — *not* kernel-tier as first
 planned, because it needs base's `@domain` seed machinery (`nothing_document` / `domain_insertion`)
 and visual's `TextToString`, and drives domain examples. This mirrors how `collect_*_selections`
 (base test) and the JSON test invocations (domain test) split across tiers. A generic
@@ -158,10 +160,10 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
   (empty = equal; each entry tags the mismatch path `∅`/`.field`/`[i]`) — a returns-diffs shape rather
   than a throwing `assert_equal_content`, which is cleaner to `@test`. Mirrors `walk_document`'s descent
   (`is_element_collection`/dict/array/fieldnames, `unwrap_cell`, skip `:ref`/`:selection`); kind compared
-  by `typename` (reactive structs are parametric). In `package/kernel/test/editor/ConstructTest.jl` with
+  by `typename` (reactive structs are parametric). In `package/kernel/test/editor/ConstructTest.jl` (still the current path) with
   `test_construct_oracle()` (14/14 pass; wired into `test_kernel()`). *Committed.*
 - [x] **Phase 1 — Leaf reconstruction. DONE.** `reconstruct(target, projection)` +
-  `test_construct` + `test_json_construct()` in `package/domain/test/editor/ConstructTest.jl`.
+  `test_construct` + `test_json_construct()` in `package/projectured/test/editor/ConstructTest.jl`.
   Seed = `nothing_document(domain_insertion(typeof(target)))()`; surface (the keystrokes) = the
   target rendered to text by swapping the projection's graphics terminal for
   `RecursiveProjection(TextToString())` and forcing `iomap.output`; drive = set ∅ selection then
@@ -241,7 +243,7 @@ and visual's `TextToString`, and drives domain examples. This mirrors how `colle
 The construction test surfaced these; all three are resolved.
 
 - **json/number — number editing drifted to `Float64`.** `splice_number`
-  (`kernel/operation/Operations.jl`) always did `tryparse(Float64, …)`, so editing `4` into `42`
+  (`package/kernel/main/operation/Operations.jl`) always did `tryparse(Float64, …)`, so editing `4` into `42`
   produced `JsonNumber(42.0)`. Fixed by parsing `Int` first, `Float64` only for a fractional/exponent
   result (`something(tryparse(Int, …), tryparse(Float64, …), Some(nothing))`) — matching the canonical
   JSON parser. Integer numbers now stay integers.
@@ -329,5 +331,7 @@ Next, in order of remaining value:
   shape `_create_keystroke` still returns `nothing` for).
 - **Phase 4 — generic `test_construct(example::Example)` sweep** across all domains.
 
-The reader fixes + reconstruction engine landed on branch `fix-json-number-string-readers`
-(worktree `../projectured-julia-jsonfix`).
+The reader fixes + reconstruction engine landed on `main` directly (commits `b83b83ec`,
+`194319e7`, `3b55e3ab`, `c57e7ff7`, `af4b26ef`, `b7b231cc`, `0da6b7fd`, 2026-07-16/17).
+The branch `fix-json-number-string-readers` and its worktree `../projectured-julia-jsonfix`
+no longer exist — the branch was merged and deleted.

@@ -1,10 +1,19 @@
 # Data-driven projections via a builder-and-walk engine
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): IN PROGRESS.** The engine
+> (`package/kernel/main/projection/ProjectionTemplate.jl`) is done and backs
+> almost every printer. Stage A (JSON) is done. Stage C has progressed well
+> past the 2026-06-23 audit below: XML and Julia are now **fully** converted
+> (`package/xml/main/XmlToSyntax.jl` — 8 `@projection_template` uses, 0
+> `ChildrenIoMap`; `package/julia/main/JuliaToSyntax.jl` — 59 uses, 0
+> `ChildrenIoMap`), Math is partial (`package/math/main/MathToSyntax.jl` — 18
+> uses, but still 13 `ChildrenIoMap` / 4 hand-written `map_reference_forward`),
+> and Formula/Collection are still fully open
+> (`package/formula/main/FormulaToSyntax.jl`,
+> `package/syntax/main/CollectionToSyntax.jl` — 0 uses each). Stage B (SQL) is
+> unchanged from the 2026-06-23 audit: leaves done (now 8, not 7), nodes still
+> hand-written (101 `ChildrenIoMap` uses in
+> `package/sql/main/SqlToSyntax.jl`).
 
 ## Motivation
 
@@ -79,24 +88,28 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 
 ## Status
 
-> **Audit (2026-06-23, verified against current `package/` layout):** the
-> three "Done" items below are confirmed landed in the current tree.
-> - `@document` emits a **mutable** struct: `package/kernel/src/common/Document.jl:196`
->   (`structdef.args[1] = true`), with the rationale at lines 191–196.
+> **Audit (2026-06-23, re-verified 2026-08-12 against the current `package/` layout):**
+> the three "Done" items below are confirmed landed in the current tree, though
+> the exact file paths in the original audit have moved again.
+> - `@document` emits a **mutable** struct for the Cell-based (`M`-prefixed)
+>   variant: the macro now lives at
+>   `package/kernel/main/document/DocumentMacro.jl` (not `package/kernel/src/common/Document.jl`,
+>   which no longer exists) and has grown into a richer kind system
+>   (immutable / mutable `M` / boxed `MC`, see that file's own docs) than the
+>   single mutable-vs-immutable decision this plan recorded — re-verify the
+>   mutability rationale against the current file if this plan is picked back up.
 > - The builder/marker/walk engine lives at
->   `package/kernel/main/projection/ProjectionTemplate.jl` and is included via
->   `package/domain/src/ProjecturedDomain.jl`. It implements `Bound`/`Project`/
+>   `package/kernel/main/projection/ProjectionTemplate.jl` (this path was already
+>   correct) and is included via `package/domain/main/ProjecturedDomain.jl` (not
+>   `package/domain/src/...`). It implements `Bound`/`Project`/
 >   `Collection`/`Tokens`/`Sections` markers, the reflection walk
 >   (`rule_print`, `_atomic_print`, `_node_print`, `_fixed_print`, `_mixed_print`,
 >   `_inline_print`, `_sections_print`), `AtomicWiring`/`NodeWiring`/
 >   `FixedNodeWiring`/`MixedNodeWiring`/`InlineWiring`/`SectionsWiring`/`RuleIoMap`,
 >   the generic `map_reference_forward`/`backward`, and the readers — Syntax-type-free.
->   (Note: the engine now exceeds the plan's docstring, which still says "node
->   support is WIP".)
 > - All seven JSON value types are builders in
->   `package/json/main/JsonToSyntax.jl` (lines 49, 59, 70, 81,
->   96, 112, 132). Hand-written kept: authoring readers + the structural flat-offset
->   fallback (lines 251–279).
+>   `package/json/main/JsonToSyntax.jl` (this path was already correct). Hand-written
+>   kept: authoring readers + the structural flat-offset fallback.
 
 ### Done (branch `projection-rule-macro`, rebased onto `main` @ `cf0482c`)
 
@@ -106,16 +119,20 @@ The branch was reconstructed on top of `main` after `main` landed the
 of loose `(font, color)` pairs). The original four commits collapse to three
 clean ones on the new layout:
 
-- `@document`: Cell-based struct variant is mutable — now at
-  `kernel/src/common/Document.jl`. — commit `3b95c3f`
+- `@document`: Cell-based struct variant is mutable — at the time, in
+  `kernel/src/common/Document.jl`; as of 2026-08-12 that logic lives in
+  `package/kernel/main/document/DocumentMacro.jl`, see the Status section above.
+  — commit `3b95c3f`
 - `ProjectionTemplate.jl`: the builder/marker/walk engine — markers, the reflection
   walk with in-place marker stripping, `AtomicWiring`/`NodeWiring`/`FixedNodeWiring`/
   `RuleIoMap`, the generic data-driven `map_reference_forward`/`backward`, and the
   readers (value-edit retype + the proj-wrap structural fallback). Output-domain-
-  independent (no Syntax type or field name). Lives in `domain/src/projection/`; all
+  independent (no Syntax type or field name). At the time, in `domain/src/projection/`;
+  as of 2026-08-12 it is `package/kernel/main/projection/ProjectionTemplate.jl`. All
   its imports are kernel modules reachable through the `ProjecturedDomain` const
   aliases, so **no import changes** were needed for the relocation. — commit `5a5ddc1`
-- `JsonToSyntax.jl` (now `domain/src/projection/primitive/`): **all seven** JSON
+- `JsonToSyntax.jl` (at the time `domain/src/projection/primitive/`, as of
+  2026-08-12 `package/json/main/JsonToSyntax.jl`): **all seven** JSON
   value types as builders — `JsonNull`/`JsonInsertion` opaque leaves; `JsonBool`/
   `JsonNumber`/`JsonString` `bound(:value, …)` leaves; `JsonArray` a
   `collection(:elements)` node; `JsonObject` a `collection(:entries) do e … end`
@@ -188,16 +205,25 @@ shapes directly, and crucially its *conditional* structure needs no new machiner
 - Authoring readers (`,` insert, Tab key→value, type-to-replace) stay hand-written.
 - **Gate:** `test_sql_to_syntax`, `test_sql_to_syntax_selection`.
 
-### Stage C — sweep other `XToSyntax` projections ⏳ OPEN (verified)
+### Stage C — sweep other `XToSyntax` projections ⏳ IN PROGRESS (re-verified 2026-08-12)
 
-**Audit:** none of `XmlToSyntax.jl`, `MathToSyntax.jl`, `JuliaToSyntax.jl`,
-`FormulaToSyntax.jl`, `CollectionToSyntax.jl` (all under
-`package/domain/src/projection/primitive/`) reference `@projection_template`
-(0 uses each). Entirely OPEN.
+**2026-06-23 audit (superseded):** none of `XmlToSyntax.jl`, `MathToSyntax.jl`,
+`JuliaToSyntax.jl`, `FormulaToSyntax.jl`, `CollectionToSyntax.jl` referenced
+`@projection_template`. That is no longer true for three of the five.
 
-`XmlToSyntax`, `MathToSyntax`, `JuliaToSyntax`, `FormulaToSyntax`,
-`CollectionToSyntax`, etc. — same playbook once Stages A/B prove the templated and
-conditional cases.
+**2026-08-12 re-audit** (each domain now has its own `main/` package; `CollectionToSyntax.jl`
+moved to `package/syntax/main/`):
+
+| file | `@projection_template` uses | `ChildrenIoMap` uses | verdict |
+|---|---:|---:|---|
+| `package/xml/main/XmlToSyntax.jl` | 8 | 0 | **DONE** |
+| `package/julia/main/JuliaToSyntax.jl` | 59 | 0 | **DONE** |
+| `package/math/main/MathToSyntax.jl` | 18 | 13 | PARTIAL — nodes still mixed |
+| `package/formula/main/FormulaToSyntax.jl` | 0 | — | OPEN |
+| `package/syntax/main/CollectionToSyntax.jl` | 0 | — | OPEN |
+
+`FormulaToSyntax`, `CollectionToSyntax` — same playbook once Math's remaining
+nodes and Stage B's SQL nodes prove out the conditional cases further.
 
 ## Out of scope
 
@@ -208,9 +234,9 @@ conditional cases.
 
 ## Done criteria
 
-> **⏳ NOT MET (verified):** the engine + JSON are done, but the first bullet
-> below requires SQL nodes and all Stage-C projections as builders — they remain
-> hand-written (see the Stage B/C audits above). Plan stays in `pending`.
+> **NOT MET (re-verified 2026-08-12):** the engine, JSON, XML, and Julia are
+> done; Math is partial; SQL nodes, Formula, and Collection remain hand-written
+> (see the Stage B/C audits above). Plan stays in `pending`.
 
 - Every structural `*ToSyntax*` projection expressed as a builder; only authoring
   readers + display/utility functions remain hand-written.

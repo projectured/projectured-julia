@@ -1,10 +1,27 @@
 # Animation via a Global Time Cell
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): SUPERSEDED.** The single global `EDITOR_TIME` cell
+> design below was not built. Instead
+> [plan/done/per-editor-animation-clock.md](../done/per-editor-animation-clock.md)
+> shipped a **per-editor** `Clock` (`package/kernel/main/clock/Clock.jl`, a
+> `@cell_struct` with a reactive `time` field), read through
+> `get_reactive_clock_time(clock)` (SUBSCRIBE) and `get_clock_time(clock)`
+> (SAMPLE) — the same two-mode idea this plan proposes, but scoped per editor
+> instead of one process-global cell, so many editors in one process animate
+> independently. `PrinterContext.clock` carries the clock to every printer. A
+> single ambient `get_wall_clock()` plays the role this plan's `EDITOR_TIME`
+> would have played for one-shot renders. Many of the ideas below did land in
+> that shape: the settling argument (no retirement registry), the
+> rotating-vector worked example
+> (`package/substrate/example/document/RotatingVector.jl`), and the
+> `WidgetSwitch` interruptible slide
+> (`package/widget/main/Widget.jl`/`WidgetToGraphics.jl`, `anim_from`/
+> `anim_t0`/`duration`). Not built: a general `animate`/easing/`keyframes`
+> helper library — each animated example still hand-writes its interpolation.
+> [plan/pending/chase-animation.md](chase-animation.md) is the current design
+> for arming interruptible chases and treats the per-editor `Clock` as prior
+> art. Read this file for the reasoning that shaped the shipped design, not as
+> a literal API to implement.
 
 > **Note:** This document was generated with AI assistance as a brainstorming
 > artifact. It is a collection of raw ideas and directions, not a specification.
@@ -26,7 +43,7 @@
 ## Motivation
 
 Today the editor only does visible work when the user does something. The main
-loop (`run!` in [package/kernel/src/editor/Editor.jl](../../package/kernel/src/editor/Editor.jl))
+loop (`run!` in [package/kernel/main/editor/Editor.jl](../../package/kernel/main/editor/Editor.jl))
 reads an input gesture, evaluates the resulting operation, and reprints. When
 there is no operation, `evaluate!` is a no-op, `editor.iomap` stays cached, and
 `print!` just re-writes the same canvas. Nothing changes between frames unless a
@@ -57,7 +74,7 @@ tick!()      # EDITOR_TIME[] = <current logical time>
 
 Because invalidation is **write-driven** (see
 [design-decisions §10](../../documentation/design-decisions.md) and
-[reactive-cells.md](../../documentation/reactive-cells.md)), writing
+[cell.md](../../package/kernel/doc/cell.md)), writing
 `EDITOR_TIME` unconditionally invalidates every cell that *read* it —
 transitively — and the next pull during `write_to_devices` recomputes exactly
 those cells and nothing else. A projection animates a field by wiring a
@@ -129,7 +146,7 @@ single place where time lives; "sample" and "subscribe" are just two reads of it
 ## Why this fits the reactive model (the important subtlety)
 
 The reactive engine has a hard purity invariant
-([reactive-cells.md](../../documentation/reactive-cells.md), "Invariants the
+([cell.md](../../package/kernel/doc/cell.md), "Invariants the
 engine relies on"):
 
 > **Thunks must be pure and deterministic in their cell inputs** … depend only
@@ -152,7 +169,7 @@ A thunk that calls `reactive_editor_time()` reads a real cell, so:
 So the rule isn't "animation is impossible", it's "the clock must enter the
 graph through a cell, not through a side channel". This plan is the disciplined
 way to add a clock without breaking purity. (The existing wording in
-reactive-cells.md should be updated to say "no *ad-hoc* clocks — subscribe via
+`cell.md` should be updated to say "no *ad-hoc* clocks — subscribe via
 `reactive_editor_time()`, or sample via `editor_time()`".)
 
 ---
@@ -161,9 +178,10 @@ reactive-cells.md should be updated to say "no *ad-hoc* clocks — subscribe via
 
 ### 1. The time cell and its two readers
 
-Lives in [package/kernel/src/reactive/Reactive.jl](../../package/kernel/src/reactive/Reactive.jl),
-next to the engine it belongs to (and the existing global `_computing` stack),
-so any layer can read it without a dependency cycle:
+The draft below places this in `Reactive.jl`, next to the engine it belongs to
+(and the existing global `_computing` stack), so any layer can read it without
+a dependency cycle. The shipped design uses a different file; see the status
+banner at the top of this plan.
 
 ```julia
 const EDITOR_TIME = Cell(0.0)   # current logical time, seconds (single source of truth)
@@ -220,7 +238,7 @@ end
 
 `print!` already calls `write_to_devices`, which re-reads the output canvas
 cells every frame (confirmed in
-[ProjecturedSdl.jl `write_to_devices`](../../package/sdl/src/ProjecturedSdl.jl)
+[ProjecturedSdl.jl `write_to_devices`](../../package/sdl/main/ProjecturedSdl.jl)
 — it walks `screen.windows` → `w.content` → renders the canvas, all
 cell-backed). So no structural change to the print path is needed: bumping
 `EDITOR_TIME` invalidates the animated cells, and the existing per-frame pull
@@ -268,7 +286,7 @@ setfn!(getfield(node, :position_x),
 *absolute* (`t0` captured from `editor_time()` at the moment the animation is
 armed), not "N seconds from when this cell was built". Cells get rebuilt
 whenever the iomap is dropped (e.g. after a whole-document swap,
-[Operation.jl](../../package/kernel/src/common/Operation.jl) sets
+[Operations.jl](../../package/kernel/main/operation/Operations.jl) sets
 `editor.iomap = nothing`). Absolute start times mean a rebuild doesn't restart
 mid-flight animations.
 
@@ -322,9 +340,9 @@ operation/evaluate path, and the clean shape is a **`CompoundOperation`**:
 > The control's reader emits a compound of *[arm, …, logical edit]*. The arm
 > members record the animation's start parameters; the last member is the
 > ordinary domain edit (flip the bool). `evaluate_operation` runs the members in
-> order ([Operation.jl](../../package/kernel/src/common/Operation.jl)), and the
+> order ([Operations.jl](../../package/kernel/main/operation/Operations.jl)), and the
 > projection layer already maps a compound's members back through readers
-> recursively ([Projection.jl](../../package/kernel/src/common/Projection.jl)),
+> recursively ([Projection.jl](../../package/kernel/main/projection/Projection.jl)),
 > so bundling presentation arming with a domain edit is a first-class pattern.
 
 Two ways to carry the arm:
@@ -354,8 +372,8 @@ subscription — settling with no registry (§5).
 fraction, so toggling mid-slide resumes from where the knob visually is.
 
 This is implemented for `WidgetSwitch`
-([WidgetToGraphics.jl](../../package/visual/main/widget/WidgetToGraphics.jl),
-[Widget.jl](../../package/visual/example/document/Widget.jl)); the same shape covers
+([WidgetToGraphics.jl](../../package/widget/main/WidgetToGraphics.jl),
+[Widget.jl](../../package/widget/main/Widget.jl)); the same shape covers
 the other finite widgets in the palette below.
 
 ---
@@ -489,7 +507,7 @@ All of them reuse the same core as A and B: a presentation cell that subscribes
 to time via `reactive_editor_time()` plus an `animate`/easing helper. They differ
 only in what they interpolate and in whether they self-start, loop forever, or
 fire on a state change. All the widget types below already exist in
-[Widget.jl](../../package/visual/example/document/Widget.jl).
+[Widget.jl](../../package/widget/main/Widget.jl).
 
 | Widget | Animation | Interpolates | Kind | Trigger |
 |---|---|---|---|---|
@@ -585,7 +603,7 @@ Cross-cutting notes:
 - **Settled animations cost a constant recompute, not a repaint.** A finished
   finite animation keeps subscribing to time and re-evaluates to its final value
   each frame; dirty-rect rendering
-  ([optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md))
+  ([optimize-rendering-dirty-rect.md](../done/optimize-rendering-dirty-rect.md) *(done)*)
   sees no change and skips the draw. The residual is arithmetic, and only for
   on-screen nodes.
 - **Synergy with dirty-rect rendering.** Animation is the strongest motivation
@@ -667,32 +685,32 @@ Cross-cutting notes:
 
 | Plan | Overlap |
 |---|---|
-| [optimize-rendering-dirty-rect.md](../pending/optimize-rendering-dirty-rect.md) | Animation is the strongest motivation for partial redraw — only the moving region changes each frame. It is also what makes *not* retiring settled animations acceptable (the repaint is skipped). Should land together or at least be co-designed. |
+| [optimize-rendering-dirty-rect.md](../done/optimize-rendering-dirty-rect.md) *(done)* | Animation is the strongest motivation for partial redraw — only the moving region changes each frame. It is also what makes *not* retiring settled animations acceptable (the repaint is skipped). Should land together or at least be co-designed. |
 | [headless-video-recording.md](../done/headless-video-recording.md) / [extract-video-package.md](../done/extract-video-package.md) | Rendering successive `seek!(t)` frames to images *is* video. The rotating-vector example is a natural recorded-animation test case. |
 | [generate-screenshots.md](../done/generate-screenshots.md) / [write-image.md](../done/write-image.md) | Deterministic screenshots require pinning time; these helpers should grow an `at::Float64` parameter. |
-| timeline-driven `run!` (in [Editor.jl](../../package/kernel/src/editor/Editor.jl)) | That loop injects *operations* on a schedule (event-level scripting). Animation is the *value-level* analog — interpolated state rather than discrete operations. Conceptually complementary; both are "the editor changing without live user input". |
+| timeline-driven `run!` (in [Editor.jl](../../package/kernel/main/editor/Editor.jl)) | That loop injects *operations* on a schedule (event-level scripting). Animation is the *value-level* analog — interpolated state rather than discrete operations. Conceptually complementary; both are "the editor changing without live user input". |
 | [tooltip.md](../pending/tooltip.md) / [annotation.md](../tentative/annotation.md) | Fade-in/out and slide presentations for popups and annotations become trivial once a time cell exists. |
 
 ---
 
 ## Dependencies
 
-- The reactive cell engine ([Reactive.jl](../../package/kernel/src/reactive/Reactive.jl))
+- The reactive cell engine ([ReactiveCell.jl](../../package/kernel/main/cell/ReactiveCell.jl))
   — `EDITOR_TIME`, the generic `peek` (untracked read), and the two readers
   `reactive_editor_time()` / `editor_time()` are added there; write-driven
   invalidation is the load-bearing mechanism and already exists.
-- The main loop ([Editor.jl](../../package/kernel/src/editor/Editor.jl)) — one
+- The main loop ([Editor.jl](../../package/kernel/main/editor/Editor.jl)) — one
   `advance!` call per frame; the per-frame `write_to_devices` re-pull already
   happens.
 - The graphics domain primitives used by example B already exist:
   `GraphicsCircle`, `GraphicsPolyline`, `GraphicsLine`, `GraphicsCanvas`
-  ([Graphics.jl](../../package/domain/src/document/Graphics.jl)) — all
+  ([Graphics.jl](../../package/graphics/main/Graphics.jl)) — all
   cell-backed, so their fields can be driven by computed cells that subscribe to
   time.
 - No backend changes for in-canvas animation (the SDL/web/console backends
   already re-render the cell-backed canvas each frame).
 - A doc correction to
-  [reactive-cells.md](../../documentation/reactive-cells.md): the purity rule
+  [cell.md](../../package/kernel/doc/cell.md): the purity rule
   should clarify that the clock enters the graph through the `EDITOR_TIME` cell
   (subscribe via `reactive_editor_time()`, sample via `editor_time()`), never via
   an ad-hoc wall-clock read inside a thunk.

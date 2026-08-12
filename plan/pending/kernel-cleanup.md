@@ -1,16 +1,20 @@
 # Kernel cleanup — structure review and proposal
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
-
-> **Superseded in part (2026-07-03):** the "Target structure (proposal)" section and the
-> remaining unchecked Phase 2/3 items are superseded by
-> [kernel-layered-architecture.md](kernel-layered-architecture.md) (kernel/base package
-> split with strict per-layer tests and docs). The findings, audits, and the completed
-> Phase 0/1 work below remain valid and are reused by that plan.
+> **Status (2026-08-12): SUPERSEDED.** The "Target structure (proposal)" section and
+> the remaining unchecked Phase 2/3 items are superseded by
+> [kernel-layered-architecture.md](../done/kernel-layered-architecture.md) (DONE, now in
+> `plan/done/`), which was itself extended by a further chain of done plans
+> (`domain-layered-architecture.md`, `device-layer-restructure.md`,
+> `extract-selection-layer.md`, `extract-iomap-layer.md`, `kernel-agent-stack.md`,
+> `package-triad-folders.md`, and others, all in `plan/done/`). Together they took the
+> kernel from the 48-module `package/kernel/src/` tree this plan describes to today's
+> 17-layer `package/kernel/main/` tree (`cell/clock/event/device/gesture/backend/
+> document/reference/selection/operation/binding/iomap/projection/tool/llm/agent/editor`,
+> matching the project CLAUDE.md inventory); `package/kernel/src/` no longer exists.
+> The Findings/Phase 0/Phase 1 sections below are a historical snapshot of the
+> pre-split tree as it stood on 2026-07-02 — most named files (`api/`, `common/`,
+> `device/EventCase.jl`, `editor/Mcp.jl`) no longer exist — except Finding 3 (no
+> curated flat kernel export), which is still true today.
 
 Review of `package/kernel` (2026-07-02): 49 source files, ~11.1k lines, **48 modules —
 one module per file**, zero external dependencies. Findings are grouped by the cleanup

@@ -1,10 +1,21 @@
 # The simplest syntax document: optional delimiters, then real wrapper projections
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): IN PROGRESS.** Phase 1 (optional delimiters) and Phase 2
+> (2.1 through 2.7, the wrapper types and the shared `SyntaxCompound` core) are
+> done and confirmed in the current tree — `SyntaxCompound`, `SyntaxSequence`,
+> `SyntaxWrapper`, `SyntaxConcatenation`, `SyntaxSeparation`, `SyntaxDelimitation`,
+> `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation` all exist in
+> `package/syntax/main/Syntax.jl`. Phase 2.8 (`SyntaxNothing`/`SyntaxInsertion`)
+> is still not built — `SyntaxNothing` does not exist anywhere in the tree — but
+> the cross-package layering blocker that this plan's 2026-07-15 note said
+> required a design decision has since been resolved as a side effect of the
+> later package split (see the update inside 2.8 below); what remains is the
+> actual implementation, not the design call. Phase 3's domain sweep landed for
+> julia, sql, markdown, and xml; object/book/conversation/filesystem/dbcatalog/
+> formula/math/gesturehelp remain opportunistic. All file paths below have been
+> corrected from `package/visual/main/...` to the current `package/syntax/main/...`
+> (the `visual` package was split into `syntax`/`style`/`widget`/`pane`/`graphics`/
+> `text`/`layout` on 2026-08-11, after this plan's design work landed).
 
 Goal: **every domain→syntax projection emits the simplest syntax document that expresses what it
 means** — a JSON null is one span, not three; a Julia connector node says "concatenate these", not
@@ -30,7 +41,7 @@ These spans render nothing. They exist because a syntax document always *materia
 delimiter, present or not:
 
 - `SyntaxLeaf`'s `open`/`close` default to `TextString("")`
-  ([Syntax.jl:247](../../package/visual/main/syntax/Syntax.jl#L247)), and `SyntaxLeafToText`
+  ([Syntax.jl:247](../../package/syntax/main/Syntax.jl#L247)), and `SyntaxLeafToText`
   unconditionally emits three spans, `[leaf.open, leaf.value, leaf.close]`.
 - `SyntaxNode`'s `open`/`close`/`sep` default the same way, and `SyntaxNodeToText` pushes `node.open`,
   a `node.sep` between children, and `node.close` regardless of content.
@@ -281,7 +292,7 @@ Make the wrappers real. Each gets the full projection surface, following the sha
    need a `child_iomap` plus the element range the child occupies; the multi-child ones
    (`Concatenation`, `Separation`) need `child_iomaps` + `child_elem_ranges` + `indent_indices` —
    i.e. the existing `SyntaxNodeToTextIoMap` shape
-   ([SyntaxToText.jl:155](../../package/visual/main/syntax/SyntaxToText.jl#L155));
+   ([SyntaxToText.jl:155](../../package/syntax/main/SyntaxToText.jl#L155));
 3. `print_document` — splice the child's `output.elements`, adding only this wrapper's own spans;
 4. `map_reference_forward` / `map_reference_backward` — peel the one step this wrapper owns and
    delegate the tail to the child's mapper (School A: delegate through the child's IO map, never
@@ -291,7 +302,7 @@ Make the wrappers real. Each gets the full projection surface, following the sha
    `ToggleCollapseOperation` and the 4-arg geometric reader for marker clicks;
 6. `render` in `Syntax.jl`;
 7. registration in the `SyntaxToText` `TypeDispatchingProjection`
-   ([SyntaxToText.jl:818](../../package/visual/main/syntax/SyntaxToText.jl#L818)).
+   ([SyntaxToText.jl:818](../../package/syntax/main/SyntaxToText.jl#L818)).
 
 Do them in dependency order, one commit each, each with its own tests:
 
@@ -324,7 +335,7 @@ Do them in dependency order, one commit each, each with its own tests:
   which is the whole difference between the two types and is asserted as such.
 
   **Field order is load-bearing — `separator` must precede `children`.** `@document`'s Rule Y
-  ([StructPlan.jl](../../package/kernel/main/cell/StructPlan.jl)) generates a positional constructor
+  ([StructPlan.jl](../../package/kernel/main/cell/CellStructPlan.jl)) generates a positional constructor
   per arity from `required_count` upward, where `required_count` counts the fields *before the trailing
   run of defaulted ones*. Declared `children, separator=nothing`, the trailing run is
   `separator, selection`, `required_count` is 1, and the generated arity-1 `SyntaxSeparation(Any)`
@@ -365,32 +376,58 @@ insertion = SyntaxInsertion`, generating `SyntaxNothing` and adopting the existi
 `@domain`'s docstring explicitly notes the projection-table entries are *not* generated, so add
 `SyntaxNothing => SyntaxNothingToText()` and `SyntaxInsertion => SyntaxInsertionToText()` to the
 `TypeDispatchingProjection` at
-[SyntaxToText.jl:818](../../package/visual/main/syntax/SyntaxToText.jl#L818).
+[SyntaxToText.jl:818](../../package/syntax/main/SyntaxToText.jl#L818).
 
-**Layering constraint — check this first.** The existing renderers for these two roles,
-`NothingToSyntaxLeaf` and `InsertionToSyntaxLeaf` (with the `_nothing_label` helper that turns
+**Layering constraint — check this first.** *(See the 2026-08-12 resolution note
+right after this block — the constraint described here no longer holds.)* The
+existing renderers for these two roles, `NothingToSyntaxLeaf` and
+`InsertionToSyntaxLeaf` (with the `_nothing_label` helper that turns
 `JsonNothing` into "empty json"), live in
-[package/visual/main/syntax/InsertionToSyntax.jl](../../package/visual/main/syntax/InsertionToSyntax.jl)
-— the **domain** package, which sits *above* visual. `SyntaxToText` is in visual and cannot import
-them. Options, decide before writing code: move the label helper (and possibly the generic
-Nothing/Insertion renderers) down to base or visual so both layers share one implementation, or give
-`SyntaxNothingToText` its own. Prefer sharing — a second `_nothing_label` is exactly the kind of
-duplication this plan is trying to remove.
+[package/syntax/main/InsertionToSyntax.jl](../../package/syntax/main/InsertionToSyntax.jl)
+— at the time this was written, the **domain** package, which sat *above*
+visual, so `SyntaxToText` (in visual) could not import them. Options, decide
+before writing code: move the label helper (and possibly the generic
+Nothing/Insertion renderers) down to base or visual so both layers share one
+implementation, or give `SyntaxNothingToText` its own. Prefer sharing — a second
+`_nothing_label` is exactly the kind of duplication this plan is trying to
+remove.
 
 **Confirmed blocking (2026-07-15).** The layering constraint is real and unique to the syntax
 domain, and it is why 2.8 is NOT the self-contained kit-wiring that `@domain Text` was. Every
 domain renders its `Nothing` / `Insertion` by registering `XNothing => InsertionNothingToSyntaxLeaf()`
 / `XInsertion => …InsertionToSyntaxLeaf()` in its `XToSyntax` dispatch table — and those renderers
-live in `package/domain/main/insertion/` (the **domain** package). That works for every domain because
-every domain sits *above* visual: even the Text domain kit renders through
-[`NaturalProjection.jl`](../../package/visual/main/naturalprojection/NaturalProjection.jl)
+lived, at the time, in a `domain/main/insertion/` slice (the **domain** package). That worked for
+every domain because every domain sat *above* visual: even the Text domain kit rendered through
+[`NaturalProjection.jl`](../../package/naturalprojection/main/NaturalProjection.jl)
 (`TextNothing => InsertionNothingToSyntaxLeaf()`, `TextInsertion => DomainInsertionToSyntaxLeaf(TextDocument)`),
-which is in domain and can reach them.
+which was in domain and could reach them.
 
-**The syntax domain is the one exception: it IS visual.** `SyntaxNothing` is already a syntax
-document, so it renders through `SyntaxToText` directly — there is no domain→syntax entry stage to
-carry the placeholder renderer. And `SyntaxToText`, in visual, cannot import
-`InsertionNothingToSyntaxLeaf` from domain (visual is below domain). So 2.8 genuinely requires one of:
+> **RESOLVED (2026-08-12), by an unrelated later change — read before acting on
+> "Confirmed blocking" above.** The domain package split
+> (`e63b7cb6`/`7b392c58`, 2026-08-09: "Split the shared insertion leaf ... out of
+> their domains" + "Sink the six non-domain slices into ProjecturedVisual")
+> extracted exactly the generic half of `InsertionToSyntax.jl`
+> (`InsertionNothingToSyntaxLeaf`, `DomainInsertionToSyntaxLeaf`,
+> `_nothing_label`, `parse_completion`, `insertion_insert`, `insertion_delete`)
+> out of the domain-specific file and sank it into what is now
+> `package/syntax/main/InsertionToSyntax.jl` — the *same* package as
+> `SyntaxToText.jl`. This is functionally option 1 below, already done, though
+> for an unrelated reason (untangling Julia/SQL specifics out of a shared file,
+> not this plan). The cross-package import blocker is gone: `SyntaxToText.jl`
+> can reach `InsertionNothingToSyntaxLeaf` directly, no extraction needed. What
+> is still missing is the actual implementation — `SyntaxNothing` does not exist,
+> `@domain Syntax` is not wired, and the `@insertion` commit-target design call
+> in option 2 below is still open (an empty `SyntaxLeaf` is plausible but
+> undecided). 2.8 is therefore a smaller remaining task than this section
+> describes, not a design fork.
+
+**The syntax domain is the one exception: it IS visual.** *(This subsection
+describes the situation as it stood 2026-07-15; per the resolution note above,
+its "cannot import" conclusion is no longer true.)* `SyntaxNothing` is already a
+syntax document, so it renders through `SyntaxToText` directly — there is no
+domain→syntax entry stage to carry the placeholder renderer. And `SyntaxToText`,
+in visual, could not import `InsertionNothingToSyntaxLeaf` from domain (visual
+was below domain). So 2.8 genuinely required one of:
 
 1. **Extract** the generic Nothing/Insertion renderers (`InsertionNothingToSyntaxLeaf`,
    `DomainInsertionToSyntaxLeaf`, the `_nothing_label` helper, and enough of the completion
@@ -407,6 +444,18 @@ Either way it is a design-laden change, not cleanup. **Do not wire `@domain Synt
 renderer:** that would generate a `SyntaxNothing` / `SyntaxInsertion` that cannot render at all, which
 is worse than today's honest-but-inert `SyntaxInsertion` declaration. 2.8 stays deferred until the
 extract-vs-duplicate call (option 1 vs 2) and the syntax insertion commit semantics are settled.
+
+**Status (2026-08-12): option 1 is done, incidentally, so only option 2's
+remaining half-decision blocks 2.8.** As the resolution note above records, the
+extraction (option 1) already happened for an unrelated reason — the generic
+renderers sit in `package/syntax/main/InsertionToSyntax.jl` next to
+`SyntaxToText.jl` today. What is left is: pick the `@insertion` commit target
+for the syntax domain (an empty `SyntaxLeaf`, or something else), write
+`SyntaxNothingToText`/`SyntaxInsertionToText` against the now-reachable shared
+renderers, wire `@domain Syntax`, and register both in the `TypeDispatchingProjection`.
+That is materially less work than the "real cross-package refactor" option 1
+originally described, but nobody has done it yet — `SyntaxNothing` still does
+not exist.
 
 ### What 2.2 changed about the plan
 
@@ -599,7 +648,7 @@ Gating the new case on "carries a marker" makes the rule **strictly additive**: 
 changes behaviour.
 
 The symptom this removes, reproduced before fixing and now a regression test
-([ProjectionTemplateTest.jl](../../package/visual/test/projection/ProjectionTemplateTest.jl)): a
+([ProjectionTemplateTest.jl](../../package/substrate/test/projection/ProjectionTemplateTest.jl)): a
 blueprint written `SyntaxConcatenation([...])` fell through to `_atomic_print` and its `bound` markers
 reached the printer unresolved, which read `.content` off a `Bound` and died with
 `type Bound has no field 'content'`. The test now asserts the same blueprint renders identically
@@ -613,9 +662,9 @@ written three ways — positional `SyntaxNode`, `SyntaxConcatenation([...])`, an
 - **Reference depth.** Every wrapper adds a `.content` hop, so a wrapped node's paths get longer.
   Check the impact on `strip_reference_types`, `@reference_case` patterns, and above all tree
   navigation: `_is_tree_selection` / `_promote_to_structural` / `_descend_to_text_cursor`
-  ([Syntax.jl:426-561](../../package/visual/main/syntax/Syntax.jl#L426-L561)) walk chains of
+  ([Syntax.jl:426-561](../../package/syntax/main/Syntax.jl#L426-L561)) walk chains of
   `.children[i]` steps and must hop transparently over wrapper `.content` steps. `@gestures
-  SyntaxNode` ([Syntax.jl:394](../../package/visual/main/syntax/Syntax.jl#L394)) is registered on
+  SyntaxNode` ([Syntax.jl:394](../../package/syntax/main/Syntax.jl#L394)) is registered on
   `SyntaxNode` — decide whether tree navigation moves to `SyntaxNavigation` or the gesture table
   follows the content.
 - **Collapse semantics.** `ToggleCollapseOperation` carries a `SyntaxNode` today. If collapse moves
@@ -712,7 +761,7 @@ first Phase 1 commit regressed `test_domain` unnoticed because it was not on thi
 
 - **The width-0 indent slot.** `SyntaxToText` emits an empty `TextString` before each close so
   ancestors always have a slot to widen and element counts do not depend on depth
-  ([SyntaxToText.jl:479-486](../../package/visual/main/syntax/SyntaxToText.jl#L479-L486)). Optional
+  ([SyntaxToText.jl:479-486](../../package/syntax/main/SyntaxToText.jl#L479-L486)). Optional
   delimiters do **not** remove it, and it is the remaining source of the left-motion stall. Phase 2.4
   localizes it to `SyntaxIndentationToText`; the fix lands with the text-selection work below.
 - **A text-domain reference step that ignores spans.** The span-boundary duplicate — one visual caret,

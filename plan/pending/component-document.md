@@ -1,10 +1,16 @@
 # Component Document Layer
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): IN PROGRESS.** `ComponentMasterDetail` is a standalone
+> package now, `package/component/main/Component.jl` (`ProjecturedComponent`,
+> depending only on `ProjecturedKernel`) — not
+> `package/visual/main/component/Component.jl` and not registered inside a
+> `ProjecturedDomain.jl` include list as the draft below assumes; every
+> package exports its own symbols and there is no umbrella file. The
+> `ComponentToWidget` projection, the DbCatalog browser example, and every
+> candidate future component (`ComponentForm`, `ComponentTreeInspector`,
+> `ComponentDashboard`, `ComponentWizard`, `ComponentSearchableList`) are still
+> not implemented — confirmed by an empty `grep` for each name outside this
+> plan and the module docstring.
 
 Introduce a **component** layer between widgets and the workbench. Components are higher-level, behavioral UI building blocks composed from widget primitives.
 
@@ -31,9 +37,16 @@ A component:
 
 ### ComponentMasterDetail (document only)
 
-**✅ DONE (verified):** `ComponentMasterDetail` exists at `package/visual/main/component/Component.jl` (in `ComponentModule`) with all six listed fields (`master`, `detail`, `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the standard `selection::Reference`. Registered in `package/domain/main/ProjecturedDomain.jl` (`include("component/Component.jl")`), placed with the document slices, before Workbench. (The document was dropped during the repository history restart and salvaged back from the `claude/kernel-layered-architecture-sb10gx` branch on 2026-07-08.)
+**✅ DONE (re-verified 2026-08-12):** `ComponentMasterDetail` exists at
+[package/component/main/Component.jl](../../package/component/main/Component.jl)
+(in `ComponentModule`) with all six listed fields (`master`, `detail`,
+`selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the
+standard `selection::Reference`. `component` is now its own package
+(`ProjecturedComponent`, depending only on `ProjecturedKernel`) rather than a
+file included from a `ProjecturedDomain.jl` document-slice list — that
+umbrella-include pattern no longer exists anywhere in the repository.
 
-**File**: [Component.jl](../../package/visual/main/component/Component.jl)
+**File**: [Component.jl](../../package/component/main/Component.jl)
 
 A two-pane component: master (tree/list) on the left, detail (inspector/form) on the right. Selecting an item in the master pane reactively updates the detail pane.
 
@@ -45,13 +58,11 @@ Fields:
 - `detail_title::String` — title for the right pane
 - `split_ratio::Float64` — fraction of width for the master pane (0.0–1.0)
 
-Registered in [ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain.jl) with the document slices, before Workbench.
-
 ## TODO
 
 ### ComponentMasterDetail projection
 
-**⏳ OPEN:** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in a doc-comment in `package/visual/main/component/Component.jl`; there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
+**⏳ OPEN (re-verified 2026-08-12):** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in the module docstring in [package/component/main/Component.jl](../../package/component/main/Component.jl) ("not yet implemented, tracked in `plan/pending/component-document.md`"); there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
 
 Create `ComponentToWidget` projection that maps `ComponentMasterDetail` to:
 ```
@@ -67,7 +78,7 @@ Key behaviors:
 
 ### DbCatalog browser example
 
-**⏳ OPEN:** No example uses `ComponentMasterDetail` / master-detail. `package/example/src/document/DbCatalog.jl` exists but a search for `ComponentMasterDetail`/`MasterDetail`/`master.detail` across `package/example/` returns no matches. This depends on the (still OPEN) projection above.
+**⏳ OPEN (re-verified 2026-08-12):** No example uses `ComponentMasterDetail` / master-detail. [package/dbcatalog/example/document/DbCatalog.jl](../../package/dbcatalog/example/document/DbCatalog.jl) exists but a search for `ComponentMasterDetail`/`MasterDetail`/`master.detail` across `package/*/example/` returns no matches. This depends on the (still OPEN) projection above.
 
 Build a concrete example using `ComponentMasterDetail`:
 - Master pane: `DbCatalogRdbms` → `DbCatalogToSyntax` → `SyntaxToText` → `TextToGraphics` (tree with expand/collapse)

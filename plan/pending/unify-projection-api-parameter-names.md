@@ -1,42 +1,41 @@
 # Unify the parameter names of the four projection APIs
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
-
-> **⏳ AUDIT 2026-06-23 — ENTIRE PLAN STILL OPEN (verified against current code).**
-> The codebase was restructured (`program/src/...` → `package/<sub>/src/...`); the
-> referenced files now live at `package/kernel/src/api/ProjectionApi.jl`,
-> `package/kernel/src/common/Projection.jl`, and
-> `package/domain/src/projection/...`. None of the canonical renames have been
-> applied:
-> - **`prj`** appears **0 times** anywhere under `package/domain/src/projection/`;
->   first param is still `p::...` (~200×) plus one stray `proj::TextBlockToString`
->   and the type-only `::T` forms.
-> - 2nd param is still **`recursion`** (169×), not `rec`.
-> - printer-input 3rd param is still a wide single-letter spread
->   (`w`×35, `b`×13, `doc`×15, `v`×9, … only 11× `input`), not unified to `input`.
-> - mapper 3rd param is still **`reference`** (76×), not `ref`.
-> - legacy reader payloads still include 2× `operation` and many `evt` (e.g.
->   `LayoutToGraphics.jl`, `WidgetToGraphics.jl`, `TextToGraphics.jl`).
-> - docstrings in `api/ProjectionApi.jl` + `common/Projection.jl` still document the
->   OLD names; guide prose (`documentation/projection-system.md` lines 10-12, 117)
->   still shows `projection/recursion/input/reference`.
-> The Conversation files do `rec, ref = recursion, ctx.reference` as local aliases
-> inside the printer body (pre-existing, as the plan itself notes) — their
-> *signatures* still use `p`/`reference`. RECOMMENDED_DESTINATION: leave in
-> `pending`; this is OPEN, not done.
+> **Status (2026-08-12): NOT STARTED.** Re-verified directly: `p::` still
+> outnumbers `prj::` 218 to 0 in actual function signatures, `recursion` still
+> outnumbers `rec` 85 to 2. The codebase has moved twice since this plan was
+> written — first `program/src/...` → `package/kernel/src/...` /
+> `package/domain/src/projection/...`, then (2026-08-09) every domain got its
+> own package, so the ~42 files this plan targets are now scattered under
+> `package/<domain>/main/*.jl` and `package/projection/main/{higherorder,generic,compound}/`,
+> not one `package/domain/src/projection/` tree. **Also note:** two of the four
+> function names themselves changed in an unrelated refactor —
+> `projection_print` is now `print_document` and `projection_read` is now
+> `read_intent` (which gained a 4-arg `Intent`/`Change`-based overload
+> alongside the legacy 3-arg `(p, iomap, op)` form). This plan's parameter-name
+> scope still applies to the renamed functions; update every `projection_print`
+> / `projection_read` mention below accordingly. One interesting partial
+> convergence: the newer `@projection_template` macro's own lambda convention
+> already spells its projection argument `prj` (e.g. `(prj, doc) -> …` in
+> `package/book/main/BookToSyntax.jl`, `package/markdown/main/MarkdownToSyntax.jl`,
+> and elsewhere) — but that is the template macro's own local lambda-argument
+> choice, not a rename of the `print_document`/`read_intent`/`map_reference_*`
+> **method signatures** this plan targets, which remain `p`/`recursion`/`reference`
+> throughout.
 
 ## Context
 
-The four generic projection functions —
-[`projection_print`, `projection_read`, `map_reference_forward`,
-`map_reference_backward`](../../program/src/api/ProjectionApi.jl) — are implemented
-across **42 files** under [`program/src/projection/`](../../program/src/projection/).
-Their parameter names have drifted, so the same slot reads differently from one
-file to the next. A survey of every signature shows:
+The four generic projection functions — `projection_print` (now
+`print_document`), `projection_read` (now `read_intent`), `map_reference_forward`,
+`map_reference_backward` (all in
+[`package/kernel/main/projection/ProjectionApi.jl`](../../package/kernel/main/projection/ProjectionApi.jl)) —
+are implemented across dozens of files, now scattered under
+[`package/<domain>/main/`](../../package) for each domain package plus
+[`package/projection/main/{higherorder,generic,compound}/`](../../package/projection/main)
+(was one tree, `program/src/projection/`, before the per-domain package
+split). Their parameter names have drifted, so the same slot reads differently
+from one file to the next. A survey of every signature (figures below are from
+the original 2026-06-23 audit against the pre-split tree; re-run the grep
+counts before starting, since the file set has since scattered):
 
 | Slot | Current spread | Verdict |
 | --- | --- | --- |
@@ -50,12 +49,13 @@ file to the next. A survey of every signature shows:
 | reader change (new 4-arg) | `change::Change` | already consistent |
 
 The goal is readability only — **zero behaviour change**. Note that part of the
-codebase already uses the chosen terse scheme:
-[`ConversationToWidget.jl`](../../program/src/projection/primitive/ConversationToWidget.jl)
-(`rec, ref = recursion, ctx.reference`) and
-[`ConversationToSyntax.jl`](../../program/src/projection/primitive/ConversationToSyntax.jl)
-name the reference param `ref`. This work converges the remaining files onto
-that existing style.
+codebase already uses the chosen terse scheme (paths re-verified 2026-08-12):
+[`package/conversation/main/ConversationToWidget.jl`](../../package/conversation/main/ConversationToWidget.jl)
+(`rec, ref = recursion, ctx.reference`, still present at lines 121, 138, 156)
+and
+[`package/conversation/main/ConversationToSyntax.jl`](../../package/conversation/main/ConversationToSyntax.jl)
+name the reference param `ref` locally. This work converges the remaining
+files onto that existing style.
 
 ## Canonical scheme (decided)
 
@@ -74,21 +74,26 @@ that existing style.
 So the four signatures become:
 
 ```julia
-projection_print(prj, rec, input, ctx)            # -> iomap
-projection_read(prj, rec, change::Change, iomap)  # new 4-arg
-projection_read(prj, iomap, op)                   # legacy 3-arg (op or evt)
+print_document(prj, rec, input, ctx)         # -> iomap  (was projection_print)
+read_intent(prj, rec, change::Intent, iomap) # new 4-arg (was projection_read)
+read_intent(prj, iomap, op)                  # legacy 3-arg (op or evt)
 map_reference_forward(prj, iomap, ref)
 map_reference_backward(prj, iomap, ref)
 ```
 
+*(Function names updated 2026-08-12: `projection_print` is now `print_document`
+and `projection_read` is now `read_intent`, with `change::Change` now
+`change::Intent` — an unrelated rename that landed since this plan was
+written. The parameter-name scheme itself is unaffected.)*
+
 ## The one fact that makes this safe
 
 **Renaming a parameter is purely local to each method.** Positional call sites
-(`projection_print(recursion, recursion, x, …)`, `map_reference_forward(child.projection, child, rest)`)
+(`print_document(recursion, recursion, x, …)`, `map_reference_forward(child.projection, child, rest)`)
 are unaffected by what a *callee* names its parameters. There is **no
 cross-file coupling**: each method's signature and its own body change
-together, and nothing else. `prj` has 0 pre-existing standalone uses, so it
-introduces no collisions.
+together, and nothing else. `prj` has 0 pre-existing standalone uses as an
+actual parameter name, so it introduces no collisions.
 
 ## Three correctness hazards (call these out per file)
 
@@ -110,70 +115,89 @@ introduces no collisions.
    global single-letter substitution.
 
 3. **`p` → `prj` includes uses inside `@reference_case` heads** —
-   `proj(^(p), inner)`, `ProjectionReference(p, …)`, `projection_read(p, iomap, …)`
-   all reference the projection variable and must become `prj`. Word-boundary
-   `p`; check for an unrelated local named `p` (rare) before replacing.
+   `proj(^(p), inner)`, `ProjectionReferenceStep(p, …)`, `read_intent(p, iomap, …)`
+   (was `projection_read`) all reference the projection variable and must
+   become `prj`. Word-boundary `p`; check for an unrelated local named `p`
+   (rare) before replacing.
 
 `recursion` → `rec` is safe (`RecursiveProjection` is CamelCase, not the word
 `recursion`); just confirm no shadowing local `rec`.
 
 ## File buckets
 
-**A. Mapper-only / generic — low risk (~29 files).** Only `prj` (or unnamed
-`::Type`), `rec`, `ref`; `iomap`/`ctx` unchanged. Most higher-order projections
-([`higherorder/`](../../program/src/projection/higherorder/)),
-[`generic/`](../../program/src/projection/generic/),
-[`compound/`](../../program/src/projection/compound/), and the
-widget/graphics/layout readers.
+*Paths below are corrected to the current per-domain package layout
+(2026-08-12); the original "42 files under `program/src/projection/`" count
+and the bucket-A "~29 files" estimate need a fresh inventory, since the tree
+that grouped them by directory no longer exists as one tree.*
 
-**B. Domain printers with a single-letter input — higher risk (13 files).**
-Also need the per-function `input` rename:
-[`JsonToSyntax.jl`](../../program/src/projection/primitive/JsonToSyntax.jl),
-[`XmlToSyntax.jl`](../../program/src/projection/primitive/XmlToSyntax.jl),
-[`MathToSyntax.jl`](../../program/src/projection/primitive/MathToSyntax.jl),
-[`BookToSyntax.jl`](../../program/src/projection/primitive/BookToSyntax.jl),
-[`JuliaToSyntax.jl`](../../program/src/projection/primitive/JuliaToSyntax.jl),
-[`ObjectToSyntax.jl`](../../program/src/projection/primitive/ObjectToSyntax.jl),
-[`CollectionToSyntax.jl`](../../program/src/projection/primitive/CollectionToSyntax.jl),
-[`FileSystemToSyntax.jl`](../../program/src/projection/primitive/FileSystemToSyntax.jl),
-[`PrimitiveToSyntax.jl`](../../program/src/projection/primitive/PrimitiveToSyntax.jl),
-[`PrimitiveToText.jl`](../../program/src/projection/primitive/PrimitiveToText.jl),
-[`SyntaxToText.jl`](../../program/src/projection/primitive/SyntaxToText.jl),
-[`TextToString.jl`](../../program/src/projection/primitive/TextToString.jl),
-[`WidgetToGraphics.jl`](../../program/src/projection/primitive/WidgetToGraphics.jl).
+**A. Mapper-only / generic — low risk.** Only `prj` (or unnamed
+`::Type`), `rec`, `ref`; `iomap`/`ctx` unchanged. Most higher-order projections
+([`package/projection/main/higherorder/`](../../package/projection/main/higherorder)),
+[`package/projection/main/generic/`](../../package/projection/main/generic),
+`compound/` (find its current location before starting — not confirmed here),
+and the widget/graphics/layout readers (e.g.
+`package/widget/main/WidgetToGraphics.jl`, `package/layout/main/LayoutToGraphics.jl`).
+
+**B. Domain printers with a single-letter input — higher risk (13 files, current paths):**
+[`package/json/main/JsonToSyntax.jl`](../../package/json/main/JsonToSyntax.jl),
+[`package/xml/main/XmlToSyntax.jl`](../../package/xml/main/XmlToSyntax.jl),
+[`package/math/main/MathToSyntax.jl`](../../package/math/main/MathToSyntax.jl),
+[`package/book/main/BookToSyntax.jl`](../../package/book/main/BookToSyntax.jl),
+[`package/julia/main/JuliaToSyntax.jl`](../../package/julia/main/JuliaToSyntax.jl),
+[`package/syntax/main/ObjectToSyntax.jl`](../../package/syntax/main/ObjectToSyntax.jl),
+[`package/syntax/main/CollectionToSyntax.jl`](../../package/syntax/main/CollectionToSyntax.jl),
+[`package/filesystem/main/FileSystemToSyntax.jl`](../../package/filesystem/main/FileSystemToSyntax.jl),
+[`package/syntax/main/PrimitiveToSyntax.jl`](../../package/syntax/main/PrimitiveToSyntax.jl),
+[`package/text/main/PrimitiveToText.jl`](../../package/text/main/PrimitiveToText.jl),
+[`package/syntax/main/SyntaxToText.jl`](../../package/syntax/main/SyntaxToText.jl),
+[`package/text/main/TextToString.jl`](../../package/text/main/TextToString.jl),
+[`package/widget/main/WidgetToGraphics.jl`](../../package/widget/main/WidgetToGraphics.jl).
+Note `JsonToSyntax.jl` has since been rewritten onto `@projection_template` in
+large part — check per-function whether a hand-written `print_document`
+signature still needs the rename or the template macro already governs it.
 
 **C. The interface + defaults (do first — defines the names).**
-[`api/ProjectionApi.jl`](../../program/src/api/ProjectionApi.jl) and
-[`common/Projection.jl`](../../program/src/common/Projection.jl): rename the
+[`ProjectionApi.jl`](../../package/kernel/main/projection/ProjectionApi.jl) and
+[`Projection.jl`](../../package/kernel/main/projection/Projection.jl): rename the
 default-method params **and** update the signature lines in the docstrings so
-the documented API matches. *(⏳ OPEN — files moved to
-`package/kernel/src/api/ProjectionApi.jl` and `package/kernel/src/common/Projection.jl`;
-both still use old param names in signatures and docstrings.)*
+the documented API matches. *(⏳ OPEN — both still use old param names in
+signatures and docstrings; the function names in this file, `projection_print`
+→ `print_document` and `projection_read` → `read_intent`, must also be
+updated when this plan is picked up.)*
 
 ## Phasing
 
-1. **⏳ OPEN (verified):** **Bucket C** — `api/ProjectionApi.jl` + `common/Projection.jl` (defaults +
-   docstrings). Establishes the canonical names. *Now at
-   `package/kernel/src/api/ProjectionApi.jl` (docstrings still use
+1. **⏳ OPEN (re-verified 2026-08-12):** **Bucket C** — `ProjectionApi.jl` + `Projection.jl` (defaults +
+   docstrings). Establishes the canonical names. *At
+   `package/kernel/main/projection/ProjectionApi.jl` (docstrings still use
    `projection, recursion, input, context` / `..., reference`) and
-   `package/kernel/src/common/Projection.jl` (`projection_print(projection, input)`,
+   `package/kernel/main/projection/Projection.jl` (`print_document(projection, input)`,
    `map_reference_forward(projection::Projection, iomap, reference)`,
-   `projection_read(p::Projection, recursion, change::Change, iomap)` — old names).*
-2. **⏳ OPEN (verified):** **Bucket A** — mechanical `prj`/`rec`/`ref` across the low-risk files. Group
+   `read_intent(p::Projection, recursion, change::Intent, iomap)` — old names,
+   under the renamed functions).*
+2. **⏳ OPEN (re-verified 2026-08-12):** **Bucket A** — mechanical `prj`/`rec`/`ref` across the low-risk files. Group
    by directory; one commit per directory is fine since the edits are uniform.
-   *`prj` appears 0× anywhere; `recursion`/`reference` unchanged. Files now under
-   `package/domain/src/projection/{higherorder,generic,compound,...}`.*
-3. **⏳ OPEN (verified):** **Bucket B** — the 13 domain printers, **one file per commit**, running the
+   *`prj::`/`prj)` appears 0× in any actual method signature (only as a
+   `@projection_template` lambda-argument name, a different thing — see status
+   banner); `recursion`/`reference` still dominate (85 vs 2, 256 vs 0 in a
+   fresh spot count). Files now scattered under
+   `package/<domain>/main/` and `package/projection/main/{higherorder,generic,compound,...}`.*
+3. **⏳ OPEN (re-verified 2026-08-12):** **Bucket B** — the 13 domain printers, **one file per commit**, running the
    narrowest covering test after each (see Verification). This is where the
-   `input` and `@reference`/`ref` hazards live. *All 13 still under
-   `package/domain/src/projection/primitive/`; inputs still single-letter.*
-4. **⏳ OPEN (verified):** **Reader payload tidy** — normalize the 2 `operation`→`op` and 2
-   `event`→`evt` legacy readers (folds into the files they live in). *2× `operation`
-   payload and many `evt` payloads still present (e.g. `LayoutToGraphics.jl`,
-   `WidgetToGraphics.jl`, `TextToGraphics.jl`).*
+   `input` and `@reference`/`ref` hazards live. *All 13 (current paths above)
+   still have single-letter inputs where hand-written.*
+4. **⏳ OPEN (re-verified 2026-08-12):** **Reader payload tidy** — normalize `operation`→`op` and
+   `event`→`evt` legacy readers (folds into the files they live in). *Still
+   inconsistent: a fresh spot count over `read_intent(...)` signatures finds
+   both `op`/`evt` and stray `operation`/`event` payload names (e.g.
+   `package/layout/main/LayoutToGraphics.jl`,
+   `package/widget/main/WidgetToGraphics.jl`,
+   `package/text/main/TextToGraphics.jl`).*
 5. **⏳ OPEN (verified, optional):** **(Optional, separate)** guide-prose pass — the signature snippets in
-   [`guide/projection-system.md`](../../guide/projection-system.md),
-   [`guide/editor/reference.md`](../../guide/editor/reference.md) and siblings
+   [`package/kernel/doc/projection-system.md`](../../package/kernel/doc/projection-system.md)
+   (already updated to say `print_document`, still shows old parameter names
+   at line 10) and
+   [`package/kernel/doc/reference.md`](../../package/kernel/doc/reference.md) and siblings
    still show `projection/recursion/input/context/reference`. Larger prose
    churn; recommend as a follow-up rather than blocking the code change.
 
@@ -190,5 +214,5 @@ from a missed/over-eager rename and surfaces immediately:
   then a quick `test_printers()` / `test_readers()` / `test_selections()` sweep
   to confirm zero behaviour change.
 - Final sweep: grep the four functions to confirm no old names remain — no
-  `function projection_print(p::` / `function projection_print(…, recursion,` /
+  `function print_document(p::` / `function print_document(…, recursion,` /
   single-letter inputs / `, reference)` in mapper signatures.

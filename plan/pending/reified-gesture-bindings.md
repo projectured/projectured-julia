@@ -1,10 +1,25 @@
 # Gesture pipeline: recognition + reified bindings + context-sensitive collection
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): DONE**, and further extended. Branch
+> `worktree-reified-gesture-bindings` no longer exists, but the work is on
+> `main`: `package/kernel/main/binding/` (`BindingLayer.jl`, `GestureBinding.jl`,
+> `Gestures.jl`) is a full kernel layer, and
+> `package/gesturehelp/main/GestureHelpDecorator.jl` defines
+> `GestureHelpProjection` as described in Stage 4. Since this plan was written
+> the API was substantially renamed and grown into a broader "binding intent"
+> design: `document_gestures`/`projection_gestures`/`collect_gestures` (named
+> below) do not exist under those names any more — the current surface is
+> `get_document_gesture_bindings`, `fire_gesture_bindings`,
+> `get_applicable_gesture_bindings`, and `collect_binding_intents` (see the
+> `GestureBindingModule` docstring). `@gestures` itself is unchanged and is now
+> used far beyond JSON — chart, fsm, json, pane, sequencechart, yaml, text,
+> process, syntax, xml, julia, and workbench all define `@gestures` tables. One
+> item below is re-confirmed still open: **drag** is still not recognised as a
+> single gesture at the `GestureRecognizer` level (still "(future)" in its
+> module docstring) — the drag support that does exist
+> (`package/dragging/main/DraggingProjection.jl`) implements its own
+> press→drag→drop state machine directly on raw `MouseDown`/`MouseMove`/`MouseUp`
+> events, bypassing the recognizer rather than resolving the blocked item.
 
 > **Status (implemented on branch `worktree-reified-gesture-bindings`).**
 > Stages 0–4 **done**. Stage 4's **live help window** is now a `GestureHelpProjection`
@@ -72,24 +87,29 @@ This unifies three existing plans into one staged line of work:
   (`command.lisp` / `merge-commands` / `help-to-text`), which is the model for
   Stage 4 and the `accessible` refinement below.
 
-> Path note: like the sibling plans, references below use the repo's logical
-> `program/src/...` namespace, which maps onto the real
-> `package/kernel/src/...` (kernel) and `package/domain/src/...` (domain) tree.
+> Path note: this plan was written against the repo's old, pre-restructure
+> `program/src/...` namespace. File paths quoted below have been updated to
+> their current locations (mostly `package/kernel/main/...` and per-domain
+> `package/<domain>/main/...`, per [documentation/domains.md](../../documentation/domains.md)).
+> Several of the *symbol names* quoted below (`document_read`, `document_gestures`,
+> `projection_gestures`, `collect_gestures`, `@event_case`/`EventCase.jl`) were
+> also renamed after this plan shipped — see the status banner at the top for
+> the current names.
 
 ---
 
 ## Current status (what already exists)
 
-- ✅ **Recognizer** — `GestureRecognizer` (`program/src/editor/GestureRecognizer.jl`)
+- ✅ **Recognizer** — `GestureRecognizer` (`package/kernel/main/gesture/GestureRecognizer.jl`)
   turns raw events into gestures; `MouseDown`+`MouseUp` → `MousePress`. Driven by
   `next_gesture!` in `Editor.read!`.
-- ✅ **`document_read` seam** — declared in `program/src/api/DocumentApi.jl`
+- ✅ **`document_read` seam** — declared in `package/kernel/main/document/DocumentInterface.jl`
   (`document_read(document, gesture) -> Operation|Nothing`), documented as *"the
   projection-independent half of a domain's reader."* Implemented for `TextBlock`
-  (`program/src/document/Text.jl`) and `SyntaxNode` (`program/src/document/Syntax.jl`);
+  (`package/text/main/Text.jl`) and `SyntaxNode` (`package/syntax/main/Syntax.jl`);
   delegated to from `SyntaxToText` / `TextToGraphics`.
 - ✅ **`@event_case`** — the first-match pattern table over event structs
-  (`program/src/device/EventCase.jl`); its parser (`_parse_pattern` /
+  (`package/kernel/main/event/EventPattern.jl`); its parser (`_parse_pattern` /
   `_parse_rule`) is reused by `@gestures`.
 - ✅ **The data layer (this plan).** `document_read` can now be *enumerated* as
   well as *fired*: the JSON authoring gestures live in reified
@@ -115,7 +135,7 @@ This unifies three existing plans into one staged line of work:
 ## Stage 0 — recognition (events → gesture) ✅ except drag
 
 The input half of the pipeline: the `GestureRecognizer`
-(`program/src/editor/GestureRecognizer.jl`) turns raw device events into
+(`package/kernel/main/gesture/GestureRecognizer.jl`) turns raw device events into
 *gestures*, where **a gesture is just a combination of events and carries no
 intent** — what a gesture *means* is decided downstream (Stages 1–3), never by the
 recogniser. Folded in from the retired
@@ -146,7 +166,7 @@ Stage 1 patterns and the follow-ups (a `KeyChordPattern`, `count` matching).
 
 ## Stage 1 — reified bindings + `@gestures` (kernel) ✅ [JSON-reified]
 
-New module `program/src/common/GestureBinding.jl`
+New module `package/kernel/main/binding/GestureBinding.jl`
 (`package/kernel/src/common/GestureBinding.jl`), included in `ProjecturedKernel.jl`
 right after `EventCase.jl`.
 
@@ -193,7 +213,7 @@ right after `EventCase.jl`.
 
 ## Stage 2 — generic fallback + `projection_gestures` seam + collector (kernel) ✅
 
-- **Generic event fallback** in `program/src/common/Projection.jl`: folded into
+- **Generic event fallback** in `package/kernel/main/projection/Projection.jl`: folded into
   the existing leaf-default `projection_read(::Projection, iomap, operation)` —
   a raw `KeyPress`/`KeyDown`/`MousePress` delegates to
   `document_read(iomap.input, evt)` when `iomap.input isa Document`. (Folded into
@@ -218,13 +238,13 @@ right after `EventCase.jl`.
 
 ## Stage 3 — JSON migration (domain) ✅ [the original ask]
 
-In `program/src/document/Json.jl`: `@gestures JsonDocument` (the shared
+In `package/json/main/Json.jl`: `@gestures JsonDocument` (the shared
 type-to-replace set, with a `when(_json_replaceable(doc, sel))` precondition for
 the char-cursor / target / not-on-entry guards), `@gestures JsonArray` (`,`-insert),
 `@gestures JsonObject` (`,`-insert, Tab). Moved `_array_insert` / `_object_insert`
 / `_object_tab` / `_is_char_cursor` / `_sel!` here, plus new helpers `_replace`,
 `_replace_number`, `_json_replaceable`. Deleted the per-leaf and array/object
-`KeyPress`/`KeyDown` readers in `program/src/projection/primitive/JsonToSyntax.jl`
+`KeyPress`/`KeyDown` readers in `package/json/main/JsonToSyntax.jl`
 (and trimmed the now-dead imports), keeping the structural
 `ReplaceSelectionOperation` flat-offset override.
 
@@ -238,10 +258,10 @@ the char-cursor / target / not-on-entry guards), `@gestures JsonArray` (`,`-inse
 
 ## Stage 4 — help projection + invocation (domain) ✅ rendering / ⏸ invocation
 
-**Rendering (done).** `GestureMap` document (`program/src/document/GestureMap.jl`)
+**Rendering (done).** `GestureMap` document (`package/gesturehelp/main/GestureMap.jl`)
 of `GestureRow`s (gesture / description / domain / applicable), built by
 `gesture_map(bindings, doc)` (applicability evaluated against `doc`'s selection).
-`GestureMapToSyntax` (`program/src/projection/primitive/GestureMapToSyntax.jl`)
+`GestureMapToSyntax` (`package/gesturehelp/main/GestureMapToSyntax.jl`)
 renders `describe(pattern) → description` rows grouped by a domain heading, greyed
 + `(n/a)`-tagged when not applicable (the v1 of Lisp's `accessible` colouring),
 onto the existing `SyntaxToText → TextToGraphics` pipeline. `is_help_gesture(event)`
@@ -474,21 +494,21 @@ directly, already independent of `_multi_window_projection`).
 
 ## Files
 
-- **New:** `program/src/common/GestureBinding.jl` (patterns, `GestureBinding`,
+- **New:** `package/kernel/main/binding/GestureBinding.jl` (patterns, `GestureBinding`,
   `document_gestures_own`/`document_gestures`, `@gestures`, `read_document_gesture`,
   `document_read` catch-all, `projection_gestures`, `collect_gestures` leaf default,
   `applicable_gestures`, `is_help_gesture`); included in `ProjecturedKernel.jl`.
-- **Edit:** `program/src/api/DocumentApi.jl` (removed the `= nothing` default; the
+- **Edit:** `package/kernel/main/document/DocumentInterface.jl` (removed the `= nothing` default; the
   catch-all now comes from `GestureBindingModule`).
-- **Edit:** `program/src/common/Projection.jl` (generic event fallback in the leaf
+- **Edit:** `package/kernel/main/projection/Projection.jl` (generic event fallback in the leaf
   default reader).
 - **Edit:** `Sequential.jl` / `TypeDispatching.jl` / `Recursive.jl`
   (`collect_gestures` combinator methods); `Editor.jl` (`collect_gestures(editor)`).
-- **Edit:** `program/src/document/Json.jl` (`@gestures` + relocated/new helpers).
-- **Edit:** `program/src/projection/primitive/JsonToSyntax.jl` (dropped migrated
+- **Edit:** `package/json/main/Json.jl` (`@gestures` + relocated/new helpers).
+- **Edit:** `package/json/main/JsonToSyntax.jl` (dropped migrated
   readers + dead imports; kept structural flat-offset override).
-- **New (domain):** `program/src/document/GestureMap.jl` +
-  `program/src/projection/primitive/GestureMapToSyntax.jl`; included in
+- **New (domain):** `package/gesturehelp/main/GestureMap.jl` +
+  `package/gesturehelp/main/GestureMapToSyntax.jl`; included in
   `ProjecturedDomain.jl`; `GestureBindingModule` aliased in `ProjecturedDomain.jl`.
 - **Re-export:** automatic via the umbrella's mechanical pass (no edit needed).
 

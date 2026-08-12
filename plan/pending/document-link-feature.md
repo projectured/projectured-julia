@@ -1,12 +1,26 @@
 # DocumentLink Feature Implementation Plan
 
-> **⏳ AUDIT (verified 2026-06-23): ALL STEPS OPEN.** No `DocumentLink*` or `DocumentLocator*`
-> symbols exist anywhere under `package/*/src/` — grep for `DocumentLink` matches only this plan
-> file, and `DocumentLocator` appears only in plan files plus an unrelated comment in
-> `package/projectured/example/document/Versioning.jl:125`. No `DocumentLink.jl`, `DocumentLocator.jl`, or
-> `DocumentLinkToSyntax.jl` files exist (glob found none). `package/projectured/src/Projectured.jl`
-> contains no `include`/export for either. The dependency `plan/pending/document-locator.md` is also
-> still pending and unimplemented. Nothing here is DONE or OBSOLETE.
+> **Status (2026-08-12): NOT STARTED.** No `DocumentLink*` or `DocumentLocator*`
+> symbol exists anywhere under `package/` — grep for `DocumentLink` matches only
+> this plan file, and `DocumentLocator` appears only in plan files plus an
+> unrelated comment naming the *pattern* in
+> `package/versioning/main/Versioning.jl:98` (re `VersionCriterion`); it does not
+> implement this type. No `DocumentLink.jl`, `DocumentLocator.jl`, or
+> `DocumentLinkToSyntax.jl` file exists anywhere. There is no single umbrella
+> `Projectured.jl` any more (see **Repository layout note** below). The dependency
+> [`document-locator.md`](document-locator.md) is also still pending and
+> unimplemented. Nothing here is done or obsolete.
+>
+> **Repository layout note.** This plan predates the package split: `program/src/`
+> and `package/projectured/src/Projectured.jl` no longer exist. Source now lives
+> at `package/<name>/{main,example,test,doc}/`, and each package exports through
+> its own `Projectured<Name>.jl`, which `include`s the domain files and re-binds
+> every exported name automatically — there is no central file to wire into.
+> Paths in the body below are corrected to name a plausible current package
+> (`package/versioning/main/`, the closest existing cross-cutting
+> document-addressing precedent) where the plan does not already say — but no
+> `DocumentLink`/`DocumentLocator` package exists yet, so these are proposals, not
+> verified locations.
 
 This plan implements a generic document link system that allows connecting documents through links stored in a global registry. Each link is a source-target pair where the source document provides the content (note, decoration, memo, mark, flag, etc.) and the target is the document element being linked to.
 
@@ -74,14 +88,14 @@ DocumentLinkBinding(
 2. ⏳ DocumentLink domain types + query API (`DocumentLink.jl`) — file does not exist
 3. ⏳ DocumentLink operations — no `*DocumentLinkOperation` types exist
 4. ⏳ DocumentLink-centric projections (`DocumentLinkToSyntax.jl`) — file does not exist
-5. ⏳ Integration (update `Projectured.jl`) — no include/export present in `package/projectured/src/Projectured.jl`
-6. ⏳ Testing — no DocumentLink tests under `package/test/`
+5. ⏳ Integration (a package export) — no package's own `Projectured<Name>.jl` includes or exports either type
+6. ⏳ Testing — no DocumentLink tests under any `package/*/test/`
 
 ## Phase 1: DocumentLink Domain Types
 
-**⏳ OPEN:** No `DocumentLink.jl` exists under `package/*/src/`; no `DocumentLinkDocument`, `DocumentLinkBinding`, `DocumentLinkRegistry`, or `global_document_link_registry` symbols found.
+**⏳ OPEN:** No `DocumentLink.jl` exists under any `package/*/main/`; no `DocumentLinkDocument`, `DocumentLinkBinding`, `DocumentLinkRegistry`, or `global_document_link_registry` symbols found.
 
-### File: `program/src/document/DocumentLink.jl`
+### File: a new `package/<name>/main/DocumentLink.jl` (no such package exists yet)
 
 **Type Hierarchy:**
 ```julia
@@ -108,7 +122,7 @@ abstract type DocumentLinkDocument <: Document end
 
 **⏳ OPEN:** None of `add_document_link!`, `remove_document_link!`, `document_links_from`, `document_links_to`, `neighbors`, etc. exist (grep found these names only in plan files).
 
-**File:** `program/src/document/DocumentLink.jl` (same file as domain types)
+**File:** the same `DocumentLink.jl` as Phase 1
 
 Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
@@ -126,7 +140,7 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
 **⏳ OPEN:** No `CreateDocumentLinkOperation`, `DeleteDocumentLinkOperation`, or `CleanupStaleDocumentLinksOperation` types exist in the codebase.
 
-**File:** `program/src/document/DocumentLink.jl` (same file as domain types)
+**File:** the same `DocumentLink.jl` as Phase 1
 
 **Operations:**
 - `CreateDocumentLinkOperation` - Create new document link binding
@@ -149,12 +163,17 @@ Node equality uses `locator_equal(a, b)` from `DocumentLocator`.
 
 ## Phase 5: Integration Points
 
-**⏳ OPEN:** `package/projectured/src/Projectured.jl` has no `include`/export for `DocumentLocator.jl` or `DocumentLink.jl`; editor has no DocumentLinkRegistry access.
+**⏳ OPEN:** no package's own `Projectured<Name>.jl` includes or exports
+`DocumentLocator` or `DocumentLink`; editor has no DocumentLinkRegistry access.
 
-**Projectured.jl:**
-- `include("common/DocumentLocator.jl")` (must precede document link module)
-- `include("document/DocumentLink.jl")`
-- Export types, query functions, and operations
+**Integration, in the current layout:** a package's own `Projectured<Name>.jl`
+`include`s its domain files and re-binds every exported name automatically (see
+e.g. `package/dbcatalog/main/ProjecturedDbCatalog.jl`) — there is no central
+`Projectured.jl` to edit. So this phase is:
+- `include("DocumentLocator.jl")` from the new package's `Projectured<Name>.jl`
+  (must precede the document-link module)
+- `include("DocumentLink.jl")` likewise
+- Export the types, query functions, and operations from their own modules
 
 **Editor.jl:** Ensure editor can access global `DocumentLinkRegistry`
 
@@ -166,5 +185,10 @@ Helper functions for per-document persistence: `save_document_links_for_document
 
 ## Dependencies
 
-- **DocumentLocator** (`plan/pending/document-locator.md`) — must be implemented first
-- **ReferenceModule** (`ReferencePath`, `EmptyReferencePath`, `reference_equal`) — must be loaded before this module
+- **DocumentLocator** ([`document-locator.md`](document-locator.md)) — must be implemented first
+- **ReferenceModule** (`ReferencePath`, `EmptyReferencePath`, `reference_equal`) — must be
+  loaded before this module. **Vocabulary note:** these three names are stale. The
+  reference layer today (`package/kernel/main/reference/`) names the abstract type
+  `Reference`, the empty/concrete cases `EmptyReference`/`ConcreteReference`, and
+  the comparison `is_reference_equal`. Re-check `document-locator.md`'s design
+  against the current names before implementing either plan.

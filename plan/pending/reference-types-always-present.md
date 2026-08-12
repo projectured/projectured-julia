@@ -1,5 +1,17 @@
 # Reference types always present (strict DSL enforcement)
 
+> **Status (2026-08-12): DONE.** Every rollout step (1 through 7) landed: the
+> type-binding/splicing DSL, the terminal `evaluate_step` methods, the ~500-site
+> migration, the strict flip (`STRICT[]=:error` is now unconditional — the
+> transitional flag was removed), D4-a pattern typing, and the step 7 audit +
+> seal. `ReferenceModule.jl` was audited and sealed on 2026-07-12 (commit
+> `ad104f2e`) then re-sealed on 2026-07-18 (`6e34fa15`); it was reopened
+> (`27ca53bb`, 2026-08-06) only for a later, unrelated glob-pattern-language
+> effort, not because of a regression in this plan's work. Package names below
+> (`base`, `visual`, `domain` as "the twenty domains") predate the later package
+> split — see `documentation/domains.md` for the current one-package-per-domain
+> layout.
+
 Every reference path in the tree carries its types at every node. `@reference`
 requires `::T` after every navigation step — including terminal-like step
 types (`.proj`, `.point`, `.rect`). `EmptyReferencePath()` (no-arg) is gone;
@@ -259,9 +271,11 @@ The last step is a review checkpoint (user approves before I mark sealed).
    `strip_reference_types`, or built directly for the `.point` extension step,
    which has no inline `::T` form).
 7. **AR-audit ReferenceModule.jl** and **stop for user review before
-   sealing** (user has explicitly asked for a review checkpoint here). — the
-   next action. D4-a (`@reference_case` pattern typing) is separable and can
-   follow either before or after the seal, at the user's discretion.
+   sealing** (user has explicitly asked for a review checkpoint here). —
+   ✅ **DONE.** Audited (commit `263e2644`, 2026-07-12) and sealed (`ad104f2e`,
+   2026-07-12; re-sealed with the rest of Layer 8 in `6e34fa15`, 2026-07-18).
+   D4-a (`@reference_case` pattern typing) landed the same day (2026-07-12),
+   before the seal.
 
 ## Scope estimate (multi-session)
 

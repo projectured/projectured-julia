@@ -1,13 +1,16 @@
 # Selection layer — API hardening + seal handoff
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): DONE.** All four selection-layer files are sealed 🔒 in
+> `CLAUDE.md` (commit `2365a0db`, "selection: seal Layer 9"): `SelectionLayer.jl`,
+> `SelectionModule.jl`, `SelectionInterface.jl` (renamed from `Interface.jl`), and
+> `SelectionDefaults.jl` (renamed from `Selection.jl`). The workbench sweep and the
+> re-audit both happened before sealing. One renumbering to note: the device layer
+> later split into event/device/gesture/binding, so selection is now kernel **Layer
+> 9**, not Layer 4 as written below; see the current list in `CLAUDE.md`.
 
 Handoff for continuing the **"seal the kernel main folder"** effort. Written after
-hardening the selection API (Layer 4) and just before sealing its files.
+hardening the selection API (kernel layer, now numbered Layer 9) and just before
+sealing its files.
 
 ## The overarching task
 
@@ -28,12 +31,19 @@ Seal protocol (from CLAUDE.md):
 
 ## Where we are
 
-- **Layer 1 (cell), 2 (document), 3 (reference): fully sealed 🔒.**
-- **Layer 4 (selection): all four files still `⬜`** — `SelectionLayer.jl`,
-  `SelectionModule.jl`, `Interface.jl`, `Selection.jl`. The API was reworked this
-  session (below) before sealing, so the files must be **re-audited** against the
-  AR rules before sealing.
-- Layers 5–10 (operation, device, backend, projection, agent, editor): `⬜`.
+- **DONE (2026-08-12):** selection (kernel Layer 9) is fully sealed 🔒 — all four
+  files: `SelectionLayer.jl`, `SelectionModule.jl`, `SelectionInterface.jl`
+  (renamed from `Interface.jl`), `SelectionDefaults.jl` (renamed from
+  `Selection.jl`). The re-audit and the workbench sweep both happened before the
+  seal commit (`2365a0db`).
+- Original text, for the record: "Layer 1 (cell), 2 (document), 3 (reference):
+  fully sealed 🔒. Layer 4 (selection): all four files still `⬜` ... The API was
+  reworked this session (below) before sealing, so the files must be
+  **re-audited** against the AR rules before sealing. Layers 5–10 (operation,
+  device, backend, projection, agent, editor): `⬜`." Check `CLAUDE.md` for the
+  current, authoritative layer numbers and seal status — several layers were
+  inserted since this was written (event, gesture, binding), which shifted every
+  later layer's number.
 
 The selection layer was recently extracted as kernel Layer 4 (see
 `plan/done/extract-selection-layer.md`) and split into an interface fragment
@@ -92,18 +102,21 @@ against workbench examples, whose tabbed panes exercise container / Document→D
 tab-boundary selections and end-cursors. This is the main remaining risk of a
 false rejection.
 
-## Next steps (recommended order)
+## Next steps (recommended order) — ✅ DONE (2026-08-12)
 
-1. **Run the workbench sweep** before sealing: `test_selection_locality(<workbench
+1. ✅ **Run the workbench sweep** before sealing: `test_selection_locality(<workbench
    example>)` and `test_repl(<workbench example>)`. Watch for any
    `SelectionMismatch` in output — that would be a false rejection (a bug in
    `_selection_matches`, not a real mismatch) to fix. Find the exact workbench
-   example binding by grepping `ProjecturedDomainExample` (package/domain/...).
-2. **Re-audit the four selection files** against architecture-requirements.md (the
+   example binding by grepping the example registry (`package/projectured/example/`).
+2. ✅ **Re-audit the four selection files** against architecture-requirements.md (the
    API changed, so any earlier audit is stale), present the audit, then **seal them
    one at a time in load order**: `SelectionLayer.jl` → `SelectionModule.jl` →
-   `Interface.jl` → `Selection.jl`, flipping `⬜`→`🔒` in CLAUDE.md per seal commit.
-3. **Continue the seal effort** into Layer 5 (operation) and onward.
+   `SelectionInterface.jl` → `SelectionDefaults.jl`, flipping `⬜`→`🔒` in
+   CLAUDE.md per seal commit. All four are 🔒 in the current `CLAUDE.md`.
+3. **Continue the seal effort** into the next unsealed layer — see `CLAUDE.md` for
+   the current inventory; operation, binding, iomap, projection, tool, llm, agent,
+   and editor still carry `⬜` entries.
 
 ## Working constraints (do not rediscover these the hard way)
 
@@ -126,14 +139,21 @@ false rejection.
 
 ## Key source locations
 
-- `package/kernel/main/selection/Interface.jl` — the 5 generics (declaration-only):
-  `get_selection`, `clear_selection!`, `set_selection!`, `with_selection`,
-  `replace_selection!`; docstrings carry the match-or-throw contract.
-- `package/kernel/main/selection/Selection.jl` — default methods + private helpers
-  (`_matched_selection`, `_selection_matches`, `_drop_terminal_cursor`,
-  `_set_selection_walk!`, `_sync_selection!`, `_selection_child`,
-  `_mutate_terminal_step!`) + `SelectionMismatch`.
-- `package/kernel/main/selection/SelectionModule.jl` — imports + exports (note
-  `is_valid_reference`, `EmptyReferencePath` imports; `SelectionMismatch` export).
-- Reference-layer validity primitives (sealed): `is_valid_reference` /
-  `get_valid_reference_prefix` at `package/kernel/main/reference/Reference.jl:488-538`.
+- `package/kernel/main/selection/SelectionInterface.jl` (renamed from
+  `Interface.jl`) — the 5 generics (declaration-only): `get_selection`,
+  `clear_selection!`, `set_selection!`, `with_selection`, `replace_selection!`;
+  docstrings carry the match-or-throw contract.
+- `package/kernel/main/selection/SelectionDefaults.jl` (renamed from
+  `Selection.jl`) — default methods + private helpers (`_matched_selection`,
+  `_selection_matches`, `_drop_terminal_cursor`, `_set_selection_walk!`,
+  `_sync_selection!`, `_selection_child`, `_mutate_terminal_step!`) +
+  `SelectionMismatch`.
+- `package/kernel/main/selection/SelectionModule.jl` — imports + exports. It now
+  imports the reference layer in bulk (`using ..ReferenceModule`) rather than
+  naming individual symbols; `SelectionMismatch` is still an explicit export.
+  `EmptyReferencePath` was later renamed `EmptyReference`.
+- Reference-layer validity primitives: `is_valid_reference` /
+  `get_valid_reference_prefix` at
+  `package/kernel/main/reference/ReferenceEvaluation.jl` (this file is `⬜`, not
+  sealed, as of 2026-08-12 — it was reopened after this handoff for later
+  reference-layer work unrelated to selection).

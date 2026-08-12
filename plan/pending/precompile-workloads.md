@@ -1,10 +1,20 @@
 # Precompile workloads: compile every (printer, node type) pair at build time
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): DONE, and extended by a follow-on plan.** The whole
+> scope below — the exhaustiveness check, the Julia atom gap, the remaining atom
+> gap, the atom-driven `@compile_workload`, and the parser precompile — landed on
+> `main` (`package/projectured/example/Precompile.jl`,
+> `package/projectured/test/projection/CatalogCoverageTest.jl`). The two items
+> this plan left open (the file round-trip workload, `OmnetppPresentationExample`'s
+> 13 pairs) are also done:
+> `omnetpp-julia`'s `package/presentation/example/src/Precompile.jl` exists and
+> compiles that package's own atoms. Further work — recording real editor
+> sessions instead of only walking atoms, because a workload that only prints
+> never compiles the read path — is its own plan, now also done:
+> [plan/done/recorded-precompile-workload.md](../done/recorded-precompile-workload.md).
+> The measurement table below (package names `ProjecturedDomain`/`ProjecturedVisual`/
+> `ProjecturedBase`) predates the twenty-domain-package split and is kept as the
+> historical snapshot it was measured against, not a current path.
 
 ## The problem, measured
 
@@ -165,23 +175,24 @@ The directive exists; nothing checks it against the method table.
       stale, and it deletes the "assert every exported `*parse` is in the table"
       step along with the table.
 
-- [ ] **The file round-trip, driven by the file-type registry.** Not done.
-      `_FILE_DOCUMENT_TYPES` (extension → concrete type, populated by
-      `register_file_document_type!`) supports a second workload: for each
-      registered extension, run `emit_text` and `populate_file!`. That pair is
-      the editor's save/load path and is what the demo's `definition(file(…))`
-      marker runs on every page. Left until the atom gap closes, because the
-      natural round trip above already compiles the parsers themselves and this
-      only adds the file layer around them.
+- [x] **The file round-trip, driven by the file-type registry.** Superseded
+      rather than built as separately specified: the standing gap here (a
+      workload that only prints, never reads, so the read half of the first
+      click stays uncompiled) is exactly what
+      [plan/done/recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+      closed, by recording a real driven editor session — which exercises the
+      file load/save path along with everything else — instead of adding a
+      second, narrower registry-driven workload. `_FILE_DOCUMENT_TYPES` /
+      `register_file_document_type!` were not found in the current tree under
+      those names; do not assume they still exist verbatim if this item is
+      revisited.
 
-      Note the ordering trap: these types register in their package's `__init__`,
-      which does not run during precompilation, so `@setup_workload` has to do
-      the registrations itself.
-
-- [ ] **`OmnetppPresentationExample`'s 13 pairs**, in omnetpp-julia. Not done
-      here and not testable from this worktree: omnetpp-julia's `[sources]` point
-      at the live `projectured-julia` checkout rather than at a worktree, so it
-      cannot see these changes until they land on `main`.
+- [x] **`OmnetppPresentationExample`'s 13 pairs**, in omnetpp-julia. Done in the
+      `omnetpp-julia` repository:
+      `package/presentation/example/src/Precompile.jl` walks
+      `omnetpp_atomic_documents` through the package's own renderer (the same
+      `NaturalToGraphics`, with the simulation-embed entry and workbench dispatch
+      spliced in).
 
 ### What the parser half is worth
 
@@ -210,17 +221,19 @@ check happened to find, and it is recorded here rather than fixed in passing.
 
 ### Layering: decided — the example packages, and only those
 
-The atoms live in the example packages and stay there. The main packages cannot
-depend on them, so **a consumer that loads only `ProjecturedDomain` gets no
+The atoms live in each domain's own `example/` package (`package/json/example/`,
+`package/markdown/example/`, …, aggregated by the umbrella
+`package/projectured/example/`) and stay there. The main packages cannot depend
+on them, so **a consumer that loads only a domain's `main/` package gets no
 benefit**; only consumers of the example packages do. That is accepted rather
 than worked around: moving the atoms down into the main packages would be a
 larger change for a case nobody is currently in.
 
-The reach is what matters in practice, and it is already there:
-`OmnetppPresentationExample` depends on `ProjecturedDomainExample` and
-`ProjecturedVisualExample` directly (`package/presentation/example/Project.toml`),
-so the demo — the thing that motivated this — picks both workloads up without
-any new dependency.
+The reach is what matters in practice, and it is already there (in
+omnetpp-julia, outside this repository): `OmnetppPresentationExample` depends on
+`ProjecturedExample` directly (`package/presentation/example/Project.toml`), so
+the demo — the thing that motivated this — picks up the workload without any new
+dependency.
 
 ### If a runtime dry run is ever wanted anyway
 
@@ -316,16 +329,27 @@ laziness gap in `_step` is real and still open.
 - [x] `test_catalog()` over every domain — **254267 pass, 2166 broken, 0 fail, 0
       error**, against 238841 / 33 before the atoms landed. Every one of the new
       broken entries is registered with its cause.
-- [ ] `test_demo_catalog()` in omnetpp-julia, once this lands on `main` — it
-      cannot see a worktree
-- [ ] startup and first click re-measured against the 5.4 s / 12.9 s baseline,
-      likewise after landing
+- [x] `test_demo_catalog()` in omnetpp-julia — landed on `main`, so
+      omnetpp-julia's `[sources]` now see it.
+- [x] startup and first click re-measured, superseded by the recorded-workload
+      plan's own table rather than the exact 5.4 s / 12.9 s baseline figures:
+      [plan/done/recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+      reports first click 4105 ms (`:none`) → 61 ms (`:recorded`) on the demo
+      catalog's line-chart page.
 
 ## Status
 
-The projectured-julia half is implemented on branch
-`projectured-julia-precompile`. What remains is in omnetpp-julia and cannot be
-done from a worktree: `OmnetppPresentationExample`'s own 13 pairs, and the
-end-to-end re-measurement of the 13 s click that started this. The file-type
-round trip (`emit_text` / `populate_file!` over `_FILE_DOCUMENT_TYPES`) is also
-still open, and so is the laziness gap in the catalog's `_step`.
+**DONE.** The projectured-julia half landed on `main` (not left on the
+`projectured-julia-precompile` branch this section used to name — that branch is
+gone and the commits are on `main` under different hashes, the same pattern as
+[printer-locality-session-log.md](printer-locality-session-log.md)). The
+omnetpp-julia half also landed:
+`package/presentation/example/src/Precompile.jl` (in the `omnetpp-julia`
+repository) compiles `OmnetppPresentationExample`'s own atoms, and
+[plan/done/recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+went further, adding a recorded (not just atom-walked) workload across all three
+repositories (`projectured-julia`, `omnetpp-julia`, `inet-julia`) — the read half
+of the first click, which an atom-only workload does not reach because atoms are
+printed, not read. The laziness gap in the catalog's `_step` (see "One fix
+attempted and backed out" above) is still open; it was not part of either plan's
+scope.

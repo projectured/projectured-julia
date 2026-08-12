@@ -1,9 +1,11 @@
 # Document layouts and their names
 
-> **Status: IMPLEMENTED.** Every part is built, across all three repositories.
-> What remains is listed under **What this plan leaves undone**, and none of it is
-> a step of this plan: `Packet` is one schema left for its own reading, and the
-> rest are defects this work uncovered rather than caused.
+> **Status (2026-08-12): DONE.** Every part is built, across all three
+> repositories. Of the five items under **What this plan leaves undone**, three
+> are now resolved (`Packet` took the native binding, the `record_tap!` signature
+> drift is fixed, and the three test environments now resolve standalone); two
+> stay open (the precompile-statement staleness, and the two files below still
+> unsealed awaiting review). None of the five was ever a step of this plan.
 >
 > Two sealed files were edited and are left **unsealed**, marked ⬜ in `CLAUDE.md`,
 > so that the owner knows to review them: `document/DocumentMacro.jl` and
@@ -271,13 +273,13 @@ concreteness buys nothing there.
 ### Why the styles want it
 
 `DStyleText` has 454 uses and they all look like
-[CollectionToSyntax.jl:35](package/visual/main/syntax/CollectionToSyntax.jl#L35):
+[CollectionToSyntax.jl:35](../../package/syntax/main/CollectionToSyntax.jl#L35):
 
 ```julia
 delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
 ```
 
-The comment at [StyleText.jl:28](package/visual/main/style/StyleText.jl#L28) says
+The comment at [StyleText.jl:28](../../package/style/main/StyleText.jl#L28) says
 why: "`DStyleText` is concrete and inlines in config cells". A field cannot inline
 a UnionAll, so those sites had to reach past the bare name. With `[DC]` they write
 `ImmutableCell{StyleText}` and the `D` prefix leaves the source.
@@ -1059,25 +1061,31 @@ failures while never reaching its first assertion.
 
 ## What this plan leaves undone
 
-1. **`Packet`, in both omnetpp-julia and inet-julia.** The one schema whose
-   evidence did not point one way — three native constructions against three bare
-   and ten annotations — and the type inet is built around. It wants reading, not
-   a rule. Every other schema in both repositories is settled.
-2. **inet-julia calls `record_tap!` with the old signature.** omnetpp's `Wave D`
-   changed the third parameter to a `ScheduleContext` and inet still passes a
-   timestamp, so six of its tests error. This predates this plan and nobody owns
-   it. It is the cross-repository drift hazard in its plainest form: inet resolves
-   against omnetpp's live `main`, so an omnetpp commit breaks inet while inet
-   changes nothing.
-3. **Three test environments cannot resolve standalone.** `package/runner/test`
-   and `package/simulator/test` in omnetpp, `package/runner/test` in inet. No
-   `Project.toml` was touched by this plan; the defects were already there, and
-   they make a per-slice run report zero failures while never reaching an
-   assertion.
-4. **The recorded precompile statements are 9.1 % stale in projectured**, against
-   a 10 % warning threshold, and 709 of the 1165 skips are this plan's renames.
-   The next change that moves a type name crosses the line. Recording needs a
-   display, so it is the owner's call. Both other repositories left their own
-   recordings untouched for the same reason.
-5. **Two sealed files are unsealed** and marked ⬜ in `CLAUDE.md`, awaiting review:
+1. ✅ **RESOLVED (2026-08-12). `Packet`, in both omnetpp-julia and inet-julia.**
+   The one schema whose evidence did not point one way is now decided:
+   `inet-julia`'s `package/packet/main/PacketEnvelope.jl` declares
+   `@native_document struct Packet <: Document`, so `Packet` took the `M`
+   binding. Every other schema in both repositories was already settled.
+2. ✅ **RESOLVED (2026-08-12). inet-julia calls `record_tap!` with the old
+   signature.** omnetpp's commit "Give the tap the context the kernel asks for"
+   fixed the tap side, and inet-julia's callers in
+   `package/queuing/main/QueuingCapture.jl` and
+   `package/linklayer/main/t1s/T1sCapture.jl` now pass `ctx` in the
+   `ScheduleContext` position. This predated this plan and nobody owned it; it is
+   fixed independently of it.
+3. ✅ **RESOLVED (2026-08-12). Three test environments cannot resolve
+   standalone.** `package/runner/test` and `package/simulator/test` in omnetpp,
+   `package/runner/test` in inet. All three now resolve and instantiate cleanly
+   (`Pkg.resolve()` / `Pkg.instantiate()` with no error); the omnetpp `runner`
+   suite runs 704/704 standalone. No `Project.toml` was touched by this plan; the
+   defects were already there and are now gone, fixed independently of it.
+4. **Still open. The recorded precompile statements were 9.1 % stale in
+   projectured**, against a 10 % warning threshold, and 709 of the 1165 skips
+   were this plan's renames. The next change that moves a type name crosses the
+   line. Recording needs a display, so it is the owner's call. Both other
+   repositories left their own recordings untouched for the same reason. This
+   figure was not re-measured for this audit; treat it as unverified rather than
+   fixed.
+5. **Still open. Two sealed files are unsealed** and marked ⬜ in `CLAUDE.md`,
+   still awaiting review as of 2026-08-12:
    `document/DocumentMacro.jl` and `reference/ReferenceEvaluation.jl`.

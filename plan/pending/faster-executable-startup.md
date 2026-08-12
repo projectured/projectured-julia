@@ -1,21 +1,30 @@
 # Faster executable startup — beyond precompilation
 
+> **Status (2026-08-12): IN PROGRESS.** Tier 2 is done and landed straight on `main`
+> (commit `111e5746`, 2026-07-01) — the branch `faster-startup-warmup` named below
+> never reached `main` and does not exist any more. Tier 0 (measurement), Tier 1
+> (sysimage flags), Tier 3 (present-window-first) and Tier 4 (daemon/CRIU) are all
+> still open. A separate, later plan, [recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+> (`plan/done/`, shipped 2026-08-11), replaced the precompile-workload level scheme;
+> it complements Tier 2, it does not replace it.
+
 ## Goal
 
 Make the native binary produced by `build_executable`
-([package/executable/Builder.jl](../../package/executable/Builder.jl)) reach an
-interactive editor as fast as possible. The app is *already* a PackageCompiler
-`create_app` sysimage with a precompile workload, so "precompiled" is the
-baseline — this plan is about the layers **on top of** precompilation.
+([package/executable/builder/ProjecturedBuilder.jl](../../package/executable/builder/ProjecturedBuilder.jl))
+reach an interactive editor as fast as possible. The app is *already* a
+PackageCompiler `create_app` sysimage with a precompile workload, so "precompiled" is
+the baseline — this plan is about the layers **on top of** precompilation.
 
 ## Where we are today
 
 - **Julia 1.12.6**, **PackageCompiler 2.2.5**, `create_app`.
-- Precompile workload: [`Precompile.jl`](../../package/executable/src/Precompile.jl)
+- Precompile workload: [`Precompile.jl`](../../package/executable/main/Precompile.jl)
   → `ProjecturedExecutable.precompile_warmup()`.
 - `create_app` is invoked with **no** tuning args
-  ([Builder.jl:192-195](../../package/executable/Builder.jl#L192-L195)): no
-  `cpu_target`, `filter_stdlibs`, `incremental`, or `sysimage_build_args`.
+  ([ProjecturedBuilder.jl:263-266](../../package/executable/builder/ProjecturedBuilder.jl#L263-L266)):
+  no `cpu_target`, `filter_stdlibs`, `incremental`, or `sysimage_build_args`. Still
+  true today — confirmed against the current `BuildSpec` fields.
 - `__init__` work is light: SDL installs a display-size provider; Adaptagrams
   `dlopen`s its shim lazily. Startup is **not** dominated by module init.
 
@@ -65,7 +74,10 @@ Add build knobs to `BuildSpec` and pass them through to `create_app`.
 
 ## Tier 2 — Close the precompile-coverage gap (kill residual TTFX)  ✅ DONE (initial pass)
 
-**Status: implemented on branch `faster-startup-warmup`.**
+**Status: implemented and landed on `main` directly** (commit `111e5746`,
+2026-07-01, "perf(executable): warm the interactive path in the precompile
+workload" — its own message calls this "Tier 2 of the startup plan"). The branch
+name `faster-startup-warmup` below is stale; no such branch exists in the repo.
 
 The offscreen `write_image` warm-up only covered the initial *paint*, never
 interaction — so the first keystroke of the built binary JIT-compiled the whole
@@ -74,7 +86,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
 **What was built**
 
 - `warm_file_editor(domain; workbench=false)` in
-  [package/example/src/FileEditor.jl](../../package/example/src/FileEditor.jl)
+  [package/projectured/example/FileEditor.jl](../../package/projectured/example/FileEditor.jl)
   (exported from `ProjecturedExample`). It drives the **exact windowed pipeline
   `run_file_editor` runs** — `_build_window_scene` + `_multi_window_projection`
   over a `ScreenDocument` — through one print and a spread of synthetic events,
@@ -93,7 +105,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
 - `_WARMUP_EVENTS`: Ctrl+Home (seed caret), arrow nav, Ctrl+End, two `KeyPress`
   (type), backspace, delete.
 - `precompile_warmup()` in
-  [package/executable/src/ProjecturedExecutable.jl](../../package/executable/src/ProjecturedExecutable.jl)
+  [package/executable/main/ProjecturedExecutable.jl](../../package/executable/main/ProjecturedExecutable.jl)
   now calls `warm_file_editor(APP_DOMAIN; workbench=APP_WORKBENCH)` after the
   offscreen render. Runs for **every** baked backend (the reader/evaluator are
   backend-independent), not just SDL.

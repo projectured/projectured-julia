@@ -1,6 +1,17 @@
 # Injecting Projection — Generic Collection Decorator
 
-> **AUDIT (2026-06-23):** `InjectingProjection` and its supporting types (`InjectionSpec`, `InjectionSource`, `InjectingProjectionIoMap`, file `Injecting.jl`) **do not exist anywhere** in the codebase (grep across `package/` finds them only in this plan file). The codebase was restructured: source now lives under `package/<subpackage>/src/...`; the `FilteringProjection` "dual" cited below is real and lives at `package/kernel/src/projection/generic/Filtering.jl`. The only deliverable that is already satisfied is **Phase 3** — `TextToGraphics` already handles `TextGraphics` inline spans (see annotation there). Phases 1, 2, and 4 are OPEN.
+> **Status (2026-08-12): IN PROGRESS.** `InjectingProjection` and its supporting
+> types (`InjectionSpec`, `InjectionSource`, `InjectingProjectionIoMap`, file
+> `Injecting.jl`) still **do not exist anywhere** (Phases 1, 2, 4 open). Phase 3
+> is done: `TextToGraphics` handles `TextGraphics` inline spans, now at
+> `package/text/main/TextToGraphics.jl:541-555` (moved out of the old
+> `package/visual/`, which no longer exists). The `FilteringProjection` dual
+> cited below now lives at `package/projection/main/Filtering.jl` — its own
+> package, not inside the kernel (`package/kernel/src/` was itself renamed to
+> `package/kernel/main/`). `kept_indices` there is typed `::Any` (a reactive
+> cell holding a `Vector{Int}`), not literally `Vector{Int}`. `SequentialProjection`
+> no longer exists — renamed to `ChainingProjection`
+> (`package/projection/main/higherorder/Chaining.jl`), same shape.
 
 A domain-independent projection that splices extra elements into collection-based projection outputs at specified positions, with automatic reference index remapping — enabling any higher-level projection to insert additional elements into tightly-coupled spans without breaking the reference chain.
 
@@ -42,9 +53,9 @@ The `AnchoredLayout` (see `anchored-layout.md`) solves *overlay* positioning. Th
 
 ## Phase 1: InjectingProjection — Generic Collection Decorator
 
-**⏳ OPEN (verified):** No `Injecting.jl` exists under any `package/*/src/projection/generic/`. The `FilteringProjection` dual it mirrors lives at `package/kernel/src/projection/generic/Filtering.jl` (`FilteringProjection`, `FilteringProjectionIoMap`, `kept_indices::Vector{Int}` — confirmed). The target path should map to `package/kernel/src/projection/generic/Injecting.jl`.
+**⏳ OPEN (verified 2026-08-12):** No `Injecting.jl` exists anywhere under `package/`. The `FilteringProjection` dual it mirrors now lives in its own package, `package/projection/main/Filtering.jl` (`FilteringProjection`, `FilteringProjectionIoMap` — confirmed; `kept_indices` is typed `::Any`, a reactive cell holding a `Vector{Int}`, not literally `Vector{Int}`). The target path should map to `package/projection/main/Injecting.jl`, alongside `Filtering.jl` (which sits directly in `main/`, not under a `generic/` subfolder).
 
-### File: `program/src/projection/generic/Injecting.jl`
+### File: `package/projection/main/Injecting.jl`
 
 A domain-independent projection that inserts extra elements into a collection at specified positions, with automatic index remapping. Follows the pattern of `FilteringProjection` (which removes elements and remaps indices).
 
@@ -227,9 +238,9 @@ No iomap rebuilding, no projection changes — the cell system propagates the in
 
 ## Phase 3: TextToGraphics TextGraphics Support
 
-**✅ DONE (verified):** `TextToGraphics` already handles `TextGraphics` inline spans as an atomic word-wrappable box. See `package/visual/main/text/TextToGraphics.jl:303-325`: it reads `span.width`/`span.height`, extracts the embedded image via `_extract_image_data` (line 796), emits a `GraphicsImage` at `(cx, cy)`, records a `SegCoord` in `coord_map` for hit-testing (line 310), advances the cursor by `img_w`, and grows `line_h` by `img_h`. The `TextGraphics` document type itself exists at `package/visual/example/document/Text.jl:203` (fields `content::Document`, `width::Int32`, `height::Int32`, reactive cells). NOTE: the "line 219 skips non-`TextString`" premise is stale — the skip guard is now at lines 327/532/561 and is reached only *after* the `TextGraphics` branch. The implemented design differs from the plan's hypothesis: sizing uses `width`/`height::Int32` cells + an embedded `ImageDocument`, not a `w`/`h`-bearing `GraphicsCanvas` sub-projection. Reflow on cell change is reactive as the plan intended.
+**✅ DONE (verified 2026-08-12):** `TextToGraphics` already handles `TextGraphics` inline spans as an atomic word-wrappable box. `package/visual/` no longer exists (the package was split); the code now lives at `package/text/main/TextToGraphics.jl:541-555`: it reads `span.width`/`span.height` (`Int32` cells), calls `_graphics_span_element` (line 546) which extracts the embedded image via `_extract_image_data` (line 1251) and emits a `GraphicsImage` (line 1281), records a `SegCoord` in `coord_map` for hit-testing (line 548), advances the cursor by `img_w` (line 554), and folds `img_h` into `line_h` (line 549). The `TextGraphics` document type itself moved from `package/visual/example/document/Text.jl:203` into `package/text/main/Text.jl:210-219` — no longer example-only, now a core domain type, with more fields than originally planned: `content::Document`, `width::Int32`, `height::Int32`, `font::StyleFont`, `font_color::StyleColor`, `fill_color::StyleColor`, `line_color::StyleColor`, `padding::Inset`. The implemented design differs from the plan's hypothesis: sizing uses `width`/`height::Int32` cells + an embedded `ImageDocument`, not a `w`/`h`-bearing `GraphicsCanvas` sub-projection. Reflow on cell change is reactive as the plan intended.
 
-### File: `program/src/projection/primitive/TextToGraphics.jl`
+### File: `package/text/main/TextToGraphics.jl`
 
 `TextToGraphics` currently skips non-`TextString` spans (line 219: `span isa TextString || continue`). To support inline graphics injected by `InjectingProjection`, add handling for `TextGraphics`:
 
@@ -244,19 +255,19 @@ This makes `TextGraphics` a first-class inline element that participates in word
 
 ## Phase 4: Integration
 
-**⏳ OPEN (verified):** `package/projectured/src/Projectured.jl` contains no `include(".../Injecting.jl")` and no `InjectingProjection`/`InjectingProjectionIoMap`/`InjectionSpec` export (grep finds zero matches). Depends on Phase 1.
+**⏳ OPEN (verified 2026-08-12):** `package/projectured/main/Projectured.jl` (the umbrella package's entry point moved from `package/projectured/src/`) contains no `include(".../Injecting.jl")` and no `InjectingProjection`/`InjectingProjectionIoMap`/`InjectionSpec` export (grep finds zero matches). Depends on Phase 1.
 
-### File: `program/src/Projectured.jl`
+### File: `package/projectured/main/Projectured.jl`
 
 - Add `include("projection/generic/Injecting.jl")`
 - Export `InjectingProjection`, `InjectingProjectionIoMap`, `InjectionSpec`
 
 ## Implementation Steps
 
-1. **⏳ OPEN (verified):** Create `InjectingProjection` in `projection/generic/Injecting.jl` with index remapping — file/types do not exist.
-2. **✅ DONE (verified):** Add `TextGraphics` handling to `TextToGraphics` word-wrap engine — implemented at `package/visual/main/text/TextToGraphics.jl:303-325` (see Phase 3 annotation).
-3. **⏳ OPEN (verified):** Wire into `Projectured.jl` — no include/export present in `package/projectured/src/Projectured.jl`.
-4. **⏳ OPEN (verified):** Add tests — no `Injecting*` tests exist (grep across repo finds the symbols only in this plan file).
+1. **⏳ OPEN (verified 2026-08-12):** Create `InjectingProjection` in `package/projection/main/Injecting.jl` with index remapping — file/types do not exist.
+2. **✅ DONE (verified 2026-08-12):** Add `TextGraphics` handling to `TextToGraphics` word-wrap engine — implemented at `package/text/main/TextToGraphics.jl:541-555` (see Phase 3 annotation).
+3. **⏳ OPEN (verified 2026-08-12):** Wire into `Projectured.jl` — no include/export present in `package/projectured/main/Projectured.jl`.
+4. **⏳ OPEN (verified 2026-08-12):** Add tests — no `Injecting*` tests exist (grep across repo finds the symbols only in this plan file).
 
 ## Future Extensions
 

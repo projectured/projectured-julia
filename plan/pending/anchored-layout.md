@@ -1,12 +1,21 @@
 # Anchored Layout
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
-
-> **Audit status (verified 2026-06-23): ⏳ ALL OPEN.** No part of this plan is implemented. Searches for `AnchoredLayout`, `AnchoredEntry`, `compute_anchored_positions`, and `AnchoredLayoutToGraphicsCanvas` across `package/*/src/` find no source definitions — the only hits are mentions in other plan files (`plan/pending/injecting-projection.md`, `plan/pending/graph-domain.md`, `plan/tentative/search-input-widget.md`) and a doc comment in `package/graph/example/document/Graph.jl:53`. The target files exist (`package/visual/example/document/Layout.jl`, `package/visual/main/layout/LayoutToGraphics.jl`) but contain no `Anchored*` symbols. (Note: plan references old `program/src/...` paths; current code lives under `package/domain/src/...`.)
+> **Status (2026-08-12): DONE.** `AnchoredEntry`, `AnchoredLayout`, and
+> `compute_anchored_positions` are implemented in
+> [package/layout/main/Layout.jl](../../package/layout/main/Layout.jl).
+> `AnchoredLayoutToGraphicsCanvas` is implemented and wired into the
+> `LayoutToGraphics` factory in
+> [package/layout/main/LayoutToGraphics.jl](../../package/layout/main/LayoutToGraphics.jl).
+> Tests cover placement, stacking, reference-based targets, and bounding
+> regions in
+> [package/substrate/test/projection/AnchoredLayoutTest.jl](../../package/substrate/test/projection/AnchoredLayoutTest.jl),
+> and an example use appears in
+> [package/substrate/example/document/Layout.jl](../../package/substrate/example/document/Layout.jl).
+> The built design differs from the draft below: fields are named `target`/
+> `reference` (not `target_document`/`target_reference`), there is no
+> `show_leader` field, and Phase 6 (line-leader connector rendering) is not
+> built. See the "Implementation Steps" section for the exact status of each
+> phase.
 
 Extend the layout system with a new `AnchoredLayout` document type that positions children relative to target elements' graphics coordinates, with smart collision-aware placement and stacking.
 
@@ -23,7 +32,7 @@ Use cases include:
 
 ## Phase 1: AnchoredLayout Document Type
 
-### File: `program/src/document/Layout.jl`
+### File: `package/layout/main/Layout.jl`
 
 Add new types to the existing `LayoutModule`:
 
@@ -64,7 +73,7 @@ end
 
 ## Phase 2: Smart Placement Algorithm
 
-### File: `program/src/document/Layout.jl` (helper functions)
+### File: `package/layout/main/Layout.jl` (helper functions)
 
 A pure algorithm (no reactive cells), analogous to `allocate_axis`:
 
@@ -88,7 +97,7 @@ Returns: `Vector{Tuple{Int,Int}}` — one `(x, y)` per entry.
 
 ## Phase 3: AnchoredLayout → GraphicsCanvas Projection
 
-### File: `program/src/projection/primitive/LayoutToGraphics.jl`
+### File: `package/layout/main/LayoutToGraphics.jl`
 
 Add `AnchoredLayoutToGraphicsCanvas <: Projection` alongside the existing layout projections.
 
@@ -117,7 +126,7 @@ Add `AnchoredLayoutToGraphicsCanvas <: Projection` alongside the existing layout
 
 ## Phase 4: Target Position Resolution Helpers
 
-### File: `program/src/projection/primitive/LayoutToGraphics.jl` (helpers)
+### File: `package/layout/main/LayoutToGraphics.jl` (helpers)
 
 **`resolve_target_position(entry, content_iomap)`** — unified helper:
 1. If `entry.target_document` is a `GraphicsCanvas`, return `(x, y, w, h)` from its cells
@@ -128,15 +137,17 @@ This helper returns reactive `Cell`s so position changes propagate without re-pr
 
 ## Phase 5: Integration
 
-### File: `program/src/Projectured.jl`
+There is no umbrella `Projectured.jl` file any more. Each package exports its
+own symbols directly from its module.
 
-- Add exports for `AnchoredLayout`, `AnchoredEntry`, `IAnchoredLayout`, `IAnchoredEntry`
-- The `LayoutToGraphics` factory already picks up new entries; no separate registration needed
-
-### File: `program/src/document/Layout.jl`
+### File: `package/layout/main/Layout.jl`
 
 - Add `AnchoredLayout`, `AnchoredEntry` to the module's `export` list
 - Import `ReferencePath`, `EmptyReferencePath` from `ReferenceModule`
+
+### File: `package/layout/main/LayoutToGraphics.jl`
+
+- The `LayoutToGraphics` factory already picks up new entries; no separate registration needed
 
 ## Phase 6: Line Leaders (Visual Connectors)
 
@@ -148,13 +159,19 @@ After placement, anchored children may be offset from their targets. Add optiona
 
 ## Implementation Steps
 
-1. ⏳ OPEN — Add `AnchoredEntry` and `AnchoredLayout` document types to `Layout.jl` *(not present in `package/visual/example/document/Layout.jl`)*
-2. ⏳ OPEN — Implement `compute_anchored_positions` pure algorithm in `Layout.jl` *(no such symbol anywhere)*
-3. ⏳ OPEN — Add `AnchoredLayoutToGraphicsCanvas` projection to `LayoutToGraphics.jl` *(not present in `package/visual/main/layout/LayoutToGraphics.jl`)*
-4. ⏳ OPEN — Add target resolution helpers *(`resolve_target_position` not present)*
-5. ⏳ OPEN — Wire into `LayoutToGraphics` factory and `Projectured.jl` exports *(no `AnchoredLayout`/`IAnchoredLayout` exports)*
-6. ⏳ OPEN — Add line-leader rendering
-7. ⏳ OPEN — Add tests
+1. ✅ DONE (2026-08-12) — `AnchoredEntry` and `AnchoredLayout` document types are in
+   [package/layout/main/Layout.jl](../../package/layout/main/Layout.jl).
+2. ✅ DONE (2026-08-12) — `compute_anchored_positions` is a pure algorithm in the
+   same file.
+3. ✅ DONE (2026-08-12) — `AnchoredLayoutToGraphicsCanvas` is in
+   [package/layout/main/LayoutToGraphics.jl](../../package/layout/main/LayoutToGraphics.jl).
+4. ✅ DONE (2026-08-12) — Target resolution is `_al_target_rect`/`_al_rect_of` in the
+   same file (a different name than the draft's `resolve_target_position`, same role).
+5. ✅ DONE (2026-08-12) — `AnchoredLayout => AnchoredLayoutToGraphicsCanvas()` is wired
+   into the `LayoutToGraphics()` factory; both symbols are exported from their modules.
+6. ⏳ OPEN — Line-leader rendering (`show_leader`, connector lines) is not built.
+7. ✅ DONE (2026-08-12) — Tests exist in
+   [package/substrate/test/projection/AnchoredLayoutTest.jl](../../package/substrate/test/projection/AnchoredLayoutTest.jl).
 
 ## Examples
 

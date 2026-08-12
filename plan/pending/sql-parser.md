@@ -1,12 +1,14 @@
 # SqlParser — SQL parser module
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): DONE**, for the scope this plan states (SELECT parsing,
+> later grown to include `CREATE TABLE`/`CREATE SCHEMA` DDL). INSERT/UPDATE
+> parsing and `GROUP BY`/aggregate parsing are out of this plan's scope — see
+> [sql-insert-update-support.md](sql-insert-update-support.md) and
+> [sql-select-aggregation-support.md](sql-select-aggregation-support.md), both
+> still open on the parser side. The one residual gap named below,
+> `SqlJoinUsingCondition` having no `SqlToSyntax` projection, is still true.
 
-> **✅ DONE (verified):** Module implemented at `package/sql/main/SqlParser.jl` (the plan's `program/src/parser/` path is the pre-restructure location). `SqlParserModule` exports `sqlparse`/`sqlparse_file` (line 42), is included from `package/domain/src/ProjecturedDomain.jl:96`, and is exercised by `package/test/src/document/SqlParserTest.jl` (`test_sql_parser`). Implementation now exceeds the SELECT-only scope described here — it also parses `CREATE TABLE`/`CREATE SCHEMA` DDL (SqlParser.jl:376-451). Per-step notes below.
+> **✅ DONE (verified):** Module implemented at `package/sql/main/SqlParser.jl` (the plan's `program/src/parser/` path is the pre-restructure location). `SqlParserModule` exports `sqlparse`/`sqlparse_file` (line 42), is included from `package/sql/main/ProjecturedSql.jl:39`, and is exercised by `package/sql/test/document/SqlParserTest.jl` (`test_sql_parser`). Implementation now exceeds the SELECT-only scope described here — it also parses `CREATE TABLE`/`CREATE SCHEMA` DDL (SqlParser.jl:376-451). Per-step notes below.
 
 `sqlparse(text) → SqlSelectStatement`. A standalone parser that turns SQL source
 text into the `SqlDocument` hierarchy, mirroring the other parsers in

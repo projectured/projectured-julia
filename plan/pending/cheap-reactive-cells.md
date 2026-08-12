@@ -1,5 +1,13 @@
 # Cheap reactive cells — pay for reactivity only where observed
 
+> **Status (2026-08-12): IN PROGRESS.** P1 to P4 are done: `deps`/`dependents`
+> in
+> [package/kernel/main/cell/ReactiveCell.jl](../../package/kernel/main/cell/ReactiveCell.jl)
+> are `Union{Nothing, …}` and allocate lazily, confirmed by the "L1" struct
+> comment and the `nothing`-guarded read/write/invalidate paths. P5 (L4,
+> object-granular reactivity) is not started. L2 (lazy reactive-collection
+> slots) stayed deferred by P4's own measurement, not implemented.
+
 Make `ReactiveCell` cheap enough that a **large** reactive document tree — up to
 an entire application's state (e.g. a whole discrete-event simulator, scheduler
 and all) — is affordable, by paying dependency-tracking cost only for cells that
@@ -27,7 +35,7 @@ always empty.
   (`dependents` stays empty). The empty `Set` alone is 88 B / 36.6 ns; it plus the
   `WeakRef[]` are ~144 of the 168 B and most of the time.
 - **Reactive collections wrap every element.** A reactive `CellVector` stores one
-  `ReactiveCell` slot per element ([CellVector.jl:5-13](../../package/base/main/document/collection/CellVector.jl#L5-L13));
+  `ReactiveCell` slot per element ([CellVector.jl:5-13](../../package/collection/main/CellVector.jl#L5-L13));
   the immutable/mutable kinds store elements directly in a plain `Vector`. So a
   reactive collection multiplies the per-cell cost by its length — a million
   queued items you are *not* looking at each cost a full `ReactiveCell`.
@@ -68,7 +76,7 @@ costs a plain vector entry. Care: structural reactivity (element insert / remove
 reorder) needs stable slot identity — design the lazy slot so structural
 dependents still fire.
 
-Files: `document/collection/CellVector.jl` (the `RCV` reactive storage path + element accessors).
+Files: `package/collection/main/CellVector.jl` (the `RCV` reactive storage path + element accessors).
 
 ### L4 — object-granular reactivity (inline fields)  *(only if needed)*
 

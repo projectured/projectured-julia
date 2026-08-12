@@ -1,5 +1,9 @@
 # Reactivity property testing — touch an input, watch the output move
 
+> **Status (2026-08-12): NOT STARTED.** No part of the harness exists — a search
+> for `test_reactivity`, `iomap_nodes`, `reactive_surface`, and `check_reactivity`
+> across `package/` finds nothing. §7's phases 1 through 6 are all still to do.
+
 **Status:** design proposal, staged build (§7). Not started.
 **Scope:** a property-based harness over the 88 registered examples that walks the
 **IoMap tree**, writes to each node's input, and asserts that node's output

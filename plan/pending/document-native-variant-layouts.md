@@ -1,12 +1,13 @@
 # Full `@document` variant family with native per-kind layouts
 
-> **Status: PARTLY SUPERSEDED.** Phases 1 to 3 are done and this file is their
-> record, together with the measurements and the four companion `.jl` proofs.
-> Phases 1, 4, 6 and 7 are superseded by
-> [document-layouts-and-names.md](document-layouts-and-names.md), which carries
-> the decided naming scheme and the layout registry. Two corrections to this file
-> are marked **CORRECTION** below. Read the new plan before you act on Phase 1 or
-> Phase 4 here.
+> **Status (2026-08-12): SUPERSEDED.** Phases 1 to 3 are done and this file is
+> their record, together with the measurements and the four companion `.jl`
+> proofs (kept in `plan/pending/`, not moved — they are runnable checks, not a
+> plan). Phases 1, 4, 6 and 7 are superseded by
+> [document-layouts-and-names.md](document-layouts-and-names.md), now itself
+> fully **DONE**, which carries the decided naming scheme and the layout
+> registry. Two corrections to this file are marked **CORRECTION** below. Read
+> the new plan before you act on Phase 1 or Phase 4 here.
 
 Make every `@document Foo` generate a complete family of variants, each compiled to
 its **optimal native representation**, so one schema serves the whole pipeline with
@@ -116,9 +117,11 @@ One `@document` schema, no duplication, full sim speed:
   only changed reactive cells are written → L1 lazy/incremental engine → partial GUI
   invalidation.
 
-Design-X realized at native speed — see `../../omnetpp-julia` →
-`plan/pending/simulator-as-reactive-document.md` (revisit its "FES stays plain /
-window it" note once native layouts exist: the FES *can* now be `IFoo`).
+Design-X realized at native speed. The plan that named this payoff,
+`omnetpp-julia`'s `plan/pending/simulator-as-reactive-document.md`, no longer
+exists in that repository — the payoff itself landed: omnetpp-julia now declares
+`@native_document` schemas (see [document-layouts-and-names.md](document-layouts-and-names.md),
+Part 4.2), and its simulator mutates the native layout this section describes.
 
 ## Phases
 
@@ -282,4 +285,7 @@ decided and the additive branch lands on `main`.
 ## Cross-refs
 
 - Depends: `cheap-reactive-cells.md` (L1).
-- Enables: `../../omnetpp-julia` `plan/pending/simulator-as-reactive-document.md`.
+- Enables: the omnetpp-julia native-document migration, now landed (see
+  [document-layouts-and-names.md](document-layouts-and-names.md), Part 4.2). The
+  plan that tracked it, `omnetpp-julia`'s `plan/pending/simulator-as-reactive-document.md`,
+  no longer exists in that repository.

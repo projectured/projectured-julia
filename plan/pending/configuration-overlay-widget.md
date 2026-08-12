@@ -1,17 +1,17 @@
 # Show/hide a projection's configuration as an overlay
 
-> **⏳ AUDIT (2026-06-23): ALL STEPS OPEN — none implemented.**
-> Verified against the current codebase (paths now under `package/<sub>/src/...`).
-> `WidgetOverlay`, `WidgetOverlayToGraphicsCanvas`, `_strip_control_layer`, and
-> the `configuration_label`/`is_configuration_gesture`/`configuration_descriptor`
-> traits do **not** exist anywhere under `package/`. The current
+> **Status (2026-08-12): NOT STARTED.** Re-verified against the current
+> codebase. `WidgetOverlay`, `WidgetOverlayToGraphicsCanvas`,
+> `_strip_control_layer`, and the
+> `configuration_label`/`is_configuration_gesture`/`configuration_descriptor`
+> traits still do not exist anywhere under `package/`. The current
 > `ProjectionConfiguringProjection`
-> (`package/visual/main/widget/ProjectionConfiguring.jl`) still
-> builds a `WidgetSplitPane` (printer, line 85), still has `_strip_control_slot`
-> (line 139), and still hardcodes the `Ctrl+F` toggle in `_toggle_operation`
-> (line 155). The test
-> (`package/test/src/projection/ProjectionConfiguringTest.jl`) still asserts
-> `WidgetSplitPane` (line 19) and `Ctrl+F` (line 49). This plan describes the
+> ([package/widget/main/ProjectionConfiguring.jl](../../package/widget/main/ProjectionConfiguring.jl))
+> still builds a `WidgetSplitPane` (printer, line 85), still has
+> `_strip_control_slot` (line 140), and still hardcodes the `Ctrl+F` toggle in
+> `_toggle_operation` (line 155). The test
+> ([package/substrate/test/projection/ProjectionConfiguringTest.jl](../../package/substrate/test/projection/ProjectionConfiguringTest.jl))
+> still asserts `WidgetSplitPane` and `Ctrl+F`. This plan describes the
 > intended future work and remains entirely OPEN.
 
 ## Goal
@@ -19,7 +19,7 @@
 Let the user **show and hide** the configuration UI that
 `ProjectionConfiguringProjection` builds for an inner projection
 (`make_text_configuring_projection` in
-[example/src/projection/Wrapper.jl](../../example/src/projection/Wrapper.jl)),
+[package/workbench/example/projection/Wrapper.jl](../../package/workbench/example/projection/Wrapper.jl)),
 with two refinements over the current behaviour:
 
 1. **Overlay, don't stack.** The control bar must float *over* the projected
@@ -40,7 +40,7 @@ Decisions taken (see Open questions resolved):
 
 ## Current state (what exists today)
 
-[program/src/projection/higherorder/ProjectionConfiguring.jl](../../program/src/projection/higherorder/ProjectionConfiguring.jl):
+[package/widget/main/ProjectionConfiguring.jl](../../package/widget/main/ProjectionConfiguring.jl):
 
 - **Printer** projects the inner projection (the document) *and* the inner
   projection **object** through a `control` projection (default `ObjectToWidget`)
@@ -59,19 +59,23 @@ So show/hide *already works* — but (a) via a single hardcoded gesture, and
 
 `make_text_configuring_projection` wires exactly **one** inner projection per
 pipeline (`TextHighlighting("dolor")` or `TextFiltering("dolor")`, chosen by the
-example flags in [example/src/Examples.jl:249-251](../../example/src/Examples.jl#L249-L251)),
+example flags in [package/projectured/example/Gallery.jl:249-255](../../package/projectured/example/Gallery.jl#L249-L255)),
 and renders the resulting widget+text tree with a combined `WidgetToGraphics` /
 `TextToGraphics` dispatcher.
 
 Reference for the rendering/hit-test pattern a container widget must follow:
 `WidgetSplitPaneToGraphicsCanvas` in
-[program/src/projection/primitive/WidgetToGraphics.jl:1204-1640](../../program/src/projection/primitive/WidgetToGraphics.jl#L1204)
+[package/widget/main/WidgetToGraphics.jl](../../package/widget/main/WidgetToGraphics.jl) (the `WidgetSplitPaneToGraphicsCanvas` projection)
 — a `@projection` that lays out children, builds a `ChildrenIoMap`, hit-tests
 `MousePress`/`MouseScroll` against each child canvas, forwards coordless events,
 and maps references back through the selected child slot.
 
 The gesture-help single-source mechanism is in
-[program/src/common/GestureHelp.jl](../../program/src/common/GestureHelp.jl):
+the `@event_case` gesture-pattern machinery — now in
+[package/kernel/main/event/EventPattern.jl](../../package/kernel/main/event/EventPattern.jl);
+there is no `GestureHelp.jl` file today, and a search for `GestureDescriptor`/
+`merge_help` finds zero hits, so the F1-help single-source mechanism this plan
+assumes needs re-examining under `package/gesturehelp/` at implementation time:
 an annotated `@event_case` rule yields both the firing operation and a
 `GestureDescriptor`; `merge_help` unions per-stage lists as they bubble up; F1
 opens the list via `GestureHelpPopupProjection`.
@@ -91,13 +95,13 @@ throughout `WidgetToGraphics`).
 New code:
 
 1. **Document** — `@document struct WidgetOverlay <: WidgetDocument` in
-   [program/src/document/Widget.jl](../../program/src/document/Widget.jl),
+   [package/widget/main/Widget.jl](../../package/widget/main/Widget.jl),
    mirroring `WidgetSplitPane`'s field/ctor shape (`elements::CellVector`, the
    base-kwargs `visible`/`margin`/`border`/`padding`/`selection`, plus per-layer
    placement: an `anchors::CellVector` or `offsets::CellVector` giving each
-   non-base layer its `(corner, dx, dy)`). Export it from `Projectured.jl`.
+   non-base layer its `(corner, dx, dy)`). Export it from `WidgetModule`.
 2. **Renderer + hit-test** — `WidgetOverlayToGraphicsCanvas` in
-   [WidgetToGraphics.jl](../../program/src/projection/primitive/WidgetToGraphics.jl),
+   [WidgetToGraphics.jl](../../package/widget/main/WidgetToGraphics.jl),
    modelled on `WidgetSplitPaneToGraphicsCanvas` but:
    - **Layout:** base layer gets the full available size; each overlay layer is
      measured at its content size and placed at its anchor/offset. Composite the
@@ -116,7 +120,7 @@ widget containers.
 
 ### Part B — `ProjectionConfiguringProjection`: stack → overlay
 
-In [ProjectionConfiguring.jl](../../program/src/projection/higherorder/ProjectionConfiguring.jl):
+In [ProjectionConfiguring.jl](../../package/widget/main/ProjectionConfiguring.jl):
 
 1. **Printer:** replace the `WidgetSplitPane(p.orientation, [control_widget,
    doc_widget])` with `WidgetOverlay([doc_widget, control_widget]; anchors=...)`
@@ -167,7 +171,7 @@ nested, each responds only to its own gesture and overlays its own control.
 
 **Discoverability (F1 help):** express the toggle as an **annotated
 `@event_case`** so it yields a `GestureDescriptor` automatically (single source
-of truth — see [GestureHelp.jl](../../program/src/common/GestureHelp.jl)). Since
+of truth — see the note on `@event_case`/gesture-help above). Since
 the trigger varies by inner projection, drive the descriptor from
 `configuration_descriptor(p.inner)` (domain `"Configuring"`, description like
 `"Configure highlighting"`). The descriptor then bubbles up and `merge_help`s
@@ -177,37 +181,37 @@ Configure highlighting"* / *"Ctrl+R — Configure filtering"* contextually.
 ## Implementation steps
 
 1. **⏳ OPEN: `WidgetOverlay` document** — add struct + ctor in `Widget.jl`, export from
-   `Projectured.jl`. (Sonnet-delegable: mechanical, mirror `WidgetSplitPane`.)
-   _Verified OPEN: no `WidgetOverlay` exists in `package/visual/example/document/Widget.jl` (only `WidgetSplitPane`, line 520) nor any export._
+   `WidgetModule`. (Sonnet-delegable: mechanical, mirror `WidgetSplitPane`.)
+   _Verified OPEN (2026-08-12): no `WidgetOverlay` exists in `package/widget/main/Widget.jl` (only `WidgetSplitPane`) nor any export._
 2. **⏳ OPEN: `WidgetOverlayToGraphicsCanvas`** — renderer + hit-test in
    `WidgetToGraphics.jl`, register in the dispatch table. Layout = base full-size
    + anchored content-sized layers; route top-first. (Opus: layout/hit-test
    logic; verify against the split-pane reference.)
-   _Verified OPEN: no `WidgetOverlayToGraphicsCanvas` in `package/visual/main/widget/WidgetToGraphics.jl`; dispatch table (line 3543) maps only `WidgetSplitPane`._
+   _Verified OPEN (2026-08-12): no `WidgetOverlayToGraphicsCanvas` in `package/widget/main/WidgetToGraphics.jl`; the dispatch table maps only `WidgetSplitPane`._
 3. **⏳ OPEN: Printer swap** in `ProjectionConfiguring.jl`: `WidgetSplitPane` →
    `WidgetOverlay`, control as the top (visible-gated) layer.
-   _Verified OPEN: printer still emits `WidgetSplitPane(p.orientation, Any[control_widget, doc_widget])` at `ProjectionConfiguring.jl:85`._
+   _Verified OPEN (2026-08-12): printer still emits `WidgetSplitPane(p.orientation, Any[control_widget, doc_widget])` at `package/widget/main/ProjectionConfiguring.jl:85`._
 4. **⏳ OPEN: Reader swap**: `_strip_control_slot` → `_strip_control_layer` (new overlay
    slot index); replace `_toggle_operation`'s `Ctrl+F` with
    `is_configuration_gesture(p.inner, …)`.
-   _Verified OPEN: `_strip_control_slot` still present (`ProjectionConfiguring.jl:139`); `_toggle_operation` still hardcodes `gesture.key === :f && is_ctrl(gesture)` (line 155)._
+   _Verified OPEN (2026-08-12): `_strip_control_slot` still present (`package/widget/main/ProjectionConfiguring.jl:140`); `_toggle_operation` still hardcodes `gesture.key === :f && has_ctrl_modifier_key(gesture)` (line 155)._
 5. **⏳ OPEN: Per-projection trait**: define `configuration_label` /
    `is_configuration_gesture` / `configuration_descriptor` with defaults; add
    `TextHighlighting` and `TextFiltering` methods. Audit existing bindings for
    collisions before fixing letters.
-   _Verified OPEN: none of the three trait functions exist anywhere under `package/`._
+   _Verified OPEN (2026-08-12): none of the three trait functions exist anywhere under `package/`._
 6. **⏳ OPEN: F1 help**: annotate the toggle so `configuration_descriptor(p.inner)` flows
    into the context-help list.
-   _Verified OPEN: depends on step 5 trait which does not exist; toggle is not an annotated `@event_case`._
+   _Verified OPEN (2026-08-12): depends on step 5 trait, which does not exist; toggle is not an annotated `@event_case`. The gesture-help mechanism itself has changed since this plan was written — see the note under "Current state" above._
 7. **⏳ OPEN: Wrapper/Examples**: `make_text_configuring_projection` no longer needs the
    split-pane-specific combo for *layout*, but the renderer must still dispatch
    `WidgetOverlay` (it will, via the dispatch-table registration) and the control
    widgets inside it. Confirm the example tabs still render; update comments at
-   [Wrapper.jl:37-58](../../example/src/projection/Wrapper.jl#L37-L58) and
-   [Examples.jl:245-251](../../example/src/Examples.jl#L245).
-   _Verified OPEN: no `WidgetOverlay` referenced in `package/example/src/projection/Wrapper.jl` or `Examples.jl`._
+   [Wrapper.jl](../../package/workbench/example/projection/Wrapper.jl) and
+   [Gallery.jl:245-255](../../package/projectured/example/Gallery.jl#L245).
+   _Verified OPEN (2026-08-12): no `WidgetOverlay` referenced in `package/workbench/example/projection/Wrapper.jl` or `package/projectured/example/Gallery.jl`._
 8. **⏳ OPEN: Tests** — update
-   [test/src/projection/ProjectionConfiguringTest.jl](../../test/src/projection/ProjectionConfiguringTest.jl):
+   [package/substrate/test/projection/ProjectionConfiguringTest.jl](../../package/substrate/test/projection/ProjectionConfiguringTest.jl):
    - "stacks control above document" → asserts a `WidgetOverlay` with
      `elements[1] === doc (base)` and `elements[2] === control_widget (top)`.
    - toggle test: drive the **per-projection** gesture (Ctrl+H for highlighting)
@@ -222,17 +226,17 @@ Configure highlighting"* / *"Ctrl+R — Configure filtering"* contextually.
 
 ## Files touched
 
-- `program/src/document/Widget.jl` — `WidgetOverlay` document.
-- `program/src/Projectured.jl` — export `WidgetOverlay`.
-- `program/src/projection/primitive/WidgetToGraphics.jl` —
-  `WidgetOverlayToGraphicsCanvas` + dispatch registration.
-- `program/src/projection/higherorder/ProjectionConfiguring.jl` — printer
-  overlay swap, reader slot/gesture changes, configuration trait + defaults.
-- `program/src/document/Text.jl` (or wherever `TextHighlighting`/`TextFiltering`
-  live) — per-projection `configuration_*` methods.
-- `example/src/projection/Wrapper.jl`, `example/src/Examples.jl` — comments /
-  wiring confirmation.
-- `test/src/projection/ProjectionConfiguringTest.jl` (+ a widget overlay test).
+- `package/widget/main/Widget.jl` — `WidgetOverlay` document.
+- `package/widget/main/ProjectionConfiguring.jl` and
+  `package/widget/main/WidgetToGraphics.jl` — `WidgetOverlayToGraphicsCanvas` +
+  dispatch registration; printer overlay swap, reader slot/gesture changes,
+  configuration trait + defaults. There is no umbrella `Projectured.jl` to
+  export from any more — each package exports its own symbols.
+- `package/text/main/TextHighlighting.jl`, `package/text/main/TextFiltering.jl`
+  — per-projection `configuration_*` methods.
+- `package/workbench/example/projection/Wrapper.jl`,
+  `package/projectured/example/Gallery.jl` — comments / wiring confirmation.
+- `package/substrate/test/projection/ProjectionConfiguringTest.jl` (+ a widget overlay test).
 
 ## Risks / things to verify during implementation
 

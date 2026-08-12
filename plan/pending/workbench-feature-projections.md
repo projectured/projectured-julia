@@ -1,10 +1,19 @@
 # Enable clipboard, dragging, tooltip, text filtering, searching & highlighting in the workbench example
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): NOT STARTED.** None of the six features are wired
+> into the workbench example — re-checked directly: no
+> `TextHighlighting`/`TextFiltering`/`ProjectionConfiguring`/`ClipboardSlice`/
+> `ClipboardCollection`/`DraggingState`/`TooltipSource` symbol appears anywhere
+> in `package/workbench/example/projection/Workbench.jl` or
+> `package/workbench/example/document/Workbench.jl`. Both shared-infrastructure
+> prerequisites are also still open. One architectural change worth knowing
+> before picking this up: `make_workbench_projection_example` no longer builds
+> a locally-named `combined_w2g` `TypeDispatchingProjection` — the wiring point
+> this plan repeatedly refers to by that name is now the `extra=Pair{Type,Any}[...]`
+> table passed to `NaturalToGraphics(...)` inside
+> `package/workbench/example/projection/Workbench.jl`. Paths below are
+> corrected for the current per-domain package layout; the design and phase
+> plan otherwise still apply unchanged.
 
 ## Goal
 
@@ -22,7 +31,7 @@ projection attaches to the pipeline through one of three different mechanisms.
 ## Configuration UI: `ProjectionConfiguringProjection`
 
 **Any projection that needs user configuration is added by wrapping it in
-`ProjectionConfiguringProjection`** (`higherorder/ProjectionConfiguring.jl`)
+`ProjectionConfiguringProjection`** (`package/widget/main/ProjectionConfiguring.jl`)
 rather than by hand-wiring a custom control panel. Its printer runs the inner
 projection, projects the inner projection *object itself* through `ObjectToWidget`
 into an editable control bar, and stacks the two in a `WidgetSplitPane` (control
@@ -41,9 +50,9 @@ are keyboard ops, not config fields).
 Key consequence for placement: `ProjectionConfiguringProjection` **emits widgets**
 (a `WidgetSplitPane`), so it cannot sit raw in the middle of a `Text → Text →
 Graphics` chain. It must be followed by a widget+text→graphics renderer — exactly
-the `SequentialProjection(ProjectionConfiguringProjection(inner=…), renderer)`
-shape `make_text_configuring_projection` already uses
-(`example/src/projection/Wrapper.jl:43`). One more consequence:
+the `ChainingProjection(ProjectionConfiguringProjection(inner=…), renderer)`
+shape (renamed from `SequentialProjection`) `make_text_configuring_projection`
+already uses (`package/workbench/example/projection/Wrapper.jl:117-130`). One more consequence:
 `ObjectToWidget` edits parameter **`Cell`s**, so a configured projection's tunable
 parameters must be `Cell`-valued fields — see the `SearchingProjection` gap below.
 
@@ -55,13 +64,17 @@ each of our six features uses one of them:
 ### A. Configured `Text → Text` stages inside a per-document-type content chain
 
 These are domain-preserving `Text → Text` projections that render a given
-document type. In the workbench the chain lives in the `combined_w2g`
-`TypeDispatchingProjection` of `make_workbench_projection_example`
-(`example/src/projection/Workbench.jl`), e.g. the JSON entry today is
+document type. In the workbench the chain lives in the per-type dispatch
+table of `make_workbench_projection_example`
+(`package/workbench/example/projection/Workbench.jl`; this plan calls that
+table `combined_w2g` throughout — as of 2026-08-12 the function builds it as
+the `extra=Pair{Type,Any}[...]` argument to `NaturalToGraphics(...)` rather
+than a locally-named `TypeDispatchingProjection` variable, but the shape and
+placement logic below are unchanged), e.g. the JSON entry today is
 `Json → Syntax → Text → TextToGraphics`.
 
-- **`TextFiltering`** (`primitive/TextFiltering.jl`) — drops non-matching lines.
-- **`TextHighlighting`** (`primitive/TextHighlighting.jl`) — paints a swatch
+- **`TextFiltering`** (`package/text/main/TextFiltering.jl`) — drops non-matching lines.
+- **`TextHighlighting`** (`package/text/main/TextHighlighting.jl`) — paints a swatch
   behind matches, keeping every line.
 
 Both are **parameterised, so they are added via `ProjectionConfiguringProjection`**
@@ -69,8 +82,8 @@ Both are **parameterised, so they are added via `ProjectionConfiguringProjection
 entry becomes:
 
 ```julia
-JsonDocument => SequentialProjection(
-    ProjectionConfiguringProjection(inner = SequentialProjection(
+JsonDocument => ChainingProjection(
+    ProjectionConfiguringProjection(inner = ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
         TextHighlighting(),          # idle until its pattern cell is set
@@ -78,6 +91,9 @@ JsonDocument => SequentialProjection(
     renderer,                         # widget+text → graphics (combined_w2g shape)
 )
 ```
+
+(`ChainingProjection` — renamed from `SequentialProjection` since this plan was
+written, same shape.)
 
 The `inner` runs `… → TextBlock`; the configuring projection stacks the control
 bar above it and emits a `WidgetSplitPane`; the trailing `renderer` (a
@@ -104,13 +120,13 @@ transparent. Enabling them is two coordinated edits:
    `TypeDispatchingProjection` so the wrapper is projected by its decorator.
 
 - **Clipboard** — `ClipboardSlice` / `ClipboardCollection`
-  (`document/Clipboard.jl`) wrap `content`; `ClipboardSliceToAnyProjection` /
-  `ClipboardCollectionToAnyProjection` (`primitive/ClipboardToAny.jl`) dispatch
+  (`package/clipboard/main/Clipboard.jl`) wrap `content`; `ClipboardSliceToAnyProjection` /
+  `ClipboardCollectionToAnyProjection` (`package/clipboard/main/ClipboardToAny.jl`) dispatch
   on them. Ctrl+C/X/V/N + Ctrl+/ (slice display) / Ctrl+* (collection display).
   Generic over any content — wrap the structured editors (JSON/XML) where
   copying sub-documents is meaningful.
-- **Dragging** — `DraggingState` (`document/Dragging.jl`) wraps `content`;
-  `DraggingProjection` (`higherorder/Dragging.jl`) dispatches on it and emits a
+- **Dragging** — `DraggingState` (`package/dragging/main/Dragging.jl`) wraps `content`;
+  `DraggingProjection` (`package/dragging/main/DraggingProjection.jl`) dispatches on it and emits a
   `MoveRangeOperation` to reorder a `CellVector`. Wrap a node with reorderable
   element lists (a JSON array, XML element children, or the page's panel list).
 
@@ -124,21 +140,23 @@ transparent. Enabling them is two coordinated edits:
 These two are not local to one document — they cross panel boundaries or escape
 to the screen root.
 
-- **Tooltip** — `TooltipSource` (`document/Tooltip.jl`) wraps `child`;
-  `TooltipDecoratorProjection` (`higherorder/TooltipDecorator.jl`) dispatches on
+- **Tooltip** — `TooltipSource` (`package/tooltip/main/Tooltip.jl`) wraps `child`;
+  `TooltipDecoratorProjection` (`package/tooltip/main/TooltipDecorator.jl`) dispatches on
   it but emits `OpenWindowOperation` / `CloseWindowOperation` that bubble all the
   way up to **`WindowManagerProjection` at the `ScreenDocument` root**. So a
   tooltip is a *screen-level* concern: it needs the screen pipeline
   (`run_example` already wraps the workbench in a `ScreenDocument` →
   `WindowManagerProjection(inner=ScreenToScreen())`). Today
   `tooltip=true && workbench=true` is an explicit error in `run_example`
-  (`Examples.jl:220`); lifting that restriction is part of this work.
+  (`package/projectured/example/Gallery.jl:205`, re-verified 2026-08-12 — moved
+  from `Examples.jl:220`, still present); lifting that restriction is part of
+  this work.
   - Placement: wrap a chosen workbench sub-node (e.g. the descriptor target, or
     each editor) in a `TooltipSource`, and add a `TooltipSource` dispatch entry
     in `combined_w2g`. The decorator op bubbling is already handled by the
     existing screen pipeline `run_example` builds.
 
-- **Searching** — `SearchingProjection` (`generic/Searching.jl`) is a deep,
+- **Searching** — `SearchingProjection` (`package/projection/main/Searching.jl`) is a deep,
   document-wide walk producing a flat `CellVector` of matches. This is the
   **`WorkbenchSearcher` panel's** job (today the panel is empty —
   `WorkbenchSearcherToWidgetScrollPane` renders `nothing`). It is parameterised
@@ -159,35 +177,44 @@ to the screen root.
 
 ## Summary table
 
+*"Files touched" paths corrected 2026-08-12 to the current per-domain package
+layout; `combined_w2g` still names the per-type dispatch table by the
+convention this plan uses (see the status banner at the top of this file).*
+
 | Feature | Mechanism | Config UI | Where it goes | Files touched |
 |---|---|---|---|---|
-| Text filtering | A: configured text stage | `ProjectionConfiguringProjection` | text chains in `combined_w2g` | `example/src/projection/Workbench.jl` |
-| Text highlighting | A: configured text stage | `ProjectionConfiguringProjection` | text chains in `combined_w2g` | `example/src/projection/Workbench.jl` |
-| Clipboard | B: wrapper + dispatch | none (gestures) | wrap structured editors; dispatch entry | `example/src/document/Workbench.jl`, `example/src/projection/Workbench.jl` |
+| Text filtering | A: configured text stage | `ProjectionConfiguringProjection` | text chains in `combined_w2g` | `package/workbench/example/projection/Workbench.jl` |
+| Text highlighting | A: configured text stage | `ProjectionConfiguringProjection` | text chains in `combined_w2g` | `package/workbench/example/projection/Workbench.jl` |
+| Clipboard | B: wrapper + dispatch | none (gestures) | wrap structured editors; dispatch entry | `package/workbench/example/document/Workbench.jl`, `package/workbench/example/projection/Workbench.jl` |
 | Dragging | B: wrapper + dispatch | none (gestures) | wrap a list-bearing node; dispatch entry | same two example files |
-| Tooltip | C: screen-level | none (gestures) | wrap sub-node; dispatch entry; allow tooltip+workbench | both example files + `example/src/Examples.jl` |
-| Searching | C: workbench-general | `ProjectionConfiguringProjection` | `WorkbenchSearcher` projects to `ProjectionConfiguringProjection(SearchingProjection)` | `document/Workbench.jl`, `WorkbenchToWidget.jl`, example files |
+| Tooltip | C: screen-level | none (gestures) | wrap sub-node; dispatch entry; allow tooltip+workbench | both example files + `package/projectured/example/Gallery.jl` |
+| Searching | C: workbench-general | `ProjectionConfiguringProjection` | `WorkbenchSearcher` projects to `ProjectionConfiguringProjection(SearchingProjection)` | `package/workbench/main/Workbench.jl`, `package/workbench/main/WorkbenchToWidget.jl`, example files |
 
 ## Shared infrastructure to build first
 
-> **⏳ OPEN (verified 2026-06-23):** Neither infra step is done. `SearchingProjection.pattern`
-> is still a plain `Regex` (`package/kernel/src/projection/generic/Searching.jl:54`), and
-> `WorkbenchSearcher` still holds only `selection`
-> (`package/workbench/example/document/Workbench.jl:185-187`) with the panel rendering `nothing`
-> (`package/workbench/main/WorkbenchToWidget.jl:299-304`).
+> **⏳ OPEN (re-verified 2026-08-12):** Neither infra step is done. `SearchingProjection.pattern`
+> is still a plain `Regex` (`package/projection/main/Searching.jl:57`), and
+> `WorkbenchSearcher` is an empty document (`@document struct WorkbenchSearcher <: WorkbenchDocument end`,
+> `package/workbench/main/Workbench.jl:164-165` — even more minimal than the
+> `selection`-only shape this plan describes) with the panel rendering an empty
+> `WidgetScrollPane(nothing; ...)`
+> (`package/workbench/main/WorkbenchToWidget.jl:387-392`).
 
 1. **Make `SearchingProjection` configurable.** Its `pattern` is a plain `Regex`,
-   not a `Cell` (`generic/Searching.jl:52-64`), so `ProjectionConfiguringProjection`
+   not a `Cell` (`package/projection/main/Searching.jl:56-59`), so `ProjectionConfiguringProjection`
    can't generate an editable control for it. Give it a reactive `pattern::Cell`
    (like `TextFiltering`/`TextHighlighting`) and rebuild the match `CellVector`
    reactively from it. This is the prerequisite for the searcher panel's control
    bar to work.
 
-2. **`WorkbenchSearcher` panel renders a configured search.** It currently holds
-   only `selection` (`document/Workbench.jl:223-227`) and
-   `WorkbenchSearcherToWidgetScrollPane` renders `nothing`
-   (`WorkbenchToWidget.jl:297-302`) with all three `map_reference_*` /
-   `projection_read` returning `nothing`. Change the panel projection to wrap a
+2. **`WorkbenchSearcher` panel renders a configured search.** It currently is an
+   empty document with no fields (`package/workbench/main/Workbench.jl:164-165`) and
+   `WorkbenchSearcherToWidgetScrollPane` renders an empty scroll pane
+   (`package/workbench/main/WorkbenchToWidget.jl:387-392`); its `map_reference_forward`/
+   `map_reference_backward` both return `nothing` (lines 651, 713) and its
+   `read_intent` (line 1015) only delegates through the generic
+   `_retarget_panel_op` helper, no real search behavior. Change the panel
+   projection to wrap a
    `ProjectionConfiguringProjection(inner = SearchingProjection(...))` over the
    search target, render its widget output, and route events through the
    configuring projection's reader (the control bar handles pattern editing /
@@ -207,15 +234,15 @@ to the screen root.
 > complete.
 
 ### Phase 1 — Configured text highlighting in the workbench (class A, lowest risk)
-**⏳ OPEN (verified 2026-06-23):** `combined_w2g` in `make_workbench_projection_example`
-(`package/example/src/projection/Workbench.jl:19-47`) has no `ProjectionConfiguringProjection`
+**⏳ OPEN (re-verified 2026-08-12):** `combined_w2g` in `make_workbench_projection_example`
+(`package/workbench/example/projection/Workbench.jl:2-51`) has no `ProjectionConfiguringProjection`
 or `TextHighlighting` entry; no grep match for either symbol in the workbench example files.
 - Wrap a text-bearing chain (start with the Console, then JSON/XML/Text editors)
   in `ProjectionConfiguringProjection(inner = …→TextHighlighting())` followed by
   the renderer stage, per the class-A snippet above. Idle until the user sets a
   pattern in the control bar.
 - This reuses `make_text_configuring_projection`'s structure
-  (`example/src/projection/Wrapper.jl`); factor a workbench-appropriate renderer
+  (`package/workbench/example/projection/Wrapper.jl`); factor a workbench-appropriate renderer
   (or reuse `combined_w2g`'s shape).
 - Verify: `test_example` on the affected domains and a workbench print/read smoke
   test. Highlighting must not perturb navigation (its selection map is identity
@@ -223,22 +250,22 @@ or `TextHighlighting` entry; no grep match for either symbol in the workbench ex
   re-highlights live.
 
 ### Phase 2 — Wire the Searcher panel (class C, the control point)
-**⏳ OPEN (verified 2026-06-23):** `WorkbenchSearcherToWidgetScrollPane.projection_print`
-still wraps `nothing` (`package/workbench/main/WorkbenchToWidget.jl:299-304`);
+**⏳ OPEN (re-verified 2026-08-12):** `WorkbenchSearcherToWidgetScrollPane`'s `print_document` (was `projection_print`)
+still wraps `nothing` (`package/workbench/main/WorkbenchToWidget.jl:387-392`);
 `SearchingProjection` is not yet `Cell`-reactive (infra step 1, same status).
 - Make `SearchingProjection` reactive on a `pattern::Cell` (infra step 1).
 - Change `WorkbenchSearcherToWidgetScrollPane` to project a
   `ProjectionConfiguringProjection(inner = SearchingProjection(...))`: the control
   bar is the query input, the result `CellVector` renders below. Implement the
-  panel's `map_reference_*` / `projection_read` (route through the configuring
-  reader).
+  panel's `map_reference_*` / `read_intent` (was `projection_read`; route
+  through the configuring reader).
 - (Optional) share the searcher's `pattern::Cell` with Phase 1's highlighters so
   one query drives both. Test: `test_repl` on the workbench example; assert
   pattern editing repopulates the result list (and, if shared, the highlight).
 
 ### Phase 3 — Configured text filtering (class A), separate mode
-**⏳ OPEN (verified 2026-06-23):** No `TextFiltering` / `ProjectionConfiguringProjection`
-entry in `combined_w2g` (`package/example/src/projection/Workbench.jl:19-47`); no grep match
+**⏳ OPEN (re-verified 2026-08-12):** No `TextFiltering` / `ProjectionConfiguringProjection`
+entry in `combined_w2g` (`package/workbench/example/projection/Workbench.jl:2-51`); no grep match
 in the workbench example files.
 - Add a `ProjectionConfiguringProjection(inner = …→TextFiltering())` entry.
   Filtering changes the line set, so pick where it applies (e.g. the Console, not
@@ -248,10 +275,10 @@ in the workbench example files.
   bar exposes `pattern` / `case_insensitive` / `invert`.
 
 ### Phase 4 — Clipboard (class B)
-**⏳ OPEN (verified 2026-06-23):** No `ClipboardSlice` / `ClipboardCollection` wrapping in
+**⏳ OPEN (re-verified 2026-08-12):** No `ClipboardSlice` / `ClipboardCollection` wrapping in
 `make_workbench_document_example` and no dispatch entry in `combined_w2g`; no grep match for
-either symbol in `package/example/src/document/Workbench.jl` or `.../projection/Workbench.jl`.
-(The underlying projections exist at `package/visual/main/clipboard/ClipboardToAny.jl`.)
+either symbol in `package/workbench/example/document/Workbench.jl` or `.../projection/Workbench.jl`.
+(The underlying projections exist at `package/clipboard/main/ClipboardToAny.jl`.)
 - Wrap the JSON and XML editor contents in `ClipboardSlice`
   (and/or a `ClipboardCollection` editor) in
   `make_workbench_document_example`.
@@ -263,22 +290,24 @@ either symbol in `package/example/src/document/Workbench.jl` or `.../projection/
   copy/cut/paste gesture sequence (mirror `clipboard_example` coverage).
 
 ### Phase 5 — Dragging (class B)
-**⏳ OPEN (verified 2026-06-23):** No `DraggingState` wrapping and no `DraggingState` dispatch
+**⏳ OPEN (re-verified 2026-08-12):** No `DraggingState` wrapping and no `DraggingState` dispatch
 entry in `combined_w2g`; no grep match in the workbench example files. (The decorator exists at
-`package/domain/src/projection/higherorder/Dragging.jl`.)
+`package/dragging/main/DraggingProjection.jl`.)
 - Wrap a list-bearing node (a JSON array editor, or the panel list of a page) in
   `DraggingState`; add `DraggingState => DraggingProjection()` to `combined_w2g`.
 - Drop target resolution depends on the graphics layer hit-testing `MouseUp`
-  (see `higherorder/Dragging.jl` docstring + `plan/done/dragging.md` Phase 1).
+  (see `package/dragging/main/DraggingProjection.jl` docstring + `plan/done/dragging.md` Phase 1).
   Confirm that landed; otherwise a live drop is a no-op and only the synthetic
   test exercises it.
 
 ### Phase 6 — Tooltip (class C)
-**⏳ OPEN (verified 2026-06-23):** The `tooltip && workbench` error still exists, now at
-`package/example/src/Examples.jl:274-275` (not line 220). No `TooltipSource` wrapping or
+**⏳ OPEN (re-verified 2026-08-12):** The `tooltip && workbench` error still exists, now at
+`package/projectured/example/Gallery.jl:205` (moved twice: was `Examples.jl:220`,
+then `package/example/src/Examples.jl:274-275`, now here). No `TooltipSource` wrapping or
 dispatch entry in the workbench example files. (The decorator exists at
-`package/visual/main/tooltip/TooltipDecorator.jl`.)
-- Remove the `tooltip && workbench` error in `run_example` (`Examples.jl:220`),
+`package/tooltip/main/TooltipDecorator.jl`.)
+- Remove the `tooltip && workbench` error in `run_example`
+  (`package/projectured/example/Gallery.jl:205`),
   or add a dedicated workbench-tooltip wiring path.
 - Wrap a chosen sub-node (descriptor target, or each editor) in `TooltipSource`;
   add a `TooltipSource => TooltipDecoratorProjection(...)` dispatch entry with a

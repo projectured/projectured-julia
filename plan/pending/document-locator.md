@@ -1,6 +1,29 @@
 # Document Locator
 
-> **⏳ AUDIT STATUS (verified 2026-06-23): ALL STEPS OPEN.** No `DocumentLocator` abstract type, `DocumentLocatorPath`, `locator_equal`, or `is_whole_document` exists anywhere in source. No `common/DocumentLocator.jl` file exists (only `Document.jl`, `Operation.jl`, `Projection.jl`, `Reactive.jl`, `OperationRerooting.jl`, `IoMap.jl`, `DocumentCopy.jl` under `package/kernel/src/common/`). The only mention of "DocumentLocator" in source is a passing comment naming the *pattern* in `package/projectured/example/document/Versioning.jl:125` (re `VersionCriterion`); it does not implement this type. No exports in any `Projectured.jl`. The integration targets (`DocumentGraph`/`GraphNode`, `AnnotationBinding*`) also do not exist as source structs — they belong to sibling pending plans. This plan is entirely unimplemented and remains relevant.
+> **Status (2026-08-12): NOT STARTED.** No `DocumentLocator` abstract type,
+> `DocumentLocatorPath`, `locator_equal`, or `is_whole_document` exists anywhere
+> in source. No `DocumentLocator.jl` file exists under any `package/`. The only
+> mention of "DocumentLocator" in source is a passing comment naming the
+> *pattern* in `package/versioning/main/Versioning.jl:98` (re `VersionCriterion`);
+> it does not implement this type. No exports in any package's module file. The
+> integration targets (`DocumentGraph`/`GraphNode`, `AnnotationBinding*`) also do
+> not exist as source structs. This plan is entirely unimplemented and remains
+> relevant.
+>
+> **Repository layout note.** This plan predates the package split: `program/src/`
+> no longer exists, and `package/kernel/src/common/` is now
+> `package/kernel/main/{document,reference,...}/` — the concept files it names
+> (`Document.jl`, `Operation.jl`, `Projection.jl`, `Reactive.jl`, `IoMap.jl`,
+> `DocumentCopy.jl`) live split across the kernel's layers today, not one
+> directory. There is no single umbrella `Projectured.jl` to export from; each
+> package exports through its own `Projectured<Name>.jl`.
+>
+> **Vocabulary note.** This plan's core design (`DocumentLocatorPath.path::ReferencePath`,
+> `EmptyReferencePath()`, `reference_equal`) uses reference-layer names that have
+> since been renamed. The reference layer today (`package/kernel/main/reference/`)
+> names the abstract type `Reference`, the empty/concrete cases
+> `EmptyReference`/`ConcreteReference`, and the comparison `is_reference_equal`.
+> Re-check every occurrence of the old names below before implementing.
 
 A generic, domain-neutral abstraction for pointing at any element in the document universe. `DocumentLocator` is an **abstract type**; each addressing approach is a concrete subtype named `DocumentLocator<Mode>`. New addressing modes are added as new subtypes — existing code is unaffected.
 
@@ -14,7 +37,9 @@ The goal is a common abstract type — `DocumentLocator` — with concrete subty
 
 ## Design
 
-### File: `program/src/common/DocumentLocator.jl`
+### File: a new `package/<name>/main/DocumentLocator.jl` (no such package exists yet;
+this is a foundational, domain-neutral type, so it most likely wants a small
+package of its own, or a home in `package/kernel/main/reference/`)
 
 **`DocumentLocator`** — abstract base type. No fields; no `Document` contract. It is a *pointer concept*, not a document node:
 
@@ -124,7 +149,8 @@ Two path locators pointing at the same live document cell must compare equal reg
 
 ## Exports
 
-From `program/src/Projectured.jl`:
+The type's own module exports it; no separate umbrella file to wire into (see
+**Repository layout note** at the top):
 
 ```julia
 export DocumentLocator, DocumentLocatorPath, locator_equal, is_whole_document
@@ -134,18 +160,24 @@ export DocumentLocator, DocumentLocatorPath, locator_equal, is_whole_document
 
 Features that should use `DocumentLocator` (abstract) as their field type, and `DocumentLocatorPath` as the concrete value initially:
 
-- **`DocumentGraph`** — `source::DocumentLocator` and `target::DocumentLocator` on edge types, constructed as `DocumentLocatorPath` values (see `plan/pending/document-graph.md`). Graph queries accept any locator subtype.
-- **Annotation bindings** — `AnnotationBindingDirect` and `AnnotationBindingReferencePath` collapse into a single binding type with `target::DocumentLocator`. `DocumentLocatorPath(doc)` replaces a direct reference; `DocumentLocatorPath(doc, path)` replaces a reference path binding (see `plan/pending/annotation-feature.md`).
-- **`ReplaceSelectionOperation`** — can carry a `DocumentLocator` field when cross-document selection is needed (see `plan/tentative/evaluate-operation-document-arg.md`).
+- **`DocumentGraph`** — `source::DocumentLocator` and `target::DocumentLocator` on
+  edge types, constructed as `DocumentLocatorPath` values. The plan this line
+  named, `plan/pending/document-graph.md`, does not exist in this repository —
+  it may never have been written, or was folded elsewhere. This is *not* the
+  same idea as [`plan/done/graph-domain.md`](../done/graph-domain.md), the
+  vertices-and-edges graph *domain*, which has no `GraphNode`/`DocumentLocator`
+  concept. Graph queries accept any locator subtype.
+- **Annotation bindings** — `AnnotationBindingDirect` and `AnnotationBindingReferencePath` collapse into a single binding type with `target::DocumentLocator`. `DocumentLocatorPath(doc)` replaces a direct reference; `DocumentLocatorPath(doc, path)` replaces a reference path binding (see [`plan/tentative/annotation.md`](../tentative/annotation.md), the current name and location of the annotation-feature plan — itself an unrefined brainstorming draft, not a specification).
+- **`ReplaceSelectionOperation`** — can carry a `DocumentLocator` field when cross-document selection is needed (see [`plan/tentative/evaluate-operation-document-arg.md`](../tentative/evaluate-operation-document-arg.md)).
 - **Future: cross-document selection, drag-drop targets, SQL queries, pattern search** — each arrives as a new `DocumentLocator<Mode>` subtype with no changes to existing code.
 
 ## Implementation Steps
 
-1. **⏳ OPEN — Create `DocumentLocator.jl`** with the abstract type, `DocumentLocatorPath`, and helpers. *(No such file exists under `package/*/src/common/`; type not defined anywhere.)*
-2. **⏳ OPEN — Wire into `Projectured.jl`**: `include("common/DocumentLocator.jl")` and exports. *(No `include`/`export` of any `DocumentLocator` symbol in any `Projectured.jl`.)*
-3. **⏳ OPEN — Write tests** — `DocumentLocatorPath` construction, `locator_equal` (same doc/path, different doc, different path, cross-type always false), `is_whole_document`. *(No `locator_equal`/`is_whole_document`/`DocumentLocatorPath` references in `package/test/`.)*
-4. **⏳ OPEN — Update `DocumentGraph`** to use `DocumentLocator` / `DocumentLocatorPath` instead of `GraphNode` (parallel with document-graph implementation work). *(No `DocumentGraph`/`GraphNode` struct exists in source; depends on the unimplemented document-graph plan.)*
-5. **⏳ OPEN — Update annotation bindings** to collapse the two binding subtypes using `target::DocumentLocator` (parallel with annotation-feature implementation work). *(No `AnnotationBinding*` types exist in source; depends on the unimplemented annotation-feature plan.)*
+1. **⏳ OPEN — Create `DocumentLocator.jl`** with the abstract type, `DocumentLocatorPath`, and helpers. *(No such file exists anywhere under `package/`; type not defined anywhere.)*
+2. **⏳ OPEN — Wire into a package's own module file**: `include("DocumentLocator.jl")` and exports. There is no umbrella `Projectured.jl` any more. *(No `include`/`export` of any `DocumentLocator` symbol anywhere.)*
+3. **⏳ OPEN — Write tests** — `DocumentLocatorPath` construction, `locator_equal` (same doc/path, different doc, different path, cross-type always false), `is_whole_document`. *(No `locator_equal`/`is_whole_document`/`DocumentLocatorPath` references under any `package/*/test/`.)*
+4. **⏳ OPEN — Update `DocumentGraph`** to use `DocumentLocator` / `DocumentLocatorPath` instead of `GraphNode` (parallel with document-graph implementation work). *(No `DocumentGraph`/`GraphNode` struct exists in source; the document-graph plan this depends on does not exist in this repository — see the note above.)*
+5. **⏳ OPEN — Update annotation bindings** to collapse the two binding subtypes using `target::DocumentLocator` (parallel with annotation-feature implementation work, now [`plan/tentative/annotation.md`](../tentative/annotation.md)). *(No `AnnotationBinding*` types exist in source; that plan is itself an early brainstorming draft, not close to implementation.)*
 
 ## Dependencies
 

@@ -1,5 +1,20 @@
 # Catalog: every document type is an atom (no skipping; failures are `@test_broken`)
 
+> **Status (2026-08-12): IN PROGRESS.** Workstreams 1 to 3 are done:
+> `JsonObjectEntryToSyntaxNode` exists in
+> [package/json/main/JsonToSyntax.jl](../../package/json/main/JsonToSyntax.jl);
+> the catalog test lives at
+> [package/projectured/test/projection/CatalogTest.jl](../../package/projectured/test/projection/CatalogTest.jl)
+> with `test_catalog()` and a per-entry `@test_broken`/`@catalog-broken`
+> mechanism. Workstream 4 (fix the `@test_broken` bugs) is still open: 14
+> `@catalog-broken` comment groups remain in `CatalogTest.jl`, naming a bug
+> list that has moved on from the one recorded below (for example, layouts and
+> the widget composite printed through their own recursion, bare text spans
+> under block-level `WordWrapping`, and `ReferenceStub`). Read the current list
+> with `grep "@catalog-broken" package/projectured/test/projection/CatalogTest.jl`
+> rather than the snapshot below; the pass/broken counts in the Result section
+> were not re-measured for this audit.
+
 Directive (2026-07-16): **all documents must be in the catalog — don't skip any.** A failing
 catalog item is *valuable information* (it names a real bug) and must be fixed, not dropped.
 This reverses the earlier "cover what works, defer the rest" stance from

@@ -1,14 +1,18 @@
 # Fix `text_filtering` / `text_highlighting` in `run_example`
 
-> **Audit 2026-06-23:** ALL STEPS OPEN. The current code is still in the exact
-> "before" state this plan describes. `make_text_configuring_projection` is the
-> 1-arg replacement form (`package/example/src/projection/Wrapper.jl:43`), the
-> `run_example` branches still replace the projection
-> (`package/example/src/Examples.jl:305,307`), and the proposed helper
-> `_find_text_insertion_index` does not exist anywhere in source. All referenced
-> types (`SequentialProjection`, `ProjectionConfiguringProjection`,
-> `TextHighlighting`, `TextFiltering`) still exist, so the plan is NOT obsolete —
-> just unimplemented.
+> **Status (2026-08-12): NOT STARTED.** The code is still in the exact "before"
+> state this plan describes; no step below is implemented. Two things moved
+> since the plan was written: `make_text_configuring_projection` now lives at
+> `package/workbench/example/projection/Wrapper.jl:117`, and the `run_example`
+> branches that replace the projection now live at
+> `package/projectured/example/Gallery.jl:248,254`. `SequentialProjection` no
+> longer exists under that name — it was renamed to `ChainingProjection`
+> (`package/projection/main/higherorder/Chaining.jl`), same shape and
+> semantics. `ProjectionConfiguringProjection`, `TextHighlighting`, and
+> `TextFiltering` still exist (now at `package/widget/main/ProjectionConfiguring.jl`,
+> `package/text/main/TextHighlighting.jl`, `package/text/main/TextFiltering.jl`),
+> so the plan is NOT obsolete — just unimplemented, with paths to update as it
+> is picked up.
 
 ## Problem
 
@@ -86,7 +90,7 @@ If the projection is **not** a `SequentialProjection` at all (e.g. a bare
 
 ### Step 2 — Splice the configuring projection
 
-**⏳ OPEN (verified):** `make_text_configuring_projection` (`package/example/src/projection/Wrapper.jl:43-58`) builds a fixed two-step `SequentialProjection(ProjectionConfiguringProjection, renderer)`; no splice into an existing pipeline.
+**⏳ OPEN (verified 2026-08-12):** `make_text_configuring_projection` (`package/workbench/example/projection/Wrapper.jl:117-132`) builds a fixed two-step `ChainingProjection(ProjectionConfiguringProjection, renderer)`; no splice into an existing pipeline.
 
 Build the augmented pipeline by inserting a
 `ProjectionConfiguringProjection(inner=TextHighlighting(...))` (or
@@ -116,7 +120,7 @@ already does for the hard-coded case.
 
 ### Step 3 — Update `make_text_configuring_projection`
 
-**⏳ OPEN (verified):** Still the single-arg signature `make_text_configuring_projection(inner_text_projection; measure, font)` at `package/example/src/projection/Wrapper.jl:43`; no `base_projection` parameter.
+**⏳ OPEN (verified 2026-08-12):** Still the single-arg signature `make_text_configuring_projection(inner_text_projection; measure=truetype_measure_text, font=font_ubuntu_monospace_regular_20)` at `package/workbench/example/projection/Wrapper.jl:117`; no `base_projection` parameter.
 
 Refactor `make_text_configuring_projection` (in `example/src/projection/Wrapper.jl`)
 to accept an **existing projection** to augment:
@@ -137,7 +141,7 @@ behaviour as a convenience fallback (backward-compatible).
 
 ### Step 4 — Update `run_example`
 
-**⏳ OPEN (verified):** `package/example/src/Examples.jl:305,307` still call the 1-arg form (`make_text_configuring_projection(TextHighlighting("dolor"))`), replacing the projection.
+**⏳ OPEN (verified 2026-08-12):** `package/projectured/example/Gallery.jl:248,254` still call the 1-arg form (`make_text_configuring_projection(TextHighlighting("dolor"))`), replacing the projection.
 
 In `Examples.jl`, change the `text_highlighting` / `text_filtering` branches
 from replacing the projection to augmenting it:
@@ -181,10 +185,10 @@ the current (replacement) behaviour, so it is no worse.
 
 ## Files to Change
 
-- `example/src/projection/Wrapper.jl` — refactor `make_text_configuring_projection`,
-  add `_find_text_insertion_index`
-- `example/src/Examples.jl` — update the `text_highlighting` / `text_filtering`
-  branches in `run_example`
+- `package/workbench/example/projection/Wrapper.jl` — refactor
+  `make_text_configuring_projection`, add `_find_text_insertion_index`
+- `package/projectured/example/Gallery.jl` — update the `text_highlighting` /
+  `text_filtering` branches in `run_example`
 
 ## Testing
 

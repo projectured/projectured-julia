@@ -1,5 +1,12 @@
 # Cell layer — Interface/Defaults rename
 
+> **Status (2026-08-12): DONE.** Every change list item is verified in place:
+> `package/kernel/main/cell/CellInterface.jl` and `CellDefaults.jl` exist,
+> `CellModule.jl` includes them, `documentation/architecture-requirements.md`
+> has `AR-CITE-EXCEPTIONS-ONLY`, and `CLAUDE.md`'s kernel inventory lists
+> `CellInterface.jl` as sealed and `CellDefaults.jl` as not yet sealed. Ready
+> to move to `plan/done/`.
+
 Restructure the cell layer's contract files to match the backend layer's
 `BackendInterface.jl` + `BackendDefaults.jl` shape, discovered during the seal
 review of `cell/CellModule.jl`.

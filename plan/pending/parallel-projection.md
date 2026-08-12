@@ -1,6 +1,22 @@
 # Parallel Projection
 
-> **⏳ OPEN (audited 2026-06-23):** No part of this plan is implemented. `ParallelProjection` exists only in this plan file — no `Parallel.jl`, no source symbol, no test (grep `ParallelProjection` across the repo hits only this file). The higher-order projection directory now lives at `package/kernel/src/projection/higherorder/` (sibling files: `Sequential.jl`, `Alternative.jl`, etc.). The design premise still holds — `SequentialProjection` and `AlternativeProjection` are real (`package/kernel/src/projection/higherorder/Sequential.jl`, `.../Alternative.jl`). **⛔ Caveat:** the DbCatalog motivating use case is OBSOLETE — `DbCatalogTableToTabularGrid` was removed in the catalog refactor (see `package/test/src/external/DbCatalogTabularTest.jl:5-9`; the tabular path is now `SqlSelectStatement → CellTable → TableTable`). Update example use cases before implementing.
+> **Status (2026-08-12): NOT STARTED.** `ParallelProjection` exists only in this
+> plan file — no `Parallel.jl`, no source symbol, no test (grep `ParallelProjection`
+> across the repo hits only this file). The higher-order projection directory
+> moved again since the last audit: it is now its own package,
+> `package/projection/main/higherorder/` (not under `kernel` any more). The
+> design premise still holds, but under new names: `SequentialProjection` is now
+> `ChainingProjection` (`package/projection/main/higherorder/Chaining.jl`) and
+> `AlternativeProjection` is now `SwitchingProjection`
+> (`package/projection/main/higherorder/Switching.jl`, "delegates to the one
+> selected by a reactive index cell"). **Caveat still holds, exact replacement
+> unconfirmed:** the DbCatalog motivating use case is gone —
+> `DbCatalogTableToTabularGrid`/`DbCatalogTableToChildren` do not exist anywhere
+> in the repository, and neither does the `DbCatalogTabularTest.jl` this plan
+> used to cite. `package/dbcatalog/main/` now has only `DbCatalogToSql.jl` and
+> `DbCatalogToSyntax.jl` — re-derive a current motivating pairing from those
+> before implementing, rather than trusting the `CellTable`/`TableTable` names
+> below (neither symbol was found in the repository either).
 
 A higher-order projection that runs multiple projections in parallel on the same input and combines their outputs into a tuple. Enables simultaneous access to multiple views of a single document without creating new document types.
 
@@ -52,9 +68,11 @@ output1, output2, output3 = iomap.output
 
 ## Specification
 
-### File: `program/src/projection/higherorder/Parallel.jl`
+### File: `package/projection/main/higherorder/Parallel.jl`
 
-> **⏳ OPEN:** File does not exist. Path is stale post-restructure — the current higher-order directory is `package/kernel/src/projection/higherorder/`, so the target should be `package/kernel/src/projection/higherorder/Parallel.jl`.
+> **NOT STARTED:** file does not exist. Target path corrected above — the
+> higher-order directory is now `package/projection/main/higherorder/`, a
+> standalone package, not under `kernel`.
 
 ```julia
 """
@@ -193,12 +211,36 @@ syntax, xml, yaml = iomap.output
 
 ## Implementation Steps
 
-> **⏳ OPEN — all four steps unimplemented.** Path notes below reflect the post-restructure layout.
+> **NOT STARTED — all four steps unimplemented.** Path notes below reflect the
+> current (2026-08-12) layout, corrected from an earlier (2026-06-23) pass that
+> was itself already out of date.
 
-1. **⏳ OPEN:** Create `Parallel.jl` — not present. Correct target is `package/kernel/src/projection/higherorder/Parallel.jl` (not `program/src/...`).
-2. **⏳ OPEN:** Wire into the module. No `program/src/Projectured.jl` exists; the kernel package aggregates higher-order projections — register the include/export alongside `Sequential.jl`/`Alternative.jl` (see how they are included; main package surface is `package/projectured/src/Projectured.jl`). No `ParallelProjection` export exists today.
-3. **⏳ OPEN:** Add tests — no `ParallelTest.jl` exists. Test dir is now `package/test/src/projection/`. Note the DbCatalog sub-case (columns + grid) is obsolete (`DbCatalogTableToTabularGrid` removed; see header note) and should be replaced with a current pairing.
-4. **⏳ OPEN:** Docs — `guide/` directory no longer exists; documentation now lives under `documentation/` (e.g. `documentation/higher-order-projections.md`, `documentation/projection-system.md` both present). Update those instead.
+1. **NOT STARTED:** Create `Parallel.jl` — not present. Correct target is
+   `package/projection/main/higherorder/Parallel.jl` (not `program/src/...`, not
+   `package/kernel/src/...`).
+2. **NOT STARTED:** Wire into the module. No `program/src/Projectured.jl`
+   exists; register the include/export in `package/projection/main/ProjecturedProjection.jl`
+   alongside `Chaining.jl`/`Switching.jl`, and re-export through the umbrella
+   `package/projectured/main/Projectured.jl`. No `ParallelProjection` export
+   exists today.
+3. **NOT STARTED:** Add tests — no `ParallelTest.jl` exists.
+   `package/projection/` (a "generic" package, see
+   [documentation/packages.md](../../documentation/packages.md)) has no `test/`
+   directory of its own; `ChainingProjection`/`SwitchingProjection` are exercised
+   indirectly through the domain suites that use them (e.g.
+   `package/substrate/test/ProjecturedSubstrateTest.jl`), not by a dedicated unit
+   test file — follow that pattern, or add
+   `package/projectured/test/projection/ParallelTest.jl` in the umbrella if a
+   standalone test is preferred. Note the DbCatalog sub-case (columns + grid) is
+   obsolete and should be replaced with a current pairing (see the status
+   banner).
+4. **NOT STARTED:** Docs — `guide/` directory no longer exists; documentation now
+   lives under `documentation/` (e.g. `documentation/higher-order-projections.md`,
+   `package/kernel/doc/projection-system.md` both present). Update those instead.
+
+The four numbered steps above already restate this original list with today's
+paths; kept here only as the original wording (superseded, do not follow the
+`program/src/...` / `guide/...` paths below):
 
 1. Create `program/src/projection/higherorder/Parallel.jl` with the implementation above
 2. Add to `program/src/Projectured.jl`:

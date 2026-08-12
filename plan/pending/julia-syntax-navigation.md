@@ -1,5 +1,17 @@
 # JuliaToSyntax — bidirectional cursor navigation
 
+> **Status (2026-08-12): IN PROGRESS.** Structural-token navigation (the problem
+> this plan opens with) is fixed — but by a different mechanism than the plan
+> proposes: `JuliaToSyntax.jl` was rewritten with `@projection_template`
+> (commits `a764d510`, `962bc361`, `bf8de12a`, 2026-07-02), which gets reference
+> mapping for free from the shared `RuleIoMap` machinery, plus a caret-round-trip
+> follow-up in [julia-navigation-caret-roundtrip.md](../done/julia-navigation-caret-roundtrip.md)
+> (`plan/done/`, commit `43ec6e7`). `explore_position_selections` on `julia_example`
+> now reaches 82 states (was ~3), and `test_position_navigation(julia_example;
+> check_reaches_all=true)` runs 84 pass / 28 fail / 0 error. The 28 remaining
+> failures are exactly this plan's Step 3 (the `name` vs `value` leaf field-name
+> mismatch) — still open, and now the only remaining piece.
+
 **Origin:** Follow-up to the D/High finding in
 [plan/done/consistency-report.md](../done/consistency-report.md). Filed 2026-06-15.
 
@@ -36,50 +48,64 @@ has no equivalent, so its structural tokens are dead ends for the cursor.
 
 ## Plan
 
-- [ ] ⏳ OPEN: Reuse / generalise `SyntaxToTextModule._syntax_to_flat` (or factor a shared
-      helper) so the Julia node readers can emit `proj(p, PositionReference(flat))`
-      for structural positions, exactly as `JsonArrayToSyntaxNode.projection_read`
-      does.
-      <!-- VERIFIED OPEN (2026-06-23): JuliaToSyntax.jl defines NO projection_read for
-      any Julia node; `_syntax_to_flat` is mentioned only in the explanatory comment
-      block (package/julia/main/JuliaToSyntax.jl:726-746), not
-      imported or called. JsonToSyntax.jl:37 imports it and JsonToSyntax.jl:260-265
-      uses it in projection_read; Julia has no equivalent. -->
-- [ ] ⏳ OPEN: Add per-node School-A `map_reference_forward`/`map_reference_backward` for
-      content positions (delegating the tail through the stored child IoMaps), and
-      wire each node printer's selection cell to `map_reference_forward` via the
-      deferred-iomap trick.
-      <!-- VERIFIED OPEN (2026-06-23): No `map_reference_forward(p::Julia...)` or
-      `map_reference_backward(p::Julia...)` methods exist anywhere in the repo (grep
-      for them returns only the import line, JuliaToSyntax.jl:18, and the comment block
-      at lines 728-729). All 30 sub-projections still rely on generic Projection
-      defaults. -->
-- [ ] ⏳ OPEN: Resolve the leaf field-name mismatch without touching `Operation.jl`:
+- [x] ✅ DONE (2026-08-12), by a different mechanism than proposed: structural
+      positions are navigable, but not through a reused `_syntax_to_flat` helper.
+      `JuliaToSyntax.jl` was rewritten to use `@projection_template` for all 32
+      sub-projections (commits `a764d510`, `962bc361`, `bf8de12a`, 2026-07-02),
+      which get reference mapping and reading for free from the shared `RuleIoMap`
+      machinery in `package/kernel/main/projection/ProjectionTemplate.jl`
+      (generic `map_reference_forward`/`map_reference_backward` at lines 732/745).
+      A follow-up, [julia-navigation-caret-roundtrip.md](../done/julia-navigation-caret-roundtrip.md)
+      (`plan/done/`, commit `43ec6e7`), then fixed introduced-token caret
+      round-tripping in `ProjectionTemplate.jl`'s `_slots_forward`/`_slots_backward`
+      and `document/Syntax.jl`'s `_tree_navigate`.
+      <!-- Old finding (2026-06-23, now superseded): JuliaToSyntax.jl defined no
+      projection_read for any Julia node; `_syntax_to_flat` (SyntaxToText, now
+      `package/syntax/main/SyntaxToText.jl`) was mentioned only in a comment, never
+      used. That approach was not the one taken. -->
+- [x] ✅ DONE (2026-08-12), by a different mechanism than proposed: not hand-written
+      School-A `map_reference_forward`/`map_reference_backward` per node — the
+      `@projection_template` rewrite (see above) gets this generically from
+      `RuleIoMap`, so no per-node mapper code was needed for content positions
+      either. Verified live: `explore_position_selections(julia_example.document,
+      julia_example.projection).state_count == 82` (was ~3), and
+      `test_position_navigation(julia_example; check_reaches_all=true)` runs
+      84 pass / 28 fail / 0 error — the 28 failures are exactly Step 3 below.
+- [ ] ⏳ OPEN (confirmed 2026-08-12): Resolve the leaf field-name mismatch.
       `JuliaIdentifier`/`JuliaSymbol` store their text in `name` (not the SyntaxLeaf
-      `value`), and `JuliaNothing`/`JuliaBreak`/`JuliaContinue` have no text field —
-      so `set_selection!` must never be handed a path that descends a field these
-      documents lack. (Options: translate `value` ↔ `name` in those leaf mappers, or
-      keep whole-element granularity for them.)
-      <!-- VERIFIED OPEN (2026-06-23): The leaf mappers this step requires were never
-      implemented (see step 2). NOTE: the "without touching Operation.jl" framing is
-      now partly moot — the FieldError guard described in Notes has since been added to
-      Operation.jl (hasproperty guards at common/Operation.jl:384 and :442), so
-      set_selection!/clear_selection! no longer crash on a missing field; they return
-      gracefully. The field-name mismatch itself (name vs value) is still unaddressed. -->
-- [ ] ⏳ OPEN: Verify with `test_selection(julia_example)` / `test_repl(julia_example)`:
-      reachable-state count should grow well past the current 3, with zero errors,
-      and stay green for `test_printer(julia_example)`.
-      <!-- VERIFIED OPEN (2026-06-23): Depends on steps 1-3, none of which are done. -->
+      `value`), and `JuliaNothing`/`JuliaBreak`/`JuliaContinue` have no text field.
+      This is now the *only* remaining piece: the 28 `test_position_navigation`
+      failures are exactly `…name{k}` unreached carets (e.g.
+      `.body.statements[1].else_branch.statements[1].right.callee.name{8}`), and
+      `JuliaToSyntax.jl`'s own comment (around lines 873-894, file now 1025 lines)
+      says the leaves are still opaque — no `bound(…)` marker — and names this as
+      the deferred follow-up. JSON's leaves (`package/json/main/JsonToSyntax.jl`)
+      use `bound(:value, Type, ...)` inside `@projection_template`; Julia's
+      identifier/symbol leaves do not use `bound(...)` at all — that omission is
+      the concrete fix still needed. The old "without touching `Operation.jl`"
+      framing no longer applies — `common/Operation.jl` does not exist any more
+      (see Notes).
+- [~] IN PROGRESS (2026-08-12): Verify with `test_position_navigation(julia_example;
+      check_reaches_all=true)` / `test_tree_navigation` (the plan's cited
+      `test_selection(julia_example)` never existed under that name — both live in
+      `package/substrate/test/editor/NavigationPresets.jl`) and `test_repl` (`package/kernel/test/editor/ReplTest.jl:102`).
+      Reachable-state count has grown well past the old 3 (82 states, 0 errors), but
+      is not fully green until Step 3 lands (28 fail, all `…name{k}` carets). Note
+      the kernel-wide rename: `projection_print`→`print_document`,
+      `projection_read`→`read_intent` (commit `fa2b1a4d`, 2026-07-03).
 
 ## Notes
 
-- **✅ DONE (verified 2026-06-23):** During investigation a latent crash was found: `set_selection!` /
-  `clear_selection!` (`common/Operation.jl`) throw a `FieldError` when a path step
-  names a field the document lacks. A one-line `hasfield` guard fixes it generally,
-  but `Operation.jl` is currently off-limits — revisit if that constraint lifts.
-  The guard has since been added: `clear_selection!` now has
-  `hasproperty(document, sym) || return` at `package/kernel/src/common/Operation.jl:384`
-  and the `_set_selection_walk!` helper (called by `set_selection!`) has the same guard
-  at `package/kernel/src/common/Operation.jl:442`. The "off-limits" constraint has
-  evidently lifted. (Note: this fixes the crash but does not implement the navigation
-  feature — the four Plan steps above remain OPEN.)
+- **✅ DONE (verified 2026-06-23, guard since relocated):** During investigation a
+  latent crash was found: `set_selection!` / `clear_selection!` throw a `FieldError`
+  when a path step names a field the document lacks. A one-line `hasfield` guard
+  fixes it generally, but `Operation.jl` was off-limits at the time — that
+  constraint has since lifted, and the guard has moved with the code: `common/Operation.jl`
+  no longer exists (the kernel gained a dedicated `selection/` layer, commit
+  `64578e82` "Extract a selection layer"); the two duplicate guards were deduped
+  into one shared helper, `_selection_child`, at
+  `package/kernel/main/selection/SelectionDefaults.jl:322`
+  (`hasproperty(document, sym) || return nothing`), called by `clear_selection!`
+  (line 51), `_set_selection_walk!` (line 195), and `_sync_selection!` (lines
+  277-278/296-297/304). (This fixes the crash but does not implement the
+  navigation feature — Step 3 above remains the open item.)

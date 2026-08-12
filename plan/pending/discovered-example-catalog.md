@@ -1,12 +1,17 @@
 # Discovered example catalog: document/projection pairs as data, not fragments
 
-> **Direction changed (2026-07-15).** Phase 0 (the projection graph + `Example.terminal`)
-> landed and is the foundation. Phases 1–3 — document *generation* via `minimal()` and the
-> `@document` / `CellVector{T}` reflection track — are **superseded** by
-> [`atomic-example-catalog.md`](atomic-example-catalog.md), which instead **hand-authors**
-> the atomic documents (meaningful content, no `minimal()`) and keeps only the *projection*
-> discovery automated. Read that plan for the current approach; this file is kept for the
-> Phase 0 record and the projection-graph design notes.
+> **Status (2026-08-12): SUPERSEDED.** Phase 0 (the projection graph +
+> `Example.terminal`) landed and is the foundation; its symbols
+> (`catalog_domain`, `BRIDGES`, `paths`, …) live in
+> `package/projectured/example/Catalog.jl` and
+> `package/projectured/example/ProjecturedExample.jl` today. Phases 1 to 3 —
+> document *generation* via `minimal()` and the `@document` / `CellVector{T}`
+> reflection track — are **superseded** by
+> [`plan/done/atomic-example-catalog.md`](../done/atomic-example-catalog.md),
+> which instead **hand-authors** the atomic documents (meaningful content, no
+> `minimal()`) and keeps only the *projection* discovery automated. That plan is
+> itself fully done and moved to `plan/done/`. Read it for the current approach;
+> this file is kept for the Phase 0 record and the projection-graph design notes.
 
 ## The idea (one paragraph)
 
@@ -35,14 +40,16 @@ old fixtures later; that is out of scope here.
 
 ## Prior art in the tree
 
-- [`AtomicFixtureTest.jl`](../../package/test/src/projection/AtomicFixtureTest.jl) —
-  POC `AtomicFixture` with `make_document`/`make_projection` thunks + oracle fields.
-  Its thunk-for-freshness shape carries over; its oracle fields stay test-side (Phase 3).
-- `Example` ([`Examples.jl`](../../package/example/src/Examples.jl)) — the existing
+- `AtomicFixtureTest.jl` — the POC `AtomicFixture` with `make_document`/`make_projection`
+  thunks + oracle fields this section describes no longer exists in the tree; its
+  thunk-for-freshness shape and its oracle fields were carried into
+  [`plan/done/atomic-example-catalog.md`](../done/atomic-example-catalog.md) instead.
+- `Example` (`struct Example` in
+  [`Harness.jl`](../../package/kernel/example/Harness.jl)) — the existing
   registry the testers already consume. Catalog entries **are** `Example`s (see "Data
   structure"), so `test_printer`/`test_reader`/`run_example` take them unchanged.
 - The chain shape already exists in the wild (a hand-wired path the graph would synthesize):
-  [`WorkbenchAssistant.jl:185`](../../package/workbench/main/WorkbenchAssistant.jl#L185)
+  [`WorkbenchAssistant.jl:199`](../../package/workbench/main/WorkbenchAssistant.jl#L199)
   `ChainingProjection(RecursiveProjection(JsonToSyntax()), SyntaxToText(), …)`.
 
 ## The one pivot: `terminal domain`
@@ -74,7 +81,8 @@ runnable(ex)      = ex.terminal in (:text, :graphics)    # graphics→screen/web
 
 An earlier draft proposed a separate `Case` struct. Don't — it is just `Example`
 minus one field. `Example`
-([`Examples.jl:1`](../../package/example/src/Examples.jl#L1)) already is
+(`struct Example` in [`Harness.jl`](../../package/kernel/example/Harness.jl))
+already is
 `name + make_document + make_projection` (plus cached instances and optional
 `render_width`/`render_height`). The *only* thing a catalog entry needs beyond that is
 the **`terminal`** pivot. So **merge**: add one optional field to `Example`.
@@ -164,10 +172,10 @@ needs, and it subsumes the ladder — the shared `Syntax→Text→Graphics` tail
 
 **The one hard constraint: a projection's *output* type is not recoverable statically.**
 Confirmed both ways — the printer types only its input
-([`SyntaxToText.jl:73`](../../package/visual/main/syntax/SyntaxToText.jl#L73)
+([`SyntaxToText.jl:146`](../../package/syntax/main/SyntaxToText.jl#L146)
 `print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)`), and the reader
 dispatches on the *iomap*/operation, not the output document
-([`SyntaxToText.jl:83`](../../package/visual/main/syntax/SyntaxToText.jl#L83)
+([`SyntaxToText.jl:158`](../../package/syntax/main/SyntaxToText.jl#L158)
 `read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op)`). Type inference won't help
 either — the reactive layer erases field types to `Cell`/`Any` (the same erasure the
 `CellVector{T}` metadata relies on). So graph **edges cannot be built from the method
@@ -268,15 +276,18 @@ type — important because the `TextToGraphics` bridge triggers the slow TrueTyp
 after the first search the graph is pure and reusable.
 
 **Dedup bonus:** the hand-wired `_JSON_TO_TEXT` / `_XML_TO_TEXT` / … consts in
-[`WorkbenchAssistant.jl:185`](../../package/workbench/main/WorkbenchAssistant.jl#L185)
+[`WorkbenchAssistant.jl:199`](../../package/workbench/main/WorkbenchAssistant.jl#L199)
 are exactly what `projection_to(domain, TextDocument)` would synthesize — a real consumer
 the graph could replace later.
 
 ## Minimal instantiation
 
 `minimal(::Type{T})` builds the smallest valid instance by reading declared field
-types (which the `@document` macro already captures in `original_fields`, mirrored in
-the `IFoo` companion — [`Document.jl:215`](../../package/kernel/src/common/Document.jl#L215)):
+types (which the `@document` macro already captures — today as `field_names` /
+`field_types` on the `CellStructPlan` built while the macro expands, in
+[`CellStructPlan.jl`](../../package/kernel/main/cell/CellStructPlan.jl); the old
+`original_fields`/`IFoo`-companion route this paragraph names no longer exists
+under those names):
 
 - **primitive field** (`value::Bool`, `Union{Real,Nothing}`, `String`) → base-case
   table: `Bool→false`, `Real→0`, `String→""`. ~3 lines, shared across all domains.
@@ -292,7 +303,11 @@ the element-domain annotation from Phase 1.
 
 ## Reconciling `AtomicFixture`
 
-[`AtomicFixtureTest.jl`](../../package/test/src/projection/AtomicFixtureTest.jl) is
+This section is superseded in fact, not only by name: `AtomicFixtureTest.jl` no
+longer exists in the tree, and [`plan/done/atomic-example-catalog.md`](../done/atomic-example-catalog.md)
+did the reconciliation this section proposes. Kept for the record of the reasoning.
+
+`AtomicFixtureTest.jl` was
 `Example`-core (`name` + `make_document` + `make_projection`) plus three **oracle**
 fields (`render`/`mutate`/`render_after`) and a generic asserter `test_atomic_render`.
 Its three core fields duplicate `Example`; its other two capabilities are **not**
@@ -345,17 +360,20 @@ Goal: let `minimal` fill a container with one child of the right domain, driven 
 `CellVector`" idea as **metadata only** — which matches your own reasoning that
 `@document` erases field types to `Cell`/`Any` at runtime, so `{T}` carries no runtime
 weight. Concretely, we do **not** make `CellVector` a real parametric type (its storage
-is already `elements::Vector{Cell}`, [`Collection.jl:37`](../../package/kernel/src/document/Collection.jl#L37));
+is already `elements::Vector{Cell}`, in [`Collection.jl`](../../package/collection/main/Collection.jl));
 putting a concrete `CellVector{JsonDocument}` into the `IFoo` field would instead impose
 a runtime invariant that every elements-vector actually *be* `CellVector{JsonDocument}`,
 breaking snapshots). Instead:
 
-- **Widen the macro's CellVector detection.** `@document` special-cases the sole
-  `CellVector` field by matching the bare symbol `ftype === :CellVector`
-  ([`Document.jl:266`](../../package/kernel/src/common/Document.jl#L266)). Writing
-  `CellVector{JsonDocument}` makes `ftype` an `Expr`, so this check must match the
-  *head* (`CellVector` with or without curly params) to preserve the existing Rule C/Y
-  construction behavior.
+- **Widen the macro's CellVector detection.** `@document` special-cases a
+  collection field by a bare-symbol match on its declared type. Today this lives
+  as `is_collection_field_type(::Val{name})`
+  ([`DocumentMacro.jl:259`](../../package/kernel/main/document/DocumentMacro.jl#L259)),
+  an opt-in trait rather than the plain `ftype === :CellVector` check this
+  paragraph describes — re-check this note against the current mechanism before
+  acting on it. Writing `CellVector{JsonDocument}` makes `ftype` an `Expr`, so any
+  such check must match the *head* (`CellVector` with or without curly params) to
+  preserve the existing Rule C/Y construction behavior.
 - **Emit a queryable accessor.** Have `@document` generate
   `document_field_types(::Type{Foo}) = (…declared types incl. CellVector{JsonDocument}…)`
   from `original_fields`. This is one added method per struct — additive, and it gives

@@ -1,9 +1,17 @@
 # NLnet Funding Application — ProjecturEd
 
+> **Status (2026-08-12): NOT STARTED.** Still a draft; nothing here has been
+> submitted. The date this plan waits for, "after summer 2026," has now arrived
+> — check <https://nlnet.nl/propose/> for the reopened call before doing
+> anything else in this plan. This file was not otherwise updated for progress:
+> it is a funding pitch, not an implementation plan, so this pass only fixes
+> facts about the repository that had gone stale.
+
 **Status:** Draft, pending submission.
 **Target fund:** NLnet's reopened **general open call** (the *Open Internet Stack* effort,
 successor to NGI Zero Commons). Expected to reopen **after summer 2026** — likely an autumn
-2026 deadline. Watch <https://nlnet.nl/propose/> and subscribe to the newsletter.
+2026 deadline; that date has now passed (today is 2026-08-12) — check whether the call has
+reopened. Watch <https://nlnet.nl/propose/> and subscribe to the newsletter.
 **Do NOT** submit to the only currently-open calls (NGI Taler, NGI Fediversity, deadline
 1 Aug 2026) — ProjecturEd does not fit either.
 
@@ -81,10 +89,12 @@ document shown as a tree, a form, a table or source with no copy to keep in sync
 **pull-based reactive engine** keeps editing responsive on very large, even unbounded,
 documents.
 
-More than a dozen domains already work end-to-end with selection and cursor movement. **This
-grant takes ProjecturEd from a working prototype to a usable, AI-native general-purpose
+**Twenty** domain packages already work end-to-end with selection and cursor movement (JSON, XML,
+YAML, SQL, math, source code, prose/Markdown, and more — see the repository's own domain guide).
+**This grant takes ProjecturEd from a working prototype to a usable, AI-native general-purpose
 editor**: hardening the AI assistant with support for local/open models, character-level editing
-across all domains, mouse click-to-select, undo/redo, browser-backend parity, an accessibility
+across all domains, broadening mouse click-to-select (it already works, and is tested, for a
+subset of domains) to the remaining ones, undo/redo, browser-backend parity, an accessibility
 pass, and contributor documentation. All outcomes will be released under AGPL-3.0. Demos of the
 projectional editing (Lisp prototype): <https://www.youtube.com/@projectured>; a new
 AI-focused video for the Julia version is part of the work.
@@ -114,7 +124,9 @@ The AI assistant is the headline goal and the largest task:
   a **local/open-model backend** (sovereignty; no cloud dependency) — **€10,000**
 - **Character-level editing across all domains** — round-tripping single-character
   inserts/deletes through nested, composable projections — **€10,000**
-- **Mouse click-to-select** — hit-testing graphics back to a reference path — **€6,000**
+- **Mouse click-to-select, full domain coverage** — hit-testing graphics back to a reference
+  path; the mechanism and its test already work for a subset of domains, this task extends it to
+  the rest (widgets, tables, XML, math, and more) — **€6,000**
 - **Undo/redo** as inverse structural operations — **€6,000**
 - **Web-backend parity** with the native frontend — **€6,000**
 - **Accessibility pass** — keyboard-complete navigation, screen-reader/ARIA in the web
@@ -232,7 +244,8 @@ Expect a few months from deadline to signature.
 ## 5. Next-steps checklist
 
 - [ ] Subscribe to NLnet newsletter; watch <https://nlnet.nl/propose/> for the autumn general
-      call.
+      call. **The "after summer 2026" date has now arrived (today is 2026-08-12) — check now
+      whether the call has reopened.**
 - [ ] Attend one NLnet Office Hour to confirm fit.
 - [ ] Confirm AGPL-3.0 as the on-award licence.
 - [ ] Fill Q2 track-record specifics.

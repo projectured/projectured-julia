@@ -1,5 +1,16 @@
 # SQL Selection Support
 
+> **Status (2026-08-12): DONE**, for the projections that exist today. The
+> "Completed" table is current for the 18 projections it lists; the "Patterns"
+> and "Checklist" sections are reference docs, still accurate. The dead test API
+> named in the Testing section (`test_selection` / `explore_selections` /
+> `test/src/editor/SelectionTest.jl`) has been corrected below to the live
+> function, `test_position_navigation` (itself a rename of the `test_text_navigation`
+> this file's 2026-06-23 audit pointed to — see per-section notes). Every "Open /
+> future work" item is still open, including `GROUP BY`: a check of
+> `sql-select-aggregation-support.md` today confirms no `SqlGroupByToSyntaxNode`
+> or aggregate projection exists yet.
+
 > **AUDIT (2026-06-23):** The "Completed" projection table is **✅ DONE
 > (verified)** — every listed projection exists with full selection wiring in
 > `package/sql/main/SqlToSyntax.jl` (each node projection
@@ -281,15 +292,16 @@ end
 
 ## Testing
 
-> **⛔ OBSOLETE (verified):** This subsection's described API does not exist in
-> the current codebase. There is no `explore_selections` function and no
-> `test_selection(label, document, projection)` entry point; grep finds neither
-> under `package/test/src/`. The referenced file
-> `test/src/editor/SelectionTest.jl` also does not exist (the editor test dir
-> has `SelectionEnumeration.jl`, `TextNavigationTest.jl`, etc., not
-> `SelectionTest.jl`). The actual mechanism used by the SQL selection test is
-> `test_text_navigation(label, document, projection)` defined in
-> `package/test/src/editor/TextNavigationTest.jl:113`. The *intent* (SDL-free
+> **⛔ OBSOLETE, re-verified 2026-08-12:** This subsection's described API does
+> not exist in the current codebase. There is no `explore_selections` function
+> and no `test_selection(label, document, projection)` entry point; grep finds
+> neither anywhere under `package/`. The referenced file
+> `test/src/editor/SelectionTest.jl` also does not exist. The live mechanism used
+> by the SQL selection test is **`test_position_navigation(label, document,
+> projection)`**, defined in
+> [package/substrate/test/editor/NavigationPresets.jl](../../package/substrate/test/editor/NavigationPresets.jl)
+> (this is itself a later rename of the `test_text_navigation` name this file's
+> 2026-06-23 audit pointed to — that name is gone too). The *intent* (SDL-free
 > deterministic measure + Sql→Syntax→Text→Graphics pipeline) is **✅ DONE**, but
 > the names below are stale.
 
@@ -314,10 +326,10 @@ proj = SequentialProjection(
     TextToGraphics(measure=measure))
 ```
 
-### Current coverage — **✅ DONE (verified):** `test_sql_to_syntax_selection()` exists at `package/test/src/projection/SqlToSyntaxTest.jl:118` and is registered in `package/test/src/ProjecturedTest.jl:130`; it builds the nested doc inline (not via `make_sql_nested_document_example`) and calls `test_text_navigation("SqlToSyntax nested", doc, proj)`.
+### Current coverage — **✅ DONE (re-verified 2026-08-12):** `test_sql_to_syntax_selection()` exists in `package/sql/test/projection/SqlToSyntaxTest.jl` and is registered in `package/projectured/test/ProjecturedTest.jl`; it builds the nested doc inline (not via `make_sql_nested_document_example`) and calls `test_position_navigation("SqlToSyntax nested", doc, proj)`.
 
 `test_sql_to_syntax_selection()` in
-`test/src/projection/SqlToSyntaxTest.jl` runs against the nested SQL document
+`package/sql/test/projection/SqlToSyntaxTest.jl` runs against the nested SQL document
 (`make_sql_nested_document_example`), which exercises every projection type
 that was fixed:
 
@@ -329,27 +341,29 @@ that was fixed:
 - `SqlWhereClauseToSyntaxNode` / `SqlComparisonToSyntaxNode` (outer + inner)
 - `SqlColumnReferenceToSyntaxLeaf` / `SqlTableExpressionToSyntaxLeaf` / `SqlScalarValueToSyntaxLeaf`
 
-Registered in `test/src/ProjecturedTest.jl` under `test_projections()`.
+Registered in `package/projectured/test/ProjecturedTest.jl` under `test_projections()`.
 
 ### Rule: new SQL projection → must add to selection test
 
-> **⛔ OBSOLETE (verified):** Step 2 below references
+> **⛔ OBSOLETE, re-verified 2026-08-12:** Step 2 below references
 > `test/src/editor/SelectionTest.jl` and a `test_selections()` skip-list for
 > `"sql_syntax"` / `"sql_nested_syntax"` / `"sql_table"` — none of these exist
-> in the current tree (no `SelectionTest.jl`, no `test_selections()`). Step 1
-> (extend the nested document / add a `test_selection` call) is stale in naming
-> but the underlying convention maps onto `test_text_navigation`. Treat this
-> rule as a stale process note, not an actionable open step.
+> anywhere in the current tree (no `SelectionTest.jl`, no `test_selections()`
+> function). Step 1 (extend the nested document / add a targeted call) still
+> applies, using the live `test_position_navigation(label, document, projection)`
+> in place of the named-but-nonexistent `test_selection`. Treat step 2 as a
+> stale process note with no live counterpart, not an actionable open step.
 
 Whenever a new SQL node projection is added to `SqlToSyntax.jl`:
 
 1. Ensure the **nested document** in `test_sql_to_syntax_selection()` exercises
    the new construct. If it does not, extend the document or add a second
-   `test_selection(...)` call with a targeted document.
-2. If a new example document is added to `example/src/document/Sql.jl`, also
+   `test_position_navigation(...)` call with a targeted document.
+2. ~~If a new example document is added to `example/src/document/Sql.jl`, also
    remove it from the skip list in `test/src/editor/SelectionTest.jl`
    (`test_selections()` currently skips `"sql_syntax"`, `"sql_nested_syntax"`,
-   and `"sql_table"` — un-skip any that now have full selection wiring).
+   and `"sql_table"` — un-skip any that now have full selection wiring).~~ No
+   longer applicable — that file and function do not exist.
 
 ---
 
@@ -373,13 +387,19 @@ Whenever a new SQL node projection is added to `SqlToSyntax.jl`:
 
 ## Open / future work
 
-> **⏳ OPEN (verified):** None of the future-work projections exist yet. Grep over
-> `package/` finds no `SqlDistinctToSyntaxLeaf`, `SqlJoinUsingConditionToSyntaxNode`,
-> `SqlHavingToSyntaxNode`, `SqlGroupByToSyntaxNode`, `SqlOrderByToSyntaxNode`,
-> `SqlLimitToSyntaxNode`, etc. `SqlDistinct` is still a flag field
-> (`distinct::Any  # SqlDistinct | nothing`, `package/sql/example/document/Sql.jl:139`).
-> `SqlJoinUsingCondition` exists as a `@document` (`Sql.jl:233`) but has no
-> projection in `SqlToSyntax.jl`. All bullets below remain OPEN.
+> **⏳ OPEN, re-verified 2026-08-12:** None of the future-work projections exist
+> yet. Grep over `package/` finds no `SqlDistinctToSyntaxLeaf`,
+> `SqlJoinUsingConditionToSyntaxNode`, `SqlHavingToSyntaxNode`,
+> `SqlGroupByToSyntaxNode`, `SqlOrderByToSyntaxNode`, `SqlLimitToSyntaxNode`, etc.
+> (`sql-select-aggregation-support.md`, the plan that would add `GROUP BY`, is
+> itself not started). One correction: `SqlDistinct` is now a real `@document
+> struct` (`package/sql/main/Sql.jl`), not merely "a flag" as first written — but
+> the field that holds it is still untyped (`distinct::Any # SqlDistinct |
+> nothing`) and it still renders as a bare keyword inline in
+> `SqlSelectClauseToSyntaxNode`, not through a dedicated leaf projection, so the
+> bullet below is still actionable as written. `SqlJoinUsingCondition` exists as
+> a `@document` but has no projection in `SqlToSyntax.jl`. All bullets below
+> remain OPEN.
 
 - `SqlDistinct` — if it becomes a projectable document instead of a flag,
   add `SqlDistinctToSyntaxLeaf` (leaf, shared selection).

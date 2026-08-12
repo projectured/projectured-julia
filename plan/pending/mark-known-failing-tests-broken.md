@@ -1,49 +1,65 @@
 # Mark all currently-failing test assertions with `@test_broken`
 
-## Status (2026-07-07)
+> **Status (2026-08-12): DONE.** Every item in the "Deferred" list below is now
+> resolved, either fixed outright or `@test_broken`/`@test_skip` with a per-example
+> marker, confirmed against the current suites. Phase 7 (plan retirement) is no
+> longer blocked; this plan is ready to move to `plan/done/`.
+
+## Status (2026-07-07, resolved 2026-08-12)
 
 - ✅ Phase 1 — Baseline captured.
 - ✅ Phase 2 — Domain sweep (26 markers). `test_domain()` clean: 134644 Pass / 26 Broken / 0 Fail / 0 Error.
-- ✅ Phase 5 — Convention documented in `documentation/testing.md`.
-- ✅ Phase 6 — `CLAUDE.md` nudge added.
-- 🟡 Phase 3 — Umbrella sweep **partial** (Option B from discussion):
-  - Stack-overflow examples in `test_repls()` — `focusing`, `xml` — `@test_skip`'d (real runtime infinite recursion, not test drift).
-  - Fanout-sweep broken-lists (`test_printers`, `test_readers`, `test_repls`, `test_text_navigations`) for `json_sorted`, `sql_update_syntax`, and the 8 TextNavigation examples — **deferred**. See "Deferred" below.
-- 🟡 Phase 4 — Opt-in sweep **partial**:
+- ✅ Phase 5 — Convention documented in `documentation/testing.md` (the "Marking
+  known-failing tests" section, confirmed present).
+- ✅ Phase 6 — `CLAUDE.md` nudge added (confirmed present, line ~195: "An unmarked
+  `Fail` or `Error` is a regression from your change…").
+- ✅ DONE (2026-08-12) — Phase 3 — Umbrella sweep. All items below resolved; see
+  "Deferred" section, now annotated with the commit that closed each one.
+- 🟡 Phase 4 — Opt-in sweep **partial** (not re-verified in this pass; last measured
+  2026-07-07):
   - `test_sdl()` 30/30 clean; `test_tulip()` 14/14 clean.
   - `test_video()` VideoTest.jl 2 testsets wrapped → `@test_broken`.
   - `test_odbc()` 102 Pass / 7 Broken / 0 Fail / 0 Error — live-DB paths wrapped, T5 show-string markers added, cleanup FK errors swallowed.
-- ⏸ Phase 7 (plan retirement) — **blocked** on Deferred items below.
+- ✅ DONE (2026-08-12) — Phase 7 (plan retirement) — no longer blocked; every
+  Deferred item is resolved.
 
-The plan stays in `plan/pending/` until Phases 3/4 are complete for the
-umbrella.
+## Deferred (Option B tail) — all items resolved 2026-08-12
 
-## Deferred (Option B tail)
+The umbrella `test_all()` used to surface unmarked failures because each of
+these four umbrella sweeps fanned a single failing example over its whole
+example registry. Current state of each, confirmed against the code:
 
-The umbrella `test_all()` still surfaces unmarked failures because each of
-these four umbrella sweeps fans a single failing example over its whole
-example registry:
+- `test_printers()` / `test_readers()` — **✅ DONE (2026-08-12).** `json_sorted`
+  is fixed outright, not just marked: commit `afa1c927` ("json_sorted prints
+  normally now, drop its @test_broken", 2026-07-15). `package/projectured/test/editor/ExampleSweeps.jl`
+  now runs it unmarked and clean.
+- `test_repls()` — **✅ DONE (2026-08-12).** `json_sorted`, `sql_update_syntax`
+  (and the stack-overflow-inducing `focusing`/`xml`, still `@test_skip`'d) are
+  covered by a `repl_broken(name)` predicate added in commit `4868e704`
+  ("mark the known reader/repl failures @test_broken", 2026-07-15), in
+  `package/projectured/test/editor/ExampleSweeps.jl:75-91`.
+- `test_text_navigations()` — **✅ DONE (2026-08-12), superseded.**
+  `TextNavigationTest.jl` no longer exists; it was replaced by a broader
+  navigation-test architecture (`test_position_navigations()`,
+  `test_tree_navigations()`, `test_text_nav_invariants_all()` in
+  `package/projectured/test/editor/ExampleSweeps.jl`) built through mid/late
+  July (commits `eb475113`, `c1337f07`, `fbe45557`). Of the original 8 examples,
+  `json_sorted`/`line_numbering`/`conversation` now run unmarked and pass;
+  `natural`/`filesystem`/`navigator`/`conversation_editor` are `@test_broken`
+  via `posnav_seed_broken`; `rotating_vector` is `@test_broken` via `nav_broken`.
+  All 8 are accounted for — none is an unmarked `Fail`.
 
-- `test_printers()` — `json_sorted` fails once (already handled in
-  `test_domain_examples()`, but this sweep runs it again).
-- `test_readers()` — `json_sorted` fails once.
-- `test_repls()` — `json_sorted`, `sql_update_syntax` still fail (the
-  stack-overflow-inducing `focusing` / `xml` are skipped).
-- `test_text_navigations()` — 8 examples fail at `TextNavigationTest.jl:146`:
-  `json_sorted`, `natural`, `line_numbering`, `filesystem`, `navigator`,
-  `rotating_vector`, `conversation`, `conversation_editor`.
+Each needed a per-example broken-list in the sweep loop (same pattern used
+in `test_domain_examples()`) — that is exactly what landed.
 
-Each needs a per-example broken-list in the sweep loop (same pattern used
-in `test_domain_examples()`), or a driver-level `broken=true` keyword.
-Estimated scope: ~4 short blocks + a shared broken-list constant, ~1
-session.
+Also deferred, now resolved:
 
-Also deferred:
-
-- `McpTest.jl:553` — `@test occursin("2", result)` on JsonArray indexing.
-  Passes in domain env, fails in umbrella env — the test's `execute_julia_code`
-  scratch namespace differs between the two. Needs either a robust
-  assertion or an env-aware marker.
+- `McpTest.jl:553` — **✅ DONE (2026-08-12).** Commit `9b9b0330` ("scratch
+  namespace resolves domain names in per-layer test envs", 2026-07-07) fixed
+  both the root-cause namespace bug and a genuine test typo (the assertion
+  should check `"1"`, not `"2"`, since `arr[1]` is `JsonNumber(1)`). Current
+  `package/projectured/test/editor/McpTest.jl:557-563` asserts `occursin("1", result)`
+  with no marker needed.
 
 ## Purpose
 

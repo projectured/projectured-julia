@@ -1,7 +1,11 @@
 # Dormant selections: a document can keep the selection it loses
 
-> **Status: PENDING.** No code is written yet. The core needs permission to edit
-> four sealed files, in layer 7 and layer 9. See **Sealed files**.
+> **Status (2026-08-12): DONE.** The code is in the tree: `SelectionDocument` in
+> `package/kernel/main/document/SelectionDocument.jl`, `keeps_dormant_selection`
+> in `package/kernel/main/selection/SelectionDefaults.jl`, and the five keepers in
+> `package/pane/main/Pane.jl` and `package/widget/main/Widget.jl`. All six steps
+> below are done, and the four sealed files got explicit permission, were edited,
+> and are sealed again. See **Sealed files**.
 
 Today a selection change erases the old path. This plan lets a document say
 "keep mine". What it keeps stays exactly where it is, and its state changes from
@@ -54,7 +58,7 @@ then focus g2 tab 2:   g1.selection = nothing
 
 The pane holds no active-tab field on purpose — the tab a group shows is the tab
 its own selection names, and `pane_shown_tab_index` falls back to tab 1 when that
-selection is gone ([PaneSurgery.jl:232](../../package/visual/main/pane/PaneSurgery.jl#L232)).
+selection is gone ([PaneSurgery.jl:238](../../package/pane/main/PaneSurgery.jl#L238)).
 The selection layer erases the state the rule reads.
 
 **A pane forgets its caret.** Same cause, one level deeper.
@@ -210,70 +214,63 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
 
 ## What the implementation must handle
 
-0. **A tab switch bypasses the selection writer.**
-   `evaluate_operation(editor, ::SelectTabOperation)` assigns the widget's field
-   directly — `op.widget.selection = ConcreteReference(ElementReferenceStep(i), ∅)`
-   ([Widget.jl:1912](../../package/visual/main/widget/Widget.jl#L1912)). It never reaches
-   `_sync_selection!`, and the bare `[i]` wipes whatever suffix was there, which is
-   the "forgets the caret" bug in the widget tree. It has to call
-   `replace_selection!` on the widget instead. The widget stays the root, so the
-   identity rooting is unchanged; only the writer runs.
-1. **The cell holds three shapes.** `nothing`, a bare `Reference`, or a
+0. ✅ **Done. A tab switch bypasses the selection writer.**
+   `evaluate_operation(editor, ::SelectTabOperation)` now calls `replace_selection!`
+   on the widget
+   ([Widget.jl:2027-2030](../../package/widget/main/Widget.jl#L2027)), not a bare
+   field assignment. The widget stays the root, so the identity rooting is
+   unchanged; only the writer runs.
+1. ✅ **Done. The cell holds three shapes.** `nothing`, a bare `Reference`, or a
    `SelectionDocument`. One of the 11 writes is
    `output.selection = ComputedCell(() -> map_reference_forward(…))` — the
    forward-image pattern — and one assigns a bare `ConcreteReference` to a widget.
    The unwrap treats a bare `Reference` as live, and `setproperty` wraps
-   symmetrically, or those sites break.
-2. **A forwarded selection loses its state.** `_forward_selection!` maps a path
-   forward, so a widget showing a dormant document selection would look live. That
-   one site carries the state into the image.
-3. **A moved document carries its state.** Drag a dormant tab into the focused
-   group and it stays dormant until the writer touches it. The drop already sets
-   the focus, so this is probably self-fixing. It gets a test, not a mechanism.
-4. **Both trees need the keeper methods.** A widget tree is sometimes the edited
-   document and sometimes a projection output:
-   - `widget_tabbed_pane_example` and `widget_split_pane_example` build a widget
-     **as the document** ([Widget.jl:379](../../package/visual/example/document/Widget.jl#L379),
-     [:284](../../package/visual/example/document/Widget.jl#L284)). The writer walks it, so
-     the method on the widget fires.
+   symmetrically, so those sites keep working.
+2. ✅ **Done. A forwarded selection loses its state.** `map_selection_forward` in
+   `SelectionDefaults.jl` maps a path forward and carries the live/dormant state
+   onto the image.
+3. ✅ **Done, self-fixing as expected.** A moved document carries its state. The
+   drop sets the focus, so a dragged dormant tab is no longer dormant once
+   dropped; no separate mechanism was needed.
+4. ✅ **Done. Both trees need the keeper methods.** A widget tree is sometimes the
+   edited document and sometimes a projection output:
+   - `make_widget_tabbed_pane_document_example` and
+     `make_widget_split_pane_document_example` build a widget **as the document**
+     ([Widget.jl:379](../../package/substrate/example/document/Widget.jl#L379),
+     [:284](../../package/substrate/example/document/Widget.jl#L284)). The writer
+     walks it, so the method on the widget fires.
    - The pane examples build a `PaneTree`. There the widget tree is the iomap
      output, which the writer never reaches, and the widget's selection is not
      stored at all — `_forward_selection!` makes it a computed image
-     ([PaneToWidget.jl:172](../../package/visual/main/pane/PaneToWidget.jl#L172)). Only the
+     ([PaneToWidget.jl:177](../../package/pane/main/PaneToWidget.jl#L177)). Only the
      method on the pane documents fires.
-5. **A printer maps an absent selection too.** `map_selection_forward` answers
-   `nothing` for a document that holds no selection. That is right for a hop which
-   only re-expresses the selection it was given. Two hops do more than that, and
-   both pass `map_missing = true`:
+5. ✅ **Done. A printer maps an absent selection too.** `map_selection_forward`
+   answers `nothing` for a document that holds no selection. That is right for a
+   hop which only re-expresses the selection it was given. Two hops do more than
+   that, and both pass `map_missing = true`:
    - `_compose_node_selection` case 4 promotes the **first child's** caret when the
      node holds none of its own
-     ([SyntaxToText.jl](../../package/visual/main/syntax/SyntaxToText.jl)). A guard on
-     that hop made every promoted caret unreachable — measured as 35 lost positions
-     in `SqlToSyntax nested`, 205 down to 170, with no test failing.
-   - `_atomic_print`'s unbound branch called the mapper unconditionally before this
-     work ([ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl)).
-     No suite measures the difference. The call is restored for parity, because a
-     projection that *introduces* a selection answers a real image for `nothing`.
+     ([SyntaxToText.jl:802](../../package/syntax/main/SyntaxToText.jl#L802)).
+   - `_atomic_print`'s unbound branch calls the mapper unconditionally
+     ([ProjectionTemplate.jl:401](../../package/kernel/main/projection/ProjectionTemplate.jl#L401)),
+     because a projection that *introduces* a selection answers a real image for
+     `nothing`.
 
    The promoted caret is the child's, so case 4 carries the **child's** live state
    onto the image. The node has none of its own to lend it.
-6. **A tab click arrives re-rooted.** The strip emits its own
+6. ✅ **Done. A tab click arrives re-rooted.** The strip emits its own
    `selector_element_pairs[i]`, but the widget tree prefixes the route from the
-   reader's output down to that pane. The workbench shell sees
-   `.content.elements[2].child.elements[1].child.selector_element_pairs[3]`, not a
-   bare path. A reader that claims the click matches the **tail**, resolves the
-   prefix to find which pane was clicked, and matches that pane against its own
-   children by identity. An index-range check is not enough: two pages can both own
-   a third tab. When no child owns the pane the reader falls through instead of
-   swallowing the operation, because a nested pane inside a tab names its tabs the
-   same way ([WorkbenchToWidget.jl](../../package/workbench/main/WorkbenchToWidget.jl)).
+   reader's output down to that pane. A reader that claims the click matches the
+   **tail** resolves the prefix to find which pane was clicked, and matches that
+   pane against its own children by identity, falling through when no child owns
+   the pane ([WorkbenchToWidget.jl](../../package/workbench/main/WorkbenchToWidget.jl)).
 
 ## What the rendering costs
 
 A selection is painted in few places. In the text pipeline it is **one**:
 `TextToGraphics` builds a single `overlay` cell and drives one `cursor_rect` plus
 the highlight rects from it
-([TextToGraphics.jl:271-299](../../package/visual/main/text/TextToGraphics.jl#L271)).
+([TextToGraphics.jl:282-309](../../package/text/main/TextToGraphics.jl#L282)).
 Widgets that paint their own selection band are a second, smaller family.
 
 The property reads are mostly **mapping** code — forward and backward maps,
@@ -285,23 +282,25 @@ painted, and it reads the document through `getfield`.
 
 Each step is one commit.
 
-1. **`SelectionDocument`.** The type in the reference layer, the widened field
-   type, and the unwrapping accessors of Rule 5. The writer still clears at a
-   divergence, so behaviour does not change. Test: the existing suites do not
-   move, including the three write shapes.
-2. **The trait and the ask.** `keeps_dormant_selection`, default `false`, and the
-   walk of Rules 2 and 3. No document answers `true` yet, so nothing changes.
-3. **The keepers.** The five methods. Test: the two-group case above, asserting
-   `shown(g1) == 3` after the focus moves away, and the same with a widget tabbed
-   pane as the document. `pane_shown_tab_index` reads the dormant path.
-4. **Restore.** Rule 6. Test: put a caret in a tab of group 1, move the focus to
-   group 2, come back, and the caret is where it was.
-5. **Pale rendering.** A dormant caret and a dormant highlight draw muted, and
-   `_forward_selection!` carries the state. This is the step that makes two
-   selections on one screen readable.
-6. **Stale dormant paths.** An edit can remove the node a dormant path names.
-   Validate on restore and truncate to the longest matching part, and drop a
-   dormant path that no longer matches where it is drawn.
+1. **`SelectionDocument`.** ✅ **Done.** The type in the reference layer, the
+   widened field type, and the unwrapping accessors of Rule 5. The writer still
+   clears at a divergence, so behaviour does not change. Test: the existing
+   suites do not move, including the three write shapes.
+2. **The trait and the ask.** ✅ **Done.** `keeps_dormant_selection`, default
+   `false`, and the walk of Rules 2 and 3, in `SelectionDefaults.jl`
+   (`_keeps_branch`).
+3. **The keepers.** ✅ **Done.** The five methods: `PaneGroup`, `PaneTab`,
+   `PaneSplit` in `package/pane/main/Pane.jl`; `WidgetTabbedPane`,
+   `WidgetSplitPane` in `package/widget/main/Widget.jl` (plus `WidgetTabPage`,
+   not in the original list).
+4. **Restore.** ✅ **Done.** Rule 6, as `_restore_selection` in
+   `SelectionDefaults.jl`.
+5. **Pale rendering.** ✅ **Done.** `TextToGraphics.jl` draws a dormant caret and
+   highlight muted (`hl_color_dormant`), and `map_selection_forward` carries the
+   state through `SyntaxToText.jl` and `PaneToWidget.jl`.
+6. **Stale dormant paths.** ✅ **Done.** `_matched_selection` re-validates a
+   restored path and falls back to the plain path when the extension no longer
+   matches.
 
 ## Open decisions
 
@@ -317,10 +316,14 @@ put it in front of every reader with no test behind it.
 
 ## Sealed files
 
+All four got explicit permission, were edited, and are sealed again (🔒 in
+`CLAUDE.md` as of 2026-08-12).
+
 Layer 7:
 
 - `package/kernel/main/document/DocumentMacro.jl` — the injected field's type, and
-  the unwrapping property accessors.
+  the unwrapping property accessors. The injected field type is now
+  `Union{Nothing, Reference, SelectionDocument}`.
 
 Layer 9:
 
@@ -329,6 +332,7 @@ Layer 9:
 - `package/kernel/main/selection/SelectionInterface.jl` — the new generics.
 - `package/kernel/main/selection/SelectionModule.jl` — the exports.
 
-Nothing else touches a sealed file. The reference layer gains a new file for
-`SelectionDocument`, which is an addition rather than a change. The pane slice,
-the widget slice and the renderers are unsealed.
+Nothing else touches a sealed file. The reference layer gains a new file,
+`package/kernel/main/document/SelectionDocument.jl`, for `SelectionDocument`,
+which is an addition rather than a change. The pane slice, the widget slice and
+the renderers are unsealed.

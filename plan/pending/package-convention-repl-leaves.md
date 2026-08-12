@@ -1,5 +1,24 @@
 # One leaf package per repository, and the compile workload lives there
 
+> **Status (2026-08-12): IN PROGRESS.** `ProjecturedRepl`, `OmnetppRepl` and
+> `InetRepl` all exist, and the `jp`/`jo`/`ji` aliases in `~/.bashrc` each load
+> only their leaf — the core convention is built and used every day. The
+> omnetpp-julia half of this plan is fully done, now in
+> `omnetpp-julia/plan/done/package-convention-repl-leaves.md`. The inet-julia
+> half is done except one step, `InetQueuingExample`'s `Test` dependency. Three
+> items stay open here: the `ProjecturedTest` optional-slice decision (step 13),
+> and `BlackBoxOptim`/`OmnetppDynamics` as weak instead of plain dependencies of
+> `OmnetppPresentationExample` (steps 16a-16b). A later plan,
+> [recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+> (done), replaced the four-level `:none`/`:minimal`/`:demo`/`:full` workload
+> scheme this plan specifies with a three-level `:none`/`:recorded`/`:live`
+> scheme in all three leaves; the level tables and measurements below predate
+> that change and are kept as the historical snapshot they were measured
+> against. The "What should depend on what" tables also predate a further split
+> of `ProjecturedBase`/`ProjecturedVisual` into the 28-package substrate
+> `documentation/packages.md` now describes — check that document for the
+> current package graph.
+
 Applies to projectured-julia, omnetpp-julia and inet-julia. Supersedes the
 layering decision in [precompile-workloads.md](precompile-workloads.md), which
 put the workloads in the example packages; the measurement below shows why that
@@ -326,6 +345,14 @@ person's choice, not the project's.
   The bodies do not move.
 - `ProjecturedExecutable` gains the `:full` call.
 
+  **Done, with the level argument later dropped.** `package/repl/ProjecturedRepl.jl`
+  and `package/executable/main/ProjecturedExecutable.jl` both exist as
+  described. `precompile_workload` lost its `level` parameter when
+  [recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+  landed — `ProjecturedExecutable.jl:135` now calls
+  `ProjecturedExample.precompile_workload()` unconditionally whenever
+  `APP_WORKLOAD` is not `:none`.
+
 ### omnetpp-julia
 
 - New `package/repl/` → `OmnetppRepl`, depending on `OmnetppTest` and
@@ -337,12 +364,28 @@ person's choice, not the project's.
   ([precompile-workloads.md](precompile-workloads.md)) get their home.
 - A `Build` leaf if and when a binary is wanted.
 
+  **Done, except the `Build` leaf.** `package/repl/src/OmnetppRepl.jl` exists,
+  in `package/repl/src/`, not directly in `package/repl/`. The workload body
+  landed on `OmnetppPresentationExample`, not `OmnetppExample` (see step 7); no
+  `OmnetppBuild` package was created, and this plan does not say one is still
+  wanted. Full detail in `omnetpp-julia/plan/done/package-convention-repl-leaves.md`.
+
 ### inet-julia
 
 - New `package/repl/` → `InetRepl`, depending on `InetTest` and `ProjecturedSdl`.
 - `InetExample` gains `precompile_workload(level)`.
 
+  **Done**, as described — `package/repl/InetRepl.jl` and
+  `InetExample.precompile_workload` both exist. See
+  `inet-julia/plan/pending/package-convention-repl-leaves.md`.
+
 ## The domain split, in flight
+
+**Landed.** The split described below is done —
+[plan/done/split-domain-into-per-domain-packages.md](../done/split-domain-into-per-domain-packages.md) —
+and `package/domain/main` now holds only the aggregator, `ProjecturedDomain`.
+This section is kept as the record of how the two pieces of work were
+sequenced.
 
 Another agent is splitting `package/domain` in projectured-julia into a package
 per domain. This plan must not collide with it:
@@ -459,6 +502,10 @@ presentation package loads example code. Move `make_graph_projection_example`
 down into `ProjecturedDomain` (it is a projection factory, not an example) or
 inline the projection at the call site. One function either way.
 
+**Fixed, by inlining.** `SimulationTopologyToWidget.jl` no longer imports an
+example package at all; `OmnetppPresentation` composes the topology projection
+itself from `ProjecturedGraph`. See step 10.
+
 ### 2. The presentation test drags the legacy stack in
 
 `OmnetppPresentationTest` imports `OmnetppLegacy` because the demo catalog has
@@ -470,6 +517,12 @@ is that `DataFrames` reaches every presentation test run, and through
 Move the legacy pages' coverage into `OmnetppLegacyTest`, which owns that
 dependency honestly, and let the presentation test skip a page whose doctype is
 not registered — the catalog already survives an unresolved embed.
+
+**Dropped, deliberately.** `Omnetpp` depends on `OmnetppLegacy` regardless, and
+`OmnetppRepl` depends on `Omnetpp`, so a `jo` session pays for `DataFrames`
+whatever `OmnetppPresentationTest` does. Moving the coverage would only have
+saved a presentation-only test run, so `OmnetppPresentationTest` keeps the
+import. See step 11.
 
 ### 3. `ProjecturedTest` aggregates the optional slices
 
@@ -536,6 +589,12 @@ A note on names: `Plot` and `Result` are **stems**, not kinds. The five reserved
 suffixes are the kinds — nothing, `Example`, `Test`, `Repl`, `Build` — so this
 stem's own kinds are `OmnetppLegacyResultExample` and `OmnetppLegacyResultTest`.
 
+**Done, with one simplification: no `OmnetppLegacyResultExample`.**
+`package/legacy/result/` holds only `OmnetppLegacyResult` and
+`OmnetppLegacyResultTest` (`src/`, `test/`) — the plot example that motivated a
+separate example package is synthetic-only, so `OmnetppLegacyResultTest`
+demonstrates the document and its projection directly. See step 14.
+
 ### CairoMakie: removed
 
 Not relocated — removed. `OmnetppLegacyPlot` has three uses of it, and every one
@@ -561,9 +620,19 @@ does `LaTeXStrings`.
    write the PNG the same way as 2. If that is more than the one picture is
    worth, drop the picture.
 
+**Done — see step 15.** `package/legacy/plot/Project.toml` no longer names
+`CairoMakie` or `LaTeXStrings`.
+
 **`OmnetppBenchPlot` is already dead.** It depends on `Plots`, `CSV` and
 `DataFrames`, and `Plots` is not installed in the root environment — the package
 cannot resolve. Delete it or rebuild it on our own charts.
+
+**Not done, and the premise turned out wrong — see step 16.**
+`OmnetppBenchPlot` (`benchmark/plot/`) is not dead; it was never wired into the
+root environment in the first place, its own `Project.toml` says to instantiate
+it standalone, and it still depends on `Plots`, `CSV` and `DataFrames`
+unchanged. "Cannot resolve" described that isolation, not a broken package, so
+nothing was deleted or rebuilt.
 
 **Lerche is genuinely needed** and should stay: it is the grammar engine behind
 the NED and INI parsers in `OmnetppFormat`, two real grammars. It costs 2796
@@ -609,29 +678,42 @@ as low as it can go.**
 
 | dependency | the question |
 | --- | --- |
-| `ODBC`, `Tulip`, `FFMPEG` | **settled by rule 2b.** They belong to separate stems, so `ProjecturedTest` no longer inherits them. `ProjecturedRepl` names `ProjecturedOdbcTest`, `ProjecturedTulipTest` and `ProjecturedVideoTest` if `test_all()` is to cover them at the prompt. Write the choice into `packages.md` |
-| `OrdinaryDiffEq*` via `OmnetppPresentationExample` | the demo has hybrid-dynamics pages and `src/OmnetppPresentationExample.jl:27` imports `OmnetppDynamics` to register its doctype module, so this one is real. Keep it, and know that the demo session carries a solver stack |
+| `ODBC`, `Tulip`, `FFMPEG` | **not yet settled — still open, see step 13.** `ProjecturedTest`'s `Project.toml` still names `ProjecturedOdbc`, `ProjecturedTulip`, `ProjecturedVideo` and `ProjecturedSdl` directly today, so `ProjecturedRepl` still loads all of them through `ProjecturedTest`; the deliberate-decision write-up in `packages.md` this row asks for has not been made |
+| `OrdinaryDiffEq*` via `OmnetppPresentationExample` | the demo has hybrid-dynamics pages and `src/OmnetppPresentationExample.jl` imports `OmnetppDynamics` to register its doctype module (now at line 27 of that file, unchanged), so this one is real. Keep it, and know that the demo session carries a solver stack. Still a plain dependency, not a weak one — see step 16b |
 
 ### Remove
 
 | dependency | where | what to do |
 | --- | --- | --- |
-| `BlackBoxOptim` | `OmnetppPresentationExample` `[deps]` | used only from `watch/adaptive.jl`, which runs in the watch environment where it is installed, and `OmnetppSimulator` reaches it through an extension. Nothing under `src/` imports it. Drop it from the package |
-| `CairoMakie`, `LaTeXStrings` | `OmnetppLegacyPlot` | replaced by our own charts, above |
-| `Plots`, `CSV`, `DataFrames` | `OmnetppBenchPlot` | the package cannot resolve — `Plots` is not installed. Delete it or rebuild it on our own charts |
+| `BlackBoxOptim` | `OmnetppPresentationExample` `[deps]` | used only from `watch/adaptive.jl`, which runs in the watch environment where it is installed, and `OmnetppSimulator` reaches it through an extension. Nothing under `src/` imports it. Drop it from the package. **Still open — see step 16a**; still a plain `[deps]` entry today |
+| `CairoMakie`, `LaTeXStrings` | `OmnetppLegacyPlot` | replaced by our own charts, above. **Done — see step 15**; neither name is in the `Project.toml` any more |
+| `Plots`, `CSV`, `DataFrames` | `OmnetppBenchPlot` | the package cannot resolve — `Plots` is not installed. Delete it or rebuild it on our own charts. **Dropped — see step 16**; the package was already isolated in its own standalone environment and never reached the root, so it was left as is |
 
 ## Guards
 
 - **A layering test**, next to `test_kernel_layering()`: no package depends on a
   `Repl` or a `Build` package; no `Example` is a dependency of a non-`Example`;
   no `Test` is a dependency of anything but a `Test` or a `Repl`.
+
+  **Done**, as `test_package_graph()` in projectured-julia
+  (`package/projectured/test/PackageGraphTest.jl`) and omnetpp-julia
+  (`package/omnetpp/test/PackageGraph.jl`), and as the unnamed `@testset` in
+  `package/inet/test/packagegraph.jl` for inet-julia.
 - **A recompile check**: open a page in a `Repl`-shaped session and assert
   `@timed`'s `recompile_time` is near zero. That single number is what makes a
   misplaced dependency visible, and it is how this whole problem surfaced.
+
+  **Not automated in any of the three repositories.** The number is measured by
+  hand and recorded in each repository's "Result" section rather than asserted
+  by a test.
 - **An external-dependency list**, asserted rather than described: the set of
   non-standard-library dependencies per package is written down, and the test
   fails when a package acquires one that is not on its list. That is what stops
   a `DataFrames` from arriving in the middle of the stack again.
+
+  **Done only in inet-julia** (`packagegraph.jl`'s `"a third-party dependency is
+  one that was named"` testset). Still owed in projectured-julia and
+  omnetpp-julia — both `test_package_graph()`s say so in their own comments.
 
 ## Documentation
 
@@ -655,10 +737,10 @@ and the existing guides point at it.
 
 ## Steps
 
-**Held.** Nothing here starts until the domain package split lands on
-projectured-julia `main`. The split moves the packages this convention is about
-to name, and step 5 wants a file the split is editing. See "The domain split, in
-flight".
+**No longer held.** The domain package split landed on projectured-julia `main`
+(see [plan/done/split-domain-into-per-domain-packages.md](../done/split-domain-into-per-domain-packages.md))
+and steps 0-9, 14, 15, 17 and 18 below are done. See the status banner at the
+top for what is still open.
 
 - [x] 0. The split lands. Re-read the dependency tables against the packages it
       produced, then start.
@@ -681,31 +763,69 @@ flight".
       an example package is a dependency only of a leaf or an example or a test,
       and a compile workload lives only in a leaf. 318 pass. The
       external-dependency list is still owed.
-- [ ] 7. omnetpp-julia: `OmnetppExample.precompile_workload`, `OmnetppRepl`.
-- [ ] 8. inet-julia: `InetExample.precompile_workload`, `InetRepl`.
-- [ ] 9. The three aliases.
-- [ ] 10. `make_graph_projection_example` moves down, so `OmnetppPresentation`
-      stops depending on an example package.
+- [x] 7. omnetpp-julia: `OmnetppRepl` exists (`package/repl/src/OmnetppRepl.jl`).
+      The workload body ended up in
+      `OmnetppPresentationExample.precompile_workload`, not `OmnetppExample`,
+      because `OmnetppExample` never grew one. Full detail in the companion
+      plan, now `omnetpp-julia/plan/done/package-convention-repl-leaves.md`.
+- [x] 8. inet-julia: `InetExample.precompile_workload` and `InetRepl` both
+      exist, matching this line as written. See
+      `inet-julia/plan/pending/package-convention-repl-leaves.md`.
+- [x] 9. The three aliases. `~/.bashrc` has `jp`/`jo`/`ji`, each
+      `julia --project=<repo> ... -e "using Revise, <Stem>Repl"` — nothing loads
+      after the leaf.
+- [x] 10. Done, but differently than described: `OmnetppPresentation` composes
+      the topology projection itself, in
+      `package/presentation/main/src/module/SimulationTopologyToWidget.jl`,
+      rather than moving the factory function into a domain package.
+      `OmnetppPresentation`'s `Project.toml` names no `Example` package.
 - [ ] 11. The legacy pages' coverage moves to `OmnetppLegacyTest`, so
-      `OmnetppPresentationTest` stops needing `OmnetppLegacy`.
-- [ ] 12. `InetQueuingExample` stops depending on `Test`.
+      `OmnetppPresentationTest` stops needing `OmnetppLegacy`. **Dropped — the
+      premise was wrong.** `Omnetpp` depends on `OmnetppLegacy` and `OmnetppRepl`
+      depends on `Omnetpp`, so a `jo` session loads legacy whatever the
+      presentation test does; moving the coverage would only have saved a
+      presentation-only test run. `OmnetppPresentationTest` still imports
+      `OmnetppLegacy` directly today, with the reasoning recorded next to the
+      import.
+- [ ] 12. `InetQueuingExample` stops depending on `Test`. Still open:
+      `package/queuing/example/Project.toml` still declares `Test`, and
+      `TutorialTest.jl` still lives inside the example package. Tracked as its
+      own open step in inet-julia's companion plan.
 - [ ] 13. Decide `ProjecturedTest`'s optional slices deliberately, and write the
-      decision into `documentation/packages.md`.
-- [ ] 14. `OmnetppLegacyResult` — the `.sca` and `.vec` readers and their
-      `DataFrames` move there, and nothing depends on it by default.
-- [ ] 15. `CairoMakie` and `LaTeXStrings` out of `OmnetppLegacyPlot`:
-      `SimulationPlotToGraphics` becomes a real projection over our own chart
-      primitives, `save_simulation_plot` goes through `write_image`, and the one
-      formula picture is rendered by the math domain or dropped.
+      decision into `documentation/packages.md`. Still open: `ProjecturedTest`
+      still declares `ProjecturedOdbc`, `ProjecturedTulip`, `ProjecturedVideo`
+      and `ProjecturedSdl` directly, and `documentation/packages.md` gives a
+      reason for each dependency but does not name this choice as a decision.
+- [x] 14. `OmnetppLegacyResult` and `OmnetppLegacyResultTest` exist
+      (`package/legacy/result/`), hold the readers and `DataFrames`, and nothing
+      in `Omnetpp`, `OmnetppExample`, `OmnetppTest` or `OmnetppRepl` depends on
+      the package.
+- [x] 15. Done. `package/legacy/plot/Project.toml` no longer names `CairoMakie`
+      or `LaTeXStrings` — only a doc comment in `OmnetppLegacyPlot.jl` still
+      mentions CairoMakie, as history.
 - [ ] 16. Delete or rebuild `OmnetppBenchPlot` — `Plots` does not resolve.
+      **Dropped — the premise was wrong.** `OmnetppBenchPlot` (`benchmark/plot/`)
+      was never in the root environment; its own `Project.toml` says to
+      instantiate it standalone, and it still depends on `Plots`, `CSV` and
+      `DataFrames` unchanged. It costs no session anything, so nothing moved.
 - [ ] 16a. `BlackBoxOptim` out of `OmnetppPresentationExample`'s `[deps]` —
       only `watch/adaptive.jl` uses it, and that runs in the watch environment.
+      Still open: `package/presentation/example/Project.toml` still lists
+      `BlackBoxOptim` as a plain dependency.
 - [ ] 16b. `OmnetppDynamics` becomes a weak dependency of
       `OmnetppPresentationExample`, with an extension holding the one
-      `register_doctype_module!` call. The demo stops loading a solver.
-- [ ] 17. `documentation/packages.md` in each repository, and the pointers from
-      `architecture.md`, `terminology.md` and `CLAUDE.md`.
-- [ ] 18. Re-measure the first click in each repository, at each level.
+      `register_doctype_module!` call. The demo stops loading a solver. Still
+      open: `OmnetppDynamics` is still a plain `[deps]` entry, and
+      `src/OmnetppPresentationExample.jl` still does `import OmnetppDynamics`
+      and the call directly.
+- [x] 17. `documentation/packages.md` exists in all three repositories, and
+      `architecture.md` and `CLAUDE.md` point at it in each. `terminology.md`
+      only exists in projectured-julia, where it gained `leaf` as a term.
+- [x] 18. Re-measured in all three repositories — see each repository's
+      "Result" section and its companion plan.
+      [recorded-precompile-workload.md](../done/recorded-precompile-workload.md)
+      (done) re-measured again after replacing the four levels here with
+      `:none`/`:recorded`/`:live`.
 
 ## Risks
 

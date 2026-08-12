@@ -1,5 +1,19 @@
 # `left` stalls on projection-introduced text
 
+> **Status (2026-08-12): IN PROGRESS.** The root cause described below is fixed —
+> commit `be67c29d` (2026-07-17) took option 3 from "What a real fix needs"
+> (reconcile the forward/backward maps in `SyntaxToText`, not a new `TextString`
+> field). All ten originally-listed examples are gone from the broken lists,
+> including `json`'s oscillation and `yaml`. But the underlying problem (a
+> left/right walk asymmetry) turned out to be broader than this plan's ten
+> syntax-backed examples: `NAV_LEFT_WALK_STALLS` now lists `formula`, `text`,
+> `text_with_image`, `markdown_rendered` (`package/projectured/test/editor/ExampleSweeps.jl:409,414`)
+> — `formula` is the one case this plan itself anticipated staying open; the
+> other three are new findings outside this plan's original scope (plain
+> `Text`/`Markdown` rendering, not `SyntaxToText`). A live sweep also surfaced an
+> apparently unmarked failure on `fsm` (see "Newly found" below) that needs
+> confirming before treating it as a regression.
+
 ## Symptom
 
 Walking the cursor leftwards from Ctrl+End collapses after two or three carets on **every**
@@ -26,10 +40,19 @@ examples are marked `@test_broken` via `NAV_LEFT_WALK_STALLS` in
 
 ## Root cause (established)
 
+> Paths below are as they stood when this was written. `package/visual/` no
+> longer exists (the package was split): `SyntaxToText.jl` is now at
+> `package/syntax/main/SyntaxToText.jl`, `Text.jl` at `package/text/main/Text.jl`.
+> `Text.jl` was also rewritten to a flat-offset caret model — `_step_left`/
+> `_step_right` no longer exist, replaced by `_text_char_motion`/
+> `_text_flat_selection`/`_flat_caret_ref` (around line 606). The line numbers
+> below are historical.
+
 **A zero-length span swallows the step.**
 
 `SyntaxToText` deliberately emits an *empty* `TextString` for the trailing indent before a node's
-close delimiter — [SyntaxToText.jl:479-486](../../package/visual/main/syntax/SyntaxToText.jl#L479-L486):
+close delimiter — [SyntaxToText.jl:479-486](../../package/visual/main/syntax/SyntaxToText.jl#L479-L486)
+(now `package/syntax/main/SyntaxToText.jl:767-770`):
 "an empty span is still emitted so there is always a slot to widen and element counts never depend
 on depth". The `syntax` example's flattened text has 29 such empty spans; span 85 of 86 is one,
 sitting between the last child and the closing `)`.
@@ -84,12 +107,24 @@ chrome", and both cases are a zero-length `TextString`.
 
 ## What a real fix needs
 
-The degeneracy is created in `SyntaxToText._backward_zone`
-([SyntaxToText.jl:333](../../package/visual/main/syntax/SyntaxToText.jl#L333)): for its *own* chrome
+**✅ Resolved (2026-08-12) — option 3 below was the route taken.** Commit `be67c29d`
+(2026-07-17, "syntax: map indent-span carets to chrome, not the close delimiter")
+fixed this inside `SyntaxToText` (now `package/syntax/main/SyntaxToText.jl:513-522`):
+an indent span's caret is now treated as a projection-introduced position at the
+splice level, instead of delegating into the child and re-flattening over
+un-widened spans. Commit message: "0/384 broken flats on json_example (was 32).
+Fixes the leftward-walk cycle/stall on json, json_sorted, mixed, yaml." No `chrome`
+field was added to `TextString` (option 1) and no `TextSpacing(0)` substitution was
+made (option 2) — `package/text/main/Text.jl:149-156`'s `TextString` is unchanged
+(`content, font, font_color, fill_color, line_color, padding`).
+
+The degeneracy was created in `SyntaxToText._backward_zone`
+([SyntaxToText.jl:333](../../package/visual/main/syntax/SyntaxToText.jl#L333), now
+`package/syntax/main/SyntaxToText.jl:506`): for its *own* chrome
 spans it encodes the caret as a flat offset, and an empty chrome span's flat offset equals its
 neighbour's. A child's empty `.open` does not collide, because it is routed through the child zone to
 the child's own mapper and keeps a distinct path. So the projection knows which spans are caretless;
-the Text layer does not. Options, roughly in order of appeal:
+the Text layer does not. Options, roughly in order of appeal (option 3 is what was built):
 
 1. **Mark chrome spans in the document.** Give `TextString` a flag (or a distinct span type) that
    `SyntaxToText` sets on the decorative spans it creates. The steppers then skip a span only when it
@@ -113,20 +148,53 @@ forward/backward map inconsistencies for introduced positions inside **child** p
 - **json** oscillates. Walking left, a nested node's `close{0}` and that node's own introduced offset
   `/SyntaxNodeToText({65})` map to adjacent-but-inconsistent carets: `backward(T-1)` yields `{65}`
   while `forward({65})` yields `T+1`, so `left` bounces between the two forever (the walk reports a
-  cycle).
+  cycle). **✅ RESOLVED (2026-08-12):** `json` no longer appears in any broken-walk list
+  (`NAV_LEFT_WALK_STALLS`/`NAV_RIGHT_WALK_MISSES_END`/`NAV_WALK_THROWS` in
+  `package/projectured/test/editor/ExampleSweeps.jl`) — fixed by the same `be67c29d` change.
 - **formula** walks left out of one formula's syntax children into a *different* subtree
   (`.formulas[3:4].code.right/JuliaIntegerToSyntaxLeaf(.value{0})`) and then declines to move.
+  **⏳ STILL OPEN (confirmed 2026-08-12):** `formula` is in both `NAV_LEFT_WALK_STALLS` and
+  `NAV_RIGHT_WALK_MISSES_END` today — exactly the one example this plan predicted would
+  stay open past the empty-span fix.
+
+## Newly found (2026-08-12, outside this plan's original scope)
+
+- **`text`, `text_with_image`, `markdown_rendered`** — a left/right walk-count asymmetry in the
+  plain `Text`/rendered-`Markdown` pipelines, with no `SyntaxToText` involved (`text` 53 vs 449
+  carets, `text_with_image` 49 vs 199, `markdown_rendered` 253 vs 347, from a live
+  `test_text_nav_invariants_all()` run). Correctly `@test_broken`-marked in
+  `NAV_LEFT_WALK_STALLS`, but the root cause is different from — and not covered by — this
+  plan's `SyntaxToText` fix; it needs its own investigation.
+- **`fsm`** — a live sweep hit an **unmarked** rightward-walk cycle (revisits a `JuliaIdentifier`
+  caret inside `fsm`'s generated-Julia-code example, added by commit `7580e4bd` after both this
+  plan and its Julia-navigation sibling were written). Not in `NAV_LEFT_WALK_STALLS`,
+  `NAV_RIGHT_WALK_MISSES_END`, or `NAV_WALK_THROWS`. Plausibly a knock-on of the still-open
+  Julia leaf-opacity gap in [julia-syntax-navigation.md](julia-syntax-navigation.md) (Step 3:
+  `JuliaIdentifier` has no `bound(...)` marker). **Unconfirmed** — the sweep that surfaced it hit
+  its own timeout before finishing a clean pass/fail tally; needs a full untruncated
+  `test_text_nav_invariants_all()` run to confirm before treating it as a real regression.
 
 ## Steps
 
-1. Pick a route from "What a real fix needs" (1 is recommended).
-2. Implement it in `SyntaxToText` + the span model. The steppers should need no change.
-3. Verify with `test_text_nav_invariants(syntax_example)`, then `test_text_nav_invariants_all()`.
-   Expect the 8 stalling examples to go symmetric.
-4. **Guard against the trap above**: `test_text_nav_invariants(json_null_example)` must stay green
-   (its `.close{0}` caret must remain reachable), and `test_table_navigation()` must stay at its
-   63 pass / 0 fail / 1 error / 1 broken baseline.
-5. Shrink `NAV_LEFT_WALK_STALLS` to `("json", "formula")` and `NAV_RIGHT_WALK_MISSES_END` to
-   `("formula",)`. A new `:cycle_left` broken marker is then needed for json's oscillation — and for
-   yaml, whose leftward walk only gets far enough to cycle once the stall is gone.
-6. Then tackle the two residual child-projection inconsistencies above.
+1. **✅ DONE (2026-08-12).** Pick a route from "What a real fix needs" — option 3
+   (reconcile the forward/backward maps) was the one built, not option 1 as
+   originally recommended.
+2. **✅ DONE (2026-08-12).** Implemented in `SyntaxToText` + the span model
+   (commit `be67c29d`); the steppers needed no change, as predicted.
+3. **✅ DONE (2026-08-12), better than predicted.** All ten originally-listed
+   examples went symmetric, including `json` and `yaml` (the plan expected those
+   two to need a further `:cycle_left` marker — they did not).
+4. **Not explicitly re-verified in this pass** — confirm `test_text_nav_invariants(json_null_example)`
+   and `test_table_navigation()` still hold their baseline before closing the plan.
+5. **✅ DONE (2026-08-12), different result than planned.** `NAV_LEFT_WALK_STALLS`
+   is not `("json", "formula")` — `json` needed no further marker at all (fully
+   fixed, no oscillation, no `:cycle_left` needed), `yaml` needed no marker either.
+   It is instead `("formula", "text", "text_with_image", "markdown_rendered")`
+   (`NAV_RIGHT_WALK_MISSES_END = ("formula",)`) — `formula` as predicted, plus
+   three examples outside a `SyntaxToText` pipeline entirely (see "Newly found"
+   above).
+6. **`formula`'s residual child-projection inconsistency — still open**, as
+   predicted. The `json` oscillation is resolved (see "Also found, still open").
+   The three newly found examples (`text`, `text_with_image`, `markdown_rendered`)
+   are a different problem needing separate investigation, not covered by this
+   step.

@@ -1,11 +1,17 @@
 # SQL `GROUP BY` + SELECT aggregation support
 
+> **Status (2026-08-12): NOT STARTED.** No part of this plan is built. A search
+> of `package/sql/` finds no `SqlGroupByClause`, `SqlAggregateExpression`,
+> `SqlAggregateFunction`, or `SqlCountFunction`/`SqlSumFunction`/etc. The parser
+> (`package/sql/main/SqlParser.jl`) still only dispatches `SELECT` and `CREATE`.
+> All three phases remain to do.
+
 Add support for the `GROUP BY` clause (basic column list) and basic column
 aggregation functions in the `SELECT` list (`COUNT`, `SUM`, `AVG`, `MIN`,
 `MAX`, plus `COUNT(*)`).
 
 This is the first feature to lift two items out of the **Out of scope** list in
-[sql-statement.md](sql-statement.md) (§5): `GROUP BY` and function-call
+[sql-statement.md](../done/sql-statement.md) (§5): `GROUP BY` and function-call
 expressions as SELECT operands. `HAVING`, `ORDER BY`, `LIMIT`, arithmetic, and
 function-call *comparison operands* stay out of scope.
 
@@ -24,12 +30,12 @@ GROUP BY p.department
 
 | Layer | File | Phase |
 |-------|------|-------|
-| Document model | [program/src/document/Sql.jl](../../program/src/document/Sql.jl) | 1 |
-| Doc model guide | [plan/pending/sql-statement.md](sql-statement.md) | 1 (maintain after) |
-| Parser | [program/src/parser/SqlParser.jl](../../program/src/parser/SqlParser.jl) | 2 |
-| Sql→Syntax projection | [program/src/projection/primitive/SqlToSyntax.jl](../../program/src/projection/primitive/SqlToSyntax.jl) | 3 |
-| Examples | [example/src/document/Sql.jl](../../example/src/document/Sql.jl) | 1 / 3 |
-| Tests | [test/src/projection/SqlToSyntaxTest.jl](../../test/src/projection/SqlToSyntaxTest.jl) and parser/printer tests | each phase |
+| Document model | [package/sql/main/Sql.jl](../../package/sql/main/Sql.jl) | 1 |
+| Doc model guide | [plan/done/sql-statement.md](../done/sql-statement.md) | 1 (maintain after) |
+| Parser | [package/sql/main/SqlParser.jl](../../package/sql/main/SqlParser.jl) | 2 |
+| Sql→Syntax projection | [package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl) | 3 |
+| Examples | [package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) | 1 / 3 |
+| Tests | [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/projection/SqlToSyntaxTest.jl) and parser/printer tests | each phase |
 
 ---
 
@@ -47,7 +53,7 @@ GROUP BY p.department
 2. **Maintain this plan after each phase.** Record what was actually
    implemented, any deviations from the design below, and lessons learned, so a
    later phase starts from ground truth rather than the original guess.
-3. **After Phase 1, maintain [sql-statement.md](sql-statement.md)** with the new
+3. **After Phase 1, maintain [sql-statement.md](../done/sql-statement.md)** with the new
    document structs (hierarchy diagram §1, abstract-type tables §3, and remove
    the now-supported items from the Out-of-scope list §5).
 
@@ -55,7 +61,7 @@ GROUP BY p.department
 
 ## Phase 1 — Document structure
 
-Add to [program/src/document/Sql.jl](../../program/src/document/Sql.jl) and
+Add to [package/sql/main/Sql.jl](../../package/sql/main/Sql.jl) and
 export from `SqlDocumentModule`.
 
 ### New abstract type
@@ -140,7 +146,7 @@ Add `Base.show` for the new leaves and `SqlAggregateExpression` /
 ### Example document
 
 Add an aggregation example to
-[example/src/document/Sql.jl](../../example/src/document/Sql.jl) (e.g.
+[package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) (e.g.
 `make_sql_aggregation_document_example`) built from the target query above, for
 use by later phases' tests.
 
@@ -154,7 +160,7 @@ use by later phases' tests.
 
 ### Phase 1 maintenance
 
-Update [sql-statement.md](sql-statement.md): hierarchy diagram (add
+Update [sql-statement.md](../done/sql-statement.md): hierarchy diagram (add
 `group_by_clause`, `SqlAggregateExpression`, the function leaves), the
 abstract-type table (`SqlSelectExpression` now also has
 `SqlAggregateExpression`; add `SqlAggregateFunction` row), and prune §5.
@@ -163,7 +169,7 @@ abstract-type table (`SqlSelectExpression` now also has
 
 ## Phase 2 — Parser support
 
-Edit [program/src/parser/SqlParser.jl](../../program/src/parser/SqlParser.jl).
+Edit [package/sql/main/SqlParser.jl](../../package/sql/main/SqlParser.jl).
 
 ### Aggregate function in SELECT
 
@@ -223,7 +229,7 @@ raw `SqlScalarValue`). Replace that for the supported five functions:
 ## Phase 3 — Sql→Syntax projection (full bidirectional)
 
 Edit
-[program/src/projection/primitive/SqlToSyntax.jl](../../program/src/projection/primitive/SqlToSyntax.jl).
+[package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl).
 Follow the patterns documented in
 [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md) — every
 new node projection needs `projection_print`, `map_reference_forward`,
@@ -278,15 +284,17 @@ Edit `projection_print` (line ~1378) and its mappers (lines ~1423/1452):
 - Per the **Rule: new SQL projection → must add to selection test** in
   [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md):
   ensure the nested/aggregation example in `test_sql_to_syntax_selection()`
-  exercises every new node and leaf, or add a targeted `test_selection(...)`
-  call. Un-skip any newly-wired example in
-  [test/src/editor/SelectionTest.jl](../../test/src/editor/SelectionTest.jl).
+  exercises every new node and leaf, or add a targeted call using the live
+  test helper `test_position_navigation(label, document, projection)` (there is
+  no `test_selection` and no `test/src/editor/SelectionTest.jl` — that API does
+  not exist in the current tree; see
+  [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md)).
 
 ### Phase 3 tests
 
 - Atomic: `test_printer` / `test_reader` on a minimal aggregation example
-  (`SELECT COUNT(*) FROM t`) and a minimal GROUP BY example; `test_selection`
-  on each new projection.
+  (`SELECT COUNT(*) FROM t`) and a minimal GROUP BY example;
+  `test_position_navigation` on each new projection.
 - Combined: `test_example(sql_aggregation_example)` (printer + reader +
   navigation) on the full target query; `test_sql_to_syntax_selection()` over
   the extended nested document; re-run the existing nested SQL example to
@@ -305,5 +313,5 @@ Edit `projection_print` (line ~1378) and its mappers (lines ~1423/1452):
 - Aggregate or arbitrary expressions as GROUP BY keys (basic columns only).
 - Aggregates as comparison operands in WHERE/HAVING.
 - Arithmetic and general function-call expressions (unchanged from
-  [sql-statement.md](sql-statement.md) §5).
+  [sql-statement.md](../done/sql-statement.md) §5).
 ```

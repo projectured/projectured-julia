@@ -1,8 +1,12 @@
 # Removing FileReferenceStep and IdentityReferenceStep — they are not steps
 
-Status: **done** (2026-08-04), on branch `tutorial-embeds`. Phase B removed their
-last consumer (the `FileProject` marker codec), which was the gate.
-Follow-up of `inet-julia/plan/pending/queuing-tutorial-migration.md` §9.
+> **Status (2026-08-12): DONE.** The removal commit (`44483f9c`) is on `main`;
+> `FileReferenceStep.jl`, `IdentityReferenceStep.jl`, and `IdentityDocument.jl` are
+> confirmed absent from the current tree. Nothing further to do.
+
+Status: **done** (2026-08-04), landed on `main` (was branch `tutorial-embeds`).
+Phase B removed their last consumer (the `FileProject` marker codec), which was
+the gate. Follow-up of `inet-julia/plan/pending/queuing-tutorial-migration.md` §9.
 
 ## 1. Why
 
@@ -80,4 +84,5 @@ Removing them takes those two `@reference` extension forms with them, which is
 the point — the reference syntax is now closed over steps that a selection
 genuinely carries.
 
-Status: **done**, moves to `plan/done/` once the branch lands on `main`.
+Status: **done**. The branch has landed on `main`; this plan is ready to move to
+`plan/done/`.

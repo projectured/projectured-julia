@@ -1,10 +1,15 @@
 # Rendered ("beautiful") Markdown projection
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): DONE.** `MarkdownToSyntax(; style=:source|:rendered)`
+> exists at `package/markdown/main/MarkdownToSyntax.jl`, with the full styled-node
+> family (`MarkdownStrongToStyledNode`, `MarkdownHeadingToStyledNode`,
+> `MarkdownLinkToStyledNode`, `MarkdownImageToStyledNode`,
+> `MarkdownListToStyledNode`, `MarkdownStyledInline`) exported. `markdown_rendered_example`
+> is registered in `package/projectured/example/DomainExamples.jl`, and the
+> conversation/assistant view uses the rendered chain
+> (`package/conversation/example/projection/Conversation.jl`). The one design change:
+> both styles live in one file, `MarkdownToSyntax.jl`, not a separate
+> `MarkdownToStyledSyntax.jl` as first planned.
 
 ## Goal
 
@@ -104,10 +109,11 @@ unchanged.
 
 ## Design
 
-New primitive family `MarkdownToStyledSyntax.jl` — one projection per node type
-(`Markdown<Node>ToStyledSyntax…`), assembled by `MarkdownRenderedToSyntax()` (a
-`TypeDispatchingProjection`, mirroring `MarkdownToSyntax()`). Modelled on
-`BookToSyntax`.
+New primitive family — one projection per node type (`Markdown<Node>ToStyledNode…`),
+assembled by `MarkdownToSyntax(; style=:rendered)` (a `TypeDispatchingProjection`).
+Modelled on `BookToSyntax`. **As built:** these live inside the existing
+`package/markdown/main/MarkdownToSyntax.jl`, not a separate file — see the
+status banner.
 
 - **Use `@projection_template` wherever it suffices** (most inline/block nodes —
   leaves and homogeneous-collection nodes with no marker, just styled open/sep).
@@ -163,18 +169,18 @@ smaller). Body prose: sans regular 20; inline/block code: monospace 20.
 
 ## Wiring
 
-- `make_markdown_rendered_projection_example` = `MarkdownRenderedToSyntax →
+- `make_markdown_rendered_projection_example` = `MarkdownToSyntax(; style=:rendered) →
   SyntaxToText → WordWrapping → TextToGraphics`; register `markdown_rendered_example`
-  (reuse `make_markdown_document_example`).
-- Include `MarkdownToStyledSyntax.jl` in `ProjecturedDomain.jl` (after
-  `MarkdownToSyntax.jl`) and the example file in `ProjecturedExample.jl`.
+  (reuse `make_markdown_document_example`). **As built:**
+  `package/markdown/example/ProjecturedMarkdownExample.jl` defines the function;
+  `package/projectured/example/DomainExamples.jl` registers `markdown_rendered_example`.
 - **Assistant follow-on**: switch the assistant/conversation dispatch entries for
   `MarkdownDocument` from `make_markdown_projection_example` (source view) to the
-  rendered one — a chat wants formatted prose, not raw markdown. This is a one-line
-  swap in `projection/Assistant.jl` (`_conversation_widget_graphics` extra) and
-  `projection/Conversation.jl`. `_block_text`/`_doc_source` (LLM round-trip) must
-  KEEP using the source-view chain (`_MARKDOWN_TO_TEXT`) so the model still receives
-  real markdown — only the on-screen rendering changes.
+  rendered one — a chat wants formatted prose, not raw markdown. **As built:** done in
+  `package/workbench/example/projection/Assistant.jl` (`_conversation_widget_graphics`)
+  and `package/conversation/example/projection/Conversation.jl`. `_block_text`/`_doc_source`
+  (LLM round-trip) keep using the source-view chain so the model still receives
+  real markdown — only the on-screen rendering changed.
 
 ## Implementation steps (incremental, each independently testable)
 

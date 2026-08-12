@@ -1,10 +1,12 @@
 # Cairo + GLFW backend
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
+> **Status (2026-08-12): NOT STARTED.** No `package/cairo` directory exists and
+> `ProjecturedCairo` has zero references anywhere in the repository. The
+> reference material this plan reuses is all present and current under its new
+> paths: `package/pdf/main/Pdf.jl` (the SDL-free painter set to port),
+> `package/sdl/main/ProjecturedSdl.jl` (the interactive backend to mirror), and
+> `package/kernel/main/backend/{BackendInterface,BackendDefaults}.jl` and
+> `package/kernel/main/device/Device.jl` (the interface to implement).
 
 ## Goal
 
@@ -23,7 +25,7 @@ mirroring `package/sdl`.
 The graphics-domain render walk already exists **twice**, and the Cairo version
 is closest to the SDL-free one:
 
-- **`package/visual/main/backend/Pdf.jl`** (`PdfBackendModule`) is a complete,
+- **`package/pdf/main/Pdf.jl`** (`PdfBackendModule`) is a complete,
   SDL-free walk of a `GraphicsCanvas`: `paint_rect!`, `paint_circle!`,
   `paint_line!`, `paint_polyline!`, `paint_spline!`, `paint_text!`,
   `paint_image!`, `paint_viewport!`, `paint_canvas!`, `paint_elem!`. Cairo's
@@ -39,13 +41,13 @@ is closest to the SDL-free one:
 - The **`Backend` / `Device` split** is designed for this. A new backend needs
   only `init!`, `quit!`, `measure_text`, `read_from_devices`, `write_to_devices`
   (+ optional `pointer_position`, `display_size` provider). See
-  [documentation/devices-and-backends.md](../../documentation/devices-and-backends.md)
+  [package/kernel/doc/devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md)
   §"Adding a new backend".
 - **`write_to_devices(::CairoBackend, devices, ::ScreenDocument)`** is the same
   window-reconciliation loop as SDL's (diff desired `WindowDocument.id`s against
   live windows; open/close/update-geometry; render each window's `content`
   canvas). Copy the shape of `write_to_devices(::SdlBackend, …)` and
-  `_update_window_geometry!` in [package/sdl/src/ProjecturedSdl.jl](../../package/sdl/src/ProjecturedSdl.jl).
+  `_update_window_geometry!` in [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl).
 - **Input is *better* than SDL's**: GLFW delivers events through callbacks with a
   clean, portable key enum (`GLFW.KEY_LEFT`, …) instead of SDL's magic keysym
   integers. We translate to the same backend-agnostic vocabulary
@@ -68,18 +70,22 @@ Editor.run! ─▶ read_from_devices(CairoBackend) ─▶ GLFW.PollEvents() drai
                    └─ blit surface → GLFW framebuffer → SwapBuffers
 ```
 
-### Package layout (mirror `package/sdl`)
+### Package layout (mirror `package/sdl/main`)
 
 ```
-package/cairo/
-  Project.toml          # name=ProjecturedCairo; deps: ProjecturedDomain, Cairo, GLFW, ModernGL
-                        # [sources] ProjecturedDomain = {path="../domain"}
-  src/ProjecturedCairo.jl
+package/cairo/main/
+  Project.toml          # name=ProjecturedCairo; deps: ProjecturedCollection,
+                        # ProjecturedGraphics, ProjecturedKernel, ProjecturedScreen,
+                        # ProjecturedStyle, Cairo, GLFW, ModernGL — the same
+                        # dependency set as package/sdl/main/Project.toml, plus
+                        # the Cairo/GLFW/ModernGL native packages
+  ProjecturedCairo.jl
 ```
 
 Root `Project.toml`: add `ProjecturedCairo` to `[deps]` and `[sources]`
-(`{path = "package/cairo"}`), like every other subpackage. The umbrella
-`Projectured` package does **not** import it (backends are opt-in `using`).
+(`{path = "package/cairo/main"}`), like every other subpackage. There is no
+umbrella `Projectured` package that imports every domain; a backend is opt-in
+`using ProjecturedCairo`.
 
 ### Backend state (mirror `SdlBackend` / `SdlWindowResources`)
 
@@ -271,12 +277,12 @@ callback, or `GLFW.GetCursorPos(win)`).
   Cairo PNG path + pure event-translation unit tests.
 
 ## References
-- `package/sdl/src/ProjecturedSdl.jl` — interactive backend to mirror (windowing,
+- `package/sdl/main/ProjecturedSdl.jl` — interactive backend to mirror (windowing,
   `read_from_devices`, `write_to_devices` reconciliation, key/mod maps, HiDPI).
-- `package/visual/main/backend/Pdf.jl` — the SDL-free canvas walk to port to Cairo.
-- `package/visual/main/backend/Console.jl` — smallest complete non-SDL backend.
-- `package/kernel/src/api/{Backend,Device}.jl` — the interface to implement.
-- `package/kernel/src/document/ScreenDocument.jl` — `ScreenDocument`/`WindowDocument`.
-- `documentation/devices-and-backends.md` — §"Adding a new backend".
+- `package/pdf/main/Pdf.jl` — the SDL-free canvas walk to port to Cairo.
+- `package/console/main/Console.jl` — smallest complete non-SDL backend.
+- `package/kernel/main/backend/{BackendInterface,BackendDefaults}.jl` and `package/kernel/main/device/Device.jl` — the interface to implement.
+- `package/screen/main/ScreenDocument.jl` — `ScreenDocument`/`WindowDocument`.
+- `package/kernel/doc/devices-and-backends.md` — §"Adding a new backend".
 </content>
 </invoke>

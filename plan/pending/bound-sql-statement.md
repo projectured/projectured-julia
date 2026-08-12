@@ -1,19 +1,22 @@
 # Bound SQL statement document model
 
-> **Layout note.** This plan was written when every domain lived in one
-> `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
-> module name below that still says `package/domain/` or `ProjecturedDomain`
-> needs translating when the plan is picked up.
-
-> **⏳ AUDIT (2026-06-23): ALL STEPS OPEN.** No `BoundSql` code exists anywhere
-> under `package/` — `grep "BoundSql"` returns zero source hits and there is no
-> `BoundSql.jl` document nor `SqlToBoundSql.jl` projection. All dependencies are
-> present and current, so the plan is still applicable (not obsolete): `Sql.jl`,
-> `DbCatalog.jl`, `DatabaseInstance.jl` live under `package/domain/src/document/`,
-> and `DatabaseInstanceToDbCatalog` / `DbCatalogRdbms` / `DbCatalogSchema` all
-> exist. Note the OLD `program/src/...` paths below now map to
-> `package/domain/src/...`.
+> **Status (2026-08-12): NOT STARTED.** No `BoundSql` code exists anywhere
+> under `package/` — `grep "BoundSql"` returns zero source hits, and there is
+> no `BoundSql.jl` document nor `SqlToBoundSql.jl` projection. All dependencies
+> are present and current, so the plan is still applicable: `Sql.jl` is at
+> [package/sql/main/Sql.jl](../../package/sql/main/Sql.jl), `DbCatalog.jl` at
+> [package/dbcatalog/main/DbCatalog.jl](../../package/dbcatalog/main/DbCatalog.jl),
+> `DatabaseInstance.jl` at
+> [package/database/main/DatabaseInstance.jl](../../package/database/main/DatabaseInstance.jl).
+> `DatabaseInstanceToDbCatalog`, `DbCatalogRdbms`, and `DbCatalogSchema` all
+> exist with the shapes this plan assumes. Each domain is its own package now
+> (`sql`, `dbcatalog`, `database`) — see
+> [documentation/domains.md](../../documentation/domains.md). Every
+> `program/src/...` path below needs translating to the package layout when
+> this plan is picked up: `program/src/document/*.jl` maps to
+> `package/<domain>/main/*.jl`; `program/src/projection/primitive/*.jl` also
+> maps to `package/<domain>/main/*.jl`; `program/src/Projectured.jl` no longer
+> exists — there is no umbrella file, each package exports its own symbols.
 
 Combines a database-agnostic `SqlStatement` document tree with live `DbCatalog`
 metadata to produce a `BoundSqlStatement` document tree. The projection rebuilds
@@ -182,10 +185,15 @@ BoundSqlStatement(
 
 ## 3. Module: `BoundSql.jl`
 
-**File:** `program/src/document/BoundSql.jl`
+**File:** `package/dbcatalog/main/BoundSql.jl` (proposed — `dbcatalog` already
+depends on `sql`; confirm the package placement against
+[documentation/domains.md](../../documentation/domains.md) before creating it,
+since `BoundSql` also needs `DatabaseInstanceDocumentModule` from
+`package/database/main/`, which `dbcatalog` does not depend on today).
 **Module:** `BoundSqlDocumentModule`
 
-Included after `Sql.jl` and `DbCatalog.jl` in `program/src/Projectured.jl`.
+There is no umbrella `Projectured.jl` file any more; each package exports its
+own symbols directly from its module.
 
 Imports: `SqlDocumentModule`, `DbCatalogDocumentModule`, `DatabaseInstanceDocumentModule`.
 
@@ -197,7 +205,8 @@ their `IBoundSql*` snapshot wrappers; and convenience constructors.
 
 ## 4. Projection: `SqlToBoundSql`
 
-**File:** `program/src/projection/primitive/SqlToBoundSql.jl`
+**File:** `package/dbcatalog/main/SqlToBoundSql.jl` (proposed — same package as
+`BoundSql.jl`, see §3).
 **Module:** `SqlToBoundSqlModule`
 
 ### Constructor
@@ -218,7 +227,11 @@ SqlToBoundSql(schema::DbCatalogSchema) = SqlToBoundSql(nothing, nothing, schema)
 ```
 
 The caller typically obtains all three from the `DatabaseInstanceToDbCatalog`
-projection output. The `DatabaseInstance` provides connection context (host,
+projection output — that projection lives in
+[package/odbc/main/ProjecturedOdbc.jl](../../package/odbc/main/ProjecturedOdbc.jl),
+so a caller that needs live database context depends on `odbc`; the
+schema-only constructor keeps `SqlToBoundSql` itself independent of that
+package. The `DatabaseInstance` provides connection context (host,
 port, database name); the `DbCatalogRdbms` anchors the schema in the catalog
 tree; the `DbCatalogSchema` supplies the table/column metadata for name
 resolution. All three are stamped onto the `BoundSqlStatement` output so
@@ -275,25 +288,25 @@ Bottom-up (subqueries before enclosing query):
 
 ## 6. Implementation steps
 
-1. **⏳ OPEN — Create `program/src/document/BoundSql.jl`** — 1 abstract type, 4 concrete
+1. **⏳ OPEN — Create `package/dbcatalog/main/BoundSql.jl`** — 1 abstract type, 4 concrete
    `@document` structs; convenience constructors with default `nothing` catalog
    slots; `Base.show` methods.
-   _Evidence: no `BoundSql.jl` under `package/*/src/document/`; `grep BoundSql package/` → 0 hits._
-2. **⏳ OPEN — Wire into `program/src/Projectured.jl`** — include after `Sql.jl` /
-   `DbCatalog.jl`; add `using` and exports.
-   _Evidence: no `BoundSqlDocumentModule` referenced in any source file._
-3. **⏳ OPEN — Create `program/src/projection/primitive/SqlToBoundSql.jl`** —
+   _Evidence (2026-08-12): no `BoundSql.jl` under `package/`; `grep BoundSql package/` → 0 hits._
+2. **⏳ OPEN — Export `BoundSqlDocumentModule`'s symbols** from its own module (no
+   umbrella file to wire into any more).
+   _Evidence (2026-08-12): no `BoundSqlDocumentModule` referenced in any source file._
+3. **⏳ OPEN — Create `package/dbcatalog/main/SqlToBoundSql.jl`** —
    `projection_print` for `SqlSelectStatement` with internal walk helpers.
-   _Evidence: no `SqlToBoundSql.jl`; only `SqlToSyntax.jl` exists under `package/domain/src/projection/primitive/`._
-4. **⏳ OPEN — Wire projection into `program/src/Projectured.jl`** — include after
-   `SqlRawToSql.jl`; add `using` and export.
-   _Evidence: `grep SqlToBoundSql package/` → 0 hits._
+   _Evidence (2026-08-12): no `SqlToBoundSql.jl`; `SqlToSyntax.jl` exists at
+   [package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl)._
+4. **⏳ OPEN — Export `SqlToBoundSqlModule`'s symbols** from its own module.
+   _Evidence (2026-08-12): `grep SqlToBoundSql package/` → 0 hits._
 5. **⏳ OPEN — Write projection tests** — bind `SELECT name, age FROM persons` against a
    `DbCatalogSchema` containing `persons(name TEXT, age INT)`; assert
    `catalog_table` and `catalog_column` are the expected instances; verify
    unresolved names leave the slot as `nothing`; verify database context
    metadata on statement.
-   _Evidence: no `BoundSql`/`SqlToBoundSql` references in `package/test/`._
+   _Evidence (2026-08-12): no `BoundSql`/`SqlToBoundSql` references under `package/*/test/`._
 
 ---
 
@@ -332,6 +345,6 @@ bound.sql.select_clause.items[1].expression.catalog_column.name == "name"
 
 ## 8. Dependencies
 
-- `SqlDocumentModule` (`Sql.jl`) — must be loaded first.
-- `DbCatalogDocumentModule` (`DbCatalog.jl`) — must be loaded first.
-- `DatabaseInstanceDocumentModule` (`DatabaseInstance.jl`) — must be loaded first.
+- `SqlDocumentModule` ([package/sql/main/Sql.jl](../../package/sql/main/Sql.jl)) — must be loaded first.
+- `DbCatalogDocumentModule` ([package/dbcatalog/main/DbCatalog.jl](../../package/dbcatalog/main/DbCatalog.jl)) — must be loaded first.
+- `DatabaseInstanceDocumentModule` ([package/database/main/DatabaseInstance.jl](../../package/database/main/DatabaseInstance.jl)) — must be loaded first; `dbcatalog`'s `Project.toml` does not list `database` as a dependency today and needs it added if `BoundSql.jl` lives in `dbcatalog`.
