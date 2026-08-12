@@ -672,8 +672,13 @@ function _get_font(font::StyleFont)
     size = font_device_size(font)
     key = (font.filename, size)
     get!(_font_cache, key) do
-        f = TTF_OpenFont(font.filename, size)
-        @assert f != C_NULL "Font load failed: $(font.filename)@$(size)"
+        # `font_file` and not `font.filename`: the name a `StyleFont` carries is
+        # where the font was when the style package was compiled, and a bundle
+        # copied to another machine has it somewhere else. The metrics reader
+        # resolves the same way, so SDL and it always open one file.
+        path = font_file(font.filename)
+        f = TTF_OpenFont(path, size)
+        @assert f != C_NULL "Font load failed: $path@$(size)"
         f
     end
 end

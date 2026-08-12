@@ -17,7 +17,7 @@ module TrueTypeModule
 import ..FontModule: StyleFont, font_logical_size
 
 export truetype_measure_text, font_ascent, font_descent, font_line_height,
-       font_x_height, font_cap_height, font_glyph_bounds
+       font_x_height, font_cap_height, font_glyph_bounds, font_file
 
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
@@ -56,7 +56,60 @@ end
 
 const _TTF_CACHE = Dict{String,TrueTypeFont}()
 
-_load_ttf(path::AbstractString) = get!(() -> _parse_ttf(read(path)), _TTF_CACHE, String(path))
+"""
+    font_file(path) -> String
+
+Where the font actually is, given where it was when this package was compiled.
+
+A `StyleFont` carries a path built from `_FONT_DIR`, which is `@__DIR__`
+resolved when the package is precompiled. That is correct in a checkout and
+wrong in a bundle: a PackageCompiler image bakes the string, and the checkout it
+names is not on the machine the bundle is copied to. So the path is resolved
+where the file is opened rather than where it is written down, and the baked one
+is only the first candidate.
+
+The order, first hit wins:
+
+1. the path as given — a checkout, and nothing changes for it;
+2. `PROJECTURED_FONT_DIR`, for a person who keeps the fonts somewhere else;
+3. `share/projectured/font` beside the running executable, which is where a
+   bundle carries them. `Sys.BINDIR` is that `bin` directory, and it is how the
+   image finds its own depot files as well.
+
+A path that matches nothing is answered unchanged, so the error a caller sees
+names the file it asked for and not the last place this looked.
+"""
+function font_file(path::AbstractString)
+    isfile(path) && return String(path)
+    name = basename(path)
+    for directory in font_search_path()
+        candidate = joinpath(directory, name)
+        isfile(candidate) && return candidate
+    end
+    String(path)
+end
+
+"""
+    font_search_path() -> Vector{String}
+
+Where [`font_file`](@ref) looks when the compiled-in path is not there. Read at
+run time, never baked: an environment variable that was set at build time must
+not decide where a bundle looks a year later.
+"""
+function font_search_path()
+    directories = String[]
+    from_environment = get(ENV, "PROJECTURED_FONT_DIR", "")
+    isempty(from_environment) || push!(directories, from_environment)
+    push!(directories,
+          normpath(joinpath(Sys.BINDIR, "..", "share", "projectured", "font")))
+    directories
+end
+
+# The cache is keyed by the path the caller asked for, not by the one that was
+# found: two callers asking for the same font must share one parse, and where it
+# came from is this function's business rather than theirs.
+_load_ttf(path::AbstractString) =
+    get!(() -> _parse_ttf(read(font_file(path))), _TTF_CACHE, String(path))
 
 # Find a 4-char table tag in the SFNT directory; returns (offset, length) or (0, 0).
 function _find_table(b, tag::String)
