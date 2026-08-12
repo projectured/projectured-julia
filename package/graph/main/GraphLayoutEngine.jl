@@ -451,7 +451,10 @@ function layout_graph(engine::GridEmbedding, graph::GraphGraph, sizes::Dict,
     cx = zeros(Float64, n); cy = zeros(Float64, n)
     free = [i for i in 1:n if !haskey(pins, objectid(vertices[i]))]
 
-    if extent !== nothing && length(free) <= engine.circle_max
+    # A ring only when there is a box to fill, few enough vertices to make a
+    # readable one, and no column count: naming `columns` asks for a grid, and
+    # answering with a ring would drop the request without saying so.
+    if extent !== nothing && engine.columns === nothing && length(free) <= engine.circle_max
         _place_on_circle!(cx, cy, free, widths, heights, engine)
     else
         _place_on_grid!(cx, cy, free, widths, heights, engine, extent, border)

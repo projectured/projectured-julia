@@ -521,6 +521,13 @@ end
     @test length(unique(ys)) > 2            # not rows: a ring has many distinct y
     @test maximum(xs) + 60 <= 400
     @test maximum(ys) + 30 <= 400
+
+    # Naming a column count asks for a grid, and it is answered with one even
+    # when the graph is small enough for a ring. Answering with a ring would
+    # drop the request without saying so.
+    columned, _ = layout_graph(GridEmbedding(columns = 2), ring_graph, ring_sizes, [];
+                               extent = (400, 400))
+    @test length(unique(box[1] for box in values(columned))) == 2
 end
 
 @testset "a placement is deterministic" begin
