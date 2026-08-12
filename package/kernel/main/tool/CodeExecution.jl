@@ -126,5 +126,25 @@ function execute_julia_code(set::ToolSet, target, code)
         sprint(showerror, e, catch_backtrace())
     end
     @info "[tool] execute_julia_code result" output
+    _notify_evaluation(set)
     output
+end
+
+# Tell whoever asked what this call produced. After the output is built, so an
+# observer that itself evaluates cannot interleave with the capture; and guarded,
+# because an observer is a side effect on a result rather than a step of making
+# one — a host that throws here must not turn a good evaluation into an error the
+# reader has to read.
+function _notify_evaluation(set::ToolSet)
+    isempty(set.observers) && return nothing
+    value = set.last_value
+    for observe in set.observers
+        try
+            observe(value)
+        catch err
+            @warn "an evaluation observer failed" reason =
+                first(split(sprint(showerror, err), "\n"))
+        end
+    end
+    nothing
 end

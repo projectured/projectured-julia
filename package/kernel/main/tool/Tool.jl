@@ -58,6 +58,24 @@ mutable struct ToolSet
     resources::Vector{Resource}
     scratch::Union{Module,Nothing}
     last_value::Any
+    observers::Vector{Any}
 end
 
-ToolSet() = ToolSet(Tool[], Resource[], nothing, nothing)
+ToolSet() = ToolSet(Tool[], Resource[], nothing, nothing, Any[])
+
+"""
+    observe_evaluations!(f, set) -> f
+
+Be told what each `execute_julia_code` call produced. `f(value)` is called with
+the value the code evaluated to — `nothing` when it errored or answered nothing.
+
+A host registers one when a value MEANS something to it beyond being a result.
+The simulator's editor uses it to give a simulation a reader made in a cell the
+watch that keeps its picture still: the value is a live thing, and only the host
+knows what living costs.
+
+Every registration is called, in order, and a failure in one is reported and
+does not stop the others or the evaluation. An observer is a side effect on a
+result, never a step of producing it.
+"""
+observe_evaluations!(f, set::ToolSet) = (push!(set.observers, f); f)
