@@ -165,8 +165,17 @@ fragment* — its includes are the layer's module files, and it may not carry
 relative imports of its own (there is no module to attach them to). A file
 with 2+ modules is an error, as is a module file included inside another
 module file.
+
+`allow_root_fragments = true` lifts that last restriction for a package whose
+root file deliberately holds fragments in its own namespace — `inet-julia`'s
+model wrappers and capture files, which are a slice's face to the simulation
+lifecycle and to the observation machinery and sit outside the slice's inner
+module by design. Their imports attach to the package root, which lives in no
+layer folder and is exempt from the layer check either way, so what the option
+costs is that those files' imports go unchecked rather than that a wrong one
+passes.
 """
-function walk_includes(top_file, src_root)
+function walk_includes(top_file, src_root; allow_root_fragments = false)
     reached = String[]
     entries = Tuple{String, Symbol, Vector{Symbol},
                     Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
@@ -191,7 +200,8 @@ function walk_includes(top_file, src_root)
         name = length(mods) == 1 ? mods[1].args[2]::Symbol : nothing
         body = length(mods) == 1 ? mods[1].args[3] : ast
         imports, includes, sym_imports, exports = collect_edges(body)
-        if length(mods) == 0 && owner === nothing && !isempty(imports)
+        if length(mods) == 0 && owner === nothing && !isempty(imports) &&
+                !allow_root_fragments
             error("$rel is a layer fragment with relative imports; only module files may import ..Xxx")
         end
         # A module file owns itself; a fragment inherits its enclosing module.
@@ -666,9 +676,11 @@ function check_layering(src_root, top_file; name = "package",
                         check_private_imports = false,
                         interface_files = Dict{String, Symbol}(),
                         qualified_files = Set{String}(),
-                        extra_aliases = Set{Symbol}())
+                        extra_aliases = Set{Symbol}(),
+                        allow_root_fragments = false)
     @testset "$name layered-architecture guard" begin
-        reached, entries, file_owner, _ = walk_includes(top_file, src_root)
+        reached, entries, file_owner, _ =
+            walk_includes(top_file, src_root; allow_root_fragments)
 
         @testset "every src file is included exactly once" begin
             @test length(reached) == length(unique(reached))
