@@ -102,6 +102,62 @@ end
     @test length(centre.spanning_tree_children) == 4
 end
 
+@testset "the engine a caller gets when it names none" begin
+    # Qtenv picks by size and so does DeferredLayout: twenty vertices or more go
+    # to the fast layouter, fewer go to the advanced one. Both thresholds are the
+    # same number for the same reason — the advanced one is already slow at
+    # thirty or forty modules.
+    @test QTENV_ADVANCED_LIMIT == 20
+    @test resolved_layout_engine(DeferredLayout(), 19) isa ForceDirectedLayout
+    @test resolved_layout_engine(DeferredLayout(), 20) isa SpringEmbedderLayout
+    @test resolved_layout_engine(DeferredLayout(), 500) isa SpringEmbedderLayout
+    @test resolved_layout_engine(GridEmbedding(), 500) isa GridEmbedding
+
+    @test layout_engine_name(GridEmbedding()) === :grid
+    @test layout_engine_name(SpringEmbedderLayout()) === :spring_embedder
+    @test layout_engine_name(ForceDirectedLayout()) === :force_directed
+
+    # And the choice really is made per layout, from the graph it is given.
+    small = [GraphVertex(JsonString("v$i")) for i in 1:5]
+    large = [GraphVertex(JsonString("v$i")) for i in 1:25]
+    small_graph = GraphGraph(small, [GraphEdge(small[i], small[i+1]) for i in 1:4])
+    large_graph = GraphGraph(large, [GraphEdge(large[i], large[i+1]) for i in 1:24])
+    small_sizes = Dict(objectid(v) => (40, 20) for v in small)
+    large_sizes = Dict(objectid(v) => (40, 20) for v in large)
+
+    advanced, _ = layout_graph(ForceDirectedLayout(), small_graph, small_sizes, [])
+    deferred, _ = layout_graph(DeferredLayout(), small_graph, small_sizes, [])
+    @test deferred == advanced
+
+    fast, _ = layout_graph(SpringEmbedderLayout(), large_graph, large_sizes, [])
+    deferred_large, _ = layout_graph(DeferredLayout(), large_graph, large_sizes, [])
+    @test deferred_large == fast
+end
+
+@testset "a layout says which engine drew it" begin
+    # A view cannot tell a reader what it is looking at, and a test cannot assert
+    # that the choice went the way it should have, unless the layout carries the
+    # answer. It matters most for the engine that decides late.
+    made = [GraphVertex(JsonString("v$i")) for i in 1:3]
+    graph = GraphGraph(made, [GraphEdge(made[1], made[2])])
+    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+
+    for (engine, name) in ((GridEmbedding(), :grid),
+                           (SpringEmbedderLayout(), :spring_embedder),
+                           (ForceDirectedLayout(), :force_directed),
+                           (DeferredLayout(), :force_directed))
+        layout = print_document(GraphGraphToGraphLayout(engine), content, graph, _gctx()).output
+        @test layout.engine === name
+    end
+
+    # Twenty-five vertices and the deferred engine reports the fast one, because
+    # that is what ran.
+    many = [GraphVertex(JsonString("v$i")) for i in 1:25]
+    big = GraphGraph(many, [GraphEdge(many[i], many[i+1]) for i in 1:24])
+    layout = print_document(GraphGraphToGraphLayout(DeferredLayout()), content, big, _gctx()).output
+    @test layout.engine === :spring_embedder
+end
+
 @testset "ForceDirectedLayout draws what OMNeT++ draws" begin
     # As for the spring embedder: these are the positions OMNeT++'s own
     # ForceDirectedGraphLayouter answers, read out of a program linked against

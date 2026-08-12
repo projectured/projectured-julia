@@ -52,6 +52,7 @@ include("omnetpp/ForceDirectedEmbedding.jl")
 include("omnetpp/StarTreeEmbedding.jl")
 include("omnetpp/HeapEmbedding.jl")
 include("omnetpp/ForceDirectedGraphLayouter.jl")
+include("GraphLayoutChoice.jl")
 include("GraphToGraphLayout.jl")
 include("GraphLayoutToGraphics.jl")
 

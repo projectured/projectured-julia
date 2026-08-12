@@ -43,8 +43,7 @@ module GraphLayoutEngineModule
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphConstraint
 
-export GraphLayoutEngine, GridEmbedding, DeferredLayout, layout_graph,
-       deferred_layout_engine, register_layout_engine!, resolved_layout_engine,
+export GraphLayoutEngine, GridEmbedding, layout_graph, layout_engine_name,
        supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
        constraint_pins, constraint_fixed_sizes, constraint_clusters,
        layout_vertices, vertex_sizes,
@@ -59,6 +58,15 @@ abstract type GraphLayoutEngine end
 Place the vertices and route the edges of `graph`. See module docs for the shapes.
 """
 function layout_graph end
+
+"""
+    layout_engine_name(engine) -> Symbol
+
+Which algorithm this engine is, as a name a view can print and a test can
+assert: `:grid`, `:spring_embedder`, `:force_directed`, `:adaptagrams`. An
+engine that stands in for another answers the name of whatever really ran.
+"""
+function layout_engine_name end
 
 # ── The constraint vocabulary ────────────────────────────────────────────────
 
@@ -311,77 +319,6 @@ function fit_into_extent!(cx, cy, widths, heights, indices, extent, border::Real
     transform
 end
 
-# The engine `deferred_layout_engine` hands out. A package with a better one
-# registers a factory here from its `__init__` — a mutation, not a second
-# method: replacing a method during precompilation is fatal, and this seam
-# exists precisely so an optional package can take over without one.
-# `register_file_document_type!` is registered the same way, for the same reason.
-const _PREFERRED_ENGINE = Ref{Any}(nothing)
-
-"""
-    register_layout_engine!(factory)
-
-Make `factory(; orthogonal)` the engine [`deferred_layout_engine`](@ref) returns.
-`ProjecturedAdaptagrams` calls this from its `__init__`, so a native layout
-costs a `using` and no rewiring. `nothing` restores the pure-Julia choice.
-"""
-register_layout_engine!(factory) = (_PREFERRED_ENGINE[] = factory; nothing)
-
-"""
-    DeferredLayout(; orthogonal = false)
-
-The engine that decides which engine to be **when the layout runs**, rather than
-when the projection is built. That distinction is the whole point: a projection
-is usually constructed once at module load — an `Example` builds its projection
-in its constructor — which is long before an optional engine package can be
-loaded. An engine chosen at construction would be the grid forever.
-
-`orthogonal` is what a caller *asks for*, not an engine it picks. Right-angled
-routes are what a flowchart wants — an arrow is read as flow, and a diagonal
-between two boxes reads as a relation instead of a direction — while a plain
-relationship graph reads better with direct lines. An engine that cannot honour
-the request ignores it (every pure-Julia engine here draws straight lines), so
-asking is always safe.
-"""
-struct DeferredLayout <: GraphLayoutEngine
-    orthogonal::Bool
-end
-
-DeferredLayout(; orthogonal::Bool = false) = DeferredLayout(orthogonal)
-
-"""
-    deferred_layout_engine(; orthogonal = false) -> DeferredLayout
-
-The engine a caller names when it has no reason to name a specific one.
-"""
-deferred_layout_engine(; orthogonal::Bool = false) = DeferredLayout(orthogonal)
-
-"""
-    resolved_layout_engine(engine) -> GraphLayoutEngine
-
-What a `DeferredLayout` is right now: the registered engine, or the pure-Julia
-choice when nothing has registered. Any other engine is already itself.
-"""
-resolved_layout_engine(engine::GraphLayoutEngine) = engine
-
-function resolved_layout_engine(engine::DeferredLayout)
-    factory = _PREFERRED_ENGINE[]
-    factory === nothing ? GridEmbedding() :
-                          factory(; orthogonal = engine.orthogonal)
-end
-
-supported_constraint_kinds(engine::DeferredLayout) =
-    supported_constraint_kinds(resolved_layout_engine(engine))
-
-# Resolution happens per layout call. `GraphGraphToGraphLayout` memoizes on
-# topology, sizes and constraints — not on the engine — so a graph already laid
-# out keeps its old picture until something about it changes. Loading an engine
-# package mid-session is a session-start concern, not a live-editing one.
-layout_graph(engine::DeferredLayout, graph::GraphGraph, sizes::Dict,
-             constraints::Vector; extent = nothing, border::Real = 0) =
-    layout_graph(resolved_layout_engine(engine), graph, sizes, constraints;
-                 extent = extent, border = border)
-
 # ── GridEmbedding ────────────────────────────────────────────────────────────
 
 """
@@ -423,6 +360,7 @@ GridEmbedding(; node_sep::Integer=40, rank_sep::Integer=60,
                   Int(circle_max))
 
 supported_constraint_kinds(::GridEmbedding) = (:pin, :fixed_size)
+layout_engine_name(::GridEmbedding) = :grid
 
 # How many columns the grid gets. Without an extent it is the caller's `columns`
 # or a square grid. With one, it is the count that makes the grid's shape match

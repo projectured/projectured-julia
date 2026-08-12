@@ -21,8 +21,9 @@ The shim is compiled by `deps/build.jl` against an installed/built Adaptagrams:
 
 Point `ADAPTAGRAMS_DIR` at the `cola/` directory of an Adaptagrams checkout, or
 install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
-`AdaptagramsLayout` loads but errors at use with build guidance; use
-`GridEmbedding` in the meantime.
+`AdaptagramsLayout` loads, says once what to run, and hands each layout to the
+pure-Julia engine that would have drawn it anyway. The layout records which
+engine really placed it, so the substitution is visible rather than silent.
 
 ## Use
 
@@ -32,10 +33,12 @@ install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
 module ProjecturedAdaptagrams
 
 import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
-                                                  register_layout_engine!,
                                                   supported_constraint_kinds,
                                                   check_constraints, constraint_pins,
-                                                  vertex_sizes, extent_transform
+                                                  vertex_sizes, extent_transform,
+                                                  layout_engine_name, layout_vertices
+import ProjecturedGraph.GraphLayoutChoiceModule: register_layout_engine!,
+                                                 pure_julia_layout_engine
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
@@ -61,13 +64,24 @@ isavailable() =
     isfile(libadaptagrams_shim) &&
     Libdl.dlopen(libadaptagrams_shim; throw_error = false) !== nothing
 
-function _unavailable_error()
-    error("""
-    AdaptagramsLayout: the native shim is not built. Run
+# Said once per session, not once per layout. An unbuilt shim used to error on
+# every layout, which stopped whatever was drawing rather than drawing it, and a
+# fresh checkout has no shim. Warning once and drawing with a pure-Julia engine
+# is the useful answer, and the layout records which engine really ran, so
+# nothing is silent about it.
+const _WARNED_UNAVAILABLE = Ref(false)
+
+function _warn_unavailable_once()
+    _WARNED_UNAVAILABLE[] && return nothing
+    _WARNED_UNAVAILABLE[] = true
+    @warn """
+    AdaptagramsLayout: the native shim is not built, so this session draws
+    graphs with the pure-Julia layouters instead. To build it, run
         using Pkg; Pkg.build("ProjecturedAdaptagrams")
-    after installing/building Adaptagrams (set ADAPTAGRAMS_DIR to its cola/ dir,
-    or put its .pc files on PKG_CONFIG_PATH). Use GridEmbedding until then.
-    See package/adaptagrams/README.md.""")
+    after installing or building Adaptagrams (set ADAPTAGRAMS_DIR to its cola/
+    directory, or put its .pc files on PKG_CONFIG_PATH).
+    See package/adaptagrams/README.md."""
+    nothing
 end
 
 # ── AdaptagramsLayout ────────────────────────────────────────────────────────
@@ -131,9 +145,33 @@ about pins means a wider C ABI, and that is not this plan's work.
 """
 supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :fixed_size)
 
+"""
+    effective_engine(engine, vertex_count) -> GraphLayoutEngine
+
+`engine` when the shim is built, and the pure-Julia engine for a graph of this
+size when it is not. Both `layout_graph` and `layout_engine_name` ask, so the
+name a layout reports is always the engine that really placed it.
+"""
+function effective_engine(engine::AdaptagramsLayout, vertex_count::Integer)
+    isavailable() && return engine
+    _warn_unavailable_once()
+    pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
+end
+
+layout_engine_name(engine::AdaptagramsLayout) =
+    isavailable() ? :adaptagrams : layout_engine_name(effective_engine(engine, 0))
+
 function layout_graph(engine::AdaptagramsLayout, graph::GraphGraph, sizes::Dict,
                       constraints::Vector; extent = nothing, border::Real = 0)
     check_constraints(engine, constraints)
+
+    # Nothing to do here when the shim is absent: hand the whole call to whatever
+    # can actually draw it.
+    standing_in = effective_engine(engine, length(layout_vertices(graph)))
+    standing_in === engine ||
+        return layout_graph(standing_in, graph, sizes, constraints;
+                            extent = extent, border = border)
+
     positions = Dict{UInt,NTuple{4,Int}}()
     routes = Dict{UInt,Vector{Tuple{Int,Int}}}()
 
@@ -148,8 +186,6 @@ function layout_graph(engine::AdaptagramsLayout, graph::GraphGraph, sizes::Dict,
     end
     n = length(nodes)
     n == 0 && return (positions, routes)
-
-    isavailable() || _unavailable_error()
 
     widths, heights = vertex_sizes(nodes, sizes, constraints)
     in_w = Vector{Cdouble}(undef, n)

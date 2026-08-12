@@ -30,7 +30,7 @@ well; a network of cards does not.
 module BasicSpringEmbedderLayoutModule
 
 import ..GraphModule: GraphGraph, GraphEdge
-import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
+import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
                                   supported_constraint_kinds, check_constraints,
                                   constraint_pins, constraint_clusters,
                                   layout_vertices, vertex_sizes, straight_routes
@@ -72,6 +72,7 @@ SpringEmbedderLayout(; default_edge_length::Real = 40, max_iterations::Integer =
                          Int32(seed))
 
 supported_constraint_kinds(::SpringEmbedderLayout) = (:pin, :fixed_size, :cluster)
+layout_engine_name(::SpringEmbedderLayout) = :spring_embedder
 
 # ── The layouter's own structures ────────────────────────────────────────────
 

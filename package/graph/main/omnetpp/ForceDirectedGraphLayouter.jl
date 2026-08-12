@@ -31,7 +31,7 @@ nothing has a negative coordinate.
 module ForceDirectedGraphLayouterModule
 
 import ..GraphModule: GraphGraph, GraphEdge
-import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
+import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
                                   supported_constraint_kinds, check_constraints,
                                   constraint_pins, constraint_clusters,
                                   layout_vertices, vertex_sizes, straight_routes
@@ -107,6 +107,7 @@ ForceDirectedLayout(; seed::Integer = 1, max_cycle::Integer = 1000,
                         three_d, pre_embedding)
 
 supported_constraint_kinds(::ForceDirectedLayout) = (:pin, :fixed_size, :cluster)
+layout_engine_name(::ForceDirectedLayout) = :force_directed
 
 # ── The layouter's own state ─────────────────────────────────────────────────
 
