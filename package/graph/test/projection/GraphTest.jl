@@ -3,6 +3,105 @@ const _gctx = PrinterContext
 
 function test_graph_projection()
 
+@testset "the layouters' own random generator is OMNeT++'s" begin
+    # A ported layouter draws the picture OMNeT++ draws only if it draws the same
+    # random numbers. This is OMNeT++'s own self test, from LCGRandom::selfTest:
+    # ten thousand draws from seed 1 must leave the seed at this exact value.
+    @test lcg_self_test() == 1043618065
+
+    # A seed is a picture: the same seed answers the same sequence, and a
+    # different one does not.
+    first = [next01!(LcgRandom(7)) for _ in 1:1]
+    @test first == [next01!(LcgRandom(7))]
+    @test first != [next01!(LcgRandom(8))]
+
+    # The range is [0, 1), and a seed outside 1:2^31-2 is refused rather than
+    # silently repaired — seed 0 is a fixed point of this generator.
+    random = LcgRandom(12345)
+    values = [next01!(random) for _ in 1:1000]
+    @test all(0.0 .<= values .< 1.0)
+    @test_throws ArgumentError LcgRandom(0)
+    @test_throws ArgumentError LcgRandom(-3)
+    @test all(0 .<= [draw!(random, 5) for _ in 1:100] .< 5)
+    @test all(2.0 .<= [uniform!(random, 2, 3) for _ in 1:100] .< 3.0)
+end
+
+@testset "the ported geometry" begin
+    @test is_nil(pt_nil())
+    @test !is_fully_specified(Pt(1, NaN, 0))
+    @test pt_length(Pt(3, 4, 0)) == 5
+    @test pt_distance(Pt(0, 0, 0), Pt(0, 3, 4)) == 5
+    @test base_plane_length(Pt(3, 4, 100)) == 5
+    @test nan_to_zero(Pt(NaN, 2, NaN)) == Pt(0, 2, 0)
+    @test Pt(1, 2, 3) + Pt(1, 1, 1) == Pt(2, 3, 4)
+    @test Pt(1, 2, 3) * 2 == Pt(2, 4, 6)
+    @test pt_multiply(Pt(2, 3, 4), Pt(10, 100, 1000)) == Pt(20, 300, 4000)
+    @test diagonal_length(Rs(3, 4)) == 5
+    @test area(Rs(3, 4)) == 12
+    @test rc_center(Rc(10, 20, 0, 40, 60)) == Pt(30, 50, 0)
+    @test rc_right(Rc(10, 20, 0, 40, 60)) == 50
+
+    # Two rectangles apart on one axis and overlapping on the other: the distance
+    # is measured on that one axis, and the segment carries NaN on the axis that
+    # does not constrain it.
+    left = Rc(0, 0, 0, 10, 100)
+    right = Rc(30, 20, 0, 10, 100)
+    segment, distance = rc_base_plane_distance(left, right)
+    @test distance == 20                       # 30 - 10
+    @test isnan(segment.begin_pt.y)
+    # Overlapping rectangles are at distance zero.
+    _, overlap = rc_base_plane_distance(left, Rc(5, 5, 0, 10, 10))
+    @test overlap == 0
+    # Diagonally apart: the distance joins the two nearest corners.
+    _, corner = rc_base_plane_distance(Rc(0, 0, 0, 10, 10), Rc(13, 14, 0, 10, 10))
+    @test corner == 5                          # (3, 4)
+end
+
+@testset "the ported graph component" begin
+    # Two triangles that share nothing: one graph, two connected parts.
+    made = [LayoutVertex(Pt(0, 0, 0), Rs(10, 10), i) for i in 1:6]
+    component = GraphComponent()
+    for vertex in made
+        add_vertex!(component, vertex)
+    end
+    for (a, b) in ((1, 2), (2, 3), (3, 1), (4, 5), (5, 6), (6, 4))
+        add_edge!(component, LayoutEdge(made[a], made[b]))
+    end
+    @test vertex_count(component) == 6
+    @test edge_count(component) == 6
+    @test find_vertex(component, 3) === made[3]
+    @test index_of_vertex(component, made[4]) == 4
+
+    calculate_connected_sub_components!(component)
+    @test length(component.connected_sub_components) == 2
+    @test all(part -> vertex_count(part) == 3 && edge_count(part) == 3,
+              component.connected_sub_components)
+    @test made[1].connected_sub_component !== made[4].connected_sub_component
+
+    # The spanning tree starts at the busiest vertex and reaches everything in
+    # its own part.
+    part = component.connected_sub_components[1]
+    calculate_spanning_tree!(part)
+    @test length(part.spanning_tree_vertices) == 3
+    @test part.spanning_tree_root !== nothing
+    @test part.spanning_tree_root.spanning_tree_parent === nothing
+    @test all(v -> v === part.spanning_tree_root || v.spanning_tree_parent !== nothing,
+              part.spanning_tree_vertices)
+
+    # A star: the centre has the most neighbours, so the tree roots there.
+    centre = LayoutVertex(Pt(0, 0, 0), Rs(10, 10), :centre)
+    leaves = [LayoutVertex(Pt(0, 0, 0), Rs(10, 10), i) for i in 1:4]
+    star = GraphComponent()
+    add_vertex!(star, centre)
+    for leaf in leaves
+        add_vertex!(star, leaf)
+        add_edge!(star, LayoutEdge(centre, leaf))
+    end
+    calculate_spanning_tree!(star)
+    @test star.spanning_tree_root === centre
+    @test length(centre.spanning_tree_children) == 4
+end
+
 @testset "edge graphics primitives" begin
     # Polyline construct + hit-test.
     pl = GraphicsPolyline([(0, 0), (10, 0), (10, 10)], color_black;
