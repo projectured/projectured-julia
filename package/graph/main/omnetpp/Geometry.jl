@@ -30,8 +30,12 @@ export Pt, Rs, Rc, Ln,
        base_plane_rotate, base_plane_transpose, with_x, with_y, with_z,
        rs_nil, diagonal_length, area,
        rc_nil, rc_from_center_size, rc_left, rc_right, rc_top, rc_bottom,
-       rc_center, rc_left_top, rc_contains, rc_bounding, ln_nil,
-       rc_base_plane_distance
+       rc_center, rc_left_top, rc_right_top, rc_left_bottom, rc_right_bottom,
+       rc_center_top, rc_center_bottom, rc_left_center, rc_right_center,
+       rc_contains, rc_bounding, ln_nil, rc_base_plane_distance,
+       rc_base_plane_contains, rc_base_plane_intersects,
+       Cc, cc_center_top, cc_center_bottom, cc_left_center, cc_right_center,
+       cc_intersect, cc_enclosing
 
 # ── Pt ───────────────────────────────────────────────────────────────────────
 
@@ -162,8 +166,106 @@ rc_bottom(rc::Rc) = rc.pt.y + rc.rs.height
 rc_left_top(rc::Rc) = rc.pt
 rc_center(rc::Rc) = Pt(rc.pt.x + rc.rs.width/2, rc.pt.y + rc.rs.height/2, rc.pt.z)
 
+rc_center_top(rc::Rc) = Pt(rc.pt.x + rc.rs.width/2, rc.pt.y, rc.pt.z)
+rc_center_bottom(rc::Rc) = Pt(rc.pt.x + rc.rs.width/2, rc.pt.y + rc.rs.height, rc.pt.z)
+rc_left_center(rc::Rc) = Pt(rc.pt.x, rc.pt.y + rc.rs.height/2, rc.pt.z)
+rc_right_center(rc::Rc) = Pt(rc.pt.x + rc.rs.width, rc.pt.y + rc.rs.height/2, rc.pt.z)
+rc_right_bottom(rc::Rc) = Pt(rc.pt.x + rc.rs.width, rc.pt.y + rc.rs.height, rc.pt.z)
+rc_left_bottom(rc::Rc) = Pt(rc.pt.x, rc.pt.y + rc.rs.height, rc.pt.z)
+rc_right_top(rc::Rc) = Pt(rc.pt.x + rc.rs.width, rc.pt.y, rc.pt.z)
+
 rc_contains(rc::Rc, p::Pt) =
     rc.pt.x <= p.x <= rc.pt.x + rc.rs.width && rc.pt.y <= p.y <= rc.pt.y + rc.rs.height
+
+"""
+    rc_base_plane_contains(rc, p; strictly = false) -> Bool
+
+Whether `p` is inside `rc`, in the base plane. `strictly` excludes the border.
+"""
+rc_base_plane_contains(rc::Rc, p::Pt; strictly::Bool = false) =
+    strictly ? (rc.pt.x < p.x < rc.pt.x + rc.rs.width && rc.pt.y < p.y < rc.pt.y + rc.rs.height) :
+               (rc.pt.x <= p.x <= rc.pt.x + rc.rs.width && rc.pt.y <= p.y <= rc.pt.y + rc.rs.height)
+
+"""
+    rc_base_plane_intersects(rc, other; strictly = false) -> Bool
+
+Whether any corner of `rc` falls inside `other`, which is the test
+`HeapEmbedding` uses to reject a candidate position. It is the original's test,
+corners only, so a rectangle crossing another without a corner inside it is not
+reported.
+"""
+rc_base_plane_intersects(rc::Rc, other::Rc; strictly::Bool = false) =
+    rc_base_plane_contains(other, rc_left_top(rc); strictly = strictly) ||
+    rc_base_plane_contains(other, rc_right_top(rc); strictly = strictly) ||
+    rc_base_plane_contains(other, rc_left_bottom(rc); strictly = strictly) ||
+    rc_base_plane_contains(other, rc_right_bottom(rc); strictly = strictly)
+
+# ── Cc ───────────────────────────────────────────────────────────────────────
+
+"""
+    Cc(origin, radius)
+
+A circle, parallel to the base plane. `StarTreeEmbedding` models a whole subtree
+as one of these and then packs circles rather than rectangles, which is why the
+picture it draws reads as a star of stars.
+"""
+struct Cc
+    origin::Pt
+    radius::Float64
+end
+
+Cc(x::Real, y::Real, z::Real, radius::Real) = Cc(Pt(x, y, z), Float64(radius))
+
+cc_center_top(cc::Cc) = Pt(cc.origin.x, cc.origin.y - cc.radius, cc.origin.z)
+cc_center_bottom(cc::Cc) = Pt(cc.origin.x, cc.origin.y + cc.radius, cc.origin.z)
+cc_left_center(cc::Cc) = Pt(cc.origin.x - cc.radius, cc.origin.y, cc.origin.z)
+cc_right_center(cc::Cc) = Pt(cc.origin.x + cc.radius, cc.origin.y, cc.origin.z)
+
+"""
+    cc_intersect(cc, other) -> Vector{Pt}
+
+Where two circles cross, in the base plane: two points, or none when they do not
+cross or share an origin.
+"""
+function cc_intersect(cc::Cc, other::Cc)
+    big = cc.radius^2
+    small = other.radius^2
+    d = base_plane_distance(cc.origin, other.origin)
+    d2 = d * d
+    d2 == 0 && return Pt[]
+    a = d2 - small + big
+    y2 = (4 * d2 * big - a * a) / (4 * d2)
+    y2 < 0 && return Pt[]
+    y = sqrt(y2)
+    x = a / (2 * d)
+    angle = base_plane_angle(other.origin - cc.origin)
+    Pt[base_plane_rotate(Pt(x, y, 0), angle) + cc.origin,
+       base_plane_rotate(Pt(x, -y, 0), angle) + cc.origin]
+end
+
+"""
+    cc_enclosing(a, b) -> Cc
+    cc_enclosing(circles) -> Cc
+
+The smallest circle covering the given ones. The many-circle form folds the
+pairwise one from the left, exactly as the original does; that is an
+approximation of the true minimum enclosing circle and not the minimum itself.
+"""
+function cc_enclosing(a::Cc, b::Cc)
+    distance = pt_distance(a.origin, b.origin)
+    d = distance + max(a.radius, b.radius - distance) + max(b.radius, a.radius - distance)
+    pt = Pt(d/2 - max(a.radius, b.radius - distance), 0, 0)
+    angle = base_plane_angle(b.origin - a.origin)
+    Cc(base_plane_rotate(pt, angle) + a.origin, d/2)
+end
+
+function cc_enclosing(circles)
+    result = first(circles)
+    for circle in circles
+        result = cc_enclosing(result, circle)
+    end
+    result
+end
 
 """
     rc_bounding(rectangles) -> Rc

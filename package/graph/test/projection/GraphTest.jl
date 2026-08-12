@@ -102,6 +102,96 @@ end
     @test length(centre.spanning_tree_children) == 4
 end
 
+@testset "ForceDirectedLayout draws what OMNeT++ draws" begin
+    # As for the spring embedder: these are the positions OMNeT++'s own
+    # ForceDirectedGraphLayouter answers, read out of a program linked against
+    # libopplayout.so. See test/reference/forcedirected.cc.
+    #
+    # The reference pins `mct` so the run never stops on the clock. OMNeT++ draws
+    # a random wall-clock limit there, and ForceDirectedLayout leaves it at
+    # infinity, because a drawing must not depend on how fast the machine is.
+    corners(centres, w, h) = [(round(Int, x - w/2), round(Int, y - h/2), w, h)
+                              for (x, y) in centres]
+    placed(positions, made) = [positions[objectid(v)] for v in made]
+    make(count) = [GraphVertex(JsonString("v$i")) for i in 1:count]
+    sized(made) = Dict(objectid(v) => (40, 20) for v in made)
+    chain_of(made) = GraphGraph(made, [GraphEdge(made[i], made[i+1])
+                                       for i in 1:length(made)-1])
+
+    @testset "a chain of eight" begin
+        omnetpp = [(245.862584, 10.000000), (224.180666, 128.762796), (199.053136, 248.641699),
+                   (169.866408, 368.365953), (136.512386, 487.227347), (100.061794, 604.940874),
+                   (61.238353, 721.110217), (20.000000, 834.570196)]
+        made = make(8)
+        positions, _ = layout_graph(ForceDirectedLayout(), chain_of(made), sized(made), [])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a three by three mesh in a box" begin
+        omnetpp = [(287.352144, 118.256917), (217.532970, 227.518283), (104.722487, 196.950098),
+                   (408.458845, 113.467789), (332.402472, 200.038725), (218.320834, 169.912867),
+                   (486.990495, 202.033049), (406.126298, 288.455970), (285.144964, 281.024176)]
+        side = 3
+        made = make(side*side)
+        edges = GraphEdge[]
+        for r in 1:side, c in 1:side
+            i = (r - 1) * side + c
+            c < side && push!(edges, GraphEdge(made[i], made[i+1]))
+            r < side && push!(edges, GraphEdge(made[i], made[i+side]))
+        end
+        positions, _ = layout_graph(ForceDirectedLayout(), GraphGraph(made, edges),
+                                    sized(made), []; extent = (600, 400), border = 20)
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a chain with one pinned end" begin
+        # A pinned node becomes a point-constrained variable: it cannot move in
+        # the plane, and the walls that a pin brings into existence shape
+        # everything around it.
+        omnetpp = [(120.000000, 70.000000), (153.787701, 184.838746), (159.057120, 304.940926),
+                   (203.107987, 416.759813), (316.453094, 456.497630), (428.221781, 412.757196),
+                   (467.015990, 299.222005), (463.333529, 180.029607)]
+        made = make(8)
+        pin = GraphConstraint(made[1], :pin, (100, 60))
+        positions, _ = layout_graph(ForceDirectedLayout(), chain_of(made), sized(made), [pin])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a chain with four nodes anchored into one row" begin
+        omnetpp = [(20.000000, 28.913223), (141.441933, 31.146755), (267.034863, 32.041976),
+                   (317.034863, 32.041976), (367.034863, 32.041976), (417.034863, 32.041976),
+                   (542.286404, 23.081856), (663.070986, 10.000000)]
+        made = make(8)
+        family = [GraphConstraint(made[i], :cluster, (:rte, 50.0 * (i - 3), 0.0))
+                  for i in 3:6]
+        positions, _ = layout_graph(ForceDirectedLayout(), chain_of(made), sized(made), family)
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "seed 3, which turns the pre-embedding on" begin
+        # Whether to pre-embed is a coin toss on the seed, and seed 1 says no.
+        # Only this path runs StarTreeEmbedding and HeapEmbedding at all.
+        omnetpp = [(20.000000, 64.607097), (153.286393, 68.658803), (290.369531, 70.552925),
+                   (429.170798, 67.749032), (568.104461, 59.316981), (706.085700, 45.744874),
+                   (842.295817, 28.641928), (974.081052, 10.000000)]
+        made = make(8)
+        positions, _ = layout_graph(ForceDirectedLayout(seed = 3), chain_of(made),
+                                    sized(made), [])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "two separate triangles, pre-embedded part by part" begin
+        omnetpp = [(147.170394, 560.484383), (122.308889, 429.232602), (20.000000, 518.627144),
+                   (178.509813, 144.962529), (178.509813, 10.000000), (295.390792, 77.481264)]
+        made = make(6)
+        edges = [GraphEdge(made[a], made[b])
+                 for (a, b) in ((1, 2), (2, 3), (3, 1), (4, 5), (5, 6), (6, 4))]
+        positions, _ = layout_graph(ForceDirectedLayout(seed = 3), GraphGraph(made, edges),
+                                    sized(made), [])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+end
+
 @testset "SpringEmbedderLayout draws what OMNeT++ draws" begin
     # The point of a port is that it answers what the original answers. These are
     # the positions OMNeT++'s own BasicSpringEmbedderLayout produces, read out of

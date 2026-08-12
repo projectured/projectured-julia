@@ -15,10 +15,12 @@ With `OMNETPP` set to an OMNeT++ source tree that has been built:
 
 ```bash
 OMNETPP=$HOME/workspace/omnetpp-cpp
-g++ -std=c++17 -O2 -I$OMNETPP/src -I$OMNETPP/include springembedder.cc \
-    -L$OMNETPP/lib -lopplayout -loppcommon -Wl,-rpath,$OMNETPP/lib \
-    -o /tmp/springembedder
-/tmp/springembedder
+for name in springembedder forcedirected; do
+    g++ -std=c++17 -O2 -I$OMNETPP/src -I$OMNETPP/include $name.cc \
+        -L$OMNETPP/lib -lopplayout -loppcommon -Wl,-rpath,$OMNETPP/lib \
+        -o /tmp/$name
+    /tmp/$name
+done
 ```
 
 ## Why the numbers are checked in rather than computed
