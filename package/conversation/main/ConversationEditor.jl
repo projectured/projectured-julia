@@ -347,6 +347,14 @@ cached projection of the draft valid and reactive.
 """
 function reset_draft!(d::ConversationDraft)
     getfield(d.parts, :elements)[] = Cell[Cell(_new_typein())]
+    # The caret goes with it. A draft that was just submitted is the one the
+    # reader is about to write in, and a caret left on the parts that are gone
+    # is a cell nothing can be typed into — which is what made a notebook take
+    # exactly one cell and then go deaf.
+    getfield(d, :selection)[] =
+        ConcreteReference(FieldReferenceStep("parts"),
+            ConcreteReference(RangeReferenceStep(0, 1),
+                ConcreteReference(FieldReferenceStep("content"), _valpath(0))))
     d
 end
 
