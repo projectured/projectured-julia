@@ -186,70 +186,186 @@ Say it once, here, and test it once, for every engine.
 
 ## 4. Stages
 
-### Stage A — the names, the extent, and a refusal
+### Stage A — the names, the extent, and a refusal — **done**
 
-- [ ] Rename per §3.3, and rename `AdaptagramsEngine` in its own package.
-- [ ] `layout_graph` learns an optional extent — `(width, height)` plus a
+- [x] Rename per §3.3, and rename `AdaptagramsEngine` in its own package.
+- [x] `layout_graph` learns an optional extent — `(width, height)` plus a
       `border`, matching `setSize`.
-- [ ] `GridEmbedding` places into that extent — a circle for a small graph, a
+- [x] `GridEmbedding` places into that extent — a circle for a small graph, a
       bounded grid for a large one — instead of growing without limit. A graph
       that does not fit is scaled down rather than clipped.
-- [ ] Every engine declares `supported_constraint_kinds`, and an unimplemented
+- [x] Every engine declares `supported_constraint_kinds`, and an unimplemented
       kind is refused by name (§3.5).
+
+Found while implementing:
+
+- **Only centres scale, never sizes.** `BasicSpringEmbedderLayout::execute`
+  rescales `n.x` and `n.y` and leaves `n.sx`, `n.sy` alone, so a scaled-down
+  graph keeps readable boxes and may overlap rather than becoming unreadably
+  small. `fit_into_extent!` does the same, which is also what makes
+  `:fixed_size` true for every engine without any engine acting on it.
+- **The extent lives on the projection, not on the engine.** D3 says it is an
+  argument; `GraphGraphToGraphLayout` is where a view states it, along with a
+  `constraints` function of the graph, because a constraint names a vertex and
+  vertices exist only once there is a document.
+- **`AdaptagramsLayout` honours `:pin` on the way out.** The shim takes no
+  constraint argument, so the native run places the graph as if the vertex were
+  free and the vertex is then moved to its pin. The contract holds; the
+  neighbours were placed without knowing about it. §6 records what that costs.
 
 **Why first.** It is what a fresh checkout draws, and it is what every
 screenshot of the caller's window has been drawn with.
 
-### Stage B — the substrate both ports need
+### Stage B — the substrate both ports need — **done**
 
-- [ ] `LcgRandom`, ported from `common/lcgrandom.h`, with its self-test as a
+- [x] `LcgRandom`, ported from `common/lcgrandom.h`, with its self-test as a
       test: 10000 draws from seed 1 must leave the seed at 1043618065.
-- [ ] The geometry the force-directed stack is written in: `Pt`, `Rs`, `Rc`.
-- [ ] `GraphComponent`: vertices, edges, connected sub-components, spanning
+- [x] The geometry the force-directed stack is written in: `Pt`, `Rs`, `Rc`.
+- [x] `GraphComponent`: vertices, edges, connected sub-components, spanning
       tree — the graph algorithms both the pre-embeddings and the repulsions
       read.
 
-### Stage C — `SpringEmbedderLayout`
+Found while implementing:
 
-- [ ] The port of `basicspringembedderlayout.cc`: anchors with bounding boxes,
+- The ported files live in `package/graph/main/omnetpp/`, one per C++ file, per
+  D5. `Vertex` and `Edge` became `LayoutVertex` and `LayoutEdge`, because beside
+  this domain's `GraphVertex` and `GraphEdge` documents they would read as the
+  same thing. `Pt`, `Rs`, `Rc` and `Ln` are immutable, because the original
+  copies by hand and a missed copy is a silent aliasing bug.
+- `GraphComponent::getBoundingRectangle` seeds its maxima with `DBL_MIN`, which
+  is the smallest *positive* double. It is reproduced rather than corrected: a
+  port that fixes it draws a different picture from the one it is a port of.
+
+### Stage C — `SpringEmbedderLayout` — **done**
+
+- [x] The port of `basicspringembedderlayout.cc`: anchors with bounding boxes,
       fixed nodes, the connected-partition colouring, `markNodesConnectedToFixed`,
       `assignInitialPositions`, `relax`, and the rescale-and-shift tail.
-- [ ] `:pin` is `addFixedNode`; `:cluster` is `addAnchoredNode`.
-- [ ] The stopping rule is OMNeT++'s: stop when the largest movement stays under
+- [x] `:pin` is `addFixedNode`; `:cluster` is `addAnchoredNode`.
+- [x] The stopping rule is OMNeT++'s: stop when the largest movement stays under
       0.05 for 20 iterations in a row, or at `max_iterations` (500).
 
 **A reader sees.** A network that reads as a network, with nothing installed.
 
-### Stage D — `ForceDirectedLayout`
+**Parity is asserted, not claimed.** `package/graph/test/reference/` holds a C++
+program that links against an OMNeT++ checkout's `libopplayout` and prints the
+positions its own layouter answers. The suite asserts the port against those
+numbers over four scenarios — a four-by-four mesh, a chain with a pinned end, a
+chain with four anchored nodes, and a chain in a 600 by 400 box. Every node
+agrees to six decimals. The port is not merely of the same family; it is the
+same picture.
 
-- [ ] `forcedirectedparametersbase`: `Variable`, `PointConstrainedVariable`,
+### Stage D — `ForceDirectedLayout` — **done**
+
+- [x] `forcedirectedparametersbase`: `Variable`, `PointConstrainedVariable`,
       `IBody`, `IForceProvider`.
-- [ ] `forcedirectedparameters`: `Body`, `RelativelyPositionedBody`, `WallBody`,
-      the three electric repulsions, the five springs, `Friction`, `Drag`, and
-      the point/line/circle body constraints.
-- [ ] `forcedirectedembedding`: the adaptive-time-step integrator and its
+- [x] `forcedirectedparameters`: `Body`, `RelativelyPositionedBody`, `WallBody`,
+      the three electric repulsions, the five springs and `Drag`.
+- [x] `forcedirectedembedding`: the adaptive-time-step integrator and its
       relaxation and stopping rules.
-- [ ] `startreeembedding` and `heapembedding`, the two pre-embeddings.
-- [ ] `forcedirectedgraphlayouter` itself: expected measures, borders, electric
-      repulsions per connected sub-component, edges to the border, the
-      pre-embedding pass, and the scale-and-translate tail.
+- [x] `startreeembedding` and `heapembedding`, the two pre-embeddings.
+- [x] `forcedirectedgraphlayouter` itself: expected measures, borders, electric
+      repulsions per connected sub-component, the pre-embedding pass, and the
+      scale-and-translate tail.
 
-### Stage E — say which engine drew it, and pick the way Qtenv picks
+Six scenarios are asserted against `libopplayout` and agree to six decimals: a
+chain, a mesh in a box, a pinned end, an anchored row, a seed that turns the
+pre-embedding on, and a graph in two parts.
 
-- [ ] `DeferredLayout` picks `SpringEmbedderLayout` at 20 vertices or more and
+Found while implementing:
+
+- **`20 + 2400 / (20 + bodies.size())` is integer division.** Both operands are
+  integral in C++, so the quotient truncates before it widens to a double: eight
+  bodies give 105, not 105.714. Every length in the layout is measured against
+  that number, and computing it in floating point moved every node by about a
+  unit. This one line was the whole difference between a port that looks right
+  and a port that is right.
+- **The reported position is the last probe, not the accepted step.** `embed()`
+  leaves the variables holding what the fourth Runge-Kutta probe assigned, and
+  `getNodePosition` reads that. Writing the accepted `pn` back is a slightly
+  better answer and the wrong one.
+- **A pinned variable ignores x and y in every assignment**, including the
+  scale and the translate at the end. `assignPosition` is virtual over there for
+  exactly this reason.
+- **The wall-clock limit is not ported.** OMNeT++ stops on elapsed real time,
+  drawn at random between 1000 and 20000 milliseconds, which makes the drawing
+  depend on the machine. `max_calculation_time` exists and defaults to `Inf`;
+  `max_cycle` bounds the work. The draw is still made, so the random sequence
+  stays in step.
+- **Not ported, because the layouter never builds them:** `Friction`,
+  `PointConstraint`, `LineConstraint`, `CircleConstraint`. A force nothing
+  constructs is not part of the picture.
+- **The vertex lookup is a table.** `GraphComponent::findVertex` is a linear
+  scan and the repulsion loop asks it twice per pair, which is cubic. The answer
+  never changes once a vertex is added.
+
+### Stage E — say which engine drew it, and pick the way Qtenv picks — **done**
+
+- [x] `DeferredLayout` picks `SpringEmbedderLayout` at 20 vertices or more and
       `ForceDirectedLayout` below that — Qtenv's own rule — unless a native
       engine is registered.
-- [ ] The layout answers which engine produced it, so a view can say so and a
+- [x] The layout answers which engine produced it, so a view can say so and a
       test can assert it.
-- [ ] `ProjecturedAdaptagrams` stops erroring once per layout when the shim is
+- [x] `ProjecturedAdaptagrams` stops erroring once per layout when the shim is
       not built; it warns once, with what to run to fix it, and the layout
       records the engine that actually ran.
 
-### Stage F — measure all of them
+Found while implementing:
 
-- [ ] A benchmark over the graph sizes that matter: 10, 60, 300 vertices.
-- [ ] Record the time and a picture of each engine's answer at each size.
-- [ ] The numbers decide the iteration and time caps, rather than a guess.
+- **Choosing between engines means naming them.** `DeferredLayout` cannot live
+  in the interface module any more, because that module is included before both
+  ports. It moved to `GraphLayoutChoice.jl`, above them, along with
+  `register_layout_engine!` and `resolved_layout_engine`.
+- **The choice needs the graph.** `resolved_layout_engine` gained a vertex-count
+  argument, and `layout_graph(::DeferredLayout, …)` passes it, so one projection
+  draws a small graph with the advanced layouter and a large one with the fast
+  layouter.
+- **`GraphLayout` gained an `engine::Symbol` field.** It is a `ComputedCell` over
+  the same memoized cell the positions come from, so a repaint does not re-run
+  an engine to ask its name.
+
+### Stage F — measure all of them — **done**
+
+- [x] A benchmark over the graph sizes that matter: 10, 60, 300 vertices.
+- [x] Record the time and a picture of each engine's answer at each size.
+- [x] The numbers decide the iteration and time caps, rather than a guess.
+
+`bench/graphlayoutbench.jl`, run as `graphlayoutbench()`. The graph is a chain
+with a longer-range link every seventh vertex — connected, sparse, not a tree —
+and every vertex is 40 by 20. The picture is drawn in characters rather than
+written to a file, so the answer sits beside the numbers.
+
+| engine | nodes | seconds | extent | overlaps | mean edge |
+| --- | --- | --- | --- | --- | --- |
+| `GridEmbedding` | 10 | 0.005 | 280x180 | 0 | 136 |
+| `SpringEmbedderLayout` | 10 | 0.0001 | 304x151 | 0 | 61 |
+| `ForceDirectedLayout` | 10 | 0.005 | 533x225 | 0 | 122 |
+| `GridEmbedding` | 60 | 0.000 | 600x580 | 0 | 154 |
+| `SpringEmbedderLayout` | 60 | 0.001 | 927x384 | 5 | 80 |
+| `ForceDirectedLayout` | 60 | 0.553 | 717x1039 | 0 | 105 |
+| `GridEmbedding` | 300 | 0.0002 | 1400x1300 | 0 | 413 |
+| `SpringEmbedderLayout` | 300 | 0.039 | 964x7110 | 6 | 115 |
+| `ForceDirectedLayout` | 300 | 41.1 | 2169x4035 | 0 | 104 |
+
+**What the numbers decide.**
+
+- **The threshold at 20 is right, and these are the numbers that say so.** The
+  advanced layouter costs 0.55 seconds at 60 vertices and 41 seconds at 300;
+  the fast one costs 0.04 seconds at 300. Every cycle asks for a force between
+  every pair of bodies, four times, so the cost grows with the square of the
+  count. Qtenv's own comment says the advanced layouter is already very slow at
+  thirty or forty modules, and that is exactly what this measures.
+- **No cap is lowered.** `max_cycle` stays at OMNeT++'s 1000 and
+  `max_iterations` at its 500, because changing either changes the picture and
+  the picture is the point. The measured cost is written into
+  `ForceDirectedLayout`'s docstring instead, so a caller naming it directly for
+  a large graph knows what it is asking for, and `max_calculation_time` is there
+  for a caller who would rather have a bounded wait than a repeatable answer.
+- **Quality is the other half of the trade.** The advanced layouter leaves
+  nothing overlapping at any size; the fast one leaves five or six pairs
+  overlapping from 60 vertices up. That is the price of ignoring node sizes, and
+  it is why the advanced one is worth 0.55 seconds when the graph is small
+  enough to afford it.
 
 ## 5. Decisions
 

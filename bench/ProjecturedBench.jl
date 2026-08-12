@@ -16,6 +16,9 @@ repository. Each is a function, so a session can run several and compare:
   cell. Backs the immutable-style work.
 - [`walk_cells`](@ref) — the underlying traversal: every cell reachable from a
   value, with its owning `(struct, field)`.
+- [`graphlayoutbench`](@ref) — what each graph layout engine costs and what it
+  draws at 10, 60 and 300 vertices. Backs the threshold at which the engine that
+  decides late turns from the advanced layouter to the fast one.
 """
 module ProjecturedBench
 
@@ -26,7 +29,8 @@ using Projectured: ReactiveCell, ImmutableCell, MutableCell, AbstractCell, Cell
 
 include(joinpath(@__DIR__, "colorbench.jl"))
 include(joinpath(@__DIR__, "fanout.jl"))
+include(joinpath(@__DIR__, "graphlayoutbench.jl"))
 
-export colorbench, fanout_report, walk_cells
+export colorbench, fanout_report, walk_cells, graphlayoutbench
 
 end # module ProjecturedBench

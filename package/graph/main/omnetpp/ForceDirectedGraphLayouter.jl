@@ -87,6 +87,14 @@ answer; `max_cycle` bounds the work either way.
 `three_d` and `pre_embedding` force the two choices the original leaves to the
 seed. `nothing` keeps the original's coin toss.
 
+**What it costs.** Every cycle asks for a force between every pair of bodies,
+four times, so the cost grows with the square of the vertex count. Measured by
+`graphlayoutbench` on a sparse network-shaped graph: 10 vertices in about 5
+milliseconds, 60 in 0.55 seconds, 300 in 41 seconds. That is why Qtenv stops
+using it at twenty submodules and why [`DeferredLayout`](@ref) does too. Name it
+directly for a large graph only if you mean to wait, or give it a
+`max_calculation_time`.
+
 It implements `:pin` (a point-constrained variable, free only in the third
 dimension), `:cluster` (bodies sharing one variable at fixed offsets) and
 `:fixed_size`.
