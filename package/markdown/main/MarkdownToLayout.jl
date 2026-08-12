@@ -31,6 +31,7 @@ import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..MarkdownModule: MarkdownRoot
 import ..WidgetModule: InvokeActionOperation
+import ..OperationModule: ReplaceSelectionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, is_element_reference_step
 
@@ -92,6 +93,17 @@ end
 # operation type it does not recognise, which is where a card's Run button used
 # to die: it rendered, took the press, answered, and the answer stopped here.
 read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
+
+# And the same for a click that lands IN an embedded card rather than on one of
+# its buttons. A card that takes the keyboard — a conversation, a form — needs
+# the caret to arrive, and the caret arrives as a selection naming a child of
+# this layout. Re-rooted here into the page's own elements, exactly as
+# `map_reference_backward` does for any other reference; without this the click
+# died where the Run button used to, and every key went to the prose above.
+function read_intent(p::MarkdownRootToVerticalLayout, iomap, op::ReplaceSelectionOperation)
+    inner = map_reference_backward(p, iomap, op.path)
+    inner === nothing ? nothing : ReplaceSelectionOperation(inner)
+end
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A markdown page is a stack of blocks, not one syntax tree, so each element
