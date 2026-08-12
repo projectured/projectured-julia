@@ -20,9 +20,10 @@
 > current package graph.
 
 Applies to projectured-julia, omnetpp-julia and inet-julia. Supersedes the
-layering decision in [precompile-workloads.md](precompile-workloads.md), which
-put the workloads in the example packages; the measurement below shows why that
-is not where they can survive.
+layering decision in
+[precompile-workloads.md](../done/precompile-workloads.md) (done, moved to
+`plan/done/`), which put the workloads in the example packages; the measurement
+below shows why that is not where they can survive.
 
 ## Why, measured
 
@@ -361,7 +362,8 @@ person's choice, not the project's.
   one catalog page through `demo_projection()` and forces the canvas — headless,
   because no window can be opened at precompile time.
 - This is where the 13 pairs still owed by `OmnetppPresentationExample`
-  ([precompile-workloads.md](precompile-workloads.md)) get their home.
+  ([precompile-workloads.md](../done/precompile-workloads.md), done) get their
+  home.
 - A `Build` leaf if and when a binary is wanted.
 
   **Done, except the `Build` leaf.** `package/repl/src/OmnetppRepl.jl` exists,
@@ -536,10 +538,15 @@ This is defensible if `test_all()` must be callable from the prompt, and after
 rule 3 it costs load time rather than compile time. Decide it deliberately
 rather than by inheritance, and write the decision down.
 
+**Still open — see step 13.** `ProjecturedTest` still names all four directly.
+
 ### 4. `InetQueuingExample` depends on `Test`
 
 An example package should not need the test standard library. Move whatever uses
 it into `InetQueuingTest`.
+
+**Still open — see step 12.** `package/queuing/example/Project.toml` still
+declares `Test`.
 
 ### DataFrames: the readers keep it, in a package nothing loads by default
 
@@ -917,7 +924,8 @@ when it is not. That is what makes `:demo` in `env/core` cheap.
 a dependent package is precompiled, so the marker and doctype registries are
 populated; only the package's own `__init__` is skipped, and a Startup package
 has none. The concern recorded in
-[precompile-workloads.md](precompile-workloads.md) does not apply at this level.
+[precompile-workloads.md](../done/precompile-workloads.md) does not apply at
+this level.
 
 ### What this probe did not test
 
