@@ -40,7 +40,7 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, Wid
                        SelectTabOperation
 import ..LayoutModule: VerticalLayout
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, RangeReferenceStep
+                          FieldReferenceStep, RangeReferenceStep, get_reference_steps
 import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
@@ -453,43 +453,85 @@ function print_document(p::WorkbenchAssistantToWidgetCard,
     iomap = SimpleIoMap(p, a, column)
     # A keystroke is routed by SELECTION, and every container between the root
     # and the cell has to carry one or the key stops at the first that does not.
-    # There are four: the column, the card, the card's interior, and the pane the
-    # cell scrolls in. Each says only which child the key is for; where in the
-    # cell it lands is the composer's own business.
-    _selected() = getfield(a, :selection)[] !== nothing
-    _step(name) = ConcreteReference(FieldReferenceStep(name), EmptyReference())
-    _child(i) = ConcreteReference(FieldReferenceStep("children"),
-                                  ConcreteReference(RangeReferenceStep(i - 1, i),
-                                                    EmptyReference()))
-    set_cell_function!(getfield(column, :selection),
-                       () -> _selected() ? _child(1) : nothing)
-    set_cell_function!(getfield(card, :selection),
-                       () -> _selected() ? _step("content") : nothing)
-    set_cell_function!(getfield(card.content, :selection),
-                       () -> _selected() ? _child(2) : nothing)
-    set_cell_function!(getfield(cell, :selection),
-                       () -> _selected() ? _step("content") : nothing)
+    # There are four here, and each sees the same path with its own prefix
+    # already spent — the same suffix walk a catalog shell does for its panes.
+    full() = map_reference_forward(p, iomap, getfield(a, :selection)[])
+    suffix(n) = () -> begin
+        r = full()
+        r === nothing && return nothing
+        steps = get_reference_steps(r)
+        length(steps) > n ? _steps_to_reference(steps[(n + 1):end]) : nothing
+    end
+    set_cell_function!(getfield(column, :selection), full)
+    set_cell_function!(getfield(card, :selection), suffix(2))
+    set_cell_function!(getfield(card.content, :selection), suffix(3))
+    # Only the pane the path names carries a selection. Both panes sit at the
+    # same depth, so a bare suffix would tell each of them it held the caret.
+    pane_suffix(i) = () -> begin
+        r = full()
+        r === nothing && return nothing
+        steps = get_reference_steps(r)
+        length(steps) > 5 || return nothing
+        step = steps[5]
+        (step isa RangeReferenceStep && step.start + 1 == i) || return nothing
+        _steps_to_reference(steps[6:end])
+    end
+    set_cell_function!(getfield(transcript, :selection), pane_suffix(1))
+    set_cell_function!(getfield(cell, :selection), pane_suffix(2))
     iomap
 end
 
-# Anything selected in this card selects the card.
-map_reference_backward(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap, reference) =
-    EmptyReference()
+_steps_to_reference(steps) =
+    foldr((step, tail) -> ConcreteReference(step, tail), steps; init = EmptyReference())
 
-# And the card, selected, puts the caret on its one child, so the containers
-# above route the keys down to this projection's reader.
-map_reference_forward(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap, reference) =
-    reference isa Reference ?
-        ConcreteReference(FieldReferenceStep("children"),
-                          ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())) :
-        nothing
+# Where the two panes sit in this card's output. The transcript is the first
+# child of the card's interior and the cell is the second, so a path into either
+# is that walk plus whatever the pane's own document said.
+_CARD_PANE_PREFIX(i) = Any[FieldReferenceStep("children"), RangeReferenceStep(0, 1),
+                           FieldReferenceStep("content"),
+                           FieldReferenceStep("children"), RangeReferenceStep(i - 1, i),
+                           FieldReferenceStep("content")]
 
-# A click anywhere in the card puts the caret on the card. The reader answers the
-# selection rather than writing it, so the levels above re-root it as they would
-# any other.
-read_intent(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap,
-            op::ReplaceSelectionOperation) = ReplaceSelectionOperation(EmptyReference())
+# `conversation.<rest>` / `draft.<rest>` → the pane that holds it, plus `<rest>`.
+function map_reference_forward(::WorkbenchAssistantToWidgetCard, iomap::SimpleIoMap, reference)
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    head isa FieldReferenceStep || return nothing
+    pane = head.name == "conversation" ? 1 : head.name == "draft" ? 2 : 0
+    pane == 0 && return nothing
+    _steps_to_reference(vcat(_CARD_PANE_PREFIX(pane),
+                             get_reference_steps(reference.tail)))
+end
 
+# And back. A click in a pane is a click in the document that pane holds, so the
+# caret lands where it was aimed rather than on the card as a whole — which is
+# the difference between a card a reader can click into and one they can only
+# click at.
+function map_reference_backward(::WorkbenchAssistantToWidgetCard, iomap::SimpleIoMap, reference)
+    reference isa Reference || return nothing
+    steps = get_reference_steps(reference)
+    for (pane, name) in ((1, "conversation"), (2, "draft"))
+        prefix = _CARD_PANE_PREFIX(pane)
+        length(steps) >= length(prefix) || continue
+        matched = all(_same_step(steps[i], prefix[i]) for i in eachindex(prefix))
+        matched || continue
+        return _steps_to_reference(vcat(Any[FieldReferenceStep(name)],
+                                        steps[(length(prefix) + 1):end]))
+    end
+    nothing
+end
+
+_same_step(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
+_same_step(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
+_same_step(::Any, ::Any) = false
+
+# A click that named no pane is still a click on the card, and the card takes it
+# rather than letting it fall through to whatever the card is embedded in.
+function read_intent(p::WorkbenchAssistantToWidgetCard, iomap::SimpleIoMap,
+                     op::ReplaceSelectionOperation)
+    inner = map_reference_backward(p, iomap, op.path)
+    ReplaceSelectionOperation(inner === nothing ? EmptyReference() : inner)
+end
 
 print_document(::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
     _content_pane(recursion, e, @reference_step(content), ctx;

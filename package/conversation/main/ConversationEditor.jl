@@ -492,19 +492,108 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
         ComputedCellVector(() -> (n = length(d.parts);
                           Any[_part_card(d.parts[i].content, i == n) for i in 1:n])),
         Cell(:left), Cell(_GAP), Cell(nothing))
-    SimpleIoMap(p, d, body)
+    iomap = SimpleIoMap(p, d, body)
+    # The caret, carried down. A key is routed by selection and stops at the
+    # first container that has none, so the stack of part cards has to say which
+    # card the caret is in — otherwise a composer rendered anywhere but the
+    # assistant panel can be clicked into and never typed in.
+    set_cell_function!(getfield(body, :selection),
+                       () -> map_reference_forward(p, iomap, getfield(d, :selection)[]))
+    iomap
 end
 
-# The composer manages its own selection; nothing is forwarded to the widget
-# layers (so they never hijack key events for a mapped cursor).
-map_reference_forward(::ConversationComposerToWidget, iomap, ref)  = nothing
+# ── the caret, both ways ────────────────────────────────────────────────────
+#
+# `parts[i].content.value{k}` on the draft is `children[i].content.elements[s].content{k}`
+# on the stack of cards: card `i` holds part `i`, its `content` slot holds the
+# body, and the body is a `TextBlock` whose span `s` carries the editable value.
+# Which span that is belongs to the body that was built — a plain typein has one
+# and a kind chooser has its value in the second, after the "Insert a new "
+# prefix — so it is asked for rather than assumed.
+#
+# This is what makes a click land where it was aimed. The composer used to
+# answer `nothing` both ways and manage its cursor privately, which works only
+# where something else catches the keys: the assistant panel does, a page does
+# not, and a composer in a page could be clicked into and not typed in.
 
-# Backward, the draft says "in me". It cannot say where — the cursor it manages
-# is its own, and mapping a click to a character is separate work — but "in me"
-# is both true and enough: it is what tells a surround that the click was for
-# the composer, so the caret lands on the thing that takes the keys instead of
-# on whatever the composer was embedded in.
-map_reference_backward(::ConversationComposerToWidget, iomap, ref) = EmptyReference()
+# Which span of the rendered body carries the editable value.
+_caret_span(c::DocumentInsertion) = isempty(_value(c)) ? 1 : 2
+_caret_span(::Any) = 1
+
+# parts[i].content.value{k}  →  children[i].content.elements[s].content{k}
+function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
+    reference isa ConcreteReference || return nothing
+    h = reference.head
+    (h isa FieldReferenceStep && h.name == "parts") || return nothing
+    t = reference.tail
+    t isa ConcreteReference && t.head isa RangeReferenceStep || return nothing
+    i = t.head.start + 1
+    d = iomap.input
+    (1 <= i <= length(d.parts)) || return nothing
+    rest = t.tail
+    rest isa ConcreteReference || return nothing
+    (rest.head isa FieldReferenceStep && rest.head.name == "content") || return nothing
+    content = d.parts[i].content
+    inner = rest.tail
+    # An editable part carries its value in a span of the body this projection
+    # built; a committed one carries the document itself, and its own projection
+    # owns everything below the card.
+    tail = if _is_editable(content) && i == length(d.parts)
+        (inner isa ConcreteReference && inner.head isa FieldReferenceStep &&
+         inner.head.name == "value") || return nothing
+        k = inner.tail
+        (k isa ConcreteReference && k.head isa RangeReferenceStep) || return nothing
+        _caret_selection(_caret_span(content), k.head.stop)
+    else
+        inner
+    end
+    ConcreteReference(FieldReferenceStep("children"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("content"), tail)))
+end
+
+# children[i].content.elements[s].content{k}  →  parts[i].content.value{k}
+function map_reference_backward(::ConversationComposerToWidget, iomap, reference)
+    reference isa ConcreteReference || return EmptyReference()
+    h = reference.head
+    (h isa FieldReferenceStep && h.name == "children") || return EmptyReference()
+    t = reference.tail
+    (t isa ConcreteReference && t.head isa RangeReferenceStep) || return EmptyReference()
+    i = t.head.start + 1
+    d = iomap.input
+    (1 <= i <= length(d.parts)) || return EmptyReference()
+    rest = t.tail
+    (rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
+     rest.head.name == "content") || return EmptyReference()
+    content = d.parts[i].content
+    tail = if _is_editable(content) && i == length(d.parts)
+        k = _text_caret_offset(rest.tail)
+        # A click that found no offset still found the card, and the caret goes
+        # to the end of what is written — which is where a reader who clicked
+        # anywhere in an empty field expects it.
+        _valpath(k === nothing ? length(_value(content)) : k)
+    else
+        rest.tail
+    end
+    ConcreteReference(FieldReferenceStep("parts"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("content"), tail)))
+end
+
+# The `{k}` of an `elements[s].content{k}` caret path, or `nothing` when the
+# reference is not one.
+function _text_caret_offset(reference)
+    reference isa ConcreteReference || return nothing
+    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
+    span = reference.tail
+    (span isa ConcreteReference && span.head isa RangeReferenceStep) || return nothing
+    inner = span.tail
+    (inner isa ConcreteReference && inner.head isa FieldReferenceStep &&
+     inner.head.name == "content") || return nothing
+    k = inner.tail
+    (k isa ConcreteReference && k.head isa RangeReferenceStep) || return nothing
+    k.head.stop
+end
 
 # ═══════════════════════════════════════════════════════════════════════
 # Reader: gesture → composer operation, dispatched on the active part's state
@@ -617,15 +706,25 @@ to push to — so the assistant registers `a -> EvaluateDraftTurnOperation(a)` h
 """
 const EVAL_HANDLER = Ref{Any}(nothing)
 
-# A click anywhere in the composer puts the caret ON the composer. It cannot say
-# where — the cursor it manages is its own, and mapping a click to a character is
-# separate work — but saying "in me" is what makes the click land at all.
+# A press that reached this level found no text under it — a gap between the
+# cards, the padding around one. The caret goes to the composer as a whole,
+# which is a worse answer than an offset and a much better one than declining:
+# a reader who clicks near the field still gets to type in it.
 #
-# Without this the composer declined every press, and a surround that embeds it
-# had nothing to re-root: the caret stayed wherever it was, and every key after
-# went there. A reader could see the cell and not type into it.
-read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, ::MousePress) =
-    ReplaceSelectionOperation(EmptyReference())
+# A press that DID find text never arrives here. It is answered by the text
+# layer under the card, and `map_reference_backward` turns that answer into the
+# `parts[i].content.value{k}` the composer's own cursor reads.
+function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, ::MousePress)
+    d = iomap.input
+    n = length(d.parts)
+    n == 0 && return ReplaceSelectionOperation(EmptyReference())
+    c = _active_content(d)
+    tail = _is_editable(c) ? _valpath(length(_value(c))) : EmptyReference()
+    ReplaceSelectionOperation(
+        ConcreteReference(FieldReferenceStep("parts"),
+            ConcreteReference(RangeReferenceStep(n - 1, n),
+                ConcreteReference(FieldReferenceStep("content"), tail))))
+end
 
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     composer_read(iomap.input, evt)
