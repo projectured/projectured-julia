@@ -291,7 +291,7 @@ Likely **justified exceptions** (must be written down, with the reason):
   near `WordWrapping.jl` or the layout/graph-layout packages.
 - [x] **`SyntaxNodeToText` flattening.** Its non-local rebuild is a known,
   separately-tracked structural defect — see
-  [plan/pending/syntaxtotext-delegation.md](syntaxtotext-delegation.md). Note the
+  [plan/pending/syntaxtotext-delegation.md](../done/syntaxtotext-delegation.md). Note the
   overlap; the delegation refactor there is a prerequisite for SyntaxToText
   structural locality, so reference it rather than duplicating the fix.
 
@@ -335,7 +335,7 @@ Likely **justified exceptions** (must be written down, with the reason):
   functions, not a data table with per-example/per-dimension justification
   strings.
 - [ ] Document the principle in
-  [documentation/projection-system.md](../../documentation/projection-system.md)
+  [documentation/projection-system.md](../../package/kernel/doc/projection-system.md)
   (a "Locality: smallest possible output change" subsection next to the
   recursion principle) and in the `projection_print` docstring
   ([package/kernel/src/api/ProjectionApi.jl](../../package/kernel/src/api/ProjectionApi.jl)):

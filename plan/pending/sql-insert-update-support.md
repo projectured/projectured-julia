@@ -250,7 +250,7 @@ In [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/proje
   not be mirrored and the new test stood alone. **Since fixed:** the live
   `test_sql_to_syntax_selection()` now calls `test_position_navigation("SqlToSyntax nested",
   doc, proj)` — the current, working equivalent (see
-  [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md)). The
+  [sql-to-syntax-selection-support.md](../done/sql-to-syntax-selection-support.md)). The
   standalone `test_sql_insert_update_selection()` still exists and still works the
   original way: `projection_print` the doc, take `iomap.projection` (RecursiveProjection
   unwraps to the concrete node projection), and assert

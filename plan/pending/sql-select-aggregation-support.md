@@ -231,7 +231,7 @@ raw `SqlScalarValue`). Replace that for the supported five functions:
 Edit
 [package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl).
 Follow the patterns documented in
-[sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md) — every
+[sql-to-syntax-selection-support.md](../done/sql-to-syntax-selection-support.md) — every
 new node projection needs `projection_print`, `map_reference_forward`,
 `map_reference_backward`, and `projection_read`, and must be registered in the
 projection map (line ~2229).
@@ -282,13 +282,13 @@ Edit `projection_print` (line ~1378) and its mappers (lines ~1423/1452):
 - Register the new projections so the `make_sql_aggregation_document_example`
   from Phase 1 renders end-to-end (`Sql→Syntax→Text→String`).
 - Per the **Rule: new SQL projection → must add to selection test** in
-  [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md):
+  [sql-to-syntax-selection-support.md](../done/sql-to-syntax-selection-support.md):
   ensure the nested/aggregation example in `test_sql_to_syntax_selection()`
   exercises every new node and leaf, or add a targeted call using the live
   test helper `test_position_navigation(label, document, projection)` (there is
   no `test_selection` and no `test/src/editor/SelectionTest.jl` — that API does
   not exist in the current tree; see
-  [sql-to-syntax-selection-support.md](sql-to-syntax-selection-support.md)).
+  [sql-to-syntax-selection-support.md](../done/sql-to-syntax-selection-support.md)).
 
 ### Phase 3 tests
 
@@ -301,7 +301,7 @@ Edit `projection_print` (line ~1378) and its mappers (lines ~1423/1452):
   confirm no regression.
 - Round-trip: `sqlparse(target) → Sql→Syntax→Text→String` reproduces the query
   (modulo the known transformations listed in
-  [sql-parser.md](sql-parser.md) "Round-trip characteristics").
+  [sql-parser.md](../done/sql-parser.md) "Round-trip characteristics").
 
 ---
 

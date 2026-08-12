@@ -272,7 +272,7 @@ Two payoffs:
   `TextString` whose content embeds a `'\n'`* — note today's text has **two** line mechanisms
   (`TextNewline` spans *and* embedded `'\n'` in a `TextString`, per `TextFirstLine`), and the
   invariant must forbid both. Nothing enforces it today; the pending
-  [recursive-validation-core-functions](./recursive-validation-core-functions.md) work is the
+  [recursive-validation-core-functions](../done/recursive-validation-core-functions.md) work is the
   natural enforcement point. Until then it is a producer-side convention.
 - **Separator, not terminator.** The implicit newline is emitted *between* consecutive lines, so `n`
   lines produce `n-1` breaks — matching today's span list exactly, and avoiding a phantom trailing

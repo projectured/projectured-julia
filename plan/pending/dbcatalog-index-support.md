@@ -427,7 +427,7 @@ all inside a dedicated `test` schema, torn down in reverse):
 
 - [plan/done/dbcatalog-sql-document-support.md](../done/dbcatalog-sql-document-support.md)
   — the table/schema DDL precedent this extends (conventions, decisions, gotchas).
-- [plan/pending/sql-parser.md](sql-parser.md) — parser architecture and
+- [plan/pending/sql-parser.md](../done/sql-parser.md) — parser architecture and
   error/round-trip conventions.
 - [package/kernel/doc/projection-system.md](../../package/kernel/doc/projection-system.md) and
   [package/json/doc/json.md](../../package/json/doc/json.md) — printer/IO-map pattern.
