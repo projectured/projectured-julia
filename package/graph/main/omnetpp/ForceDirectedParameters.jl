@@ -29,12 +29,10 @@ part of the picture.
 """
 module ForceDirectedParametersModule
 
-import ..LayoutGeometryModule: Pt, Rs, Rc, Ln, pt_zero, pt_nil, pt_length,
-                               pt_normalize, pt_distance, base_plane_length,
+import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, base_plane_length,
                                nan_to_zero, rc_from_center_size, rc_base_plane_distance,
-                               is_nil, with_z
-import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
-                                            IBody, IForceProvider,
+                               is_nil, rs_nil
+import ..ForceDirectedParametersBaseModule: Variable, IBody, IForceProvider,
                                             reinitialize!, apply_forces!, potential_energy,
                                             class_name, set_embedding!,
                                             get_position, assign_position!,
@@ -68,12 +66,10 @@ mutable struct Body <: IBody
     embedding::Any
 end
 
-Body(variable) = Body(variable, -1.0, -1.0, rs_nil_value(), nothing)
+Body(variable) = Body(variable, -1.0, -1.0, rs_nil(), nothing)
 Body(variable, size::Rs) = Body(variable, -1.0, -1.0, size, nothing)
 Body(variable, mass::Real, charge::Real, size::Rs) =
     Body(variable, Float64(mass), Float64(charge), size, nothing)
-
-rs_nil_value() = Rs(NaN, NaN)
 
 """
     RelativelyPositionedBody(variable, relative_position[, size])
@@ -92,7 +88,7 @@ mutable struct RelativelyPositionedBody <: IBody
 end
 
 RelativelyPositionedBody(variable::Variable, relative_position::Pt) =
-    RelativelyPositionedBody(variable, relative_position, -1.0, -1.0, rs_nil_value(), nothing)
+    RelativelyPositionedBody(variable, relative_position, -1.0, -1.0, rs_nil(), nothing)
 RelativelyPositionedBody(variable::Variable, relative_position::Pt, size::Rs) =
     RelativelyPositionedBody(variable, relative_position, -1.0, -1.0, size, nothing)
 

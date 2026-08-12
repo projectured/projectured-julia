@@ -20,7 +20,7 @@ import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_nil, is_nil, pt_distance,
                                rc_center, rc_center_top, rc_center_bottom,
                                rc_left_center, rc_right_center,
                                rc_base_plane_contains, rc_base_plane_intersects
-import ..GraphComponentModule: GraphComponent, LayoutVertex, vertex_count
+import ..GraphComponentModule: GraphComponent
 
 export HeapEmbedding, heap_embed!
 

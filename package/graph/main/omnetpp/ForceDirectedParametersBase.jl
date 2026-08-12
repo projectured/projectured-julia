@@ -17,8 +17,7 @@ one-line methods, and a flag says that more plainly than a second type would.
 """
 module ForceDirectedParametersBaseModule
 
-import ..LayoutGeometryModule: Pt, Rs, pt_zero, pt_nil, pt_length, is_fully_specified,
-                               rs_nil, is_nil
+import ..LayoutGeometryModule: Pt, Rs, pt_zero, pt_length, is_fully_specified
 
 export ForceDirectedParameters, Variable, PointConstrainedVariable,
        IBody, IForceProvider,

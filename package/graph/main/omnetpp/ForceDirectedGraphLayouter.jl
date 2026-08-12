@@ -36,11 +36,10 @@ import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine
                                   constraint_pins, constraint_clusters,
                                   layout_vertices, vertex_sizes, straight_routes
 import ..LcgRandomModule: LcgRandom, next01!, uniform!
-import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, pt_zero, pt_multiply, is_nil,
-                               diagonal_length, area, rc_center, rc_left, rc_top,
-                               with_z
+import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, pt_multiply,
+                               diagonal_length, area, rc_center
 import ..GraphComponentModule: GraphComponent, LayoutVertex, LayoutEdge,
-                               add_vertex!, add_edge!, find_vertex, vertex_count,
+                               add_vertex!, add_edge!, vertex_count,
                                edge_count, bounding_rectangle,
                                calculate_spanning_tree!,
                                calculate_connected_sub_components!
@@ -54,8 +53,7 @@ import ..ForceDirectedParametersModule: Body, RelativelyPositionedBody, WallBody
                                         ElectricRepulsion, VerticalElectricRepulsion,
                                         HorizontalElectricRepulsion, Spring,
                                         VerticalSpring, HorizontalSpring,
-                                        LeastExpandedSpring, BasePlaneSpring, Drag,
-                                        AbstractSpring
+                                        BasePlaneSpring, Drag
 import ..ForceDirectedEmbeddingModule: ForceDirectedEmbedding,
                                        default_force_directed_parameters,
                                        add_body!, add_force_provider!, embed!,

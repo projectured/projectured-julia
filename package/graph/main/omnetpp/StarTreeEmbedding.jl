@@ -19,7 +19,7 @@ it over `HeapEmbedding` whenever the component really is a tree.
 """
 module StarTreeEmbeddingModule
 
-import ..LayoutGeometryModule: Pt, Rs, Rc, Cc, pt_zero, pt_nil, pt_distance,
+import ..LayoutGeometryModule: Pt, Rc, Cc, pt_zero, pt_distance,
                                diagonal_length, area, base_plane_angle,
                                base_plane_rotate, cc_intersect, cc_enclosing,
                                cc_center_top, cc_center_bottom, cc_left_center,

@@ -38,7 +38,7 @@ import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
                                             set_embedding!, get_position, assign_position!,
                                             get_velocity, assign_velocity!,
                                             get_acceleration, kinetic_energy, reset_force!,
-                                            get_mass, set_mass!, reset_force!,
+                                            set_mass!,
                                             body_variable, body_mass,
                                             body_left, body_right, body_top, body_bottom
 import ..ForceDirectedParametersModule: WallBody

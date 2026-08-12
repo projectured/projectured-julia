@@ -16,7 +16,7 @@ choosing between them means naming them.
 module GraphLayoutChoiceModule
 
 import ..GraphModule: GraphGraph
-import ..GraphLayoutEngineModule: GraphLayoutEngine, GridEmbedding, layout_graph,
+import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
                                   layout_engine_name, supported_constraint_kinds,
                                   layout_vertices
 import ..BasicSpringEmbedderLayoutModule: SpringEmbedderLayout
