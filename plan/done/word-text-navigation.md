@@ -20,7 +20,7 @@
 > longer exists by that name; `@gestures` + `read_gesture` is the current
 > generic gesture-binding mechanism (`package/kernel/main/binding/Gestures.jl`).
 > **Helper names also changed again** (Phase 3 of
-> [text-domain-kit.md](text-domain-kit.md) made the flat character offset,
+> [text-domain-kit.md](../pending/text-domain-kit.md) made the flat character offset,
 > not a `(span, char)` pair, the canonical caret coordinate): the two-phase
 > word loop is now `_word_right_flat` / `_word_left_flat` operating directly
 > on a flat `chars` array (`Text.jl:517-532`), not the `_step_left`/`_step_right`/
@@ -107,7 +107,7 @@ consistent.
 **✅ DONE, superseded by a later refactor (re-verified 2026-08-12):** at the
 2026-06-23 check, pure `_step_left` / `_step_right` helpers existed at
 `Text.jl:388`/`:400` with a `(span, char)` boundary-duplicate skip. Phase 3 of
-[text-domain-kit.md](text-domain-kit.md) has since made the flat character
+[text-domain-kit.md](../pending/text-domain-kit.md) has since made the flat character
 offset the canonical caret coordinate, so `_step_left`/`_step_right` no longer
 exist by that name — see the banner at the top of this file for the current
 shape (`_word_right_flat`/`_word_left_flat` at `package/text/main/Text.jl:517-532`).

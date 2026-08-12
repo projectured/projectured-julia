@@ -529,14 +529,14 @@ This analysis subsumes / sequences several existing plans:
   autocomplete box; Stage 1 of that plan is done
   ([../done/search-input-widget.md](../done/search-input-widget.md)).
   Autocomplete on `WidgetSelect`/`WidgetText` itself is still missing.
-- [document-link-feature.md](document-link-feature.md) — rich-text links
+- [document-link-feature.md](../pending/document-link-feature.md) — rich-text links
   (`QTextBrowser`). **As built:** still in `plan/pending/`, status NOT STARTED.
 - [syntax-to-widget.md](syntax-to-widget.md) — its deferred keyboard-navigation
   blocker is exactly Stage 2 (selection-driven keyboard routing). **As built:**
   this plan moved to `plan/done/` — the link above is stale and should read
   [../done/syntax-to-widget.md](../done/syntax-to-widget.md). Its keyboard-nav
   blocker is closed by Stage 2 (see section 3, item 2, above).
-- [tooltip.md](tooltip.md) — already shipped; the overlay layer (Stage 3)
+- [tooltip.md](../pending/tooltip.md) — already shipped; the overlay layer (Stage 3)
   generalizes its floating mechanism. **As built:** the v1 tooltip mechanism
   this line means (`TooltipSource`, `WindowManagerProjection`, the `:tooltip`
   window flag) is indeed in place and is the route Stage 3's popup resolver

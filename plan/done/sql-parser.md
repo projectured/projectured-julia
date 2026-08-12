@@ -3,8 +3,8 @@
 > **Status (2026-08-12): DONE**, for the scope this plan states (SELECT parsing,
 > later grown to include `CREATE TABLE`/`CREATE SCHEMA` DDL). INSERT/UPDATE
 > parsing and `GROUP BY`/aggregate parsing are out of this plan's scope — see
-> [sql-insert-update-support.md](sql-insert-update-support.md) and
-> [sql-select-aggregation-support.md](sql-select-aggregation-support.md), both
+> [sql-insert-update-support.md](../pending/sql-insert-update-support.md) and
+> [sql-select-aggregation-support.md](../pending/sql-select-aggregation-support.md), both
 > still open on the parser side. The one residual gap named below,
 > `SqlJoinUsingCondition` having no `SqlToSyntax` projection, is still true.
 

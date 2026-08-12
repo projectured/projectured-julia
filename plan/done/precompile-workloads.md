@@ -76,7 +76,7 @@ in it. Rejected as inaccurate.
 
 `ProjecturedExample.atomic_documents()` is exactly the missing ingredient: one
 minimal hand-authored document per node type, per domain, under the directive in
-[`catalog-all-documents.md`](catalog-all-documents.md) that *all documents must
+[`catalog-all-documents.md`](../pending/catalog-all-documents.md) that *all documents must
 be in the catalog — don't skip any*.
 
 Measured against the method table, it is **110 atoms covering 104 of the 254
@@ -342,7 +342,7 @@ laziness gap in `_step` is real and still open.
 **DONE.** The projectured-julia half landed on `main` (not left on the
 `projectured-julia-precompile` branch this section used to name — that branch is
 gone and the commits are on `main` under different hashes, the same pattern as
-[printer-locality-session-log.md](printer-locality-session-log.md)). The
+[printer-locality-session-log.md](../pending/printer-locality-session-log.md)). The
 omnetpp-julia half also landed:
 `package/presentation/example/src/Precompile.jl` (in the `omnetpp-julia`
 repository) compiles `OmnetppPresentationExample`'s own atoms, and

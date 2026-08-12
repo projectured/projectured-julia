@@ -79,7 +79,7 @@ This unifies three existing plans into one staged line of work:
 - **[domain-gesture-mapping-separation.md](domain-gesture-mapping-separation.md)**
   — the `document_read` seam. Already landed for Text + Syntax; this plan adds
   the missing **data layer** (`document_gestures`) and ports JSON onto it.
-- **[../obsolete/gesture-help.md](../obsolete/gesture-help.md)** — the `Ctrl-?`
+- **[../obsolete/gesture-help.md](../tentative/gesture-help.md)** — the `Ctrl-?`
   help. **Superseded by this plan:** its `merge_help` accumulation becomes the
   `collect_gestures` chain traversal here, and its per-reader `@gesture_case` is
   reframed as document-level `@gestures` + a `projection_gestures` seam. Retained

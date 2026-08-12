@@ -19,7 +19,7 @@
 > for a benefit that three schemas want. See **Rule 3** in Part 2.
 >
 > This plan supersedes Phases 1, 4, 6 and 7 of
-> [document-native-variant-layouts.md](document-native-variant-layouts.md). That
+> [document-native-variant-layouts.md](../pending/document-native-variant-layouts.md). That
 > file stays as the record of its Phases 1 to 3, which are done, and of its
 > measurements and its four companion `.jl` proofs. Two corrections to it are
 > marked there.
