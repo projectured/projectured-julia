@@ -260,9 +260,22 @@ end
 
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector
-    # Tab traversal: distributed focus advance, handled before the selection-only
-    # coordless routing (so a declined Tab advances my own selection).
+    # Tab traversal: distributed focus advance — but only for a Tab nothing
+    # wanted. Selection is authoritative for every other coordless event, and a
+    # field the caret is in may mean something by Tab: a composer opens its kind
+    # chooser with one. Offering it to the selected child first costs a declined
+    # read and is what lets a Tab reach a field at all; a child that declines
+    # leaves the traversal exactly as it was.
     if evt isa KeyDown && evt.key === :tab
+        slot = _selected_layout_slot(iomap.input, length(entries))
+        if slot != 0
+            taken = _forward_layout_event_slot(entries, evt, slot)
+            if taken !== nothing
+                op, i = taken
+                return reroot_operation(op,
+                    (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
+            end
+        end
         return _layout_tab(iomap.input, entries, evt)
     end
     res = @event_case evt begin

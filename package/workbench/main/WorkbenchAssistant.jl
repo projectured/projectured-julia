@@ -28,6 +28,7 @@ Internal helpers:
 module WorkbenchAssistantModule
 
 import ..OperationModule: Operation, evaluate_operation
+import ..OperationModule
 import ..ProjectionApiModule: read_intent, print_document
 import ..CellModule: Cell, ComputedCell
 import ..TextModule: TextBlock, TextString
@@ -99,6 +100,7 @@ _json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
 # generator, so building the Dict straight off `j` throws.
 _json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) for e in j.entries)
 
+export register_draft_handlers!
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
@@ -369,6 +371,13 @@ struct EvaluateDraftTurnOperation <: Operation
     assistant::WorkbenchAssistant
 end
 
+# Both of these name the ASSISTANT they act on rather than a path into one, so
+# there is nothing for a projection to re-root and nothing for one to place.
+# They travel up the chain as they are, which is what lets ENTER and ALT+ENTER in
+# a conversation embedded in a page reach the editor at all.
+OperationModule.operation_travels_unchanged(
+    ::Union{SubmitDraftTurnOperation, EvaluateDraftTurnOperation}) = true
+
 function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     a = op.assistant
     draft = a.draft
@@ -382,22 +391,26 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
 end
 
 """
-    __init__()
+    register_draft_handlers!()
 
 Register what a draft's two owned gestures mean. The composer loads first and
 cannot name either operation, so it holds a `Ref` and this fills it: ENTER's
 submit becomes `SubmitDraftTurnOperation`, ALT+ENTER's evaluate becomes
 `EvaluateDraftTurnOperation`.
 
-**In `__init__`, and not at top level.** A `Ref` in another package's module is
-that package's, and writing it while THIS one precompiles writes into an image
-that is thrown away — at run time the fresh image reads `nothing` and both
-gestures fall back to what the composer alone can do. The submit hook was
-written at top level and had exactly that fault; it went unnoticed because the
-assistant panel converted the submit itself, so only a draft rendered outside
-the panel ever saw the empty `Ref`.
+Called from the PACKAGE's `__init__`, and not written at top level. A `Ref` in
+another package's module is that package's, and writing it while this one
+precompiles writes into an image that is thrown away — at run time the fresh
+image reads `nothing` and both gestures fall back to what the composer alone can
+do. The submit hook was written at top level and had exactly that fault; it went
+unnoticed because the assistant panel converted the submit itself, so only a
+draft rendered outside the panel ever saw the empty `Ref`.
+
+From the package's `__init__` rather than this module's: Julia calls `__init__`
+on a package's top-level module only, so a submodule that defines one has
+written a function nobody calls.
 """
-function __init__()
+function register_draft_handlers!()
     SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
     EVAL_HANDLER[]   = a -> EvaluateDraftTurnOperation(a)
     nothing

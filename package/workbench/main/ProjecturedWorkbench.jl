@@ -59,4 +59,9 @@ include("WorkbenchToWidget.jl")
 include("WorkbenchAssistant.jl")
 include("WorkbenchFile.jl")
 
+# What a draft's ENTER and ALT+ENTER mean. Runtime state in the composer's own
+# package, so it is registered on load rather than baked into an image — and
+# from HERE, because Julia calls `__init__` on a package's top-level module only.
+__init__() = WorkbenchAssistantModule.register_draft_handlers!()
+
 end # module ProjecturedWorkbench
