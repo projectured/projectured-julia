@@ -33,11 +33,13 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
                           WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
-                          WorkbenchAssistant,
+                          WorkbenchAssistant, WORKBENCH_ASSISTANT_TITLE,
                           WorkbenchEditor, title
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetScrollPane, WidgetComposite, Point2D, Inset, inset_default,
+                       WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset, inset_default,
                        SelectTabOperation
+import ..LayoutModule: VerticalLayout
+import ..ReferenceModule: Reference, EmptyReference
 import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
@@ -67,6 +69,7 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchSearcherToWidgetScrollPane,
        WorkbenchEvaluatorToWidgetScrollPane,
        WorkbenchAssistantToWidgetSplitPane,
+       WorkbenchAssistantToWidgetCard,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 
@@ -81,6 +84,35 @@ struct WorkbenchOperatorToWidgetScrollPane  <: Projection end
 struct WorkbenchSearcherToWidgetScrollPane  <: Projection end
 struct WorkbenchEvaluatorToWidgetScrollPane <: Projection end
 struct WorkbenchAssistantToWidgetSplitPane <: Projection end
+
+"""
+    WorkbenchAssistantToWidgetCard(; title, width, transcript_height, cell_height)
+
+The same assistant, as a card of a fixed size rather than a pane that fills a
+window. It is what an assistant embedded in a DOCUMENT needs: a page of prose
+carrying one grows every time a turn lands, and a card that grew with its
+transcript would push the rest of the page down on every keystroke.
+
+So each half scrolls inside the card, and the page stays the length it was.
+
+The output is a `VerticalLayout`, so a renderer row can end in
+`VerticalLayoutToGraphicsCanvas` and everything inside re-enters the renderer
+that asked for the card — which is what lets a part's content draw in its own
+domain without this projection naming any domain.
+"""
+struct WorkbenchAssistantToWidgetCard <: Projection
+    title::String
+    width::Int
+    transcript_height::Int
+    cell_height::Int
+end
+
+WorkbenchAssistantToWidgetCard(; title::AbstractString = WORKBENCH_ASSISTANT_TITLE,
+                               width::Integer = 1040,
+                               transcript_height::Integer = 460,
+                               cell_height::Integer = 120) =
+    WorkbenchAssistantToWidgetCard(String(title), Int(width),
+                                   Int(transcript_height), Int(cell_height))
 struct WorkbenchEditorToWidgetScrollPane    <: Projection end
 
 # ── IoMap structs ─────────────────────────────────────────────────────────────
@@ -392,6 +424,57 @@ function print_document(::WorkbenchAssistantToWidgetSplitPane,
     ])
     SimpleIoMap(nothing, a, column)
 end
+
+"""
+The same two panes as the split pane above, bounded and wrapped in a card. Both
+children carry the DOCUMENT rather than a projection of it, exactly as there, so
+the renderer around the card routes the conversation to the chat bubbles and the
+draft to the composer.
+
+The card takes the keyboard as a whole: the caret goes ON the assistant and not
+inside it, and the reader hands every key to the draft. That is what the split
+pane's own `KeyPress` / `KeyDown` fallbacks already do; it is written down here
+too because a card sits inside a document, where nothing above it routes by tab.
+"""
+function print_document(p::WorkbenchAssistantToWidgetCard,
+                        recursion, a::WorkbenchAssistant, ctx)
+    inner = max(240, p.width - 40)
+    # Stick to the bottom: an evaluated cell lands at the end of the transcript,
+    # and the reader should be looking at it rather than at where they started.
+    transcript = WidgetScrollPane(a.conversation; follow_end=true,
+                                  size=Point2D(inner, p.transcript_height),
+                                  padding=_PAD5, padding_color=_WHITE)
+    cell = WidgetScrollPane(a.draft; size=Point2D(inner, p.cell_height),
+                            padding=_PAD5, padding_color=_WHITE)
+    card = WidgetCard(Point2D(0, 0); title=p.title, width=p.width,
+                      content=VerticalLayout(Any[transcript, cell]; gap=6))
+    column = VerticalLayout(Any[card]; gap=6)
+    iomap = SimpleIoMap(p, a, column)
+    # A keystroke is routed by selection, so every container between the root and
+    # this card has to carry one. Without this the caret lands wherever the card
+    # is embedded and the keys edit that instead.
+    set_cell_function!(getfield(column, :selection),
+                       () -> map_reference_forward(p, iomap, getfield(a, :selection)[]))
+    iomap
+end
+
+# Anything selected in this card selects the card.
+map_reference_backward(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap, reference) =
+    EmptyReference()
+
+# And the card, selected, puts the caret on its one child, so the containers
+# above route the keys down to this projection's reader.
+map_reference_forward(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap, reference) =
+    reference isa Reference ?
+        ConcreteReference(FieldReferenceStep("children"),
+                          ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())) :
+        nothing
+
+# A click anywhere in the card puts the caret on the card. The reader answers the
+# selection rather than writing it, so the levels above re-root it as they would
+# any other.
+read_intent(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap,
+            op::ReplaceSelectionOperation) = ReplaceSelectionOperation(EmptyReference())
 
 print_document(::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
     _content_pane(recursion, e, @reference_step(content), ctx;

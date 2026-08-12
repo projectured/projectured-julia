@@ -59,7 +59,8 @@ import ..ConversationModule: ConversationConversation, ConversationTurn, Convers
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
 import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
-import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane
+import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane,
+                                   WorkbenchAssistantToWidgetCard
 import ..EventModule: KeyDown
 import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
                       register_default_tools!, execute_julia_code, last_evaluated_value
@@ -76,8 +77,10 @@ import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage, LlmContent,
                      LlmTurnEnd, LlmFailure
 import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
-import ..ConversationEditorModule: composer_read, ComposerSubmitOperation,
-                                    finalize_draft!, reset_draft!, SUBMIT_HANDLER
+import ..ConversationEditorModule: composer_read, composer_host_op,
+                                    ComposerSubmitOperation, ComposerEvaluateOperation,
+                                    finalize_draft!, reset_draft!,
+                                    SUBMIT_HANDLER, EVAL_HANDLER
 import ..JsonModule: JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString,
                      JsonArray, JsonObject
 import ..JsonParserModule: jsonparse
@@ -97,6 +100,7 @@ _json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
 _json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) for e in j.entries)
 
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
+       EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, conversation_to_string, write_conversation,
        parse_markdown_blocks
@@ -341,10 +345,63 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     _launch_agent_turn!(editor, a)
 end
 
-# Register the composer's submit hook so ENTER on the draft (anywhere it is
-# rendered — incl. the nested workbench, where the panel reader isn't reached)
-# becomes a SubmitDraftTurnOperation rather than a bare draft-normalize.
-SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
+
+"""
+    EvaluateDraftTurnOperation(assistant)
+
+ALT+ENTER on a draft that belongs to an assistant: evaluate the form, and put
+the form and its result into the conversation as one whole, committing the draft
+with them. A fresh empty cell takes the draft's place.
+
+This is the notebook gesture. The evaluation itself is the composer's — this
+adds the commit and the push, which is the part a composer alone cannot do,
+because a conversation is not its to write to.
+
+Prose typed before the form travels with it: the draft is finalized, so a cell
+is a turn rather than only a form. And because the composer keeps a `Document`
+return value as the result, a form that answers a document puts the live thing
+in the transcript instead of a description of it.
+
+No Claude call now. The next prose turn synthesises the evaluation into the
+history, which is what `build_messages` already does with an `EvaluatorForm`.
+"""
+struct EvaluateDraftTurnOperation <: Operation
+    assistant::WorkbenchAssistant
+end
+
+function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
+    a = op.assistant
+    draft = a.draft
+    # The composer evaluates the active insertion in place, leaving an
+    # `EvaluatorForm` — the form and its result as one part.
+    evaluate_operation(editor, ComposerEvaluateOperation(draft))
+    finalize_draft!(draft) || return nothing
+    push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
+    reset_draft!(draft)
+    nothing
+end
+
+"""
+    __init__()
+
+Register what a draft's two owned gestures mean. The composer loads first and
+cannot name either operation, so it holds a `Ref` and this fills it: ENTER's
+submit becomes `SubmitDraftTurnOperation`, ALT+ENTER's evaluate becomes
+`EvaluateDraftTurnOperation`.
+
+**In `__init__`, and not at top level.** A `Ref` in another package's module is
+that package's, and writing it while THIS one precompiles writes into an image
+that is thrown away — at run time the fresh image reads `nothing` and both
+gestures fall back to what the composer alone can do. The submit hook was
+written at top level and had exactly that fault; it went unnoticed because the
+assistant panel converted the submit itself, so only a draft rendered outside
+the panel ever saw the empty `Ref`.
+"""
+function __init__()
+    SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
+    EVAL_HANDLER[]   = a -> EvaluateDraftTurnOperation(a)
+    nothing
+end
 
 # ═══════════════════════════════════════════════════════════════════════
 # Code → JuliaDocument for an EvaluatorForm
@@ -886,8 +943,28 @@ function read_intent(::WorkbenchAssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
     iomap.input isa WorkbenchAssistant || return nothing
     a = iomap.input::WorkbenchAssistant
-    op = composer_read(a.draft, evt)
-    op isa ComposerSubmitOperation ? SubmitDraftTurnOperation(a) : op
+    composer_host_op(a, composer_read(a.draft, evt))
 end
+
+# ── the card ────────────────────────────────────────────────────────────
+#
+# The same three, for the bounded card. A card is embedded in a document rather
+# than laid out by a workbench, so a key reaches it as the raw event — nothing
+# below turned it into an operation, because the two panes hold documents the
+# enclosing renderer draws. Routing them here is what lets an assistant in the
+# middle of a page be typed into at all.
+
+read_intent(::WorkbenchAssistantToWidgetCard, iomap, evt::KeyPress) =
+    (a = iomap.input; a isa WorkbenchAssistant ?
+        composer_host_op(a, composer_read(a.draft, evt)) : nothing)
+
+read_intent(::WorkbenchAssistantToWidgetCard, iomap, evt::KeyDown) =
+    (a = iomap.input; a isa WorkbenchAssistant ?
+        composer_host_op(a, composer_read(a.draft, evt)) : nothing)
+
+# An operation the composer made below, said onward. `composer_host_op` is what
+# turns the two the assistant owns into its own; the rest pass.
+read_intent(::WorkbenchAssistantToWidgetCard, iomap, op::Operation) =
+    (a = iomap.input; a isa WorkbenchAssistant ? composer_host_op(a, op) : op)
 
 end # module

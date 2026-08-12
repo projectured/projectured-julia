@@ -61,8 +61,9 @@ import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget, composer_read, finalize_draft!, new_draft, reset_draft!,
-       SUBMIT_HANDLER,
+export ConversationComposerToWidget, composer_read, composer_host_op,
+       finalize_draft!, new_draft, reset_draft!,
+       SUBMIT_HANDLER, EVAL_HANDLER,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -596,17 +597,49 @@ composer_read(::Any, ::Any) = nothing
 # here (it can't be referenced directly — module order: the composer loads first).
 const SUBMIT_HANDLER = Ref{Any}(nothing)
 
+"""
+    EVAL_HANDLER
+
+The same hook for ALT+ENTER. A standalone draft keeps the evaluated form as a
+part of itself, which is all a composer alone can do; a draft that belongs to an
+assistant wants the form and its result to leave the composer and become a turn,
+so that the next cell starts empty and the transcript holds the work.
+
+That is a notebook, and it is what `SubmitJuliaOperation` already did on the
+older string input. The composer cannot do it itself — a conversation is not its
+to push to — so the assistant registers `a -> EvaluateDraftTurnOperation(a)` here.
+"""
+const EVAL_HANDLER = Ref{Any}(nothing)
+
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     composer_read(iomap.input, evt)
 
-function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown)
-    d = iomap.input                       # ConversationDraft
-    op = composer_read(d, evt)
-    # When the draft belongs to an assistant, ENTER's `ComposerSubmitOperation`
-    # (which only normalizes the draft) becomes the host's submit op (push + stream).
-    if op isa ComposerSubmitOperation && d.assistant !== nothing && SUBMIT_HANDLER[] !== nothing
-        return SUBMIT_HANDLER[](d.assistant)
-    end
+read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
+    (d = iomap.input; composer_host_op(d.assistant, composer_read(d, evt)))
+
+"""
+    composer_host_op(assistant, op) -> op
+
+What an operation means once the draft it came from has an owner. With no owner
+(`assistant === nothing`) every operation stays as the composer made it; with
+one, two are handed over — ENTER's submit (push and stream) and ALT+ENTER's
+evaluate (evaluate and push). Both are the same shape: the composer says what
+happened, and the host says what it means.
+
+The owner is passed rather than read off the draft, because the two are not
+always the same thing. A draft rendered on its own carries the back-link; a
+draft rendered as half of an assistant panel is reached through that panel,
+which knows the assistant whether or not the back-link was set.
+
+Public because a projection that renders a draft in its own surround reads the
+keys itself, and has to arrive at the same answer this one does.
+"""
+function composer_host_op(assistant, op)
+    assistant === nothing && return op
+    op isa ComposerSubmitOperation && SUBMIT_HANDLER[] !== nothing &&
+        return SUBMIT_HANDLER[](assistant)
+    op isa ComposerEvaluateOperation && EVAL_HANDLER[] !== nothing &&
+        return EVAL_HANDLER[](assistant)
     op
 end
 
