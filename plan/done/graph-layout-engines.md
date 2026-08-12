@@ -1,6 +1,6 @@
 # Two graph layout algorithms, and the constraints both honour
 
-**Status:** in progress. **Scope:** graph placement — which algorithms exist
+**Status:** done. **Scope:** graph placement — which algorithms exist
 behind `GraphLayoutEngine`, and what a caller can ask of them.
 
 This plan owns nothing about any domain. It is asked for by
@@ -442,3 +442,12 @@ A reader's entry point is
 [`package/graph/doc/graph-layout.md`](../../package/graph/doc/graph-layout.md):
 the seam, the engines, the constraint vocabulary, what makes a layout
 repeatable, and which ported file came from which original.
+
+**The suites.** `test_graph()` 357, `test_fsm()` 153 and `test_process()` 303
+are clean, as are the export-collision and package-dependency guards. `test_all()`
+answers 869436 pass, 479 fail, 5 error, 2135 broken in 50 minutes. Every one of
+those failures also happens on 731709a8, the commit this work started from:
+they are the text domain's position navigation, the catalog's outstanding
+`Pane*`/`Process*`/`CommandPalette` atoms, the kernel's Rule C, and the chart and
+sequencechart click sweeps. The two the sweep reported against the graph example
+were a known-throwing marker that had already stopped throwing; it is retired.
