@@ -38,7 +38,8 @@ import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph
                                                   vertex_sizes, extent_transform,
                                                   layout_engine_name, layout_vertices
 import ProjecturedGraph.GraphLayoutChoiceModule: register_layout_engine!,
-                                                 pure_julia_layout_engine
+                                                 pure_julia_layout_engine,
+                                                 resolved_layout_engine
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
@@ -157,6 +158,13 @@ function effective_engine(engine::AdaptagramsLayout, vertex_count::Integer)
     _warn_unavailable_once()
     pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
 end
+
+# Asking what this engine resolves to is asking what will really place the
+# graph, so an unbuilt shim resolves to the engine that will. Both the name a
+# layout records and the answer a caller gets go through here, and they agree
+# because they ask the same question with the same vertex count.
+resolved_layout_engine(engine::AdaptagramsLayout, vertex_count::Integer = 0) =
+    effective_engine(engine, vertex_count)
 
 layout_engine_name(engine::AdaptagramsLayout) =
     isavailable() ? :adaptagrams : layout_engine_name(effective_engine(engine, 0))
