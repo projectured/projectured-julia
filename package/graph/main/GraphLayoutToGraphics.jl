@@ -33,7 +33,7 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, operation_travels_unchanged
 import ..EventModule: MousePress
 
 export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
@@ -310,7 +310,15 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
         local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.modifiers)
         op = read_intent(cim.projection, cim, local_evt)
-        op isa ReplaceSelectionOperation || return nothing
+        # A selection is re-rooted into the graph's own space, because WHERE it
+        # points is a place inside a node and the graph is what knows where that
+        # node is. An operation that carries its own subject has nothing to
+        # re-root, so it travels — which is what `operation_travels_unchanged`
+        # says and what a node meaning "go into me" needs. Anything else is
+        # dropped, as before: a node that answers an operation nobody can place
+        # is worse than a node that declines.
+        op isa ReplaceSelectionOperation ||
+            return op !== nothing && operation_travels_unchanged(op) ? op : nothing
         return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
     end
     nothing
@@ -327,6 +335,8 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         op = read_intent(cim.projection, cim, event)
         if op isa ReplaceSelectionOperation
             return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
+        elseif op !== nothing && operation_travels_unchanged(op)
+            return op
         end
     end
     nothing
