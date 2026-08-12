@@ -37,7 +37,8 @@ import ..FontModule: font_ubuntu_bold_22
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: EmptyReference
-import ..OperationModule: ToggleCollapseOperation
+import ..OperationModule: ToggleCollapseOperation, Operation, ReplaceSelectionOperation
+import ..EventModule: MousePress
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
@@ -209,7 +210,16 @@ for P in (ConversationConversationToWidgetComposite,
           ConversationPartToWidget)
     @eval map_reference_forward(::$P, iomap, ref)  = nothing
     @eval map_reference_backward(::$P, iomap, ref) = EmptyReference()
-    @eval read_intent(::$P, iomap, op) = op
+    # A click in a bubble puts the caret on the conversation, the way a click in
+    # the composer puts it on the draft: a transcript takes the keyboard as a
+    # whole, and whichever surround holds it decides what a key then means.
+    @eval read_intent(::$P, iomap, ::MousePress) =
+        ReplaceSelectionOperation(EmptyReference())
+    # An operation from below passes; a raw gesture does not. Answering an event
+    # would claim a gesture as if it were an intent, and the level above cannot
+    # tell the two apart.
+    @eval read_intent(::$P, iomap, op::Operation) = op
+    @eval read_intent(::$P, iomap, op) = nothing
 end
 
 # The WidgetCard header-click reader emits `ToggleCollapseOperation(card)` where

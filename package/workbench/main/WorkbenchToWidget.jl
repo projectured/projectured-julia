@@ -39,7 +39,8 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, Wid
                        WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset, inset_default,
                        SelectTabOperation
 import ..LayoutModule: VerticalLayout
-import ..ReferenceModule: Reference, EmptyReference
+import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
+                          FieldReferenceStep, RangeReferenceStep
 import ..LayoutModule: LayoutConstraint
 import ..TextModule: TextBlock, TextString
 import ..FontModule: font_ubuntu_monospace_regular_20
@@ -450,11 +451,24 @@ function print_document(p::WorkbenchAssistantToWidgetCard,
                       content=VerticalLayout(Any[transcript, cell]; gap=6))
     column = VerticalLayout(Any[card]; gap=6)
     iomap = SimpleIoMap(p, a, column)
-    # A keystroke is routed by selection, so every container between the root and
-    # this card has to carry one. Without this the caret lands wherever the card
-    # is embedded and the keys edit that instead.
+    # A keystroke is routed by SELECTION, and every container between the root
+    # and the cell has to carry one or the key stops at the first that does not.
+    # There are four: the column, the card, the card's interior, and the pane the
+    # cell scrolls in. Each says only which child the key is for; where in the
+    # cell it lands is the composer's own business.
+    _selected() = getfield(a, :selection)[] !== nothing
+    _step(name) = ConcreteReference(FieldReferenceStep(name), EmptyReference())
+    _child(i) = ConcreteReference(FieldReferenceStep("children"),
+                                  ConcreteReference(RangeReferenceStep(i - 1, i),
+                                                    EmptyReference()))
     set_cell_function!(getfield(column, :selection),
-                       () -> map_reference_forward(p, iomap, getfield(a, :selection)[]))
+                       () -> _selected() ? _child(1) : nothing)
+    set_cell_function!(getfield(card, :selection),
+                       () -> _selected() ? _step("content") : nothing)
+    set_cell_function!(getfield(card.content, :selection),
+                       () -> _selected() ? _child(2) : nothing)
+    set_cell_function!(getfield(cell, :selection),
+                       () -> _selected() ? _step("content") : nothing)
     iomap
 end
 
@@ -475,6 +489,7 @@ map_reference_forward(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap, reference
 # any other.
 read_intent(::WorkbenchAssistantToWidgetCard, ::SimpleIoMap,
             op::ReplaceSelectionOperation) = ReplaceSelectionOperation(EmptyReference())
+
 
 print_document(::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
     _content_pane(recursion, e, @reference_step(content), ctx;

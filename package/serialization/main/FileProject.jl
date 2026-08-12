@@ -322,10 +322,18 @@ mutable struct ReferenceStub <: Document
     context::Union{Nothing, LoaderContext}
     resolved::ReactiveCell{Any}
     inline::Bool
+    selection::ReactiveCell{Any}
 end
 
+# `selection` is what every other document has and this one lacked. A selection
+# travels DOWN by each node carrying where it points, so a node with nowhere to
+# store one is where the caret stops — and an embed is exactly a node with a
+# document under it. Without this a click could land inside an embed and no key
+# could follow it there: the press mapped back through the stub, and the caret
+# it produced had no way to be projected forward again.
 ReferenceStub(source::AbstractString; inline::Bool = false) =
-    ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing), inline)
+    ReferenceStub(String(source), nothing, ReactiveCell{Any}(nothing), inline,
+                  ReactiveCell{Any}(nothing))
 
 # Every stub in a load session is born here, which is why this is where the
 # session is told about it. A parser that makes a marker therefore reports it
@@ -333,7 +341,8 @@ ReferenceStub(source::AbstractString; inline::Bool = false) =
 # afterwards for what the parse already knew.
 function ReferenceStub(source::AbstractString, context::LoaderContext;
                        inline::Bool = false)
-    stub = ReferenceStub(String(source), context, ReactiveCell{Any}(nothing), inline)
+    stub = ReferenceStub(String(source), context, ReactiveCell{Any}(nothing), inline,
+                         ReactiveCell{Any}(nothing))
     minting = context.minting
     minting === nothing || push!(minting, stub)
     stub

@@ -29,7 +29,7 @@ module ConversationEditorModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation, ReplaceSelectionOperation
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
@@ -55,7 +55,7 @@ import ..DomainModule: resolve_insertion, make_insertion_document
 import ..DocumentInsertionToSyntaxModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
-import ..EventModule: KeyDown, KeyPress
+import ..EventModule: KeyDown, KeyPress, MousePress
 import ..GestureBindingModule: GestureBinding, fire_gesture_bindings
 import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
@@ -616,6 +616,16 @@ older string input. The composer cannot do it itself — a conversation is not i
 to push to — so the assistant registers `a -> EvaluateDraftTurnOperation(a)` here.
 """
 const EVAL_HANDLER = Ref{Any}(nothing)
+
+# A click anywhere in the composer puts the caret ON the composer. It cannot say
+# where — the cursor it manages is its own, and mapping a click to a character is
+# separate work — but saying "in me" is what makes the click land at all.
+#
+# Without this the composer declined every press, and a surround that embeds it
+# had nothing to re-root: the caret stayed wherever it was, and every key after
+# went there. A reader could see the cell and not type into it.
+read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, ::MousePress) =
+    ReplaceSelectionOperation(EmptyReference())
 
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     composer_read(iomap.input, evt)
