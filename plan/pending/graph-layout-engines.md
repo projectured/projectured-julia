@@ -104,10 +104,10 @@ porting both, plus the rule that chooses between them.
   on its own.
 - **`ForceDirectedLayout`** — the port of `ForceDirectedGraphLayouter` and its
   stack (about 3100 lines across seven files): sized bodies, wall bodies for the
-  border, electric repulsion in three forms, five kinds of spring, friction and
-  drag, point/line/circle constraints, and a star-tree or heap pre-embedding per
-  connected component. This is the one that carries node sizes, so this is the
-  one that answers §2.3.
+  border, electric repulsion in three forms, five kinds of spring, a drag, and a
+  star-tree or heap pre-embedding per connected component. This is the one that
+  carries node sizes, so this is the one that answers §2.3. §6 says which force
+  providers are not ported and why.
 - **`AdaptagramsLayout`** stays what it is: an opt-in third engine with a native
   dependency, libcola placement and libavoid routing. It is not one of the two;
   it is the better answer when it is installed.
