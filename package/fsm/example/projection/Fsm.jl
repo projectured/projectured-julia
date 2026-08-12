@@ -14,7 +14,7 @@ end
 # projections; anything else falls back to the notation, so a machine that grows
 # a foreign content type still renders.
 function make_fsm_diagram_projection_example(; measure=truetype_measure_text,
-                                             engine=FallbackLayoutEngine())
+                                             engine=GridEmbedding())
     label = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             FsmState      => FsmStateToSyntaxLabel(),

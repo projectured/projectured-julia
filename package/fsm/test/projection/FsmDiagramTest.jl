@@ -99,7 +99,7 @@ end
     @test graph.highlight_vertex === nothing
     @test graph.highlight_edge === nothing
 
-    layout = print_document(GraphGraphToGraphLayout(FallbackLayoutEngine()),
+    layout = print_document(GraphGraphToGraphLayout(GridEmbedding()),
                             make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20)),
                             graph, PrinterContext()).output
     @test layout.highlight_vertex === nothing

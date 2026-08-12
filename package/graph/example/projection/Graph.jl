@@ -3,12 +3,12 @@
 # two graph stages run as a ChainingProjection; a NestingProjection threads the
 # content projection as their recursion (mirrors make_table_projection_example).
 #
-# Defaults to the pure-Julia FallbackLayoutEngine. Pass an engine to swap it
-# (e.g. the native AdaptagramsEngine, see make_graph_adaptagrams_projection_example)
+# Defaults to the pure-Julia GridEmbedding. Pass an engine to swap it
+# (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
 # behind the same interface.
 
 function make_graph_projection_example(; measure=truetype_measure_text,
-                                       engine=FallbackLayoutEngine(),
+                                       engine=GridEmbedding(),
                                        content=nothing)
     # A vertex's content can be any domain. Dispatch on the root content type to a
     # complete per-domain pipeline to GraphicsCanvas: tables render directly via
@@ -32,7 +32,7 @@ function make_graph_projection_example(; measure=truetype_measure_text,
     NestingProjection(graph_stages; recursion=content)
 end
 
-# The native AdaptagramsEngine graph projections (graph_adaptagrams,
+# The native AdaptagramsLayout graph projections (graph_adaptagrams,
 # dvdrental_relationship) live in the opt-in `ProjecturedAdaptagramsExample` package so
 # the base example package does not depend on the native ProjecturedAdaptagrams
 # shim. They reuse `make_graph_projection_example` with the engine swapped in.

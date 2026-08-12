@@ -36,7 +36,7 @@ function test_graph_projection()
     @test isempty(polyline_arrowhead([(0, 0)], 8))
 end
 
-@testset "FallbackLayoutEngine" begin
+@testset "GridEmbedding" begin
     v1 = GraphVertex(JsonString("a"))
     v2 = GraphVertex(JsonString("b"))
     v3 = GraphVertex(JsonString("c"))
@@ -44,7 +44,7 @@ end
     sizes = Dict(objectid(v1) => (40, 20),
                  objectid(v2) => (60, 30),
                  objectid(v3) => (50, 25))
-    engine = FallbackLayoutEngine(; node_sep=10, rank_sep=10)
+    engine = GridEmbedding(; node_sep=10, rank_sep=10)
     positions, routes = layout_graph(engine, g, sizes, [])
 
     @test length(positions) == 3
@@ -70,6 +70,94 @@ end
     end
 end
 
+@testset "an extent bounds the placement instead of letting it grow" begin
+    # The grid used to grow with the graph: 17 columns of full-width nodes for a
+    # network, several thousand pixels across, running off whatever pane it was
+    # given. A caller that knows how much room it has says so, and the placement
+    # is scaled into that room rather than clipped by it.
+    vertices = [GraphVertex(JsonString("v$i")) for i in 1:40]
+    graph = GraphGraph(vertices, GraphEdge[])
+    sizes = Dict(objectid(v) => (120, 40) for v in vertices)
+    engine = GridEmbedding()
+
+    unbounded, _ = layout_graph(engine, graph, sizes, [])
+    right = maximum(box[1] + box[3] for box in values(unbounded))
+    @test right > 800                       # this is the problem being fixed
+
+    bounded, _ = layout_graph(engine, graph, sizes, []; extent = (800, 600), border = 10)
+    for box in values(bounded)
+        @test box[1] >= 10
+        @test box[2] >= 10
+        @test box[1] + box[3] <= 790
+        @test box[2] + box[4] <= 590
+    end
+    # Scaled, not shrunk: a box keeps the size it was measured at, exactly as
+    # OMNeT++'s own rescale moves centres and never sizes.
+    @test all(box[3] == 120 && box[4] == 40 for box in values(bounded))
+
+    # A handful of vertices goes on a ring rather than a grid, and the ring is
+    # spread over the extent too.
+    few = [GraphVertex(JsonString("v$i")) for i in 1:6]
+    ring_graph = GraphGraph(few, GraphEdge[])
+    ring_sizes = Dict(objectid(v) => (60, 30) for v in few)
+    ring, _ = layout_graph(engine, ring_graph, ring_sizes, []; extent = (400, 400))
+    ys = [box[2] for box in values(ring)]
+    xs = [box[1] for box in values(ring)]
+    @test length(unique(ys)) > 2            # not rows: a ring has many distinct y
+    @test maximum(xs) + 60 <= 400
+    @test maximum(ys) + 30 <= 400
+end
+
+@testset "a placement is deterministic" begin
+    vertices = [GraphVertex(JsonString("v$i")) for i in 1:12]
+    graph = GraphGraph(vertices, [GraphEdge(vertices[i], vertices[i+1]) for i in 1:11])
+    sizes = Dict(objectid(v) => (60, 30) for v in vertices)
+    engine = GridEmbedding()
+    first_run, first_routes = layout_graph(engine, graph, sizes, []; extent = (500, 400))
+    second_run, second_routes = layout_graph(engine, graph, sizes, []; extent = (500, 400))
+    @test first_run == second_run
+    @test first_routes == second_routes
+end
+
+@testset "a constraint is honoured or refused, never dropped" begin
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    graph = GraphGraph([v1, v2], [GraphEdge(v1, v2)])
+    sizes = Dict(objectid(v1) => (40, 20), objectid(v2) => (60, 30))
+    engine = GridEmbedding()
+
+    # A pin is where the caller put it, and the extent does not move it.
+    pin = GraphConstraint(v1, :pin, (300, 200))
+    positions, _ = layout_graph(engine, graph, sizes, [pin]; extent = (500, 400))
+    @test positions[objectid(v1)] == (300, 200, 40, 20)
+
+    # A fixed size overrides what was measured.
+    fixed = GraphConstraint(v2, :fixed_size, (25, 15))
+    positions, _ = layout_graph(engine, graph, sizes, [fixed])
+    @test positions[objectid(v2)][3] == 25
+    @test positions[objectid(v2)][4] == 15
+
+    # A kind the engine does not implement is refused by name, and the message
+    # says what it does implement. Accepting and dropping it would draw a picture
+    # a caller cannot tell from one that was never constrained.
+    for kind in (:cluster, :align, :same_rank, :min_separation)
+        err = try
+            layout_graph(engine, graph, sizes, [GraphConstraint(v1, kind, nothing)])
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin(string(kind), err.msg)
+        @test occursin(":pin", err.msg)
+    end
+
+    # And so is a kind nothing knows about.
+    @test_throws ArgumentError layout_graph(engine, graph, sizes,
+                                            [GraphConstraint(v1, :handstand, nothing)])
+    @test supported_constraint_kinds(GridEmbedding()) == (:pin, :fixed_size)
+end
+
 @testset "GraphToGraphLayout sizing + reactivity" begin
     # A JsonString vertex whose projected size we can measure.
     v = GraphVertex(JsonString("hello"))
@@ -77,7 +165,7 @@ end
 
     # Content recursion: Json → Syntax → Text → Graphics (the mixed pipeline).
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
-    stage = GraphGraphToGraphLayout(FallbackLayoutEngine())
+    stage = GraphGraphToGraphLayout(GridEmbedding())
     iomap = print_document(stage, content, g, _gctx())
     layout = iomap.output
     @test layout isa GraphLayout
@@ -102,7 +190,7 @@ end
 
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
     graph_stages = ChainingProjection(
-        GraphGraphToGraphLayout(FallbackLayoutEngine()),
+        GraphGraphToGraphLayout(GridEmbedding()),
         GraphLayoutToGraphicsCanvas(),
     )
     proj = NestingProjection(graph_stages; recursion=content)
@@ -131,7 +219,7 @@ end
     # output selection (the cursor reaches the graphics layer).
     set_selection!(g, @reference(g, vertices[1]))
     # Forward mapping of the stage-1 projection: vertices[i] ↔ vertex_layouts[i].vertex.
-    stage = GraphGraphToGraphLayout(FallbackLayoutEngine())
+    stage = GraphGraphToGraphLayout(GridEmbedding())
     content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
     s1 = print_document(stage, content, g, _gctx())
     fwd = map_reference_forward(stage, s1, @reference(g, vertices[1]))

@@ -145,7 +145,7 @@ Arrows come from the standard structured-control-flow construction:
 
 ### Which engine draws it
 
-The flowchart asks for `default_layout_engine(orthogonal = true)` rather than
+The flowchart asks for `deferred_layout_engine(orthogonal = true)` rather than
 naming an engine. Two things follow.
 
 It gets **right-angled routes** where the engine can provide them, because a
@@ -161,7 +161,7 @@ using ProjecturedAdaptagrams          # native placement + obstacle-avoiding rou
 run_example("process_diagram")
 ```
 
-Without it, the pure-Julia `FallbackLayoutEngine` places boxes on a grid and
+Without it, the pure-Julia `GridEmbedding` places boxes on a grid and
 draws straight lines between them — legible for a handful of boxes, crossed and
 unreadable for a real procedure. The resolution is late on purpose: an
 `Example` builds its projection in its constructor, at module load, which is

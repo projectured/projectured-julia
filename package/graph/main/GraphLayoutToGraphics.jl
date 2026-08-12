@@ -338,7 +338,7 @@ end
 Convenience pipeline straight to a `GraphicsCanvas` (no `TextToGraphics` step —
 like `TableToGraphics`). Composes the two graph stages; the content `recursion`
 is supplied by the enclosing `NestingProjection` in the example. Pass an engine
-to override the default `FallbackLayoutEngine`.
+to override the default `GridEmbedding`.
 
 This is provided as documentation of the intended composition; examples build the
 chain explicitly so they can thread the content projection as the recursion.

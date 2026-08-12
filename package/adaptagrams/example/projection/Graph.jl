@@ -7,10 +7,10 @@
 # (`using Pkg; Pkg.build("ProjecturedAdaptagrams")`) before printing.
 
 function make_graph_adaptagrams_projection_example(; measure=truetype_measure_text)
-    make_graph_projection_example(; measure=measure, engine=AdaptagramsEngine())
+    make_graph_projection_example(; measure=measure, engine=AdaptagramsLayout())
 end
 
-# The dvdrental entity-relationship diagram laid out by the native AdaptagramsEngine.
+# The dvdrental entity-relationship diagram laid out by the native AdaptagramsLayout.
 # Pairs with `make_dvdrental_relationship_graph_document_example` (ODBC). The content
 # dispatcher routes each vertex's `WidgetCard` through `make_table_projection_example`.
 function make_dvdrental_relationship_projection_example(; measure=truetype_measure_text)
@@ -20,5 +20,5 @@ function make_dvdrental_relationship_projection_example(; measure=truetype_measu
         Any         => make_mixed_projection_example(measure=measure),
     )
     make_graph_projection_example(; measure=measure,
-                                  engine=AdaptagramsEngine(), content=content)
+                                  engine=AdaptagramsLayout(), content=content)
 end

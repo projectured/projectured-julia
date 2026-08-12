@@ -26,7 +26,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IntentModule: Intent
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstraint
-import ..GraphLayoutEngineModule: GraphLayoutEngine, FallbackLayoutEngine, layout_graph
+import ..GraphLayoutEngineModule: GraphLayoutEngine, GridEmbedding, layout_graph
 import ..GraphicsModule: GraphicsCanvas
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapModule: IoMap, var"@iomap"
@@ -48,12 +48,36 @@ export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
     child_iomaps::Cell
 end
 
+"""
+    GraphGraphToGraphLayout(engine = GridEmbedding(); extent = nothing, border = 0,
+                            constraints = nothing)
+
+Size the vertices, place them, and build the `GraphLayout`.
+
+`extent` is the box the view has room for, as `(width, height)`, and `border` is
+the inset kept inside it. They live on the projection rather than on the engine,
+because a projection is what a view builds: the same graph in two panes is two
+projections and two extents. Naming no extent asks for an unbounded placement.
+
+`constraints` is `nothing`, or a function of the graph that answers a
+`Vector{GraphConstraint}`. It is a function because a constraint names a vertex,
+and the vertices are known only once there is a document. It is read inside the
+layout cell, so a constraint derived from a reactive field re-runs the layout
+when that field changes.
+"""
 struct GraphGraphToGraphLayout <: Projection
     engine::GraphLayoutEngine
+    extent::Union{Nothing,Tuple{Int,Int}}
+    border::Int
+    constraints::Any
 end
 
-GraphGraphToGraphLayout(; engine::GraphLayoutEngine=FallbackLayoutEngine()) =
-    GraphGraphToGraphLayout(engine)
+GraphGraphToGraphLayout(engine::GraphLayoutEngine = GridEmbedding();
+                        extent = nothing, border::Integer = 0, constraints = nothing) =
+    GraphGraphToGraphLayout(engine,
+                            extent === nothing ? nothing :
+                                (Int(extent[1]), Int(extent[2])),
+                            Int(border), constraints)
 
 _canvas_wh(im) = begin
     o = im === nothing ? nothing : im.output
@@ -80,12 +104,9 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         ims
     end)
 
-    # Collect constraints (v1: any GraphConstraint that wraps a vertex/edge in
-    # the graph — none in the base example, so this is scaffolding).
-    constraints = GraphConstraint[]
-
-    # Run the engine (keyed on the live sizes + topology). Held in one cell so it
-    # re-runs only when a size or the vertex/edge list changes.
+    # Run the engine (keyed on the live sizes + topology + constraints). Held in
+    # one cell so it re-runs only when a size, the vertex/edge list or a
+    # constraint changes.
     placed = ComputedCell(() -> begin
         ims = child_iomaps[]
         n = length(graph.vertices)
@@ -95,7 +116,9 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             v isa GraphVertex || continue
             sizes[objectid(v)] = _canvas_wh(i <= length(ims) ? ims[i] : nothing)
         end
-        layout_graph(p.engine, graph, sizes, constraints)
+        constraints = p.constraints === nothing ? GraphConstraint[] : p.constraints(graph)
+        layout_graph(p.engine, graph, sizes, constraints;
+                     extent = p.extent, border = p.border)
     end)
 
     vertex_layouts = ComputedCellVector(() -> begin
@@ -160,14 +183,18 @@ function map_reference_backward(::GraphGraphToGraphLayout, iomap, reference)
 end
 
 """
-    GraphToGraphLayout(; engine=FallbackLayoutEngine())
+    GraphToGraphLayout(; engine=GridEmbedding(), extent=nothing, border=0,
+                       constraints=nothing)
 
 Convenience: the type-dispatching graph→layout projection. Defaults to the pure-
-Julia `FallbackLayoutEngine`; pass an `AdaptagramsEngine` (when available) to
+Julia `GridEmbedding`; pass an `AdaptagramsLayout` (when available) to
 swap the native engine in behind the same interface.
 """
-function GraphToGraphLayout(; engine::GraphLayoutEngine=FallbackLayoutEngine())
-    GraphGraphToGraphLayout(engine)
+function GraphToGraphLayout(; engine::GraphLayoutEngine=GridEmbedding(),
+                            extent = nothing, border::Integer = 0,
+                            constraints = nothing)
+    GraphGraphToGraphLayout(engine; extent = extent, border = border,
+                            constraints = constraints)
 end
 
 end # module

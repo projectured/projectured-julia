@@ -9,8 +9,8 @@ The constraint-layout solver **seam**. Defines the plain data interchange types
 The real LP-backed solver lives in the opt-in `ProjecturedTulip` package
 (`TulipConstraintSolver`, built on `MathOptInterface` + `Tulip`), which adds a
 `solve_constraint_layout` method to the generic here. This mirrors how
-`GraphLayoutEngine` keeps a pure-Julia `FallbackLayoutEngine` in core and lets
-`ProjecturedAdaptagrams` add the heavy native `AdaptagramsEngine` — so core
+`GraphLayoutEngine` keeps a pure-Julia `GridEmbedding` in core and lets
+`ProjecturedAdaptagrams` add the heavy native `AdaptagramsLayout` — so core
 `ProjecturedDomain` stays free of the heavy solver dependency, and a
 `ConstraintLayout` degrades gracefully (children stacked at the origin) when the
 solver package is not loaded.
@@ -81,7 +81,7 @@ Dependency-free fallback: ignores the relations and places every child at the
 origin at its intrinsic size. A `ConstraintLayout` projected with this solver is
 valid and selectable but not actually constraint-solved — load `ProjecturedTulip`
 and pass a `TulipConstraintSolver` for real solving. (Analogous to
-`FallbackLayoutEngine` vs. the native `AdaptagramsEngine`.)
+`GridEmbedding` vs. the native `AdaptagramsLayout`.)
 """
 struct FallbackConstraintSolver <: ConstraintSolver end
 

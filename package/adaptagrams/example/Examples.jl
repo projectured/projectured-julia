@@ -5,7 +5,7 @@
 # DB-derived document (make_dvdrental_relationship_graph_document_example) from
 # ProjecturedOdbcExample.
 
-# Native AdaptagramsEngine graph layout.
+# Native AdaptagramsLayout graph layout.
 const graph_adaptagrams_example      = Example("graph_adaptagrams",      make_graph_document_example,                        make_graph_adaptagrams_projection_example)
 
 # The dvdrental entity-relationship diagram (live DB + native shim). Kept OUT of

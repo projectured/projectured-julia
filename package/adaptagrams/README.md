@@ -1,6 +1,6 @@
 # ProjecturedAdaptagrams
 
-The native graph-layout engine for ProjecturEd. Provides `AdaptagramsEngine`, a
+The native graph-layout engine for ProjecturEd. Provides `AdaptagramsLayout`, a
 `GraphLayoutEngine` (see `ProjecturedGraph`) that places vertices with
 **libcola** and routes edges with **libavoid** from the
 [Adaptagrams](https://github.com/mjwybrow/adaptagrams) C++ libraries, bridged
@@ -9,8 +9,8 @@ through a small `extern "C"` shim (`deps/adaptagrams_shim.cpp`) called via `ccal
 It is a **separate package** from `ProjecturedGraph` on purpose: it carries an
 external native dependency that core ProjecturEd must not require. The interface
 (`GraphLayoutEngine`, `layout_graph`) and the pure-Julia default
-(`FallbackLayoutEngine`) live in `ProjecturedGraph`; this package only adds the
-`AdaptagramsEngine` method behind the same seam.
+(`GridEmbedding`) live in `ProjecturedGraph`; this package only adds the
+`AdaptagramsLayout` method behind the same seam.
 
 ## 1. Install Adaptagrams (native)
 
@@ -42,8 +42,8 @@ Pkg.build("ProjecturedAdaptagrams")
 It compiles `deps/libadaptagrams_shim.<ext>` — a fixed path the module loads
 directly (no generated `deps.jl`). The build never throws: if Adaptagrams is
 missing or the compile fails it warns and removes any stale shim, and
-`AdaptagramsEngine` then errors at call time with this guidance —
-`FallbackLayoutEngine` stays available throughout. Availability is a runtime
+`AdaptagramsLayout` then errors at call time with this guidance —
+`GridEmbedding` stays available throughout. Availability is a runtime
 check, so building the shim is picked up without a stale precompile cache.
 
 > **API drift:** a few libcola/libvpsc/libavoid calls have shifted spelling
@@ -55,6 +55,6 @@ check, so building the shim is picked up without a stale precompile cache.
 
 ```julia
 using ProjecturedExample, ProjecturedAdaptagrams
-proj = make_graph_projection_example(engine = AdaptagramsEngine())
-# AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false)
+proj = make_graph_projection_example(engine = AdaptagramsLayout())
+# AdaptagramsLayout(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false)
 ```

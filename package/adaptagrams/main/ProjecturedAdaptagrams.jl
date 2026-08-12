@@ -1,7 +1,7 @@
 """
     ProjecturedAdaptagrams
 
-The native graph-layout engine for ProjecturEd: an `AdaptagramsEngine` that places
+The native graph-layout engine for ProjecturEd: an `AdaptagramsLayout` that places
 vertices with **libcola** (constraint-based force-directed layout) and routes
 edges with **libavoid** (obstacle-avoiding connectors), bridged through a small
 `extern "C"` shim (`deps/adaptagrams_shim.cpp`) via `ccall`.
@@ -9,7 +9,7 @@ edges with **libavoid** (obstacle-avoiding connectors), bridged through a small
 This lives in its own package, separate from `ProjecturedDomain`, precisely
 because it carries an external native dependency (the Adaptagrams C++ libraries).
 `ProjecturedDomain` only defines the `GraphLayoutEngine` interface and the
-pure-Julia `FallbackLayoutEngine`; this package adds an `AdaptagramsEngine`
+pure-Julia `GridEmbedding`; this package adds an `AdaptagramsLayout`
 method to `layout_graph` behind that same interface, so nothing in core depends
 on Adaptagrams being installed.
 
@@ -21,22 +21,25 @@ The shim is compiled by `deps/build.jl` against an installed/built Adaptagrams:
 
 Point `ADAPTAGRAMS_DIR` at the `cola/` directory of an Adaptagrams checkout, or
 install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
-`AdaptagramsEngine` loads but errors at use with build guidance; use
-`FallbackLayoutEngine` in the meantime.
+`AdaptagramsLayout` loads but errors at use with build guidance; use
+`GridEmbedding` in the meantime.
 
 ## Use
 
     using ProjecturedExample, ProjecturedAdaptagrams
-    proj = make_graph_projection_example(engine = AdaptagramsEngine())
+    proj = make_graph_projection_example(engine = AdaptagramsLayout())
 """
 module ProjecturedAdaptagrams
 
 import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
-                                                  register_layout_engine!
+                                                  register_layout_engine!,
+                                                  supported_constraint_kinds,
+                                                  check_constraints, constraint_pins,
+                                                  vertex_sizes, extent_transform
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
-export AdaptagramsEngine
+export AdaptagramsLayout
 
 # ── Native shim location ─────────────────────────────────────────────────────
 # A *deterministic* path, not a generated deps.jl. Earlier we `include`d a
@@ -60,23 +63,23 @@ isavailable() =
 
 function _unavailable_error()
     error("""
-    AdaptagramsEngine: the native shim is not built. Run
+    AdaptagramsLayout: the native shim is not built. Run
         using Pkg; Pkg.build("ProjecturedAdaptagrams")
     after installing/building Adaptagrams (set ADAPTAGRAMS_DIR to its cola/ dir,
-    or put its .pc files on PKG_CONFIG_PATH). Use FallbackLayoutEngine until then.
+    or put its .pc files on PKG_CONFIG_PATH). Use GridEmbedding until then.
     See package/adaptagrams/README.md.""")
 end
 
-# ── AdaptagramsEngine ────────────────────────────────────────────────────────
+# ── AdaptagramsLayout ────────────────────────────────────────────────────────
 
-# Auto node-margin policy (AdaptagramsEngine `node_margin=nothing`): the hard
+# Auto node-margin policy (AdaptagramsLayout `node_margin=nothing`): the hard
 # minimum inter-box gap scales with the typical node size, floored so small
 # graphs keep a sensible constant margin.
 const _MARGIN_FRACTION = 0.2
 const _MIN_NODE_MARGIN = 16.0
 
 """
-    AdaptagramsEngine(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false,
+    AdaptagramsLayout(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false,
                       node_margin=nothing)
 
 Native `GraphLayoutEngine`: libcola placement + libavoid routing.
@@ -100,24 +103,37 @@ Native `GraphLayoutEngine`: libcola placement + libavoid routing.
   (`$(Int(round(100*_MARGIN_FRACTION)))%` of the mean half-extent, floored at
   `$(Int(_MIN_NODE_MARGIN))px`). Pass a number to force a fixed margin.
 
-Returns the same `(positions, routes)` shape as `FallbackLayoutEngine`:
+Returns the same `(positions, routes)` shape as `GridEmbedding`:
 `positions[objectid(vertex)] = (x,y,w,h)::NTuple{4,Int}` and
 `routes[objectid(edge)] = Vector{Tuple{Int,Int}}`.
 """
-struct AdaptagramsEngine <: GraphLayoutEngine
+struct AdaptagramsLayout <: GraphLayoutEngine
     ideal_length::Float64
     avoid_overlaps::Bool
     orthogonal::Bool
     node_margin::Union{Nothing,Float64}   # nothing ⇒ size-derived (see layout_graph)
 end
 
-AdaptagramsEngine(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
+AdaptagramsLayout(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
                   orthogonal::Bool=false, node_margin::Union{Nothing,Real}=nothing) =
-    AdaptagramsEngine(Float64(ideal_length), avoid_overlaps, orthogonal,
+    AdaptagramsLayout(Float64(ideal_length), avoid_overlaps, orthogonal,
                       node_margin === nothing ? nothing : Float64(node_margin))
 
-function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
-                      constraints::Vector)
+"""
+    supported_constraint_kinds(::AdaptagramsLayout)
+
+`:pin` and `:fixed_size`. The shim's `adaptagrams_layout` takes no constraint
+argument, so a pin is imposed on the way out rather than fed to libcola: the
+native run arranges the graph as if the vertex were free, and the vertex is then
+placed where it was pinned. The contract holds — the vertex is where the caller
+asked — but the neighbours were placed without knowing it. Teaching libcola
+about pins means a wider C ABI, and that is not this plan's work.
+"""
+supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :fixed_size)
+
+function layout_graph(engine::AdaptagramsLayout, graph::GraphGraph, sizes::Dict,
+                      constraints::Vector; extent = nothing, border::Real = 0)
+    check_constraints(engine, constraints)
     positions = Dict{UInt,NTuple{4,Int}}()
     routes = Dict{UInt,Vector{Tuple{Int,Int}}}()
 
@@ -135,11 +151,11 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
 
     isavailable() || _unavailable_error()
 
+    widths, heights = vertex_sizes(nodes, sizes, constraints)
     in_w = Vector{Cdouble}(undef, n)
     in_h = Vector{Cdouble}(undef, n)
     for i in 1:n
-        w, h = get(sizes, objectid(nodes[i]), (60, 30))
-        in_w[i] = Cdouble(w); in_h[i] = Cdouble(h)
+        in_w[i] = Cdouble(widths[i]); in_h[i] = Cdouble(heights[i])
     end
 
     # Edges with both endpoints present, aligned to the route index space. For
@@ -185,7 +201,7 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
                    Cint(n), in_w, in_h, Cint(ne), esrc, edst,
                    engine.ideal_length, Cint(engine.avoid_overlaps),
                    Cint(engine.orthogonal), node_margin, elen)
-    handle == C_NULL && error("AdaptagramsEngine: native layout failed (see adaptagrams_shim.cpp).")
+    handle == C_NULL && error("AdaptagramsLayout: native layout failed (see adaptagrams_shim.cpp).")
 
     try
         rx = Ref{Cdouble}(0.0); ry = Ref{Cdouble}(0.0)
@@ -215,13 +231,56 @@ function layout_graph(engine::AdaptagramsEngine, graph::GraphGraph, sizes::Dict,
         ccall((:adaptagrams_free, libadaptagrams_shim), Cvoid, (Ptr{Cvoid},), handle)
     end
 
+    _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
+                  extent, border)
     (positions, routes)
+end
+
+# The extent and the pins, applied to what the native run answered. The extent
+# maps positions *and* routed points, because libavoid's waypoints live in the
+# same coordinates as the boxes and a route left behind would miss its own
+# endpoints. A pin is imposed last, so nothing moves it afterwards.
+function _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
+                       extent, border)
+    n = length(nodes)
+    if extent !== nothing && n > 0
+        cx = Vector{Float64}(undef, n); cy = Vector{Float64}(undef, n)
+        for i in 1:n
+            x, y, w, h = positions[objectid(nodes[i])]
+            cx[i] = x + w/2; cy[i] = y + h/2
+        end
+        transform = extent_transform(cx, cy, widths, heights, 1:n, extent, border)
+        if transform !== nothing
+            fx, fy, x1, y1, ox, oy = transform
+            map_x(x) = ox + (x - x1) * fx
+            map_y(y) = oy + (y - y1) * fy
+            for i in 1:n
+                x, y, w, h = positions[objectid(nodes[i])]
+                positions[objectid(nodes[i])] =
+                    (round(Int, map_x(x + w/2) - w/2), round(Int, map_y(y + h/2) - h/2), w, h)
+            end
+            for (id, points) in routes
+                routes[id] = Tuple{Int,Int}[(round(Int, map_x(p[1])), round(Int, map_y(p[2])))
+                                            for p in points]
+            end
+        end
+    end
+
+    pins = constraint_pins(constraints)
+    isempty(pins) && return nothing
+    for i in 1:n
+        pin = get(pins, objectid(nodes[i]), nothing)
+        pin === nothing && continue
+        _, _, w, h = positions[objectid(nodes[i])]
+        positions[objectid(nodes[i])] = (round(Int, pin[1]), round(Int, pin[2]), w, h)
+    end
+    nothing
 end
 
 # ── The default engine, once this package is loaded ──────────────────────────
 #
 # Registering is the whole opt-in: anything that asks for
-# `default_layout_engine()` — an example, a workbench page, a live diagram —
+# `deferred_layout_engine()` — an example, a workbench page, a live diagram —
 # gets native placement and routing from the moment this package is in the
 # session, with nothing else rewired. Done from `__init__` so the mutation
 # survives precompilation; defining a second method instead would be a
@@ -229,7 +288,7 @@ end
 
 function __init__()
     register_layout_engine!((; orthogonal::Bool = false) ->
-                                AdaptagramsEngine(orthogonal = orthogonal))
+                                AdaptagramsLayout(orthogonal = orthogonal))
 end
 
 end # module ProjecturedAdaptagrams

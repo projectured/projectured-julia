@@ -15,7 +15,7 @@
 #      (contains libavoid/ libcola/ libvpsc/). Defaults to ~/workspace/adaptagrams/cola.
 #
 # This script never throws: if Adaptagrams cannot be found or the compile fails,
-# it removes any stale shim and warns; AdaptagramsEngine then errors at call time
+# it removes any stale shim and warns; AdaptagramsLayout then errors at call time
 # with build guidance. Re-run the build after installing the native library.
 
 const HERE = @__DIR__
@@ -94,11 +94,11 @@ function main()
     end
     if found === nothing
         @warn """
-        Adaptagrams (libcola/libavoid/libvpsc) not found — the AdaptagramsEngine
+        Adaptagrams (libcola/libavoid/libvpsc) not found — the AdaptagramsLayout
         shim was NOT built. Install/build Adaptagrams, then re-run
         `Pkg.build("ProjecturedAdaptagrams")`. Point ADAPTAGRAMS_DIR at the cola/
         directory of a checkout, or put the .pc files on PKG_CONFIG_PATH.
-        FallbackLayoutEngine remains available in the meantime.
+        GridEmbedding remains available in the meantime.
         """
         rm(SHIM_LIB; force = true)   # don't leave a stale shim that looks available
         return
@@ -115,7 +115,7 @@ function main()
         @warn """
         Compiling adaptagrams_shim.cpp failed ($e). The most likely cause is an
         Adaptagrams API mismatch — see the "VERIFY" notes in adaptagrams_shim.cpp
-        and adjust to the installed headers. FallbackLayoutEngine remains usable.
+        and adjust to the installed headers. GridEmbedding remains usable.
         """
         rm(SHIM_LIB; force = true)
     end
