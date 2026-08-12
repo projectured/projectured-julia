@@ -36,6 +36,7 @@ import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_bold_22
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..ReferenceModule: EmptyReference
 import ..OperationModule: ToggleCollapseOperation
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -194,11 +195,20 @@ end
 
 # ── Reference mapping / reader ───────────────────────────────────────────────
 
+# Forward: nothing. A caret inside a transcript is not a thing yet — a turn is a
+# record, and the one place a reader writes is the composer.
+#
+# Backward: the element itself. A click lands SOMEWHERE in a bubble, and what a
+# bubble can honestly say is "in me". Answering `nothing` instead said "not
+# mine", which is what left a conversation embedded in a document inert: the
+# click found no owner, so the caret stayed wherever it was and every key went
+# there. Whichever surround holds the conversation then re-roots this the way it
+# re-roots any other selection.
 for P in (ConversationConversationToWidgetComposite,
           ConversationTurnToWidgetComposite,
           ConversationPartToWidget)
     @eval map_reference_forward(::$P, iomap, ref)  = nothing
-    @eval map_reference_backward(::$P, iomap, ref) = nothing
+    @eval map_reference_backward(::$P, iomap, ref) = EmptyReference()
     @eval read_intent(::$P, iomap, op) = op
 end
 

@@ -498,7 +498,13 @@ end
 # The composer manages its own selection; nothing is forwarded to the widget
 # layers (so they never hijack key events for a mapped cursor).
 map_reference_forward(::ConversationComposerToWidget, iomap, ref)  = nothing
-map_reference_backward(::ConversationComposerToWidget, iomap, ref) = nothing
+
+# Backward, the draft says "in me". It cannot say where — the cursor it manages
+# is its own, and mapping a click to a character is separate work — but "in me"
+# is both true and enough: it is what tells a surround that the click was for
+# the composer, so the caret lands on the thing that takes the keys instead of
+# on whatever the composer was embedded in.
+map_reference_backward(::ConversationComposerToWidget, iomap, ref) = EmptyReference()
 
 # ═══════════════════════════════════════════════════════════════════════
 # Reader: gesture → composer operation, dispatched on the active part's state
