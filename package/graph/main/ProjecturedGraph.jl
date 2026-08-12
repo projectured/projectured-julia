@@ -45,6 +45,7 @@ include("GraphLayoutEngine.jl")
 include("omnetpp/LcgRandom.jl")
 include("omnetpp/Geometry.jl")
 include("omnetpp/GraphComponent.jl")
+include("omnetpp/BasicSpringEmbedderLayout.jl")
 include("GraphToGraphLayout.jl")
 include("GraphLayoutToGraphics.jl")
 

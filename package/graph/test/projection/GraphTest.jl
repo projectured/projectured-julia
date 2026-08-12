@@ -102,6 +102,176 @@ end
     @test length(centre.spanning_tree_children) == 4
 end
 
+@testset "SpringEmbedderLayout draws what OMNeT++ draws" begin
+    # The point of a port is that it answers what the original answers. These are
+    # the positions OMNeT++'s own BasicSpringEmbedderLayout produces, read out of
+    # a program linked against libopplayout.so from omnetpp-cpp and given the
+    # same graph, the same node sizes and seed 1.
+    #
+    # They are centres, which is what GraphLayouter::getNodePosition answers; the
+    # engine reports corners, so each is the centre less half the size.
+    #
+    # To regenerate, build a program against `omnetpp-cpp/src/layout` that calls
+    # addMovableNode / addFixedNode / addAnchoredNode / addEdge in this order,
+    # then setSeed(1), setSize(...) and execute().
+    corners(centres, w, h) = [(round(Int, x - w/2), round(Int, y - h/2), w, h)
+                              for (x, y) in centres]
+    placed(positions, made) = [positions[objectid(v)] for v in made]
+
+    @testset "a four by four mesh" begin
+        omnetpp = [(20.000000, 66.600524), (77.812742, 46.125950), (139.534567, 26.559605),
+                   (198.587325, 10.000000), (36.419738, 125.692940), (95.832624, 106.050806),
+                   (159.041757, 86.015787), (218.924606, 67.860555), (55.827039, 187.464957),
+                   (115.709888, 169.309725), (178.919021, 149.274706), (238.331907, 129.632572),
+                   (76.164318, 245.325512), (135.217076, 228.765907), (196.938901, 209.199563),
+                   (254.751643, 188.724988)]
+        side = 4
+        made = [GraphVertex(JsonString("v$i")) for i in 1:side*side]
+        edges = GraphEdge[]
+        for r in 1:side, c in 1:side
+            i = (r - 1) * side + c
+            c < side && push!(edges, GraphEdge(made[i], made[i+1]))
+            r < side && push!(edges, GraphEdge(made[i], made[i+side]))
+        end
+        graph = GraphGraph(made, edges)
+        sizes = Dict(objectid(v) => (40, 20) for v in made)
+        positions, _ = layout_graph(SpringEmbedderLayout(), graph, sizes, [])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a chain with one pinned end" begin
+        omnetpp = [(120.000000, 70.000000), (169.284850, 99.223049), (221.463412, 130.834805),
+                   (275.067309, 163.785508), (329.006879, 197.333118), (382.291595, 230.800465),
+                   (433.836629, 263.440710), (482.157706, 294.239248)]
+        made = [GraphVertex(JsonString("v$i")) for i in 1:8]
+        graph = GraphGraph(made, [GraphEdge(made[i], made[i+1]) for i in 1:7])
+        sizes = Dict(objectid(v) => (40, 20) for v in made)
+        # addFixedNode names a centre; a :pin names the corner, so (100, 60) here
+        # is the (120, 70) the reference was given.
+        pin = GraphConstraint(made[1], :pin, (100, 60))
+        positions, _ = layout_graph(SpringEmbedderLayout(), graph, sizes, [pin])
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a chain with four nodes anchored into one row" begin
+        omnetpp = [(20.000000, 10.000000), (77.583275, 10.369749), (139.389189, 10.676612),
+                   (189.389189, 10.676612), (239.389189, 10.676612), (289.389189, 10.676612),
+                   (351.195167, 10.970471), (408.778552, 11.322665)]
+        made = [GraphVertex(JsonString("v$i")) for i in 1:8]
+        graph = GraphGraph(made, [GraphEdge(made[i], made[i+1]) for i in 1:7])
+        sizes = Dict(objectid(v) => (40, 20) for v in made)
+        family = [GraphConstraint(made[i], :cluster, (:rte, 50.0 * (i - 3), 0.0))
+                  for i in 3:6]
+        positions, _ = layout_graph(SpringEmbedderLayout(), graph, sizes, family)
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+
+    @testset "a chain inside a six hundred by four hundred box" begin
+        omnetpp = [(553.584691, 37.628623), (486.395264, 84.120658), (414.520066, 132.743198),
+                   (339.999007, 181.842265), (264.356616, 230.276215), (189.027365, 277.126671),
+                   (115.632536, 321.521197), (46.415309, 362.371377)]
+        made = [GraphVertex(JsonString("v$i")) for i in 1:8]
+        graph = GraphGraph(made, [GraphEdge(made[i], made[i+1]) for i in 1:7])
+        sizes = Dict(objectid(v) => (40, 20) for v in made)
+        positions, _ = layout_graph(SpringEmbedderLayout(), graph, sizes, [];
+                                    extent = (600, 400), border = 20)
+        @test placed(positions, made) == corners(omnetpp, 40, 20)
+    end
+end
+
+@testset "SpringEmbedderLayout" begin
+    # A ring of ten. The grid would draw a grid; a spring embedder should draw
+    # something that spreads out and keeps connected nodes near each other.
+    made = [GraphVertex(JsonString("v$i")) for i in 1:10]
+    ring = GraphGraph(made, [GraphEdge(made[i], made[mod1(i+1, 10)]) for i in 1:10])
+    sizes = Dict(objectid(v) => (40, 20) for v in made)
+    engine = SpringEmbedderLayout()
+
+    positions, routes = layout_graph(engine, ring, sizes, [])
+    @test length(positions) == 10
+    @test length(routes) == 10
+    @test all(box -> box[3] == 40 && box[4] == 20, values(positions))
+
+    # It spreads: ten nodes do not land on one spot.
+    centres = [(box[1] + 20, box[2] + 10) for box in values(positions)]
+    @test length(unique(centres)) == 10
+    span_x = maximum(c[1] for c in centres) - minimum(c[1] for c in centres)
+    @test span_x > 40
+
+    # Connected nodes end up nearer than the graph is wide: that is the whole
+    # claim of a spring embedder over a grid.
+    neighbour_distance(i) = begin
+        a = positions[objectid(made[i])]; b = positions[objectid(made[mod1(i+1, 10)])]
+        hypot((a[1] - b[1]), (a[2] - b[2]))
+    end
+    diagonal = hypot(span_x, maximum(c[2] for c in centres) - minimum(c[2] for c in centres))
+    @test maximum(neighbour_distance(i) for i in 1:10) < diagonal
+
+    # A seed is a picture: the same seed twice is the same layout, a different
+    # seed is a different one. Without this nothing downstream can cache or
+    # compare a drawing.
+    again, _ = layout_graph(SpringEmbedderLayout(), ring, sizes, [])
+    @test again == positions
+    other, _ = layout_graph(SpringEmbedderLayout(seed = 42), ring, sizes, [])
+    @test other != positions
+end
+
+@testset "SpringEmbedderLayout honours a pin, an anchor and a box" begin
+    made = [GraphVertex(JsonString("v$i")) for i in 1:8]
+    chain = GraphGraph(made, [GraphEdge(made[i], made[i+1]) for i in 1:7])
+    sizes = Dict(objectid(v) => (40, 20) for v in made)
+
+    # A pin is where the caller put it, whatever the simulation does around it.
+    pin = GraphConstraint(made[1], :pin, (100, 60))
+    positions, _ = layout_graph(SpringEmbedderLayout(), chain, sizes, [pin])
+    @test positions[objectid(made[1])] == (100, 60, 40, 20)
+
+    # A cluster is one body: its members keep the offsets they were given, so a
+    # module vector laid out as a row stays a row wherever the row lands.
+    family = [GraphConstraint(made[i], :cluster, (:rte, 50.0 * (i - 3), 0.0))
+              for i in 3:6]
+    positions, _ = layout_graph(SpringEmbedderLayout(), chain, sizes, family)
+    xs = [positions[objectid(made[i])][1] for i in 3:6]
+    ys = [positions[objectid(made[i])][2] for i in 3:6]
+    @test all(y -> y == ys[1], ys)                       # one row
+    @test all(i -> xs[i+1] - xs[i] == 50, 1:3)           # 50 apart, in order
+
+    # A box bounds the picture, and the two-node case still fits in it.
+    bounded, _ = layout_graph(SpringEmbedderLayout(), chain, sizes, [];
+                              extent = (600, 400), border = 20)
+    for box in values(bounded)
+        @test box[1] >= 0
+        @test box[2] >= 0
+        @test box[1] + box[3] <= 600
+        @test box[2] + box[4] <= 400
+    end
+
+    # An extent smaller than twice the border is refused, not silently repaired.
+    @test_throws ArgumentError layout_graph(SpringEmbedderLayout(), chain, sizes, [];
+                                            extent = (30, 400), border = 20)
+
+    # And the kinds it does not implement are refused by name.
+    @test supported_constraint_kinds(SpringEmbedderLayout()) == (:pin, :fixed_size, :cluster)
+    @test_throws ArgumentError layout_graph(SpringEmbedderLayout(), chain, sizes,
+                                            [GraphConstraint(made[1], :align, :x)])
+end
+
+@testset "SpringEmbedderLayout keeps unconnected parts apart but not far" begin
+    # Repulsion between different colours stops after 100 units, which is what
+    # keeps a graph in several pieces from blowing itself apart. Three separate
+    # pairs should end up in one readable picture, not scattered to infinity.
+    made = [GraphVertex(JsonString("v$i")) for i in 1:6]
+    pieces = GraphGraph(made, [GraphEdge(made[1], made[2]),
+                               GraphEdge(made[3], made[4]),
+                               GraphEdge(made[5], made[6])])
+    sizes = Dict(objectid(v) => (40, 20) for v in made)
+    positions, _ = layout_graph(SpringEmbedderLayout(), pieces, sizes, [])
+    xs = [box[1] for box in values(positions)]
+    ys = [box[2] for box in values(positions)]
+    @test maximum(xs) - minimum(xs) < 4000
+    @test maximum(ys) - minimum(ys) < 4000
+end
+
 @testset "edge graphics primitives" begin
     # Polyline construct + hit-test.
     pl = GraphicsPolyline([(0, 0), (10, 0), (10, 10)], color_black;

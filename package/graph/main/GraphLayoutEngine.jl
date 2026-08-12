@@ -46,7 +46,8 @@ import ..GraphLayoutModule: GraphConstraint
 export GraphLayoutEngine, GridEmbedding, DeferredLayout, layout_graph,
        deferred_layout_engine, register_layout_engine!, resolved_layout_engine,
        supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
-       constraint_pins, constraint_fixed_sizes, layout_vertices, vertex_sizes,
+       constraint_pins, constraint_fixed_sizes, constraint_clusters,
+       layout_vertices, vertex_sizes,
        straight_routes, extent_transform, fit_into_extent!
 
 abstract type GraphLayoutEngine end
@@ -124,6 +125,42 @@ function constraint_pins(constraints)
         pins[objectid(constraint.target)] = (Float64(payload[1]), Float64(payload[2]))
     end
     pins
+end
+
+"""
+    constraint_clusters(constraints) -> Dict{UInt,Tuple{Any,Float64,Float64}}
+
+The `:cluster` constraints as `objectid(vertex) => (group, offx, offy)`. Every
+vertex naming the same `group` belongs to one family that moves as one body,
+each member holding its own offset from the family's anchor point.
+
+The payload is `(group, offx, offy)`, or just `group` for an offset of zero.
+This is `addAnchoredNode(id, anchorname, offx, offy, w, h)`, which is how
+OMNeT++ lays out a module vector: `rte[0..56]` is 57 nodes and one anchor, so
+the ring or the row keeps its shape while the whole family finds its place.
+
+Groups are compared with `isequal`, so a `Symbol`, a `String` or a number all
+name a family.
+"""
+function constraint_clusters(constraints)
+    clusters = Dict{UInt,Tuple{Any,Float64,Float64}}()
+    for constraint in constraints
+        constraint.kind === :cluster || continue
+        payload = constraint.payload
+        entry = if payload isa Tuple && length(payload) == 3
+            (payload[1], Float64(payload[2]), Float64(payload[3]))
+        elseif payload isa Tuple && length(payload) == 1
+            (payload[1], 0.0, 0.0)
+        elseif payload === nothing
+            throw(ArgumentError(
+                "a :cluster constraint's payload must name a group, as `group` " *
+                "or `(group, offx, offy)`, got nothing."))
+        else
+            (payload, 0.0, 0.0)
+        end
+        clusters[objectid(constraint.target)] = entry
+    end
+    clusters
 end
 
 """
