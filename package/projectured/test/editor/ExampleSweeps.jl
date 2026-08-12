@@ -417,11 +417,6 @@ const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 # reader throws partway through. Pre-existing and unrelated to navigation
 # direction (they surface as uncaught errors before the walk can proceed).
 const NAV_WALK_THROWS = Dict(
-    # When the caret lands on a projection-introduced token (e.g. a JsonObject
-    # vertex's `{` delimiter), the vertex content reader returns a
-    # ProjectionReferenceStep-headed path that is under-typed, so the graph selection
-    # map cannot wrap it — the seed throws before any walk starts.
-    "graph"             => (:walk_right, :walk_left),
     # SelectionMismatch in set_selection! on a CollectionToSyntax leaf: an
     # undelimited PrimitiveString still offers a phantom `.open{…}` caret; the seed
     # throws before either walk can proceed.
