@@ -15,6 +15,13 @@
 > hand-written (101 `ChildrenIoMap` uses in
 > `package/sql/main/SqlToSyntax.jl`).
 
+> **Decision (2026-08-12): this plan runs before the parameter rename.** The
+> owner chose to convert first.
+> [unify-projection-api-parameter-names.md](unify-projection-api-parameter-names.md)
+> waits on Stage B and Stage C, because about 108 of its rename sites sit in the
+> functions that this plan deletes and regenerates. Do not rename a parameter in
+> a file that this plan still converts.
+
 ## Motivation
 
 `JsonToSyntax.jl` and `SqlToSyntax.jl` (and every other `XToSyntax`) are dominated

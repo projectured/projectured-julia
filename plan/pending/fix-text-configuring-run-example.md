@@ -14,6 +14,15 @@
 > so the plan is NOT obsolete — just unimplemented, with paths to update as it
 > is picked up.
 
+> **Decision (2026-08-12): re-author this plan.** The owner chose to retire
+> `ProjectionConfiguringProjection`, see
+> [text-projection-config-into-document.md](text-projection-config-into-document.md).
+> Step 2 inserts that projection into the pipeline, so the splice must target the
+> document model instead. The defect below is real and it stays: the `run_example`
+> flag still replaces the whole pipeline.
+>
+> **Rejected.** Keep the projection and splice it as written.
+
 ## Problem
 
 When `run_example` is called with `text_filtering=true` or `text_highlighting=true`,

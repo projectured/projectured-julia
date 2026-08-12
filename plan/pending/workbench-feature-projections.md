@@ -15,6 +15,16 @@
 > corrected for the current per-domain package layout; the design and phase
 > plan otherwise still apply unchanged.
 
+> **Decision (2026-08-12): re-author the three configured features.** The owner
+> chose to retire `ProjectionConfiguringProjection`, see
+> [text-projection-config-into-document.md](text-projection-config-into-document.md).
+> The principle under "Shared infrastructure" no longer holds, because no
+> projection is wrapped to make it configurable. `TextFiltering`,
+> `TextHighlighting` and `SearchingProjection` take document-held parameters
+> instead. Clipboard, dragging and tooltip are not affected.
+>
+> **Rejected.** Grow the projection to a third call site as written.
+
 ## Goal
 
 The standalone `run_example` flags already exercise these projections one at a

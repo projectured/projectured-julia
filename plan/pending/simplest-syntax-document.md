@@ -17,6 +17,26 @@
 > (the `visual` package was split into `syntax`/`style`/`widget`/`pane`/`graphics`/
 > `text`/`layout` on 2026-08-11, after this plan's design work landed).
 
+> **Decision (2026-08-12): both Deferred items now have an owner.** The width-0
+> indent slot goes to [text-domain-kit.md](text-domain-kit.md) Phase 3 step 3,
+> which makes `SyntaxToText` emit `TextLine(...; indentation)`. Delete the first
+> Deferred bullet when that step lands.
+>
+> The flat-offset reference step already exists as `TextRangeReferenceStep`, so
+> the second Deferred bullet becomes a rule, not a new type. A projection that
+> reads the Text domain as styled text uses the flat offset. A generic projection
+> that reads a block as an object can select down to spans, which
+> `_is_structural_ref` already honours. Three sites still emit the object form
+> from styled-text code: `PrimitiveToText.jl:69,78,87`, and the
+> `@insertion TextBlock` seed at `Text.jl:318`. The dual accept in
+> `text_caret_flat` drops once they go flat.
+>
+> One correction. The rule "Only `SyntaxCollapsible` answers
+> `syntax_collapsible`" is scoped to wrappers, and `SyntaxNode` already answers
+> true. `SyntaxConcatenation` is a `SyntaxSequence`, and it gains a `collapsed`
+> field by the decision in
+> [collapse-expand-syntax-nodes.md](collapse-expand-syntax-nodes.md).
+
 Goal: **every domain→syntax projection emits the simplest syntax document that expresses what it
 means** — a JSON null is one span, not three; a Julia connector node says "concatenate these", not
 "a node with three empty delimiters". Today neither is possible, and the cost is measurable.

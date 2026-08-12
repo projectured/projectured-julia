@@ -22,6 +22,22 @@
 > **method signatures** this plan targets, which remain `p`/`recursion`/`reference`
 > throughout.
 
+> **Decision (2026-08-12): this plan waits for the template conversion.** The
+> owner chose to convert first and to rename after. Measured on 2026-08-12, 479
+> hand-written signatures still start `(p::`. About 108 of them sit in files that
+> [projection-template-engine.md](projection-template-engine.md) converts, and 82
+> of those 108 are in `package/sql/main/SqlToSyntax.jl`, which its Stage B
+> rewrites now. A rename of those lines is discarded by the conversion. Rename
+> what the conversion leaves behind.
+>
+> **Rejected.** Rename first: it discards about 108 sites and it makes the
+> conversion diff unreadable. Rename only outside the template scope: it leaves
+> two conventions in the tree. Drop the plan.
+>
+> Correct this before the plan restarts. The survey row that reads
+> `change::Change` names a type the code no longer has. The signature is
+> `read_intent(projection, recursion, change::Intent, iomap)`.
+
 ## Context
 
 The four generic projection functions — `projection_print` (now

@@ -17,6 +17,23 @@
 > per-domain `test_<domain>()` functions — see
 > [documentation/testing.md](../../documentation/testing.md).
 
+> **Decision (2026-08-12): this plan owns the `SyntaxToText` emission change.**
+> `SyntaxToText` emits `TextLine(...; indentation)` and sheds `indent_indices`
+> and the splice-widening machinery. The reason is the recursive cost: today
+> `_splice_child!` walks every span of a child subtree at every ancestor that
+> indents, and rebuilds each line-start indent span. With an indentation field a
+> re-indent is one addition.
+>
+> Phase 3 step 3 must also state the join rule for an inline child. A
+> line-shaped output cannot splice a child mid-line without a rule for how the
+> child's first and last lines merge into the open line. That rule is missing
+> today.
+>
+> **Rejected.** Keep the flat span list and fix the width-0 slot inside the
+> Syntax layer: it leaves the indent a span that the caret can reach. Split the
+> emission change into a new plan: that settles ownership, not direction. Defer
+> the call.
+
 Three related changes to [package/text/main/Text.jl](../../package/text/main/Text.jl),
 ordered so each lands on its own:
 

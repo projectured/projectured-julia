@@ -10,6 +10,16 @@
 > longer needs the generic "each domain is its own package" layout note, since
 > every path is now translated).
 
+> **Decision (2026-08-12): this plan proceeds.** The owner chose to retire
+> `ProjectionConfiguringProjection`. An editable projection parameter lives on a
+> document field, not on a projection struct, so selection, undo, serialization
+> and versioning apply to it. This plan owns the retirement, and Step 8 stands.
+>
+> **Rejected.** Keep the projection and fix the caret another way: it leaves the
+> configuration outside the document, so the four uniformity gains stay out of
+> reach. Keep both mechanisms side by side: two ways to do one thing. Defer the
+> call: four plans stay blocked.
+
 Retire `ProjectionConfiguringProjection` (pcp). Its editable parameters
 (`TextHighlighting.pattern`, `TextFiltering.pattern` / `invert` etc.) live on
 projection structs, which are not `@document`s and therefore have no

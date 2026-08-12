@@ -16,6 +16,17 @@
 > assumed no longer blocks per-entry folding, though the folding itself is
 > still not wired.
 
+> **Decision (2026-08-12): `SyntaxConcatenation` gains a `collapsed` field.** The
+> XML element keeps its `SyntaxConcatenation` shape, and the type answers
+> `syntax_collapsed` and `syntax_collapsible`. JSON needs no type change, because
+> `JsonArrayToSyntaxNode` already builds a `SyntaxNode`, which carries `collapsed`
+> today. The JSON hookup stays a one-line pass-through.
+>
+> **Rejected.** Rebuild the element around `SyntaxNode`: it uses the fat type for
+> a node that wants one of its five features. Lift `collapsed` to
+> `SyntaxCompound`: it hands a fold marker to types where a fold means nothing.
+> Wire JSON only and leave XML open.
+
 The Syntax-layer foundation **shipped** — `ToggleCollapseOperation`, the
 `SyntaxNodeToText` collapsed render (marker + ellipsis), the click/keyboard
 readers, and the syntax-example roundtrip test. That work is recorded in

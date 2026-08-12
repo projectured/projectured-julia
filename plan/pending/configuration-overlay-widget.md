@@ -14,6 +14,16 @@
 > still asserts `WidgetSplitPane` and `Ctrl+F`. This plan describes the
 > intended future work and remains entirely OPEN.
 
+> **Decision (2026-08-12): re-author this plan.** The owner chose to retire
+> `ProjectionConfiguringProjection`, see
+> [text-projection-config-into-document.md](text-projection-config-into-document.md).
+> Part B, the printer swap from `WidgetSplitPane` to `WidgetOverlay`, targets a
+> module that goes away. Part A, the generic `WidgetOverlay` widget, and Part C,
+> the gesture traits, do not depend on that module. Both can stand against the
+> document model.
+>
+> **Rejected.** Keep the projection so that Part B lands as written.
+
 ## Goal
 
 Let the user **show and hide** the configuration UI that
