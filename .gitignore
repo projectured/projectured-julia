@@ -12,6 +12,9 @@ asset/image/baseline-shadcn/
 # Transient agent worktrees (Claude Code isolation)
 .claude/worktrees/
 
+# Local cache and memories of the serena MCP server.
+.serena/
+
 # Per-package test/example env manifests — generated when running a tier's
 # suite from its own env (julia --project=package/<tier>-test); the canonical
 # dev env is the repo root project (root Manifest.toml stays tracked).
