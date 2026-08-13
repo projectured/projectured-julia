@@ -45,6 +45,11 @@ import ProjecturedStyle.ColorModule: StyleColor
 import ProjecturedStyle.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
+# `_get_font` resolves a font's name through this rather than opening
+# `font.filename` directly, so a bundle copied to another machine finds its
+# fonts where they are now. The metrics reader resolves the same way, which is
+# what keeps SDL and it opening one file.
+import ProjecturedStyle.TrueTypeModule: font_file
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenDocumentModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
