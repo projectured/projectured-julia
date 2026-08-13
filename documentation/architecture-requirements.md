@@ -9,7 +9,7 @@ It is deliberately distinct from its two siblings:
 
 - [requirements.md](requirements.md) states what the editor must do as
   **externally observable capabilities** (behaviour of the editor, usability of
-  the project). Those are *product* requirements.
+  the project). Those are *product* requirements, carrying `PR-` IDs.
 - [architecture-rules.md](architecture-rules.md) is the decision procedure for
   **where a piece of code lives** (package / layer / slice / module). Those are
   *placement* rules.
@@ -22,6 +22,16 @@ sentences and carries a symbolic ID — `PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE`
 to cite in reviews, commit messages, guard failures, and plans. The division
 vocabulary (package / layer / slice / module) is used exactly as defined in
 [terminology.md](terminology.md).
+
+**A prefix names the repository that owns the rule**, so a citation says which
+document to open without a link. The downstream projects cite these rules as
+`PAR-…`:
+
+| repository | product | architectural |
+| --- | --- | --- |
+| **projectured-julia** | **`PR-`** | **`PAR-`** |
+| omnetpp-julia | `OR-` | `OAR-` |
+| inet-julia | `IR-` | `IAR-` |
 
 Three rules govern the IDs:
 

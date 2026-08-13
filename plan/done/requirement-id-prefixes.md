@@ -1,6 +1,7 @@
 # One requirement-id prefix pair per repository
 
-Status: pending. Decided 2026-08-13.
+Status: **done 2026-08-13**. Landed as `projectured-julia@481514ac`,
+`omnetpp-julia@27f93f9`, `inet-julia@f249192`, and the headers in P6.
 
 ## 1. The decision
 
@@ -59,23 +60,29 @@ updated. Sealed files may be opened for this rename — one is affected,
 The order matters: a citation must never point at an anchor that does not
 exist yet.
 
-- [ ] **P1 — Dry run.** List every distinct token that `\bR-[A-Z]` and
-  `\bAR-[A-Z]` match, per repository, and read the list before any edit.
-  `\b` already excludes `OR-`, `IR-`, `OAR-` and `IAR-`, because the boundary
-  falls before the first letter — confirm that on the real list rather than on
-  the argument.
-- [ ] **P2 — Rename in projectured-julia.** Headings, index rows, self-cites,
+- [x] **P1 — Dry run.** Done, and it changed the method. `\b` did exclude
+  `OR-`/`IR-`/`OAR-`/`IAR-` as argued, but the token list held four things that
+  are not requirement ids at all: `R-GC` in a Romanian man page, `R-ULPI` in a
+  udev hardware database and `R-N` in an X11 font name — all three inside the
+  gitignored `package/executable/build/` — and `R-TAG` in inet-julia, which is
+  the IEEE 802.1CB redundancy tag in live protocol source. **A pattern rename
+  would have corrupted that file.** The rename therefore ran off the exact id
+  lists extracted from the two documents (77 + 44), over tracked text files
+  only, skipping anything with a NUL byte. Five prose placeholders that
+  describe the id format itself (`AR-SCREAMING-KEBAB`, `AR-FOO`, `AR-N`,
+  `AR-REACTIVITY-3`, `R-SCREAMING-KEBAB`) were added to the list deliberately.
+- [x] **P2 — Rename in projectured-julia.** Headings, index rows, self-cites,
   link definitions, `#ar-…` → `#par-…`, `#r-…` → `#pr-…`, across
   `documentation/`, `package/`, `plan/`. One commit.
-- [ ] **P3 — Check the anchors resolve.** Every `[PR-…]`/`[PAR-…]` shortcut
+- [x] **P3 — Check the anchors resolve.** Every `[PR-…]`/`[PAR-…]` shortcut
   reference has a definition; every definition's anchor matches a heading;
   no `\bAR-`/`\bR-` survives outside a quotation.
-- [ ] **P4 — Retarget omnetpp-julia** (28 sites: 20 `package/`, 8 `plan/`).
+- [x] **P4 — Retarget omnetpp-julia** (28 sites: 20 `package/`, 8 `plan/`).
   Its `architecture-requirements.md` needs no edit — its `#par-…` anchors
   become correct when P2 lands.
-- [ ] **P5 — Retarget inet-julia** (9 sites, of which 4 are the link
+- [x] **P5 — Retarget inet-julia** (9 sites, of which 4 are the link
   definitions in its `documentation/architecture-requirements.md`).
-- [ ] **P6 — State the scheme** in each repository's requirements document
+- [x] **P6 — State the scheme** in each repository's requirements document
   header: the prefix names the repository, and here is the table.
 
 ## 5. Risks
