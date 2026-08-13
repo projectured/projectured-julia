@@ -86,7 +86,7 @@ OperationModule.invalidate_projection!(editor::Editor) = (editor.iomap = nothing
 # The one door into a running editor from outside its own task. A frame reads the
 # document, evaluates against it and paints it, so anything that writes it from
 # another task races the frame — and a reactive thunk cannot write at all
-# (AR-NO-WRITE-IN-THUNK). An operation posted here is applied by the editor's own
+# (PAR-NO-WRITE-IN-THUNK). An operation posted here is applied by the editor's own
 # task at a defined point in the frame, which is the same guarantee an operation
 # from the reader already has.
 

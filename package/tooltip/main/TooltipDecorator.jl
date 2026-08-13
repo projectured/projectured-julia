@@ -30,7 +30,7 @@ import ..OperationApiModule: Operation
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
-# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+# keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct TooltipDecoratorProjectionIoMap
     projection::Any
     input::Any              # TooltipSource

@@ -42,8 +42,8 @@ one-line consequence of "a value was captured where a thunk was needed".
 
 The cheap way to pass the first property is to rebuild everything — which is
 precisely the fix this codebase already rejected once (`invalidate_projection!`
-for a child-list change) and is now forbidden by AR-REACTIVE-OUTPUT-STRUCTURE.
-AR-FINEST-GRANULARITY says the same thing positively. So the harness measures the
+for a child-list change) and is now forbidden by PAR-REACTIVE-OUTPUT-STRUCTURE.
+PAR-FINEST-GRANULARITY says the same thing positively. So the harness measures the
 **fraction** of output cells invalidated, and a projection that invalidates
 everything for a leaf edit fails just as loudly as one that invalidates nothing.
 
@@ -106,7 +106,7 @@ Both shapes are legitimate and both must pass:
 | re-derived output (an `@iomap` whose `output` is a computed cell) | `getfield(iomap, :output)` |
 | reconciled children (`ContentIoMap.inner_iomap`) | the child-IoMap cell |
 
-AR-STABLE-IOMAP-IDENTITY still holds and is still asserted: the IoMap **object**
+PAR-STABLE-IOMAP-IDENTITY still holds and is still asserted: the IoMap **object**
 keeps its identity. Its **field cells** are exactly what may re-derive — that is
 what the `@iomap` macro exists for.
 
@@ -201,7 +201,7 @@ harness dies.
 - Bound the leaves per example (say 200, sampled deterministically) and **report
   what was skipped** — silent truncation reads as coverage.
 - Ship it as `test_reactivity()`, run in the broad sweep rather than in
-  `test_kernel()` / `test_base()`. `AR-SMALLEST-TEST` still applies: nobody should
+  `test_kernel()` / `test_base()`. `PAR-SMALLEST-TEST` still applies: nobody should
   run this to check a one-line change.
 
 ---

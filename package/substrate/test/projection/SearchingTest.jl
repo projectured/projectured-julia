@@ -13,7 +13,7 @@ function test_searching()
     @test iomap.output[2].value == "food"
     @test length(iomap.match_paths) == 2
 
-    # ── reactive output (AR-STABLE-IOMAP-IDENTITY) ──────────────────────────
+    # ── reactive output (PAR-STABLE-IOMAP-IDENTITY) ──────────────────────────
     # Appending a matching element re-walks the tree through the SAME iomap —
     # both output and match_paths track it — where the eager walk would freeze.
     id = objectid(iomap)

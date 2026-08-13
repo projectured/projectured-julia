@@ -311,13 +311,13 @@ test uses a `Symbol` objective). Removing the box fixes it, and
 
 ### Phase 6 — docs + verification [x] **done**
 
-- [x] `documentation/architecture-requirements.md` — **AR-NO-NESTED-CELL rewritten**. It used
+- [x] `documentation/architecture-requirements.md` — **PAR-NO-NESTED-CELL rewritten**. It used
       to state the trap *as the rule*; the ban now covers `Cell` and `Computed` (both are cell
       vocabulary the constructor consumes), and it says explicitly that a `Function` is an
       ordinary field value.
-- [x] Same file: `Cell(() -> …)` → `ComputedCell(() -> …)` in AR-PURE-THUNK,
-      AR-DERIVED-CELLS, AR-SHARED-CHILDREN-IOMAP, AR-REACTIVE-OUTPUT-SELECTION; and
-      AR-USE-PROJECTION-MACRO no longer gives "a `Function` field" as a reason the macro
+- [x] Same file: `Cell(() -> …)` → `ComputedCell(() -> …)` in PAR-PURE-THUNK,
+      PAR-DERIVED-CELLS, PAR-SHARED-CHILDREN-IOMAP, PAR-REACTIVE-OUTPUT-SELECTION; and
+      PAR-USE-PROJECTION-MACRO no longer gives "a `Function` field" as a reason the macro
       can't be used.
 - [x] `package/kernel/doc/cell.md` — construction section rewritten around the marker;
       `macros.md` — the "Gotchas" bullet and the plain-struct-projection rationale;

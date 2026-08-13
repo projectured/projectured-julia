@@ -18,7 +18,7 @@ This document states the **invariants and conventions every change must
 respect** — the load-bearing contracts the code assumes you understand, and
 that break silently (a hang, a stale render, an un-composable projection, a
 mis-mapped cursor) rather than loudly when violated. Each requirement is a few
-sentences and carries a symbolic ID — `AR-PURE-THUNK`, `AR-PER-EDITOR-STATE` —
+sentences and carries a symbolic ID — `PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE` —
 to cite in reviews, commit messages, guard failures, and plans. The division
 vocabulary (package / layer / slice / module) is used exactly as defined in
 [terminology.md](terminology.md).
@@ -31,7 +31,7 @@ Three rules govern the IDs:
   regrouping. Adding a requirement appends a section and an index row; nothing
   else moves, and no existing citation changes.
 - **Each ID is a heading**, so a citation can link to the requirement itself:
-  `[AR-PURE-THUNK](architecture-requirements.md#ar-pure-thunk)`.
+  `[PAR-PURE-THUNK](architecture-requirements.md#par-pure-thunk)`.
 
 When a rule here and a rule in a per-topic guide appear to conflict, the
 per-topic guide wins for its topic and this document should be corrected; when
@@ -50,127 +50,127 @@ requirement; the rule is its own lead sentence.
 
 | ID | Rule |
 | --- | --- |
-| [AR-PURE-THUNK](#ar-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
-| [AR-NO-WRITE-IN-THUNK](#ar-no-write-in-thunk) | A thunk must never write another cell or mutate shared document state |
-| [AR-ACYCLIC-CELLS](#ar-acyclic-cells) | The cell dependency graph must stay acyclic |
-| [AR-MONOTONE-INVALIDATION](#ar-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
-| [AR-WRITE-DRIVEN-PROPAGATION](#ar-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
-| [AR-NO-PROJECTION-GLOBALS](#ar-no-projection-globals) | No global mutable state in projections (or the machinery they call) |
-| [AR-DERIVED-CELLS](#ar-derived-cells) | Use the reactive engine for derived state; do not read a cell before its wiring is complete |
-| [AR-FINEST-GRANULARITY](#ar-finest-granularity) | Choose the reactive container that preserves the finest granularity |
+| [PAR-PURE-THUNK](#par-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
+| [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A thunk must never write another cell or mutate shared document state |
+| [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
+| [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
+| [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
+| [PAR-NO-PROJECTION-GLOBALS](#par-no-projection-globals) | No global mutable state in projections (or the machinery they call) |
+| [PAR-DERIVED-CELLS](#par-derived-cells) | Use the reactive engine for derived state; do not read a cell before its wiring is complete |
+| [PAR-FINEST-GRANULARITY](#par-finest-granularity) | Choose the reactive container that preserves the finest granularity |
 
 **Documents and domains**
 
 | ID | Rule |
 | --- | --- |
-| [AR-FIELDS-ARE-CELLS](#ar-fields-are-cells) | Every document field is a `Cell`, accessed transparently |
-| [AR-FIELD-NAMES-ARE-API](#ar-field-names-are-api) | A document's struct field names are its public reference vocabulary |
-| [AR-WIDE-FIELD-TYPES](#ar-wide-field-types) | A field's declared type must admit every value the field can hold |
-| [AR-NO-NESTED-CELL](#ar-no-nested-cell) | A macro-wrapped field may never hold a `Cell` or a `Function` as its logical value |
-| [AR-DOCUMENT-IDENTITY](#ar-document-identity) | Do not assume two documents with equal fields are `==` |
-| [AR-DOMAINS-INDEPENDENT](#ar-domains-independent) | Domains are independent; a document owns no cross-domain edge |
-| [AR-DOMAIN-OWNS-EDITS](#ar-domain-owns-edits) | Every domain defines its own structural operations and its own insertion type |
-| [AR-WIDGETS-ARE-PRESENTATION](#ar-widgets-are-presentation) | Keep the edited document in its semantic domain; widgets are presentation only |
-| [AR-SEARCH-DONT-WALK](#ar-search-dont-walk) | Prefer `search_references` / `search_documents` over hand-walking the tree, and scope by domain node type |
+| [PAR-FIELDS-ARE-CELLS](#par-fields-are-cells) | Every document field is a `Cell`, accessed transparently |
+| [PAR-FIELD-NAMES-ARE-API](#par-field-names-are-api) | A document's struct field names are its public reference vocabulary |
+| [PAR-WIDE-FIELD-TYPES](#par-wide-field-types) | A field's declared type must admit every value the field can hold |
+| [PAR-NO-NESTED-CELL](#par-no-nested-cell) | A macro-wrapped field may never hold a `Cell` or a `Function` as its logical value |
+| [PAR-DOCUMENT-IDENTITY](#par-document-identity) | Do not assume two documents with equal fields are `==` |
+| [PAR-DOMAINS-INDEPENDENT](#par-domains-independent) | Domains are independent; a document owns no cross-domain edge |
+| [PAR-DOMAIN-OWNS-EDITS](#par-domain-owns-edits) | Every domain defines its own structural operations and its own insertion type |
+| [PAR-WIDGETS-ARE-PRESENTATION](#par-widgets-are-presentation) | Keep the edited document in its semantic domain; widgets are presentation only |
+| [PAR-SEARCH-DONT-WALK](#par-search-dont-walk) | Prefer `search_references` / `search_documents` over hand-walking the tree, and scope by domain node type |
 
 **Projections — the central abstraction**
 
 | ID | Rule |
 | --- | --- |
-| [AR-FOUR-FUNCTIONS](#ar-four-functions) | The four functions are the entire projection interface |
-| [AR-RECURSION-CONTRACT](#ar-recursion-contract) | All recursion flows through those four functions, and only those four (the recursion contract) |
-| [AR-DELEGATE-ONE-LEVEL](#ar-delegate-one-level) | Recurse as little as possible — one level, then delegate ("School A") |
-| [AR-RECURSE-VIA-PRINT-CHILD](#ar-recurse-via-print-child) | Recurse through `print_child`, never open-coded |
-| [AR-BIDIRECTIONAL-PROJECTION](#ar-bidirectional-projection) | Every projection is bidirectional: a printer needs its inverse |
-| [AR-MAPPERS-ARE-INVERSES](#ar-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
-| [AR-PREFER-REFERENCE-RETARGET](#ar-prefer-reference-retarget) | Write a `read_intent` method only when re-targeting a reference is not enough |
-| [AR-GEOMETRY-FREE-IN-DOCUMENT](#ar-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
-| [AR-DELEGATE-AND-LIFT](#ar-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
-| [AR-SHARED-CHILDREN-IOMAP](#ar-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
-| [AR-STABLE-IOMAP-IDENTITY](#ar-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
-| [AR-CROSS-DOMAIN-LATE](#ar-cross-domain-late) | Cross domains as late as possible in the mappers |
-| [AR-HIGHER-ORDER-IS-DOMAIN-FREE](#ar-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
-| [AR-USE-PROJECTION-MACRO](#ar-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
+| [PAR-FOUR-FUNCTIONS](#par-four-functions) | The four functions are the entire projection interface |
+| [PAR-RECURSION-CONTRACT](#par-recursion-contract) | All recursion flows through those four functions, and only those four (the recursion contract) |
+| [PAR-DELEGATE-ONE-LEVEL](#par-delegate-one-level) | Recurse as little as possible — one level, then delegate ("School A") |
+| [PAR-RECURSE-VIA-PRINT-CHILD](#par-recurse-via-print-child) | Recurse through `print_child`, never open-coded |
+| [PAR-BIDIRECTIONAL-PROJECTION](#par-bidirectional-projection) | Every projection is bidirectional: a printer needs its inverse |
+| [PAR-MAPPERS-ARE-INVERSES](#par-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
+| [PAR-PREFER-REFERENCE-RETARGET](#par-prefer-reference-retarget) | Write a `read_intent` method only when re-targeting a reference is not enough |
+| [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
+| [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
+| [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
+| [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
+| [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers |
+| [PAR-HIGHER-ORDER-IS-DOMAIN-FREE](#par-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
+| [PAR-USE-PROJECTION-MACRO](#par-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
 
 **References and selection**
 
 | ID | Rule |
 | --- | --- |
-| [AR-ONE-BASED-INDEXING](#ar-one-based-indexing) | All indexing is 1-based; distinguish elements from boundaries |
-| [AR-REFERENCE-DSL](#ar-reference-dsl) | Build and match reference paths with the DSL, not by hand |
-| [AR-EVERY-DOCUMENT-HAS-SELECTION](#ar-every-document-has-selection) | Every concrete `Document` has a `selection::Cell`, and every selection-reachable child is itself a `Document` |
-| [AR-REPLACE-SELECTION](#ar-replace-selection) | Change selection with `replace_selection!`, not a bare `set_selection!` |
-| [AR-EMPTY-PATH-IS-SELECTION](#ar-empty-path-is-selection) | The empty path is a first-class whole-element selection, not an absence |
-| [AR-FOLDED-CHECKPOINTS](#ar-folded-checkpoints) | Folded node-type checkpoints are the canonical form; produce and consume them, don't fabricate them |
-| [AR-REACTIVE-OUTPUT-SELECTION](#ar-reactive-output-selection) | Wire the output selection reactively; focus is the selection |
+| [PAR-ONE-BASED-INDEXING](#par-one-based-indexing) | All indexing is 1-based; distinguish elements from boundaries |
+| [PAR-REFERENCE-DSL](#par-reference-dsl) | Build and match reference paths with the DSL, not by hand |
+| [PAR-EVERY-DOCUMENT-HAS-SELECTION](#par-every-document-has-selection) | Every concrete `Document` has a `selection::Cell`, and every selection-reachable child is itself a `Document` |
+| [PAR-REPLACE-SELECTION](#par-replace-selection) | Change selection with `replace_selection!`, not a bare `set_selection!` |
+| [PAR-EMPTY-PATH-IS-SELECTION](#par-empty-path-is-selection) | The empty path is a first-class whole-element selection, not an absence |
+| [PAR-FOLDED-CHECKPOINTS](#par-folded-checkpoints) | Folded node-type checkpoints are the canonical form; produce and consume them, don't fabricate them |
+| [PAR-REACTIVE-OUTPUT-SELECTION](#par-reactive-output-selection) | Wire the output selection reactively; focus is the selection |
 
 **Operations**
 
 | ID | Rule |
 | --- | --- |
-| [AR-ONE-WAY-TO-EDIT](#ar-one-way-to-edit) | `evaluate_operation(editor, op)` is the one way to change the document |
-| [AR-READER-IS-PURE](#ar-reader-is-pure) | A reader never mutates; it returns an operation |
-| [AR-REACTIVE-OUTPUT-STRUCTURE](#ar-reactive-output-structure) | A projection's output structure is reactive, not re-printed |
-| [AR-PREFER-REPLACE-VALUE](#ar-prefer-replace-value) | Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a new operation type |
-| [AR-REGISTER-NEW-OPERATION](#ar-register-new-operation) | A new reference-carrying operation must be registered in both the default `read_intent` and `reroot_operation` |
-| [AR-MUTATE-OR-NULL-IOMAP](#ar-mutate-or-null-iomap) | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
-| [AR-INVERTIBLE-OPERATIONS](#ar-invertible-operations) | Design every operation to be invertible; keep its inverse well-defined |
+| [PAR-ONE-WAY-TO-EDIT](#par-one-way-to-edit) | `evaluate_operation(editor, op)` is the one way to change the document |
+| [PAR-READER-IS-PURE](#par-reader-is-pure) | A reader never mutates; it returns an operation |
+| [PAR-REACTIVE-OUTPUT-STRUCTURE](#par-reactive-output-structure) | A projection's output structure is reactive, not re-printed |
+| [PAR-PREFER-REPLACE-VALUE](#par-prefer-replace-value) | Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a new operation type |
+| [PAR-REGISTER-NEW-OPERATION](#par-register-new-operation) | A new reference-carrying operation must be registered in both the default `read_intent` and `reroot_operation` |
+| [PAR-MUTATE-OR-NULL-IOMAP](#par-mutate-or-null-iomap) | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
+| [PAR-INVERTIBLE-OPERATIONS](#par-invertible-operations) | Design every operation to be invertible; keep its inverse well-defined |
 
 **Editor, devices, and backends**
 
 | ID | Rule |
 | --- | --- |
-| [AR-BACKEND-SEAM](#ar-backend-seam) | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
-| [AR-OPT-IN-DEPENDENCY](#ar-opt-in-dependency) | Add a backend/engine as an opt-in package behind a factory seam, not by coupling core code to the dependency |
-| [AR-PROFILE-WITH-COUNTERS](#ar-profile-with-counters) | Profile edits with the per-frame performance counters |
-| [AR-PER-EDITOR-STATE](#ar-per-editor-state) | No process-global state in the editor or the machinery it drives; one process must run many editors at once |
+| [PAR-BACKEND-SEAM](#par-backend-seam) | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
+| [PAR-OPT-IN-DEPENDENCY](#par-opt-in-dependency) | Add a backend/engine as an opt-in package behind a factory seam, not by coupling core code to the dependency |
+| [PAR-PROFILE-WITH-COUNTERS](#par-profile-with-counters) | Profile edits with the per-frame performance counters |
+| [PAR-PER-EDITOR-STATE](#par-per-editor-state) | No process-global state in the editor or the machinery it drives; one process must run many editors at once |
 
 **Package, layer, slice, and module structure**
 
 | ID | Rule |
 | --- | --- |
-| [AR-PACKAGE-CHAIN](#ar-package-chain) | Respect the package chain and the four-level division |
-| [AR-LOWEST-PACKAGE](#ar-lowest-package) | Every piece of code lives in the lowest package of its DAG whose API it hard-references |
-| [AR-MODULE-BOUNDARY-IS-API](#ar-module-boundary-is-api) | Imports name only exported symbols — the module boundary *is* the API boundary |
-| [AR-FRAMEWORKS-SINK](#ar-frameworks-sink) | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
-| [AR-PROJECTION-PLACEMENT](#ar-projection-placement) | Honor the projection placement invariant |
-| [AR-INTERFACE-DECLARES-ONLY](#ar-interface-declares-only) | An interface file declares; it never implements |
-| [AR-QUALIFIED-EXTENSION](#ar-qualified-extension) | Name a module with bare `using ..Xxx`; extend its generics by qualification. `import ..Xxx` is banned |
-| [AR-PARALLEL-TRIADS](#ar-parallel-triads) | Keep the main/test/example triads parallel and minimal-environment runnable |
+| [PAR-PACKAGE-CHAIN](#par-package-chain) | Respect the package chain and the four-level division |
+| [PAR-LOWEST-PACKAGE](#par-lowest-package) | Every piece of code lives in the lowest package of its DAG whose API it hard-references |
+| [PAR-MODULE-BOUNDARY-IS-API](#par-module-boundary-is-api) | Imports name only exported symbols — the module boundary *is* the API boundary |
+| [PAR-FRAMEWORKS-SINK](#par-frameworks-sink) | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
+| [PAR-PROJECTION-PLACEMENT](#par-projection-placement) | Honor the projection placement invariant |
+| [PAR-INTERFACE-DECLARES-ONLY](#par-interface-declares-only) | An interface file declares; it never implements |
+| [PAR-QUALIFIED-EXTENSION](#par-qualified-extension) | Name a module with bare `using ..Xxx`; extend its generics by qualification. `import ..Xxx` is banned |
+| [PAR-PARALLEL-TRIADS](#par-parallel-triads) | Keep the main/test/example triads parallel and minimal-environment runnable |
 
 **Testing and verification**
 
 | ID | Rule |
 | --- | --- |
-| [AR-SMALLEST-TEST](#ar-smallest-test) | Run the smallest test that covers the change; never default to `test_all()` |
-| [AR-MARK-BROKEN-TESTS](#ar-mark-broken-tests) | Every currently-failing assertion is marked `@test_broken` with a `# @broken:` reason |
-| [AR-NEW-CODE-SHIPS-TESTS](#ar-new-code-ships-tests) | New code ships with tests, registered in the lowest test package that can express them |
-| [AR-NO-INTROSPECTION-METHOD](#ar-no-introspection-method) | Preserve the recursion contract's external validation — add no per-projection introspection method |
-| [AR-DRIVE-THE-BEHAVIOUR](#ar-drive-the-behaviour) | Verify a change by driving the behaviour, not only by reading code |
+| [PAR-SMALLEST-TEST](#par-smallest-test) | Run the smallest test that covers the change; never default to `test_all()` |
+| [PAR-MARK-BROKEN-TESTS](#par-mark-broken-tests) | Every currently-failing assertion is marked `@test_broken` with a `# @broken:` reason |
+| [PAR-NEW-CODE-SHIPS-TESTS](#par-new-code-ships-tests) | New code ships with tests, registered in the lowest test package that can express them |
+| [PAR-NO-INTROSPECTION-METHOD](#par-no-introspection-method) | Preserve the recursion contract's external validation — add no per-projection introspection method |
+| [PAR-DRIVE-THE-BEHAVIOUR](#par-drive-the-behaviour) | Verify a change by driving the behaviour, not only by reading code |
 
 **Documentation, vocabulary, and process**
 
 | ID | Rule |
 | --- | --- |
-| [AR-DIVISION-VOCABULARY](#ar-division-vocabulary) | Use the division vocabulary exactly — package, layer, slice, module — and no synonyms |
-| [AR-NEVER-GUESS-NAMES](#ar-never-guess-names) | Do not guess names or signatures — search for them |
-| [AR-GREEN-LAYERING-GUARDS](#ar-green-layering-guards) | Keep the layering guards green and let them enforce the structure |
-| [AR-UPDATE-THE-GUIDE](#ar-update-the-guide) | Update the guide that documents behaviour you changed, and teach concepts before mechanisms |
-| [AR-HONEST-DOCS](#ar-honest-docs) | Keep documentation honest, and flag aspirational designs as such |
-| [AR-FOCUSED-DIFFS](#ar-focused-diffs) | Keep diffs focused — no unrelated reformatting |
-| [AR-STABLE-FOUNDATIONS](#ar-stable-foundations) | Respect the stable foundations and the roadmap ordering |
-| [AR-AI-SAME-GUARANTEES](#ar-ai-same-guarantees) | AI edits carry the same guarantees as human edits |
-| [AR-NAMING-LAW](#ar-naming-law) | Follow the naming law — names must be guessable in both directions |
-| [AR-MODULE-DOCSTRING](#ar-module-docstring) | Every source file opens with a module docstring stating its contract |
-| [AR-PERSISTENCE-BY-VALUE](#ar-persistence-by-value) | Persistence crosses cell boundaries by value and never enters the reactive graph |
-| [AR-NO-TEST-DOUBLES-IN-MAIN](#ar-no-test-doubles-in-main) | No test doubles live in `main` packages |
-| [AR-NO-CONSUMER-DOCS](#ar-no-consumer-docs) | A module's documentation describes its own contract, never its consumers |
-| [AR-TIGHT-COMMENTS](#ar-tight-comments) | A comment carries only what the code cannot — keep it tight |
-| [AR-CITE-EXCEPTIONS-ONLY](#ar-cite-exceptions-only) | Cite an architectural requirement only to flag an exception, never to announce compliance |
+| [PAR-DIVISION-VOCABULARY](#par-division-vocabulary) | Use the division vocabulary exactly — package, layer, slice, module — and no synonyms |
+| [PAR-NEVER-GUESS-NAMES](#par-never-guess-names) | Do not guess names or signatures — search for them |
+| [PAR-GREEN-LAYERING-GUARDS](#par-green-layering-guards) | Keep the layering guards green and let them enforce the structure |
+| [PAR-UPDATE-THE-GUIDE](#par-update-the-guide) | Update the guide that documents behaviour you changed, and teach concepts before mechanisms |
+| [PAR-HONEST-DOCS](#par-honest-docs) | Keep documentation honest, and flag aspirational designs as such |
+| [PAR-FOCUSED-DIFFS](#par-focused-diffs) | Keep diffs focused — no unrelated reformatting |
+| [PAR-STABLE-FOUNDATIONS](#par-stable-foundations) | Respect the stable foundations and the roadmap ordering |
+| [PAR-AI-SAME-GUARANTEES](#par-ai-same-guarantees) | AI edits carry the same guarantees as human edits |
+| [PAR-NAMING-LAW](#par-naming-law) | Follow the naming law — names must be guessable in both directions |
+| [PAR-MODULE-DOCSTRING](#par-module-docstring) | Every source file opens with a module docstring stating its contract |
+| [PAR-PERSISTENCE-BY-VALUE](#par-persistence-by-value) | Persistence crosses cell boundaries by value and never enters the reactive graph |
+| [PAR-NO-TEST-DOUBLES-IN-MAIN](#par-no-test-doubles-in-main) | No test doubles live in `main` packages |
+| [PAR-NO-CONSUMER-DOCS](#par-no-consumer-docs) | A module's documentation describes its own contract, never its consumers |
+| [PAR-TIGHT-COMMENTS](#par-tight-comments) | A comment carries only what the code cannot — keep it tight |
+| [PAR-CITE-EXCEPTIONS-ONLY](#par-cite-exceptions-only) | Cite an architectural requirement only to flag an exception, never to announce compliance |
 
 ## Reactivity — the cell engine
 
-### AR-PURE-THUNK
+### PAR-PURE-THUNK
 
 **Every reactive computation must be a pure function of the cells it reads.** A
 `ComputedCell(() -> …)` thunk (and the parts of `print_document` that build them) must
@@ -180,7 +180,7 @@ logical change and its cached result is reused until invalidation, so impurity
 produces a wrong cache, not just a style smell. This is a correctness
 requirement.
 
-### AR-NO-WRITE-IN-THUNK
+### PAR-NO-WRITE-IN-THUNK
 
 **A thunk must never write another cell or mutate shared document state.**
 Writing `other_cell[] = v` from inside a cell computation invalidates that
@@ -191,7 +191,7 @@ a *persistent* object whose fields are `set_cell_function!` cells that **derive*
 from the upstream layout cell — do not rebuild objects, and do not
 reuse-then-mutate them with imperative cell writes.
 
-### AR-ACYCLIC-CELLS
+### PAR-ACYCLIC-CELLS
 
 **The cell dependency graph must stay acyclic.** `recompute!` evaluates a thunk
 while its cell is on the `_computing` stack; a cell that transitively reads
@@ -199,7 +199,7 @@ itself recurses forever. The engine only skips a *direct* self-edge — it does
 not detect multi-cell cycles — so a computed cell must never depend on itself
 through any chain.
 
-### AR-MONOTONE-INVALIDATION
+### PAR-MONOTONE-INVALIDATION
 
 **Never hand-set `valid` and never partially invalidate.** Invalidation is
 monotone (an invalid cell implies all its transitive dependents are already
@@ -208,7 +208,7 @@ only thing that re-validates a cell. Setting `valid` by hand, or invalidating
 only a subset of dependents, breaks the early-stop and leaves cells stale
 forever.
 
-### AR-WRITE-DRIVEN-PROPAGATION
+### PAR-WRITE-DRIVEN-PROPAGATION
 
 **Treat propagation as write-driven, not value-driven.** Writing a cell
 invalidates its dependents unconditionally — there is no `old == new`
@@ -217,7 +217,7 @@ propagation. Consequently `c[] = c[]` is not free: a printer that rewrites
 `selection` (or any cell) every frame pays to recompute the whole subtree that
 reads it. Write a cell only when its value actually needs to change.
 
-### AR-NO-PROJECTION-GLOBALS
+### PAR-NO-PROJECTION-GLOBALS
 
 **No global mutable state in projections (or the machinery they call).** No
 module-level `Dict`/`Ref`/counter populated at runtime. Every cache, memo, or
@@ -228,7 +228,7 @@ evicted, and corrupts under the editor's reuse of one process for many
 documents. A projection's own private reconciliation cache (a plain `Dict` in a
 cell closure, observed by no other node) is the correct way to key reuse.
 
-### AR-DERIVED-CELLS
+### PAR-DERIVED-CELLS
 
 **Use the reactive engine for derived state; do not read a cell before its
 wiring is complete.** Express derived values as computed cells so the system
@@ -237,7 +237,7 @@ struct whose iomap wiring is not yet finished, defer the read with
 `ComputedCell(() -> …)` (the deferred-iomap trick) instead of reading the cell
 eagerly.
 
-### AR-FINEST-GRANULARITY
+### PAR-FINEST-GRANULARITY
 
 **Choose the reactive container that preserves the finest granularity.** Use
 `CellVector` for finite, indexed collections (each slot is its own `Cell`, so a
@@ -250,7 +250,7 @@ affected slot — do not collapse this into a single coarse cell.
 
 ## Documents and domains
 
-### AR-FIELDS-ARE-CELLS
+### PAR-FIELDS-ARE-CELLS
 
 **Every document field is a `Cell`, accessed transparently.** Declare domain
 types with `@document` (or `@cell_struct` for a non-framework transparent
@@ -261,7 +261,7 @@ raw cell via `getfield(obj, :field)` unless you are deliberately bypassing
 reactivity (sharing a cell, or attaching a thunk) — and comment it when you do.
 Wrap sub-collections in `CellVector` so length changes invalidate downstream.
 
-### AR-FIELD-NAMES-ARE-API
+### PAR-FIELD-NAMES-ARE-API
 
 **A document's struct field names are its public reference vocabulary.** A
 `.field` selection step resolves by `getfield`, so field names *are* API:
@@ -269,7 +269,7 @@ renaming a field is a breaking change to every stored selection and every
 projection that maps through it. Choose field names deliberately, and treat a
 rename as an API migration, not a local refactor.
 
-### AR-WIDE-FIELD-TYPES
+### PAR-WIDE-FIELD-TYPES
 
 **A field's declared type must admit every value the field can hold.** The
 annotation is preserved verbatim into the generated immutable snapshot
@@ -279,11 +279,11 @@ silent until the first `snapshot`/`ICFoo(foo)` throws. Type honestly for
 *representability*, not just for the well-formed case: a field that is too
 tight silently forecloses an *intermediate* state the user's mental model
 passes through on the way between two valid ones (product requirement
-R-INTERMEDIATE-STATES). Widen the annotation to admit the transient value —
+PR-INTERMEDIATE-STATES). Widen the annotation to admit the transient value —
 including one that is ill-formed in the domain's own terms — rather than
-assuming only fully-formed values ever occur (see AR-DOMAIN-OWNS-EDITS).
+assuming only fully-formed values ever occur (see PAR-DOMAIN-OWNS-EDITS).
 
-### AR-NO-NESTED-CELL
+### PAR-NO-NESTED-CELL
 
 **A macro-wrapped field may never hold a `Cell` or a `Computed` as its logical
 value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
@@ -299,7 +299,7 @@ may hold a callback, predicate, or factory, and `field` reads it back
 uncalled. Computedness is stated, never inferred — `Computed(f)` is what makes
 a field a derivation, so a bare `f` is always data.
 
-### AR-DOCUMENT-IDENTITY
+### PAR-DOCUMENT-IDENTITY
 
 **Do not assume two documents with equal fields are `==`.** A `@document` type
 is a `mutable struct` and keeps identity `==`/`hash`; only the immutable
@@ -307,7 +307,7 @@ is a `mutable struct` and keeps identity `==`/`hash`; only the immutable
 (e.g. `collect_references`) compares unwrapped *leaf values*, not whole
 documents.
 
-### AR-DOMAINS-INDEPENDENT
+### PAR-DOMAINS-INDEPENDENT
 
 **Domains are independent; a document owns no cross-domain edge.** A domain
 knows nothing about how it is displayed or about other domains; a document
@@ -317,7 +317,7 @@ makes the domain package sliceable. Anything two slices both need is a
 framework and sinks to the substrate package that owns the concept, not into either
 slice.
 
-### AR-DOMAIN-OWNS-EDITS
+### PAR-DOMAIN-OWNS-EDITS
 
 **Every domain defines its own structural operations and its own insertion
 type.** A domain's edits are expressed structurally in its own terms ("insert
@@ -327,15 +327,15 @@ in that domain's vocabulary. Generate the whole insertion kit with one `@domain
 X` line rather than re-implementing the root/placeholder/insertion/
 gesture/traits per domain. The per-domain `…Insertion` document is also what
 makes *every intermediate state representable* (product requirement
-R-INTERMEDIATE-STATES): as the user builds toward a well-formed value the
+PR-INTERMEDIATE-STATES): as the user builds toward a well-formed value the
 content may pass through states that are ill-formed in the domain's own terms,
 and the insertion document — together with permissive field typing
-(AR-WIDE-FIELD-TYPES) — is the sanctioned place to hold such a transient state
+(PAR-WIDE-FIELD-TYPES) — is the sanctioned place to hold such a transient state
 rather than forbidding it. Do not constrain a domain's structural operations or
 types so tightly that a reachable intermediate the user pictures has nowhere to
 live; the architecture must permit that state to exist, one way or another.
 
-### AR-WIDGETS-ARE-PRESENTATION
+### PAR-WIDGETS-ARE-PRESENTATION
 
 **Keep the edited document in its semantic domain; widgets are presentation
 only.** The source-of-truth document being edited should generally not be a
@@ -345,7 +345,7 @@ scroll offset, affine transform, splitter drag) is not document content: store
 it in cells on the relevant node, write it via a self-contained
 `ReplaceReferencedValueOperation`, and never serialize it.
 
-### AR-SEARCH-DONT-WALK
+### PAR-SEARCH-DONT-WALK
 
 **Prefer `search_references` / `search_documents` over hand-walking the tree,
 and scope by domain node type.** To locate a node by content, search for it and
@@ -358,7 +358,7 @@ search `editor.document` when you intend to select.
 
 ## Projections — the central abstraction
 
-### AR-FOUR-FUNCTIONS
+### PAR-FOUR-FUNCTIONS
 
 **The four functions are the entire projection interface.** Every projection
 implements exactly `print_document`, `read_intent`, `map_reference_forward`,
@@ -370,7 +370,7 @@ local recursion is fine — a projection may use a private helper that walks a
 `CopyingProjection`'s `ListNode` traversal; what the contract forbids is a new
 *generic descent function every projection must implement*.)
 
-### AR-RECURSION-CONTRACT
+### PAR-RECURSION-CONTRACT
 
 **All recursion flows through those four functions, and only those four (the
 recursion contract).** When a projection descends into a child, each function
@@ -380,7 +380,7 @@ the reader and both mappers via the stored `child_iomaps`. Introducing a fifth
 recursive helper breaks composition the moment a pipeline mixes a projection
 that has it with one that does not.
 
-### AR-DELEGATE-ONE-LEVEL
+### PAR-DELEGATE-ONE-LEVEL
 
 **Recurse as little as possible — one level, then delegate ("School A").** A
 projection transforms only its own single level and delegates every child to
@@ -391,7 +391,7 @@ descendant and forecloses unforeseen document/projection combinations. This
 applies to both the printer (do not flatten a child subtree) and the mappers
 (do not re-walk the input by type).
 
-### AR-RECURSE-VIA-PRINT-CHILD
+### PAR-RECURSE-VIA-PRINT-CHILD
 
 **Recurse through `print_child`, never open-coded.** `print_child(recursion,
 child, child_ctx)` expands to `print_document(recursion, recursion, child,
@@ -402,7 +402,7 @@ getting either slot wrong silently breaks heterogeneous recursion. Pair every
 child's root-relative reference path — and therefore its selection bookkeeping
 — stays correct.
 
-### AR-BIDIRECTIONAL-PROJECTION
+### PAR-BIDIRECTIONAL-PROJECTION
 
 **Every projection is bidirectional: a printer needs its inverse.** Every
 `print_document` needs matching reference maps (or an explicit, documented
@@ -413,7 +413,7 @@ the projection — `print_document` wires the output selection with the forward
 map and the default `read_intent` maps operations with the backward map, so the
 pair gives you cursor navigation across the whole pipeline for free.
 
-### AR-MAPPERS-ARE-INVERSES
+### PAR-MAPPERS-ARE-INVERSES
 
 **`print_document` uses `map_reference_forward`; `read_intent` uses
 `map_reference_backward`, and the two mappers are mutual inverses.** Keep the
@@ -422,7 +422,7 @@ inverse (modulo the documented `ProjectionReferenceStep`/flat-offset collapse). 
 the two directions ever disagree — with each other or with how the printer
 wired the output selection — the cursor mis-maps.
 
-### AR-PREFER-REFERENCE-RETARGET
+### PAR-PREFER-REFERENCE-RETARGET
 
 **Write a `read_intent` method only when re-targeting a reference is not
 enough.** The default `read_intent` re-targets any reference-carrying operation
@@ -433,7 +433,7 @@ Add the 4-arg `read_intent(p, recursion, change::Intent, iomap)` method
 lift, probe a child, or route by selection. Do not write the obsolete 3-arg
 shim in new code.
 
-### AR-GEOMETRY-FREE-IN-DOCUMENT
+### PAR-GEOMETRY-FREE-IN-DOCUMENT
 
 **Geometry-free gesture handling belongs to the document, not the projection.**
 A gesture that reads only the document's structure and `selection` (insert a
@@ -443,7 +443,7 @@ projection reader *delegates* to it and keeps only its geometry-dependent arms
 (hit-testing, visual up/down). This is what lets a backend that renders a
 domain directly (the console pipeline) reuse the domain's editing for free.
 
-### AR-DELEGATE-AND-LIFT
+### PAR-DELEGATE-AND-LIFT
 
 **A structural projection's reader delegates a raw gesture to the selected
 child and lifts the result.** For a raw authoring gesture, find the selected
@@ -453,7 +453,7 @@ child from the node's `selection` and `child_iomaps`, delegate to that child's
 only when the child declines. The template engine's `RuleIoMap` reader already
 does this — do not special-case nested editing.
 
-### AR-SHARED-CHILDREN-IOMAP
+### PAR-SHARED-CHILDREN-IOMAP
 
 **A compound (node-shaped) projection stores its child IoMaps in one shared
 reactive cell and returns a `ChildrenIoMap`.** Store the per-child IoMaps in a
@@ -464,7 +464,7 @@ node.selection))` with the deferred-iomap trick), and use `ChildrenIoMap` so
 the reader and both mappers can locate the correct child IoMap when translating
 backward.
 
-### AR-STABLE-IOMAP-IDENTITY
+### PAR-STABLE-IOMAP-IDENTITY
 
 **A projection's IoMap keeps its identity; its varying parts are computed cells,
 and its children reconcile by identity.** `print_document` returns one IoMap per
@@ -477,21 +477,21 @@ child's IoMap is reused and only a genuinely-changed child is rebuilt. A change
 therefore propagates through the cells the projection already wired — never by
 allocating a new IoMap, and never by nulling `editor.iomap`. This is the
 generalization, from "a compound projection should" to "every projection must,"
-of three rules it subsumes: AR-REACTIVE-OUTPUT-SELECTION (wire the output
-selection as a cell), AR-SHARED-CHILDREN-IOMAP (child IoMaps in one shared
-reactive cell), and AR-NO-WRITE-IN-THUNK (reuse a persistent output object whose
+of three rules it subsumes: PAR-REACTIVE-OUTPUT-SELECTION (wire the output
+selection as a cell), PAR-SHARED-CHILDREN-IOMAP (child IoMaps in one shared
+reactive cell), and PAR-NO-WRITE-IN-THUNK (reuse a persistent output object whose
 fields are `set_cell_function!` cells, rather than rebuilding it). The failure it
 forbids is the eager capture: `output = f(input)` stored in a plain field has no
 reactive edge, so a later change to what `f` read — a parameter the projection
 navigates by, an upstream object it re-exposes — leaves a stale render and a
 mis-mapped cursor with **no error** at all. Correspondingly, an
 `evaluate_operation` that changes what a projection shows writes the cell the
-projection derived from (AR-MUTATE-OR-NULL-IOMAP), reserving
+projection derived from (PAR-MUTATE-OR-NULL-IOMAP), reserving
 `invalidate_projection!` for genuine whole-root rebinds. The template engine
 (`ProjectionTemplate`) is the reference implementation; the shared reconciler it
 and every projection use is `reconcile_child_iomaps` (in the iomap layer).
 
-### AR-CROSS-DOMAIN-LATE
+### PAR-CROSS-DOMAIN-LATE
 
 **Cross domains as late as possible in the mappers.** When an output reference
 points at something the projection introduced (a delimiter, bracket, separator,
@@ -501,7 +501,7 @@ in `ProjectionReferenceStep(projection, …)` (or collapse a
 non-separately-addressable group to a single flat offset). Because
 `map_reference_forward` strips that same step, the path round-trips.
 
-### AR-HIGHER-ORDER-IS-DOMAIN-FREE
+### PAR-HIGHER-ORDER-IS-DOMAIN-FREE
 
 **Higher-order projections touch no domain; generic projections are
 input-domain-independent.** A higher-order projection's argument is always
@@ -514,7 +514,7 @@ wraps it once in a `RecursiveProjection` so children re-enter the whole
 pipeline. List dispatcher entries specific-first (an `Any =>` / fallback last),
 since they are tried in order.
 
-### AR-USE-PROJECTION-MACRO
+### PAR-USE-PROJECTION-MACRO
 
 **Use `@projection` for projection structs with reactive fields, defaulting the
 supertype.** `@projection` supplies `<: Projection` when none is written; use a
@@ -522,12 +522,12 @@ plain `struct … <: Projection` only when the macro can't be used (a `Cell` rea
 explicitly). A projection with no reactive fields may be a plain struct, but
 must then spell out `<: Projection` itself. A `Function` field is no longer a
 reason to avoid the macro — a callable is an ordinary field value
-(AR-NO-NESTED-CELL) — so the plain-struct projections that carry one
+(PAR-NO-NESTED-CELL) — so the plain-struct projections that carry one
 (`HoverProbeProjection`, `TooltipDecoratorProjection`) are free to move to it.
 
 ## References and selection
 
-### AR-ONE-BASED-INDEXING
+### PAR-ONE-BASED-INDEXING
 
 **All indexing is 1-based; distinguish elements from boundaries.** Elements are
 `[i]` (1-based, `ElementReferenceStep`), cursor boundaries are `{k}` (0-based,
@@ -538,7 +538,7 @@ play: a `RangeReferenceStep` stores its boundaries **0-based**, while Julia
 containers are **1-based** — convert explicitly (`start + 1`) at every
 reference↔container crossing rather than assuming one base throughout.
 
-### AR-REFERENCE-DSL
+### PAR-REFERENCE-DSL
 
 **Build and match reference paths with the DSL, not by hand.** Construct paths
 with `@reference` (or `Reference(steps...)` / `@reference_step` for programmatic
@@ -546,7 +546,7 @@ use), and pattern-match them with `@reference_case` in mappers and readers. Do
 not cons `ConcreteReference` cells by hand. `evaluate_reference(document,
 path)` is the canonical `(document, reference) → node` walk.
 
-### AR-EVERY-DOCUMENT-HAS-SELECTION
+### PAR-EVERY-DOCUMENT-HAS-SELECTION
 
 **Every concrete `Document` has a `selection::Cell`, and every
 selection-reachable child is itself a `Document`.** Selection is stored
@@ -558,7 +558,7 @@ Terminal output (`GraphicsText`/`GraphicsRect`/`GraphicsCanvas`) is
 deliberately not a selectable container — the selection mechanism does not
 enter it.
 
-### AR-REPLACE-SELECTION
+### PAR-REPLACE-SELECTION
 
 **Change selection with `replace_selection!`, not a bare `set_selection!`.**
 `set_selection!` does not clear the old path first, so a branch of the old
@@ -566,7 +566,7 @@ selection can be left behind, producing multiple visible cursors. Use
 `replace_selection!` (clear then set) whenever moving the cursor; reserve bare
 `set_selection!` for the case where you have already cleared.
 
-### AR-EMPTY-PATH-IS-SELECTION
+### PAR-EMPTY-PATH-IS-SELECTION
 
 **The empty path is a first-class whole-element selection, not an absence.**
 `EmptyReference()` (written `@reference()`, matched by `∅`) means "the
@@ -574,7 +574,7 @@ whole element here is selected" and maps across any projection by identity;
 `nothing` means "no selection." Keep the two distinct, and let whole-element
 selections round-trip for free.
 
-### AR-FOLDED-CHECKPOINTS
+### PAR-FOLDED-CHECKPOINTS
 
 **Folded node-type checkpoints are the canonical form; produce and consume
 them, don't fabricate them.** Selections and mapper/printer output carry a
@@ -586,7 +586,7 @@ stored path still fits. Do not build checkpoint *steps* by hand — the
 `TypeReferenceStep` token exists only as a build-time artifact that
 `fold_reference_types` immediately folds away.
 
-### AR-REACTIVE-OUTPUT-SELECTION
+### PAR-REACTIVE-OUTPUT-SELECTION
 
 **Wire the output selection reactively; focus is the selection.** In
 `print_document`, set `output.selection = ComputedCell(() -> map_reference_forward(p,
@@ -601,7 +601,7 @@ or falling back to a default child. Mouse events still hit-test by coordinate.
 
 ## Operations
 
-### AR-ONE-WAY-TO-EDIT
+### PAR-ONE-WAY-TO-EDIT
 
 **`evaluate_operation(editor, op)` is the one way to change the document.**
 Every edit is an `Operation` produced by a reader and applied by the editor; to
@@ -609,7 +609,7 @@ script the editor, do exactly what a reader does — find the target
 (`search_references`/`search_documents`), build the operation, evaluate it.
 Prefer this over bespoke imperative helpers.
 
-### AR-READER-IS-PURE
+### PAR-READER-IS-PURE
 
 **A reader never mutates; it returns an operation.** `read_intent` inspects the
 input and the IoMap and *returns* — it must not write a document field, call a
@@ -617,7 +617,7 @@ domain mutator, or otherwise change state on the way past. Swallowing an input b
 returning `nothing` is legal; swallowing it *after* performing the edit by hand is
 not, however local the edit looks. If a reader needs an effect, it names that
 effect as an `Operation` and lets `evaluate_operation` apply it
-(AR-ONE-WAY-TO-EDIT).
+(PAR-ONE-WAY-TO-EDIT).
 
 This is not bookkeeping. A reader that mutates is invisible to every mechanism
 built on the operation stream — undo, playback, scripting, logging, an agent
@@ -630,11 +630,11 @@ shortcut. Two projections over the same domain then disagree about what an input
 
 The temptation is a reader that already knows the target and the new value, where
 building an operation feels like ceremony. Build it anyway;
-`ReplaceReferencedValueOperation` covers the common case (AR-PREFER-REPLACE-VALUE)
+`ReplaceReferencedValueOperation` covers the common case (PAR-PREFER-REPLACE-VALUE)
 and `InvokeActionOperation` carries a callback for an effect that is not a field
 write.
 
-### AR-REACTIVE-OUTPUT-STRUCTURE
+### PAR-REACTIVE-OUTPUT-STRUCTURE
 
 **A projection's output structure is reactive, not re-printed.** When what the
 output *contains* depends on domain state — which children a layout holds, which
@@ -658,7 +658,7 @@ produces output that is correct on the first frame and never changes again — i
 does not error, it just stops growing. If output structure varies with domain
 state, bind the container's `elements` to a thunk and let the graph do it.
 
-### AR-PREFER-REPLACE-VALUE
+### PAR-PREFER-REPLACE-VALUE
 
 **Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a
 new operation type.** Most edits just write a value into one slot, so they are
@@ -670,7 +670,7 @@ multi-field/structural change that is not a single splice), and declare it in
 the module that owns the affected document (or `OperationModule` for
 cross-domain ones).
 
-### AR-REGISTER-NEW-OPERATION
+### PAR-REGISTER-NEW-OPERATION
 
 **A new reference-carrying operation must be registered in both the default
 `read_intent` and `reroot_operation`.** Both enumerate the path-bearing
@@ -679,7 +679,7 @@ through *unmapped*, leaving its reference in the wrong domain with no error. An
 operation that carries its own root (`document !== nothing`) needs no rerooting
 and should be preferred when targeting a carried object.
 
-### AR-MUTATE-OR-NULL-IOMAP
+### PAR-MUTATE-OR-NULL-IOMAP
 
 **Mutate the cells already wired into the projection graph — or null
 `editor.iomap`.** The editor builds the iomap once and, between frames, updates
@@ -698,10 +698,10 @@ through existing primitives (`replace_selection!`, reactive cell writes,
 `evaluate_operation(editor, ::Any) = nothing` lets a reader return anything
 harmlessly.
 
-### AR-INVERTIBLE-OPERATIONS
+### PAR-INVERTIBLE-OPERATIONS
 
 **Design every operation to be invertible; keep its inverse well-defined.** An
-`Operation` is the unit of change (AR-ONE-WAY-TO-EDIT), and reversibility rests
+`Operation` is the unit of change (PAR-ONE-WAY-TO-EDIT), and reversibility rests
 on each applied operation having a clear inverse — the change that restores the
 prior state. General operation-log undo/redo is not yet built (it is the
 in-progress roadmap item *Undo / redo*, which "depends on the editing
@@ -712,16 +712,16 @@ a clear inverse (a value replacement inverts to writing back the prior value; a
 splice inverts to the complementary splice), or the operation must be
 explicitly one an undo log skips (control-flow / IO, e.g. quitting the editor).
 This is a silent-breakage contract: an operation added per
-AR-PREFER-REPLACE-VALUE/AR-REGISTER-NEW-OPERATION passes every
+PAR-PREFER-REPLACE-VALUE/PAR-REGISTER-NEW-OPERATION passes every
 reference-mapping check while quietly having no inverse, and the omission
 surfaces only once undo reaches it. Prefer `ReplaceReferencedValueOperation`
-and its splice builders (AR-PREFER-REPLACE-VALUE), whose inverses are already
+and its splice builders (PAR-PREFER-REPLACE-VALUE), whose inverses are already
 well-defined, over a bespoke operation whose reversal you would have to design
-from scratch. (Product requirements R-UNDO-REDO and R-REVISITABLE-HISTORY.)
+from scratch. (Product requirements PR-UNDO-REDO and PR-REVISITABLE-HISTORY.)
 
 ## Editor, devices, and backends
 
-### AR-BACKEND-SEAM
+### PAR-BACKEND-SEAM
 
 **Keep backends behind the `Backend`/`Device` seam; the same editor runs
 unchanged across them.** A backend provides `initialize_backend!`,
@@ -738,7 +738,7 @@ to measure text takes an injected `measure::Function` rather than the backend
 itself. A single source of truth governs any cross-backend mapping (e.g.
 `web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
 
-### AR-OPT-IN-DEPENDENCY
+### PAR-OPT-IN-DEPENDENCY
 
 **Add a backend/engine as an opt-in package behind a factory seam, not by
 coupling core code to the dependency.** Each external dependency or transport
@@ -755,14 +755,14 @@ installed. Output-only file export (`write_image`, `write_pdf`) lives beside
 the backend layer but does **not** subtype `Backend` — it has no devices or
 events.
 
-### AR-PROFILE-WITH-COUNTERS
+### PAR-PROFILE-WITH-COUNTERS
 
 **Profile edits with the per-frame performance counters.** The read-eval-print
 loop resets and logs `reads / computes / invalidations / writes` each frame;
 use them to find unintentional recomputation (a single keypress causing
 thousands of `computes` means something reads more cells than necessary).
 
-### AR-PER-EDITOR-STATE
+### PAR-PER-EDITOR-STATE
 
 **No process-global state in the editor or the machinery it drives; one process
 must run many editors at once.** Every piece of mutable runtime state an editor
@@ -772,12 +772,12 @@ live on the `Editor` instance (or on values reachable only from it), never in a
 module-level `const` cell, `Ref`, `Dict`, or counter. This is a correctness
 requirement, not a style preference: it is what lets one Julia process host
 several independent editors side by side (product requirement
-R-MANY-EDITORS-ONE-PROCESS). Process-global holds tie the editors together and
+PR-MANY-EDITORS-ONE-PROCESS). Process-global holds tie the editors together and
 break that independence — two editors sharing one animation-time cell write
 conflicting elapsed values into it every frame, so both animations judder and
 each editor's tick cross-invalidates the other's animated cells; a shared
 performance-counter dict has each editor overwrite the other's numbers.
-AR-NO-PROJECTION-GLOBALS already forbids process-global mutable state inside
+PAR-NO-PROJECTION-GLOBALS already forbids process-global mutable state inside
 projections and the machinery they call; this extends the same ban up to the
 editor loop, the devices, and the backends it drives — a backend or device that
 must hold per-connection state holds it on its own instance (one per editor),
@@ -797,7 +797,7 @@ cross-invalidate each other's animation graph.
 state is permitted precisely when its value is the same for every editor in the
 process: no editor can observe another's writes through it, so there is no
 cross-editor divergence to create. This is the escape valve the rule's rationale
-leaves open — what AR-PER-EDITOR-STATE forbids is one editor's state *conflicting
+leaves open — what PAR-PER-EDITOR-STATE forbids is one editor's state *conflicting
 with or leaking into* another's, which a genuine singleton cannot do. Two kinds
 qualify:
 
@@ -820,11 +820,11 @@ qualify:
   would only duplicate identical work.
 
 A shared read of one such value does not reintroduce the cross-editor *write*
-conflict AR-PER-EDITOR-STATE targets.
+conflict PAR-PER-EDITOR-STATE targets.
 
 ## Package, layer, slice, and module structure
 
-### AR-PACKAGE-CHAIN
+### PAR-PACKAGE-CHAIN
 
 **Respect the package chain and the four-level division.** Dependencies flow
 one way, `kernel → substrate → domain → umbrella` (plus opt-in packages);
@@ -836,7 +836,7 @@ module-per-projection). Files are a readability boundary only and must never
 imply an API boundary the module does not enforce. See
 [architecture-rules.md](architecture-rules.md) for the full decision procedure.
 
-### AR-LOWEST-PACKAGE
+### PAR-LOWEST-PACKAGE
 
 **Every piece of code lives in the lowest package of its DAG whose API it
 hard-references.** Source, test, example, and harness alike sink to their
@@ -846,7 +846,7 @@ anchors code. For a test or example, the *fixture* decides the home (a
 Pdf-backend test driven by a JSON pipeline is a domain test), not the machinery
 it happens to exercise.
 
-### AR-MODULE-BOUNDARY-IS-API
+### PAR-MODULE-BOUNDARY-IS-API
 
 **Imports name only exported symbols — the module boundary *is* the API
 boundary.** A non-exported name is a module-internal detail; no code outside
@@ -867,13 +867,13 @@ cross-*layer* internal imports; the same-layer case is enforced per package
 once its same-layer internal imports are cleaned up. An import header is only
 half the boundary, though — `XxxModule._private` reaches a non-exported name
 just as far, and bypasses the export list entirely.
-`qualified_reference_errors` closes that half (AR-QUALIFIED-EXTENSION), with no
+`qualified_reference_errors` closes that half (PAR-QUALIFIED-EXTENSION), with no
 same-layer exemption. Known remaining instance: `PlaybackModule` reaches into
 `EditorModule`'s non-exported `read!`/`evaluate!`/`print!`/`perf!` — fix by
 making Playback a fragment of the editor module, or by exporting the loop
 steps.
 
-### AR-FRAMEWORKS-SINK
+### PAR-FRAMEWORKS-SINK
 
 **Frameworks sink below their users via the seam pattern; only per-domain
 methods stay above.** A lower layer declares open generics (or a small
@@ -882,7 +882,7 @@ dispatch is the registration, and a couple of methods never earns a new file. A
 lower layer may *mention* a higher concept only as an opaque payload it never
 interprets; if it must *call* it, that is a seam, not a payload.
 
-### AR-PROJECTION-PLACEMENT
+### PAR-PROJECTION-PLACEMENT
 
 **Honor the projection placement invariant.** `home(projection) ≥
 max(package(input), package(output), package(every other import))`; the
@@ -891,7 +891,7 @@ canonical home is the more-specific side (`JsonToSyntax` → the json slice,
 first file(s), not in a separate `api/` layer. A file nothing imports gets
 wired in or deleted before it gets a home — no orphan shapes the structure.
 
-### AR-INTERFACE-DECLARES-ONLY
+### PAR-INTERFACE-DECLARES-ONLY
 
 **An interface file declares; it never implements.** A layer's interface file —
 the contract file its module includes first (`document/DocumentInterface.jl`,
@@ -907,10 +907,10 @@ hold a concrete struct, mutable or global state, or an algorithm. When a
 contract's default has no natural sibling home, that is the signal the layer
 wants an implementation fragment, not a reason to park behaviour in the
 interface. Every name an interface file declares is **exported**
-(AR-MODULE-BOUNDARY-IS-API): it has no private half, and its export list *is*
+(PAR-MODULE-BOUNDARY-IS-API): it has no private half, and its export list *is*
 the layer's API surface. The purpose is documentary — one file gives a reader
 the entire contract of a layer and nothing else — and it is what
-AR-NO-CONSUMER-DOCS's seam carve-out already assumes when it calls an open
+PAR-NO-CONSUMER-DOCS's seam carve-out already assumes when it calls an open
 declaration "content-free by construction". Machine-checked: the layering guard
 parses each file named in its package's `interface_files` map and reports every
 expression that implements rather than declares, plus any declared name its
@@ -922,7 +922,7 @@ qualified (`function Base.peek end` is a syntax error), so a contract that
 includes a `Base` generic states it in the docstring and lets the implementors
 add the methods.
 
-### AR-QUALIFIED-EXTENSION
+### PAR-QUALIFIED-EXTENSION
 
 **Name a module with bare `using ..Xxx`; extend its generics by qualification.
 `import ..Xxx` is banned.** One import form, one extension form:
@@ -930,7 +930,7 @@ add the methods.
 - `using ..XxxModule` — bare, **never** a symbol list. It binds the module's
   name *and* brings its exports into scope, so one line serves both roles. A
   symbol list is noise, and the export list is already the module's declared API
-  (AR-MODULE-BOUNDARY-IS-API).
+  (PAR-MODULE-BOUNDARY-IS-API).
 - `XxxModule.f(…) = …` at the definition site — this file **implements** part of
   `XxxModule`'s contract.
 
@@ -938,7 +938,7 @@ The form is load-bearing, not taste. `import` makes a bare `f(…) = …` *silen
 add a method* to another layer's generic; after `using`, the same line is a
 compile error (`function XxxModule.f must be explicitly imported to be
 extended`). So the compiler — not a convention — tells a new function apart
-from an extension of another layer's contract, and AR-FRAMEWORKS-SINK's
+from an extension of another layer's contract, and PAR-FRAMEWORKS-SINK's
 *"multiple dispatch is the registration"* becomes visible at every site instead
 of being inferable only from an import header. The codebase already worked this
 way at the `Base` boundary (`function Base.show(io::IO, s::PointReferenceStep)`);
@@ -950,7 +950,7 @@ deprecated.
 *fragment of the defining module* (`reference/ReferenceStep.jl` and friends,
 which have no import header at all) defines bare — same namespace by
 construction, so nothing is imported and nothing is qualified. This is
-AR-MODULE-BOUNDARY-IS-API's "fragments of one module" carve-out.
+PAR-MODULE-BOUNDARY-IS-API's "fragments of one module" carve-out.
 
 **A module is qualified by its real name.** A bare `using` of an alias binds
 the module the alias points at, under *that* module's name — `using
@@ -962,7 +962,7 @@ whichever alias path its package uses, registers under the same canonical
 Two guards back this, and both are needed. `qualified_reference_errors` asserts
 every `XxxModule.sym` names an exported symbol — qualification bypasses the
 export list entirely (`XxxModule._private` reaches a non-exported name with no
-complaint), so without it AR-MODULE-BOUNDARY-IS-API would hold for import
+complaint), so without it PAR-MODULE-BOUNDARY-IS-API would hold for import
 headers and be unenforced exactly where this rule sends the traffic. It has no
 same-layer exemption, unlike `private_import_errors`: qualification is new
 syntax, so there is no legacy to grandfather. `relative_import_errors` enforces
@@ -992,7 +992,7 @@ codegen and get their own sweep. A macro can emit a qualified extension by
 interpolating the *module object* (`:(function $(ReferenceModule).get_reference_step_kind(…)
 end)`), which needs no import at the call site at all.
 
-### AR-PARALLEL-TRIADS
+### PAR-PARALLEL-TRIADS
 
 **Keep the main/test/example triads parallel and minimal-environment
 runnable.** Each main package has sibling `test`/`example` packages forming
@@ -1006,7 +1006,7 @@ break it.
 
 ## Testing and verification
 
-### AR-SMALLEST-TEST
+### PAR-SMALLEST-TEST
 
 **Run the smallest test that covers the change; never default to
 `test_all()`.** Pick the narrowest scope — a single example
@@ -1015,7 +1015,7 @@ break it.
 …), or the cell primitive (`test_cell()`). `test_all()` is slow and floods the
 context; reach for broad sweeps only after the targeted test already passes.
 
-### AR-MARK-BROKEN-TESTS
+### PAR-MARK-BROKEN-TESTS
 
 **Every currently-failing assertion is marked `@test_broken` with a `#
 @broken:` reason.** An unmarked `Fail` or `Error` in a summary is unambiguously
@@ -1025,7 +1025,7 @@ marker reports `Error: Unexpected Pass`, the bug is fixed — promote it back to
 `@test` and delete the comment. Reserve `@test_skip` for code that would crash
 the runner.
 
-### AR-NEW-CODE-SHIPS-TESTS
+### PAR-NEW-CODE-SHIPS-TESTS
 
 **New code ships with tests, registered in the lowest test package that can
 express them.** A new projection needs a printer test (output structure), a
@@ -1035,7 +1035,7 @@ lowest main-package position that can express it (usually
 `package/<domain>/test`), following the existing `function test_x() … @testset …
 end` pattern.
 
-### AR-NO-INTROSPECTION-METHOD
+### PAR-NO-INTROSPECTION-METHOD
 
 **Preserve the recursion contract's external validation — add no per-projection
 introspection method.** The contract is checked externally by a harness that
@@ -1046,7 +1046,7 @@ function of its own. New document types are covered by the reflexive `_walk!`
 automatically as long as their state lives in struct fields — state kept in a
 side table needs a dedicated test.
 
-### AR-DRIVE-THE-BEHAVIOUR
+### PAR-DRIVE-THE-BEHAVIOUR
 
 **Verify a change by driving the behaviour, not only by reading code.** Use the
 walker helpers (`walk_printer_output`, `walk_repl_loop`,
@@ -1058,7 +1058,7 @@ development must not depend on a graphical display.
 
 ## Documentation, vocabulary, and process
 
-### AR-DIVISION-VOCABULARY
+### PAR-DIVISION-VOCABULARY
 
 **Use the division vocabulary exactly — package, layer, slice, module — and no
 synonyms.** Avoid "tier" and architectural "level"; say "package" or "layer";
@@ -1067,7 +1067,7 @@ by the thing (the Syntax domain, the `syntax/` slice, the `SyntaxToText`
 projection), not "the syntax layer"; use "end-to-end path", not "vertical
 slice", for MVP scope. See [terminology.md](terminology.md).
 
-### AR-NEVER-GUESS-NAMES
+### PAR-NEVER-GUESS-NAMES
 
 **Do not guess names or signatures — search for them.** Use `search_api`, the
 `resource://modules`/`classes`/`functions` catalogues, the [orientation
@@ -1075,21 +1075,21 @@ index](orientation.md), or ripgrep before naming a type or function; a
 hallucinated name is worse than an admitted gap. Property access already
 unwraps cells — write `node.field`, not `node.field[]`.
 
-### AR-GREEN-LAYERING-GUARDS
+### PAR-GREEN-LAYERING-GUARDS
 
 **Keep the layering guards green and let them enforce the structure.** Every
 main package has a static guard that parses the real `import ..Module` headers
 and asserts a valid topological include order, correct layer/slice membership,
 and same-or-lower-layer edges (slice acyclicity follows from the topological
 order); the export-only cross-layer-import check and the interface-purity check
-(AR-INTERFACE-DECLARES-ONLY) are enabled on the kernel guard today and extend
+(PAR-INTERFACE-DECLARES-ONLY) are enabled on the kernel guard today and extend
 to the substrate and the domains as they come clean. Run `test_kernel_layering()`
 (…`test_domain_layering()`) after any structural change; the guard runs in ~1s
 without loading the package, and its error messages are prescriptive — they
 name the offending file, the module, and the fix — so treat those messages as
 part of the contract.
 
-### AR-UPDATE-THE-GUIDE
+### PAR-UPDATE-THE-GUIDE
 
 **Update the guide that documents behaviour you changed, and teach concepts
 before mechanisms.** A change that affects documented behaviour updates the
@@ -1098,7 +1098,7 @@ relevant `documentation/` guide in the same change; the reading order in
 projection system → editor) and the per-topic guides must stay a coherent path
 in. Link the relevant `plan/` document when one exists.
 
-### AR-HONEST-DOCS
+### PAR-HONEST-DOCS
 
 **Keep documentation honest, and flag aspirational designs as such.** Doc and
 slide claims must be grounded in the guides and source; a design that is not
@@ -1106,13 +1106,13 @@ yet implemented (e.g. the Annotation domain) must be clearly marked as a future
 sketch, not presented as callable API. When a forthcoming feature lands, update
 the corresponding guide/slide so claims stay accurate.
 
-### AR-FOCUSED-DIFFS
+### PAR-FOCUSED-DIFFS
 
 **Keep diffs focused — no unrelated reformatting.** Do not reformat lines you
 are not logically changing; keep the diff to what the change requires so review
 stays tractable.
 
-### AR-STABLE-FOUNDATIONS
+### PAR-STABLE-FOUNDATIONS
 
 **Respect the stable foundations and the roadmap ordering.** The pull-based
 reactive `Cell` system, bidirectional printer/reader projections,
@@ -1122,7 +1122,7 @@ Sequence new work to **deepen the end-to-end path first**, then **widen** (more
 domains, layouts, backends), then **distribute** (network, collaboration,
 external data).
 
-### AR-AI-SAME-GUARANTEES
+### PAR-AI-SAME-GUARANTEES
 
 **AI edits carry the same guarantees as human edits.** An AI assistant works
 the document through the same operations, references, and selection machinery a
@@ -1133,7 +1133,7 @@ agent tools, `execute_julia_code`) routes through
 `evaluate_operation`/`search_*`, not around them, so the same invariants hold
 for both.
 
-### AR-NAMING-LAW
+### PAR-NAMING-LAW
 
 **Follow the naming law — names must be guessable in both directions.** A name
 tells you what kind of thing it is and what it does, and a concept tells you
@@ -1157,7 +1157,7 @@ shortening of a domain word (`val`, `ref`, `op`) does not. Declarative macros ar
 noun-named DSL keywords (`@document`, `@projection`, `@gestures`) — the one
 exemption from verb-first.
 
-### AR-MODULE-DOCSTRING
+### PAR-MODULE-DOCSTRING
 
 **Every source file opens with a module docstring stating its contract.** A
 triple-quoted docstring at the top of each file names the module and its role
@@ -1168,7 +1168,7 @@ aggregator's namespace says so; a file that declares a cross-file invariant
 can find it. Keep these docstrings accurate when you change the code they
 describe — a docstring that names a function that no longer exists is a defect.
 
-### AR-PERSISTENCE-BY-VALUE
+### PAR-PERSISTENCE-BY-VALUE
 
 **Persistence crosses cell boundaries by value and never enters the reactive
 graph.** Serialization (binary and natural-format) writes a `Cell`'s *value*
@@ -1179,7 +1179,7 @@ durable is the document's data, not the reactive machinery or the projected
 view built over it. Transient view/UI state (hover, drag, scroll, zoom) is
 projection output and is therefore excluded from serialization by construction.
 
-### AR-NO-TEST-DOUBLES-IN-MAIN
+### PAR-NO-TEST-DOUBLES-IN-MAIN
 
 **No test doubles live in `main` packages.** A fake, mock, stub, or any
 canned/scripted stand-in for a real seam is test/example scaffolding: it lives
@@ -1198,7 +1198,7 @@ still be *defined* in an example package the executable bundles, but because no
 `ProjecturedKernelExample`, and `WorkbenchAssistant` dropped its `FakeLlm`
 fallback.
 
-### AR-NO-CONSUMER-DOCS
+### PAR-NO-CONSUMER-DOCS
 
 **A module's documentation describes its own contract, never its consumers.** A
 docstring or comment must not name, enumerate, or explain the higher-layer
@@ -1207,11 +1207,11 @@ forward knowledge a lower layer cannot have without inverting the dependency
 direction. Describe what the code *is* and the contract it offers to *any*
 caller, as a self-contained service; let each consumer's own documentation
 state that it builds on this. This is the documentation-level companion to
-AR-MODULE-BOUNDARY-IS-API (imports name only exported symbols) and
-AR-FRAMEWORKS-SINK (a lower layer mentions a higher concept only as an opaque
+PAR-MODULE-BOUNDARY-IS-API (imports name only exported symbols) and
+PAR-FRAMEWORKS-SINK (a lower layer mentions a higher concept only as an opaque
 payload): dependencies point down in prose exactly as they do in code. Citing
 an architectural *rationale* is still allowed — "holds no global state, so one
-process can run many editors" (AR-PER-EDITOR-STATE) names a requirement, not a
+process can run many editors" (PAR-PER-EDITOR-STATE) names a requirement, not a
 consumer; "the seam `@document`/`@iomap`/`@projection` build on" names
 consumers and is the violation. Precedent: `PerformanceCounterModule` dropped
 its "`CellModule` imports this" reference, and `CellModule` dropped the
@@ -1219,7 +1219,7 @@ its "`CellModule` imports this" reference, and `CellModule` dropped the
 references.
 
 **Seam carve-out.** An open interface declaration is content-free by
-construction (`function foo end`, no signature — AR-INTERFACE-DECLARES-ONLY):
+construction (`function foo end`, no signature — PAR-INTERFACE-DECLARES-ONLY):
 its *docstring* is what describes the contract, and a contract's meaning is the
 shape of the values that flow through it. So an interface/seam file may name
 the **concepts** it bridges as forward pointers — the *kinds* of value on each
@@ -1230,13 +1230,13 @@ vocabulary" names concepts; "the `@gestures` catch-all in
 `GestureBindingModule` supplies the default" names a consumer and is the
 violation. The carve-out applies only to a *seam file* (one whose job is to
 declare the open interface) and only to the *concepts* the seam bridges;
-everything else in AR-NO-CONSUMER-DOCS still holds. Prefer redistributing the
+everything else in PAR-NO-CONSUMER-DOCS still holds. Prefer redistributing the
 seam to the lowest layer where every concept it names is already introduced
-(AR-LOWEST-PACKAGE): once every concept sits at or below the seam, the
+(PAR-LOWEST-PACKAGE): once every concept sits at or below the seam, the
 forward-concept references become backward, not forward, and the carve-out is
 unnecessary.
 
-### AR-TIGHT-COMMENTS
+### PAR-TIGHT-COMMENTS
 
 **A comment carries only what the code cannot — keep it tight.** A comment
 earns its place by holding information that is neither visible in the code nor
@@ -1245,7 +1245,7 @@ alternative, the reason an expected method is *absent*, a non-obvious
 consequence. Everything else is noise that rots. Specifically, do not restate
 what the next line does; do not re-explain a function, macro, or generic that
 is documented at its own definition (its owning module is the single place —
-AR-NO-CONSUMER-DOCS); do not summarise the code beneath a section banner (the
+PAR-NO-CONSUMER-DOCS); do not summarise the code beneath a section banner (the
 banner names the section, nothing more); and do not narrate the change that
 produced the code ("was previously", "moved from", "now uses X") — history
 belongs in the `plan/` document, never in the source. Prefer a docstring on the
@@ -1257,11 +1257,11 @@ paragraph restating `make_insertion_document`'s own docstring and
 — why an empty `JsonNumber` is selected whole while an empty `JsonString` gets
 a caret at position 0.
 
-### AR-CITE-EXCEPTIONS-ONLY
+### PAR-CITE-EXCEPTIONS-ONLY
 
 **Cite an architectural requirement in a comment or docstring only to flag an
 exception, never to announce compliance.** The sanctioned places to cite an
-`AR-…` ID are reviews, commit messages, guard failures, and `plan/` documents; a
+`PAR-…` ID are reviews, commit messages, guard failures, and `plan/` documents; a
 *source comment or docstring* is not one of them. There, a rule reference earns
 its place only when it marks a **deviation** — an accepted non-compliance, or a
 non-obvious constraint the rule forces at that spot which a reader would
@@ -1270,8 +1270,8 @@ is noise: compliance is the default, it is enforced elsewhere (the layering
 guards, review, this document), and the citation only rots when the rule is
 renamed or the code moves. A file that is the textbook case of a rule states its
 role in plain terms — an interface file says "nothing here carries a body", it
-does not cite AR-INTERFACE-DECLARES-ONLY to prove it. This is the citation-level
-companion to AR-TIGHT-COMMENTS (a comment carries only what the code cannot): a
+does not cite PAR-INTERFACE-DECLARES-ONLY to prove it. This is the citation-level
+companion to PAR-TIGHT-COMMENTS (a comment carries only what the code cannot): a
 rule name the reader can look up, pinned to code that plainly obeys it, carries
 nothing. A guide (or this document) that *teaches* a rule is stating it, not
 announcing compliance, and is exempt. Precedent: the cell layer's

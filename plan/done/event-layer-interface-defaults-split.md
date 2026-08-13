@@ -15,7 +15,7 @@ concerns (interface, defaults, aggregator) in one file.
 - [x] **`EventInterface.jl`** (new) — the abstract `Event`/`DeviceEvent`/`SyntheticEvent`
       types + the bodiless `function get_modifiers end`. Declarations only; added
       to the layering guard's `interface_files` map (event-layer interface purity
-      is now machine-checked). Also applied the AR-NO-CONSUMER-DOCS fix: the
+      is now machine-checked). Also applied the PAR-NO-CONSUMER-DOCS fix: the
       `DeviceEvent` docstring says "an event source" (not "a backend").
 - [x] **`EventDefaults.jl`** (new) — `get_modifiers(::Event) = Modifiers()` fallback
       and the `is_ctrl`/`is_shift`/`is_alt`/`is_meta` predicates derived over it.

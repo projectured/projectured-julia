@@ -17,7 +17,7 @@ end # @testset
 
 @testset "CopyingProjection CellVector reactive output" begin
 
-# AR-STABLE-IOMAP-IDENTITY: a structural edit re-derives output and reconciles
+# PAR-STABLE-IOMAP-IDENTITY: a structural edit re-derives output and reconciles
 # children through the SAME iomap object — no re-print.
 cv = CellVector(Cell[Cell(PrimitiveNumber(1)), Cell(PrimitiveNumber(2))])
 iomap = print_document(CopyingProjection(), IdentityProjection(), cv, PrinterContext())

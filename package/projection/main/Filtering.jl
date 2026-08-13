@@ -16,7 +16,7 @@ export FilteringProjection, FilteringProjectionIoMap
 
 # `kept_indices` and `output` are computed cells for a reactive `CellVector`
 # input, so the IoMap keeps its identity while the kept subset tracks the input
-# (AR-STABLE-IOMAP-IDENTITY); `iomap.kept_indices` reads the current vector.
+# (PAR-STABLE-IOMAP-IDENTITY); `iomap.kept_indices` reads the current vector.
 @iomap struct FilteringProjectionIoMap
     projection::Any
     input::Any

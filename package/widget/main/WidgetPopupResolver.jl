@@ -43,7 +43,7 @@ it can resolve anchors against the whole content.
 WidgetPopupResolverProjection(; inner::Projection) = WidgetPopupResolverProjection(inner)
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
-# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+# keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WidgetPopupResolverProjectionIoMap
     projection::Any
     input::Any

@@ -11,7 +11,7 @@ Three things drive this:
 
 1. A domain is the natural consumer boundary. A user who wants JSON must not load the
    SQL parser, the process debugger and the workbench assistant.
-2. `AR-DOMAINS-INDEPENDENT` already states the rule. The single package hides every
+2. `PAR-DOMAINS-INDEPENDENT` already states the rule. The single package hides every
    breach of it, because a slice can import a sibling slice with no visible cost.
 3. Four opt-in packages (`Sdl`, `Web`, `Video`, `Tulip`) depend on `ProjecturedDomain`
    today, but use **no** domain module at all. The split makes that honest.

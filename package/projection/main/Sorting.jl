@@ -37,7 +37,7 @@ SortingProjection(; by::Function=identity, lt::Function=isless, rev::Bool=false)
 
 # `output`, `index_map`, and `element_iomaps` are computed cells for a reactive
 # CellVector input, so the IoMap keeps its identity while a structural edit
-# re-sorts through it (AR-STABLE-IOMAP-IDENTITY); `iomap.index_map` /
+# re-sorts through it (PAR-STABLE-IOMAP-IDENTITY); `iomap.index_map` /
 # `iomap.element_iomaps` read the current value.
 @iomap struct SortingProjectionIoMap
     projection::Any

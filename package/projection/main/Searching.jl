@@ -27,7 +27,7 @@ export SearchingProjection, SearchingProjectionIoMap
 
 # `output` and `match_paths` derive from one reactive walk of the input tree, so
 # the IoMap keeps its identity while a structural edit anywhere re-collects the
-# matches (AR-STABLE-IOMAP-IDENTITY); `iomap.match_paths` reads the current vector.
+# matches (PAR-STABLE-IOMAP-IDENTITY); `iomap.match_paths` reads the current vector.
 @iomap struct SearchingProjectionIoMap
     projection::Any
     input::Any

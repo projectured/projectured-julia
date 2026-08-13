@@ -18,7 +18,7 @@ function test_sorting()
     @test fwd !== nothing
     @test map_reference_backward(sp, iomap, fwd) !== nothing
 
-    # ── reactive output (AR-STABLE-IOMAP-IDENTITY) ──────────────────────────
+    # ── reactive output (PAR-STABLE-IOMAP-IDENTITY) ──────────────────────────
     # Inserting a new smallest element re-sorts through the SAME iomap — no
     # re-print — where the eager perm/output would have frozen.
     id = objectid(iomap)

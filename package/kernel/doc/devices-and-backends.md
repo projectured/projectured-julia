@@ -414,7 +414,7 @@ combination of events — it carries no intent. Its only import is
 Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type and the backend generics; the concrete backends live in opt-in
 packages, and the dependency-free `HeadlessBackend` test double lives in
-`ProjecturedKernelExample` (AR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
+`ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
 The layer lives in [main/backend/](../../../package/kernel/main/backend/):
 
@@ -439,7 +439,7 @@ which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
 
-`BackendInterface.jl` is an **interface file** (AR-INTERFACE-DECLARES-ONLY): it declares and never implements,
+`BackendInterface.jl` is an **interface file** (PAR-INTERFACE-DECLARES-ONLY): it declares and never implements,
 so every generic there is a bodiless `function f end`. The fallback behaviours
 the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
 capabilities a backend may decline: `get_pointer_position` answers `(-1, -1)`,
@@ -459,7 +459,7 @@ The dependency-free in-memory `HeadlessBackend` — which logs every
 `write_to_devices` document into `rendered` and pops scripted events on each
 `read_from_devices` (`push_event!` enqueues them; `measure_text` returns a fixed
 `(8 * length, 16)`) — is a **test double** for the `Backend` seam. By
-AR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
+PAR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
 no double is reachable from a production build; the kernel editor tests import it
 from there to drive the loop without any real backend.
 

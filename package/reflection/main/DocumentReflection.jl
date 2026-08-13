@@ -71,10 +71,10 @@ dropped — while expanding is a REQUEST, flagging the marker so the next
 `sync_reflection!` fills it one level deeper. Opening a node therefore costs
 nothing until something syncs.
 
-This type exists so a projection's reader can stay pure (AR-READER-IS-PURE): a
+This type exists so a projection's reader can stay pure (PAR-READER-IS-PURE): a
 chevron click RETURNS this operation rather than writing the shadow itself, which
 also makes disclosure undoable and scriptable like every other edit. Collapse is
-the exact inverse of expand (AR-INVERTIBLE-OPERATIONS).
+the exact inverse of expand (PAR-INVERTIBLE-OPERATIONS).
 """
 struct SetReflectedDisclosureOperation <: Operation
     changes::Vector{Pair{Any,Bool}}

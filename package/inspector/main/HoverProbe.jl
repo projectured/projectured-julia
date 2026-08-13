@@ -78,7 +78,7 @@ HoverProbeProjection(; inner::Projection,
                          Ref(false), Ref{Any}(nothing))
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
-# keeps its identity while the child re-derives (AR-STABLE-IOMAP-IDENTITY).
+# keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct HoverProbeProjectionIoMap
     projection::Any
     input::Any

@@ -13,7 +13,7 @@ function test_filtering()
     @test iomap.output[2].value == 4
     @test iomap.kept_indices == [2, 4]
 
-    # ── reactive output (AR-STABLE-IOMAP-IDENTITY) ──────────────────────────
+    # ── reactive output (PAR-STABLE-IOMAP-IDENTITY) ──────────────────────────
     # Appending a matching element re-derives kept_indices + output through the
     # SAME iomap — no re-print — where the eager subset would have frozen.
     id = objectid(iomap)

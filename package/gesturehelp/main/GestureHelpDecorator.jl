@@ -91,7 +91,7 @@ GestureHelpProjection(; inner, state::GestureHelpState = GestureHelpState(),
     GestureHelpProjection(inner, state, id, String(title), Int(x), Int(y), Int(width), Int(height))
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
-# keeps its identity while the inner projection re-derives (AR-STABLE-IOMAP-IDENTITY).
+# keeps its identity while the inner projection re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct GestureHelpProjectionIoMap
     projection::Any
     input::Any

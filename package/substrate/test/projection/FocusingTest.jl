@@ -36,7 +36,7 @@ function test_focusing()
     end
 end
 
-# The reactive-output invariant (AR-STABLE-IOMAP-IDENTITY): a focus change
+# The reactive-output invariant (PAR-STABLE-IOMAP-IDENTITY): a focus change
 # re-derives `output` through the SAME iomap object — not a re-print — which is
 # what lets Focusing sit inside a chain. Before the reactive conversion the eager
 # `output` froze at its first value and this drifted stale silently.

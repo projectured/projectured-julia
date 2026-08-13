@@ -17,7 +17,7 @@ Today `device/` (layer 6) holds three topics at two dependency heights:
 
 One file — `GestureBinding.jl` — needs documents and operations, and it drags the whole
 zero-dependency event vocabulary up to layer 6 with it. That in turn pushes `backend/` to
-layer 7, so a backend (whose defining property under AR-BACKEND-SEAM is that it knows nothing about
+layer 7, so a backend (whose defining property under PAR-BACKEND-SEAM is that it knows nothing about
 documents) sits *above* documents, references, selections and operations in the layer
 diagram. One roommate, a four-layer cascade.
 
@@ -33,7 +33,7 @@ Consequences visible in the code today:
 - **Phantom modules.** `EventCaseModule` and `GestureBindingModule` do not exist — they are
   `const … = ProjecturedKernel.GestureModule` aliases in `ProjecturedVisual.jl` and
   `ProjecturedDomain.jl`, keeping ~20 stale import headers alive. Both fragment files still
-  open with a docstring naming the module they are not (AR-MODULE-DOCSTRING).
+  open with a docstring naming the module they are not (PAR-MODULE-DOCSTRING).
 - **Drift the structure permits.** `_EVENT_TYPES` (a hand-written copy of every event's field
   list) covers `MouseEnter`/`MouseLeave`, but `_pattern_expr` has no arm for them and none for
   `KeyChord` — so no reified binding can be written for hover or for a chord.
@@ -56,7 +56,7 @@ keeping it first avoids touching the sealed `cell/CellLayer.jl`).
  9 operation
 10 binding    — GestureBinding, the registry, @gestures/@gesture_set, read_gesture
                                                               → event, document, operation
-11 projection — keeps its Projection-typed gesture-seam methods (the seam pattern, AR-FRAMEWORKS-SINK)
+11 projection — keeps its Projection-typed gesture-seam methods (the seam pattern, PAR-FRAMEWORKS-SINK)
 12 agent
 13 editor
 ```
@@ -90,7 +90,7 @@ exactly the muddle this plan removes.
 
 `EventModule` merges four modules that every consumer imports together anyway
 (`import ..KeyboardModule: KeyDown` + `..MouseModule: MousePress` + `..ModifiersModule: Modifiers`
-is the current ritual) — AR-PACKAGE-CHAIN's module criterion: merge modules only ever imported together.
+is the current ritual) — PAR-PACKAGE-CHAIN's module criterion: merge modules only ever imported together.
 
 ### `device/` (layer 3)
 
@@ -197,7 +197,7 @@ A relocation, so a regression here is a load error or a guard failure, never a b
 
 - **The pattern parser is now exported, not a private fragment reach-in.** Splitting patterns
   (`event/`) from bindings (`binding/`) puts a module boundary between `@gestures` and the parser
-  it rides on, and AR-MODULE-BOUNDARY-IS-API's answer to that is "export it, don't re-implement it". `EventPatternModule`
+  it rides on, and PAR-MODULE-BOUNDARY-IS-API's answer to that is "export it, don't re-implement it". `EventPatternModule`
   therefore exports a macro-authoring API — `EventRule`, `parse_event_rule`, `event_pattern_expr`,
   `event_field_bindings` — and `@gestures` calls it. The old `_parse_rule`/`EvPat`/`_pattern_expr`
   internals and the same-namespace fragment trick that shared them are gone. The field-pattern node
@@ -223,11 +223,11 @@ Verified: `test_kernel_layering()` (8/8), `test_kernel()` (407/407), `test_base(
       `Modifiers` but had no predicates.
 - [x] `EventEnvelope.event::Event`.
 - [x] `read_from_devices`'s docstring states it returns an `EventEnvelope` carrying a
-      `DeviceEvent` — AR-BACKEND-SEAM's "translate platform events in the backend" as a contract, not a
+      `DeviceEvent` — PAR-BACKEND-SEAM's "translate platform events in the backend" as a contract, not a
       comment. (No import appears: the seam is a bodiless generic, so it names the type in prose
       only. The `device → event` edge the plan predicted does not materialise.)
 - [x] Sank `WindowClose` / `WindowResize` / `WindowDefocus` from visual's `screen/ScreenDocument.jl`
-      into `event/WindowEvent.jl` (AR-LOWEST-PACKAGE — they reference nothing visual, and `WindowQuit` was
+      into `event/WindowEvent.jl` (PAR-LOWEST-PACKAGE — they reference nothing visual, and `WindowQuit` was
       already in the kernel, so the window-event vocabulary had been split across two packages).
       The window *document* and its operations stay in visual.
 
@@ -238,7 +238,7 @@ supertype exists to eliminate. It now passes a real event (any event pumps that 
 Dropping `ScreenDocumentModule`'s re-export of `EventEnvelope` also exposed three modules
 (`ScreenToScreen`, `Console`, and via them `WidgetDialog`/`Tooltip`) that were reading it out of a
 *visual document* module instead of the module that owns it. They now import from `EventModule`
-(AR-MODULE-BOUNDARY-IS-API).
+(PAR-MODULE-BOUNDARY-IS-API).
 
 Verified: `test_kernel_layering()` 8/8, `test_kernel()` 407/407, `test_base()` 96/96,
 `test_visual()` 51856 pass / 1 broken, `test_domain()` identical to baseline, and both opt-in
@@ -272,13 +272,13 @@ Verified: `test_kernel()` 407/407, `test_visual()` unchanged, `test_domain()` id
 
 - [x] One exported `fire_gesture_bindings(bindings, target, selection, event)`. The loop had been
       written three times — `_fire_gestures`, and again inline inside `read_projection_gesture`,
-      which could not reach the private helper across the module boundary. Exporting it is AR-MODULE-BOUNDARY-IS-API's
+      which could not reach the private helper across the module boundary. Exporting it is PAR-MODULE-BOUNDARY-IS-API's
       answer, and now the document side and the projection side provably fire the same way.
 - [x] `read_document_gesture` + `read_node_gesture` fold into `read_bound_gesture(target, event
       [, selection])`. They differed only in where the selection came from, which is now an
       optional argument. (The selection is still read *after* the empty-table check, so asking "any
       bindings?" does not register a reactive dependency on a cell it will not use.)
-- [x] `_GESTURE_CACHE` deleted (AR-NO-PROJECTION-GLOBALS/AR-PER-EDITOR-STATE: a process-global `IdDict`, and not thread-safe). The
+- [x] `_GESTURE_CACHE` deleted (PAR-NO-PROJECTION-GLOBALS/PAR-PER-EDITOR-STATE: a process-global `IdDict`, and not thread-safe). The
       supertype walk is a handful of `append!`s per event.
 - [x] `is_help_gesture` left the kernel. "F1 means help" is an *intent*, and the input stack must
       not hold one; it is now `HELP_GESTURE = KeyDownPattern(:f1)` plus a one-line predicate owned
@@ -290,7 +290,7 @@ Verified: `test_kernel()` 407/407, `test_visual()` unchanged, `test_domain()` id
       tables and internals are now four sections), plus `documentation/architecture.md`,
       `concepts.md`, `terminology.md`, and the stale layer indices in `reference.md`,
       `operation.md`, `agent.md`.
-- [x] The AR-NO-CONSUMER-DOCS/AR-TIGHT-COMMENTS scrub happened *during* Phases 1–2 rather than after: every moved file was
+- [x] The PAR-NO-CONSUMER-DOCS/PAR-TIGHT-COMMENTS scrub happened *during* Phases 1–2 rather than after: every moved file was
       rewritten, so the SDL constants in `Modifiers.jl`/`Keyboard.jl`, the
       `WidgetHoverTrackingProjection` reference in `Mouse.jl`, the `ScreenDocument` path in
       `ScreenDevice.jl`, the "Stage 1 / Stage 2 / ported in `document/Json.jl`" narration in
@@ -301,15 +301,15 @@ Verified: `test_kernel()` 407/407, `test_visual()` unchanged, `test_domain()` id
 - [ ] Export one `fire_gesture_bindings(bindings, target, selection, event)`. Today the loop is
       written three times: `_fire_gestures`, and again inline in `read_projection_gesture`
       (`projection/GestureBindings.jl`) because the helper is private across a module boundary —
-      AR-MODULE-BOUNDARY-IS-API says export it, don't re-implement it.
+      PAR-MODULE-BOUNDARY-IS-API says export it, don't re-implement it.
 - [ ] Fold `read_document_gesture` and `read_node_gesture` into one function with an explicit
       selection argument; they differ *only* in where the selection comes from.
-- [ ] Delete `_GESTURE_CACHE` (the module-level `IdDict`). It is the letter of AR-NO-PROJECTION-GLOBALS/AR-PER-EDITOR-STATE and it is
+- [ ] Delete `_GESTURE_CACHE` (the module-level `IdDict`). It is the letter of PAR-NO-PROJECTION-GLOBALS/PAR-PER-EDITOR-STATE and it is
       not thread-safe. It memoises a supertype walk of a few `append!`s — recomputing per event is
       free. If profiling ever disagrees, the replacement is a per-editor memo, not a global.
 - [ ] Move `is_help_gesture` out of the kernel. "F1 means help" is an *intent* hard-coded in the
       input stack, contradicting the principle the surrounding comment itself states, and its
-      docstring names `GestureHelpProjection` and `OpenWindowOperation` (AR-NO-CONSUMER-DOCS). It becomes an
+      docstring names `GestureHelpProjection` and `OpenWindowOperation` (PAR-NO-CONSUMER-DOCS). It becomes an
       ordinary reified binding owned by the help projection in `domain/gesturemap/`.
 
 Verify: `test_kernel()`, `test_domain()`, `test_repl` on a `@gestures` domain (json), and a live
@@ -317,7 +317,7 @@ Verify: `test_kernel()`, `test_domain()`, `test_repl` on a `@gestures` domain (j
 
 ### Phase 5 — documentation and the docstring scrub
 
-- [ ] AR-NO-CONSUMER-DOCS/AR-TIGHT-COMMENTS scrub of every moved file: `Mouse.jl` names `WidgetHoverTrackingProjection`;
+- [ ] PAR-NO-CONSUMER-DOCS/PAR-TIGHT-COMMENTS scrub of every moved file: `Mouse.jl` names `WidgetHoverTrackingProjection`;
       `ScreenDevice.jl` names `ScreenDocument` with a stale path; `GestureBinding.jl` says "this is
       the kernel half (Stage 1 + Stage 2) … ported onto it in `document/Json.jl`"; `pop_gesture!`
       explains it matches "the backend's *old* behaviour"; `is_help_gesture` cites
@@ -327,7 +327,7 @@ Verify: `test_kernel()`, `test_domain()`, `test_repl` on a `@gestures` domain (j
 - [ ] Fix the two fragment docstrings that name modules which do not exist.
 - [ ] Update `documentation/architecture.md` (the layer inventory),
       `package/kernel/doc/devices-and-backends.md` (the device/event tables), and the layer diagram
-      in `ProjecturedKernel.jl`'s docstring (AR-UPDATE-THE-GUIDE).
+      in `ProjecturedKernel.jl`'s docstring (PAR-UPDATE-THE-GUIDE).
 
 ### Phase 6 — decision gate: does `@event_case` survive? ✅ audited — **it survives**
 
@@ -382,7 +382,7 @@ instead of an `isa` chain per event, which is nothing.
   the existing tests are the oracle.
 - No change to the `Projection`-typed gesture-seam methods' home. They dispatch on `Projection` and
   correctly live in the projection layer; the split across two layers is the seam pattern working.
-- `HeadlessBackend`'s scripted event queue (AR-NO-TEST-DOUBLES-IN-MAIN "no test doubles in main") is a pre-existing
+- `HeadlessBackend`'s scripted event queue (PAR-NO-TEST-DOUBLES-IN-MAIN "no test doubles in main") is a pre-existing
   question this plan does not open.
 
 ## Verification summary

@@ -40,7 +40,7 @@ end
 function print_document(p::FocusingProjection, recursion, input, ctx)
     # Stable iomap; `output` is a computed cell, so a `part` change (or a change to
     # the input under `part`) re-derives the focused sub-document reactively without
-    # replacing the iomap (AR-STABLE-IOMAP-IDENTITY) — which is what lets Focusing
+    # replacing the iomap (PAR-STABLE-IOMAP-IDENTITY) — which is what lets Focusing
     # sit in a chain and have downstream stages wire to this iomap. The cursor rides
     # the `map_reference_forward` composition, so the sub-document's own selection is
     # left untouched.

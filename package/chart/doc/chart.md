@@ -85,7 +85,7 @@ Reactive granularity is therefore the whole column, which is exactly what makes
 replacing one an efficient repaint — the projection is not re-run, only the
 computed geometry cells re-derive.
 
-This is a deliberate exception to `AR-FINEST-GRANULARITY`, on the same grounds
+This is a deliberate exception to `PAR-FINEST-GRANULARITY`, on the same grounds
 as `GraphicsPolyline.points`.
 
 ## Colored strips
@@ -168,7 +168,7 @@ the `(lower, upper, state_name)` of a strip segment, the value of a bar. A strip
 segment's extent is the one in the data, which does not move with the zoom, even
 though the last one is *drawn* out to the edge of the view. The selection still
 terminates at a real `Document`, the
-series, which is what keeps `AR-EVERY-DOCUMENT-HAS-SELECTION` satisfied without
+series, which is what keeps `PAR-EVERY-DOCUMENT-HAS-SELECTION` satisfied without
 a cell per sample.
 
 Element indices are 1-based, as everywhere else in the repository.

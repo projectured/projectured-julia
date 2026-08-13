@@ -159,7 +159,7 @@ The estimate above was **wrong**, and knowing why is the useful part.
 
 It assumed the bound could be added to two sealed files. It could not: the policy
 hooks live in `base`, *above* the kernel, so for the sealed walk to carry a bound
-the **protocol** has to sink to the kernel (AR-PACKAGE-CHAIN). Five sealed files,
+the **protocol** has to sink to the kernel (PAR-PACKAGE-CHAIN). Five sealed files,
 not two:
 
 | | |
@@ -182,13 +182,13 @@ walking anything.
 **A stronger reason than duplication surfaced while drafting.** The out-of-file
 mirror could only reach the kinded-copy machinery by importing
 `_declared_value_types` / `_kinded_value_type` — *non-exported* kernel internals,
-from a higher layer. AR-MODULE-BOUNDARY-IS-API forbids exactly that ("reaching
+from a higher layer. PAR-MODULE-BOUNDARY-IS-API forbids exactly that ("reaching
 into an internal is the smell, never the fix"). The mirror was not merely
 duplicative; it was a layering violation. Folding in removed it.
 
 **Three things the apply caught that the draft did not:**
 
-- **`AR-INTERFACE-DECLARES-ONLY` fired.** Putting the defaults and a concrete
+- **`PAR-INTERFACE-DECLARES-ONLY` fired.** Putting the defaults and a concrete
   struct in `DocumentInterface.jl` is exactly what that guard exists to stop;
   they belong in `DocumentDefaults.jl`. The layering test caught it, which is the
   audit working as designed.
@@ -205,30 +205,30 @@ measurements are unchanged: 1 536 B per slice for a 334-module engine, the same
 for a 7-module one.
 
 **Re-audit of the five sealed files** against `architecture-requirements.md`,
-done rather than deferred. The layering guard covers AR-INTERFACE-DECLARES-ONLY,
-AR-MODULE-BOUNDARY-IS-API and the layer heights, and passes. By hand:
+done rather than deferred. The layering guard covers PAR-INTERFACE-DECLARES-ONLY,
+PAR-MODULE-BOUNDARY-IS-API and the layer heights, and passes. By hand:
 
-- **AR-NO-CONSUMER-DOCS — violated, fixed.** `DocumentInterface.jl` pointed at
+- **PAR-NO-CONSUMER-DOCS — violated, fixed.** `DocumentInterface.jl` pointed at
   `base`'s guide "for the policy `base` supplies", and the kernel's document
   guide said the same. A lower layer naming its consumer inverts the dependency
   in prose exactly as an import would. Both now describe the contract offered to
   *any* caller. Same fix in `BoundedSync.jl`, which named OMNeT++ in its
   motivation.
-- **AR-QUALIFIED-EXTENSION — not applied, deliberately.** The rule wants
+- **PAR-QUALIFIED-EXTENSION — not applied, deliberately.** The rule wants
   `using ..XxxModule` plus `XxxModule.f(…) = …`; `BoundedSync.jl` uses
   `import ..DocumentModule: …` and extends by bare definition. That matches every
   sibling in `base` — `Collection.jl` extends `copy_document` the very same way —
   and the rule's own text describes a staged rollout. Converting one file would
-  leave it inconsistent with its layer for no gain (AR-FOCUSED-DIFFS). Worth
+  leave it inconsistent with its layer for no gain (PAR-FOCUSED-DIFFS). Worth
   doing as its own sweep of `base`.
-- **AR-DOCUMENT-IDENTITY** — the element walk's `isequal` short-circuit is
+- **PAR-DOCUMENT-IDENTITY** — the element walk's `isequal` short-circuit is
   preserved, so a slot holding the very same object is still not rebuilt.
-- **AR-FIELDS-ARE-CELLS / AR-EVERY-DOCUMENT-HAS-SELECTION** — `HiddenElements` is
+- **PAR-FIELDS-ARE-CELLS / PAR-EVERY-DOCUMENT-HAS-SELECTION** — `HiddenElements` is
   a plain value type, not a `Document`; `UnsyncedDocument` is a `@document` and
   gets both by construction.
-- **AR-NO-PROJECTION-GLOBALS / AR-PER-EDITOR-STATE** — no state added; the policy
+- **PAR-NO-PROJECTION-GLOBALS / PAR-PER-EDITOR-STATE** — no state added; the policy
   is a parameter the caller holds.
-- **AR-NEW-CODE-SHIPS-TESTS** — `test_bounded_sync` / `test_document_reflection`
+- **PAR-NEW-CODE-SHIPS-TESTS** — `test_bounded_sync` / `test_document_reflection`
   in `test_base`, `test_reflection_to_widget` in `test_visual`.
 
 The five files are unchanged in behaviour for every existing caller (kernel tests

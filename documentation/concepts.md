@@ -177,7 +177,7 @@ as one editing model.
 
 The code follows the concept DAG rather than the closure — each open
 interface sinks to the lowest layer where every concept it mentions is
-already introduced (AR-LOWEST-PACKAGE), so a reader in load order never hits an
+already introduced (PAR-LOWEST-PACKAGE), so a reader in load order never hits an
 undefined name:
 
 | Concept | Home in the kernel | What it defines |

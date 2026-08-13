@@ -100,7 +100,7 @@ Notes from implementing:
 
 A chart can select its title, either axis, its legend and any series, but not an
 individual sample — the plan that built it deferred this because a data column
-is a bare vector, and `AR-EVERY-DOCUMENT-HAS-SELECTION` says a selection-reachable
+is a bare vector, and `PAR-EVERY-DOCUMENT-HAS-SELECTION` says a selection-reachable
 child should be a `Document`.
 
 Wrapping every sample in a document is what the chart's data model exists to

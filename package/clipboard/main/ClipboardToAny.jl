@@ -154,7 +154,7 @@ function print_document(p::ClipboardCollectionToAnyProjection, recursion, input:
     content_iomap = print_child(recursion, input.content,
                         make_child_context(ctx, FieldReferenceStep("content")))
     # Reconcile the element children by identity so a structural edit to
-    # `elements` reuses surviving child iomaps (AR-STABLE-IOMAP-IDENTITY).
+    # `elements` reuses surviving child iomaps (PAR-STABLE-IOMAP-IDENTITY).
     element_iomaps = reconcile_child_iomaps(
         () -> input.elements,
         (i, x) -> print_child(recursion, x,

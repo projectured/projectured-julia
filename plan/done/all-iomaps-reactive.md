@@ -22,7 +22,7 @@ Uniform rule, no per-struct judgment: **every** `struct … <: IoMap` is declare
 `@iomap`. Rationale — any projection may return any IoMap struct (its own or a shared
 default) and must be able to rely on it being reactive-capable: its fields transparently
 unwrap cells (`iomap.field` → value, `getfield` → raw cell), so a computed-cell field
-re-derives while the IoMap keeps its identity (AR-STABLE-IOMAP-IDENTITY). A plain struct
+re-derives while the IoMap keeps its identity (PAR-STABLE-IOMAP-IDENTITY). A plain struct
 silently defeats that for a future consumer.
 
 ## The conversion + its ripple

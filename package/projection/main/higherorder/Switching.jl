@@ -16,7 +16,7 @@ export SwitchingProjection, SwitchingProjectionIoMap
 
 # `inner_iomap` is reconciled by the (reactive) index and `output` forwards its
 # output through a cell, so writing `ap.index` swaps the branch through the same
-# iomap (AR-STABLE-IOMAP-IDENTITY); `iomap.index` reads the current index.
+# iomap (PAR-STABLE-IOMAP-IDENTITY); `iomap.index` reads the current index.
 @iomap struct SwitchingProjectionIoMap
     projection::Any
     input::Any

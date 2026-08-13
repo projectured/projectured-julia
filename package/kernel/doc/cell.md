@@ -167,7 +167,7 @@ CellStructModule.jl      (CellStructModule)           — transparent-Cell struc
 ```
 
 `CellInterface.jl` is the layer's **interface file**: it declares the contract and
-nothing else (AR-INTERFACE-DECLARES-ONLY). The default body for `unwrap_cell`
+nothing else (PAR-INTERFACE-DECLARES-ONLY). The default body for `unwrap_cell`
 therefore sits in the sibling `CellDefaults.jl` — it has a body, and a body is
 implementation.
 
@@ -243,7 +243,7 @@ The active store is a **task-local dynamic binding** (`ScopedValue`):
 and everything that runs inside counts into it. Outside any such scope the binding
 is `nothing`, so an unscoped cell operation counts nothing and shares no state —
 which is what lets many editors run in one process without their counters
-colliding (AR-PER-EDITOR-STATE). This module loads **first** so `ReactiveCell` can import the
+colliding (PAR-PER-EDITOR-STATE). This module loads **first** so `ReactiveCell` can import the
 bump macro.
 
 Counting is **compiled out by default** — `PERFORMANCE_COUNTERS_ENABLED` is

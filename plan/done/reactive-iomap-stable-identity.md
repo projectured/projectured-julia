@@ -38,8 +38,8 @@ projection derived from — it does **not** null `editor.iomap`.
 `invalidate_projection!` stays reserved for genuine whole-root rebinds.
 
 This is the union + strengthening of four existing rules —
-AR-REACTIVE-OUTPUT-SELECTION, AR-SHARED-CHILDREN-IOMAP, AR-NO-WRITE-IN-THUNK,
-AR-MUTATE-OR-NULL-IOMAP — promoted from "a compound projection should" to "every
+PAR-REACTIVE-OUTPUT-SELECTION, PAR-SHARED-CHILDREN-IOMAP, PAR-NO-WRITE-IN-THUNK,
+PAR-MUTATE-OR-NULL-IOMAP — promoted from "a compound projection should" to "every
 projection must," and given a citable name.
 
 ## Why
@@ -98,7 +98,7 @@ load-bearing work, done per projection.
 
 **Phase 0 — Foundations.**
 - [x] Write the invariant as a new AR rule in `architecture-requirements.md`;
-      cross-link the four rules it subsumes. **Done `cd82b9cd`** (AR-STABLE-IOMAP-IDENTITY).
+      cross-link the four rules it subsumes. **Done `cd82b9cd`** (PAR-STABLE-IOMAP-IDENTITY).
 - [x] **Accessor contract change** (decision 2): `get_iomap_output` / `_input` /
       `_projection` return the value uniformly (property access, off raw `getfield`).
       **Done `5e106fc7`** (no-op on the plain IoMaps; enables the @iomap recipe).
@@ -131,7 +131,7 @@ Sorting, Filtering, Searching, Dragging): convert struct + wire output/children 
 reconcile + reactive tests. One reviewable change.
 - **Assessed (impl):** `IdentityProjection` (empty struct, `output === input`) and
   `ConstantProjection` (fixed `output` field) are **already compliant** — no change;
-  AR-USE-PROJECTION-MACRO permits their plain structs (no reactive fields). The rest
+  PAR-USE-PROJECTION-MACRO permits their plain structs (no reactive fields). The rest
   use `ChildrenIoMap` (Reversing) or their own IoMap structs, whose **reactive-output**
   compliance depends on those IoMaps being `@iomap`. `reconcile_child_iomaps`
   (child-identity) is independent and applies now; reactive `output` needs `@iomap`.
@@ -475,7 +475,7 @@ output cell reads the structural choice, not inner values).
 
 - **Focusing conversion specifics.** `@projection` and **drop the redundant
   `part_evaluator::Function`** (a Function field becomes a computed thunk under
-  `@cell_struct` — AR-NO-NESTED-CELL); compute `evaluate_reference(input, p.part)`
+  `@cell_struct` — PAR-NO-NESTED-CELL); compute `evaluate_reference(input, p.part)`
   directly, and wire `output = Cell(() -> evaluate_reference(input, p.part))` so a
   `part`-cell write re-derives it. Depends on `SimpleIoMap` being `@iomap` first.
 
@@ -487,7 +487,7 @@ output cell reads the structural choice, not inner values).
   `test_all` only at the end.
 - **Performance**: spot-check per-frame counters (reads/computes/invalidations/
   writes) on a heavy example (workbench) after Phases 4-6 — the refactor adds
-  cells; watch for recompute blow-ups (AR-PROFILE-WITH-COUNTERS). Keep top-level
+  cells; watch for recompute blow-ups (PAR-PROFILE-WITH-COUNTERS). Keep top-level
   derivations reading only *structural* cells (values flow through inner cells),
   as the template does.
 
@@ -496,7 +496,7 @@ output cell reads the structural choice, not inner values).
   proven `_reconciling_child_iomaps`; the Phase-0 harness is the guard.
 - **Test gap** → harness first; no projection converted without a reactive test.
 - **Performance** (cells per node) → counters; structural-only top-level reads.
-- **AR-NO-NESTED-CELL** (Cell-valued outputs, e.g. Chaining's) → box with
+- **PAR-NO-NESTED-CELL** (Cell-valued outputs, e.g. Chaining's) → box with
   `Cell(f; as_value=true)`; never `@iomap`-auto-wrap a field whose logical value is
   itself a Cell.
 - **`@iomap` access-site audit** (decision 1): converting a reactive IoMap flips

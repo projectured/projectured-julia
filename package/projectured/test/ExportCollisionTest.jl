@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # ExportCollisionTest.jl
 #
-# AR-QUALIFIED-EXTENSION rests on bare `using ..XxxModule`: a file names a
+# PAR-QUALIFIED-EXTENSION rests on bare `using ..XxxModule`: a file names a
 # sibling module and takes its exports, with no symbol list. That is only
 # safe while two modules
 # never export the same name for two *different* things.
@@ -18,7 +18,7 @@
 # `CheckLayering.jl` cannot see it: the one instance that ever existed
 # (`NothingToSyntaxLeaf`, the insertion placeholder vs. the `nothing` leaf)
 # spanned visual and domain. Hence a dynamic check here, in the umbrella — the
-# lowest package whose API reaches all four (AR-LOWEST-PACKAGE).
+# lowest package whose API reaches all four (PAR-LOWEST-PACKAGE).
 # ═══════════════════════════════════════════════════════════════════════════
 
 """
@@ -83,7 +83,7 @@ function export_collisions(roots, own_roots = is_project_root)
             "$sym is exported with $(length(bindings)) distinct bindings by " *
             join(sort([string(nameof(m)) for m in ms]), ", ") *
             " — a file that bare-`using`s two of these gets UndefVarError on use; " *
-            "give the more specific concept a qualified name (AR-QUALIFIED-EXTENSION)")
+            "give the more specific concept a qualified name (PAR-QUALIFIED-EXTENSION)")
     end
     errs
 end
@@ -91,7 +91,7 @@ end
 """
     test_export_collisions()
 
-AR-QUALIFIED-EXTENSION's precondition: no name is exported by two modules with different
+PAR-QUALIFIED-EXTENSION's precondition: no name is exported by two modules with different
 bindings, so bare `using ..XxxModule` can never become ambiguous. See
 `export_collisions`.
 """
@@ -99,7 +99,7 @@ function test_export_collisions()
     @testset "no cross-module export collisions" begin
         errs = export_collisions([Projectured])
         if !isempty(errs)
-            println(stderr, "\nExport collisions (AR-QUALIFIED-EXTENSION):")
+            println(stderr, "\nExport collisions (PAR-QUALIFIED-EXTENSION):")
             foreach(e -> println(stderr, "  ", e), errs)
         end
         @test isempty(errs)

@@ -12,7 +12,7 @@ function test_reversing()
     @test iomap.output[2].value == 2
     @test iomap.output[3].value == 1
 
-    # ── reactive output (AR-STABLE-IOMAP-IDENTITY) ──────────────────────────
+    # ── reactive output (PAR-STABLE-IOMAP-IDENTITY) ──────────────────────────
     # A structural edit re-derives `output` through the SAME iomap object — no
     # re-print — which is what lets Reversing sit inside a chain. Before the
     # reactive conversion the eager `reverse(input)` froze at its first value.

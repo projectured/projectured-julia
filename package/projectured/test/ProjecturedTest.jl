@@ -254,7 +254,7 @@ function test_all()
     test_workbench()
     # Every concrete-domain example through the printer.
     test_domain_examples()
-    # AR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
+    # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
     # name is exported by two modules with different bindings, so bare `using
     # ..XxxModule` can never become ambiguous. The per-package guards cannot
     # see this.

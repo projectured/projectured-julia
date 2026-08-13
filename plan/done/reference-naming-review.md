@@ -107,7 +107,7 @@ default-method error message and docstrings state (so the name stays
 | `dsl_match_step(::Val{n}, …)` | **`match_reference_step`** | `@reference_case` |
 | `dsl_step_subpath_args(::Val{n})` | **`get_reference_step_subpath_args`** | both DSLs + `@step` |
 
-### Verb-first + the `reference_step` noun (AR-NAMING-LAW)
+### Verb-first + the `reference_step` noun (PAR-NAMING-LAW)
 
 Every exported function now leads with a verb (`get_`/`is_`/`build_`/… ) and every
 step operation carries the `reference_step` noun, matching the `ReferenceStep` type:

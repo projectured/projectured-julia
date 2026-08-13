@@ -8,8 +8,8 @@ Planning note (not yet an implementation task). Answers three questions:
 
 The authorities used throughout: [architecture-rules.md](../../documentation/architecture-rules.md)
 (placement), [architecture-requirements.md](../../documentation/architecture-requirements.md)
-(`AR-LOWEST-PACKAGE`, `AR-FRAMEWORKS-SINK`, `AR-DOMAINS-INDEPENDENT`,
-`AR-PROJECTION-PLACEMENT`), and [base/doc/architecture.md](../../package/base/doc/architecture.md).
+(`PAR-LOWEST-PACKAGE`, `PAR-FRAMEWORKS-SINK`, `PAR-DOMAINS-INDEPENDENT`,
+`PAR-PROJECTION-PLACEMENT`), and [base/doc/architecture.md](../../package/base/doc/architecture.md).
 
 Base's membership rule (base doc): *"the type is generic enough that every domain
 reuses it, so it doesn't belong in any single slice."* A feature domain (its own
@@ -79,7 +79,7 @@ coupling in eliminated mode, so it can sink one package lower.
 as *"planned additions"* to `serialization/`. But **as written they hard-code
 Json/Xml/Sql/Julia** (`_domain_to_syntax(::JsonDocument)`, `jsonparse`,
 `JsonInsertion()` seeds, …). Moving them verbatim would make `base` import
-`domain` — an illegal upward edge (`AR-FRAMEWORKS-SINK`, layering guard).
+`domain` — an illegal upward edge (`PAR-FRAMEWORKS-SINK`, layering guard).
 
 Prerequisite refactor (invert the dependency into the seam pattern):
 - **base/serialization** keeps the *framework*: the extension→handler registry

@@ -49,7 +49,7 @@ untouched.
 - **The `IoMapModule` name was preserved**, so the ~40 `import ..IoMapModule:
   SimpleIoMap` sites needed no change — only the ~40 `IoMapApiModule` references
   retargeted. Files that imported from both now carry two `import ..IoMapModule:`
-  lines (left as-is; merging them is out of scope, AR-FOCUSED-DIFFS).
+  lines (left as-is; merging them is out of scope, PAR-FOCUSED-DIFFS).
 - **Fragments inherit the aggregator's `using`.** `IoMapDefaults.jl` dropped its
   own `using ..CellModule` / `..CellStructModule` / `..IoMapApiModule` — the
   aggregator's `using ..CellModule` / `..CellStructModule` covers it, and the

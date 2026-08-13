@@ -165,7 +165,7 @@ The printer of `GestureLogOverlayProjection` does this:
    their cells re-derive.
 5. Return an output canvas with exactly two elements: a `ComputedCell` that
    yields the inner output, and the panel canvas. The two elements are stable,
-   so the iomap identity is stable (AR-STABLE-IOMAP-IDENTITY).
+   so the iomap identity is stable (PAR-STABLE-IOMAP-IDENTITY).
 
 The inner canvas sits at `(0, 0)` in the output canvas, so a pixel coordinate
 means the same thing above and below the decorator. The reader passes every
@@ -312,7 +312,7 @@ broken count as before this work.
 
 - **A write during the read stage.** The recorder writes into a `CellVector`
   from `read_intent`. This is not a write in a thunk, so it does not break
-  AR-NO-WRITE-IN-THUNK. The write happens before `print!`, so the frame that
+  PAR-NO-WRITE-IN-THUNK. The write happens before `print!`, so the frame that
   follows shows the entry.
 - **A full repaint per record.** The panel body is a fresh canvas on each
   record. The renderer may repaint the whole window. The overlay is a debugging

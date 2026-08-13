@@ -17,7 +17,7 @@ The manager mutates only the *input* screen. `ScreenToScreen` reconciles
 the output's windows by identity (a push/remove on the input's `windows`
 cell reflows the output), re-projects a replaced window's content, and
 shares each window's metadata cells — so the output tracks the input with
-no explicit output mutation (AR-STABLE-IOMAP-IDENTITY).
+no explicit output mutation (PAR-STABLE-IOMAP-IDENTITY).
 """
 module WindowManagingProjectionModule
 

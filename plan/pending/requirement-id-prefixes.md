@@ -52,7 +52,7 @@ Measured at `main`, excluding `.git`:
 **Decided with the scheme:** `plan/` is renamed too, including `plan/done/`.
 A done plan that cites a dead id is worse than one whose vocabulary was
 updated. Sealed files may be opened for this rename — one is affected,
-`package/kernel/main/clock/Clock.jl:26`, which cites `AR-PER-EDITOR-STATE`.
+`package/kernel/main/clock/Clock.jl:26`, which cites `PAR-PER-EDITOR-STATE`.
 
 ## 4. Order
 

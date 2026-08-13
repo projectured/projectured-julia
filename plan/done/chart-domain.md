@@ -108,7 +108,7 @@ placeholder for mismatches rather than erroring (asserted in `test_chart()`).
 
 The insertion kit comes from `@domain Chart` (one line, as in `json/Json.jl` —
 generates the `ChartDocument` abstract root, `ChartNothing`, `ChartInsertion`
-and the insertion traits), per AR-DOMAIN-OWNS-EDITS. The type-to-replace
+and the insertion traits), per PAR-DOMAIN-OWNS-EDITS. The type-to-replace
 completion UX is wired through the Syntax pipeline and will not light up in the
 graphics-direct projection; the chart printer renders `ChartNothing`/
 `ChartInsertion` as an empty-chart placeholder instead. (Graph hand-rolls a bare
@@ -120,7 +120,7 @@ and record why here.)
 
 A series' data is stored as whole column vectors (`x::Any # AbstractVector{<:Real}`,
 `y::Any`) — **one cell per column, zero per-point cells**. This is a deliberate,
-named exception to AR-FINEST-GRANULARITY (which prescribes `CellVector` for
+named exception to PAR-FINEST-GRANULARITY (which prescribes `CellVector` for
 finite indexed collections): bulk numeric leaf data follows the
 `GraphicsPolyline.points` precedent and the recorded analysis in
 `plan/pending/cheap-reactive-cells.md` (reactive CellVector at 1M elements
@@ -144,12 +144,12 @@ The pipeline is `Chart → ChartPlot → GraphicsCanvas`, composed as a
 `ChainingProjection` exactly like graph's
 `GraphToGraphLayout ∘ GraphLayoutToGraphics`:
 
-- **`Chart` stays pure semantic content** (AR-WIDGETS-ARE-PRESENTATION: transient
+- **`Chart` stays pure semantic content** (PAR-WIDGETS-ARE-PRESENTATION: transient
   UI state is not document content). It serializes cleanly.
 - **`ChartPlot`** is a presentation-side document produced by stage 1 — a stable
   wrapper holding the chart (by identity) plus all transient interaction state:
   `view`, `cursor`, `hovered`, `drag_anchor`, `drag_rect`. As projection output
-  it is excluded from serialization *by construction* (AR-PERSISTENCE-BY-VALUE),
+  it is excluded from serialization *by construction* (PAR-PERSISTENCE-BY-VALUE),
   the same way `GraphLayout` holds geometry outside the semantic `GraphGraph`
   and `SyntaxNode.collapsed` lives on the projected syntax tree. Stage 1's
   printer preserves the `ChartPlot`'s identity across recomputes so the state
@@ -230,7 +230,7 @@ cache-inside-a-ComputedCell pattern from omnetpp-julia's
 needed).
 
 Gotcha guarded: **no bare `Function` in any `@document`/`@projection` field**
-(auto-wrap turns it into a called thunk — AR-NO-NESTED-CELL; the
+(auto-wrap turns it into a called thunk — PAR-NO-NESTED-CELL; the
 `cell-computed-marker` migration is not finished). Formatters/predicates are
 represented as data (Symbols/format specs); a genuine callable field must be
 spelled `Cell(f; as_value=true)` (precedent: `ObjectToSyntax.jl`'s `filter`) or
@@ -241,7 +241,7 @@ spelled `Cell(f; as_value=true)` (precedent: `ObjectToSyntax.jl`'s `filter`) or
 All interaction state is document fields written via operations (projections hold
 no mutable state). **No new view operation type**: every view/hover/drag write is
 a self-contained `ReplaceReferencedValueOperation(chart_plot, field, value)` —
-the exact mechanism `WidgetTransformPane` uses for zoom (AR-PREFER-REPLACE-VALUE;
+the exact mechanism `WidgetTransformPane` uses for zoom (PAR-PREFER-REPLACE-VALUE;
 zero registration burden, well-defined inverse). Multi-field transitions
 (rubber-band commit = set `view` + clear `drag_*`) compose as a
 `CompoundOperation` of single-field writes. Content edits (series visibility,
@@ -249,7 +249,7 @@ reordering, property values) target the *semantic* documents; the domain's
 structural operations (insert/delete/move series — from the `@domain` kit plus a
 list-move helper) carry references and therefore get `reroot_operation` methods
 AND default-`read_intent` registration (both sides of the invariant —
-AR-REGISTER-NEW-OPERATION; an operation missing from either is silently
+PAR-REGISTER-NEW-OPERATION; an operation missing from either is silently
 swallowed).
 
 | Gesture | Effect |
@@ -497,11 +497,11 @@ Stage 2 (`ChartPlotToGraphics.jl`), hand-written like graph —
   outline, outline mode → step `GraphicsPolyline`.
 - **Series are own-domain leaf data rendered inline** — nothing is delegated
   through `recursion`, so there is no children-iomap (explicit position on
-  AR-DELEGATE-ONE-LEVEL; precedent: `GraphLayoutToGraphics` renders
+  PAR-DELEGATE-ONE-LEVEL; precedent: `GraphLayoutToGraphics` renders
   `VertexLayout` boxes and edge polylines inline and recurses only *foreign*
   vertex content, which charts don't have). If a later feature embeds foreign
   documents (e.g. rich annotations), that feature adds `print_child` +
-  `ChildrenIoMap` per AR-SHARED-CHILDREN-IOMAP.
+  `ChildrenIoMap` per PAR-SHARED-CHILDREN-IOMAP.
 - The deferred-iomap trick (projection-system.md) for the output selection cell.
 
 Reader (stage 2): `@event_case` dispatch implementing the D7 table; hit regions
@@ -814,7 +814,7 @@ reproduce on clean `main` without any of this work.
 - **`@domain` kit vs graphics-direct** — the insertion kit's completion UX
   assumes the Syntax pipeline; if `@domain Chart` drags syntax-side requirements
   into the slice, fall back to graph's hand-rolled insertion shape and record
-  the AR-DOMAIN-OWNS-EDITS deviation here (D2).
+  the PAR-DOMAIN-OWNS-EDITS deviation here (D2).
 - **Backend feature unevenness** — no rotation on SDL/PDF (category labels wrap
   + decimate instead), no filled polygon (marker set restricted), no working
   canvas rasterization (not needed under D5).
@@ -826,7 +826,7 @@ explicit sign-off, since it changes a shared primitive across three backends.
 
 - [ ] **P7 (stretch) — point-level selection.** Reference-step design for
       addressing sample *i* inside a column. Constraint to satisfy or amend
-      with sign-off: AR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is
+      with sign-off: PAR-EVERY-DOCUMENT-HAS-SELECTION (a bare vector is
       selection-opaque; candidate design: a windowed Document view over the
       column, or a new typed reference step — new step types need no sealed
       kernel edit, `PointReferenceStep` is the precedent).

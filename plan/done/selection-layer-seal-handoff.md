@@ -16,7 +16,7 @@ sealing its files.
 
 Files in `package/kernel/main/` are audited against
 [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
-(the `AR-N` rules) and **sealed one at a time**. The authoritative, ordered
+(the `PAR-N` rules) and **sealed one at a time**. The authoritative, ordered
 inventory with per-file `🔒`/`⬜` status is the **"`package/kernel/main/` seal
 status"** section of [CLAUDE.md](../../CLAUDE.md) at the repo root — read it first.
 

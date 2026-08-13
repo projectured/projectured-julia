@@ -10,7 +10,7 @@ function test_switching()
     # branch 1 (IdentityProjection): output is the input
     @test iomap.output === cv
 
-    # ── reactive branch swap (AR-STABLE-IOMAP-IDENTITY) ─────────────────────
+    # ── reactive branch swap (PAR-STABLE-IOMAP-IDENTITY) ─────────────────────
     # Writing the index cell reconciles the inner branch and re-derives output
     # through the SAME iomap — no re-print.
     index[] = 2                              # switch to ReversingProjection

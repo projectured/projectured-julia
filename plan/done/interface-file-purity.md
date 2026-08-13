@@ -1,13 +1,13 @@
-# Interface files declare; they never implement (AR-INTERFACE-DECLARES-ONLY)
+# Interface files declare; they never implement (PAR-INTERFACE-DECLARES-ONLY)
 
 ## Why
 
-[AR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#ar-interface-declares-only) says an interface file carries the module
+[PAR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#par-interface-declares-only) says an interface file carries the module
 docstring, the abstract types and type aliases, and the open generics as bodiless `function f end` —
 and no method bodies at all, defaults and error fallbacks included. Everything it declares is
 exported, so its export list *is* the layer's API surface.
 
-The rule was written because AR-NO-CONSUMER-DOCS's seam carve-out already leaned on it ("an open interface
+The rule was written because PAR-NO-CONSUMER-DOCS's seam carve-out already leaned on it ("an open interface
 declaration is content-free by construction") without it ever having been stated — and, unstated,
 every interface file in the kernel drifted. The purpose is documentary: one file gives a reader the
 entire contract of a layer and nothing else.
@@ -21,7 +21,7 @@ layering guard, so it cannot drift again.
 "defaults" dumping ground: `step_kind`'s abstract default belongs with the per-step `step_kind`
 methods in `ReferenceStep.jl`, the DSL seam fallbacks belong with the grammar that consumes them in
 `ReferenceSyntax.jl`, and the cross-kind cell fallbacks dissolve into per-kind methods on
-`MutableCell` / `ImmutableCell`. A new file is the *last* resort — AR-INTERFACE-DECLARES-ONLY's "the layer wants an
+`MutableCell` / `ImmutableCell`. A new file is the *last* resort — PAR-INTERFACE-DECLARES-ONLY's "the layer wants an
 implementation fragment" clause, used exactly once (backend, below).
 
 **The backend fallback is kept, not pushed onto the concrete backends.** `get_pointer_position`'s
@@ -30,7 +30,7 @@ implementation fragment" clause, used exactly once (backend, below).
 fallback and make all four implement it — was rejected: it spreads a kernel cleanup across three
 packages and turns a legal answer ("this backend cannot report a pointer") into a `MethodError` for
 any out-of-tree backend. The backend layer has no in-layer implementation file for the *abstract*
-contract, so this is the one place AR-INTERFACE-DECLARES-ONLY's implementation-fragment clause applies:
+contract, so this is the one place PAR-INTERFACE-DECLARES-ONLY's implementation-fragment clause applies:
 `backend/BackendDefaults.jl`, a fragment of `BackendModule`.
 
 **`print_child` is a derived helper, not a default, and lives with the recursion machinery.**
@@ -47,7 +47,7 @@ the abstract `IoMap`, so `@iomap`-generated types in higher packages keep workin
 **The guard learns the rule.** `check_layering` gains an `interface_files` argument (a map from
 source path to owning module) and two checks that parse the file — no method bodies, and every
 declared name exported. Purity is checkable *statically*: a bodiless `function f end` parses to a
-one-argument `Expr(:function)`, a method has two. This is what makes AR-INTERFACE-DECLARES-ONLY enforced rather than
+one-argument `Expr(:function)`, a method has two. This is what makes PAR-INTERFACE-DECLARES-ONLY enforced rather than
 aspirational, and it is why the AR could be written with a "known remaining instances" list at all.
 
 ## Steps
@@ -92,7 +92,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
 
 - [x] **5. backend — `backend/Backend.jl`.** `get_pointer_position(::Backend) = (-1, -1)` → new
   fragment `backend/BackendDefaults.jl`, included from `BackendModule`. Add the file to the seal
-  inventory in `CLAUDE.md` (as `⬜`, in load order). Also fix two AR-NO-CONSUMER-DOCS violations in the module
+  inventory in `CLAUDE.md` (as `⬜`, in load order). Also fix two PAR-NO-CONSUMER-DOCS violations in the module
   docstring: it names `SdlBackend()`, `ConsoleBackend()` and `ProjecturedBase.default_backend` —
   specific higher-package names the seam carve-out does *not* license (it permits the *concepts* a
   seam bridges, not its consumers) — and a closing comment that points at `device/Display.jl` when
@@ -106,7 +106,7 @@ aspirational, and it is why the AR could be written with a "known remaining inst
   kernel interface files — the six purified above plus `document/Interface.jl`,
   `selection/Interface.jl` and `device/Device.jl`, which are already clean and now stay that way.
 
-- [x] **8. Close AR-INTERFACE-DECLARES-ONLY.** Replace its "known remaining instances" list with the enforcement
+- [x] **8. Close PAR-INTERFACE-DECLARES-ONLY.** Replace its "known remaining instances" list with the enforcement
   statement, and update `package/kernel/doc/devices-and-backends.md` if it documents the moved
   backend fallback.
 

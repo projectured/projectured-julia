@@ -291,7 +291,7 @@ ChartStripSeries(label::AbstractString, x::AbstractVector,
 Both check `issorted(x)` and `x_end === nothing || x_end >= x[end]`, and
 pass the trailing `nothing` selection field.
 Whole-column cells, one per column, as every series does — the deliberate
-`AR-FINEST-GRANULARITY` exception already recorded for the slice.
+`PAR-FINEST-GRANULARITY` exception already recorded for the slice.
 
 In `Chart.jl` beside the existing dispatch families:
 

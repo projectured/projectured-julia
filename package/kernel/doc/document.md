@@ -26,7 +26,7 @@ DocumentModule.jl   (DocumentModule)  — the aggregator: imports Cell, exports 
 
 `DocumentInterface.jl` is the layer's contract file: an abstract type plus
 bodiless generic *declarations* only, machine-checked by the layering guard
-(AR-INTERFACE-DECLARES-ONLY). Every other file is a **fragment** — a module-less
+(PAR-INTERFACE-DECLARES-ONLY). Every other file is a **fragment** — a module-less
 file sharing the aggregator's namespace — so the whole layer is one module with no
 internal API boundaries; splitting the machinery into separate modules would only
 multiply import headers.

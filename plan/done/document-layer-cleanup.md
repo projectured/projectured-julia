@@ -48,7 +48,7 @@ rework.
 
 `document/Clock.jl` declares its own `ClockModule`, imports only `CellModule`, and its own
 docstring says *"A clock is **not** a `Document`"*. Nothing in it is a document; its
-dependency height is layer 1. It sits in layer 2 for no structural reason (AR-LOWEST-PACKAGE: every
+dependency height is layer 1. It sits in layer 2 for no structural reason (PAR-LOWEST-PACKAGE: every
 piece of code lives in the lowest home its dependencies allow).
 
 - [x] `git mv package/kernel/main/document/Clock.jl package/kernel/main/cell/Clock.jl`.
@@ -59,7 +59,7 @@ piece of code lives in the lowest home its dependencies allow).
       one-include layer table of contents.
 - [x] `git mv package/kernel/test/document/ClockTest.jl package/kernel/test/cell/ClockTest.jl`,
       and update the test package's include list.
-- [x] Docs: `documentation/architecture-requirements.md` AR-PER-EDITOR-STATE says *"a per-editor `Clock`
+- [x] Docs: `documentation/architecture-requirements.md` PAR-PER-EDITOR-STATE says *"a per-editor `Clock`
       **document** (`document/Clock.jl`)"* — both halves are wrong. Correct it to a
       `@cell_struct` at `cell/Clock.jl`. Check `package/kernel/doc/cell.md` too.
 - [x] Seal inventory in [CLAUDE.md](../../CLAUDE.md): move the `Clock.jl` entry from the
@@ -83,8 +83,8 @@ old rationale is replaced in `cell.md` rather than left to contradict the code.
 
 Two stale doc claims fixed in passing, both of which named things that do not exist:
 `cell.md` listed `WALL_CLOCK` and `start_wall_clock_heartbeat!` as API (they are the private
-`_WALL_CLOCK` / `_start_wall_clock_heartbeat!`; the export is `get_wall_clock()`), and AR-PER-EDITOR-STATE
-called the clock a *document*. Fixed to AR-HONEST-DOCS (documentation must be honest). The cell-layer
+`_WALL_CLOCK` / `_start_wall_clock_heartbeat!`; the export is `get_wall_clock()`), and PAR-PER-EDITOR-STATE
+called the clock a *document*. Fixed to PAR-HONEST-DOCS (documentation must be honest). The cell-layer
 diagram in `cell.md` was also missing `CellStruct.jl`; it is now listed, since it is
 load-bearing for the rationale above.
 
@@ -99,7 +99,7 @@ idea. This mirrors the already-completed
 layer at the cell layer's grain (7 files, ~90 lines each).
 
 **Pure code motion.** Every line moves unchanged apart from section banners and the
-per-file header docstring that AR-MODULE-DOCSTRING requires. No name added or removed.
+per-file header docstring that PAR-MODULE-DOCSTRING requires. No name added or removed.
 
 Target layout:
 
@@ -137,7 +137,7 @@ Notes:
 
 ### Deviation — no empty `DocumentWalk.jl` placeholder
 
-The original table listed an empty `DocumentWalk.jl` for Step 4 to fill. Dropped: AR-PROJECTION-PLACEMENT says
+The original table listed an empty `DocumentWalk.jl` for Step 4 to fill. Dropped: PAR-PROJECTION-PLACEMENT says
 *"a file nothing imports gets wired in or deleted before it gets a home — no orphan shapes
 the structure"*, and an empty placeholder is exactly that orphan. Step 4 creates the file
 when it has content to put in it.
@@ -149,7 +149,7 @@ the eight new fragments is identical to that of the two files they replace.
 
 ## Step 3 — Close the private-symbol leaks ✅ done
 
-Two separate leaks, both AR-MODULE-BOUNDARY-IS-API violations (imports name only exported symbols — the module
+Two separate leaks, both PAR-MODULE-BOUNDARY-IS-API violations (imports name only exported symbols — the module
 boundary *is* the API boundary).
 
 ### 3a. `unwrap_cell` — ten copies of one expression
@@ -166,7 +166,7 @@ boundary *is* the API boundary).
 
 The comment in `ReferenceSearch.jl` defends the duplication as cheaper than exporting an
 internal. It isn't: unwrapping a cell-or-value is a *cell-layer concept* with exactly one
-owning module (AR-NAMING-LAW: every exported name has one owning module).
+owning module (PAR-NAMING-LAW: every exported name has one owning module).
 
 - [x] `cell/AbstractCell.jl`: define `unwrap_cell(x) = x isa AbstractCell ? x[] : x`,
       exported from `CellModule`, with a docstring saying it is the cell-or-value accessor
@@ -192,7 +192,7 @@ package boundary, to implement `sync_document!(::CellVector, ::CellVector)`. Tha
 the smell; the fix is not to hide it better but to admit that `CellVector`'s sync is a
 legitimate consumer and the kit is therefore public.
 
-- [x] Rename them to the naming law (AR-NAMING-LAW: full words, `get_*` for getters) and export
+- [x] Rename them to the naming law (PAR-NAMING-LAW: full words, `get_*` for getters) and export
       them from `DocumentModule`:
   - `_same_wrapper(a, b)` → `is_same_document_type(a, b)`
   - `_document_cell_kind(doc)` → `get_document_cell_kind(doc)`
@@ -275,7 +275,7 @@ Two strategies implement it:
 
 The seam is what lets the walk live *below* the reference layer without naming
 `FieldReference` / `ElementReference` (which it cannot — they are layer 3). This is the
-standard AR-FRAMEWORKS-SINK shape: the lower layer declares open generics, the higher layer adds
+standard PAR-FRAMEWORKS-SINK shape: the lower layer declares open generics, the higher layer adds
 methods, and dispatch is the registration. **And it is the shape that survives item 1**:
 once path syntax sinks below documents, `PathWalk` can move down beside `ValueWalk` and the
 seam either collapses or stays as a two-strategy dispatch — no rework either way.
@@ -311,7 +311,7 @@ and throws `MethodError`. The fix is an explicit
 `import ..DocumentModule: initial_location, visit_policy, child_field_location,
 child_element_location`, with a comment at the import saying why.
 
-This is a general hazard for **every** seam this codebase declares (AR-FRAMEWORKS-SINK): a lower layer's
+This is a general hazard for **every** seam this codebase declares (PAR-FRAMEWORKS-SINK): a lower layer's
 open generic is only extended by an `import`ed name. It cost nothing here because the
 behavioural check caught it immediately — but note that it would **not** have been caught by
 `test_kernel()`, which was green *with the bug present*: nothing in the kernel suite walks a
@@ -368,7 +368,7 @@ Note what it shares with the cell layer, which already exports a codegen kit
   split Rule Y needs), and the generic Rule Y emitter
   `cell_struct_positional_ctors(plan, target_name)` moved down beside
   `cell_struct_kwctor`. Export the lot — `@document` is an out-of-module consumer, so they
-  are public by AR-MODULE-BOUNDARY-IS-API.
+  are public by PAR-MODULE-BOUNDARY-IS-API.
 - [x] `cell_struct_exprs` consumes `struct_plan` instead of its own inline parser.
 
   **Decision — `@cell_struct` does NOT gain Rule Y.** The plan floated this as free. It
@@ -471,7 +471,7 @@ they cannot drift silently:
       reachable by two paths is reported **once** by `search_documents` and **twice** by
       `search_references`, because it is one object but two places, and a place is what a
       selection names.
-- [x] `package/kernel/doc/cell.md`, `documentation/architecture-requirements.md` (AR-PER-EDITOR-STATE) —
+- [x] `package/kernel/doc/cell.md`, `documentation/architecture-requirements.md` (PAR-PER-EDITOR-STATE) —
       done in Step 1.
 - [x] No AR or guide named any symbol renamed in Step 3 (checked).
 - [x] Seal inventory in [CLAUDE.md](../../CLAUDE.md).
@@ -481,22 +481,22 @@ they cannot drift silently:
 
 Clean on every mechanical requirement:
 
-- **AR-MODULE-DOCSTRING** (module docstring per file) — all 13 new/changed files open with one.
-- **AR-MODULE-BOUNDARY-IS-API** (imports name only exported symbols) — the kernel layering guard runs with
+- **PAR-MODULE-DOCSTRING** (module docstring per file) — all 13 new/changed files open with one.
+- **PAR-MODULE-BOUNDARY-IS-API** (imports name only exported symbols) — the kernel layering guard runs with
   `check_private_imports = true` and is green. This step *removed* the standing violation:
   base's `CollectionModule` no longer imports four underscore-private names from
   `DocumentModule`.
-- **AR-NO-PROJECTION-GLOBALS / AR-PER-EDITOR-STATE** (no global mutable state) — none introduced.
-- **AR-TIGHT-COMMENTS** (a comment carries only what the code cannot) — no history-narrating comments.
-- **AR-FRAMEWORKS-SINK / AR-PROJECTION-PLACEMENT** — the walk seam is the sanctioned shape (lower layer declares the open
+- **PAR-NO-PROJECTION-GLOBALS / PAR-PER-EDITOR-STATE** (no global mutable state) — none introduced.
+- **PAR-TIGHT-COMMENTS** (a comment carries only what the code cannot) — no history-narrating comments.
+- **PAR-FRAMEWORKS-SINK / PAR-PROJECTION-PLACEMENT** — the walk seam is the sanctioned shape (lower layer declares the open
   generic, higher layer adds the method); no orphan files.
 
-**One item to flag, not silently sealed past — AR-NO-CONSUMER-DOCS.** `search_documents`'s docstring names
-`search_references`, a function in the layer *above* it. AR-NO-CONSUMER-DOCS forbids documentation that
+**One item to flag, not silently sealed past — PAR-NO-CONSUMER-DOCS.** `search_documents`'s docstring names
+`search_references`, a function in the layer *above* it. PAR-NO-CONSUMER-DOCS forbids documentation that
 names higher-layer callers. Two things make this defensible rather than clear-cut: it is
 **pre-existing** (the old docstring already said "the object-valued counterpart to a raw
 `search_references`"), and the two are one user-facing API pair whose difference is exactly
-the thing a reader must know. `DocumentWalk.jl` — a genuine seam file, and so inside AR-NO-CONSUMER-DOCS's
+the thing a reader must know. `DocumentWalk.jl` — a genuine seam file, and so inside PAR-NO-CONSUMER-DOCS's
 seam carve-out — names only the *concept* (`ReferencePath`), never `PathWalk`,
 `ReferenceModule`, or `search_references`. **Left as-is and reported; the seal is the user's
 call.**
@@ -507,9 +507,9 @@ plan materially changed is returned to `⬜` pending re-review. `cell/AbstractCe
 `cell/Clock.jl` (moved, content untouched) and `document/Forward.jl` (untouched) keep their
 `🔒`.
 
-### AR-INTERFACE-DECLARES-ONLY landed mid-flight, and this work was violating it
+### PAR-INTERFACE-DECLARES-ONLY landed mid-flight, and this work was violating it
 
-While these steps were running, `main` gained **AR-INTERFACE-DECLARES-ONLY — an interface file declares, it never
+While these steps were running, `main` gained **PAR-INTERFACE-DECLARES-ONLY — an interface file declares, it never
 implements**, which names `cell/AbstractCell.jl` as an interface file (with `is_up_to_date`
 and `Base.peek` as its known, staged violations).
 
@@ -518,19 +518,19 @@ violation of a rule written while the branch was in flight, in the very file the
 out. Fixed after rebasing onto the new `main`: `unwrap_cell` moved to a sibling
 implementation fragment, `cell/CellAccess.jl`, and `AbstractCell.jl` is now byte-identical to
 `main` again — so its seal stands rather than being consumed by this work. The two
-pre-existing violations in it are the user's, listed under AR-INTERFACE-DECLARES-ONLY's staged enforcement, and
+pre-existing violations in it are the user's, listed under PAR-INTERFACE-DECLARES-ONLY's staged enforcement, and
 were left alone.
 
 `document/DocumentWalk.jl` is **not** an interface file (the document layer's is
 `Document.jl`, which its module includes first and which declares only `abstract type
 Document end`), so its defaults (`initial_location`, `visit_policy`) and its algorithm are in
-the right place — the same shape `ReferenceStep.jl` already has. But there is a question AR-INTERFACE-DECLARES-ONLY
+the right place — the same shape `ReferenceStep.jl` already has. But there is a question PAR-INTERFACE-DECLARES-ONLY
 raises that is the user's to answer, not mine: **should the document layer's interface file
 declare the walk seam** (`abstract type DocumentWalk end` plus the four generics as bodiless
-`function f end`), the way AR-INTERFACE-DECLARES-ONLY says an interface file carries "the abstract types … and its
+`function f end`), the way PAR-INTERFACE-DECLARES-ONLY says an interface file carries "the abstract types … and its
 open generics"? Today `Document.jl` declares none of the layer's generics — not
 `is_element_collection`, not `is_opaque` — so adopting that would be the first step of
-applying AR-INTERFACE-DECLARES-ONLY to the document layer, which enforcement-is-staged suggests the user wants to
+applying PAR-INTERFACE-DECLARES-ONLY to the document layer, which enforcement-is-staged suggests the user wants to
 drive. **Not done; raised.**
 
 **Commit:** `doc: document the restructured document layer; re-open the seals for review`

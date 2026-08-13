@@ -387,7 +387,7 @@ to it stay valid. What *varies* (the `output`, its selection, the child IoMaps) 
 a **computed cell** that re-derives from the projection's input and parameter
 cells; an operation writes a cell and the change propagates through the existing
 IoMap with no re-print. This is
-[AR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#ar-stable-iomap-identity),
+[PAR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#par-stable-iomap-identity),
 and `reconcile_child_iomaps` (iomap layer) is the shared way to keep child-IoMap
 identity across a structural edit. Note the split: `@iomap`/`@projection` give the
 transparent cell *fields*, but wiring those fields as **derivations** (a
@@ -438,7 +438,7 @@ domain (via `map_reference_backward`).
    or define your own `@iomap` struct when you carry extra data. Wire whatever
    varies (`output`, child IoMaps) as computed cells so a parameter/input change
    re-derives it through the same IoMap
-   ([AR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#ar-stable-iomap-identity));
+   ([PAR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#par-stable-iomap-identity));
    reconcile child collections with `reconcile_child_iomaps`.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
    the cleanest way is `@reference_case`. `print_document` wires its output

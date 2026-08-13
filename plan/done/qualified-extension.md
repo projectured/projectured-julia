@@ -5,9 +5,9 @@
 Phases 0, 1, 2 and 4 are **done**; Phase 3 (the remaining non-projection seams) is left as the
 follow-up, together with the deferred projection-generic sweep.
 
-The rule is now **AR-QUALIFIED-EXTENSION**, and it is machine-checked three ways: the compiler rejects an
+The rule is now **PAR-QUALIFIED-EXTENSION**, and it is machine-checked three ways: the compiler rejects an
 unqualified extension after `using`, `qualified_reference_errors` keeps qualification inside the
-export list (AR-MODULE-BOUNDARY-IS-API's other half), and `relative_import_errors` holds an opt-in `qualified_files`
+export list (PAR-MODULE-BOUNDARY-IS-API's other half), and `relative_import_errors` holds an opt-in `qualified_files`
 set to the import form. `test_export_collisions` (umbrella) guards the precondition that makes
 bare `using` safe.
 
@@ -38,7 +38,7 @@ like a fresh local definition.
 Three consequences:
 
 1. **The new-vs-extend distinction is invisible.** A reader cannot tell, at a definition
-   site, whether the file is participating in another layer's contract (AR-FRAMEWORKS-SINK's *"multiple
+   site, whether the file is participating in another layer's contract (PAR-FRAMEWORKS-SINK's *"multiple
    dispatch is the registration"*) or just defining a helper. The architecture's central
    registration mechanism is unmarked in the source.
 2. **Silent accidental extension.** `print_document` is imported into ~200 files. A local
@@ -53,7 +53,7 @@ The codebase already applies the fix at the `Base` boundary — there is not one
 anywhere; it is all `function Base.show(io::IO, s::PointReference)`. Only the internal-module
 case is inconsistent.
 
-## The rule (new **AR-QUALIFIED-EXTENSION**)
+## The rule (new **PAR-QUALIFIED-EXTENSION**)
 
 One import form, one extension form:
 
@@ -66,12 +66,12 @@ One import form, one extension form:
 
 Bare `using ..X` binds the module name `X` *and* brings X's exported symbols into scope, so
 one line serves both roles. No symbol lists — they are noise, and the export list is already
-the module's declared API surface (AR-MODULE-BOUNDARY-IS-API).
+the module's declared API surface (PAR-MODULE-BOUNDARY-IS-API).
 
 **Qualification is for cross-module extension only.** A file that is a *fragment of the
 defining module* (`reference/ReferenceStep.jl`, `reference/ReferenceBuilder.jl`,
 `reference/ReferenceCase.jl` — all included into `ReferenceModule`, none of which has an
-import header at all) defines bare and is untouched. This matches AR-MODULE-BOUNDARY-IS-API's "fragments of one
+import header at all) defines bare and is untouched. This matches PAR-MODULE-BOUNDARY-IS-API's "fragments of one
 module" carve-out: same namespace by construction, so nothing is imported and nothing is
 qualified.
 
@@ -103,13 +103,13 @@ Confirmed against the real Julia in this environment, not assumed:
   import of the generic at all. Verified working with the caller importing nothing. This
   removes a hidden coupling from `@document`/`@projection`/`@iomap` rather than adding one.
 
-## The one real cost: AR-MODULE-BOUNDARY-IS-API loses coverage unless the guard is extended
+## The one real cost: PAR-MODULE-BOUNDARY-IS-API loses coverage unless the guard is extended
 
 `check_private_imports` in [package/kernel/test/layering/CheckLayering.jl](../../package/kernel/test/layering/CheckLayering.jl)
 collects imported symbols only from the `import X: a, b` form (the `:(:)` head, ~L85).
 
 Qualification **bypasses exports entirely** — verified: `X.internal_helper()` reaches a
-non-exported name with no error. So the moment we encourage qualification, AR-MODULE-BOUNDARY-IS-API ("imports name
+non-exported name with no error. So the moment we encourage qualification, PAR-MODULE-BOUNDARY-IS-API ("imports name
 only exported symbols — the module boundary *is* the API boundary") stops being enforced
 precisely at the sites that matter most.
 
@@ -166,7 +166,7 @@ It is **latent, not active**: no file currently names both modules (checked — 
 mentions `ObjectToSyntaxModule`). Under bare `using` it stays harmless *until* some file needs
 both, at which point it fails loudly with `UndefVarError` on use.
 
-This is an AR-MODULE-BOUNDARY-IS-API smell independent of this plan — two modules publishing the same name for
+This is an PAR-MODULE-BOUNDARY-IS-API smell independent of this plan — two modules publishing the same name for
 different concepts — and the insertion module's own export list already shows the fix: every
 sibling is prefixed (`DocumentInsertionToSyntaxLeaf`, `DomainInsertionToSyntaxLeaf`,
 `JuliaInsertionToSyntaxLeaf`, `SqlInsertionToSyntaxLeaf`); `NothingToSyntaxLeaf` is the lone
@@ -190,7 +190,7 @@ unprefixed odd-one-out. The more-specific concept takes the qualifier.
 
 - [x] Add `qualified_reference_errors` to `CheckLayering.jl`: walk each file's AST for
       `Expr(:., X, QuoteNode(sym))` where `X` resolves to a sibling/lower module, and assert
-      `sym ∈ exports(X)`. Restores AR-MODULE-BOUNDARY-IS-API at qualification sites.
+      `sym ∈ exports(X)`. Restores PAR-MODULE-BOUNDARY-IS-API at qualification sites.
 - [x] Add a lint forbidding the `import ..X: f` and bare `import ..X` forms — `relative_import_errors`. Stage it: allow a
       grandfathered file list initially, shrink it to empty as the sweep proceeds. Without the
       grandfather list the guard goes red on ~1400 existing lines on day one.
@@ -198,9 +198,9 @@ unprefixed odd-one-out. The more-specific concept takes the qualifier.
       but assert it with a test rather than trusting the read).
 - [x] Commit.
 
-## Phase 2 — pilot: the two small AR-INTERFACE-DECLARES-ONLY interface seams
+## Phase 2 — pilot: the two small PAR-INTERFACE-DECLARES-ONLY interface seams
 
-Both are declared in interface files (AR-INTERFACE-DECLARES-ONLY), both cross package boundaries, and together they
+Both are declared in interface files (PAR-INTERFACE-DECLARES-ONLY), both cross package boundaries, and together they
 are ~26 sites across **7 files**. This is the "small blast".
 
 ### Reference-step seam — declared in `kernel/main/reference/Interface.jl`
@@ -256,15 +256,15 @@ its `print_document` / `evaluate_operation` imports are untouched by design).
 
 ## Phase 4 — write the rule down
 
-- [x] Add **AR-QUALIFIED-EXTENSION** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+- [x] Add **PAR-QUALIFIED-EXTENSION** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
       (72 is the current highest), stating the table above, the same-module-fragment carve-out,
       and the reason: the compiler can only distinguish "new function" from "extension of
-      another layer's contract" if the name arrives via `using`. Cross-reference AR-MODULE-BOUNDARY-IS-API
-      (imports name only exported symbols — now also enforced at qualification sites), AR-FRAMEWORKS-SINK
-      (multiple dispatch is the registration — now visible at every site), and AR-INTERFACE-DECLARES-ONLY (interface
+      another layer's contract" if the name arrives via `using`. Cross-reference PAR-MODULE-BOUNDARY-IS-API
+      (imports name only exported symbols — now also enforced at qualification sites), PAR-FRAMEWORKS-SINK
+      (multiple dispatch is the registration — now visible at every site), and PAR-INTERFACE-DECLARES-ONLY (interface
       files declare the generics being extended).
 - [x] Note the deferred projection-generic migration as a known remaining instance, in the style
-      of AR-MODULE-BOUNDARY-IS-API's `PlaybackModule` note. AR-MODULE-BOUNDARY-IS-API also gained a cross-reference: an import header is
+      of PAR-MODULE-BOUNDARY-IS-API's `PlaybackModule` note. PAR-MODULE-BOUNDARY-IS-API also gained a cross-reference: an import header is
       only half the boundary, and `qualified_reference_errors` closes the other half.
 
 ## Risks

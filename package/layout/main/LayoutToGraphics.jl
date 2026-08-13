@@ -1025,7 +1025,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
                           recursion, doc::FlowLayout, ctx)
     # Rebuild children + geometry inside one build cell (the H/V/Constraint sibling
     # pattern) so a structural edit to `doc.children` re-flows; the outer canvas's
-    # extent + membership derive from `build[]` (AR-STABLE-IOMAP-IDENTITY).
+    # extent + membership derive from `build[]` (PAR-STABLE-IOMAP-IDENTITY).
     build = ComputedCell(() -> begin
         n = length(doc.children)
         child_iomaps = Any[]

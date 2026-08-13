@@ -4,7 +4,7 @@
 
 Give the three device markers real physical properties, populated by the backend,
 and retire the process-global display-size provider (`DisplayModule`) — an
-AR-PER-EDITOR-STATE smell — in favour of per-editor device state.
+PAR-PER-EDITOR-STATE smell — in favour of per-editor device state.
 
 Rationale (from the user):
 - **Screen** hardware resolution → decides the editor's window resolution/size
@@ -39,7 +39,7 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
    Ref) into a **backend generic** `get_display_size(backend; display=0)` in
    `BackendInterface.jl`; SDL implements it, the default returns `(1280, 800)`.
    This removes the process-global mutable `_DISPLAY_SIZE_PROVIDER` Ref (the
-   actual AR-PER-EDITOR-STATE smell) while keeping the query.
+   actual PAR-PER-EDITOR-STATE smell) while keeping the query.
 
 2. **`DisplayModule` (`backend/Display.jl`) is deleted.** Once `get_display_size`
    is a backend generic and the provider Ref is gone, `DisplayModule` is empty.
@@ -95,7 +95,7 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
   `get_display_size(backend)` (thread the resolved backend into the sizing).
 - [x] **6. Docs.** `naming.md`, `editor.md`, `devices-and-backends.md`,
   `architecture.md` (both kernel + top-level), `visual/doc/architecture.md`,
-  `AR-BACKEND-SEAM`, `BackendInterface.jl` header (done in step 2), device
+  `PAR-BACKEND-SEAM`, `BackendInterface.jl` header (done in step 2), device
   fragment docstrings (done in step 1). Retired-global + new device fields noted;
   the deleted `### DisplayModule` section removed.
 - [x] **7. Tests.** `HeadlessBackendTest`: device defaults + keyword ctors,
@@ -103,7 +103,7 @@ The `(1280, 800)` Screen default is exactly the old SDL-free
   defaults (→ 21/21). New `sdl/test/backend/DeviceConfigTest.jl`
   (`test_device_config`): `get_display_size(SdlBackend())` is a positive Int
   tuple, `configure_devices!` populates the Screen to match + a Float64 scale,
-  Mouse/Keyboard untouched (→ SDL 37/37). AR-NEW-CODE-SHIPS-TESTS.
+  Mouse/Keyboard untouched (→ SDL 37/37). PAR-NEW-CODE-SHIPS-TESTS.
 
 ## Status: DONE
 

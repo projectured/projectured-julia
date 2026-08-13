@@ -9,7 +9,7 @@ so the next sync opens one more level — and must never edit the widget's own
 copy, or the widget and the shadow would hold two disagreeing versions of the
 same state.
 
-The reader is PURE (AR-READER-IS-PURE): it returns a
+The reader is PURE (PAR-READER-IS-PURE): it returns a
 `SetReflectedDisclosureOperation` naming the nodes that toggled, and evaluating
 that is what moves the shadow. `apply_chevron!` below does both, standing in for
 what the editor does with whatever a reader returns.

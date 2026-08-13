@@ -1,7 +1,7 @@
 # Split the document interface along the concept DAG
 
 Break the documentation-level cycle in the document layer by **redistributing each
-interface declaration to the lowest layer whose concepts it references** (AR-LOWEST-PACKAGE),
+interface declaration to the lowest layer whose concepts it references** (PAR-LOWEST-PACKAGE),
 instead of bundling them all in `document/Interface.jl` (layer 2).
 
 ## Problem
@@ -35,10 +35,10 @@ No bare type needs a not-yet-defined type. Only the *APIs* reach upward — and 
 can be **declared at the layer where its concept completes**, so its documentation
 only ever references introduced concepts.
 
-## Principle — AR-LOWEST-PACKAGE, not a new folder
+## Principle — PAR-LOWEST-PACKAGE, not a new folder
 
 Do **not** create a `concepts/` or `api/` folder of forward declarations — that is
-the separate `api/` layer AR-PROJECTION-PLACEMENT explicitly forbids ("interfaces live with their
+the separate `api/` layer PAR-PROJECTION-PLACEMENT explicitly forbids ("interfaces live with their
 concept"). Instead, each declaration sinks to `max(layer of every type it
 mentions)`:
 
@@ -133,7 +133,7 @@ module home means:
 
 ## Related
 
-- Pairs with the AR-NO-CONSUMER-DOCS seam carve-out: an interface/seam file may name the *concepts*
+- Pairs with the PAR-NO-CONSUMER-DOCS seam carve-out: an interface/seam file may name the *concepts*
   it bridges (as forward pointers) but not the specific higher-*package* modules that
   implement it. After this split, each seam sits at the layer of its concepts, so even
   the concept references become backward, not forward.

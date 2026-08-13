@@ -350,9 +350,9 @@ Likely **justified exceptions** (must be written down, with the reason):
   [package/kernel/main/projection/ProjectionApi.jl](../../package/kernel/main/projection/ProjectionApi.jl)),
   but `projection-system.md`'s "Purity" section covers reconciliation, and
   [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
-  states the rule formally as **AR-STABLE-IOMAP-IDENTITY** ("its children
+  states the rule formally as **PAR-STABLE-IOMAP-IDENTITY** ("its children
   reconcile by identity... goes through the shared reconciler... `reconcile_child_iomaps`
-  (in the iomap layer)") and **AR-SHARED-CHILDREN-IOMAP**. The exceptions-must-be-justified
+  (in the iomap layer)") and **PAR-SHARED-CHILDREN-IOMAP**. The exceptions-must-be-justified
   rule is not written down anywhere yet.
 
 ## Verification (run the narrowest covering test, never `test_all`)

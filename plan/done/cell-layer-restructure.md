@@ -96,7 +96,7 @@ vice versa. They are two *slices*, not one.
 
 The file holds a single function, `unwrap_cell`. Its own header explains *why* it
 is separate: `AbstractCell.jl` is the layer's interface file and
-[AR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#ar-interface-declares-only)
+[PAR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#par-interface-declares-only)
 forbids method bodies there, so a function with a body cannot live beside the
 type it dispatches on. That reasoning is sound — the weirdness is the **name**
 (`CellAccess` promises a broad "access" surface but delivers one accessor) and
@@ -119,7 +119,7 @@ the other half is bare and generic (`struct_plan`, `add_plan_field!`,
 `retype_fields!`, `declared_value_types`, `field_cell_kinds`, `cell_kind_of`,
 `required_count`, `trailing_default_count`, `struct_macro_default`). Under bare
 `using ..CellModule` **every export lands in every consumer's scope**
-([AR-QUALIFIED-EXTENSION](../../documentation/architecture-requirements.md#ar-qualified-extension)
+([PAR-QUALIFIED-EXTENSION](../../documentation/architecture-requirements.md#par-qualified-extension)
 + `test_export_collisions`), so generic names like `required_count` /
 `trailing_default_count` / `declared_value_types` are both collision-prone and
 poorly self-describing out of context.
@@ -131,7 +131,7 @@ poorly self-describing out of context.
 them (they are internal helpers of `cell_struct_exprs`); and it omits
 `cell_struct_positional_ctors` and `struct_macro_default`, which *are* exported.
 Violates
-[AR-HONEST-DOCS](../../documentation/architecture-requirements.md#ar-honest-docs).
+[PAR-HONEST-DOCS](../../documentation/architecture-requirements.md#par-honest-docs).
 Fix regardless of the rest.
 
 ### F6 — Naming-convention drift in the layer's own filenames (observation)
@@ -189,7 +189,7 @@ accessor. Rename the file to state its one job precisely — proposed
 `cell/CellUnwrap.jl` (or fold it into a small `cell/CellProtocol.jl` that also
 holds the `is_up_to_date(::Vector{Cell})` convenience method, giving the "cross-
 kind operations over `AbstractCell`" file real content instead of one line). The
-existence of a dedicated file is *correct* (AR-INTERFACE-DECLARES-ONLY keeps it
+existence of a dedicated file is *correct* (PAR-INTERFACE-DECLARES-ONLY keeps it
 out of `AbstractCell.jl`); only the name needs sharpening.
 
 **Sealed?** No — `CellAccess.jl` is editable. If we choose to fold in the
@@ -211,7 +211,7 @@ layering guard 10/10. The scope note below is retained for the record.
 Give the animation clock **its own thin layer directly above cell** (new layer 2,
 `clock/`, module `ClockModule` unchanged), sinking it as low as its single
 dependency (`CellModule`) allows —
-[AR-FRAMEWORKS-SINK](../../documentation/architecture-requirements.md#ar-frameworks-sink).
+[PAR-FRAMEWORKS-SINK](../../documentation/architecture-requirements.md#par-frameworks-sink).
 This makes the layer numbering honest: the engine is layer 1, its first client is
 layer 2. `using ..ClockModule` resolves the same in `PrinterContext`/`Editor`, so
 **consumers do not change**; only the include tree, the seal-list, and the guard.
@@ -224,7 +224,7 @@ layer 2. `using ..ClockModule` resolves the same in `PrinterContext`/`Editor`, s
 - `CLAUDE.md`: move the `Clock` entry into a new "Layer 2 — clock" section (its
   🔒 stays); shift subsequent layer numbers.
 - Move `test/cell/ClockTest.jl` → `test/clock/ClockTest.jl`
-  (AR-PARALLEL-TRIADS).
+  (PAR-PARALLEL-TRIADS).
 - `cell.md`: remove Clock from the cell-layer section; point to a clock doc.
 
 **Sealed?** Yes — `Clock.jl` moves (content unchanged, but a sealed file is being
@@ -298,7 +298,7 @@ drop the internal helpers, add the actually-exported ones. Trivial, sealed-free.
   *targeted* pass (toolkit only, leaving the protocol verbs, since a mechanical
   prefix reads slightly worse and `set_function!`/`is_up_to_date`/`set_value!`
   are heavily used — 172/70/47 sites, against
-  [AR-NAMING-LAW](../../documentation/architecture-requirements.md#ar-naming-law)'s
+  [PAR-NAMING-LAW](../../documentation/architecture-requirements.md#par-naming-law)'s
   guessability-first principle); the user overrode that in favour of a uniform
   `cell` marker across the whole interface. Accepted trade-off: the protocol-verb
   renames (C-D Part 2) are high-churn and touch sealed kind files. The types and
@@ -354,7 +354,7 @@ layering guard in the same commit as the change that moves files.
   a green guard + green `test_cell()` can still hide a broken `using`.
 - **Export collisions:** the toolkit rename must not introduce a name another
   module already exports; `test_export_collisions` (umbrella) is the check.
-- **AR-STABLE-FOUNDATIONS** freezes the reactive *design*, not the file layout —
+- **PAR-STABLE-FOUNDATIONS** freezes the reactive *design*, not the file layout —
   this restructure re-litigates neither the pull-based engine nor any invariant.
 - **Concurrent-checkout hygiene** ([[concurrent-checkout-commit-explicit-paths]]):
   commit explicit paths; the user may be editing the same checkout.

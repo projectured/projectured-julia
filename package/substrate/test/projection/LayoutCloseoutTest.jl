@@ -57,7 +57,7 @@ end
     @test length(collect(oor.output.elements)) == 0
 end
 
-# ── Reactive reflow (AR-STABLE-IOMAP-IDENTITY): a page add/remove reflows the stack
+# ── Reactive reflow (PAR-STABLE-IOMAP-IDENTITY): a page add/remove reflows the stack
 # through the SAME held iomap — no re-print. A `build` cell reading `doc.children`
 # rebuilds the child iomaps, and the extent / elements / entries re-derive from it. ──
 @testset "StackLayout child add/remove reflows through the held iomap" begin

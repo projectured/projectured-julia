@@ -22,7 +22,7 @@ export NestingProjection, NestingProjectionIoMap
 
 # Transparent: `output` forwards the child iomap's output through a cell, so the
 # IoMap keeps its identity while the nested projection re-derives
-# (AR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.
+# (PAR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.
 @iomap struct NestingProjectionIoMap
     projection::Any
     input::Any

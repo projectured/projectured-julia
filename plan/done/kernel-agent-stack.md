@@ -25,7 +25,7 @@ document and the chat widget.
 
 Two violations fall out of reading the layer:
 
-- **AR-PER-EDITOR-STATE (no process-global state; one process must run many editors).**
+- **PAR-PER-EDITOR-STATE (no process-global state; one process must run many editors).**
   `ToolRegistryModule._TOOLS` / `._RESOURCES` are module-level `const` vectors;
   `McpModule._SCRATCH` is one shared scratch module for `execute_julia_code` and
   `LAST_VALUE` one shared last-value. Two editors in one process today share one tool set,
@@ -69,7 +69,7 @@ as a generic on `Llm`; the two adapters become symmetric.
 hand-builds schemas for, and become **ordinary registered tools** in `DefaultTools.jl`.
 That deletes `assistant_tool_schemas` and `dispatch_assistant_tool` from the domain.
 
-**AR-PER-EDITOR-STATE.** State that was process-global moves onto the `ToolSet` instance:
+**PAR-PER-EDITOR-STATE.** State that was process-global moves onto the `ToolSet` instance:
 
 ```julia
 mutable struct ToolSet
@@ -86,7 +86,7 @@ through it. `Editor` gains `tools::ToolSet`, constructed per editor.
 
 *Accepted carve-out:* `_GUIDE_INDEX` / `_API_INDEX` stay process-global lazily-built caches.
 They are derived read-only from source files on disk, identical for every editor — the same
-principled exception AR-PER-EDITOR-STATE already grants the wall clock (one writer, read-only, a genuine
+principled exception PAR-PER-EDITOR-STATE already grants the wall clock (one writer, read-only, a genuine
 singleton). Stated in the file, not silently kept.
 
 ### `kernel/llm/` — layer 13
@@ -180,7 +180,7 @@ One commit per phase; each phase leaves the tree loading and its tests green.
 
 - [x] New `kernel/tool/` (7 files: layer fragment, module, and five fragments).
       `agent/ToolRegistry.jl` and `agent/Mcp.jl` are deleted.
-- [x] `ToolSet` instance replaces `_TOOLS` / `_RESOURCES` / `_SCRATCH` / `LAST_VALUE` (AR-PER-EDITOR-STATE).
+- [x] `ToolSet` instance replaces `_TOOLS` / `_RESOURCES` / `_SCRATCH` / `LAST_VALUE` (PAR-PER-EDITOR-STATE).
 - [x] `list_resources` / `read_resource` become registered tools.
 - [x] `Editor` gains `tools::ToolSet`.
 - [x] Updated: `ProjecturedMcp`, `WorkbenchAssistant`, `ConversationEditor`, the package alias
@@ -191,7 +191,7 @@ One commit per phase; each phase leaves the tree loading and its tests green.
 
 **Decisions taken during the phase:**
 
-- **No interface file.** The plan called `tool/Tool.jl` a contract file, but AR-INTERFACE-DECLARES-ONLY forbids an
+- **No interface file.** The plan called `tool/Tool.jl` a contract file, but PAR-INTERFACE-DECLARES-ONLY forbids an
   interface file from holding concrete structs, and `Tool`/`Resource`/`ToolSet` are concrete.
   The layer therefore declares no contract (as `binding/` already does), and the guard's
   `interface_files` map is unchanged. Same for `agent/AgentServer.jl`, whose `Val` dispatch and
@@ -202,7 +202,7 @@ One commit per phase; each phase leaves the tree loading and its tests green.
 - **The tests' stand-in editors now carry a `tools` field.** No test constructs a real `Editor`
   (they pass `Dict`, `nothing`, or `(document = a,)`), so `editor.tools` had to be provided:
   `(document = a, tools = register_default_tools!(ToolSet()))`. This is the honest consequence
-  of AR-PER-EDITOR-STATE — a stand-in must now supply what a real editor supplies.
+  of PAR-PER-EDITOR-STATE — a stand-in must now supply what a real editor supplies.
 - **`clear_registry!` deleted, not ported.** It existed for test isolation and had zero call
   sites; a fresh `ToolSet()` is the isolation now.
 
@@ -279,7 +279,7 @@ One commit per phase; each phase leaves the tree loading and its tests green.
 - [x] Guard: the kernel's `layers` list gains `tool`, `llm`, `agent`
       (`ProjecturedKernelTest.jl`). **Amended from the plan:** `interface_files` does *not*
       gain `tool/Tool.jl` / `llm/Llm.jl` / `agent/AgentServer.jl` — Phase 1 already decided
-      against it (AR-INTERFACE-DECLARES-ONLY forbids an interface file holding concrete structs, and
+      against it (PAR-INTERFACE-DECLARES-ONLY forbids an interface file holding concrete structs, and
       `Tool`/`Resource`/`ToolSet` are concrete; `agent/AgentServer.jl`'s `Val` dispatch and
       error fallback are method bodies, not a contract). Both landed in Phase 1/3, ahead of
       this phase's docs sweep.
@@ -301,7 +301,7 @@ One commit per phase; each phase leaves the tree loading and its tests green.
 
 - The visual and domain restructures (slices, the three domain layers, `gesturemap` moving to
   visual, `insertion` dissolving). Out of scope by explicit instruction.
-- `HeadlessBackend`'s scripted event queue (AR-NO-TEST-DOUBLES-IN-MAIN) and `base/backend/DefaultBackend.jl`'s sink
+- `HeadlessBackend`'s scripted event queue (PAR-NO-TEST-DOUBLES-IN-MAIN) and `base/backend/DefaultBackend.jl`'s sink
   into the kernel — kernel changes, but orthogonal to the agent stack, and deferred.
 - Any change to what the assistant *does*. Every phase is structure; the existing assistant
   tests are the oracle.

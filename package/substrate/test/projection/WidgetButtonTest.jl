@@ -43,7 +43,7 @@ end
     for (x, y) in ((200, 10), (10, 300), (900, 500), (-5, 10), (10, -5))
         @test read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys())) === nothing
     end
-    # The reader is pure (AR-READER-IS-PURE): it answers with the operation and
+    # The reader is pure (PAR-READER-IS-PURE): it answers with the operation and
     # never performs it, so the action has not run and the count is still zero.
     @test count[] == 0
 

@@ -60,7 +60,7 @@ end
 function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx)
     iomap_cell = Cell(nothing)
     # Reconcile windows by identity so opening/closing a sibling reuses the
-    # surviving windows' iomaps (AR-STABLE-IOMAP-IDENTITY).
+    # surviving windows' iomaps (PAR-STABLE-IOMAP-IDENTITY).
     window_iomaps = reconcile_child_iomaps(
         () -> input.windows,
         (i, x) -> print_document(p, recursion, x,
@@ -87,7 +87,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     # (a hover probe following the cursor, a re-opened tooltip) re-projects it
     # reactively; a same object mutated in place reuses the iomap and re-derives
     # through its own cells. This is what lets the window manager mutate only the
-    # input screen and rely on this stage to mirror the output (AR-STABLE-IOMAP-IDENTITY).
+    # input screen and rely on this stage to mirror the output (PAR-STABLE-IOMAP-IDENTITY).
     content_iomap = reconcile_child_iomap(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
     iomap_cell = Cell(nothing)

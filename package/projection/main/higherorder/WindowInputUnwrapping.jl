@@ -29,7 +29,7 @@ import ..EventModule: WindowInput
 export WindowInputUnwrappingProjection, WindowInputUnwrappingProjectionIoMap
 
 # Transparent passthrough: `output` forwards the inner output through a cell so the
-# IoMap keeps its identity while `inner` re-derives (AR-STABLE-IOMAP-IDENTITY).
+# IoMap keeps its identity while `inner` re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WindowInputUnwrappingProjectionIoMap
     projection::Any
     input::Any

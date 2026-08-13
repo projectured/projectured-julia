@@ -30,7 +30,7 @@ struct ReversingProjection <: Projection end
 function print_document(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
     # Children are projected in input order and reconciled by identity, so a
-    # structural edit rebuilds only moved slots (AR-STABLE-IOMAP-IDENTITY).
+    # structural edit rebuilds only moved slots (PAR-STABLE-IOMAP-IDENTITY).
     child_iomaps = reconcile_child_iomaps(
         () -> input,
         (i, x) -> print_child(recursion, x,

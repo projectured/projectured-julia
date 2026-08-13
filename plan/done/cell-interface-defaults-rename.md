@@ -3,7 +3,7 @@
 > **Status (2026-08-12): DONE.** Every change list item is verified in place:
 > `package/kernel/main/cell/CellInterface.jl` and `CellDefaults.jl` exist,
 > `CellModule.jl` includes them, `documentation/architecture-requirements.md`
-> has `AR-CITE-EXCEPTIONS-ONLY`, and `CLAUDE.md`'s kernel inventory lists
+> has `PAR-CITE-EXCEPTIONS-ONLY`, and `CLAUDE.md`'s kernel inventory lists
 > `CellInterface.jl` as sealed and `CellDefaults.jl` as not yet sealed. Ready
 > to move to `plan/done/`.
 
@@ -24,7 +24,7 @@ The other layers with an interface split name the pair by role
   `is_cell_up_to_date`. Of these, only `is_cell_up_to_date` is a cell-module
   generic that can be bodiless-declared; `c[]`/`peek` are `Base` generics
   (a qualified bodiless `function Base.getindex end` is a Julia syntax error —
-  AR-INTERFACE-DECLARES-ONLY), so they are documented in the `AbstractCell`
+  PAR-INTERFACE-DECLARES-ONLY), so they are documented in the `AbstractCell`
   docstring and implemented per kind. **No additional all-cells generic exists
   to add.**
 - The writes (`set_cell_value!`, `set_cell_function!`, `setindex!`) are **not
@@ -54,7 +54,7 @@ The other layers with an interface split name the pair by role
 - [x] `CLAUDE.md` — rename the two inventory entries in place
       (`CellInterface.jl` flips 🔒→⬜; `CellDefaults.jl` stays ⬜).
 - [x] `documentation/architecture-requirements.md` — added a new rule
-      **AR-CITE-EXCEPTIONS-ONLY** (cite an AR ID in source only to flag an
+      **PAR-CITE-EXCEPTIONS-ONLY** (cite an AR ID in source only to flag an
       exception, never to announce compliance), surfaced by this review; the two
       cell files therefore name their interface/impl split in plain words and
       cite no rule.

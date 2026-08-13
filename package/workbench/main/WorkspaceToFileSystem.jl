@@ -64,7 +64,7 @@ struct WorkspaceWorkspaceProjection <: Projection end
 function print_document(p::WorkspaceWorkspaceProjection,
                            recursion, w::Workspace, ctx)
     # Reconcile folders by identity, and forward the single-root output reactively
-    # so a structural edit propagates through the held iomap (AR-STABLE-IOMAP-IDENTITY).
+    # so a structural edit propagates through the held iomap (PAR-STABLE-IOMAP-IDENTITY).
     child_iomaps = reconcile_child_iomaps(
         () -> w.folders,
         (i, elem) -> print_child(recursion, elem,

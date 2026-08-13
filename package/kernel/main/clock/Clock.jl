@@ -23,7 +23,7 @@ the ambient default for one-shot renders and any context that holds no clock
 of its own to subscribe against. One background task started at module load
 writes `Base.time()` into it on an interval; every other consumer only
 reads. A shared read of one real external truth is a principled
-AR-PER-EDITOR-STATE carve-out — nothing else ever *writes* conflicting
+PAR-PER-EDITOR-STATE carve-out — nothing else ever *writes* conflicting
 elapsed values into it.
 """
 module ClockModule

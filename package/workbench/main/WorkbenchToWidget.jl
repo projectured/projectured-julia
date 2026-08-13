@@ -130,7 +130,7 @@ end
 
 # @iomap so the mappers/readers keep reading `iomap.element_iomaps` as the value
 # while it is now a reconciling cell (a page tab add/remove reflows through it,
-# AR-STABLE-IOMAP-IDENTITY).
+# PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WorkbenchPageToWidgetTabbedPaneIoMap
     projection::Any
     input::Any
@@ -346,7 +346,7 @@ end
 # freezes it: the constructor wraps whatever it is given in `Cell(content)`, a
 # CONSTANT, so a later write to `panel.content` has no reactive edge and the pane
 # keeps rendering the document it was born with. It does not error; it silently
-# stops updating (AR-REACTIVE-OUTPUT-STRUCTURE).
+# stops updating (PAR-REACTIVE-OUTPUT-STRUCTURE).
 #
 # So the child IoMap is reconciled by identity and the pane's content is a THUNK
 # over it. Replacing the content re-projects exactly once and the pane follows;

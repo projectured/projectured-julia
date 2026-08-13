@@ -471,7 +471,7 @@ end
 # Process-global, deliberately: lazily-built read-only indexes of the project's own
 # guides and API, identical for every editor and derived from sources that do not
 # change at runtime. This is the "state identical for every editor" carve-out
-# AR-PER-EDITOR-STATE grants (alongside the wall clock).
+# PAR-PER-EDITOR-STATE grants (alongside the wall clock).
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 

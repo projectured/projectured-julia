@@ -3,7 +3,7 @@
 Replace the sequential numbers in
 [requirements.md](../../documentation/requirements.md) and
 [architecture-requirements.md](../../documentation/architecture-requirements.md)
-with **stable symbolic IDs** — `AR-PURE-THUNK` instead of `AR-1`, `R-NO-INVALID-STATES`
+with **stable symbolic IDs** — `PAR-PURE-THUNK` instead of `AR-1`, `PR-NO-INVALID-STATES`
 instead of product requirement `1` — and rewrite every citation across the repo.
 
 ## Why
@@ -23,13 +23,13 @@ where anything is. The IDs are already opaque; this plan makes them *good* opaqu
 Four concrete wins, in the order they matter here:
 
 1. **Citations become self-describing.** `AR-45` means nothing in a commit message, a
-   review comment, or a layering-guard error string. `AR-PER-EDITOR-STATE` means
+   review comment, or a layering-guard error string. `PAR-PER-EDITOR-STATE` means
    something without opening an 857-line file. This matters more here than in most
    repos because [CLAUDE.md](../../CLAUDE.md) makes an AI audit every kernel file
    against this document *and report the result* — a finding that names the rule is
    legible on its own and survives context truncation.
 2. **Guard messages get better for free.** `CheckLayering.jl` cites AR-73 / AR-48 /
-   AR-72 in the failures it prints. `AR-QUALIFIED-EXTENSION` in a failure message is a
+   AR-72 in the failures it prints. `PAR-QUALIFIED-EXTENSION` in a failure message is a
    diagnosis; `AR-73` is a lookup task.
 3. **Reorganizing the documents becomes free.** Today, moving a requirement between
    sections either breaks a citation or deepens the number scramble.
@@ -48,7 +48,7 @@ never-reuse rule — not perfection.
 
 ### Format
 
-`AR-SCREAMING-KEBAB` for architectural requirements, `R-SCREAMING-KEBAB` for product
+`PAR-SCREAMING-KEBAB` for architectural requirements, `PR-SCREAMING-KEBAB` for product
 requirements. Uppercase makes a citation unmistakable in running prose and in a Julia
 comment; kebab keeps it greppable as one token.
 
@@ -59,7 +59,7 @@ nothing else, keeping the bold lead sentence exactly where it reads today — as
 words of the body:
 
 ```markdown
-### AR-PURE-THUNK
+### PAR-PURE-THUNK
 
 **Every reactive computation must be a pure function of the cells it reads.** A
 `Cell(() -> …)` thunk (and the parts of `print_document` that build them) must have
@@ -68,16 +68,16 @@ external mutable state. …
 ```
 
 **Decided during implementation: the ID is the whole heading.** The first draft of this
-plan put the rule's title in the heading too (`### AR-PURE-THUNK — every reactive
+plan put the rule's title in the heading too (`### PAR-PURE-THUNK — every reactive
 computation is …`). That is wrong, and for the very reason this plan exists: a GitHub
 anchor is derived from the *entire* heading text, so the anchor would have been
 `#ar-pure-thunk--every-reactive-computation-is-a-pure-function-…` — long, ugly, and
 **changing every time the title is reworded**. That reintroduces exactly the citation
-fragility the numbers had. With the ID alone in the heading, the anchor is `#ar-pure-thunk`
+fragility the numbers had. With the ID alone in the heading, the anchor is `#par-pure-thunk`
 and is stable under any prose edit.
 
 The payoff: a citation can deep-link to the exact requirement —
-`[AR-PURE-THUNK](../../documentation/architecture-requirements.md#ar-pure-thunk)` — which
+`[PAR-PURE-THUNK](../../documentation/architecture-requirements.md#par-pure-thunk)` — which
 list items cannot do today (every existing link lands at the top of the file and makes
 the reader hunt). It also keeps the body text byte-identical to what was there before.
 
@@ -93,10 +93,10 @@ occupy `###`.
 ### Rules to write into both preambles
 
 - **A name is permanent and is never reused.** Retiring a requirement retires its name;
-  a deleted `AR-FOO` is never reassigned to a different rule. (Same discipline a number
+  a deleted `PAR-FOO` is never reassigned to a different rule. (Same discipline a number
   needs — now the stakes are visible.)
 - **The name names the rule, not the section**, so it survives regrouping:
-  `AR-ACYCLIC-CELLS`, never `AR-REACTIVITY-3`.
+  `PAR-ACYCLIC-CELLS`, never `PAR-REACTIVITY-3`.
 - **Adding a requirement means appending a heading and one index row.** Nothing else
   moves. That is the entire point.
 
@@ -104,7 +104,7 @@ occupy `###`.
 
 [`package/kernel/main/cell/Clock.jl:25`](../../package/kernel/main/cell/Clock.jl#L25) is
 **🔒 sealed** and contains `a principled AR-45 carve-out`. Renaming AR-45 to
-`AR-PER-EDITOR-STATE` requires a one-token edit to that line.
+`PAR-PER-EDITOR-STATE` requires a one-token edit to that line.
 
 Per [CLAUDE.md](../../CLAUDE.md) this needs **explicit permission for that specific
 file** before the migration touches it. No other sealed file cites a requirement ID
@@ -123,168 +123,168 @@ Sorted by current number. Section order is unchanged by this plan; only the IDs 
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 1 | `AR-PURE-THUNK` | Every reactive computation is a pure function of the cells it reads |
-| 2 | `AR-NO-WRITE-IN-THUNK` | A thunk never writes another cell or mutates shared document state |
-| 3 | `AR-ACYCLIC-CELLS` | The cell dependency graph stays acyclic |
-| 4 | `AR-MONOTONE-INVALIDATION` | Never hand-set `valid`; never partially invalidate |
-| 5 | `AR-WRITE-DRIVEN-PROPAGATION` | Propagation is write-driven, not value-driven |
-| 6 | `AR-NO-PROJECTION-GLOBALS` | No global mutable state in projections or the machinery they call |
-| 7 | `AR-DERIVED-CELLS` | Derive state through the engine; never read a cell before its wiring is complete |
-| 8 | `AR-FINEST-GRANULARITY` | Choose the reactive container that preserves the finest granularity |
+| 1 | `PAR-PURE-THUNK` | Every reactive computation is a pure function of the cells it reads |
+| 2 | `PAR-NO-WRITE-IN-THUNK` | A thunk never writes another cell or mutates shared document state |
+| 3 | `PAR-ACYCLIC-CELLS` | The cell dependency graph stays acyclic |
+| 4 | `PAR-MONOTONE-INVALIDATION` | Never hand-set `valid`; never partially invalidate |
+| 5 | `PAR-WRITE-DRIVEN-PROPAGATION` | Propagation is write-driven, not value-driven |
+| 6 | `PAR-NO-PROJECTION-GLOBALS` | No global mutable state in projections or the machinery they call |
+| 7 | `PAR-DERIVED-CELLS` | Derive state through the engine; never read a cell before its wiring is complete |
+| 8 | `PAR-FINEST-GRANULARITY` | Choose the reactive container that preserves the finest granularity |
 
 ### Documents and domains
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 9 | `AR-FIELDS-ARE-CELLS` | Every document field is a `Cell`, accessed transparently |
-| 10 | `AR-FIELD-NAMES-ARE-API` | A document's struct field names are its public reference vocabulary |
-| 11 | `AR-WIDE-FIELD-TYPES` | A field's declared type admits every value the field can hold |
-| 12 | `AR-NO-NESTED-CELL` | A macro-wrapped field never holds a `Cell` or a `Function` as its value |
-| 13 | `AR-DOCUMENT-IDENTITY` | Two documents with equal fields are not assumed `==` |
-| 14 | `AR-DOMAINS-INDEPENDENT` | Domains are independent; a document owns no cross-domain edge |
-| 15 | `AR-DOMAIN-OWNS-EDITS` | Every domain defines its own structural operations and insertion type |
-| 16 | `AR-WIDGETS-ARE-PRESENTATION` | The edited document stays in its semantic domain; widgets are presentation only |
-| 17 | `AR-SEARCH-DONT-WALK` | Prefer `search_references` / `search_documents` over hand-walking the tree |
+| 9 | `PAR-FIELDS-ARE-CELLS` | Every document field is a `Cell`, accessed transparently |
+| 10 | `PAR-FIELD-NAMES-ARE-API` | A document's struct field names are its public reference vocabulary |
+| 11 | `PAR-WIDE-FIELD-TYPES` | A field's declared type admits every value the field can hold |
+| 12 | `PAR-NO-NESTED-CELL` | A macro-wrapped field never holds a `Cell` or a `Function` as its value |
+| 13 | `PAR-DOCUMENT-IDENTITY` | Two documents with equal fields are not assumed `==` |
+| 14 | `PAR-DOMAINS-INDEPENDENT` | Domains are independent; a document owns no cross-domain edge |
+| 15 | `PAR-DOMAIN-OWNS-EDITS` | Every domain defines its own structural operations and insertion type |
+| 16 | `PAR-WIDGETS-ARE-PRESENTATION` | The edited document stays in its semantic domain; widgets are presentation only |
+| 17 | `PAR-SEARCH-DONT-WALK` | Prefer `search_references` / `search_documents` over hand-walking the tree |
 
 ### Projections
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 18 | `AR-FOUR-FUNCTIONS` | The four functions are the entire projection interface |
-| 19 | `AR-RECURSION-CONTRACT` | All recursion flows through those four functions and only those four |
-| 20 | `AR-DELEGATE-ONE-LEVEL` | Recurse one level, then delegate ("School A") |
-| 21 | `AR-RECURSE-VIA-PRINT-CHILD` | Recurse through `print_child`, never open-coded |
-| 22 | `AR-BIDIRECTIONAL-PROJECTION` | Every projection is bidirectional: a printer needs its inverse |
-| 23 | `AR-MAPPERS-ARE-INVERSES` | Forward and backward reference mappers are mutual inverses |
-| 24 | `AR-PREFER-REFERENCE-RETARGET` | Write `read_intent` only when re-targeting a reference is not enough |
-| 25 | `AR-GEOMETRY-FREE-IN-DOCUMENT` | Geometry-free gesture handling belongs to the document, not the projection |
-| 26 | `AR-DELEGATE-AND-LIFT` | A structural reader delegates a raw gesture to the selected child and lifts the result |
-| 27 | `AR-SHARED-CHILDREN-IOMAP` | A compound projection stores child IoMaps in one shared cell and returns a `ChildrenIoMap` |
-| 28 | `AR-CROSS-DOMAIN-LATE` | Cross domains as late as possible in the mappers |
-| 29 | `AR-HIGHER-ORDER-IS-DOMAIN-FREE` | Higher-order projections touch no domain |
-| 30 | `AR-USE-PROJECTION-MACRO` | Use `@projection` for projection structs with reactive fields |
+| 18 | `PAR-FOUR-FUNCTIONS` | The four functions are the entire projection interface |
+| 19 | `PAR-RECURSION-CONTRACT` | All recursion flows through those four functions and only those four |
+| 20 | `PAR-DELEGATE-ONE-LEVEL` | Recurse one level, then delegate ("School A") |
+| 21 | `PAR-RECURSE-VIA-PRINT-CHILD` | Recurse through `print_child`, never open-coded |
+| 22 | `PAR-BIDIRECTIONAL-PROJECTION` | Every projection is bidirectional: a printer needs its inverse |
+| 23 | `PAR-MAPPERS-ARE-INVERSES` | Forward and backward reference mappers are mutual inverses |
+| 24 | `PAR-PREFER-REFERENCE-RETARGET` | Write `read_intent` only when re-targeting a reference is not enough |
+| 25 | `PAR-GEOMETRY-FREE-IN-DOCUMENT` | Geometry-free gesture handling belongs to the document, not the projection |
+| 26 | `PAR-DELEGATE-AND-LIFT` | A structural reader delegates a raw gesture to the selected child and lifts the result |
+| 27 | `PAR-SHARED-CHILDREN-IOMAP` | A compound projection stores child IoMaps in one shared cell and returns a `ChildrenIoMap` |
+| 28 | `PAR-CROSS-DOMAIN-LATE` | Cross domains as late as possible in the mappers |
+| 29 | `PAR-HIGHER-ORDER-IS-DOMAIN-FREE` | Higher-order projections touch no domain |
+| 30 | `PAR-USE-PROJECTION-MACRO` | Use `@projection` for projection structs with reactive fields |
 
 ### References and selection
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 31 | `AR-ONE-BASED-INDEXING` | All indexing is 1-based; elements are distinguished from boundaries |
-| 32 | `AR-REFERENCE-DSL` | Build and match reference paths with the DSL, not by hand |
-| 33 | `AR-EVERY-DOCUMENT-HAS-SELECTION` | Every concrete `Document` has a `selection::Cell` |
-| 34 | `AR-REPLACE-SELECTION` | Change selection with `replace_selection!`, not a bare `set_selection!` |
-| 35 | `AR-EMPTY-PATH-IS-SELECTION` | The empty path is a first-class whole-element selection, not an absence |
-| 36 | `AR-FOLDED-CHECKPOINTS` | Folded node-type checkpoints are canonical; produce and consume them, don't fabricate them |
-| 37 | `AR-REACTIVE-OUTPUT-SELECTION` | Wire the output selection reactively; focus is the selection |
+| 31 | `PAR-ONE-BASED-INDEXING` | All indexing is 1-based; elements are distinguished from boundaries |
+| 32 | `PAR-REFERENCE-DSL` | Build and match reference paths with the DSL, not by hand |
+| 33 | `PAR-EVERY-DOCUMENT-HAS-SELECTION` | Every concrete `Document` has a `selection::Cell` |
+| 34 | `PAR-REPLACE-SELECTION` | Change selection with `replace_selection!`, not a bare `set_selection!` |
+| 35 | `PAR-EMPTY-PATH-IS-SELECTION` | The empty path is a first-class whole-element selection, not an absence |
+| 36 | `PAR-FOLDED-CHECKPOINTS` | Folded node-type checkpoints are canonical; produce and consume them, don't fabricate them |
+| 37 | `PAR-REACTIVE-OUTPUT-SELECTION` | Wire the output selection reactively; focus is the selection |
 
 ### Operations
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 38 | `AR-ONE-WAY-TO-EDIT` | `evaluate_operation(editor, op)` is the one way to change the document |
-| 39 | `AR-PREFER-REPLACE-VALUE` | Prefer `ReplaceReferencedValueOperation` before writing a new operation type |
-| 40 | `AR-REGISTER-NEW-OPERATION` | A reference-carrying operation is registered in both `read_intent` and `reroot_operation` |
-| 41 | `AR-MUTATE-OR-NULL-IOMAP` | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
-| 69 | `AR-INVERTIBLE-OPERATIONS` | Design every operation to be invertible; keep its inverse well-defined |
+| 38 | `PAR-ONE-WAY-TO-EDIT` | `evaluate_operation(editor, op)` is the one way to change the document |
+| 39 | `PAR-PREFER-REPLACE-VALUE` | Prefer `ReplaceReferencedValueOperation` before writing a new operation type |
+| 40 | `PAR-REGISTER-NEW-OPERATION` | A reference-carrying operation is registered in both `read_intent` and `reroot_operation` |
+| 41 | `PAR-MUTATE-OR-NULL-IOMAP` | Mutate the cells already wired into the projection graph — or null `editor.iomap` |
+| 69 | `PAR-INVERTIBLE-OPERATIONS` | Design every operation to be invertible; keep its inverse well-defined |
 
 ### Editor, devices, and backends
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 42 | `AR-BACKEND-SEAM` | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
-| 43 | `AR-OPT-IN-DEPENDENCY` | Add a backend/engine as an opt-in package behind a factory seam |
-| 44 | `AR-PROFILE-WITH-COUNTERS` | Profile edits with the per-frame performance counters |
-| 45 | `AR-PER-EDITOR-STATE` | No process-global state; one process must run many editors at once |
+| 42 | `PAR-BACKEND-SEAM` | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
+| 43 | `PAR-OPT-IN-DEPENDENCY` | Add a backend/engine as an opt-in package behind a factory seam |
+| 44 | `PAR-PROFILE-WITH-COUNTERS` | Profile edits with the per-frame performance counters |
+| 45 | `PAR-PER-EDITOR-STATE` | No process-global state; one process must run many editors at once |
 
 ### Package, layer, slice, and module structure
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 46 | `AR-PACKAGE-CHAIN` | Respect the package chain and the four-level division |
-| 47 | `AR-LOWEST-PACKAGE` | Code lives in the lowest package of its DAG whose API it hard-references |
-| 48 | `AR-MODULE-BOUNDARY-IS-API` | Imports name only exported symbols |
-| 49 | `AR-FRAMEWORKS-SINK` | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
-| 50 | `AR-PROJECTION-PLACEMENT` | Honor the projection placement invariant |
-| 72 | `AR-INTERFACE-DECLARES-ONLY` | An interface file declares; it never implements |
-| 73 | `AR-QUALIFIED-EXTENSION` | Name a module with bare `using ..Xxx`; extend its generics by qualification |
-| 51 | `AR-PARALLEL-TRIADS` | Keep the main/test/example triads parallel and minimal-environment runnable |
+| 46 | `PAR-PACKAGE-CHAIN` | Respect the package chain and the four-level division |
+| 47 | `PAR-LOWEST-PACKAGE` | Code lives in the lowest package of its DAG whose API it hard-references |
+| 48 | `PAR-MODULE-BOUNDARY-IS-API` | Imports name only exported symbols |
+| 49 | `PAR-FRAMEWORKS-SINK` | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
+| 50 | `PAR-PROJECTION-PLACEMENT` | Honor the projection placement invariant |
+| 72 | `PAR-INTERFACE-DECLARES-ONLY` | An interface file declares; it never implements |
+| 73 | `PAR-QUALIFIED-EXTENSION` | Name a module with bare `using ..Xxx`; extend its generics by qualification |
+| 51 | `PAR-PARALLEL-TRIADS` | Keep the main/test/example triads parallel and minimal-environment runnable |
 
 ### Testing and verification
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 52 | `AR-SMALLEST-TEST` | Run the smallest test that covers the change; never default to `test_all()` |
-| 53 | `AR-MARK-BROKEN-TESTS` | Every currently-failing assertion is `@test_broken` with a `# @broken:` reason |
-| 54 | `AR-NEW-CODE-SHIPS-TESTS` | New code ships with tests, in the lowest test package that can express them |
-| 55 | `AR-NO-INTROSPECTION-METHOD` | The recursion contract stays externally validated; add no per-projection introspection |
-| 56 | `AR-DRIVE-THE-BEHAVIOUR` | Verify a change by driving the behaviour, not only by reading code |
+| 52 | `PAR-SMALLEST-TEST` | Run the smallest test that covers the change; never default to `test_all()` |
+| 53 | `PAR-MARK-BROKEN-TESTS` | Every currently-failing assertion is `@test_broken` with a `# @broken:` reason |
+| 54 | `PAR-NEW-CODE-SHIPS-TESTS` | New code ships with tests, in the lowest test package that can express them |
+| 55 | `PAR-NO-INTROSPECTION-METHOD` | The recursion contract stays externally validated; add no per-projection introspection |
+| 56 | `PAR-DRIVE-THE-BEHAVIOUR` | Verify a change by driving the behaviour, not only by reading code |
 
 ### Documentation, vocabulary, and process
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 57 | `AR-DIVISION-VOCABULARY` | Use package / layer / slice / module exactly, and no synonyms |
-| 58 | `AR-NEVER-GUESS-NAMES` | Do not guess names or signatures — search for them |
-| 59 | `AR-GREEN-LAYERING-GUARDS` | Keep the layering guards green and let them enforce the structure |
-| 60 | `AR-UPDATE-THE-GUIDE` | Update the guide documenting behaviour you changed; teach concepts before mechanisms |
-| 61 | `AR-HONEST-DOCS` | Keep documentation honest; flag aspirational designs as such |
-| 62 | `AR-FOCUSED-DIFFS` | Keep diffs focused — no unrelated reformatting |
-| 63 | `AR-STABLE-FOUNDATIONS` | Respect the stable foundations and the roadmap ordering |
-| 64 | `AR-AI-SAME-GUARANTEES` | AI edits carry the same guarantees as human edits |
-| 65 | `AR-NAMING-LAW` | Names must be guessable in both directions |
-| 66 | `AR-MODULE-DOCSTRING` | Every source file opens with a module docstring stating its contract |
-| 67 | `AR-PERSISTENCE-BY-VALUE` | Persistence crosses cell boundaries by value and never enters the reactive graph |
-| 68 | `AR-NO-TEST-DOUBLES-IN-MAIN` | No test doubles live in `main` packages |
-| 70 | `AR-NO-CONSUMER-DOCS` | A module's documentation describes its own contract, never its consumers |
-| 71 | `AR-TIGHT-COMMENTS` | A comment carries only what the code cannot |
+| 57 | `PAR-DIVISION-VOCABULARY` | Use package / layer / slice / module exactly, and no synonyms |
+| 58 | `PAR-NEVER-GUESS-NAMES` | Do not guess names or signatures — search for them |
+| 59 | `PAR-GREEN-LAYERING-GUARDS` | Keep the layering guards green and let them enforce the structure |
+| 60 | `PAR-UPDATE-THE-GUIDE` | Update the guide documenting behaviour you changed; teach concepts before mechanisms |
+| 61 | `PAR-HONEST-DOCS` | Keep documentation honest; flag aspirational designs as such |
+| 62 | `PAR-FOCUSED-DIFFS` | Keep diffs focused — no unrelated reformatting |
+| 63 | `PAR-STABLE-FOUNDATIONS` | Respect the stable foundations and the roadmap ordering |
+| 64 | `PAR-AI-SAME-GUARANTEES` | AI edits carry the same guarantees as human edits |
+| 65 | `PAR-NAMING-LAW` | Names must be guessable in both directions |
+| 66 | `PAR-MODULE-DOCSTRING` | Every source file opens with a module docstring stating its contract |
+| 67 | `PAR-PERSISTENCE-BY-VALUE` | Persistence crosses cell boundaries by value and never enters the reactive graph |
+| 68 | `PAR-NO-TEST-DOUBLES-IN-MAIN` | No test doubles live in `main` packages |
+| 70 | `PAR-NO-CONSUMER-DOCS` | A module's documentation describes its own contract, never its consumers |
+| 71 | `PAR-TIGHT-COMMENTS` | A comment carries only what the code cannot |
 
 ## Proposed names — product requirements
 
 | Now | Name | Rule |
 | --- | --- | --- |
-| 1 | `R-NO-INVALID-STATES` | The document never reaches a malformed state |
-| 2 | `R-MEANINGFUL-POSITIONS` | Every position the cursor can occupy is meaningful |
-| 3 | `R-DISPLAY-IS-TRUTH` | What is shown always reflects the content |
-| 4 | `R-EDIT-WHAT-IS-SHOWN` | Whatever is displayed can be edited directly |
-| 5 | `R-NATURAL-GRANULARITY` | Editing at whatever granularity the content has |
-| 6 | `R-CONTEXT-APPROPRIATE-EDITS` | Only meaningful edits are offered at any position |
-| 7 | `R-UNDO-REDO` | Reversible editing |
-| 8 | `R-REVISITABLE-HISTORY` | A history that can be revisited |
-| 9 | `R-INTERMEDIATE-STATES` | Every intermediate state is representable |
-| 10 | `R-REACH-ANY-PART` | The selection can reach any part of the content |
-| 11 | `R-STRUCTURAL-AND-LINEAR-NAVIGATION` | Both structural and linear navigation |
-| 12 | `R-SEARCH-AND-JUMP` | Search the content and jump to a match |
-| 13 | `R-MANY-VIEWS-OF-ONE-DOCUMENT` | More than one way to see the same data |
-| 14 | `R-SORT-AND-FILTER` | Sort and filter any collection without losing editing |
-| 15 | `R-FOCUS-AND-REORGANIZE` | Narrow and reorganize the view |
-| 16 | `R-COMBINE-CONTENT-KINDS` | Different kinds of content combine |
-| 17 | `R-ARBITRARY-NESTING` | Any kind of content nests in any other, arbitrarily |
-| 18 | `R-ANY-PART-IS-A-DOCUMENT` | Any fragment can be a document on its own |
-| 19 | `R-KEYBOARD-AND-POINTER` | Both keyboard and pointer work |
-| 20 | `R-MULTIPLE-ROUTES` | Multiple routes to the same action |
-| 21 | `R-DISCOVERABLE-ACTIONS` | Available actions are discoverable |
-| 22 | `R-CLIPBOARD` | Copy, cut, and paste content in and out |
-| 23 | `R-ADJUST-SCALE` | The scale of what is shown can be changed |
-| 24 | `R-IMMEDIATE-FEEDBACK` | Immediate, visible feedback for every action |
-| 25 | `R-INFORMATION-ON-DEMAND` | Supplementary information on demand |
-| 26 | `R-MULTIPLE-VIEWS-AT-ONCE` | Several views open at once |
-| 27 | `R-RESPONSIVE-AT-ANY-SIZE` | Editing stays responsive at any content size |
-| 28 | `R-UNBOUNDED-CONTENT` | Unbounded content can be presented and edited |
-| 29 | `R-SAME-EDITOR-EVERYWHERE` | The same editor runs in different environments |
-| 30 | `R-MANY-EDITORS-ONE-PROCESS` | One process runs many editors (the external face of `AR-PER-EDITOR-STATE`) |
-| 31 | `R-SAVE-AND-INTERCHANGE` | Save, reload, and interchange work |
-| 32 | `R-RENDER-HEADLESS` | Render what is seen without a display |
-| 33 | `R-AI-SAME-GUARANTEES` | AI edits with the same guarantees (the external face of `AR-AI-SAME-GUARANTEES`) |
-| 34 | `R-EDIT-BY-REQUEST` | Editing by natural-language request |
-| 35 | `R-CLEAN-CHECKOUT` | Runs from a clean checkout |
-| 36 | `R-ONE-STEP-EXAMPLE` | Any example launches in one step |
-| 37 | `R-DEVELOP-HEADLESS` | A contributor can work without a display |
-| 38 | `R-CHEAP-NEW-DOMAIN` | New kinds of content are cheap to add |
-| 39 | `R-COMPOSABLE-PROJECTIONS` | New presentations and interactions compose |
-| 40 | `R-VERIFY-IN-THE-SMALL` | Change can be verified in the small |
-| 41 | `R-SEPARABLE-OPTIONALS` | Optional capabilities are separable |
-| 42 | `R-SHIPPABLE-APPLICATION` | Can be delivered as an application |
-| 43 | `R-DOCUMENTED-PATH-IN` | Documented with a clear path in |
-| 44 | `R-PREDICTABLE-CONVENTIONS` | Predictable by convention |
+| 1 | `PR-NO-INVALID-STATES` | The document never reaches a malformed state |
+| 2 | `PR-MEANINGFUL-POSITIONS` | Every position the cursor can occupy is meaningful |
+| 3 | `PR-DISPLAY-IS-TRUTH` | What is shown always reflects the content |
+| 4 | `PR-EDIT-WHAT-IS-SHOWN` | Whatever is displayed can be edited directly |
+| 5 | `PR-NATURAL-GRANULARITY` | Editing at whatever granularity the content has |
+| 6 | `PR-CONTEXT-APPROPRIATE-EDITS` | Only meaningful edits are offered at any position |
+| 7 | `PR-UNDO-REDO` | Reversible editing |
+| 8 | `PR-REVISITABLE-HISTORY` | A history that can be revisited |
+| 9 | `PR-INTERMEDIATE-STATES` | Every intermediate state is representable |
+| 10 | `PR-REACH-ANY-PART` | The selection can reach any part of the content |
+| 11 | `PR-STRUCTURAL-AND-LINEAR-NAVIGATION` | Both structural and linear navigation |
+| 12 | `PR-SEARCH-AND-JUMP` | Search the content and jump to a match |
+| 13 | `PR-MANY-VIEWS-OF-ONE-DOCUMENT` | More than one way to see the same data |
+| 14 | `PR-SORT-AND-FILTER` | Sort and filter any collection without losing editing |
+| 15 | `PR-FOCUS-AND-REORGANIZE` | Narrow and reorganize the view |
+| 16 | `PR-COMBINE-CONTENT-KINDS` | Different kinds of content combine |
+| 17 | `PR-ARBITRARY-NESTING` | Any kind of content nests in any other, arbitrarily |
+| 18 | `PR-ANY-PART-IS-A-DOCUMENT` | Any fragment can be a document on its own |
+| 19 | `PR-KEYBOARD-AND-POINTER` | Both keyboard and pointer work |
+| 20 | `PR-MULTIPLE-ROUTES` | Multiple routes to the same action |
+| 21 | `PR-DISCOVERABLE-ACTIONS` | Available actions are discoverable |
+| 22 | `PR-CLIPBOARD` | Copy, cut, and paste content in and out |
+| 23 | `PR-ADJUST-SCALE` | The scale of what is shown can be changed |
+| 24 | `PR-IMMEDIATE-FEEDBACK` | Immediate, visible feedback for every action |
+| 25 | `PR-INFORMATION-ON-DEMAND` | Supplementary information on demand |
+| 26 | `PR-MULTIPLE-VIEWS-AT-ONCE` | Several views open at once |
+| 27 | `PR-RESPONSIVE-AT-ANY-SIZE` | Editing stays responsive at any content size |
+| 28 | `PR-UNBOUNDED-CONTENT` | Unbounded content can be presented and edited |
+| 29 | `PR-SAME-EDITOR-EVERYWHERE` | The same editor runs in different environments |
+| 30 | `PR-MANY-EDITORS-ONE-PROCESS` | One process runs many editors (the external face of `PAR-PER-EDITOR-STATE`) |
+| 31 | `PR-SAVE-AND-INTERCHANGE` | Save, reload, and interchange work |
+| 32 | `PR-RENDER-HEADLESS` | Render what is seen without a display |
+| 33 | `PR-AI-SAME-GUARANTEES` | AI edits with the same guarantees (the external face of `PAR-AI-SAME-GUARANTEES`) |
+| 34 | `PR-EDIT-BY-REQUEST` | Editing by natural-language request |
+| 35 | `PR-CLEAN-CHECKOUT` | Runs from a clean checkout |
+| 36 | `PR-ONE-STEP-EXAMPLE` | Any example launches in one step |
+| 37 | `PR-DEVELOP-HEADLESS` | A contributor can work without a display |
+| 38 | `PR-CHEAP-NEW-DOMAIN` | New kinds of content are cheap to add |
+| 39 | `PR-COMPOSABLE-PROJECTIONS` | New presentations and interactions compose |
+| 40 | `PR-VERIFY-IN-THE-SMALL` | Change can be verified in the small |
+| 41 | `PR-SEPARABLE-OPTIONALS` | Optional capabilities are separable |
+| 42 | `PR-SHIPPABLE-APPLICATION` | Can be delivered as an application |
+| 43 | `PR-DOCUMENTED-PATH-IN` | Documented with a clear path in |
+| 44 | `PR-PREDICTABLE-CONVENTIONS` | Predictable by convention |
 
 ## Migration
 
@@ -303,7 +303,7 @@ pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files
       Do not start step 4 without it.
 - [x] **3. Rewrite `architecture-requirements.md`.** Convert the 73 list items to `###`
       headings with IDs, add the index table, and rewrite the preamble (lines 19–22
-      currently say *"is numbered for reference (cite them as AR-N …)"*). Also rewrite
+      currently say *"is numbered for reference (cite them as PAR-N …)"*). Also rewrite
       the **11 intra-document citations** (e.g. AR-69's body cites AR-38).
 - [x] **4. Rewrite `requirements.md`.** Same treatment for the 44 product requirements.
 - [x] **5. Rewrite every citation repo-wide.** Full inventory, verified by grep
@@ -339,9 +339,9 @@ pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files
       dangling reference. Renaming an ID there is not a history rewrite.
 - [x] **6. Fix the prose that describes the scheme**, not just the IDs:
       [documentation/README.md](../../documentation/README.md) (lines 50, 105 — "the
-      numbered … requirements", "Numbered internal development requirements (AR-N)") and
+      numbered … requirements", "Numbered internal development requirements (PAR-N)") and
       [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
-      (line 19 — "the numbered AR-N"). `CLAUDE.md` references the document but no ID, so
+      (line 19 — "the numbered PAR-N"). `CLAUDE.md` references the document but no ID, so
       it needs no change.
 - [x] **7. Resolve the two bare citations.** `plan/pending/chase-animation.md:68` cites
       "requirement 2 / requirement 3" and `plan/done/reference-layer-file-split.md` cites
@@ -350,7 +350,7 @@ pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files
 - [x] **8. Upgrade the citation links.** Now that requirements have anchors, existing
       links that point at the whole file (`package/kernel/doc/editor.md:279`,
       `package/kernel/doc/agent.md:40`) should point at the requirement:
-      `…/architecture-requirements.md#ar-per-editor-state`.
+      `…/architecture-requirements.md#par-per-editor-state`.
 
 ## Verification
 
@@ -363,7 +363,7 @@ pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files
       `ProjecturedTest.jl` are inside comments and failure *messages*, not logic — but
       run `test_kernel()` and the export-collision test anyway to confirm nothing that
       pattern-matched a message broke.
-- [x] Anchors resolve: spot-check that `#ar-per-editor-state` and `#ar-qualified-extension`
+- [x] Anchors resolve: spot-check that `#par-per-editor-state` and `#par-qualified-extension`
       land on the right heading in a rendered view.
 
 ## What changed during implementation
@@ -372,7 +372,7 @@ Five things the plan did not foresee. They are recorded here because each one is
 constraint the next person would otherwise re-discover the hard way.
 
 1. **The ID must be the *entire* heading** — see *Rendering* above. The plan's original
-   `### AR-PURE-THUNK — every reactive computation is …` form derives an anchor from the
+   `### PAR-PURE-THUNK — every reactive computation is …` form derives an anchor from the
    whole heading text, so the anchor would change whenever the title was reworded. That
    is the very fragility this plan set out to remove. Fixed before any file was written.
 
@@ -387,7 +387,7 @@ constraint the next person would otherwise re-discover the hard way.
    module-docstring rule, 46 → the package-chain rule, 48 → the module-boundary rule),
    verified against the rule text each sentence describes, and renamed.
 
-3. **Longer IDs overrun the source's wrap width.** Substituting `AR-QUALIFIED-EXTENSION`
+3. **Longer IDs overrun the source's wrap width.** Substituting `PAR-QUALIFIED-EXTENSION`
    for `AR-73` pushed comment, docstring, and `*`-concatenated error-message lines out to
    90–152 columns, mostly in `CheckLayering.jl`. This needed a whole reflow pass (its own
    commit) that moves words between lines without changing one of them. Budget for it:
@@ -399,7 +399,7 @@ constraint the next person would otherwise re-discover the hard way.
    rewrote those quotes into nonsense. Excluded and restored.
 
 5. **One sentence in the requirements document became meaningless and was deleted**:
-   AR-INVERTIBLE-OPERATIONS ended with *"This requirement lives with the Operations
+   PAR-INVERTIBLE-OPERATIONS ended with *"This requirement lives with the Operations
    section (AR-38–41); it is numbered 69 to keep the existing AR numbers stable."* Its
    only job was to apologise for the number scramble. With names there is nothing to
    apologise for. This is the sole prose deletion in either document — everything else is
@@ -421,7 +421,7 @@ and its entry in [CLAUDE.md](../../CLAUDE.md) is unchanged.
   tests whose own source carries the renamed IDs in its failure messages.
 - `ProjecturedKernel`, `ProjecturedVisual`, `ProjecturedDomain`, `ProjecturedSdl`, and
   `ProjecturedWeb` all load.
-- Zero numeric `AR-N` citations remain outside `package/executable/build/` (vendored
+- Zero numeric `PAR-N` citations remain outside `package/executable/build/` (vendored
   artifacts with coincidental matches). Zero dangling ID citations: every `AR-…`/`R-…`
   cited anywhere resolves to a defined heading, and all 117 defined IDs are rendered.
 - Every `architecture-requirements.md#…` anchor link resolves to a real heading.

@@ -28,7 +28,7 @@ Grounding — what was read before designing (research fan-out, 2026-08-04):
   graph slice (vertices/edges/layout/selection round-trip and its known gaps), the
   julia domain + formula's embedding precedent, `document_to_text`/`export_document`,
   and the live-editor rules (`sync_document!` shadow sync, `set_cell_function!`
-  conditional styling, AR-REACTIVE-OUTPUT-STRUCTURE and friends).
+  conditional styling, PAR-REACTIVE-OUTPUT-STRUCTURE and friends).
 
 Three repos are touched; the split is strict:
 

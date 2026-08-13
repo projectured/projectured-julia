@@ -82,7 +82,7 @@ DraggingProjection(; kw...) = DraggingProjection(_DragState())
 
 # `output` forwards the reconciled content child's output reactively, so the
 # IoMap keeps its identity while the inner projection re-derives, and a content
-# swap rebuilds the child (AR-STABLE-IOMAP-IDENTITY); `iomap.inner_iomap` reads
+# swap rebuilds the child (PAR-STABLE-IOMAP-IDENTITY); `iomap.inner_iomap` reads
 # the current child.
 @iomap struct DraggingProjectionIoMap
     projection::Any

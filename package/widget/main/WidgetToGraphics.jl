@@ -726,7 +726,7 @@ end
 # Reactive analogue of `_make_canvas`: `build_fn()` returns
 # `(; width, height, elements)` and is run inside a cell, so a leaf's extent and
 # membership re-derive when the widget's cells change while the canvas keeps its
-# identity (AR-STABLE-IOMAP-IDENTITY). `x`/`y` are the leaf's own fixed origin
+# identity (PAR-STABLE-IOMAP-IDENTITY). `x`/`y` are the leaf's own fixed origin
 # (the parent positions it). Reads of the widget/style cells inside `build_fn`
 # are what wire the reactivity. Replaces the eager `_make_canvas` at each leaf
 # whose extent/membership depends on reactive widget state.
@@ -931,7 +931,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # operations by prepending `content` (see `map_reference_backward`).
 # @iomap so the reader reads content_iomap/input transparently; the content is
 # reconciled so an editable field grows reactively as text is typed
-# (AR-STABLE-IOMAP-IDENTITY).
+# (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WidgetTextToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -1312,7 +1312,7 @@ end
 # wrapper's own document path (captured from `ctx.reference`) — the anchor a right
 # click uses to place the context-menu popup at the pointer.
 # @iomap so the reader reads child_iomap/anchor transparently; the child is
-# reconciled so a content swap rebuilds it (AR-STABLE-IOMAP-IDENTITY).
+# reconciled so a content swap rebuilds it (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WidgetContextMenuToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -1539,7 +1539,7 @@ end
 # (Step 4b, mirroring `WidgetSelect`). `child_iomaps` keeps scroll routing into
 # embedded widget content working.
 # @iomap so the reader reads child_iomaps/anchor/control_width/control_height
-# transparently (all shared from the build cell); AR-STABLE-IOMAP-IDENTITY.
+# transparently (all shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetMenuItemToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -4606,7 +4606,7 @@ end
 # build, rather than measured a second time in the reader — a reader that
 # measured for itself would answer for a layout the screen never had.
 # @iomap so the reader reads `iomap.segment_widths` transparently;
-# AR-STABLE-IOMAP-IDENTITY.
+# PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetToggleGroupToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -4733,7 +4733,7 @@ end
 # popup anchored under the box without re-deriving its position. `control_width`
 # fixes the popup width to the box; `control_height` places it just below.
 # @iomap so the reader reads `iomap.control_width`/`control_height` transparently
-# (the extent is now a shared build-derived cell); AR-STABLE-IOMAP-IDENTITY.
+# (the extent is now a shared build-derived cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetSelectToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -4881,7 +4881,7 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
 end
 
 # @iomap so the reader reads control_width/control_height/stepper_w transparently
-# (extent shared from the build cell); AR-STABLE-IOMAP-IDENTITY.
+# (extent shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetSpinBoxToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -4959,7 +4959,7 @@ end
 end
 
 # @iomap so the reader reads row_height/control_width transparently (extent shared
-# from the build cell); AR-STABLE-IOMAP-IDENTITY.
+# from the build cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetListToGraphicsCanvasIoMap
     projection::Any
     input::Any

@@ -37,7 +37,7 @@
 Three related changes to [package/text/main/Text.jl](../../package/text/main/Text.jl),
 ordered so each lands on its own:
 
-1. **`@domain Text`** — give the text domain the insertion kit every other domain has (AR-DOMAIN-OWNS-EDITS).
+1. **`@domain Text`** — give the text domain the insertion kit every other domain has (PAR-DOMAIN-OWNS-EDITS).
 2. **Rename `TextBlock`** — the stutter is a Lisp transliteration (`text/text`); pick a real name.
 3. **`TextLine`** — a line-structured document node, so projections stop re-deriving line
    structure from a flat span list and indentation stops being a fake `TextString`.
@@ -51,7 +51,7 @@ one that needs a decision before any code is written.
 
 ### Why
 
-[AR-DOMAIN-OWNS-EDITS](../../documentation/architecture-requirements.md#ar-domain-owns-edits) ("Every domain defines its own structural
+[PAR-DOMAIN-OWNS-EDITS](../../documentation/architecture-requirements.md#par-domain-owns-edits) ("Every domain defines its own structural
 operations and its own insertion type") says to *"generate the whole insertion kit with one `@domain
 X` line rather than re-implementing the root/placeholder/insertion/gesture/traits per domain"*.
 The Text domain is the one editable domain that never got one, and the evidence that hand-rolling

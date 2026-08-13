@@ -138,7 +138,7 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
     next = op.value
     next isa AbstractSet || return op
 
-    # AR-READER-IS-PURE: collect what changed and RETURN the edit; the shadow is
+    # PAR-READER-IS-PURE: collect what changed and RETURN the edit; the shadow is
     # written by evaluating SetReflectedDisclosureOperation, never here. The
     # widget's own `collapsed` is still never written — the returned operation
     # targets the shadow, so expansion stays recorded there.

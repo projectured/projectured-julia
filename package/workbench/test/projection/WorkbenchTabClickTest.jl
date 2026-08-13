@@ -181,7 +181,7 @@ end
     @test type_op(@reference(doc, control_page.elements[1])) isa ComposerInputOperation
 end
 
-# ── Reactive reflow (AR-STABLE-IOMAP-IDENTITY): a page-element add/remove reflows
+# ── Reactive reflow (PAR-STABLE-IOMAP-IDENTITY): a page-element add/remove reflows
 # the tab strip through the SAME held iomap — no re-print. The page elements are
 # reconciled (reconcile_child_iomaps) and the tabbed pane's selector_element_pairs
 # is a set_cell_function! thunk reading them, so a structural edit re-derives it. ──

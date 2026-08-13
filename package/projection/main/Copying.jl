@@ -28,7 +28,7 @@ struct CopyingProjection <: Projection end
 
 # For a reactive CellVector input `children` and `output` are computed cells, so
 # the IoMap keeps its identity while a structural edit reconciles children and
-# re-derives output (AR-STABLE-IOMAP-IDENTITY); the mappers read `iomap.children`
+# re-derives output (PAR-STABLE-IOMAP-IDENTITY); the mappers read `iomap.children`
 # as the value. The other input shapes pass eager values that @iomap wraps.
 @iomap struct CopyingProjectionIoMap
     projection::Any

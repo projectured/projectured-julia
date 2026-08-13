@@ -2,7 +2,7 @@
 
 Make animation time a **first-class document** with a **per-editor** clock, so that:
 
-- many editors run in one process with **independent** time (AR-PER-EDITOR-STATE),
+- many editors run in one process with **independent** time (PAR-PER-EDITOR-STATE),
 - **time-dependent documents**, **animated projections**, and **faster-than-real-time
   video recording** are all first-class supported features, and
 - the process-global `_EDITOR_TIME` cell **goes away**, replaced by a per-editor
@@ -20,7 +20,7 @@ arbitrary default.
 ## Why
 
 `_EDITOR_TIME` (a module-global `Cell(0.0)`) is process-global mutable state
-(AR-NO-PROJECTION-GLOBALS/AR-PER-EDITOR-STATE). Two editors in one process collide three ways:
+(PAR-NO-PROJECTION-GLOBALS/PAR-PER-EDITOR-STATE). Two editors in one process collide three ways:
 
 1. **Judder** — each `run_editor!` writes `Base.time() - t_start` into the one
    shared cell every frame; two loops with different start instants fight over it.
@@ -71,7 +71,7 @@ get_wall_clock() = WALL_CLOCK
   it; everything else only *reads* it.
 - The ambient default for callers with no editor (direct `print_document`,
   `write_image`, tests, editor-less documents).
-- **Why a global is acceptable here (accepted AR-PER-EDITOR-STATE carve-out):** the AR-PER-EDITOR-STATE hazard is
+- **Why a global is acceptable here (accepted PAR-PER-EDITOR-STATE carve-out):** the PAR-PER-EDITOR-STATE hazard is
   editors *writing conflicting elapsed values* into one shared cell. The wall clock
   has exactly **one writer** (the heartbeat) and represents a **genuine singleton**
   (there is one real time); editors only *read* it, so it never breaks their
@@ -140,10 +140,10 @@ time value is document-model data built on `Cell`, not part of the reactive engi
 
 ## Caveats / accepted exceptions
 
-1. **The wall clock is a process-global** — accepted as a *principled* AR-PER-EDITOR-STATE carve-out:
+1. **The wall clock is a process-global** — accepted as a *principled* PAR-PER-EDITOR-STATE carve-out:
    one writer (the heartbeat), read-only for editors, representing the genuine
    singleton of OS time. Record this exception at the `WALL_CLOCK` definition and in
-   AR-PER-EDITOR-STATE. It does **not** reintroduce the cross-editor *write* conflict AR-PER-EDITOR-STATE targets.
+   PAR-PER-EDITOR-STATE. It does **not** reintroduce the cross-editor *write* conflict PAR-PER-EDITOR-STATE targets.
 2. **Reader-armed animations stay on the wall clock (per-editor deferred).** A reader
    (`read_intent`) receives `iomap`, not `ctx`, so it cannot reach the editor's clock.
    The printer-subscribe and reader-arm sides of a reader-armed widget (e.g.
@@ -199,8 +199,8 @@ compat shim. In-tree callers (`run_editor!`, `Playback`, `RotatingVector`,
    `get_wall_clock()`; ProjecturedVideo → drive the recording editor's clock.
 5. **Tests**: the four acceptance tests above; fix any test using the deleted zero-arg API.
 6. **Docs & requirements**: rewrite the `Clock` docstring and move cell.md's relocated
-   `TimeModule` section into a document-layer doc; record the wall-clock AR-PER-EDITOR-STATE
-   carve-out in AR-PER-EDITOR-STATE; note the reader-seam follow-up.
+   `TimeModule` section into a document-layer doc; record the wall-clock PAR-PER-EDITOR-STATE
+   carve-out in PAR-PER-EDITOR-STATE; note the reader-seam follow-up.
 7. **Seal**: once migrated and green, `document/Clock.jl` is eligible for the seal walk.
 
 ## Open questions
@@ -219,7 +219,7 @@ compat shim. In-tree callers (`run_editor!`, `Playback`, `RotatingVector`,
 
 ## Related — already migrated (not part of this plan)
 
-The two *other* process-global offenders AR-PER-EDITOR-STATE named were fixed independently, as
+The two *other* process-global offenders PAR-PER-EDITOR-STATE named were fixed independently, as
 **task-local** state rather than per-editor, because they are per-*evaluation*, not
 per-*editor*:
 

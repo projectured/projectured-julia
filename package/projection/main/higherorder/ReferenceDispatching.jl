@@ -68,7 +68,7 @@ end
 
 # The dispatch key is `ctx.reference` — structural (the path to this position), so
 # fixed per print. `output` forwards the dispatched inner's output through a cell,
-# keeping the IoMap's identity while the inner re-derives (AR-STABLE-IOMAP-IDENTITY).
+# keeping the IoMap's identity while the inner re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct ReferenceDispatchingProjectionIoMap
     projection::Any
     input::Any

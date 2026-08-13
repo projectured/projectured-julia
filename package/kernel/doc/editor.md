@@ -311,7 +311,7 @@ that subscribed to `get_reactive_editor_time()`.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
 - `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
-  ([AR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md#ar-per-editor-state)).
+  ([PAR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md#par-per-editor-state)).
 - `..AgentServerModule` — the make_agent_server/start/stop seam driven by
   `Editor` when an agent server is configured.
 

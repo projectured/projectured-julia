@@ -10,7 +10,7 @@ reactive edge and the pane kept rendering the document it was born with. Nothing
 errored. It simply stopped updating, which is why nothing caught it — every test
 here re-printed.
 
-That is AR-REACTIVE-OUTPUT-STRUCTURE's failure mode exactly, so these assertions
+That is PAR-REACTIVE-OUTPUT-STRUCTURE's failure mode exactly, so these assertions
 hold ONE printed pane and write to the domain behind it.
 """
 
@@ -20,7 +20,7 @@ function test_workbench_content_pane()
 recursion = RecursiveProjection(IdentityProjection())
 printed(p, node) = print_document(p, recursion, node, PrinterContext())
 
-# Compared by IDENTITY, not by value: a document keeps `==` (AR-DOCUMENT-IDENTITY),
+# Compared by IDENTITY, not by value: a document keeps `==` (PAR-DOCUMENT-IDENTITY),
 # so two equal-looking PrimitiveStrings are not equal and only `===` says what
 # this test means — "the pane is showing THIS object".
 @testset "an editor's content is replaceable" begin

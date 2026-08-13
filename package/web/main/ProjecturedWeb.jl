@@ -23,7 +23,7 @@ using HTTP
 using JSON3
 using Base64: base64encode
 
-# The backend contract (AR-QUALIFIED-EXTENSION): bare `using`, extended by
+# The backend contract (PAR-QUALIFIED-EXTENSION): bare `using`, extended by
 # qualification below. A bare `using` of an alias binds the module's *real*
 # name, so the extension sites read BackendModule.*.
 using ProjecturedKernel.BackendModule
