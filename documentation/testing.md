@@ -379,6 +379,77 @@ transitively by all four examples) and the refactor in
 reference round-trip is exposed as the REPL walkers above rather than asserted,
 pending calibration on a running editor.
 
+## Reactivity: does the output follow the input?
+
+`test_reactivity()` sweeps every registered example and asserts the property no
+other suite can see:
+
+> Touch a leaf of a projection's input, and something in that projection's own
+> output must go invalid.
+
+The bug it catches does not make the output **wrong**, it makes it **stale**.
+Nothing errors and no assertion trips; the pixels are simply from a document that
+no longer exists. Every other printer test re-prints from scratch, and a re-print
+always looks correct, so this shape survives a green suite indefinitely.
+
+It is opt-in and slow — about seven minutes over 103 examples. Do not run it to
+check a one-line change; run the narrowest test as usual and leave this to a
+broad sweep.
+
+```julia
+test_reactivity()                      # the whole sweep
+check_reactivity(json_example)         # one example, per-node verdicts
+check_structural_reactivity(json_example)   # append an element instead of writing a leaf
+```
+
+The unit is an **IoMap node**, not a document leaf, because an IoMap pairs one
+projection's input with its output. A failure then names the projection that
+froze rather than saying "something in this example went stale".
+
+### The four outcomes
+
+A node is not charged for every write. `map_reference_forward` is asked first,
+and the answer decides what a non-reacting write means.
+
+| outcome | meaning |
+|---|---|
+| **followed** | the surface moved; the node did its job |
+| **frozen** | the leaf path maps, so the field is rendered, and nothing moved — a finding |
+| **unproven** | only the document path maps; the field may have no reader, so nothing is proven |
+| **carried** | the output holds the written cell itself, so the value passes through by reference and the node owes nothing |
+| **not shown** | neither path maps; a filtering, searching or focusing projection drops it deliberately |
+
+`SyntaxLeaf.indentation` is the reason `unproven` exists: the field is there, and
+`syntax_indentation` has no method for a leaf, so nothing consults it.
+`ChartToChartPlot` is the reason `carried` exists: its output wraps the live
+`Chart`, so writing `chart.title` moves nothing there and nothing is stale — the
+renderer one stage on reads the same cell.
+
+### What it does not test
+
+- **Reader-side reactivity.** This is printer-only; `test_readers` owns the
+  other direction.
+- **Correctness of the new value.** Only that something moved.
+- **Over-invalidation.** `PrinterLocalityTest.jl` owns that bound, and shares its
+  cell collector with this file. Measured across all examples, over-invalidation
+  is not a problem: the median write moves 0% of a surface and the worst moves
+  35%.
+
+### Trusting the sweep
+
+Three acceptance tests guard the harness itself, because a harness that cannot
+fail reports zero whether or not anything is wrong:
+
+- `test_reactivity_property()` — a captured value must be called frozen and a
+  re-deriving output must not.
+- `test_reactive_surface()` — includes the orphaning case, where a projection
+  re-derives its whole output and every cell of the old tree is untouched.
+- `test_structural_property()` — children built once into constant cells must be
+  called frozen; the same shape as a thunk must pass.
+
+`test_verdict_stability(names)` additionally requires that the same leaves
+measured forward, forward again and backward give identical counts.
+
 ## Running tests via Pkg
 
 The standard `Pkg` workflow also works and is what CI uses:
