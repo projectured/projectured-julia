@@ -1,10 +1,14 @@
 # Reactivity property testing — touch an input, watch the output move
 
-> **Status (2026-08-12): NOT STARTED.** No part of the harness exists — a search
-> for `test_reactivity`, `iomap_nodes`, `reactive_surface`, and `check_reactivity`
-> across `package/` finds nothing. §7's phases 1 through 6 are all still to do.
+> **Status (2026-08-14): PHASE 1 DONE.** The IoMap walk lives in
+> `package/projectured/test/editor/ReactivityTest.jl`. Phases 2 to 6 remain.
+>
+> The 2026-08-12 note said NOT STARTED because it searched for the names this
+> plan invented — `test_reactivity`, `iomap_nodes`, `reactive_surface`,
+> `check_reactivity`. Much of §2.2 already existed under other names in
+> `PrinterLocalityTest.jl`. See §8.
 
-**Status:** design proposal, staged build (§7). Not started.
+**Status:** staged build (§7), phase 1 done.
 **Scope:** a property-based harness over the 88 registered examples that walks the
 **IoMap tree**, writes to each node's input, and asserts that node's output
 followed.
@@ -245,12 +249,28 @@ Worth stating so nobody assumes otherwise:
 **Invariants:** existing suites stay green; the harness adds no dependency; it is
 opt-in, not part of `test_kernel` / `test_base` / `test_visual`.
 
-### Phase 1 — walk the IoMap tree
-`iomap_nodes(iomap)` yielding every node via `child_iomaps` / `inner_iomap`, each
-with its projection, input and output. Nothing is asserted yet.
-*Verify: on `json_example` the node count is stable and every node's projection is
-non-nothing; on `object_to_widget_example` the tree is deeper than one node, so
-the walk genuinely descends into sub-projections.*
+### Phase 1 — walk the IoMap tree — **DONE 2026-08-14**
+`iomap_nodes(iomap)` yielding every node, each with its projection, input and
+output. Nothing is asserted yet. `test_iomap_walk(label, document, projection)`
+checks the walk itself.
+
+*Verified:* the node count is stable across two walks of one printed tree, and
+the walk descends. json 61 nodes / depth 5 / 6 projection types, xml 141 / 7 / 5,
+graph 38 / 9 / 12, math 26 / 6 / 9, object_to_widget 3 / 1 / 3.
+
+**Design decision — find a child by field inspection, never by a name list.**
+The plan said "via `child_iomaps` / `inner_iomap`". That is wrong. The loaded set
+holds more than forty IoMap types using at least twelve names for the relation:
+`child_iomaps`, `inner_iomap`, `step_iomaps`, `content_iomap`, `content_iomaps`,
+`element_iomaps`, `child_iomap`, `root_iomap`, `window_iomaps`, `palette_iomap`,
+`log_iomap`, `slice_iomap`. So `_iomap_children` scans every field except
+`projection`, `input` and `output`, one level into a vector, and unwraps a `Cell`
+at each step — `ChainingProjectionIoMap.step_iomaps` is a `Vector{Cell}`.
+
+The first version tested `element isa IoMap` without unwrapping the cell, and
+every example reported a one-node tree. That is the dangerous failure: the walk
+reports success and the property then passes everywhere by measuring nothing.
+`test_iomap_walk` exists to catch it.
 
 ### Phase 2 — the observation primitives
 `force_output!`, `reactive_surface(node)` returning the node's own field cells
@@ -287,3 +307,56 @@ the same one passes once its container is a thunk.*
 ### Phase 6 — docs + close-out
 Document the property and its exemptions in `documentation/testing.md`, and
 record what the build changed about this design.
+
+---
+
+## 8. What the build found
+
+### 8.1 Half of §2.2 already existed, under other names
+
+`package/projectured/test/editor/PrinterLocalityTest.jl` already holds:
+
+| this plan calls it | it is called there |
+|---|---|
+| the cells reachable from an output | `_collect_locality!` / `LocalityCell` |
+| the §2.2 procedure | `printer_locality_report(document, projection, mutate!)` |
+| §1.2, the over-invalidation bound | `test_selection_locality`, `explore_selection_locality` |
+| §7 phase 5, structural edits | `explore_structural_locality` |
+| the orphaning problem of §2.1 | the object-identity diff, `lost_objects` / `preserved_objects` |
+
+So this harness is **the other half**, not a new one. What is genuinely missing:
+
+1. The IoMap **tree** walk. `printer_locality_report` snapshots from the root
+   output only, so a failure can not name the projection that froze. Phase 1.
+2. The **under**-invalidation assertion. That file asserts a minimal set changed;
+   it never asserts that anything changed. That is the half that catches the
+   three §1.1 bugs.
+3. A node's **own field cells** in the surface (§2.1).
+4. The generic type-directed **leaf mutator** (§2.4). That file takes a
+   caller-supplied `mutate!`.
+5. The `map_reference_forward` **oracle** (§3).
+
+Phases 2 to 5 reuse `_collect_locality!` rather than write a second collector.
+
+### 8.2 A finding: the workbench IoMaps carry no projection
+
+26 of the 29 nodes of `workbench_example` answer `nothing` to
+`get_iomap_projection`. `package/workbench/main/WorkbenchToWidget.jl:267`
+constructs `WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell, …)` with a
+literal `nothing`, and the whole subtree under it inherits the habit.
+
+Two consequences. A failure in that subtree can not name the projection that
+caused it. Worse, the §3 oracle is `map_reference_forward(projection, iomap,
+reference)`, so a node with no projection **can not be measured at all** — the
+workbench, the one example whose bugs drove this plan, is the least reachable.
+
+This is a defect in the workbench projection, not in the harness. It is recorded
+here and left alone: fixing it is its own task and needs its own test.
+
+### 8.3 §6 Q1 is settled: validity, not values
+
+§2.3 argues for validity with values as diagnostic, and §6 Q1 proposed the
+reverse. §2.3 wins; §6 Q1 was the older text. The argument stands: a re-derived
+output orphans the old tree's cells, so a value diff reports a correct
+projection as frozen. §6 Q2, Q3 and Q4 stay open and are answered by
+measurement in phase 4.
