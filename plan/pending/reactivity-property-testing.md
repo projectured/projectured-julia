@@ -1,16 +1,16 @@
 # Reactivity property testing — touch an input, watch the output move
 
-> **Status (2026-08-14): PHASES 1 AND 2 DONE, PHASE 3 PARTLY.** The walk, the
+> **Status (2026-08-14): PHASES 1 TO 4 DONE.** The walk, the
 > observation
 > primitives live in
-> `package/projectured/test/editor/ReactivityTest.jl`. Phases 3 to 6 remain.
+> `package/projectured/test/editor/ReactivityTest.jl`. Phases 5 and 6 remain.
 >
 > The 2026-08-12 note said NOT STARTED because it searched for the names this
 > plan invented — `test_reactivity`, `iomap_nodes`, `reactive_surface`,
 > `check_reactivity`. Much of §2.2 already existed under other names in
 > `PrinterLocalityTest.jl`. See §8.
 
-**Status:** staged build (§7), phases 1 and 2 done, phase 3 without its oracle.
+**Status:** staged build (§7), phases 1 to 4 done. Phase 5 (structural edits) and phase 6 (docs) remain.
 **Scope:** a property-based harness over the 88 registered examples that walks the
 **IoMap tree**, writes to each node's input, and asserts that node's output
 followed.
@@ -460,9 +460,23 @@ The original text of this phase follows.
 §1.1 bugs in turn and assert the harness FAILS — that is the real acceptance
 test, and it is worth writing the injections as a fixture rather than by hand.*
 
-### Phase 4 — all 88, and the granularity bound
-`test_reactivity()` over the registry, with the over-invalidation bound from §6
-Q2 measured first and pinned second.
+### Phase 4 — all examples, and the granularity bound — **DONE 2026-08-14**
+`test_reactivity()` sweeps every registered example. It runs green at **103 pass,
+1 broken, 0 fail, 0 error in 7 minutes**. The one broken marker is the workbench
+tab title, keyed on the FIELD `:filename` rather than on the example, so a
+different frozen field there stays an unmarked failure. When the bug is fixed the
+marker turns into an unexpected pass and has to be removed.
+
+An unproven verdict is reported but never asserted on: only the document path
+mapped, so the field may have no reader, which is true of `SyntaxLeaf.indentation`.
+
+**§6 Q2 is answered: no bound is needed.** Over-invalidation was measured across
+all 103 examples and there is nothing to bound — median 0% of a surface moved per
+write, worst 35%, and no write anywhere moves a whole surface. Pinning a fraction
+would add a number with no violation behind it.
+
+`test_verdict_stability` guards the sweep itself: the same leaves measured
+forward, forward again and backward must give identical counts.
 *Verify: report per example — nodes walked, leaves tested, skipped, obliged,
 failed, and the worst invalidation fraction. Whatever fails on the first full run is a FINDING,
 not a bug in the harness — record each one before fixing it.*

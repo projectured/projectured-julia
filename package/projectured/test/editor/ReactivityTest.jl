@@ -712,3 +712,60 @@ function test_verdict_stability(names; leaf_limit::Int=3, node_limit::Int=10)
     end
     errors
 end
+
+# ── Phase 4: the sweep ───────────────────────────────────────────────────────
+
+# @broken registry for the reactivity sweep, keyed on the frozen FIELD rather
+# than on the example, so a different field on a known-broken example is
+# unrecognised and stays an unmarked failure.
+#
+# @broken: the editing page's tab title does not follow `WorkbenchEditor.filename`.
+# At `root.child_iomap.step_iomaps[1].editing_page_iomap`
+# (`WorkbenchPageToWidgetTabbedPane`) the obligation is strong — the mapper says
+# the field is rendered — and writing it invalidates 0 of 964 cells. The tab keeps
+# showing a name that is no longer current, and no other suite can see it because
+# every printer test re-prints from scratch.
+# plan/pending/reactivity-property-testing.md §8.7
+_reactivity_broken(name) = name == "workbench" ? (:filename,) : ()
+
+"""
+    test_reactivity(; leaf_limit=2, node_limit=12)
+
+The under-invalidation sweep over every registered example: touch a leaf of a
+node's input, and something in that node's own output must go invalid.
+
+Opt-in, and not part of `test_kernel` / `test_substrate` / `test_base`. Nobody
+should run this to check a one-line change.
+
+A **frozen** verdict is the failure: the mapper says the field is rendered and
+nothing moved. An **unproven** verdict is not asserted on — only the document
+path mapped, so the field may have no reader at all, which is true of
+`SyntaxLeaf.indentation`. Both counts are reported so that a silent change in
+either is visible.
+"""
+function test_reactivity(; leaf_limit::Int=2, node_limit::Int=12)
+    @testset "Reactivity" begin
+        for example in examples
+            @testset "$(example.name)" begin
+                verdicts = try
+                    check_reactivity(example; leaf_limit=leaf_limit, node_limit=node_limit)
+                catch e
+                    @test "check_reactivity threw" == string(e)
+                    continue
+                end
+                frozen = Symbol[]
+                for verdict in verdicts, field in verdict.frozen_fields
+                    field in frozen || push!(frozen, field)
+                end
+                known = _reactivity_broken(example.name)
+                # A frozen field nobody recorded is a regression, always.
+                @test isempty(setdiff(frozen, known))
+                # A recorded one stays in the Broken column, and turns into an
+                # unexpected pass the day it is fixed — which is what forces the
+                # stale marker out.
+                isempty(known) ||
+                    @test_broken isempty(intersect(frozen, known))
+            end
+        end
+    end
+end
