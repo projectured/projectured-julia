@@ -431,24 +431,44 @@ function input_leaf_targets(node::IoMapNode)
 end
 
 """
-    is_obliged(node::IoMapNode, reference) -> Union{Bool,Nothing}
+    obligation(node, leaf_reference, document_reference) -> Symbol
 
-Does this node owe the output an answer when `reference` moves?
+How strongly does this node owe the output an answer when that location moves?
 
-`true` when `map_reference_forward` maps the location into the output, `false`
-when it answers `nothing` — a projection that filters, searches or focuses
-deliberately drops part of its input and owes nothing for what it dropped.
-`nothing` here means the question could not be asked: the mapper threw, or the
-node has no projection to ask. An unanswerable question is never a finding.
+Two questions are asked, because neither alone can express "this field is
+shown", and each failed in an opposite direction when it was used alone.
+
+- `:strong` — `map_reference_forward` maps the **leaf** path, the one that ends
+  at the field itself. The field is rendered, so a frozen verdict is a finding.
+- `:weak` — only the **document** path maps. The document is shown, but a field
+  of it may have no reader at all: a `SyntaxLeaf` carries an `indentation` field
+  and `syntax_indentation` has no method for a leaf, so nothing consults it.
+  Writing such a field correctly moves nothing, and a frozen verdict here proves
+  nothing.
+- `:none` — neither maps. The projection drops this location; filtering,
+  searching and focusing all do so deliberately, and owe nothing for it.
+- `:unknown` — the question could not be asked at all.
+
+Asking only the leaf path declined 64 of 75 locations on json, because a
+projection maps document-scoped locations. Asking only the document path
+approved every field of every shown document, which is how a field with no
+reader was reported as a frozen projection. The two tiers keep both facts.
 """
-function is_obliged(node::IoMapNode, reference)
-    node.projection === nothing && return nothing
-    try
-        return map_reference_forward(node.projection, node.iomap, reference) !== nothing
-    catch
-        return nothing
-    end
+function obligation(node::IoMapNode, leaf_reference, document_reference)
+    node.projection === nothing && return :unknown
+    mapped = _try_map(node, leaf_reference)
+    mapped === :threw || (mapped !== nothing && return :strong)
+    mapped = _try_map(node, document_reference)
+    mapped === :threw && return :unknown
+    mapped === nothing ? :none : :weak
 end
+
+_try_map(node::IoMapNode, reference) =
+    try
+        map_reference_forward(node.projection, node.iomap, reference)
+    catch
+        :threw
+    end
 
 """
     input_leaves(node::IoMapNode) -> Vector{LocalityCell}
@@ -480,8 +500,10 @@ struct NodeVerdict
     node::IoMapNode
     tested::Int          # leaves the node was obliged to answer for, and did
     followed::Int
-    frozen::Int          # obliged, written, and nothing moved — the finding
+    frozen::Int          # strongly obliged, written, and nothing moved — the finding
     frozen_fields::Vector{Symbol}
+    unproven::Int        # weakly obliged and nothing moved — the field may have no reader
+    unproven_fields::Vector{Symbol}
     not_shown::Int       # the oracle said the location is not in the output
     carried::Int         # the output holds the written cell itself, by reference
     unanswerable::Int    # the oracle could not be asked
@@ -513,17 +535,12 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
     skipped = max(0, length(targets) - leaf_limit)
     tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
     carried = 0
-    frozen_fields = Symbol[]
+    frozen_fields = Symbol[]; unproven = 0; unproven_fields = Symbol[]
     worst = 0.0; surface_cells = 0
     for (question, reference, cell) in Iterators.take(targets, leaf_limit)
-        obliged = oracle ? is_obliged(node, question) : true
-        if obliged === nothing
-            unanswerable += 1
-            continue
-        elseif obliged === false
-            not_shown += 1
-            continue
-        end
+        strength = oracle ? obligation(node, reference, question) : :strong
+        strength === :unknown && (unanswerable += 1; continue)
+        strength === :none    && (not_shown += 1; continue)
         before = try cell[] catch; continue end
         after = _next_value(before)
         after === nothing && continue
@@ -550,15 +567,19 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
             worst = max(worst, moved / total)
             if moved > 0
                 followed_count += 1
-            else
+            elseif strength === :strong
                 frozen += 1
                 field in frozen_fields || push!(frozen_fields, field)
+            else
+                unproven += 1
+                field in unproven_fields || push!(unproven_fields, field)
             end
         finally
             try cell[] = before catch end   # restore: the examples are shared
         end
     end
     NodeVerdict(node, tested, followed_count, frozen, frozen_fields,
+                unproven, unproven_fields,
                 not_shown, carried, unanswerable, skipped, worst, surface_cells)
 end
 

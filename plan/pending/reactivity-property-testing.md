@@ -341,6 +341,48 @@ checkpoints, while the leaf path still names the field for the message.
 That is a large correction. json went from 11 leaves measured to 31, and math
 from none to 20.
 
+### 8.6 Oracle rule 2: obligation has two tiers
+
+Two questions are asked of `map_reference_forward`, because neither alone can
+express "this field is shown", and each failed in an opposite direction.
+
+- Ask with the **leaf** path only and it declines 64 of 75 locations on json: a
+  projection maps document-scoped locations, not scalar fields.
+- Ask with the **document** path only and it approves every field of every shown
+  document. That is how `:indentation` became a false finding. A `SyntaxLeaf`
+  carries an `indentation` field, and `syntax_indentation` has **no method for a
+  leaf** — nothing consults it, so writing it correctly moves nothing.
+
+So: `:strong` when the leaf path maps, `:weak` when only the document path maps,
+`:none` when neither, `:unknown` when the question cannot be asked. A frozen
+verdict under a strong obligation is a finding. Under a weak one it is
+`unproven` and never becomes a marker.
+
+### 8.7 The result, all 103 examples
+
+At 12 nodes and 2 leaves per example:
+
+| outcome | count |
+|---|---|
+| followed | 193 |
+| **frozen, strongly obliged** | **1** |
+| unproven, weakly obliged | 42 |
+| carried by reference | 58 |
+| not shown | 796 |
+| unanswerable | 5 |
+
+**The one finding is `workbench`, field `:filename`.** The leaf path maps, so the
+field is rendered, and writing it invalidates nothing. That is the whole point of
+the harness: one specific, localised, high-confidence candidate out of 103
+examples. Verify it before writing its marker.
+
+The 42 unproven are `:indentation` in 14 examples, plus `:level` and
+`:alignment` once each. `:indentation` is understood — a field with no reader.
+The other two are not yet examined.
+
+Over-invalidation remains a non-issue: median 0% of a surface per write, worst
+35%, and no write anywhere moves a whole surface.
+
 ### 8.5 Oracle rule 1: a value carried by reference is owed nothing
 
 The chart examples reported `:title` and `:label` frozen on all eight. The chart
