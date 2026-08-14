@@ -174,6 +174,11 @@ const _SIDE_WEIGHT        = 0.2   # nav / control / info — grow, but less
 const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
 const _SHELL_FALLBACK_HEIGHT = 720   # window height when run outside a window
 
+# The fallback branch passes the document through unprojected, so its IoMap has
+# no projection to name — the one place in this file where `nothing` is the
+# honest answer. Everywhere else the projection is bound and handed to the IoMap,
+# because a node with no projection cannot be reached by `map_reference_forward`
+# and so cannot be measured by the reactivity property.
 _recurse(recursion, doc, ctx) =
     (recursion !== nothing && doc isa WorkbenchDocument) ? print_child(recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
 
@@ -202,7 +207,7 @@ end
 
 # ── print_document ──────────────────────────────────────────────────────────
 
-function print_document(::WorkbenchWorkbenchToWidgetShell,
+function print_document(projection::WorkbenchWorkbenchToWidgetShell,
                            recursion, w::WorkbenchWorkbench, ctx)
     nav_iomap  = _recurse(recursion, w.navigation_page,  make_child_context(ctx, w, @reference_step navigation_page))
     edit_iomap = _recurse(recursion, w.editing_page,     make_child_context(ctx, w, @reference_step editing_page))
@@ -264,13 +269,13 @@ function print_document(::WorkbenchWorkbenchToWidgetShell,
                         size=shell_size)
     set_cell_function!(getfield(shell, :selection), _shell_sel)
 
-    iomap = WorkbenchWorkbenchToWidgetShellIoMap(nothing, w, shell,
+    iomap = WorkbenchWorkbenchToWidgetShellIoMap(projection, w, shell,
                                                  nav_iomap, edit_iomap, info_iomap, ctrl_iomap)
     iomap_cell[] = iomap
     iomap
 end
 
-function print_document(::WorkbenchPageToWidgetTabbedPane,
+function print_document(projection::WorkbenchPageToWidgetTabbedPane,
                            recursion, page::WorkbenchPage, ctx)
     # Reconcile the page elements by identity so a tab add/remove reuses the
     # survivors' iomaps, and wire the tab strip reactively so it reflows on a
@@ -284,7 +289,7 @@ function print_document(::WorkbenchPageToWidgetTabbedPane,
         ims = element_iomaps[]
         Any[(_title_widget(page.elements[i]), ims[i].output) for i in eachindex(ims)]
     end)
-    iomap = WorkbenchPageToWidgetTabbedPaneIoMap(nothing, page, tabbed, element_iomaps)
+    iomap = WorkbenchPageToWidgetTabbedPaneIoMap(projection, page, tabbed, element_iomaps)
     # Forward-project the page's selection onto the tabbed pane so the active
     # tab follows the document selection (and coordless events route to it).
     #
@@ -331,11 +336,11 @@ function _tab_index_prefix(sel)
     ConcreteReference(sel.type, sel.head, EmptyReference())
 end
 
-function print_document(::WorkbenchNavigatorToWidgetScrollPane,
+function print_document(projection::WorkbenchNavigatorToWidgetScrollPane,
                            recursion, nav::WorkbenchNavigator, ctx)
     scroll = WidgetScrollPane(nav.workspace;
                               padding=_PAD5, padding_color=_WHITE)
-    WorkbenchNavigatorToWidgetScrollPaneIoMap(nothing, nav, scroll, Any[])
+    WorkbenchNavigatorToWidgetScrollPaneIoMap(projection, nav, scroll, Any[])
 end
 
 
@@ -351,22 +356,22 @@ end
 # So the child IoMap is reconciled by identity and the pane's content is a THUNK
 # over it. Replacing the content re-projects exactly once and the pane follows;
 # leaving it alone reuses the same child IoMap, so nothing downstream is rebuilt.
-function _content_pane(recursion, node, step, ctx; kwargs...)
+function _content_pane(projection, recursion, node, step, ctx; kwargs...)
     field = Symbol(step.name)     # the step addresses it; reading it needs the name
     child = reconcile_child_iomap(() -> getproperty(node, field),
                                   v -> _recurse(recursion, v, make_child_context(ctx, node, step)))
     scroll = WidgetScrollPane(child[].output; kwargs...)
     set_cell_function!(getfield(scroll, :content), () -> child[].output)
-    iomap = ContentIoMap(nothing, node, scroll, child[])
+    iomap = ContentIoMap(projection, node, scroll, child[])
     set_cell_function!(getfield(iomap, :inner_iomap), () -> child[])
     iomap
 end
 
-print_document(::WorkbenchConsoleToWidgetScrollPane, recursion, c::WorkbenchConsole, ctx) =
-    _content_pane(recursion, c, @reference_step(content), ctx;
+print_document(projection::WorkbenchConsoleToWidgetScrollPane, recursion, c::WorkbenchConsole, ctx) =
+    _content_pane(projection, recursion, c, @reference_step(content), ctx;
                   padding=_PAD5, padding_color=_WHITE)
 
-function print_document(::WorkbenchDescriptorToWidgetScrollPane,
+function print_document(projection::WorkbenchDescriptorToWidgetScrollPane,
                            recursion, d::WorkbenchDescriptor, ctx)
     text = TextBlock(
         TextString(() -> string(d.content),
@@ -374,28 +379,28 @@ function print_document(::WorkbenchDescriptorToWidgetScrollPane,
     )
     scroll = WidgetScrollPane(text;
                               padding=_PAD5, padding_color=_WHITE)
-    SimpleIoMap(nothing, d, scroll)
+    SimpleIoMap(projection, d, scroll)
 end
 
-function print_document(::WorkbenchOperatorToWidgetScrollPane,
+function print_document(projection::WorkbenchOperatorToWidgetScrollPane,
                            recursion, o::WorkbenchOperator, ctx)
     scroll = WidgetScrollPane(nothing;
                               padding=_PAD5, padding_color=_WHITE)
-    SimpleIoMap(nothing, o, scroll)
+    SimpleIoMap(projection, o, scroll)
 end
 
-function print_document(::WorkbenchSearcherToWidgetScrollPane,
+function print_document(projection::WorkbenchSearcherToWidgetScrollPane,
                            recursion, s::WorkbenchSearcher, ctx)
     scroll = WidgetScrollPane(nothing;
                               padding=_PAD5, padding_color=_WHITE)
-    SimpleIoMap(nothing, s, scroll)
+    SimpleIoMap(projection, s, scroll)
 end
 
-print_document(::WorkbenchEvaluatorToWidgetScrollPane, recursion, e::WorkbenchEvaluator, ctx) =
-    _content_pane(recursion, e, @reference_step(content), ctx;
+print_document(projection::WorkbenchEvaluatorToWidgetScrollPane, recursion, e::WorkbenchEvaluator, ctx) =
+    _content_pane(projection, recursion, e, @reference_step(content), ctx;
                   padding=_PAD5, padding_color=_WHITE)
 
-function print_document(::WorkbenchAssistantToWidgetSplitPane,
+function print_document(projection::WorkbenchAssistantToWidgetSplitPane,
                            recursion, a::WorkbenchAssistant, ctx)
     # Both children are WidgetScrollPanes whose `content` is the underlying
     # document. `WidgetScrollPaneToGraphicsCanvas.print_document` calls
@@ -423,7 +428,7 @@ function print_document(::WorkbenchAssistantToWidgetSplitPane,
         LayoutConstraint(input_pane;
                          min_height=_INPUT_MIN_HEIGHT, preferred_height=_INPUT_MIN_HEIGHT),
     ])
-    SimpleIoMap(nothing, a, column)
+    SimpleIoMap(projection, a, column)
 end
 
 """
@@ -533,8 +538,8 @@ function read_intent(p::WorkbenchAssistantToWidgetCard, iomap::SimpleIoMap,
     ReplaceSelectionOperation(inner === nothing ? EmptyReference() : inner)
 end
 
-print_document(::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
-    _content_pane(recursion, e, @reference_step(content), ctx;
+print_document(projection::WorkbenchEditorToWidgetScrollPane, recursion, e::WorkbenchEditor, ctx) =
+    _content_pane(projection, recursion, e, @reference_step(content), ctx;
                   follow_end=e.follow_end === true, padding=_PAD5, padding_color=_WHITE)
 
 # ── map_reference_forward ──────────────────────────────────────────────
