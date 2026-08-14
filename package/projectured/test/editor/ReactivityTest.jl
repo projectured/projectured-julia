@@ -769,3 +769,81 @@ function test_reactivity(; leaf_limit::Int=2, node_limit::Int=12)
         end
     end
 end
+
+# ── Phase 5: structural edits ────────────────────────────────────────────────
+
+"""
+    StructuralVerdict
+
+What one node did when an element was appended to a collection in its input.
+
+A leaf write and a structural edit fail in different ways. The disclosure bug of
+§1.1 — a `Vector` handed to a layout and frozen into constant cells — moved no
+leaf at all: the card set was right on frame one and never changed again. Only an
+append can see it.
+"""
+struct StructuralVerdict
+    node::IoMapNode
+    tested::Int
+    followed::Int
+    frozen::Int
+    frozen_labels::Vector{String}
+    carried::Int
+end
+
+is_frozen(v::StructuralVerdict) = v.frozen > 0
+
+"""
+    check_structural_reactivity(node::IoMapNode; collection_limit=3) -> StructuralVerdict
+
+Append a duplicate of the first element to each collection in this node's input,
+and require that something in the node's own surface goes invalid. The collection
+is restored to its original length afterwards, whatever happened.
+
+`_find_input_collections` and the append-then-restore shape are reused from
+`PrinterLocalityTest.jl`, which does the same edit to measure the opposite bound.
+
+The oracle is not asked here. A reference to an element that does not exist yet
+cannot be mapped forward, so obligation has no meaning before the append. The
+carried rule still applies: a node whose output holds the collection itself
+passes it through and owes nothing.
+"""
+function check_structural_reactivity(node::IoMapNode; collection_limit::Int=3)
+    tested = 0; followed_count = 0; frozen = 0; carried = 0
+    frozen_labels = String[]
+    collections = try
+        _find_input_collections(node.input)
+    catch
+        return StructuralVerdict(node, 0, 0, 0, frozen_labels, 0)
+    end
+    for (label, collection) in Iterators.take(collections, collection_limit)
+        length(collection) >= 1 || continue
+        surface = reactive_surface(node)
+        cell_count(surface) == 0 && continue
+        if any(lc -> lc.cell === getfield(collection, :elements), surface.reachable)
+            carried += 1
+            continue
+        end
+        before_length = length(collection)
+        tested += 1
+        try
+            push!(collection, collection[1])
+            if isempty(invalidated(surface))
+                frozen += 1
+                label in frozen_labels || push!(frozen_labels, label)
+            else
+                followed_count += 1
+            end
+        finally
+            while length(collection) > before_length
+                try pop!(collection) catch; break end
+            end
+        end
+    end
+    StructuralVerdict(node, tested, followed_count, frozen, frozen_labels, carried)
+end
+
+check_structural_reactivity(example; node_limit::Int=12, kwargs...) =
+    [check_structural_reactivity(n; kwargs...)
+     for n in Iterators.take(iomap_nodes(print_document(example.projection,
+                                                        example.document)), node_limit)]

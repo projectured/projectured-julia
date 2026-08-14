@@ -481,9 +481,38 @@ forward, forward again and backward must give identical counts.
 failed, and the worst invalidation fraction. Whatever fails on the first full run is a FINDING,
 not a bug in the harness — record each one before fixing it.*
 
-### Phase 5 — structural edits
-Beyond leaf writes: push/pop an element, replace a child document, swap a
-`nothing` for a value. This is where the disclosure bug lived, and a leaf-only
+### Phase 5 — structural edits — **PARTLY DONE 2026-08-14**
+`check_structural_reactivity(node)` appends a duplicate of a collection's first
+element and requires that the node's own surface moves. The collection is
+restored in a `finally` whatever happens. `_find_input_collections` and the
+append-then-restore shape are reused from `PrinterLocalityTest.jl`, which makes
+the same edit to measure the opposite bound.
+
+The oracle is not asked. A reference to an element that does not exist yet cannot
+be mapped forward, so obligation has no meaning before an append. The carried
+rule still applies.
+
+First measurement, 12 nodes and 2 collections per example:
+
+| example | tested | followed | frozen | carried |
+|---|---|---|---|---|
+| json | 11 | 11 | 0 | 0 |
+| xml | 12 | 12 | 0 | 0 |
+| workbench | 7 | 7 | 0 | 14 |
+| book | 18 | 18 | 0 | 0 |
+| sorting | 4 | 4 | 0 | 0 |
+| chart_line | 2 | 2 | 0 | 1 |
+
+Structural reactivity is healthy in all six: 54 collections, nothing frozen.
+
+**Still to do before this phase closes:** the acceptance fixture this plan asks
+for — a projection that builds its children from a plain `Vector` must be
+reported frozen, and the same one must pass once its container is a thunk.
+Without it the zero above is unearned: a check that can never fail reports zero
+whether or not anything is wrong. The leaf property has such a fixture
+(`_frozen_fixture`); the structural one does not yet.
+
+Original text: This is where the disclosure bug lived, and a leaf-only
 harness would not have caught it.
 *Verify: an example whose projection builds children from a plain `Vector` fails;
 the same one passes once its container is a thunk.*
