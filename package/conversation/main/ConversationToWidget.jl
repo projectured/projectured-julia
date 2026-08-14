@@ -116,7 +116,7 @@ _maybe_clip(body, collapsed::Bool, width::Integer) =
 
 # ── print_document: conversation → vertical list of turn cards ──────────────
 
-function print_document(::ConversationConversationToWidgetComposite,
+function print_document(projection::ConversationConversationToWidgetComposite,
                           recursion, c::ConversationConversation, ctx)
     rec, ref = recursion, ctx.reference
     # Cache the child turn iomaps (recomputed only when the turn list changes),
@@ -128,12 +128,12 @@ function print_document(::ConversationConversationToWidgetComposite,
     ])
     layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
                             Cell(:left), Cell(_GAP), Cell(nothing))
-    ChildrenIoMap(nothing, c, layout, ioms)
+    ChildrenIoMap(projection, c, layout, ioms)
 end
 
 # ── print_document: turn → card with avatar header + part stack ─────────────
 
-function print_document(::ConversationTurnToWidgetComposite,
+function print_document(projection::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec, ref = recursion, ctx.reference
     ioms = ComputedCell(() -> Any[
@@ -146,12 +146,12 @@ function print_document(::ConversationTurnToWidgetComposite,
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
                       content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH),
                       width = _CARD_WIDTH)
-    ChildrenIoMap(nothing, t, card, ioms)
+    ChildrenIoMap(projection, t, card, ioms)
 end
 
 # ── print_document: part → card with kind header + recursed content ─────────
 
-function print_document(::ConversationPartToWidget,
+function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     rec, ref = recursion, ctx.reference
     content = part.content
@@ -162,7 +162,7 @@ function print_document(::ConversationPartToWidget,
                       title = _header(_kind_glyph(content), _kind_label(content), _KIND_STYLE),
                       content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH),
                       width = _PART_WIDTH)
-    SimpleIoMap(nothing, part, card)
+    SimpleIoMap(projection, part, card)
 end
 
 # An EvaluatorForm renders as its code over its result. The form (a
