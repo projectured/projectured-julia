@@ -485,6 +485,8 @@ struct NodeVerdict
     not_shown::Int       # the oracle said the location is not in the output
     unanswerable::Int    # the oracle could not be asked
     skipped::Int         # over the leaf limit
+    worst_fraction::Float64  # the largest share of the surface one write moved
+    surface_cells::Int   # the size of the surface the fraction is a share of
 end
 
 is_frozen(v::NodeVerdict) = v.frozen > 0
@@ -510,6 +512,7 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
     skipped = max(0, length(targets) - leaf_limit)
     tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
     frozen_fields = Symbol[]
+    worst = 0.0; surface_cells = 0
     for (question, reference, cell) in Iterators.take(targets, leaf_limit)
         obliged = oracle ? is_obliged(node, question) : true
         if obliged === nothing
@@ -523,12 +526,16 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
         after = _next_value(before)
         after === nothing && continue
         surface = reactive_surface(node)
-        cell_count(surface) == 0 && continue
+        total = cell_count(surface)
+        total == 0 && continue
+        surface_cells = max(surface_cells, total)
         tested += 1
         field = _reference_field(reference)
         try
             cell[] = after
-            if followed(surface)
+            moved = length(invalidated(surface))
+            worst = max(worst, moved / total)
+            if moved > 0
                 followed_count += 1
             else
                 frozen += 1
@@ -539,7 +546,7 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
         end
     end
     NodeVerdict(node, tested, followed_count, frozen, frozen_fields,
-                not_shown, unanswerable, skipped)
+                not_shown, unanswerable, skipped, worst, surface_cells)
 end
 
 # The field name a leaf reference ends in, for the failure message.
