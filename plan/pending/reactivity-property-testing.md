@@ -371,10 +371,21 @@ At 12 nodes and 2 leaves per example:
 | not shown | 796 |
 | unanswerable | 5 |
 
-**The one finding is `workbench`, field `:filename`.** The leaf path maps, so the
-field is rendered, and writing it invalidates nothing. That is the whole point of
-the harness: one specific, localised, high-confidence candidate out of 103
-examples. Verify it before writing its marker.
+**The one finding did NOT reproduce, and that is itself the finding.** The sweep
+reported `workbench` field `:filename` as strongly obliged and frozen. Probed on
+its own, every `:filename` leaf of that example answers `obligation === :none` —
+not shown at all. The two runs disagree about the same location.
+
+The likely cause is order dependence inside a sweep. `check_reactivity` walks
+leaves in sequence, and although every write is undone, the cells it touched stay
+invalid and the next `reactive_surface` re-forces them. So what an earlier leaf
+did can change what a later leaf's mapper answers. A property that depends on the
+order of its own measurements can not be trusted to report a finding.
+
+**No marker is written.** Before phase 4 closes, `check_reactivity` must give the
+same verdict for a location whether it is measured first, last, or alone. The
+cheapest check is to run one example twice with the leaf order reversed and
+require the same verdicts.
 
 The 42 unproven are `:indentation` in 14 examples, plus `:level` and
 `:alignment` once each. `:indentation` is understood — a field with no reader.
