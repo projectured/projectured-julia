@@ -330,21 +330,43 @@ Before the oracle, `json_example` reported 51 frozen of 75 writes. After it,
 **zero** — every leaf the projection says it shows did follow. The 51 were all
 false positives, exactly as §3 predicted.
 
-**But it now filters too hard, and that is the next problem.** With 25 nodes and
-3 leaves each:
+**The oracle must be asked with the DOCUMENT-SCOPED path.** The first wiring
+asked with the leaf path, which ends at the scalar (`…JsonString.value`). A
+projection maps document-scoped locations — a selection lands on a `JsonString`,
+never on its `value` field — so `map_reference_forward` answered `nothing` for
+almost everything and the harness read that as "this projection shows nothing".
+It shows all of it. The question is now the parent path, re-annotated with type
+checkpoints, while the leaf path still names the field for the message.
+
+That is a large correction. json went from 11 leaves measured to 31, and math
+from none to 20.
+
+### 8.4 The first real finding: syntax chrome does not propagate
+
+With 25 nodes and 3 leaves each:
 
 | example | tested | followed | frozen | not shown |
 |---|---|---|---|---|
-| json | 11 | 11 | 0 | 64 |
-| xml | 3 | 3 | 0 | 72 |
-| math | 0 | 0 | 0 | 65 |
+| json | 31 | 22 | 9 | 44 |
+| xml | 12 | 4 | 8 | 63 |
+| math | 20 | 0 | 20 | 45 |
 
-A harness that measures 11 leaves of 75, and none at all on `math`, proves very
-little. The false positives became false negatives. Before phase 4 pins any
-bound, find out why `map_reference_forward` answers `nothing` so often: either
-these locations genuinely are not shown, or the reference handed to the mapper is
-not in the form it expects. Sample a not-shown location by hand and look at the
-rendered output for it — that settles it in one reading.
+**Every frozen verdict, in all three, is `:collapsed` or `:indentation`.** Not a
+scattered set — one signature, on `SyntaxLeafToText`, `SyntaxCompoundToText`,
+`JsonObjectToSyntaxNode` and `JsonObjectEntryToSyntaxNode`. Content fields follow;
+these two do not. On math every measured leaf is one of them, which is why it
+reports nothing followed.
+
+Both are chrome fields of a syntax node, and collapse is implemented at
+`SyntaxToText`. So either a write to `collapsed` genuinely fails to re-render —
+which would mean a collapse toggle shows stale text — or the projection reads
+these through a cell other than the one addressed by
+`node.collapsed` / `node.indentation`.
+
+**This is one finding to verify, not thirty-seven.** Verify it the direct way:
+toggle collapse on a syntax node in the live editor and see whether the text
+re-lays out. The harness has done its job by narrowing weeks of possible
+staleness to two field names.
 
 **The fixtures bypass the oracle**, with `check_reactivity(node; oracle=false)`.
 They are the ground truth: the location is shown by construction, and neither

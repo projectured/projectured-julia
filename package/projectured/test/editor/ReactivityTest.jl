@@ -367,7 +367,7 @@ _next_value(x::Char)           = x + 1
 _next_value(::Any)             = nothing
 
 """
-    input_leaf_targets(node::IoMapNode) -> Vector{Tuple{Any,Cell}}
+    input_leaf_targets(node::IoMapNode) -> Vector{Tuple{Any,Any,Cell}}
 
 Every writable leaf of this node's input, paired with a `Reference` that
 addresses it.
@@ -381,14 +381,24 @@ here would get those wrong.
 Only a leaf held in a named field is returned. A field is what gives a cell to
 write to: strip the type checkpoints, drop the last step to address the parent,
 evaluate that, and `getfield` the raw cell out of it.
+
+Two references come back per leaf, and the difference matters. The **leaf** path
+ends at the scalar (`…JsonString.value`) and names the field for a message. The
+**parent** path addresses the enclosing document, and that is the one the oracle
+is asked, because a projection maps document-scoped locations — a selection lands
+on a `JsonString`, never on its `value` field. Asking with the leaf path made
+`map_reference_forward` answer `nothing` for almost everything, which read as
+"this projection shows nothing" when it shows all of it. The parent path is
+re-annotated with type checkpoints, because an under-typed path is what several
+mappers reject outright.
 """
 function input_leaf_targets(node::IoMapNode)
     references = try
         search_references(node.input, v -> _next_value(v) !== nothing; raw=true)
     catch
-        return Tuple{Any,Cell}[]
+        return Tuple{Any,Any,Cell}[]
     end
-    targets = Tuple{Any,Cell}[]
+    targets = Tuple{Any,Any,Cell}[]
     for reference in references
         steps = try
             get_reference_steps(strip_reference_types(reference))
@@ -398,19 +408,24 @@ function input_leaf_targets(node::IoMapNode)
         isempty(steps) && continue
         last_step = steps[end]
         last_step isa FieldReferenceStep || continue
+        parent_reference = foldl(extend_reference, steps[1:end-1];
+                                 init=EmptyReference())
         parent = try
-            parent_reference = foldl(extend_reference, steps[1:end-1];
-                                     init=EmptyReference())
             evaluate_reference(node.input, parent_reference)
         catch
             continue
+        end
+        question = try
+            annotate_reference_types(node.input, parent_reference)
+        catch
+            parent_reference
         end
         cell = try
             getfield(parent, Symbol(last_step.name))
         catch
             continue
         end
-        cell isa Cell && push!(targets, (reference, cell))
+        cell isa Cell && push!(targets, (question, reference, cell))
     end
     targets
 end
@@ -495,8 +510,8 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
     skipped = max(0, length(targets) - leaf_limit)
     tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
     frozen_fields = Symbol[]
-    for (reference, cell) in Iterators.take(targets, leaf_limit)
-        obliged = oracle ? is_obliged(node, reference) : true
+    for (question, reference, cell) in Iterators.take(targets, leaf_limit)
+        obliged = oracle ? is_obliged(node, question) : true
         if obliged === nothing
             unanswerable += 1
             continue
