@@ -319,22 +319,37 @@ one that captures its input value into a constant cell, the way
 first frozen and the second reactive. That separation is what the whole plan
 depends on.
 
-**The oracle is NOT wired, and the first real run shows why it must be.** On
-`json_example`, 25 nodes and 3 leaves each, 51 of 75 writes report frozen. That
-is far too many to be real. The frozen fields cluster on `:content`, `:collapsed`
-and `:indentation`, which points at two causes that must be separated before any
-of it is called a finding:
+**The oracle IS wired now, and it changed everything.** `input_leaf_targets`
+pairs each writable leaf with a `Reference` from `search_references(...;
+raw=true)` — those carry the right type checkpoints, which a hand-built path
+would not. `is_obliged` then asks `map_reference_forward` and keeps three
+outcomes apart: shown and owed, deliberately dropped, and unanswerable. Only the
+first can produce a frozen verdict.
 
-1. **No obligation oracle.** `map_reference_forward` is what says whether an
-   input location is shown at all. A chrome field such as `:collapsed` or
-   `:indentation` may legitimately not reach the measured output.
-2. **The input walk is probably too wide.** `input_leaves` runs
-   `_collect_locality!` over the whole input, so it can reach objects that are
-   not this node's input in the projection sense. A write there owes the node
-   nothing.
+Before the oracle, `json_example` reported 51 frozen of 75 writes. After it,
+**zero** — every leaf the projection says it shows did follow. The 51 were all
+false positives, exactly as §3 predicted.
 
-So the 51 are a **candidate list, not a finding list**. Phase 3 is not closed
-until the oracle is wired and the count is triaged. Do not act on them.
+**But it now filters too hard, and that is the next problem.** With 25 nodes and
+3 leaves each:
+
+| example | tested | followed | frozen | not shown |
+|---|---|---|---|---|
+| json | 11 | 11 | 0 | 64 |
+| xml | 3 | 3 | 0 | 72 |
+| math | 0 | 0 | 0 | 65 |
+
+A harness that measures 11 leaves of 75, and none at all on `math`, proves very
+little. The false positives became false negatives. Before phase 4 pins any
+bound, find out why `map_reference_forward` answers `nothing` so often: either
+these locations genuinely are not shown, or the reference handed to the mapper is
+not in the form it expects. Sample a not-shown location by hand and look at the
+rendered output for it — that settles it in one reading.
+
+**The fixtures bypass the oracle**, with `check_reactivity(node; oracle=false)`.
+They are the ground truth: the location is shown by construction, and neither
+fixture carries a projection to ask a mapper about. The oracle filters for real
+projections; the fixtures test the mechanism it filters for.
 
 The original text of this phase follows.
 *Verify: `json_example` passes with no allowlist. Then INJECT each of the three

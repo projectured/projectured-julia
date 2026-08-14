@@ -367,6 +367,75 @@ _next_value(x::Char)           = x + 1
 _next_value(::Any)             = nothing
 
 """
+    input_leaf_targets(node::IoMapNode) -> Vector{Tuple{Any,Cell}}
+
+Every writable leaf of this node's input, paired with a `Reference` that
+addresses it.
+
+The reference is what makes the oracle possible: `map_reference_forward` decides
+whether a location is shown in the output at all, and it needs a path, not a
+cell. `search_references(...; raw=true)` supplies the paths, already annotated
+with the type checkpoints the reference layer expects — building them by hand
+here would get those wrong.
+
+Only a leaf held in a named field is returned. A field is what gives a cell to
+write to: strip the type checkpoints, drop the last step to address the parent,
+evaluate that, and `getfield` the raw cell out of it.
+"""
+function input_leaf_targets(node::IoMapNode)
+    references = try
+        search_references(node.input, v -> _next_value(v) !== nothing; raw=true)
+    catch
+        return Tuple{Any,Cell}[]
+    end
+    targets = Tuple{Any,Cell}[]
+    for reference in references
+        steps = try
+            get_reference_steps(strip_reference_types(reference))
+        catch
+            continue
+        end
+        isempty(steps) && continue
+        last_step = steps[end]
+        last_step isa FieldReferenceStep || continue
+        parent = try
+            parent_reference = foldl(extend_reference, steps[1:end-1];
+                                     init=EmptyReference())
+            evaluate_reference(node.input, parent_reference)
+        catch
+            continue
+        end
+        cell = try
+            getfield(parent, Symbol(last_step.name))
+        catch
+            continue
+        end
+        cell isa Cell && push!(targets, (reference, cell))
+    end
+    targets
+end
+
+"""
+    is_obliged(node::IoMapNode, reference) -> Union{Bool,Nothing}
+
+Does this node owe the output an answer when `reference` moves?
+
+`true` when `map_reference_forward` maps the location into the output, `false`
+when it answers `nothing` — a projection that filters, searches or focuses
+deliberately drops part of its input and owes nothing for what it dropped.
+`nothing` here means the question could not be asked: the mapper threw, or the
+node has no projection to ask. An unanswerable question is never a finding.
+"""
+function is_obliged(node::IoMapNode, reference)
+    node.projection === nothing && return nothing
+    try
+        return map_reference_forward(node.projection, node.iomap, reference) !== nothing
+    catch
+        return nothing
+    end
+end
+
+"""
     input_leaves(node::IoMapNode) -> Vector{LocalityCell}
 
 The cells of this node's input that hold a leaf value the mutator can move.
@@ -394,11 +463,13 @@ leaf moved, the node owed an answer, and nothing in its surface went invalid.
 """
 struct NodeVerdict
     node::IoMapNode
-    tested::Int
+    tested::Int          # leaves the node was obliged to answer for, and did
     followed::Int
-    frozen::Int
+    frozen::Int          # obliged, written, and nothing moved — the finding
     frozen_fields::Vector{Symbol}
-    skipped::Int
+    not_shown::Int       # the oracle said the location is not in the output
+    unanswerable::Int    # the oracle could not be asked
+    skipped::Int         # over the leaf limit
 end
 
 is_frozen(v::NodeVerdict) = v.frozen > 0
@@ -419,31 +490,52 @@ root would report every step frozen.
 
 `leaf_limit` bounds the work per node. What it drops is counted, not hidden.
 """
-function check_reactivity(node::IoMapNode; leaf_limit::Int=4)
-    leaves = input_leaves(node)
-    skipped = max(0, length(leaves) - leaf_limit)
-    tested = 0; followed_count = 0; frozen = 0
+function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
+    targets = input_leaf_targets(node)
+    skipped = max(0, length(targets) - leaf_limit)
+    tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
     frozen_fields = Symbol[]
-    for lc in Iterators.take(leaves, leaf_limit)
-        before = try lc.cell[] catch; continue end
+    for (reference, cell) in Iterators.take(targets, leaf_limit)
+        obliged = oracle ? is_obliged(node, reference) : true
+        if obliged === nothing
+            unanswerable += 1
+            continue
+        elseif obliged === false
+            not_shown += 1
+            continue
+        end
+        before = try cell[] catch; continue end
         after = _next_value(before)
         after === nothing && continue
         surface = reactive_surface(node)
         cell_count(surface) == 0 && continue
         tested += 1
+        field = _reference_field(reference)
         try
-            lc.cell[] = after
+            cell[] = after
             if followed(surface)
                 followed_count += 1
             else
                 frozen += 1
-                lc.field in frozen_fields || push!(frozen_fields, lc.field)
+                field in frozen_fields || push!(frozen_fields, field)
             end
         finally
-            try lc.cell[] = before catch end   # restore: the examples are shared
+            try cell[] = before catch end   # restore: the examples are shared
         end
     end
-    NodeVerdict(node, tested, followed_count, frozen, frozen_fields, skipped)
+    NodeVerdict(node, tested, followed_count, frozen, frozen_fields,
+                not_shown, unanswerable, skipped)
+end
+
+# The field name a leaf reference ends in, for the failure message.
+function _reference_field(reference)
+    steps = try
+        get_reference_steps(strip_reference_types(reference))
+    catch
+        return :_
+    end
+    (!isempty(steps) && steps[end] isa FieldReferenceStep) ?
+        Symbol(steps[end].name) : :_
 end
 
 """
@@ -451,12 +543,10 @@ end
 
 Run the property over every node of one example's IoMap tree.
 
-**The oracle of §3 is not wired yet.** `map_reference_forward` decides whether a
-given input location is shown at all, and a projection that deliberately drops
-part of its input — filtering, searching, focusing — owes nothing for what it
-dropped. Until that is wired, a frozen verdict is a **candidate finding**, not a
-proven bug: read it, then decide. Node granularity already removes most false
-positives, because a dropped child produces no IoMap.
+Each leaf is put to the oracle first, so the three outcomes stay apart: a
+location the projection shows and must answer for, a location it deliberately
+drops and owes nothing for, and a question that could not be asked at all. Only
+the first can produce a frozen verdict.
 """
 function check_reactivity(example; leaf_limit::Int=4, node_limit::Int=40)
     root = print_document(example.projection, example.document)
@@ -475,18 +565,18 @@ end
 # The harness must call this frozen. If it does not, it can not catch the bug it
 # exists for.
 function _frozen_fixture()
-    source = ReactiveCell("a")
-    captured = source[]                      # the mistake, in one line
-    iomap = SimpleIoMap(nothing, source, captured)
-    (source, IoMapNode(iomap, nothing, source, captured, "frozen-fixture", 0))
+    input = PrimitiveString("a")
+    captured = input.value                   # the mistake, in one line
+    iomap = SimpleIoMap(nothing, input, captured)
+    (input, IoMapNode(iomap, nothing, input, captured, "frozen-fixture", 0))
 end
 
 # The same shape, done right: the output re-derives from the input.
 function _reactive_fixture()
-    source = ReactiveCell("a")
-    iomap = SimpleIoMap(nothing, source, nothing)
-    set_cell_function!(getfield(iomap, :output), () -> source[] * "!")
-    (source, IoMapNode(iomap, nothing, source, iomap.output, "reactive-fixture", 0))
+    input = PrimitiveString("a")
+    iomap = SimpleIoMap(nothing, input, nothing)
+    set_cell_function!(getfield(iomap, :output), () -> input.value * "!")
+    (input, IoMapNode(iomap, nothing, input, iomap.output, "reactive-fixture", 0))
 end
 
 """
@@ -500,7 +590,11 @@ function test_reactivity_property()
     errors = String[]
 
     _, frozen_node = _frozen_fixture()
-    verdict = check_reactivity(frozen_node)
+    # The fixtures bypass the oracle. They ARE the ground truth: the location is
+    # shown by construction, and these two nodes carry no projection for a mapper
+    # to be asked about. The oracle is a filter for real projections; what is under
+    # test here is the mechanism it filters for.
+    verdict = check_reactivity(frozen_node; oracle=false)
     verdict.tested == 0 &&
         push!(errors, "the frozen fixture offered no leaf to write")
     is_frozen(verdict) ||
@@ -508,7 +602,7 @@ function test_reactivity_property()
                       "$(verdict.followed) followed")
 
     _, live_node = _reactive_fixture()
-    live = check_reactivity(live_node)
+    live = check_reactivity(live_node; oracle=false)
     live.tested == 0 &&
         push!(errors, "the reactive fixture offered no leaf to write")
     is_frozen(live) &&
