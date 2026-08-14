@@ -349,3 +349,170 @@ function test_reactive_surface()
 
     errors
 end
+
+# ── Phase 3: the property ────────────────────────────────────────────────────
+
+# §2.4's type-directed mutator. `nothing` means "no next value", and the caller
+# counts the skip: a harness that silently skips most of a tree looks green while
+# it tests nothing.
+#
+# The new value must differ from the old one under the cell's own equality, or
+# the write is a no-op and the graph is right not to move.
+_next_value(x::Bool)           = !x
+_next_value(x::Integer)        = x + oneunit(x)
+_next_value(x::AbstractFloat)  = x + one(x)
+_next_value(x::AbstractString) = x * "'"
+_next_value(x::Symbol)         = Symbol(string(x), "_")
+_next_value(x::Char)           = x + 1
+_next_value(::Any)             = nothing
+
+"""
+    input_leaves(node::IoMapNode) -> Vector{LocalityCell}
+
+The cells of this node's input that hold a leaf value the mutator can move.
+
+A `MutableCell` is included on purpose. It always answers "up to date", so it can
+never register a change downstream — which is precisely the third bug of §1.1,
+where a stage built with a mutable constructor left a button label frozen. Skip
+it here and the harness would be blind to that whole shape.
+"""
+function input_leaves(node::IoMapNode)
+    cells = LocalityCell[]
+    _collect_locality!(node.input, nothing, :_, Set{UInt64}(), cells,
+                       Set{UInt64}(), String[], 0)
+    filter(cells) do lc
+        value = try lc.cell[] catch; nothing end
+        _next_value(value) !== nothing
+    end
+end
+
+"""
+    NodeVerdict
+
+What one node did when a leaf of its input moved. `frozen` is the finding: the
+leaf moved, the node owed an answer, and nothing in its surface went invalid.
+"""
+struct NodeVerdict
+    node::IoMapNode
+    tested::Int
+    followed::Int
+    frozen::Int
+    frozen_fields::Vector{Symbol}
+    skipped::Int
+end
+
+is_frozen(v::NodeVerdict) = v.frozen > 0
+
+"""
+    check_reactivity(node::IoMapNode; leaf_limit=4) -> NodeVerdict
+
+Write to leaves of this node's input, one at a time, and record whether the
+node's own reactive surface followed. Each write is undone before the next.
+
+The surface is re-taken for every leaf, because the previous write left cells
+invalid and an invalid cell cannot go invalid again.
+
+**A node is compared against its own output, never against the root's.** Under a
+chaining projection the steps are siblings in different domains, so an
+intermediate step shares no cell with the final canvas — measuring against the
+root would report every step frozen.
+
+`leaf_limit` bounds the work per node. What it drops is counted, not hidden.
+"""
+function check_reactivity(node::IoMapNode; leaf_limit::Int=4)
+    leaves = input_leaves(node)
+    skipped = max(0, length(leaves) - leaf_limit)
+    tested = 0; followed_count = 0; frozen = 0
+    frozen_fields = Symbol[]
+    for lc in Iterators.take(leaves, leaf_limit)
+        before = try lc.cell[] catch; continue end
+        after = _next_value(before)
+        after === nothing && continue
+        surface = reactive_surface(node)
+        cell_count(surface) == 0 && continue
+        tested += 1
+        try
+            lc.cell[] = after
+            if followed(surface)
+                followed_count += 1
+            else
+                frozen += 1
+                lc.field in frozen_fields || push!(frozen_fields, lc.field)
+            end
+        finally
+            try lc.cell[] = before catch end   # restore: the examples are shared
+        end
+    end
+    NodeVerdict(node, tested, followed_count, frozen, frozen_fields, skipped)
+end
+
+"""
+    check_reactivity(example; leaf_limit=4, node_limit=40) -> Vector{NodeVerdict}
+
+Run the property over every node of one example's IoMap tree.
+
+**The oracle of §3 is not wired yet.** `map_reference_forward` decides whether a
+given input location is shown at all, and a projection that deliberately drops
+part of its input — filtering, searching, focusing — owes nothing for what it
+dropped. Until that is wired, a frozen verdict is a **candidate finding**, not a
+proven bug: read it, then decide. Node granularity already removes most false
+positives, because a dropped child produces no IoMap.
+"""
+function check_reactivity(example; leaf_limit::Int=4, node_limit::Int=40)
+    root = print_document(example.projection, example.document)
+    nodes = iomap_nodes(root)
+    [check_reactivity(node; leaf_limit=leaf_limit)
+     for node in Iterators.take(nodes, node_limit)]
+end
+
+# ── Phase 3 acceptance ───────────────────────────────────────────────────────
+
+# The first bug shape of §1.1, as a fixture: a value captured where a thunk was
+# needed. The output is built ONCE from the input and stored in a constant cell,
+# so a later write to the input reaches nothing. This is what
+# `WidgetScrollPane(content)` did when it wrapped its argument in `Cell(content)`.
+#
+# The harness must call this frozen. If it does not, it can not catch the bug it
+# exists for.
+function _frozen_fixture()
+    source = ReactiveCell("a")
+    captured = source[]                      # the mistake, in one line
+    iomap = SimpleIoMap(nothing, source, captured)
+    (source, IoMapNode(iomap, nothing, source, captured, "frozen-fixture", 0))
+end
+
+# The same shape, done right: the output re-derives from the input.
+function _reactive_fixture()
+    source = ReactiveCell("a")
+    iomap = SimpleIoMap(nothing, source, nothing)
+    set_cell_function!(getfield(iomap, :output), () -> source[] * "!")
+    (source, IoMapNode(iomap, nothing, source, iomap.output, "reactive-fixture", 0))
+end
+
+"""
+    test_reactivity_property() -> Vector{String}
+
+The acceptance test of the property: it must call a frozen projection frozen and
+a reactive one reactive. A harness that cannot separate those two is worthless
+however green it looks.
+"""
+function test_reactivity_property()
+    errors = String[]
+
+    _, frozen_node = _frozen_fixture()
+    verdict = check_reactivity(frozen_node)
+    verdict.tested == 0 &&
+        push!(errors, "the frozen fixture offered no leaf to write")
+    is_frozen(verdict) ||
+        push!(errors, "a captured value was not reported frozen: $(verdict.tested) tested, " *
+                      "$(verdict.followed) followed")
+
+    _, live_node = _reactive_fixture()
+    live = check_reactivity(live_node)
+    live.tested == 0 &&
+        push!(errors, "the reactive fixture offered no leaf to write")
+    is_frozen(live) &&
+        push!(errors, "a re-deriving output was wrongly reported frozen")
+
+    errors
+end

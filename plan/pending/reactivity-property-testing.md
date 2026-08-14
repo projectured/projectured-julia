@@ -1,6 +1,7 @@
 # Reactivity property testing — touch an input, watch the output move
 
-> **Status (2026-08-14): PHASES 1 AND 2 DONE.** The walk and the observation
+> **Status (2026-08-14): PHASES 1 AND 2 DONE, PHASE 3 PARTLY.** The walk, the
+> observation
 > primitives live in
 > `package/projectured/test/editor/ReactivityTest.jl`. Phases 3 to 6 remain.
 >
@@ -9,7 +10,7 @@
 > `check_reactivity`. Much of §2.2 already existed under other names in
 > `PrinterLocalityTest.jl`. See §8.
 
-**Status:** staged build (§7), phases 1 and 2 done.
+**Status:** staged build (§7), phases 1 and 2 done, phase 3 without its oracle.
 **Scope:** a property-based harness over the 88 registered examples that walks the
 **IoMap tree**, writes to each node's input, and asserts that node's output
 followed.
@@ -304,9 +305,38 @@ the surface catches its invalidation even though every cell of the OLD output
 tree is untouched — that is the orphaning case of §2.1, and a harness that misses
 it reports false failures forever.*
 
-### Phase 3 — the property, one example
-`check_reactivity(example)` returning per-node verdicts, with the
-`map_reference_forward` oracle deciding obligation within a node.
+### Phase 3 — the property, one example — **PARTLY DONE 2026-08-14**
+`check_reactivity(node)` and `check_reactivity(example)` return per-node
+verdicts. `_next_value` is the type-directed mutator of §2.4. `input_leaves(node)`
+collects the writable leaves of a node's input, `MutableCell` included on
+purpose — that cell always answers "up to date", which is the third bug of §1.1.
+Every write is undone in a `finally`, because the examples are shared objects
+inside one process.
+
+**The acceptance test passes.** `test_reactivity_property()` builds two fixtures:
+one that captures its input value into a constant cell, the way
+`WidgetScrollPane(content)` did, and one that re-derives. The harness calls the
+first frozen and the second reactive. That separation is what the whole plan
+depends on.
+
+**The oracle is NOT wired, and the first real run shows why it must be.** On
+`json_example`, 25 nodes and 3 leaves each, 51 of 75 writes report frozen. That
+is far too many to be real. The frozen fields cluster on `:content`, `:collapsed`
+and `:indentation`, which points at two causes that must be separated before any
+of it is called a finding:
+
+1. **No obligation oracle.** `map_reference_forward` is what says whether an
+   input location is shown at all. A chrome field such as `:collapsed` or
+   `:indentation` may legitimately not reach the measured output.
+2. **The input walk is probably too wide.** `input_leaves` runs
+   `_collect_locality!` over the whole input, so it can reach objects that are
+   not this node's input in the projection sense. A write there owes the node
+   nothing.
+
+So the 51 are a **candidate list, not a finding list**. Phase 3 is not closed
+until the oracle is wired and the count is triaged. Do not act on them.
+
+The original text of this phase follows.
 *Verify: `json_example` passes with no allowlist. Then INJECT each of the three
 §1.1 bugs in turn and assert the harness FAILS — that is the real acceptance
 test, and it is worth writing the injections as a fixture rather than by hand.*
