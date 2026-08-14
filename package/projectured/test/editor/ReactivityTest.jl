@@ -530,14 +530,19 @@ root would report every step frozen.
 
 `leaf_limit` bounds the work per node. What it drops is counted, not hidden.
 """
-function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
+function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true,
+                          order::Symbol=:forward)
     targets = input_leaf_targets(node)
     skipped = max(0, length(targets) - leaf_limit)
     tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
     carried = 0
     frozen_fields = Symbol[]; unproven = 0; unproven_fields = Symbol[]
     worst = 0.0; surface_cells = 0
-    for (question, reference, cell) in Iterators.take(targets, leaf_limit)
+    # The SAME leaves in both orders. Reversing after the limit is applied keeps
+    # the set identical, so a difference between the two runs is order alone.
+    chosen = collect(Iterators.take(targets, leaf_limit))
+    order === :reverse && (chosen = reverse(chosen))
+    for (question, reference, cell) in chosen
         strength = oracle ? obligation(node, reference, question) : :strong
         strength === :unknown && (unanswerable += 1; continue)
         strength === :none    && (not_shown += 1; continue)
@@ -664,5 +669,46 @@ function test_reactivity_property()
     is_frozen(live) &&
         push!(errors, "a re-deriving output was wrongly reported frozen")
 
+    errors
+end
+
+
+"""
+    test_verdict_stability(names; leaf_limit=3, node_limit=10) -> Vector{String}
+
+A verdict must not depend on when it was measured. The same leaves, measured
+forward and then backward, must give the same counts.
+
+This is not a nicety. The first full sweep reported one frozen location in
+`workbench` that answered "not shown" when probed on its own, and an artifact
+that survives into a marker is a false fact recorded in the suite forever. Every
+write is undone, but the cells it touched stay invalid and the next surface
+re-forces them, so an earlier leaf can move what a later leaf sees.
+"""
+function test_verdict_stability(names; leaf_limit::Int=3, node_limit::Int=10)
+    errors = String[]
+    for name in names
+        index = findfirst(e -> e.name == name, examples)
+        index === nothing && continue
+        example = examples[index]
+        counts(order) = begin
+            root = print_document(example.projection, example.document)
+            vs = [check_reactivity(n; leaf_limit=leaf_limit, order=order)
+                  for n in Iterators.take(iomap_nodes(root), node_limit)]
+            (tested   = sum(v.tested for v in vs; init=0),
+             followed = sum(v.followed for v in vs; init=0),
+             frozen   = sum(v.frozen for v in vs; init=0),
+             unproven = sum(v.unproven for v in vs; init=0),
+             carried  = sum(v.carried for v in vs; init=0),
+             notshown = sum(v.not_shown for v in vs; init=0))
+        end
+        forward = counts(:forward)
+        again   = counts(:forward)
+        reverse_ = counts(:reverse)
+        forward == again ||
+            push!(errors, "$name: two identical runs disagree: $forward vs $again")
+        forward == reverse_ ||
+            push!(errors, "$name: order changes the verdict: forward $forward vs reverse $reverse_")
+    end
     errors
 end

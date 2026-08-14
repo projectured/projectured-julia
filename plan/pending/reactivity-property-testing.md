@@ -371,21 +371,22 @@ At 12 nodes and 2 leaves per example:
 | not shown | 796 |
 | unanswerable | 5 |
 
-**The one finding did NOT reproduce, and that is itself the finding.** The sweep
-reported `workbench` field `:filename` as strongly obliged and frozen. Probed on
-its own, every `:filename` leaf of that example answers `obligation === :none` —
-not shown at all. The two runs disagree about the same location.
+**The one finding is real, and it is confirmed.** At
+`root.child_iomap.step_iomaps[1].editing_page_iomap` — the
+`WorkbenchPageToWidgetTabbedPane` node — obligation is **strong** and writing
+`WorkbenchEditor.filename` invalidates **0 of 964** cells. The tab title of the
+editing page does not follow the filename of the editor it names.
 
-The likely cause is order dependence inside a sweep. `check_reactivity` walks
-leaves in sequence, and although every write is undone, the cells it touched stay
-invalid and the next `reactive_surface` re-forces them. So what an earlier leaf
-did can change what a later leaf's mapper answers. A property that depends on the
-order of its own measurements can not be trusted to report a finding.
+A first probe appeared to refute it, reporting `obligation === :none`. That probe
+was wrong: it evaluated the obligation *after* writing the cell, so it asked the
+mapper about a mutated document. Measured before the write, the obligation is
+strong at that node and `:none` at the element nodes below it, which is
+consistent and reproducible.
 
-**No marker is written.** Before phase 4 closes, `check_reactivity` must give the
-same verdict for a location whether it is measured first, last, or alone. The
-cheapest check is to run one example twice with the leaf order reversed and
-require the same verdicts.
+`test_verdict_stability` settles the doubt properly. The same leaves measured
+forward and backward, and one run repeated, give identical counts on json, xml,
+workbench, book and syntax. The sweep does not depend on the order of its own
+measurements.
 
 The 42 unproven are `:indentation` in 14 examples, plus `:level` and
 `:alignment` once each. `:indentation` is understood — a field with no reader.
