@@ -2,7 +2,7 @@
 
 > **Status (2026-08-14): PHASES 1 AND 2 DONE.** The walk and the observation
 > primitives live in
-> `package/projectured/test/editor/ReactivityTest.jl`. Phases 2 to 6 remain.
+> `package/projectured/test/editor/ReactivityTest.jl`. Phases 3 to 6 remain.
 >
 > The 2026-08-12 note said NOT STARTED because it searched for the names this
 > plan invented — `test_reactivity`, `iomap_nodes`, `reactive_surface`,
