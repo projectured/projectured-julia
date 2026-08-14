@@ -57,6 +57,9 @@ You want to add a domain, a projection, a backend, or extend an existing one.
 8. [Architecture requirements](architecture-requirements.md) — the internal
    development requirements (`PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE`, …) every
    change must respect; keep this open as a checklist while you work.
+9. [Naming](../package/kernel/doc/naming.md) then
+   [Code quality](code-quality.md) — how a name is derived, and the shape the
+   code around it takes: file layout, comments, public surface, size budgets.
 
 Then read the guide for the domain or area you are touching:
 
@@ -113,6 +116,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Architecture requirements](architecture-requirements.md) | Internal development requirements (`PAR-…`): the invariants and conventions every change must respect |
 | [Design decisions](design-decisions.md) | Rationale for key architectural choices |
 | [Requirements](requirements.md) | Implementation-independent behavior/capability spec |
+| [Code quality](code-quality.md) | File shape, comments, public surface, redundancy, size budgets, and the measured baseline |
 
 The kernel documents its own internal structure in
 [its `doc/architecture.md`](../package/kernel/doc/architecture.md); it is the
