@@ -135,6 +135,17 @@ Base.:(==)(::ConcreteReference, ::EmptyReference)  = false
 Base.:(==)(a::ConcreteReference, b::ConcreteReference) =
     a.type === b.type && head(a) == head(b) && tail(a) == tail(b)
 
+# A reference compares by value, so it hashes by value — which is what lets one
+# key a table. A record of what a build resolved, and a rule that names its
+# sources, both want that; without it every lookup of a rebuilt reference misses,
+# because a `@cell_struct` hashes by identity unless it says otherwise.
+#
+# It mixes exactly what `==` reads, the node `type` included, so the strictness
+# of the two agrees.
+Base.hash(r::EmptyReference, h::UInt) = hash(r.type, hash(:EmptyReference, h))
+Base.hash(r::ConcreteReference, h::UInt) =
+    hash(tail(r), hash(head(r), hash(r.type, hash(:ConcreteReference, h))))
+
 """
     is_reference_equal(a, b)
 

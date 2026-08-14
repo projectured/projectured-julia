@@ -84,6 +84,7 @@ struct Position
 end
 
 Base.:(==)(a::Position, b::Position) = a.index == b.index
+Base.hash(p::Position, h::UInt) = hash(p.index, hash(:Position, h))
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
 function Base.show(io::IO, s::RangeReferenceStep)
@@ -97,6 +98,8 @@ function Base.show(io::IO, s::RangeReferenceStep)
 end
 
 Base.:(==)(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
+Base.hash(s::RangeReferenceStep, h::UInt) =
+    hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h)))
 
 get_reference_step_kind(::RangeReferenceStep) = :structural
 
@@ -137,6 +140,7 @@ function Base.show(io::IO, s::FieldReferenceStep)
 end
 
 Base.:(==)(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
+Base.hash(s::FieldReferenceStep, h::UInt) = hash(s.name, hash(:FieldReferenceStep, h))
 
 get_reference_step_kind(::FieldReferenceStep) = :structural
 
@@ -186,6 +190,7 @@ function Base.show(io::IO, s::TypeReferenceStep)
 end
 
 Base.:(==)(a::TypeReferenceStep, b::TypeReferenceStep) = a.type === b.type
+Base.hash(s::TypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
 
 get_reference_step_kind(::TypeReferenceStep) = :checkpoint
 
@@ -198,3 +203,16 @@ end
 # ── Cross-type step equality ──────────────────────────────────────────────
 
 Base.:(==)(::ReferenceStep, ::ReferenceStep) = false
+
+# ── Hashing ───────────────────────────────────────────────────────────────
+#
+# **A step compares by value, so it hashes by value.** A `@cell_struct` is
+# mutable, and a mutable struct hashes by identity unless it says otherwise —
+# which would make two equal steps land in different buckets and lose every
+# lookup of a rebuilt reference. Each `hash` above therefore sits beside the
+# `==` it must agree with, and each mixes in its own type name, because two
+# steps of different kinds are never equal whatever they hold.
+#
+# The `type` field a step may carry is NOT part of either: it is not part of
+# `==` here and so it is not part of `hash`. `is_reference_equal` is the strict
+# comparison that does read it, and it is a different question.
