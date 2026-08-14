@@ -1,6 +1,7 @@
 # Reactivity property testing — touch an input, watch the output move
 
-> **Status (2026-08-14): PHASE 1 DONE.** The IoMap walk lives in
+> **Status (2026-08-14): PHASES 1 AND 2 DONE.** The walk and the observation
+> primitives live in
 > `package/projectured/test/editor/ReactivityTest.jl`. Phases 2 to 6 remain.
 >
 > The 2026-08-12 note said NOT STARTED because it searched for the names this
@@ -8,7 +9,7 @@
 > `check_reactivity`. Much of §2.2 already existed under other names in
 > `PrinterLocalityTest.jl`. See §8.
 
-**Status:** staged build (§7), phase 1 done.
+**Status:** staged build (§7), phases 1 and 2 done.
 **Scope:** a property-based harness over the 88 registered examples that walks the
 **IoMap tree**, writes to each node's input, and asserts that node's output
 followed.
@@ -272,9 +273,29 @@ every example reported a one-node tree. That is the dangerous failure: the walk
 reports success and the property then passes everywhere by measuring nothing.
 `test_iomap_walk` exists to catch it.
 
-### Phase 2 — the observation primitives
-`force_output!`, `reactive_surface(node)` returning the node's own field cells
-PLUS the cells reachable from its output, and `invalidated(snapshot)`.
+### Phase 2 — the observation primitives — **DONE 2026-08-14**
+`reactive_surface(node)` returns the node's own field cells PLUS the cells
+reachable from its output, forcing both so that validity means something.
+`invalidated(surface)` and `followed(surface)` read validity only. The
+output-reachable half reuses `_collect_locality!` from `PrinterLocalityTest.jl`
+rather than a second collector. `test_reactive_surface()` is the acceptance test
+and it passes on all four checks.
+
+**Design decision — a nested surface is DISJOINT from the root's, not inside
+it.** The verification below asked for a strict subset. Measurement says
+otherwise: on `json_example` every one of the 60 nested nodes shares **zero**
+cells with the root's 1022. The root of an example is a chaining projection, its
+steps are siblings in different domains — Json, Syntax, Text, Graphics — and step
+k's output is step k+1's input, never a part of the chaining IoMap's output.
+
+This matters beyond the test. **Phase 3 must compare a node against its own
+output and never against the root's**, and a "fraction of the output invalidated"
+bound in §6 Q2 has to be per node for the same reason.
+
+**Design decision — the write goes to the input, not the output.** An early draft
+of check 2 wrote to a cell of the output and saw nothing move. Writing a cell
+makes that cell valid again and invalidates only its dependents, and a terminal
+output cell has none.
 *Verify: forcing then snapshotting twice with no edit reports zero invalidations;
 writing one leaf by hand reports at least one. A nested node's surface is a strict
 SUBSET of the root's — if they are equal, the walk is not descending. And

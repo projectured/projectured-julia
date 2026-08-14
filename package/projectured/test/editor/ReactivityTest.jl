@@ -150,3 +150,202 @@ function test_iomap_walk(label, document, projection)
     end
     errors
 end
+
+# ── Phase 2: the observation primitives ──────────────────────────────────────
+
+"""
+    ReactiveSurface
+
+The cells a node is allowed to answer with, and their validity at the moment the
+surface was taken.
+
+`own` holds the node's **own** field cells — its `output` cell, its child-IoMap
+cells, and whatever else the projection declared. `reachable` holds the cells
+inside the output document as it stands now. Both are needed, and §2.1 of the
+plan says why: a projection whose `output` is a computed cell answers by
+invalidating `own`, and every cell of the old output tree stays untouched. A
+harness that watched only the output tree would call that projection frozen.
+"""
+struct ReactiveSurface
+    node::IoMapNode
+    own::Vector{LocalityCell}
+    reachable::Vector{LocalityCell}
+    valid_before::Set{UInt64}
+    errors::Vector{String}
+end
+
+cell_count(s::ReactiveSurface) = length(s.own) + length(s.reachable)
+
+# The node's own field cells. `@iomap` stores every field in a Cell, so
+# `getfield` reaches the raw Cell where property access would read through it.
+#
+# `input` and `projection` are excluded. The parent writes those; they say
+# nothing about whether THIS projection followed its input.
+function _own_cells(iomap::IoMap)
+    cells = LocalityCell[]
+    for fname in fieldnames(typeof(iomap))
+        fname in (:input, :projection) && continue
+        raw = try
+            getfield(iomap, fname)
+        catch
+            continue
+        end
+        raw isa Cell && push!(cells, LocalityCell(raw, typeof(iomap), fname))
+    end
+    cells
+end
+
+"""
+    reactive_surface(node::IoMapNode) -> ReactiveSurface
+
+Force the node's output and take its whole reactive surface, recording which
+cells are valid now.
+
+Forcing first is what makes the measurement mean anything: an unforced cell is
+already invalid, so it could not go invalid again and every projection would
+look frozen.
+"""
+function reactive_surface(node::IoMapNode)
+    errors = String[]
+    own = _own_cells(node.iomap)
+    reachable = LocalityCell[]
+    _collect_locality!(node.output, nothing, :_, Set{UInt64}(), reachable,
+                       Set{UInt64}(), errors, 0)
+    valid = Set{UInt64}()
+    for lc in Iterators.flatten((own, reachable))
+        try
+            lc.cell[]                       # force, so validity means something
+            is_cell_up_to_date(lc.cell) && push!(valid, objectid(lc.cell))
+        catch e
+            push!(errors, "forcing $(lc.owner).$(lc.field) threw: $e")
+        end
+    end
+    ReactiveSurface(node, own, reachable, valid, errors)
+end
+
+"""
+    invalidated(surface::ReactiveSurface) -> Vector{LocalityCell}
+
+The cells of the surface that were valid when it was taken and are not valid
+now. Read validity only — recomputing first would repair exactly what is being
+measured.
+"""
+function invalidated(surface::ReactiveSurface)
+    out = LocalityCell[]
+    for lc in Iterators.flatten((surface.own, surface.reachable))
+        objectid(lc.cell) in surface.valid_before || continue
+        is_cell_up_to_date(lc.cell) || push!(out, lc)
+    end
+    out
+end
+
+"""
+    followed(surface::ReactiveSurface) -> Bool
+
+`true` when at least one cell of the surface went invalid: the node followed its
+input. This is the under-invalidation property of §1, stated per node.
+"""
+followed(surface::ReactiveSurface) = !isempty(invalidated(surface))
+
+# ── Phase 2 acceptance ───────────────────────────────────────────────────────
+
+# The orphaning case of §2.1, as a fixture rather than an example: an IoMap whose
+# `output` is a computed cell over a source outside it.
+#
+# When the source moves, the output cell invalidates and yields a NEW value. No
+# cell of the old output is touched — there is no old output tree here at all —
+# so a harness that watched only the cells reachable from the output would see
+# nothing move and would report this correct projection as frozen. The node's own
+# `output` field cell is the only witness, which is why `reactive_surface`
+# collects it.
+function _orphaning_fixture()
+    source = ReactiveCell(1)
+    iomap = SimpleIoMap(nothing, source, nothing)
+    set_cell_function!(getfield(iomap, :output), () -> source[] * 2)
+    node = IoMapNode(iomap, nothing, source, iomap.output, "fixture", 0)
+    (source, node)
+end
+
+"""
+    test_reactive_surface() -> Vector{String}
+
+Check the observation primitives before anything is asserted with them, and
+return what is wrong. Four properties, each of which would silently disable the
+harness if it broke.
+"""
+function test_reactive_surface()
+    errors = String[]
+
+    # 1. No edit, no invalidation. If this fails, every projection looks
+    #    reactive and the harness proves nothing.
+    example = examples[findfirst(e -> e.name == "json", examples)]
+    root = print_document(example.projection, example.document)
+    nodes = iomap_nodes(root)
+    surface = reactive_surface(nodes[1])
+    moved = invalidated(surface)
+    isempty(moved) ||
+        push!(errors, "a surface with no edit reports $(length(moved)) invalidated cells")
+    cell_count(surface) > 0 ||
+        push!(errors, "the root surface of json is empty")
+
+    # 2. One write to the INPUT, at least one invalidation in the output.
+    #    Writing an output cell would prove nothing: a write makes the written
+    #    cell valid again and invalidates only its dependents, and a terminal
+    #    output cell has none. The property is that the input moves the output,
+    #    so the write goes where the property says it goes.
+    input_cells = LocalityCell[]
+    _collect_locality!(example.document, nothing, :_, Set{UInt64}(), input_cells,
+                       Set{UInt64}(), String[], 0)
+    writable = nothing
+    for lc in input_cells
+        lc.cell isa ReactiveCell || continue
+        lc.cell[] isa AbstractString || continue
+        writable = lc.cell
+        break
+    end
+    if writable === nothing
+        push!(errors, "found no writable string cell in the json input to test with")
+    else
+        before = writable[]
+        surface2 = reactive_surface(nodes[1])
+        writable[] = before * "'"
+        isempty(invalidated(surface2)) &&
+            push!(errors, "writing a leaf of the input invalidated nothing in the output")
+        writable[] = before
+    end
+
+    # 3. A node measures its OWN output, not the whole example.
+    #
+    #    The plan asked for a nested surface strictly inside the root's. That is
+    #    false here, and measuring says so plainly: on json every nested node
+    #    shares ZERO cells with the root. The root of an example is a chaining
+    #    projection, its steps are SIBLINGS in different domains — Json, Syntax,
+    #    Text, Graphics — and step k's output is step k+1's input, not a part of
+    #    the chaining IoMap's output. An intermediate step therefore has a
+    #    surface disjoint from the final canvas, not one inside it.
+    #
+    #    So the property to hold is the one that was actually wanted: a nested
+    #    surface must DIFFER from the root's. If every node reported the same
+    #    cells, each node would be measuring the whole example and a failure
+    #    could never be localised.
+    root_ids = Set(objectid(lc.cell) for lc in reactive_surface(nodes[1]).reachable)
+    distinct = 0
+    for node in nodes[2:min(end, 12)]
+        ids = Set(objectid(lc.cell) for lc in reactive_surface(node).reachable)
+        (!isempty(ids) && ids != root_ids) && (distinct += 1)
+    end
+    distinct > 0 ||
+        push!(errors, "every nested node reported the root's own surface")
+
+    # 4. The orphaning case. This is the one that matters: a harness that fails
+    #    it reports correct projections as frozen forever.
+    source, node = _orphaning_fixture()
+    fixture = reactive_surface(node)
+    isempty(fixture.reachable) ||
+        push!(errors, "the orphaning fixture was expected to have no reachable output cells")
+    source[] = 2
+    isempty(invalidated(fixture)) &&
+        push!(errors, "a re-derived output was not seen: the node's own output cell was missed")
+
+    errors
+end
