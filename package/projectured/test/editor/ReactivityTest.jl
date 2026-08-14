@@ -483,6 +483,7 @@ struct NodeVerdict
     frozen::Int          # obliged, written, and nothing moved — the finding
     frozen_fields::Vector{Symbol}
     not_shown::Int       # the oracle said the location is not in the output
+    carried::Int         # the output holds the written cell itself, by reference
     unanswerable::Int    # the oracle could not be asked
     skipped::Int         # over the leaf limit
     worst_fraction::Float64  # the largest share of the surface one write moved
@@ -511,6 +512,7 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
     targets = input_leaf_targets(node)
     skipped = max(0, length(targets) - leaf_limit)
     tested = 0; followed_count = 0; frozen = 0; not_shown = 0; unanswerable = 0
+    carried = 0
     frozen_fields = Symbol[]
     worst = 0.0; surface_cells = 0
     for (question, reference, cell) in Iterators.take(targets, leaf_limit)
@@ -528,6 +530,17 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
         surface = reactive_surface(node)
         total = cell_count(surface)
         total == 0 && continue
+        # A node whose output holds the written cell ITSELF passes the value
+        # through by reference and owes no invalidation of its own. `ChartPlot`
+        # wraps the live `Chart`, so writing `chart.title` moves nothing in the
+        # `ChartToChartPlot` output and nothing is stale: the renderer one stage
+        # on reads the same cell. Charging this node would be charging it for
+        # not copying. The obligation belongs to whichever node re-derives from
+        # the value, and that node is measured on its own.
+        if any(lc -> lc.cell === cell, surface.reachable)
+            carried += 1
+            continue
+        end
         surface_cells = max(surface_cells, total)
         tested += 1
         field = _reference_field(reference)
@@ -546,7 +559,7 @@ function check_reactivity(node::IoMapNode; leaf_limit::Int=4, oracle::Bool=true)
         end
     end
     NodeVerdict(node, tested, followed_count, frozen, frozen_fields,
-                not_shown, unanswerable, skipped, worst, surface_cells)
+                not_shown, carried, unanswerable, skipped, worst, surface_cells)
 end
 
 # The field name a leaf reference ends in, for the failure message.

@@ -341,6 +341,34 @@ checkpoints, while the leaf path still names the field for the message.
 That is a large correction. json went from 11 leaves measured to 31, and math
 from none to 20.
 
+### 8.5 Oracle rule 1: a value carried by reference is owed nothing
+
+The chart examples reported `:title` and `:label` frozen on all eight. The chart
+printer is not at fault: `ChartPlotToGraphicsCanvas` builds its geometry in a
+`ComputedCell` that reads `chart.title` inside the thunk.
+
+The node reporting frozen was `ChartToChartPlot`, whose output is a `ChartPlot` —
+a wrapper holding the live `Chart`. The written cell **is itself part of that
+node's output**. Writing it cannot invalidate anything there, and nothing is
+stale: the renderer one stage on reads the same cell. Charging that node is
+charging it for not copying.
+
+So the property gains a rule, checked before any write is judged: **if the
+written cell is reachable from the node's own output, the node passes the value
+through and owes nothing.** The obligation belongs to whichever node re-derives
+from the value, and that node is measured on its own.
+
+The effect, at 12 nodes and 2 leaves per example:
+
+| example | frozen before | frozen after | carried |
+|---|---|---|---|
+| chart_line, sequencechart (8 charts) | 2 | 0 | 2 |
+| json_sorted | 8 | 0 | 8 |
+| sorting, reversing | 7 | 0 | 7 |
+| json | 0 | 0 | 0 |
+
+`json` now measures 18 leaves and all 18 follow.
+
 ### 8.4 The first real finding: syntax chrome does not propagate
 
 With 25 nodes and 3 leaves each:
