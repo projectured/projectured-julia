@@ -481,7 +481,7 @@ forward, forward again and backward must give identical counts.
 failed, and the worst invalidation fraction. Whatever fails on the first full run is a FINDING,
 not a bug in the harness — record each one before fixing it.*
 
-### Phase 5 — structural edits — **PARTLY DONE 2026-08-14**
+### Phase 5 — structural edits — **DONE 2026-08-14**
 `check_structural_reactivity(node)` appends a duplicate of a collection's first
 element and requires that the node's own surface moves. The collection is
 restored in a `finally` whatever happens. `_find_input_collections` and the
@@ -505,12 +505,10 @@ First measurement, 12 nodes and 2 collections per example:
 
 Structural reactivity is healthy in all six: 54 collections, nothing frozen.
 
-**Still to do before this phase closes:** the acceptance fixture this plan asks
-for — a projection that builds its children from a plain `Vector` must be
-reported frozen, and the same one must pass once its container is a thunk.
-Without it the zero above is unearned: a check that can never fail reports zero
-whether or not anything is wrong. The leaf property has such a fixture
-(`_frozen_fixture`); the structural one does not yet.
+**The zero is earned.** `test_structural_property()` builds the two fixtures this
+plan asks for: children built once into constant cells, which must be reported
+frozen, and the same shape with the container as a thunk, which must pass. Both
+behave, so the check can fail and its zero means something.
 
 Original text: This is where the disclosure bug lived, and a leaf-only
 harness would not have caught it.

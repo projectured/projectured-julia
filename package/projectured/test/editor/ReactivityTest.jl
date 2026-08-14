@@ -847,3 +847,56 @@ check_structural_reactivity(example; node_limit::Int=12, kwargs...) =
     [check_structural_reactivity(n; kwargs...)
      for n in Iterators.take(iomap_nodes(print_document(example.projection,
                                                         example.document)), node_limit)]
+
+# The disclosure bug of §1.1, as a fixture: children built ONCE from the input
+# collection into constant cells. Appending to the input reaches nothing, and the
+# card set stays exactly as it was on frame one. Nothing errors.
+function _frozen_collection_fixture()
+    input = CellVector(Any[1, 2])
+    output = CellVector(Cell[Cell(x) for x in input])      # the mistake
+    iomap = SimpleIoMap(nothing, input, output)
+    (input, IoMapNode(iomap, nothing, input, output, "frozen-collection", 0))
+end
+
+# The same shape with the container as a thunk, which is the fix that was applied.
+function _reactive_collection_fixture()
+    input = CellVector(Any[1, 2])
+    output = CellVector(Cell[])
+    set_cell_function!(getfield(output, :elements),
+                       () -> Cell[Cell(x) for x in input])
+    iomap = SimpleIoMap(nothing, input, output)
+    (input, IoMapNode(iomap, nothing, input, output, "reactive-collection", 0))
+end
+
+"""
+    test_structural_property() -> Vector{String}
+
+The acceptance test for the structural half: a projection that builds its
+children from a frozen container must be reported frozen, and the same one must
+pass once the container is a thunk.
+
+Without this the sweep's zero is unearned. A check that cannot fail reports zero
+whether or not anything is wrong, which is the failure phase 1 nearly shipped
+when the walk found one node per example.
+"""
+function test_structural_property()
+    errors = String[]
+
+    _, frozen_node = _frozen_collection_fixture()
+    verdict = check_structural_reactivity(frozen_node)
+    verdict.tested == 0 &&
+        push!(errors, "the frozen collection fixture offered no collection to append to")
+    is_frozen(verdict) ||
+        push!(errors, "a container built once was not reported frozen: " *
+                      "$(verdict.tested) tested, $(verdict.followed) followed, " *
+                      "$(verdict.carried) carried")
+
+    _, live_node = _reactive_collection_fixture()
+    live = check_structural_reactivity(live_node)
+    live.tested == 0 &&
+        push!(errors, "the reactive collection fixture offered no collection to append to")
+    is_frozen(live) &&
+        push!(errors, "a container that is a thunk was wrongly reported frozen")
+
+    errors
+end
