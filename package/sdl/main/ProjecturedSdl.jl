@@ -519,6 +519,7 @@ function _open_native_window!(w::WindowDocument)
             @info "[sdl] renderer" driver=unsafe_string(ri[].name) accelerated=accel
         end
     end
+    _drop_pathological_vsync!(renderer)
 
     _update_display_scale!(win, renderer)
 
@@ -527,6 +528,56 @@ function _open_native_window!(w::WindowDocument)
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
                        w.style, w.bg, _window_supersample(), C_NULL, 0, 0,
                        true, Dict{UInt,NTuple{4,Int}}(), NTuple{4,Int}[])
+end
+
+# ── Vsync, where it works ──────────────────────────────────────────────
+#
+# The renderer above asks for `SDL_RENDERER_PRESENTVSYNC`, which is right on a
+# display that has a vertical blank: `SDL_RenderPresent` waits for it, the frame
+# rate settles at the refresh rate, and nothing tears.
+#
+# **On a display that has no vertical blank, that wait is not a frame — it is a
+# timeout.** A headless or virtual X server (`xrandr` shows a screen and no
+# output) makes each present block for about a second, measured here. The editor
+# then draws ONE FRAME A SECOND however cheap its frame is, because it spends
+# 989 ms of every second inside the present and 0.5 ms drawing. Everything
+# animated stops looking animated, and nothing above this line can tell.
+#
+# So the present is TIMED once, at the window that is about to use it, and vsync
+# is switched off when the number is impossible. The threshold is far above any
+# real refresh — 24 Hz is 42 ms and the slowest real panel is nowhere near a
+# tenth of a second — and far below the fault, which is twenty times it.
+const _VSYNC_PRESENT_LIMIT = 0.1     # seconds; above this, a present is not a refresh
+const _VSYNC_PROBE_FRAMES  = 3
+
+function _drop_pathological_vsync!(renderer)
+    # The first present of a fresh renderer sets things up and says nothing
+    # about the ones after it, so it is taken and discarded.
+    SDL_RenderPresent(renderer)
+    # The probe ENDS at the first bad one rather than taking all three, because
+    # the bad case is the expensive one: three probes of a second each would be
+    # three seconds of startup on exactly the display this is here to rescue. A
+    # healthy display pays the whole probe, which is three refreshes — 50 ms at
+    # 60 Hz, once per window.
+    for _ in 1:_VSYNC_PROBE_FRAMES
+        started = time_ns()
+        SDL_RenderPresent(renderer)
+        elapsed = (time_ns() - started) / 1e9
+        elapsed <= _VSYNC_PRESENT_LIMIT && continue
+        took = round(elapsed * 1000; digits = 1)
+        if SDL_RenderSetVSync(renderer, Cint(0)) == 0
+            @info "[sdl] vsync off — a present took $(took) ms, which is a timeout " *
+                  "and not a refresh (this display has no vertical blank)"
+        else
+            # Older SDL has no runtime toggle. Say so rather than leave a person
+            # wondering why the editor draws once a second.
+            @warn "[sdl] a present took $(took) ms, which is a timeout and not a " *
+                  "refresh, and this SDL cannot switch vsync off at runtime — " *
+                  "the editor will draw about one frame a second"
+        end
+        return renderer
+    end
+    renderer
 end
 
 # Supersample factor for live windows (anti-aliasing). Override with the
