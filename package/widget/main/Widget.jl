@@ -34,7 +34,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        InvokeActionOperation, as_action,
        numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!, widget_pager,
+       inset_bottom_right, set_cell_function!, widget_pager, widget_filter_bar,
        widget_list_selection, widget_list_selected,
        widget_table_row_selection, widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
@@ -796,6 +796,53 @@ function widget_pager(; from, total, page::Integer, move,
     end)
     WidgetToolbar(Any[button("|<", :first), button("<", :previous),
                       button(">", :next), button(">|", :last), where_label])
+end
+
+"""
+    widget_filter_bar(; text, place, regex, apply, width) -> WidgetToolbar
+
+The strip a reader types a filter into: a text box, a place box, and a switch
+that says whether the text is a regular expression.
+
+Beside `widget_pager` and for the same reason. Narrowing a long list is not a
+property of any one list — a log, a packet table, a module tree and a result set
+all want it — and a filter each of them grew separately is a filter that means
+something slightly different in each.
+
+It holds no state either. The filter belongs to whatever is being filtered, and
+this asks:
+
+- `text()`, `place()`, `regex()` — what the filter says now;
+- `apply(; text, place, regex)` — what to do when the reader presses find. It
+  is called with all three so that a caller writes one filter rather than
+  merging three edits.
+
+What it does NOT do is decide what the terms mean. A place is a place to
+whatever holds the records, and a regular expression is compiled by the thing
+that runs it, once, rather than here per keystroke.
+"""
+function widget_filter_bar(; text, place, regex, apply,
+                             button_size::Point2D = Point2D(60, 24))
+    # The boxes own what is typed into them. They are NOT derived from the
+    # filter: a cell with a function behind it recomputes, and a box that
+    # recomputed would erase the reader mid-word. So the filter seeds them once
+    # and the reader owns them after that.
+    text_box = WidgetText(Point2D(0, 0), text())
+    place_box = WidgetText(Point2D(0, 0), place())
+    regex_switch = WidgetToggle(Point2D(0, 0), ".*"; pressed = regex())
+    # And the press is what says "now". Applying per keystroke would run a
+    # filter over the whole history for every letter of a word — the reader
+    # would pay for `pack`, `packe` and `packet` to learn about `packet`.
+    press = WidgetButton(Point2D(0, 0), button_size, "find";
+                         action = () -> begin
+                             apply(; text = string(text_box.content),
+                                     place = string(place_box.content),
+                                     regex = regex_switch.pressed)
+                             nothing
+                         end)
+    WidgetToolbar(Any[WidgetLabel(Point2D(0, 0), "find"), text_box,
+                      WidgetLabel(Point2D(0, 0), "in"), place_box,
+                      regex_switch, press])
 end
 
 
