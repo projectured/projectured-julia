@@ -847,8 +847,13 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         content = w.content
         # A label may carry its own font+color (e.g. a chat card's title) that
-        # overrides the theme's default label style.
-        style = w.text_style === nothing ? p.text : w.text_style
+        # overrides the theme's default label style — or a bare COLOUR, which
+        # takes the theme's font and only changes the ink. The second is what
+        # lets a severity, a diff or a status be coloured without a caller
+        # naming a font and so dropping out of the theme.
+        style = w.text_style === nothing ? p.text :
+                w.text_style isa StyleColor ? StyleText(p.text.font, w.text_style) :
+                w.text_style
         content_width, content_height = _content_size(p.measure, style.font, content)
         elements = Any[]
         _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)

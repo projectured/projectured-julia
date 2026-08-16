@@ -34,7 +34,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        InvokeActionOperation, as_action,
        numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!, widget_pager, widget_filter_bar,
+       inset_bottom_right, set_cell_function!, widget_pager, widget_filter_bar, widget_column_chooser,
        widget_list_selection, widget_list_selected,
        widget_table_row_selection, widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
@@ -69,7 +69,16 @@ A positioned, non-interactive label..
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
     content::Any
-    text_style::ImmutableCell{StyleText}   # per-label font+color override (nothing → theme label style)
+    # A per-label override. Three things may go here:
+    #
+    #   * `nothing` — the theme's label style, which is what most labels want;
+    #   * a `StyleText` — font AND colour, for a label that owns both;
+    #   * a bare `StyleColor` — **this colour, the theme's font**.
+    #
+    # The third exists because the second was the only way to colour a word, and
+    # it made colouring cost a font: a line coloured by severity would quietly
+    # stop following the window's theme. A colour is now sayable on its own.
+    text_style::ImmutableCell{StyleText}
     visible::Bool
     margin::Inset
     margin_color::StyleColor
@@ -843,6 +852,44 @@ function widget_filter_bar(; text, place, regex, apply,
     WidgetToolbar(Any[WidgetLabel(Point2D(0, 0), "find"), text_box,
                       WidgetLabel(Point2D(0, 0), "in"), place_box,
                       regex_switch, press])
+end
+
+"""
+    widget_column_chooser(; columns, is_shown, choose) -> WidgetToolbar
+
+Which columns a table shows: one switch per column, pressed when it is shown.
+
+The third of the strips a long table wants, beside `widget_pager` and
+`widget_filter_bar`, and here for the same reason — a table's columns are its
+own, but *choosing* them is not.
+
+- `columns` — what may be shown, as `(name, label)` pairs. The name is what the
+  caller stores; the label is what the reader reads;
+- `is_shown(name)` — whether it is shown now;
+- `choose(name, shown)` — what to do when the reader presses one.
+
+It does not decide what happens when every column is turned off. A table that
+should keep one is the table that should say so, because which one is not a
+question this can answer.
+"""
+function widget_column_chooser(; columns, is_shown, choose,
+                                 button_size::Point2D = Point2D(92, 24))
+    # Buttons and not switches, and the reason is worth stating: a `WidgetToggle`
+    # owns its `pressed`, so a chooser built from toggles would hold the truth
+    # about which columns are shown — and then the table and the chooser would
+    # each have a copy. A button has an ACTION and no state, so the truth stays
+    # with whatever owns the columns and this only asks and reports.
+    #
+    # The whole strip is rebuilt when the answer changes, which is what makes a
+    # tick follow a press.
+    bar = WidgetToolbar(Any[])
+    set_cell_function!(bar, () -> Any[
+        WidgetLabel(Point2D(0, 0), "columns");
+        [WidgetButton(Point2D(0, 0), button_size,
+                      (is_shown(name) ? "● " : "○ ") * label;
+                      action = () -> (choose(name, !is_shown(name)); nothing))
+         for (name, label) in columns]])
+    bar
 end
 
 
