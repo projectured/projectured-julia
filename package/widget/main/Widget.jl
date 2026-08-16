@@ -9,6 +9,7 @@ carries reactive Cell fields for all mutable properties.
 module WidgetModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..LayoutModule: HorizontalLayout
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -757,6 +758,11 @@ set_cell_function!(w::WidgetToolbar, f::Function) =
 The strip that moves a WINDOW over a longer sequence: first, previous, next,
 last, and a line saying where the reader is.
 
+A `HorizontalLayout` and not a `WidgetToolbar`. A toolbar is a shell's BAND: it
+allocates nothing on its main axis and is given a line of height by the shell
+that holds it, so three of them stacked in a card draw on top of each other. A
+layout measures its children, which is what stacking needs.
+
 **It is here, once, because paging is not a property of any one table.** A log,
 a packet list, a result set and a search result are all windows over something
 longer, and each of them wanting its own four buttons is how four of them end up
@@ -803,8 +809,8 @@ function widget_pager(; from, total, page::Integer, move,
         first_row == 1 && last_row == count ? "$(count) rows" :
             "rows $(first_row)–$(last_row) of $(count)"
     end)
-    WidgetToolbar(Any[button("|<", :first), button("<", :previous),
-                      button(">", :next), button(">|", :last), where_label])
+    HorizontalLayout(Any[button("|<", :first), button("<", :previous),
+                         button(">", :next), button(">|", :last), where_label]; gap = 4)
 end
 
 """
@@ -849,9 +855,9 @@ function widget_filter_bar(; text, place, regex, apply,
                                      regex = regex_switch.pressed)
                              nothing
                          end)
-    WidgetToolbar(Any[WidgetLabel(Point2D(0, 0), "find"), text_box,
-                      WidgetLabel(Point2D(0, 0), "in"), place_box,
-                      regex_switch, press])
+    HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "find"), text_box,
+                         WidgetLabel(Point2D(0, 0), "in"), place_box,
+                         regex_switch, press]; gap = 4)
 end
 
 """
@@ -882,11 +888,14 @@ function widget_column_chooser(; columns, is_shown, choose,
     #
     # The whole strip is rebuilt when the answer changes, which is what makes a
     # tick follow a press.
-    bar = WidgetToolbar(Any[])
-    set_cell_function!(bar, () -> Any[
+    # `[x]`/`[ ]` and not a tick glyph: the monospace faces this ships with
+    # have no U+25CF, so a filled circle draws as a box in the one place the
+    # reader is trying to read a state.
+    bar = HorizontalLayout(Any[]; gap = 4)
+    set_cell_function!(getfield(bar, :children), () -> Any[
         WidgetLabel(Point2D(0, 0), "columns");
         [WidgetButton(Point2D(0, 0), button_size,
-                      (is_shown(name) ? "● " : "○ ") * label;
+                      (is_shown(name) ? "[x] " : "[ ] ") * label;
                       action = () -> (choose(name, !is_shown(name)); nothing))
          for (name, label) in columns]])
     bar
