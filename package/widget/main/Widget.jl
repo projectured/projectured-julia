@@ -1463,11 +1463,27 @@ A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
     dragging::Bool     # the knob is held: a move keeps writing until release
     target::Any        # what a drag writes to, or nothing = this slider
     field::String      # which field of the target a drag writes
+    # What the knob's position MEANS, as a function of the fraction along the
+    # track. `nothing` is the fraction itself, which is what a slider over a
+    # fraction wants.
+    #
+    # It exists because a track is linear and a great many quantities are not.
+    # A playback speed runs from a thousandth of real time to a thousand times
+    # it, and on a linear track everything a reader actually wants is crushed
+    # into the middle two millimetres. A scale of `f -> 10^((f - 0.5) * 6)`
+    # gives that quantity a track a hand can use.
+    #
+    # It applies only to what is written to a TARGET. A slider with no target
+    # writes its own `value`, and that is the knob's position rather than what
+    # the position means.
+    scale::Any
 end
 WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true,
-             enabled::Bool=true, target=nothing, field::AbstractString="value") =
+             enabled::Bool=true, target=nothing, field::AbstractString="value",
+             scale=nothing) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
-                 Cell(enabled), Cell(false), Cell(target), Cell(String(field)), Cell(nothing))
+                 Cell(enabled), Cell(false), Cell(target), Cell(String(field)),
+                 Cell(scale), Cell(nothing))
 
 """
     resolve_slider_write(w, value) -> (document, field, value)
@@ -1481,8 +1497,10 @@ nothing above has to work out which control was moved.
 """
 function resolve_slider_write(w::WidgetSlider, value::Float64)
     target = w.target
+    # Its own knob, unscaled: a slider with no target is a fraction of a track
+    # and nothing else, and scaling it would make the knob jump under the hand.
     target === nothing && return (w, "value", value)
-    (target, String(w.field), value)
+    (target, String(w.field), w.scale === nothing ? value : w.scale(value))
 end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
