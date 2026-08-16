@@ -34,7 +34,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        InvokeActionOperation, as_action,
        numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!,
+       inset_bottom_right, set_cell_function!, widget_pager,
        widget_list_selection, widget_list_selected,
        widget_table_row_selection, widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
@@ -741,6 +741,63 @@ end
 
 set_cell_function!(w::WidgetToolbar, f::Function) =
     (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+
+"""
+    widget_pager(; from, total, page, move, button_size) -> WidgetToolbar
+
+The strip that moves a WINDOW over a longer sequence: first, previous, next,
+last, and a line saying where the reader is.
+
+**It is here, once, because paging is not a property of any one table.** A log,
+a packet list, a result set and a search result are all windows over something
+longer, and each of them wanting its own four buttons is how four of them end up
+behaving differently. This composes what already exists — a toolbar, four
+buttons and a label — and adds no new document, no new projection and no new
+row in any dispatch table.
+
+It holds no state. The window belongs to whatever is being paged, which already
+knows how many rows it has and which it is showing, and this asks:
+
+- `from()` — the row the window starts at, counting from one;
+- `total()` — how many rows exist behind it;
+- `page` — how many one window holds;
+- `move(row)` — what to do when the reader presses. Called with the row the
+  window should start at, already clamped, and never called with the row it is
+  already showing.
+
+Both `from` and `total` are read as functions rather than taken as numbers, so
+the label follows a sequence that grows while the reader watches it.
+"""
+function widget_pager(; from, total, page::Integer, move,
+                        button_size::Point2D = Point2D(34, 24))
+    rows_a_page = max(1, Int(page))
+    # The first row of the LAST window. A sequence shorter than one window has
+    # exactly one, which starts at one.
+    last_start() = max(1, total() - rows_a_page + 1)
+    go(where) = () -> begin
+        wanted = where === :first    ? 1 :
+                 where === :previous ? from() - rows_a_page :
+                 where === :next     ? from() + rows_a_page : last_start()
+        landing = clamp(wanted, 1, last_start())
+        landing == from() || move(landing)
+        nothing
+    end
+    button(label, where) =
+        WidgetButton(Point2D(0, 0), button_size, label; action = go(where))
+    where_label = WidgetLabel(Point2D(0, 0), "")
+    set_cell_function!(getfield(where_label, :content), () -> begin
+        count = total()
+        count <= 0 && return "empty"
+        first_row = clamp(from(), 1, count)
+        last_row = min(count, first_row + rows_a_page - 1)
+        # A window that holds everything says so rather than counting to itself.
+        first_row == 1 && last_row == count ? "$(count) rows" :
+            "rows $(first_row)–$(last_row) of $(count)"
+    end)
+    WidgetToolbar(Any[button("|<", :first), button("<", :previous),
+                      button(">", :next), button(">|", :last), where_label])
+end
+
 
 # ── WidgetStatusBar ──────────────────────────────────────────────────────────
 
