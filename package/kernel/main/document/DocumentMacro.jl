@@ -139,24 +139,31 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     # argument for the FIRST field whose declared type is exactly that parameter.
     # A parameter used only inside a larger type expression (`Vector{A}`) cannot be
     # recovered this way and is refused, rather than silently bound to `Any`.
-    pidx = map(plan.params) do P
-        i = findfirst(==(P), plan.field_types)
-        i === nothing && error("@document $(plan.name): type parameter `$(P)` must be " *
-                               "the declared type of at least one field.")
-        i
-    end
+    # A parameter that IS some field's declared type can be bound from that
+    # argument, and the inferring outer constructor below is emitted. One that only
+    # appears inside a larger expression (`EventHeap{A}`) cannot, so that schema
+    # gets the explicit spelling `Foo{A}(…)` and no inferring form — which is
+    # honest, rather than binding it to `Any` behind the programmer's back.
+    pidx = [findfirst(==(P), plan.field_types) for P in plan.params]
+    inferrable = !isempty(plan.params) && all(!isnothing, pidx)
     # All args are `ReactiveCell{Any}`, so every value type IS `Any` — a constant,
     # which is what keeps this path free of a runtime `apply_type`.
-    up_rc    = fill(:Any, length(plan.params))
-    up_raw   = [:(typeof($(arg_names[i]))) for i in pidx]
-    up_mixed = [:($(_document_param_type)($(arg_names[i]))) for i in pidx]
+    # With explicit parameters the three paths all splice the parameter NAMES; the
+    # inferring outer form computes them once and delegates here.
+    up = Any[plan.params...]
+    up_rc = up_raw = up_mixed = up
     all_rc   = mapreduce(a -> :($a isa $(_REACTIVE_ANY)), (x, y) -> :($x && $y), arg_names)
     any_cell = mapreduce(a -> :($a isa $(AbstractCell)),   (x, y) -> :($x || $y), arg_names)
     wrapped    = [gensym(f) for f in plan.field_names]
     wrap_stmts = [:($(wrapped[i]) = $(arg_names[i]) isa $(AbstractCell) ?
                         $(arg_names[i]) : $(raw_wrap(i)))
                   for i in 1:n]
-    :(function $(plan.name)($(arg_names...))
+    # The head carries the programmer's parameters when there are any, so `new{…}`
+    # can name them; a schema with none keeps exactly the constructor it had.
+    head = isempty(plan.params) ? :($(plan.name)($(arg_names...))) :
+           Expr(:where, :($(Expr(:curly, plan.name, plan.params...))($(arg_names...))),
+                plan.params...)
+    body = quote
         if $all_rc
             return $(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...))
         elseif !($any_cell)
@@ -165,7 +172,18 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
         end
         $(wrap_stmts...)
         $(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...), wrapped...))
-    end)
+    end
+    # `Expr(:function, …)` and not `:(function $head … end)`: the parser will not
+    # take an interpolated signature.
+    inner = Expr(:function, head, body)
+    # `Foo(raw…)` for a schema whose every parameter is some field's declared type:
+    # bind each from its argument, then hand over to the explicit form.
+    outer = inferrable ?
+        :($(plan.name)($(arg_names...)) =
+              $(Expr(:curly, plan.name,
+                     [:($(_document_param_type)($(arg_names[i]))) for i in pidx]...))($(arg_names...))) :
+        nothing
+    (inner, outer)
 end
 
 """
@@ -631,12 +649,15 @@ function _document_expr(args)
     push!(binding_parts, Expr(:export, schema, Symbol("AC", schema)))
 
     structdef = _emit_stem!(plan)
-    push!(structdef.args[3].args, _emit_autowrap_ctor(plan, arg_names; default = default))
+    inner_ctor, outer_ctor = _emit_autowrap_ctor(plan, arg_names; default = default)
+    push!(structdef.args[3].args, inner_ctor)
+    outer_ctor_parts = outer_ctor === nothing ? Any[] : Any[outer_ctor]
     getprop, setprop = _emit_accessors(plan)
 
     esc(Expr(:block,
              :(abstract type $family <: $supertype end),
              :(Base.@__doc__ $structdef),
+             outer_ctor_parts...,
              getprop, setprop,
              native_parts...,
              family_method, cell_type_method, schema_name_method,
