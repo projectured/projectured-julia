@@ -76,6 +76,28 @@ _default_cell_type(kind, vt) =
     kind === :mutable   ? Expr(:curly, MutableCell,  vt) :
     _REACTIVE_ANY
 
+# The NAME of a declared field type, for asking a seam keyed on `Val{name}`:
+# `:Vector` for both `Vector{T}` and a bare `Vector`, and `nothing` for anything
+# that does not name a type. `is_collection_field_type` asks only about a bare
+# symbol; a substitution has to see through the `:curly` too, because the whole
+# point is a field written `params::Vector{NedParam}`.
+_declared_type_name(t::Symbol) = t
+_declared_type_name(t::Expr) =
+    (t.head === :curly && t.args[1] isa Symbol) ? t.args[1] : nothing
+_declared_type_name(::Any) = nothing
+
+# What the CELL layout holds for a field, which is the declared type unless a
+# collection registered a reactive counterpart for it — see
+# `cell_layout_field_type`. The NATIVE layout never asks, so it keeps the plain
+# type the programmer wrote.
+function _cell_value_types(plan)
+    map(cell_struct_value_types(plan)) do vt
+        name = _declared_type_name(vt)
+        substitute = name === nothing ? nothing : cell_layout_field_type(Val(name))
+        substitute === nothing ? vt : substitute
+    end
+end
+
 # Per-field cell type parameters: `C1, C2, …`.
 _cell_params(plan) = [Symbol("C", i) for i in 1:length(plan.field_names)]
 
@@ -227,7 +249,8 @@ cells, so a fully-conforming node inhabits its alias.
 function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
                             default::Symbol = :reactive)
     n     = length(plan.field_names)
-    Tvals = cell_struct_value_types(plan)
+    # The CELL layout's value types, with any registered substitution applied.
+    Tvals = _cell_value_types(plan)
     kinds = cell_struct_field_kinds(plan; default = default)
     # A spelling is named from the **schema**, not from the cell layout's own type
     # name. The two differ when the bare name was bound elsewhere, and a spelling

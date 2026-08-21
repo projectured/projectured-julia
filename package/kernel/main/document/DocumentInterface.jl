@@ -117,6 +117,28 @@ concrete collection type. Defaults to `false`.
 function is_collection_field_type end
 
 """
+    cell_layout_field_type(::Val{name}) -> Type | Nothing
+
+The type a `@document` field declared with type `name` takes in the **cell**
+layout, when the reactive representation of a value differs from the plain one.
+`nothing`, the default, means the declared type is used unchanged.
+
+**This is what lets a declaration state the PLAIN type.** A field written
+`params::Vector{NedParam}` is exactly that in the native layout — no cells — while
+the cell layout substitutes the reactive collection, so an editor still gets one
+cell per element. Before it, a declaration had to name `CellVector` to get the
+editor what it needs, and the plain layout then carried cells it had no use for.
+
+Keyed on the declared type's **symbol**, the same way `is_collection_field_type`
+is, so the `@document` macro asks without resolving or naming the type: the
+reactive collection registers `Val{:Vector}` from the package that defines it, and
+the document layer names no concrete collection type. The registered type must
+offer a `Type(::AbstractVector)` constructor, since that is how a raw value
+becomes one.
+"""
+function cell_layout_field_type end
+
+"""
     copy_document(value)     -> value      # preserve every cell's kind
     copy_document(K, value)  -> value      # rebuild every cell as kind K
 

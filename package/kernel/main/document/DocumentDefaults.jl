@@ -8,6 +8,8 @@
 is_element_collection(value) = false
 is_walk_opaque(value) = false
 is_collection_field_type(::Val) = false
+# No substitution: a declared type is what the cell layout holds, unchanged.
+cell_layout_field_type(::Val) = nothing
 
 """
     HiddenElements(source, from, to)

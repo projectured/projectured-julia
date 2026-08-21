@@ -24,6 +24,18 @@ is_element_collection(::CellVector) = true
 # so `@document` decides at expansion without naming `CellVector`.
 is_collection_field_type(::Val{:CellVector}) = true
 
+# **A field declared `Vector{T}` is a `CellVector` in the CELL layout.** That lets
+# a document state the PLAIN type — `params::Vector{NedParam}` — and get a plain
+# `Vector` in the native layout and one cell per element in the reactive one. A
+# declaration naming `CellVector` cannot do that: the native layout takes the
+# declared type as written, so it would carry cells it has no use for.
+#
+# Registered here rather than in the document layer for the same reason
+# `is_collection_field_type` is: the kernel names no concrete collection type, and
+# a collection says for itself what it stands in for. `CellVector(::AbstractVector)`
+# is the constructor the contract requires, and it exists above.
+cell_layout_field_type(::Val{:Vector}) = CellVector
+
 # `CellVector()` is the macro's keyword constructor: `elements` defaults to an
 # empty `Cell[]` and `selection` to `nothing`. Because *every* field defaults,
 # Rule Y emits no positional constructor — which is what keeps the variadic below
