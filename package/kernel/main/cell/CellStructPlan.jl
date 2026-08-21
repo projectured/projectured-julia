@@ -22,10 +22,17 @@ defaults stripped out of it.
 `n_declared` and `n_programmer_defaults` record the counts **as the programmer
 wrote them**, before any field is appended — a caller that appends a field needs
 to tell the programmer's defaults apart from its own.
+
+`params` holds the type parameters of `struct Foo{A, B}` as the programmer wrote
+them, and is empty for a struct that declares none. A layout is a RESTORATION of
+the struct the programmer would have written by hand, so every layout has to
+reproduce those parameters; only the cell layout appends its own per-field cell
+parameters after them.
 """
 struct CellStructPlan
     structdef             :: Expr
     name                  :: Symbol
+    params                :: Vector{Any}    # the programmer's OWN type parameters
     supertype             :: Any            # expr / symbol, or `nothing` if unwritten
     field_names           :: Vector{Symbol}
     field_types           :: Vector{Any}    # declared type expr, or `nothing` if untyped
@@ -47,8 +54,17 @@ function cell_struct_plan(structdef)
         error("cell_struct_plan expects a struct definition")
     name_expr = structdef.args[2]
     has_super = name_expr isa Expr && name_expr.head === :(<:)
-    name      = has_super ? name_expr.args[1] : name_expr
+    head      = has_super ? name_expr.args[1] : name_expr
     supertype = has_super ? name_expr.args[2] : nothing
+    # `struct Foo{A, B}` — the head is a `:curly` and the name is inside it. Taking
+    # the head whole was what made a parametric document unwritable: the name went
+    # on to be wrapped in a `:curly` of per-field cell parameters, so `Foo{A}`
+    # emitted `Foo{A}{C1, …}`, which is not a type.
+    has_params = head isa Expr && head.head === :curly
+    name       = has_params ? head.args[1] : head
+    params     = has_params ? Any[head.args[2:end]...] : Any[]
+    name isa Symbol ||
+        error("cell_struct_plan: a struct name must be a symbol, got $(name)")
     body      = structdef.args[3]
 
     field_names = Symbol[]
@@ -73,7 +89,7 @@ function cell_struct_plan(structdef)
         push!(field_slots, i)
     end
 
-    CellStructPlan(structdef, name, supertype, field_names, field_types, field_slots,
+    CellStructPlan(structdef, name, params, supertype, field_names, field_types, field_slots,
                Dict(defaults), length(field_names), length(defaults))
 end
 

@@ -10,6 +10,13 @@
 # The reactive default a bare `Foo(…)` wraps a raw value in: the untyped `Cell`.
 const _REACTIVE_ANY = ReactiveCell{Any}
 
+# The value a cell holds, or the value itself when it is not one. A document's own
+# type parameter names a field's VALUE type, and the auto-wrapping constructor may
+# be handed either form for that field, so binding the parameter has to see through
+# a cell.
+_document_param_type(x) = typeof(x)
+_document_param_type(::AbstractCell{T}) where {T} = T
+
 # ── The layout list ───────────────────────────────────────────────────────────
 # `@document [C, M] struct Foo … end` says which layouts the schema emits, and its
 # **first entry says what the bare name is**. `C` is the cell layout, `M` the
@@ -89,8 +96,12 @@ function _emit_stem!(plan)
     retype_cell_struct_fields!(plan, Cs)
     # The cell types are spliced as *objects* (not names), so callers need no
     # extra imports.
+    # The programmer's OWN type parameters come first, then one cell parameter per
+    # field. A layout restores the struct the programmer would have written, so
+    # `struct Foo{A}` has to stay `Foo{A, …}` and not become `Foo{A}{…}`.
     plan.structdef.args[2] = Expr(:(<:),
-        Expr(:curly, plan.name, [Expr(:(<:), C, AbstractCell) for C in Cs]...),
+        Expr(:curly, plan.name, plan.params...,
+             [Expr(:(<:), C, AbstractCell) for C in Cs]...),
         plan.supertype)
     plan.structdef
 end
@@ -124,6 +135,21 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
                                            :($(def_types[i])($(arg_names[i])))
     rc_any   = fill(_REACTIVE_ANY, n)
+    # A programmer's parameter names a field's value type, so it is bound from the
+    # argument for the FIRST field whose declared type is exactly that parameter.
+    # A parameter used only inside a larger type expression (`Vector{A}`) cannot be
+    # recovered this way and is refused, rather than silently bound to `Any`.
+    pidx = map(plan.params) do P
+        i = findfirst(==(P), plan.field_types)
+        i === nothing && error("@document $(plan.name): type parameter `$(P)` must be " *
+                               "the declared type of at least one field.")
+        i
+    end
+    # All args are `ReactiveCell{Any}`, so every value type IS `Any` — a constant,
+    # which is what keeps this path free of a runtime `apply_type`.
+    up_rc    = fill(:Any, length(plan.params))
+    up_raw   = [:(typeof($(arg_names[i]))) for i in pidx]
+    up_mixed = [:($(_document_param_type)($(arg_names[i]))) for i in pidx]
     all_rc   = mapreduce(a -> :($a isa $(_REACTIVE_ANY)), (x, y) -> :($x && $y), arg_names)
     any_cell = mapreduce(a -> :($a isa $(AbstractCell)),   (x, y) -> :($x || $y), arg_names)
     wrapped    = [gensym(f) for f in plan.field_names]
@@ -132,13 +158,13 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
                   for i in 1:n]
     :(function $(plan.name)($(arg_names...))
         if $all_rc
-            return $(Expr(:call, Expr(:curly, :new, rc_any...), arg_names...))
+            return $(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...))
         elseif !($any_cell)
-            return $(Expr(:call, Expr(:curly, :new, def_types...),
+            return $(Expr(:call, Expr(:curly, :new, up_raw..., def_types...),
                           [raw_wrap(i) for i in 1:n]...))
         end
         $(wrap_stmts...)
-        $(Expr(:call, Expr(:curly, :new, [:(typeof($w)) for w in wrapped]...), wrapped...))
+        $(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...), wrapped...))
     end)
 end
 
@@ -190,7 +216,12 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # of `Foo` must stay `RCFoo` rather than becoming `CRCFoo`.
     r_name, i_name, m_name, d_name = (Symbol(p, schema) for p in ("RC", "IC", "MC", "DC"))
 
-    alias(nm, params) = Expr(:const, Expr(:(=), nm, Expr(:curly, plan.name, params...)))
+    # `const DCFoo = Foo{…}` becomes `const DCFoo{A} = Foo{A, …}` when the
+    # programmer declared parameters: the cell parameters of a parametric stem
+    # mention `A`, so the alias cannot close over it.
+    alias(nm, cellparams) = Expr(:const, Expr(:(=),
+        isempty(plan.params) ? nm : Expr(:curly, nm, plan.params...),
+        Expr(:curly, plan.name, plan.params..., cellparams...)))
     # `DCFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
     # builds — each field in its default kind (`ReactiveCell{Any}`, or the struct
     # default from a leading macro kind). For a value-document (immutable default,
@@ -341,7 +372,12 @@ a `mutable struct` is never isbits, however small its fields are.
 function _emit_native(plan, family, native; mutable::Bool)
     vts = cell_struct_value_types(plan)
     fields = Any[:($(plan.field_names[i])::$(vts[i])) for i in eachindex(plan.field_names)]
-    Expr(:struct, mutable, Expr(:(<:), native, family), Expr(:block, fields...))
+    # The native layout IS the programmer's struct, so it carries the programmer's
+    # parameters and nothing else — no cell parameters, because it holds no cells.
+    # The family stays unparameterized, so `MFoo{A} <: AFoo` and every signature
+    # written against the family keeps working.
+    head = isempty(plan.params) ? native : Expr(:curly, native, plan.params...)
+    Expr(:struct, mutable, Expr(:(<:), head, family), Expr(:block, fields...))
 end
 
 """
@@ -532,7 +568,7 @@ function _document_expr(args)
     # (transitive). It also takes `cell_name`, which is the programmer's own name
     # unless the bare name was bound elsewhere. From here `plan.name` is the cell
     # layout's *type* name, and `schema` is what coded names are built from.
-    plan = CellStructPlan(plan.structdef, cell_name, family, plan.field_names,
+    plan = CellStructPlan(plan.structdef, cell_name, plan.params, family, plan.field_names,
                       plan.field_types, plan.field_slots, plan.defaults,
                       plan.n_declared, plan.n_programmer_defaults)
 
