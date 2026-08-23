@@ -88,17 +88,26 @@ The ambient wall-clock instance. Callers holding no clock of their own —
 one-shot renders, contexts that can't reach an enclosing clock — subscribe
 to it here.
 """
-get_wall_clock() = _WALL_CLOCK
+function get_wall_clock()
+    # Started HERE, at first use, and not at module load. A process that never
+    # asks for the ambient clock never runs the heartbeat — and a trimmed
+    # binary that never asks never even compiles it, which is what keeps the
+    # reactive cell write out of a run-only build. The start is idempotent
+    # (the lock and the task check below), so every later call is a no-op.
+    _start_wall_clock_heartbeat!()
+    _WALL_CLOCK
+end
 
-# The wall-clock heartbeat: one task, started once at module load, writing
+# The wall-clock heartbeat: one task, started at first `get_wall_clock`, writing
 # `Base.time() - t_start` into `_WALL_CLOCK.time` on an interval. Guarded by a
-# lock so re-entering `__init__` after a process fork or manual reload leaves
-# exactly one live task.
+# lock so concurrent first callers, or a re-entry after a process fork or a
+# manual reload, leave exactly one live task.
 const _HEARTBEAT_INTERVAL = 0.01
 const _HEARTBEAT_TASK = Ref{Union{Nothing,Task}}(nothing)
 const _HEARTBEAT_LOCK = ReentrantLock()
 
 function _start_wall_clock_heartbeat!()
+    ccall(:jl_generating_output, Cint, ()) == 0 || return nothing
     lock(_HEARTBEAT_LOCK) do
         current = _HEARTBEAT_TASK[]
         (current !== nothing && !istaskdone(current)) && return
@@ -113,13 +122,9 @@ function _start_wall_clock_heartbeat!()
     nothing
 end
 
-# Runs at first `using ClockModule` in every process (including precompile-child
-# processes that load us as a dependency). The `jl_generating_output` guard
-# skips the heartbeat during precompile: an @async that never terminates
-# would keep the precompile child alive past its work and hang the build.
-function __init__()
-    ccall(:jl_generating_output, Cint, ()) == 0 || return
-    _start_wall_clock_heartbeat!()
-end
+# The `jl_generating_output` guard skips the heartbeat during precompile: an
+# @async that never terminates would keep the precompile child alive past its
+# work and hang the build. It lives on the START function now that the start is
+# lazy, so a precompile-time `get_wall_clock` is safe too.
 
 end # module
