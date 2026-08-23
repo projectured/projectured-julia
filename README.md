@@ -336,6 +336,7 @@ Three reading tracks — pick the one that matches your goal.
 - [Reference guide](package/kernel/doc/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
 - [Selection guide](package/kernel/doc/selection.md) — how selection propagates through nested documents.
 - [Devices and backends](package/kernel/doc/devices-and-backends.md) — the `Backend`/`Device` split.
+- [Static compilation](documentation/static-compilation.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
 - [Design decisions](documentation/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
 - [Selection deep dive](package/kernel/doc/selection.md) — the full reference/selection mechanism with worked examples.
 

@@ -30,3 +30,9 @@ results/
 
 # The workload level is a person's choice, not the project's.
 LocalPreferences.toml
+
+# juliac trim probe working copies (bench/juliac-trim/sealed.sh setup)
+bench/juliac-trim/SealedCompiler2/
+bench/juliac-trim/sealed-juliac2/
+bench/juliac-trim/env2/
+bench/juliac-trim/work*/

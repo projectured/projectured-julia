@@ -103,6 +103,7 @@ Read it first; it will point you here and to the specific guides you need.
 | [Getting started](getting-started.md) | Setup and REPL helpers |
 | [Debugging](debugging.md) | REPL debugging: print_example, write_example_image, forcing cells |
 | [Testing](testing.md) | test_all and per-package test helpers |
+| [Static compilation](static-compilation.md) | juliac `--trim`: why an abstract type blocks it, and four ways to keep the abstract type |
 | [Tutorial: new domain](tutorial-new-domain.md) | Step-by-step: add a new domain |
 | [Orientation](orientation.md) | Concept→symbol search index for navigating the code |
 
