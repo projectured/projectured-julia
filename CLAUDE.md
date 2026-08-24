@@ -75,7 +75,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferenceLayer.jl`
   - ⬜ `reference/ReferenceModule.jl`
   - 🔒 `reference/ReferenceInterface.jl`
-  - 🔒 `reference/ReferenceStep.jl`
+  - ⬜ `reference/ReferenceStep.jl` (unsealed 2026-08-24: `@cell_struct` → `@document [C, M]`, the user's direction — re-audit before resealing)
   - 🔒 `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`
   - 🔒 `reference/ReferenceSearch.jl`

@@ -33,14 +33,20 @@ Unified sequence step.  Encodes:
 All positions are 0-based boundaries.  For a collection with n elements,
 valid boundaries are 0 to n.
 """
-@cell_struct struct RangeReferenceStep <: ReferenceStep
+@document [C, M] struct RangeReferenceStep <: ReferenceStep
     start::Int
     stop::Int
 end
 
-# `RangeReferenceStep(start, stop)` needs no explicit Int constructor: the
-# `@cell_struct` inner constructor auto-wraps raw values into `Cell`s (and passes
-# `Cell`s through). Same for `FieldReferenceStep` below.
+# `[C, M]`, bare name = the C (reactive) layout: a step IS mutated in the UI —
+# an index shifts and the change propagates — so every existing constructor
+# call keeps building the reactive step, unchanged. The M layout is the plain
+# VALUE the simulator's run path constructs (designators, sites, hashing,
+# matching); it never propagates because the run path never mutates a step.
+# Every method below dispatches on the `A…` stem, so the two layouts share
+# `show`/`==`/`hash`/the seam methods, and a C step equals an M step that
+# holds the same numbers. Same for `FieldReferenceStep` and
+# `TypeReferenceStep` below.
 
 # ── Convenience step constructors ───────────────────────────────────────
 
@@ -60,13 +66,17 @@ Equivalent to `RangeReferenceStep(index, index)`.
 """
 PositionReferenceStep(index::Int) = RangeReferenceStep(index, index)
 
+# The M (plain-layout) conveniences, for a hot path that builds VALUE steps.
+MElementReferenceStep(index::Int) = MRangeReferenceStep(index - 1, index)
+MPositionReferenceStep(index::Int) = MRangeReferenceStep(index, index)
+
 # ── Predicates ────────────────────────────────────────────────────────────
 
 "True when `r` encodes a single element (stop == start + 1)."
-is_element_reference_step(r::RangeReferenceStep) = r.stop == r.start + 1
+is_element_reference_step(r::ARangeReferenceStep) = r.stop == r.start + 1
 
 "True when `r` encodes a cursor position (start == stop)."
-is_position_reference_step(r::RangeReferenceStep) = r.start == r.stop
+is_position_reference_step(r::ARangeReferenceStep) = r.start == r.stop
 
 """
     Position(index)
@@ -87,7 +97,7 @@ Base.:(==)(a::Position, b::Position) = a.index == b.index
 Base.hash(p::Position, h::UInt) = hash(p.index, hash(:Position, h))
 Base.show(io::IO, p::Position) = print(io, "Position(", p.index, ")")
 
-function Base.show(io::IO, s::RangeReferenceStep)
+function Base.show(io::IO, s::ARangeReferenceStep)
     if is_element_reference_step(s)
         print(io, "[", s.start + 1, "]")
     elseif is_position_reference_step(s)
@@ -97,15 +107,15 @@ function Base.show(io::IO, s::RangeReferenceStep)
     end
 end
 
-Base.:(==)(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
-Base.hash(s::RangeReferenceStep, h::UInt) =
+Base.:(==)(a::ARangeReferenceStep, b::ARangeReferenceStep) = a.start == b.start && a.stop == b.stop
+Base.hash(s::ARangeReferenceStep, h::UInt) =
     hash(s.stop, hash(s.start, hash(:RangeReferenceStep, h)))
 
-get_reference_step_kind(::RangeReferenceStep) = :structural
+get_reference_step_kind(::ARangeReferenceStep) = :structural
 
 # A zero-width cursor evaluates to a `Position` (a caret between elements); a
 # single element / range descends into the item at start+1 (cell-transparent).
-function evaluate_reference_step(step::RangeReferenceStep, document)
+function evaluate_reference_step(step::ARangeReferenceStep, document)
     is_position_reference_step(step) && return Position(step.start)
     unwrap_cell(document[step.start + 1])
 end
@@ -117,7 +127,7 @@ end
 
 References a named field of an object/record.
 """
-@cell_struct struct FieldReferenceStep <: ReferenceStep
+@document [C, M] struct FieldReferenceStep <: ReferenceStep
     name::String
 end
 
@@ -135,16 +145,16 @@ function _get_field(document::AbstractDict, name)
 end
 _get_field(document, name) = unwrap_cell(getfield(document, Symbol(name)))
 
-function Base.show(io::IO, s::FieldReferenceStep)
+function Base.show(io::IO, s::AFieldReferenceStep)
     print(io, ".", s.name)
 end
 
-Base.:(==)(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
-Base.hash(s::FieldReferenceStep, h::UInt) = hash(s.name, hash(:FieldReferenceStep, h))
+Base.:(==)(a::AFieldReferenceStep, b::AFieldReferenceStep) = a.name == b.name
+Base.hash(s::AFieldReferenceStep, h::UInt) = hash(s.name, hash(:FieldReferenceStep, h))
 
-get_reference_step_kind(::FieldReferenceStep) = :structural
+get_reference_step_kind(::AFieldReferenceStep) = :structural
 
-evaluate_reference_step(step::FieldReferenceStep, document) =
+evaluate_reference_step(step::AFieldReferenceStep, document) =
     _get_field(document, step.name)
 
 # ── TypeReferenceStep ─────────────────────────────────────────────────────────
@@ -164,7 +174,7 @@ The match rule is `node isa type`. Checkpoints are normally created from
 `typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
 the assertion holds exactly; recording an abstract supertype is also tolerated.
 """
-@cell_struct struct TypeReferenceStep <: ReferenceStep
+@document [C, M] struct TypeReferenceStep <: ReferenceStep
     type::Any
 end
 
@@ -185,16 +195,16 @@ Base.showerror(io::IO, e::ReferenceTypeMismatch) =
     print(io, "ReferenceTypeMismatch: expected node of type ", e.expected,
           ", got ", e.actual)
 
-function Base.show(io::IO, s::TypeReferenceStep)
+function Base.show(io::IO, s::ATypeReferenceStep)
     print(io, "::", s.type)
 end
 
-Base.:(==)(a::TypeReferenceStep, b::TypeReferenceStep) = a.type === b.type
-Base.hash(s::TypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
+Base.:(==)(a::ATypeReferenceStep, b::ATypeReferenceStep) = a.type === b.type
+Base.hash(s::ATypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
 
-get_reference_step_kind(::TypeReferenceStep) = :checkpoint
+get_reference_step_kind(::ATypeReferenceStep) = :checkpoint
 
-function evaluate_reference_step(step::TypeReferenceStep, document)
+function evaluate_reference_step(step::ATypeReferenceStep, document)
     document isa step.type ||
         throw(ReferenceTypeMismatch(step.type, typeof(document)))
     document
@@ -206,7 +216,7 @@ Base.:(==)(::ReferenceStep, ::ReferenceStep) = false
 
 # ── Hashing ───────────────────────────────────────────────────────────────
 #
-# **A step compares by value, so it hashes by value.** A `@cell_struct` is
+# **A step compares by value, so it hashes by value.** The C layout is
 # mutable, and a mutable struct hashes by identity unless it says otherwise —
 # which would make two equal steps land in different buckets and lose every
 # lookup of a rebuilt reference. Each `hash` above therefore sits beside the

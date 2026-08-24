@@ -60,16 +60,20 @@ The module lives in eleven fragments that share this namespace:
   construction DSL (compact surface syntax for building paths).
 
 The linked-list *shape* is persistent — extending a path reuses the existing
-tail rather than copying. The `@cell_struct`-backed step/path structs are
-mutable and store their dynamic values (indices, positions, the head/tail
-links) in reactive `Cell`s, so callers can update those cells in place
-without rebuilding the chain.
+tail rather than copying. The reactive step structs are mutable and store
+their dynamic values (indices, positions, the head/tail links) in reactive
+`Cell`s, so callers can update those cells in place without rebuilding the
+chain — an index shifts in the UI and the change propagates.
 
-Steps and paths are **not `Document`s** — they are the machinery that *addresses*
-documents, not addressable content. Nothing navigates into a reference, selects
-inside one, or projects one, so a reference has no `selection` field and needs
-none of `@document`'s document codegen. `@cell_struct` gives it the only thing it
-wants: transparent reactive-`Cell` fields.
+The step types are `@document [C, M]` LAYOUT FAMILIES (the user's ruling,
+2026-08-24: no reactivity in the kernel's run-path values; reactivity is for
+the UI). The bare name binds the C (reactive) layout, so every UI caller
+keeps the propagating step it always had; the `M…` variants are the plain
+VALUES a simulator's hot path constructs, compares and hashes — a trimmed
+binary resolves those statically. The `A…` stems carry `show`/`==`/`hash`/
+the seam methods, so a reactive step equals a plain step holding the same
+values. Steps are still not addressable CONTENT — nothing navigates into
+one — the document machinery is used for its layouts alone.
 """
 module ReferenceModule
 
@@ -80,6 +84,11 @@ using ..DocumentModule
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
        RangeReferenceStep, Reference,
+       # the step layout families: the A… stems carry the shared methods, the
+       # M… variants are the plain values a simulator's hot path constructs
+       ARangeReferenceStep, AFieldReferenceStep, ATypeReferenceStep,
+       MRangeReferenceStep, MFieldReferenceStep, MTypeReferenceStep,
+       MElementReferenceStep, MPositionReferenceStep,
        EmptyReference, ConcreteReference, extend_reference, concat_references, get_reference_steps,
        evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference_step,
        is_position_reference_step, is_reference_equal, is_reference_prefix,
