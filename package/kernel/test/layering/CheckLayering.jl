@@ -670,6 +670,15 @@ a `@testset`:
 8. each file in `qualified_files` uses bare `using ..Xxx` and never
    `import ..Xxx` / `using ..Xxx: a, b` (PAR-QUALIFIED-EXTENSION); the set is opt-in
    and grows as the migration proceeds.
+
+`src_root` is the folder whose `.jl` files the include tree must reach, and the
+root that layer folders are read against. `top_file` can sit outside it — a
+package whose root file lives in `package/<Name>/src/` and whose source lives in
+a repository-level folder passes that folder. A reached file outside `src_root`
+(the top file, a sample the tree includes) is walked and ordered but is not
+held against the on-disk set, and it lives in no layer. `foreign_files` names
+files under `src_root` (relative to it) that belong to another package and so
+are not expected in this include tree.
 """
 function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
@@ -677,7 +686,8 @@ function check_layering(src_root, top_file; name = "package",
                         interface_files = Dict{String, Symbol}(),
                         qualified_files = Set{String}(),
                         extra_aliases = Set{Symbol}(),
-                        allow_root_fragments = false)
+                        allow_root_fragments = false,
+                        foreign_files = Set{String}())
     @testset "$name layered-architecture guard" begin
         reached, entries, file_owner, _ =
             walk_includes(top_file, src_root; allow_root_fragments)
@@ -687,10 +697,16 @@ function check_layering(src_root, top_file; name = "package",
             on_disk = Set{String}()
             for (root, _, files) in walkdir(src_root), f in files
                 endswith(f, ".jl") || continue
-                push!(on_disk, relpath(joinpath(root, f), src_root))
+                rel = relpath(joinpath(root, f), src_root)
+                rel in foreign_files || push!(on_disk, rel)
             end
-            missing_from_includes = setdiff(on_disk, Set(reached))
-            extra_in_includes     = setdiff(Set(reached), on_disk)
+            # A file outside `src_root` — the top file of a package whose
+            # source sits in a repository-level folder, or a sample it
+            # includes — is walked and ordered but is not the source tree's
+            # own, so it is neither expected on disk nor reported as extra.
+            inside = Set(r for r in reached if !startswith(r, ".."))
+            missing_from_includes = setdiff(on_disk, inside)
+            extra_in_includes     = setdiff(inside, on_disk)
             if !isempty(missing_from_includes)
                 println(stderr, "\nFiles on disk but not reached by the include tree:")
                 foreach(f -> println(stderr, "  ", f), sort(collect(missing_from_includes)))
@@ -847,6 +863,44 @@ function test_layering_checkers()
                 include("C.jl")
                 """)
             @test_throws ErrorException walk_includes(joinpath(root, "Top.jl"), root)
+        end
+    end
+
+    @testset "check_layering accepts a top file outside src_root" begin
+        mktempdir() do root
+            # The package root sits in `package/src/`; the source in `source/`
+            # beside it, with one file that belongs to another package; and
+            # the tree includes a sample from outside the source folder.
+            mkpath(joinpath(root, "package/src"))
+            mkpath(joinpath(root, "source/cell"))
+            mkpath(joinpath(root, "source/foreign"))
+            mkpath(joinpath(root, "sample"))
+            write(joinpath(root, "package/src/Top.jl"), """
+                module Top
+                include("../../source/cell/CellLayer.jl")
+                include("../../sample/Sample.jl")
+                end
+                """)
+            write(joinpath(root, "source/cell/CellLayer.jl"), "include(\"A.jl\")\n")
+            write(joinpath(root, "source/cell/A.jl"), "module A\nexport a_pub\nend\n")
+            write(joinpath(root, "source/foreign/F.jl"), "module F\nend\n")
+            write(joinpath(root, "sample/Sample.jl"), "module Sample\nusing ..A\nend\n")
+            src_root = joinpath(root, "source")
+            top = joinpath(root, "package/src/Top.jl")
+            reached, entries = walk_includes(top, src_root)
+            @test "cell/A.jl" in reached
+            @test count(r -> startswith(r, ".."), reached) == 2   # the top file and the sample
+            @test [m for (_, m, _) in entries] == [:A, :Sample]
+            # The sample lives in no layer, so its import of a layer module is
+            # not held to the layer index.
+            @test isempty(layer_errors(entries, ["cell"]))
+            # The foreign file is the one on-disk file the tree does not reach.
+            on_disk = String[]
+            for (d, _, files) in walkdir(src_root), f in files
+                push!(on_disk, relpath(joinpath(d, f), src_root))
+            end
+            inside = filter(r -> !startswith(r, ".."), reached)
+            @test setdiff(on_disk, inside) == ["foreign/F.jl"]
         end
     end
 
