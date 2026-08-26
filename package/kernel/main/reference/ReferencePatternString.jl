@@ -107,7 +107,10 @@ end
 # Split a trailing `[…]` off a component, honouring escapes.
 function _split_component_index(component::AbstractString, text::AbstractString)
     endswith(component, ']') || return (component, nothing)
-    open = findlast(isequal('['), component)
+    # The Char form, not `isequal('[')`: under a trimmed build the wrapped
+    # predicate lands in Base's generic `findlast(::Function, ...)`, whose
+    # widened body is unresolvable (the omnetpp-julia laws ledger, row 4).
+    open = findlast('[', component)
     open === nothing && error("unbalanced `]` in pattern string: $text")
     (component[firstindex(component):prevind(component, open)],
      component[nextind(component, open):prevind(component, lastindex(component))])
