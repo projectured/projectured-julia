@@ -83,10 +83,16 @@ cell_struct_kw_params(field_names, default_map) =
 Build a keyword constructor for `type_name` forwarding into its positional
 constructor, so value wrapping stays defined in exactly one place.
 """
-cell_struct_kwctor(type_name, field_names, kw_params) =
+function cell_struct_kwctor(type_name, field_names, kw_params)
+    # Built without a splat: `Expr(:call, x, xs...)` lowers to
+    # `Core._apply_iterate` on the generic `Expr` constructor, which a
+    # `--trim=safe` build cannot resolve. `append!` makes the same Expr.
+    forward = Expr(:call, type_name)
+    append!(forward.args, field_names)
     :(function $(type_name)(; $(kw_params...))
-        $(Expr(:call, type_name, field_names...))
+        $(forward)
     end)
+end
 
 """
     cell_struct_exprs(structdef) -> Expr
