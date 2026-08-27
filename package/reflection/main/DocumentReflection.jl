@@ -140,8 +140,18 @@ reflect_child_pairs(x) =
 # `getproperty`, not `getfield`: a `@document` struct keeps every field in a
 # `Cell`, and an inspector wants the value, not the box. Its trailing `selection`
 # field is the document's own cursor slot — machinery, never content.
+#
+# The test is the FIELD and not the supertype. `Document` carries two jobs: it is
+# the shape `@document` builds, and it is the bound an event argument is stored
+# inline under, so `EventArgument <: Document` and every gate and every
+# simulation module is a `Document` that never met the macro and holds no
+# `selection`. Asking `isa Document` dropped a declared field from each of them.
+#
+# The two agree everywhere a document is one: the macro appends `selection` last,
+# and an explicit one it refuses anywhere but last.
 _reflect_fieldnames(x) =
-    (f = fieldnames(typeof(x)); x isa Document ? f[1:end-1] : f)
+    (f = fieldnames(typeof(x));
+     !isempty(f) && last(f) === :selection ? f[1:end-1] : f)
 reflect_child_pairs(x::AbstractArray) = (string(i) => x[i] for i in eachindex(x))
 reflect_child_pairs(x::AbstractDict)  = (string(k) => v for (k, v) in x)
 reflect_child_pairs(x::Tuple)         = (string(i) => x[i] for i in eachindex(x))

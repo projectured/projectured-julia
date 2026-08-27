@@ -19,6 +19,21 @@ mutable struct ReflectNested
     data::Vector{Int}
 end
 
+# `Document` is two things: the shape `@document` builds, and the bound an event
+# argument is stored inline under. A type that is one only through the bound has
+# no `selection` slot, and every field it declares is content.
+mutable struct ReflectBoundOnly <: Document
+    first_field::Int
+    last_field::String
+end
+
+# And one that DOES hold the slot, declared the way a value-document declares it.
+mutable struct ReflectWithSlot <: Document
+    first_field::Int
+    last_field::String
+    selection::Nothing
+end
+
 reflect_kids(node) = node.children
 reflect_kid(node, i) = node.children[i]
 reflect_tail(node) = (k = node.children; k[length(k)])
@@ -28,6 +43,23 @@ function test_document_reflection()
 
 obj = ReflectNested("root", ReflectLeafy(1, "x"), collect(1:1000))
 policy = DepthPolicy(depth = 1, elements = 4)
+
+# ── Which last field is machinery, and which is content ───────────────────
+@testset "the selection slot is hidden by its name, not by a supertype" begin
+    # A `Document` that never met the macro keeps every field it declares.
+    bound = ReflectBoundOnly(1, "kept")
+    @test [p.first for p in reflect_children(bound)] == ["first_field", "last_field"]
+    @test reflect_child_count(bound) == 2
+    # The count bounds what the sync builds and the pairs build it, so the two
+    # must agree or a row goes missing or a phantom tail appears.
+    @test reflect_child_count(bound) == length(reflect_children(bound))
+
+    # One that holds the slot hides it, exactly as before.
+    slotted = ReflectWithSlot(1, "kept", nothing)
+    @test [p.first for p in reflect_children(slotted)] == ["first_field", "last_field"]
+    @test reflect_child_count(slotted) == 2
+    @test reflect_child_count(slotted) == length(reflect_children(slotted))
+end
 
 # ── The bound applies to a plain object exactly as it does to a document ──
 @testset "one level open, the rest marked" begin
