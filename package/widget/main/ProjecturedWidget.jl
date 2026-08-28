@@ -48,6 +48,7 @@ const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
+const ObjectFieldModule = ProjecturedPrimitive.ObjectFieldModule
 const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
 const OperationRerootingModule = ProjecturedKernel.OperationModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
@@ -61,6 +62,7 @@ const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
 include("Widget.jl")
 include("WidgetToGraphics.jl")
 include("ObjectToWidget.jl")
+include("ObjectFieldToWidget.jl")
 include("ReflectionToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("WidgetHoverTracking.jl")
