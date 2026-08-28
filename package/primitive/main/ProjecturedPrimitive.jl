@@ -6,6 +6,10 @@ The scalar documents — `PrimitiveBool`, `PrimitiveNumber`,
 that edit them. The reader half of the pair lives in
 `ProjecturedProjection`, which depends on this package.
 
+`ObjectField` sits here too. It is domain-neutral like the scalars, and it is
+placed in the lowest package both `ProjecturedWidget` and `ProjecturedSyntax`
+already depend on, so its two projections can reach it.
+
 The submodules below are aliased so this package's source files keep their
 relative `..XxxModule` references.
 """
@@ -20,5 +24,6 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
 include("Primitive.jl")
+include("ObjectField.jl")
 
 end # module ProjecturedPrimitive
