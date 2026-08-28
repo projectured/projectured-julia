@@ -1023,8 +1023,25 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
     op = @event_case evt begin
         MousePress(button, x, y) => begin
             cox, coy = _content_offset(iomap.input)
-            read_intent(content_iomap.projection, content_iomap,
-                            MousePress(button, x - cox, y - coy, evt.modifiers))
+            # The box can be wider and taller than what it holds: it has a `width`
+            # floor, and an empty document measures nothing at all. Clamp the
+            # press into the content's own extent, so a click anywhere in the box
+            # lands in the text — at the nearest character, and at the start when
+            # there is no text to be near. Without this an empty field cannot be
+            # clicked into at all, and a wide one only over its own letters.
+            inner = content_iomap.output
+            (lx, ly) = if inner isa GraphicsCanvas
+                (clamp(x - cox, 0, max(0, Int(inner.w))), clamp(y - coy, 0, max(0, Int(inner.h))))
+            else
+                (x - cox, y - coy)
+            end
+            answer = read_intent(content_iomap.projection, content_iomap,
+                                 MousePress(button, lx, ly, evt.modifiers))
+            # A document with nothing in it measures nothing, so it has no
+            # position to answer with and an empty field could not be clicked
+            # into at all. A click in the box means "the caret goes here", and on
+            # an empty document that is the whole of it.
+            answer === nothing ? ReplaceSelectionOperation(EmptyReference()) : answer
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
