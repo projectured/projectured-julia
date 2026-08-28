@@ -181,6 +181,8 @@ include("projection/TextHighlightingTest.jl")
 include("projection/SelectionInvertingTest.jl")
 # ── widget projections ───────────────────────────────────────────────────────
 include("projection/ObjectToWidgetTest.jl")
+include("projection/ObjectFieldToWidgetTest.jl")
+include("projection/ObjectFieldToSyntaxTest.jl")
 include("projection/ReflectionToWidgetTest.jl")
 include("projection/ProjectionConfiguringTest.jl")
 include("projection/CellTableToWidgetTableTest.jl")
@@ -295,6 +297,8 @@ function test_substrate()
         test_selection_inverting()
         # widget projections
         test_object_to_widget()
+        test_object_field_to_widget()
+        test_object_field_to_syntax()
         test_reflection_to_widget()
         test_projection_configuring()
         test_cell_table_to_widget_table()
@@ -370,6 +374,7 @@ export test_plot_geometry,
        test_word_wrapping, test_text_filtering, test_text_highlighting,
        test_selection_inverting
 export test_reflection_to_widget
+export test_object_field_to_widget, test_object_field_to_syntax
 export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
