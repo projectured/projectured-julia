@@ -108,6 +108,7 @@ include("document/Syntax.jl")
 include("document/Text.jl")
 include("document/Object.jl")
 include("document/ObjectToWidget.jl")
+include("document/ObjectField.jl")
 include("document/LineNumbering.jl")
 include("document/TextToString.jl")
 include("document/WordWrapping.jl")
@@ -125,6 +126,7 @@ include("projection/Syntax.jl")
 include("projection/Text.jl")
 include("projection/Object.jl")
 include("projection/ObjectToWidget.jl")
+include("projection/ObjectField.jl")
 include("projection/LineNumbering.jl")
 include("projection/TextToString.jl")
 include("projection/WordWrapping.jl")
@@ -147,7 +149,7 @@ include("projection/Table.jl")
 include("Examples.jl")
 include("Harness.jl")
 
-export Address, AppSettings, Person, SearchSettings, WindowSettings, collection_example
+export Address, AppSettings, FormServer, Person, SearchSettings, WindowSettings, collection_example
 export constraint_layout_example, filtering_example, force_next, force_prev, integers_from
 export integers_from_bidirectional, layout_example, lazy_bidirectional_example
 export lazy_bidirectional_node, lazy_example, lazy_filter, lazy_filter_bidirectional
@@ -166,6 +168,8 @@ export make_line_numbering_document_example, make_line_numbering_projection_exam
 export make_nested_object_to_widget_document_example, make_object_document_example
 export make_object_projection_example, make_object_to_widget_document_example
 export make_object_to_widget_projection_example, make_plain_text_document_example
+export make_object_field_document_example, make_object_field_form_document_example
+export make_object_field_form_projection_example, make_object_field_syntax_projection_example
 export make_plain_text_projection_example, make_primitive_string_document_example
 export make_primitive_string_projection_example, make_reference_inspector_document_example
 export make_reversing_projection_example, make_rotating_vector_document
@@ -213,6 +217,7 @@ export make_widget_tooltip_document_example, make_widget_transform_pane_document
 export make_widget_tree_document_example, make_window_document_document_example
 export make_word_wrapping_document_example, make_word_wrapping_projection_example
 export nested_object_to_widget_example, object_example, object_to_widget_example
+export object_field_form_example, object_field_syntax_example
 export plain_text_example, print_example, reversing_example, rotating_vector_example
 export searching_example, sieve, sieve_bidirectional, sieve_prev, sorting_example
 export syntax_example, text_example, text_filtering_example, text_highlighting_example

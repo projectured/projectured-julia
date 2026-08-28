@@ -14,6 +14,8 @@ const text_with_image_example = Example("text_with_image", make_text_with_image_
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
 const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
 const nested_object_to_widget_example = Example("nested_object_to_widget", make_nested_object_to_widget_document_example, make_object_to_widget_projection_example)
+const object_field_form_example = Example("object_field_form", make_object_field_form_document_example, make_object_field_form_projection_example)
+const object_field_syntax_example = Example("object_field_syntax", make_object_field_document_example, make_object_field_syntax_projection_example)
 const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
@@ -79,6 +81,8 @@ const substrate_examples = Example[
     object_example,
     object_to_widget_example,
     nested_object_to_widget_example,
+    object_field_form_example,
+    object_field_syntax_example,
     line_numbering_example,
     word_wrapping_example,
     text_filtering_example,
