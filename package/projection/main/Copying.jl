@@ -11,7 +11,8 @@ child iomaps so that map_reference_backward can delegate through them
 """
 module CopyingProjectionModule
 
-import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
@@ -19,6 +20,8 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
+import ..OperationModule: operation_reference, retarget_operation,
+                          operation_travels_unchanged, ReplaceReferencedValueOperation
 
 export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
 
@@ -251,10 +254,59 @@ function map_reference_forward(::CopyingProjection, iomap::CopyingProjectionIoMa
     _map_ref(map_reference_forward, iomap, reference)
 end
 
-# CopyingProjection is domain-independent: it has no `read_intent` method of
-# its own. The generic reader bridge (ProjectionModule) routes selection and
-# edit operations back through `map_reference_backward`, which delegates into the
-# stored child iomaps. Screen/window event routing lives in `ScreenToScreen`, the
-# screen-domain projection — not here.
+# ── read_intent ───────────────────────────────────────────────────────────────
+#
+# `CopyingProjection` is domain-independent and answers no operation of its own.
+# It does one thing: it offers an operation to the child its reference names,
+# before the generic bridge re-targets it.
+#
+# That offer is what a mapper can not do. `map_reference_backward` moves a
+# reference; it can not change what an operation IS. Some projections answer an
+# edit with a different operation altogether — `ObjectFieldToWidget` turns a
+# character range in its control into a write on the object its field names — and
+# that conversion happens only if the operation reaches that projection's reader.
+# Without the offer a form of copied nodes types into the rendering and never
+# into the document behind it.
+#
+# Only an answer that carries its own root is taken. One that names a place is
+# still in the child's own domain and needs the prefix this projection would add,
+# which is exactly what the generic bridge does through `map_reference_backward`.
+function read_intent(p::CopyingProjection, iomap::CopyingProjectionIoMap, op)
+    found = _child_for_operation(iomap, op)
+    if found !== nothing
+        (child_iomap, inner) = found
+        answer = read_intent(child_iomap.projection, child_iomap, inner)
+        (answer !== nothing && _self_rooted(answer)) && return answer
+    end
+    invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+end
+
+# An answer that needs no prefix from this projection, because it carries its own
+# root. A write that names its document is one; so is any operation a package
+# declares as travelling. An answer that still names a place is not, and goes
+# back to the generic bridge to be prefixed.
+_self_rooted(op) =
+    op isa ReplaceReferencedValueOperation ? op.document !== nothing :
+    operation_travels_unchanged(op)
+
+# The child an operation's reference names, and the operation re-rooted at it.
+function _child_for_operation(iomap::CopyingProjectionIoMap, op)
+    reference = operation_reference(op)
+    reference isa ConcreteReference || return nothing
+    h = head(reference)
+    rest = tail(reference)
+    child_iomap = if h isa RangeReferenceStep && iomap.field_names === nothing &&
+                     iomap.children isa Vector && !isempty(iomap.children)
+        j = h.start + 1
+        (1 <= j <= length(iomap.children)) ? iomap.children[j] : nothing
+    elseif h isa FieldReferenceStep && iomap.field_names isa Vector
+        idx = findfirst(==(h.name), iomap.field_names)
+        idx === nothing ? nothing : iomap.children[idx]
+    else
+        nothing
+    end
+    child_iomap === nothing && return nothing
+    (child_iomap, retarget_operation(op, rest))
+end
 
 end # module

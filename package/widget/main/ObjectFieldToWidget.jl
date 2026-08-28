@@ -131,17 +131,43 @@ function _checkbox(p::ObjectFieldToWidget, field::ObjectField)
     control
 end
 
-# A WidgetText whose TextBlock content is a reactive view of the field, with the
-# caret pinned to the end of the text. WidgetText recurses a Document content
-# through the Text domain, so caret navigation and editing originate in
-# TextToGraphics and come back here as a ReplaceStringRangeOperation.
+# A WidgetText whose TextBlock content is a reactive view of the field.
+# `WidgetText` recurses a Document content through the Text domain, so caret
+# navigation and editing originate in `TextToGraphics` and come back here as a
+# `ReplaceStringRangeOperation`.
+#
+# **The caret follows the field's own selection.** A click sets it — through the
+# default backward mapper, which roots the control path at the `ObjectField` —
+# and this reads it back out, so the caret sits where the person clicked. With
+# no selection the caret is at the end of the text, which is where a form that
+# nobody has clicked wants it and what `ObjectToWidget` pins it to.
 function _text_control(p::ObjectFieldToWidget, field::ObjectField)
     ts = TextString("", p.style)
     set_cell_function!(getfield(ts, :content), () -> _as_string(object_field_value(field)))
     tt = TextBlock(ts)
-    set_cell_function!(getfield(tt, :selection),
-                       () -> _end_cursor(length(_as_string(object_field_value(field)))))
+    set_cell_function!(getfield(tt, :selection), () -> begin
+        inside = _caret_in_content(getfield(field, :selection)[])
+        inside === nothing ?
+            _end_cursor(length(_as_string(object_field_value(field)))) : inside
+    end)
     WidgetText(Point2D(0, 0), tt)
+end
+
+# The caret the field holds, as a path inside the control's own content.
+#
+# A click comes back through the default backward mapper as
+# `proj(this projection, <path in the control>)`, and the control is a
+# `WidgetText` whose content is the block. So the part below `.content` is the
+# block's own selection, and everything else — a caret the field does not carry,
+# or one that names something else — answers nothing.
+function _caret_in_content(selection)
+    selection isa ConcreteReference || return nothing
+    step = selection.head
+    hasproperty(step, :output_path) || return nothing
+    inner = step.output_path
+    inner isa ConcreteReference || return nothing
+    (inner.head isa FieldReferenceStep && inner.head.name == "content") || return nothing
+    inner.tail isa ConcreteReference ? inner.tail : nothing
 end
 
 function _read_only_label(p::ObjectFieldToWidget, field::ObjectField)
@@ -182,10 +208,13 @@ function read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap,
     ReplaceReferencedValueOperation(field.object, field.path, _coerce(current, edited))
 end
 
-# A click on a control sets a caret in the control's own text. That caret is a
-# derived view pinned to the text end, so there is no field-domain selection to
-# set; consume it rather than let a widget-shaped path reach the object.
-read_intent(::ObjectFieldToWidget, ::ObjectFieldToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
+# A click on a control sets a caret in the control's own text, and that caret has
+# no pre-image in the object: the object holds a value, not a position in a
+# rendering of it. The default of `Projection` is what answers here — it roots
+# the control path at the `ObjectField` as a projection-introduced path, which
+# `_text_control` reads back so the caret sits where the click was. Consuming it,
+# as this projection first did, leaves a form nobody can type into: with no
+# selection anywhere, no container knows which control a key belongs to.
 
 read_intent(::ObjectFieldToWidget, ::ObjectFieldToWidgetIoMap, op) = op
 
@@ -202,11 +231,12 @@ function _terminal_range(ref)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
-# Caret navigation from the control's text into the object's reference space is
-# deferred, as it is for ObjectToWidget. The control's caret is pinned, so there
-# is nothing yet for a mapper to answer.
-
-map_reference_forward(::ObjectFieldToWidget, ::ObjectFieldToWidgetIoMap, reference) = nothing
-map_reference_backward(::ObjectFieldToWidget, ::ObjectFieldToWidgetIoMap, reference) = nothing
+#
+# Neither direction is written here, and that is the answer rather than a gap. A
+# caret in the control names a position in a rendering, and the object has no
+# such position to name; the defaults of `Projection` wrap it as a
+# projection-introduced path on the way in and unwrap it on the way out, which is
+# exactly the correspondence. Answering `nothing` from either would drop every
+# click and every key that crosses this projection.
 
 end # module
