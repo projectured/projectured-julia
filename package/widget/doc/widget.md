@@ -210,6 +210,68 @@ shows them together.
   The built-in `numeric_validator(; integer=false, allow_negative=true)` accepts
   digits with an optional sign / decimal point.
 
+## A form of object fields
+
+`ObjectToWidget` reflects **one** object into a fixed two-column grid of that
+object's own fields. A form usually wants less and more at once: three fields of
+this object, one of that one, in an order and a layout the author chose.
+`ObjectField` is the document for that, and `ObjectFieldToWidget` is its
+projection.
+
+`ObjectField(object, path)` names one field of one object. `object` is a stable
+root; `path` is a `Reference` from that root to the value. There is a
+`ObjectField(object, "name")` shorthand for the common one-step path, the same
+shorthand `ReplaceReferencedValueOperation` already offers.
+
+The projection emits the **bare control** and no label. A `GridLayout` takes a
+flat child list, so a label and its control must be two separate children; a
+projection that emitted both could never put them in different columns. The
+author writes the label, which is what makes `FormLayout` the natural container:
+
+```julia
+FormLayout([
+    (WidgetLabel(Point2D(0, 0), "Server name"), ObjectField(server, "name")),
+    (WidgetLabel(Point2D(0, 0), "Client name"), ObjectField(client, "name")),
+    (WidgetLabel(Point2D(0, 0), "Capacity"),    ObjectField(server, "capacity")),
+    (WidgetLabel(Point2D(0, 0), "Enabled"),     ObjectField(server, "enabled")),
+])
+```
+
+The value type picks the control, through the classification `ObjectToWidget`
+uses: a `Bool` becomes a `WidgetCheckbox`, a string or a number a `WidgetText`,
+anything else a read-only `WidgetLabel`. Pass `controls` to add a row for a
+domain type. The control is chosen once and its content is then bound reactively,
+so a write from anywhere repaints it and the caret survives an ordinary edit.
+
+Projecting the form is two stages. The first replaces every `ObjectField` with
+its control and copies the rest; the second draws the result.
+
+```julia
+ChainingProjection(
+    RecursiveProjection(TypeDispatchingProjection(
+        ObjectField => ObjectFieldToWidget(),
+        Any         => CopyingProjection())),
+    <the widget renderer>,
+)
+```
+
+`CopyingProjection` is what makes the walk work. It recurses a struct document
+field by field through `print_child`, so the dispatch meets each `ObjectField`
+wherever the author put it.
+
+### A vector element edits here
+
+`ObjectToWidget` renders a vector element read-only. Its printer registers a
+control only when it holds the field's backing `Cell`, and a `@document` field is
+a cell while a vector's *elements* live inside one. `ObjectField` needs no cell:
+it writes through the path, and `ElementReferenceStep(i)` is the
+`RangeReferenceStep(i-1, i)` the kernel already writes as `parent[i] = value`.
+
+One trap comes with that. The kernel overloads the same terminal step with an
+`AbstractVector` value as a **splice**. An `ObjectField` whose value is itself a
+vector can not be written by a plain replace; the write would delete and
+re-insert.
+
 ## Widget operations
 
 Most widget edits are a **single-field write into a carried widget**, so the

@@ -59,6 +59,37 @@ node.collapsed = true    # collapse this node to one line
 node.indentation = 2     # override indentation depth
 ```
 
+## One field of one object
+
+`ObjectFieldToSyntax` projects an `ObjectField` — one field of one object — to
+the field node `ObjectNodeToSyntaxNode` builds inline for each field of a struct:
+the name leaf, then the projected value.
+
+```julia
+ObjectField(server, "name")      →   name "gateway"
+ObjectField(server, "capacity")  →   capacity 4
+ObjectField(server, "enabled")   →   enabled true
+```
+
+The name comes from the last `FieldReferenceStep` of the path. A step that names
+no field — an element step, for example — leaves the value alone, because an
+index makes a poor label and the caller can put one beside it.
+
+Put its entry in front of `ObjectToSyntax`'s own table. Without it the `Any` row
+dispatches to `ObjectNodeToSyntaxNode`, which dumps the whole object and its
+reference path:
+
+```julia
+RecursiveProjection(TypeDispatchingProjection(vcat(
+    Pair{Type,Any}[ObjectField => ObjectFieldToSyntax()],
+    ObjectToSyntax().dispatch)))
+```
+
+`ObjectNodeToSyntaxNode` keeps its private version. It projects each field's
+**`Cell`** through `CellToSyntax`, which is how a field repaints when its cell is
+written. An `ObjectField` names a value reached by `evaluate_reference` and has no
+cell to hand on, so the two are reactive by different means.
+
 ## Key Features
 
 - Generic representation for multiple domains

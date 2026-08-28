@@ -207,6 +207,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `Julia.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOp`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
 | `Process.jl` | `ProcessModel`, `ProcessSequence`, `ProcessStep`, `ProcessDecision`, `ProcessWhile`, `ProcessForeach`, `ProcessBreak`, `ProcessContinue`, `ProcessReturn`; presentation `ProcessDiagram`, `ProcessTerminal`, `ProcessEdgeLabel`, `ProcessDebugSession` |
 | `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation` |
+| `ObjectField.jl` | `ObjectField` — one field of one object: a root object and a `Reference` to a value |
 | `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
 | `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |
 | `Collection.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
@@ -253,6 +254,7 @@ composes with any higher-order projection.
 | `FocusingProjection` | Projects a focused sub-document |
 | `SearchingProjection` | Collects every object with a field matching a `Regex` |
 | `ObjectToWidget` | Reflection-driven editable form for an object's `Cell` fields |
+| `ObjectFieldToWidget` | One `ObjectField` → the bare control that edits it; the author lays the labels out |
 
 **Compound** (`compound/`):
 `ApplyAtProjection`, `SortingAtProjection`.
@@ -269,6 +271,7 @@ composes with any higher-order projection.
 | `PrimitiveToSyntax` | `Primitive` → `Syntax` |
 | `CollectionToSyntax` | `Collection` → `Syntax` |
 | `ObjectToSyntax` | Any Julia value → `Syntax` |
+| `ObjectFieldToSyntax` | One `ObjectField` → a name leaf beside the projected value |
 | `FileSystemToSyntax` | `FileSystem` → `Syntax` |
 | `SyntaxToText` | `Syntax` → `Text` |
 | `TextToGraphics` | `Text` → `Graphics` |
@@ -374,7 +377,7 @@ concept, and each declares the exact set of packages it imports:
 
 ```
    collection      CellVector, CellMatrix, CellTable, ListNode
-   primitive       PrimitiveBool / Number / String / Insertion and their range operations
+   primitive       PrimitiveBool / Number / String / Insertion and their range operations, ObjectField
    domain          DocumentCore, the @domain macro, insertion completion
    serialization   BinarySerialization, FileProject, TextFile
    style           Color, Font, TrueType, Geometry, Image, strokes and text styles
