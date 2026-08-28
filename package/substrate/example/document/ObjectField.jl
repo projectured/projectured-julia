@@ -22,9 +22,9 @@ function make_object_field_document_example()
     ObjectField(_form_server(), "name")
 end
 
-# A hand-laid form. Every odd child is a label the author wrote; every even child
-# is an `ObjectField` the projection turns into a control. Rows 1 and 2 name the
-# SAME field of two DIFFERENT objects.
+# A hand-laid form. Each row is a label the author wrote and an `ObjectField` the
+# projection turns into a control. Rows 1 and 2 name the SAME field of two
+# DIFFERENT objects.
 #
 # The last row addresses a vector element. `ObjectToWidget` renders one read-only,
 # because it registers a control only when it holds the field's backing cell, and
@@ -35,11 +35,14 @@ function make_object_field_form_document_example()
     client = _form_client()
     tag_2 = extend_reference(ConcreteReference(FieldReferenceStep("tags"), EmptyReference()),
                              ElementReferenceStep(2))
-    GridLayout(Any[
-        WidgetLabel(Point2D(0, 0), "Server name"), ObjectField(server, "name"),
-        WidgetLabel(Point2D(0, 0), "Client name"), ObjectField(client, "name"),
-        WidgetLabel(Point2D(0, 0), "Capacity"),    ObjectField(server, "capacity"),
-        WidgetLabel(Point2D(0, 0), "Enabled"),     ObjectField(server, "enabled"),
-        WidgetLabel(Point2D(0, 0), "Second tag"),  ObjectField(server, tag_2),
-    ], 2; horizontal_gap = 12, vertical_gap = 6, vertical_align = :center)
+    # `FormLayout` takes (label, field) pairs of documents and builds the
+    # two-column grid. A bare control is exactly what its field slot wants, which
+    # is the second reason `ObjectFieldToWidget` emits no label of its own.
+    FormLayout([
+        (WidgetLabel(Point2D(0, 0), "Server name"), ObjectField(server, "name")),
+        (WidgetLabel(Point2D(0, 0), "Client name"), ObjectField(client, "name")),
+        (WidgetLabel(Point2D(0, 0), "Capacity"),    ObjectField(server, "capacity")),
+        (WidgetLabel(Point2D(0, 0), "Enabled"),     ObjectField(server, "enabled")),
+        (WidgetLabel(Point2D(0, 0), "Second tag"),  ObjectField(server, tag_2)),
+    ])
 end
