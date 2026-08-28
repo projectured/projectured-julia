@@ -14,6 +14,7 @@ import ..DocumentApiModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule
 import ..SelectionModule: replace_selection!, keeps_dormant_selection
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
@@ -2170,6 +2171,18 @@ argument, else with none. A disabled action, or a `nothing` callback, is a no-op
 struct InvokeActionOperation <: Operation
     action::Action
 end
+
+# The operations of this package name their SUBJECT and not a place: the action
+# to invoke, the tabbed pane whose tab to close, the split whose divider moved.
+# There is nothing for a projection to re-root and nothing for one to place, so
+# they travel up the chain as they are — which is what lets a button rendered
+# inside a document reach the editor at all. Without this the generic reader of
+# `Projection` drops every one of them, and a control inside a card, a pane or a
+# page is dead while it looks and draws exactly right.
+OperationModule.operation_travels_unchanged(::Union{
+    InvokeActionOperation, CloseTabRequestOperation, NewTabRequestOperation,
+    DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+    EndSplitterDragOperation}) = true
 
 # SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
 # ReplaceReferencedValueOperation: the WidgetButton reader emits
