@@ -42,6 +42,7 @@ const TextRangeReferenceStepModule = ProjecturedText.TextRangeReferenceStepModul
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
+const ObjectFieldModule = ProjecturedPrimitive.ObjectFieldModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const StyleTextModule = ProjecturedStyle.StyleTextModule
@@ -55,6 +56,7 @@ const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindi
 include("Syntax.jl")
 include("SyntaxToText.jl")
 include("ObjectToSyntax.jl")
+include("ObjectFieldToSyntax.jl")
 include("CollectionToSyntax.jl")
 include("PrimitiveToSyntax.jl")
 include("InsertionToSyntax.jl")
