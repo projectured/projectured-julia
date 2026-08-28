@@ -183,7 +183,12 @@ function host_struct(component::FsmComponent)
         push!(fields, type === nothing ? _id(variable.name) :
                       JuliaTypeAnnotation(_id(variable.name), type))
     end
-    JuliaStruct(true, _id(host_type_name(component)), JuliaBlock(fields))
+    # `Foo <: Bar` when the component names a supertype, and the bare name when
+    # it does not — an empty `supertype` generates exactly what it always did.
+    head = isempty(component.supertype) ?
+           _id(host_type_name(component)) :
+           JuliaSubtype(_id(host_type_name(component)), _id(component.supertype))
+    JuliaStruct(true, head, JuliaBlock(fields))
 end
 
 """

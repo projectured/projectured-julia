@@ -136,6 +136,15 @@ the shared extended-state `variables`, `timers` and `events` with one or more
 `machines` over them, plus `usings` (module-level `JuliaUsing` items) and
 `helpers` (arbitrary top-level `JuliaDocument` items — constants, interface
 structs, classifier and helper functions) so the generated module is complete.
+
+`supertype` is what the generated `…State` struct subtypes, as source text —
+empty for a struct that subtypes nothing, which is what a component says by
+saying nothing. It is a STRING and this domain never reads it: a host struct
+belongs to whatever system generated it, and a system that needs its state to
+satisfy a bound of its own says so here rather than editing the output. The
+10BASE-T1S port is the caller this exists for: an event argument must subtype
+`EventArgument`, and a timer that carries the machine's state is the whole
+reason its arming allocates nothing.
 """
 @document struct FsmComponent <: FsmDocument
     name::String
@@ -145,6 +154,7 @@ structs, classifier and helper functions) so the generated module is complete.
     machines::CellVector = CellVector()
     usings::CellVector = CellVector()
     helpers::CellVector = CellVector()
+    supertype::String = ""
 end
 
 # ── Mixed positional+keyword constructors ────────────────────────────────
@@ -170,10 +180,12 @@ FsmMachine(name::AbstractString; initial = nothing, states = FsmState[],
                Cell(on_unhandled), Cell(nothing))
 
 FsmComponent(name::AbstractString; variables = FsmVariable[], timers = FsmTimer[],
-             events = FsmEvent[], machines = FsmMachine[], usings = [], helpers = []) =
+             events = FsmEvent[], machines = FsmMachine[], usings = [], helpers = [],
+             supertype::AbstractString = "") =
     FsmComponent(Cell(String(name)), _fsm_cellvector(variables), _fsm_cellvector(timers),
                  _fsm_cellvector(events), _fsm_cellvector(machines),
-                 _fsm_cellvector(usings), _fsm_cellvector(helpers), Cell(nothing))
+                 _fsm_cellvector(usings), _fsm_cellvector(helpers),
+                 Cell(String(supertype)), Cell(nothing))
 
 # ── Lookup helpers ───────────────────────────────────────────────────────
 # Name-based resolution is what the notation reader and the paste fix-up use;
