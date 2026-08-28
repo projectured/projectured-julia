@@ -22,6 +22,7 @@ import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
 import ..OperationModule: operation_reference, retarget_operation,
                           operation_travels_unchanged, ReplaceReferencedValueOperation
+import ..SelectionModule: get_stored_selection
 
 export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
 
@@ -181,44 +182,47 @@ end
 
 # ── Reference mapping helpers ─────────────────────────────────────────────
 
+"""
+The child io map that a navigation step names. Three answers, and both the
+mappers and the reader need all three:
+
+- an io map — the step names that child.
+- `missing` — the step names no child of this node: a primitive, a field that
+  holds no document, or a list step that is not an element step.
+- `nothing` — the step names a child that does not exist.
+"""
+function _child_iomap(iomap::CopyingProjectionIoMap, h)
+    if h isa RangeReferenceStep && iomap.field_names === nothing
+        if iomap.children isa Vector
+            isempty(iomap.children) && return missing   # primitive
+            j = h.start + 1
+            return (1 <= j <= length(iomap.children)) ? iomap.children[j] : nothing
+        elseif iomap.children === nothing && iomap.recursion !== nothing
+            # ListNode: walk to the indexed node and project on demand.
+            is_element_reference_step(h) || return missing
+            return _get_listnode_child_iomap(iomap, h.start + 1)
+        end
+    elseif h isa FieldReferenceStep && iomap.field_names isa Vector
+        idx = findfirst(==(h.name), iomap.field_names)
+        return idx === nothing ? missing : iomap.children[idx]   # non-document field
+    end
+    missing
+end
+
 function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before dispatching on the head's
     # navigation step (index vs. field); the child mapper re-canonicalizes.
-    reference = reference
     reference isa ConcreteReference || return reference
     h = head(reference)
-    rest = tail(reference)
-    if h isa RangeReferenceStep && iomap.field_names === nothing
-        if iomap.children isa Vector
-            isempty(iomap.children) && return reference   # primitive — pass through
-            j = h.start + 1
-            (j < 1 || j > length(iomap.children)) && return nothing
-            child_im = iomap.children[j]
-            mapped = fn(child_im.projection, child_im, rest)
-            mapped === nothing && return nothing
-            # Copying preserves order, so the index step passes through unchanged
-            # (mirrors the ListNode branch below).
-            return ConcreteReference(h, mapped)
-        elseif iomap.children === nothing && iomap.recursion !== nothing
-            # ListNode path: walk to the indexed node and project on demand
-            is_element_reference_step(h) || return reference
-            index = h.start + 1
-            child_iomap = _get_listnode_child_iomap(iomap, index)
-            child_iomap === nothing && return nothing
-            mapped = fn(child_iomap.projection, child_iomap, rest)
-            mapped === nothing && return nothing
-            return ConcreteReference(h, mapped)
-        end
-    elseif h isa FieldReferenceStep && iomap.field_names isa Vector
-        name = h.name
-        idx = findfirst(==(name), iomap.field_names)
-        idx === nothing && return reference   # non-document field — identity
-        child_im = iomap.children[idx]
-        mapped = fn(child_im.projection, child_im, rest)
-        mapped === nothing && return nothing
-        return ConcreteReference(FieldReferenceStep(name), mapped)
-    end
-    return reference
+    child_im = _child_iomap(iomap, h)
+    child_im === missing && return reference   # names no child — identity
+    child_im === nothing && return nothing     # names a child that is not there
+    mapped = fn(child_im.projection, child_im, tail(reference))
+    mapped === nothing && return nothing
+    # Copying preserves order and field names, so the step itself passes through.
+    # A field step is rebuilt from its name: the child mapper re-canonicalizes the
+    # type checkpoint below it.
+    ConcreteReference(h isa FieldReferenceStep ? FieldReferenceStep(h.name) : h, mapped)
 end
 
 function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
@@ -256,57 +260,65 @@ end
 
 # ── read_intent ───────────────────────────────────────────────────────────────
 #
-# `CopyingProjection` is domain-independent and answers no operation of its own.
-# It does one thing: it offers an operation to the child its reference names,
-# before the generic bridge re-targets it.
+# A copied node is a container, and a container reader routes: it offers the
+# payload to the child the payload belongs to before it answers anything itself.
+# `LayoutToGraphics` routes the same way — by coordinate for a pointer event, by
+# the `selection` for a key.
 #
-# That offer is what a mapper can not do. `map_reference_backward` moves a
-# reference; it can not change what an operation IS. Some projections answer an
-# edit with a different operation altogether — `ObjectFieldToWidget` turns a
-# character range in its control into a write on the object its field names — and
-# that conversion happens only if the operation reaches that projection's reader.
-# Without the offer a form of copied nodes types into the rendering and never
-# into the document behind it.
-#
-# Only an answer that carries its own root is taken. One that names a place is
-# still in the child's own domain and needs the prefix this projection would add,
-# which is exactly what the generic bridge does through `map_reference_backward`.
-function read_intent(p::CopyingProjection, iomap::CopyingProjectionIoMap, op)
-    found = _child_for_operation(iomap, op)
-    if found !== nothing
-        (child_iomap, inner) = found
-        answer = read_intent(child_iomap.projection, child_iomap, inner)
-        (answer !== nothing && _self_rooted(answer)) && return answer
+# The route is what a mapper can not replace. `map_reference_backward` moves a
+# reference; it can not change what an operation IS, and a child may have to:
+# `ObjectFieldToWidget` turns a character range in its control into a write on the
+# object its field names. That conversion happens only if the operation reaches
+# that child's reader. Without the route a form of copied nodes types into the
+# rendering and never into the document behind it.
+function read_intent(p::CopyingProjection, iomap::CopyingProjectionIoMap, payload)
+    routed = _route_to_child(iomap, payload)
+    if routed !== nothing
+        (child_im, inner) = routed
+        answer = read_intent(child_im.projection, child_im, inner)
+        (answer !== nothing && _needs_no_prefix(answer)) && return answer
     end
-    invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, payload)
 end
 
-# An answer that needs no prefix from this projection, because it carries its own
-# root. A write that names its document is one; so is any operation a package
-# declares as travelling. An answer that still names a place is not, and goes
-# back to the generic bridge to be prefixed.
-_self_rooted(op) =
+# The child a payload belongs to, and the payload as that child sees it.
+#
+# An operation that says WHERE it acts is routed there, and this node's own step
+# comes off its reference. Every other payload — a key, an operation that names
+# its own subject — is routed to the child the `selection` points at and reaches
+# it unchanged.
+function _route_to_child(iomap::CopyingProjectionIoMap, payload)
+    reference = operation_reference(payload)
+    if reference isa ConcreteReference
+        child_im = _child_iomap(iomap, head(reference))
+        _is_child(child_im) || return nothing
+        return (child_im, retarget_operation(payload, tail(reference)))
+    end
+    step = _selection_step(iomap)
+    step === nothing && return nothing
+    child_im = _child_iomap(iomap, step)
+    _is_child(child_im) ? (child_im, payload) : nothing
+end
+
+_is_child(child_im) = !(child_im === missing || child_im === nothing)
+
+# The step of this node's own selection that names a child.
+function _selection_step(iomap::CopyingProjectionIoMap)
+    input = _unwrap(iomap.input)
+    input isa Document || return nothing
+    selection = get_stored_selection(input)
+    selection isa ConcreteReference ? head(selection) : nothing
+end
+
+# An answer this node must not prefix, because it carries its own root or it
+# travels. Both conditions are the kernel default reader's own: a
+# `ReplaceReferencedValueOperation` that names its document is forwarded
+# unchanged there, and so is an operation that reports no reference and declares
+# that it travels. An answer that still names a place is in the child's own
+# domain and needs this node's step in front of it, which is what the generic
+# bridge builds through `map_reference_backward`.
+_needs_no_prefix(op) =
     op isa ReplaceReferencedValueOperation ? op.document !== nothing :
     operation_travels_unchanged(op)
-
-# The child an operation's reference names, and the operation re-rooted at it.
-function _child_for_operation(iomap::CopyingProjectionIoMap, op)
-    reference = operation_reference(op)
-    reference isa ConcreteReference || return nothing
-    h = head(reference)
-    rest = tail(reference)
-    child_iomap = if h isa RangeReferenceStep && iomap.field_names === nothing &&
-                     iomap.children isa Vector && !isempty(iomap.children)
-        j = h.start + 1
-        (1 <= j <= length(iomap.children)) ? iomap.children[j] : nothing
-    elseif h isa FieldReferenceStep && iomap.field_names isa Vector
-        idx = findfirst(==(h.name), iomap.field_names)
-        idx === nothing ? nothing : iomap.children[idx]
-    else
-        nothing
-    end
-    child_iomap === nothing && return nothing
-    (child_iomap, retarget_operation(op, rest))
-end
 
 end # module

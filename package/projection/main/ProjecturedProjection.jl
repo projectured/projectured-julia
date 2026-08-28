@@ -27,6 +27,7 @@ const CellModule = ProjecturedKernel.CellModule
 const EventModule = ProjecturedKernel.EventModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
+const SelectionModule = ProjecturedKernel.SelectionModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
