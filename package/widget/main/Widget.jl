@@ -110,13 +110,20 @@ set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(position, content; content_fill_color, <base kwargs>)
+    WidgetText(position, content; width, content_fill_color, <base kwargs>)
 
 An editable text widget..
+
+`width` is a floor and not a size: the box is at least that many pixels wide and
+grows with what is typed into it. It is `0` by default, which is the box that
+fits its content exactly — and which is a box of nothing at all when the content
+is empty. A form gives its fields a width so that an empty one can still be
+clicked. `WidgetSpinBox` carries the same field for the same reason.
 """
 @document struct WidgetText <: WidgetDocument
     position::Point2D
     content::Any
+    width::Int
     content_fill_color::StyleColor
     validator::Any
     visible::Bool
@@ -130,6 +137,7 @@ An editable text widget..
 end
 
 function WidgetText(position::Point2D, content;
+                    width::Integer=0,
                     content_fill_color=nothing,
                     validator=nothing,
                     visible::Bool=true,
@@ -141,7 +149,8 @@ function WidgetText(position::Point2D, content;
                     padding::Inset=inset_default,
                     padding_color=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
-    WidgetText(Cell(position), Cell(content), Cell(content_fill_color), Cell(validator),
+    WidgetText(Cell(position), Cell(content), Cell(Int(width)),
+               Cell(content_fill_color), Cell(validator),
                Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),

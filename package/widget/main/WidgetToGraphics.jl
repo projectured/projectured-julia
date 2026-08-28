@@ -960,7 +960,11 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         build = ComputedCell(() -> begin
             radius = _sc(p.corner_radius)
             inner = content_iomap[].output::GraphicsCanvas
-            iw, ih = Int(inner.w[]), Int(inner.h[])
+            # The box is at least as wide as the widget asks for, and always at
+            # least one line tall. An empty document measures nothing in both
+            # directions, and a form field of nothing cannot be clicked.
+            iw = max(Int(inner.w[]), w.width)
+            ih = max(Int(inner.h[]), _text_size(p.measure, p.text.font, "X")[2])
             elems = Any[]
             # Themed input surface: background fill + input outline + rounded corners.
             _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
@@ -977,6 +981,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         radius = _sc(p.corner_radius)
         text = string(w.content)
         cw, ch = _text_size(p.measure, p.text.font, text)
+        cw = max(cw, w.width)
         tx, ty = _inset_total(w)
         elems = Any[]
         _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
