@@ -59,6 +59,7 @@ import ..GestureBindingModule: read_gesture
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference, try_evaluate_reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: annotate_reference_types
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
@@ -646,7 +647,7 @@ end
 function map_reference_forward(::WorkbenchAssistantToWidgetSplitPane, iomap, reference)
     @reference_case reference begin
         ::WorkbenchAssistant.conversation.rest... => @reference ::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
-        ::WorkbenchAssistant.input.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
+        ::WorkbenchAssistant.draft.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
     end
 end
 
@@ -723,16 +724,29 @@ function map_reference_backward(::WorkbenchAssistantToWidgetSplitPane,
                                  iomap,
                                  reference)
     # The assistant projects to a vertical WidgetSplitPane with the
-    # conversation pane at slot 0 and the input pane at slot 1, each
+    # conversation pane at slot 0 and the composer at slot 1, each
     # wrapped in a LayoutConstraint and then a WidgetScrollPane.
     # So bubbled paths look like `elements[i].child.content.<rest>`.
+    #
+    # Slot 1 is the `draft` and not the `input`: the composer types into the
+    # draft, as the printer above says. Naming `input` here spliced a path
+    # through a `ConversationDraft` under a `PrimitiveString`, and the strict
+    # check refused it — so a CLICK in the composer threw where a KEY worked,
+    # because the reader routes keys by itself and only a click goes through
+    # this mapper.
+    #
+    # The tail is typed against the document it descends from. What comes back
+    # from a pane is a path in the widget domain with no node types on it, and a
+    # spliced path must be typed all the way down or the strict check refuses it.
+    assistant = iomap === nothing ? nothing : iomap.input
+    typed(document, tail) = document === nothing ? tail : annotate_reference_types(document, tail)
     @reference_case reference begin
         ::WidgetSplitPane.elements{s:e}.child.content.rest... => begin
             i = s + 1
             if i == 1
-                @reference ::WorkbenchAssistant.conversation.^(rest)
+                @reference ::WorkbenchAssistant.conversation.^(typed(assistant === nothing ? nothing : assistant.conversation, rest))
             elseif i == 2
-                @reference ::WorkbenchAssistant.input.^(rest)
+                @reference ::WorkbenchAssistant.draft.^(typed(assistant === nothing ? nothing : assistant.draft, rest))
             else
                 nothing
             end
