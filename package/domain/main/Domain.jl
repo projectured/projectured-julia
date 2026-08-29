@@ -27,7 +27,48 @@ alias first, then an unambiguous prefix).
 """
 module DomainModule
 
-import InteractiveUtils: subtypes
+# `subtypes` WITHOUT InteractiveUtils.
+#
+# `InteractiveUtils` is the REPL's introspection stdlib — `@which`, `@edit`,
+# `@code_native`, `versioninfo` — and its only dependency is `Markdown`. This
+# package used one function from it, and that single import put `Markdown` in
+# the closure of every program that reads a NED or INI file, because
+# `OmnetppFormat` depends on this package. The file below already warns that
+# "adding a sixth from a rendering package would put the editor back in the
+# closure of everything that reads a NED file"; the dependency arrived through
+# the back door instead.
+#
+# Copied from `InteractiveUtils.subtypes` (Julia 1.13). It uses nothing but
+# Base, so the copy costs 30 lines and removes two packages.
+function _subtypes_in!(mods::Array, @nospecialize(x::Type), world::UInt)
+    xt = Base.unwrap_unionall(x)
+    if !isabstracttype(x) || !isa(xt, DataType)
+        return Type[]
+    end
+    sts = Vector{Any}()
+    while !isempty(mods)
+        m = pop!(mods)
+        xt = xt::DataType
+        for s in Base.unsorted_names(m; all = true, world)
+            if !Base.isdeprecated(m, s) && Base.invoke_in_world(world, isdefinedglobal, m, s)
+                t = Base.invoke_in_world(world, getglobal, m, s)
+                dt = isa(t, UnionAll) ? Base.unwrap_unionall(t) : t
+                if isa(dt, DataType)
+                    if dt.name.name === s && dt.name.module == m && supertype(dt).name == xt.name
+                        ti = typeintersect(t, x)
+                        ti != Union{} && push!(sts, ti)
+                    end
+                elseif isa(t, Module) && nameof(t) === s && parentmodule(t) === m && t !== m
+                    t === Base || push!(mods, t)   # Base is parented by Main too
+                end
+            end
+        end
+    end
+    return permute!(sts, sortperm(map(string, sts)))
+end
+
+subtypes(x::Type; world::UInt = Base.get_world_counter()) =
+    _subtypes_in!(Base.loaded_modules_array(), x, world)
 import ..EventPatternModule
 import ..GestureBindingModule
 import ..DocumentModule: Document, var"@document", document_family
