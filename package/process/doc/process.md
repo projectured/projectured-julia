@@ -219,7 +219,7 @@ is not marked; it is the one position a realized loop does not report.
 
 Realized code depends on **nothing but these names**, which is what keeps it
 runnable outside the editor. `ProcessRuntime` is the implementation shipped
-here; an embedder may substitute its own, exactly as omnetpp-julia's `Fsm`
+here; an embedder may substitute its own, exactly as omnet-julia's `Fsm`
 runtime does for the state machine domain.
 
 1. `process_at!(trace, index)` and `process_at!(trace, index, locals)` — record

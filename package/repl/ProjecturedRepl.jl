@@ -12,7 +12,7 @@
 # loaded before the packages it tracks, and as a dependency its position in the
 # load order is the resolver's business.
 #
-# Measured on the omnetpp-julia demo, which loads the same stack: with no
+# Measured on the omnet-julia demo, which loads the same stack: with no
 # workload the first click costs 5.98 s, of which 3.88 s is `recompile_time` —
 # code that was compiled into the package images and then invalidated by
 # something loading later.
@@ -76,7 +76,7 @@ ProjecturedRepl` pays the build once.
 
 `:recorded` is the default. A recording covers what a person actually did rather
 than what somebody thought to write down, which is why it is the only one of the
-three that compiles the *reader*: measured in omnetpp-julia, the read half of a
+three that compiles the *reader*: measured in omnet-julia, the read half of a
 first click is 4.4 ms under `:recorded` and 528 ms under `:live`, the same as
 under no workload at all.
 

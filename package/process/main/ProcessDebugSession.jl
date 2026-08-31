@@ -50,7 +50,7 @@ The cells:
 position up. Call it **from the editor's refresh hook, never from a cell** —
 it writes document cells, and the rule that only the editor's own task does
 that is what makes the threading model safe (`refresh_lifecycle!` in
-omnetpp-julia is the precedent). Pause latency is one refresh, which buys a
+omnet-julia is the precedent). Pause latency is one refresh, which buys a
 design with no locks and no races.
 """
 module ProcessDebugSessionModule

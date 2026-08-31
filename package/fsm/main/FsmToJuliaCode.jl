@@ -49,7 +49,7 @@ of the contract, not an implementation detail.
 
 The dispatch function is straight-line branching, not a table walk: it reads
 like the hand-written protocol code it replaces, and runs at the same speed.
-The runtime module (`FsmModule` in omnetpp-julia's simulator package) supplies
+The runtime module (`FsmModule` in omnet-julia's simulator package) supplies
 only what a local branch cannot express — the state cell, the deferred queue,
 the re-entrancy guard, the cascade cap.
 """

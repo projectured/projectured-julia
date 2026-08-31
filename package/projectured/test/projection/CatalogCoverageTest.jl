@@ -30,7 +30,7 @@ _coverage_ours(T) = begin
     body = T isa UnionAll ? Base.unwrap_unionall(T) : T
     body isa DataType || return false
     root = string(Base.moduleroot(parentmodule(body)))
-    (startswith(root, "Projectured") || startswith(root, "Omnetpp")) && !endswith(root, "Test")
+    (startswith(root, "Projectured") || startswith(root, "Omnet")) && !endswith(root, "Test")
 end
 
 # Types a printer names that no atom could ever be: `Array`/`Bool`/`Symbol` and

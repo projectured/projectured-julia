@@ -30,7 +30,7 @@ document to open without a link. The downstream projects cite these rules as
 | repository | product | architectural |
 | --- | --- | --- |
 | **projectured-julia** | **`PR-`** | **`PAR-`** |
-| omnetpp-julia | `OR-` | `OAR-` |
+| omnet-julia | `OR-` | `OAR-` |
 | inet-julia | `IR-` | `IAR-` |
 
 Three rules govern the IDs:

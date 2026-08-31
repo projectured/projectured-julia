@@ -33,7 +33,7 @@ the ordered includes. [JsonToSyntax.jl](../package/json/main/JsonToSyntax.jl) an
 ```
 
 63 files carry that header. This repository uses that form and not the box
-comment that `omnetpp-julia` and `inet-julia` use. The header says which module
+comment that `omnet-julia` and `inet-julia` use. The header says which module
 owns the fragment and what the fragment adds.
 
 **A contract fragment says where each body lives**, so a reader who wants the
@@ -135,7 +135,7 @@ lines. The size of the four largest files is the weak point.
 
 An agent that crosses repositories must not carry a habit over.
 
-| Point | Here | omnetpp-julia and inet-julia |
+| Point | Here | omnet-julia and inet-julia |
 | --- | --- | --- |
 | File header | `# Fragment of \`XModule\` — job` | a `# ====` box comment |
 | Section banner | heavy, 1451 | 523 and 51 |
