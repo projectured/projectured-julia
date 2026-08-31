@@ -11,14 +11,12 @@ relative `..XxxModule` references.
 module ProjecturedNatural
 
 using ProjecturedCollection
+using ProjecturedKernel
 using ProjecturedDomain
-using ProjecturedFileFormat
 using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
-using ProjecturedSerialization
 using ProjecturedStyle
-using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
@@ -32,16 +30,12 @@ const CollectionToLayoutModule = ProjecturedLayout.CollectionToLayoutModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const WordWrappingModule = ProjecturedText.WordWrappingModule
-const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
-const ObjectToSyntaxModule = ProjecturedSyntax.ObjectToSyntaxModule
-const CollectionToSyntaxModule = ProjecturedSyntax.CollectionToSyntaxModule
-const PrimitiveToSyntaxModule = ProjecturedSyntax.PrimitiveToSyntaxModule
-const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const TextModule = ProjecturedText.TextModule
-const DocumentInsertionToSyntaxModule = ProjecturedSyntax.DocumentInsertionToSyntaxModule
+const StyleTextModule = ProjecturedStyle.StyleTextModule
+const ColorModule = ProjecturedStyle.ColorModule
 const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
-const EmbedToSyntaxModule = ProjecturedFileFormat.EmbedToSyntaxModule
-const FileProjectModule = ProjecturedSerialization.FileProjectModule
+const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
+const IoMapModule = ProjecturedKernel.IoMapModule
 
 include("NaturalRegistry.jl")
 include("NaturalProjection.jl")

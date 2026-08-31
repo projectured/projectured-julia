@@ -1023,7 +1023,7 @@ uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
 
 [[deps.ProjecturedFileFormat]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 entryfile = "ProjecturedFileFormat.jl"
 path = "package/fileformat/main"
 uuid = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
@@ -1274,7 +1274,7 @@ uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
 
 [[deps.ProjecturedNatural]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 entryfile = "ProjecturedNatural.jl"
 path = "package/natural/main"
 uuid = "09daa789-626e-40de-aeba-3b7256e1b478"
@@ -1491,7 +1491,7 @@ uuid = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 version = "0.1.0"
 
 [[deps.ProjecturedSyntax]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText"]
 entryfile = "ProjecturedSyntax.jl"
 path = "package/syntax/main"
 uuid = "98402e06-2a56-4e2c-83c3-b2840758e8f3"

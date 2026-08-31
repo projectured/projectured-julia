@@ -14,12 +14,15 @@ module ProjecturedSyntax
 using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedKernel
+using ProjecturedNatural
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
+const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
+const NaturalRegistryModule = ProjecturedNatural.NaturalRegistryModule
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
@@ -60,5 +63,12 @@ include("ObjectFieldToSyntax.jl")
 include("CollectionToSyntax.jl")
 include("PrimitiveToSyntax.jl")
 include("InsertionToSyntax.jl")
+include("SyntaxNatural.jl")
+
+# The reflection tail this package can draw with, offered to the natural
+# renderer. Runtime state, so it is registered on load rather than baked into an
+# image — and from here, because Julia calls `__init__` on a package's top-level
+# module only.
+__init__() = SyntaxNaturalModule.register_syntax_fallback!()
 
 end # module ProjecturedSyntax

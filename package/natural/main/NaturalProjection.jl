@@ -76,63 +76,43 @@ import ..CollectionToLayoutModule: CellVectorToVerticalLayout
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextToGraphicsModule: TextToGraphics
 import ..WordWrappingModule: WordWrapping
-import ..SyntaxToTextModule: SyntaxToText
-import ..ObjectToSyntaxModule: ObjectToSyntax
-import ..CollectionToSyntaxModule: CollectionToSyntax
-import ..PrimitiveToSyntaxModule: PrimitiveToSyntax
-import ..PrimitiveModule: PrimitiveDocument
-import ..TextModule: TextDocument, TextNothing, TextInsertion
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..TextModule: TextDocument, TextBlock, TextString
+import ..StyleTextModule: StyleText
+import ..ColorModule: color_default
 import ..DocumentCoreModule: DocumentNothing
-import ..EmbedToSyntaxModule: ReferenceStubToSyntax, FileDocumentToSyntax
-import ..FileProjectModule: FileDocument, ReferenceStub
+import ..ProjectionApiModule: print_document, Projection
+import ..IoMapModule: SimpleIoMap, get_iomap_output
 import ..NaturalRegistryModule: natural_syntax_entries, natural_graphics_entries,
-                                register_natural_syntax!, register_natural_graphics!
+                                natural_fallback_entries, register_natural_syntax!,
+                                register_natural_graphics!, register_natural_fallback!
 
-export NaturalToGraphics, natural_to_syntax_dispatch,
-       register_natural_syntax!, register_natural_graphics!
+export NaturalToGraphics,
+       register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
 
 """
-    natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
+    PhraseToGraphics(message, style, measure)
 
-The shared *to-syntax* dispatch table: every syntax-producible domain → its
-`*ToSyntax`, collections → `CollectionToSyntax`, and the `ObjectToSyntax`
-reflection table as the tail (so plain `Bool`/`Number`/`String`/… render as
-leaves and any unknown value as a reflected node). Exposed so callers can splice
-or extend it the way `WidgetToGraphics(…).dispatch` is spliced.
+A document drawn as one line of prose. `message(document)` is what the line says.
+
+Two rows use it, and neither may need a domain that can reflect a document into a
+tree: the empty-document placeholder, and the message a document nothing claimed
+draws. Drawing that message is the whole difference between a renderer that is
+composed of what a session loaded and one that must carry everything.
 """
-# No domain is named here. Every source domain registers its own row from a file
-# it already has (`NaturalRegistryModule`), which is also how a domain living
-# downstream of this package — a NED file, an INI config — gets rendered. The
-# registered rows come FIRST, so a domain can override another domain's row.
-function natural_to_syntax_dispatch()
-    vcat(
-        natural_syntax_entries(),
-        Pair{Type,Any}[
-            # An embed renders as what it embeds: the stub prints the value its
-            # marker evaluated to, the file document prints its content. Both
-            # come *before* the reflection tail, and neither is in a domain's own
-            # table — saving goes through that one and stays by-marker.
-            ReferenceStub      => ReferenceStubToSyntax(),
-            FileDocument       => FileDocumentToSyntax(),
-            PrimitiveDocument  => PrimitiveToSyntax(),
-            # The Text domain's `@domain` pair. Text has no `TextToSyntax` table of
-            # its own to carry them (it *is* the layer syntax prints to), and both
-            # renderers live here, so its two entries live here — ahead of the
-            # `TextDocument` prose route below, which prints a span sequence and
-            # would not know what to do with a placeholder or a name buffer.
-            TextNothing        => InsertionNothingToSyntaxLeaf(),
-            TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument),
-            # The domain-free placeholder. `DocumentNothing` is what a hole with
-            # no domain yet holds — the content of a fresh pane tab, among other
-            # things. Without this entry it reaches the reflection tail and draws
-            # its own type name instead of "empty document".
-            DocumentNothing    => InsertionNothingToSyntaxLeaf(),
-        ],
-        CollectionToSyntax().dispatch,   # CellVector, ListNode
-        ObjectToSyntax().dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
-    )
+struct PhraseToGraphics <: Projection
+    message::Any
+    style::StyleText
+    measure::Any
 end
+
+function print_document(p::PhraseToGraphics, recursion, document, ctx)
+    line = TextBlock(TextString(p.message(document), p.style))
+    inner = print_document(TextToGraphics(measure = p.measure), recursion, line, ctx)
+    SimpleIoMap(p, document, get_iomap_output(inner))
+end
+
+_unsupported_message(document) =
+    "no natural rendering for " * String(nameof(typeof(document)))
 
 """
     NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_20,
@@ -163,13 +143,14 @@ function NaturalToGraphics(; measure::Function,
         ChainingProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
         TextToGraphics(measure = measure)
 
-    # The shared element-recursion fabric (mixed domains + collections), then the
-    # Syntax→Text→Graphics tail.
-    syntax_to_graphics = ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch())),
-        RecursiveProjection(SyntaxToText()),
-        TextToGraphics(measure = measure),
-    )
+    style = StyleText(font, color_default)
+
+    # A fallback registers rows for exact types and, usually, one for `Any`. The
+    # two go to different places in the table: the exact ones before this
+    # package's abstract rows, the `Any` after them.
+    registered = natural_fallback_entries(measure = measure, font = font, wrap = wrap)
+    specific = Pair{Type,Any}[p for p in registered if first(p) !== Any]
+    tail     = Pair{Type,Any}[p for p in registered if first(p) === Any]
 
     table = vcat(
         Pair{Type,Any}[p for p in extra],
@@ -183,26 +164,27 @@ function NaturalToGraphics(; measure::Function,
         # node be a widget, a page hold a live card, and a number inside a
         # formula render through the shared primitive path.
         natural_graphics_entries(measure = measure),
+        # A fallback's own rows: the placeholders only it can draw. They name
+        # exact types, so they come before the two abstract rows below — a
+        # `TextInsertion` is a `TextDocument`, and prose is not what it is.
+        specific,
         Pair{Type,Any}[
-            # An embed wears a card here, and only here: a card is a widget, so it
-            # belongs in a to-graphics table. The to-syntax fabric above keeps the
-            # bare rules, and so does every domain's own table — the save path
-            # goes through those and stays by-marker.
-            ReferenceStub => ReferenceStubToSyntax(unforced = :prose, wrap = :card),
-            FileDocument  => FileDocumentToSyntax(unforced = :prose, wrap = :card),
-            # The Text placeholder / name buffer are `TextDocument`s, but they are not
-            # prose: they route through the syntax fabric, whose table renders them
-            # with the shared `@domain` leaves. Exact types, so they win over the
-            # abstract `TextDocument` entry below.
-            TextNothing   => syntax_to_graphics,
-            TextInsertion => syntax_to_graphics,
-            TextDocument  => prose_chain,
+            # The domain-free placeholder — what a fresh pane tab holds. It draws
+            # as prose, so an empty tab needs no reflection.
+            DocumentNothing => PhraseToGraphics(_ -> "empty document", style, measure),
+            TextDocument    => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,
             # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.
-            CellVector   => ChainingProjection(CellVectorToVerticalLayout(),
+            CellVector      => ChainingProjection(CellVectorToVerticalLayout(),
                                                  VerticalLayoutToGraphicsCanvas()),
-            Any          => syntax_to_graphics,
+        ],
+        # The fallback's own tail, then this one. A session that loaded a package
+        # that can draw anything reaches its tail; one that did not reaches the
+        # message.
+        tail,
+        Pair{Type,Any}[
+            Any => PhraseToGraphics(_unsupported_message, style, measure),
         ],
     )
 
