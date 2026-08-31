@@ -81,8 +81,8 @@ include("projection/FsmToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedFsm`.
 """
 function test_fsm_layering()
-    main = normpath(dirname(pathof(ProjecturedFsm)))
-    check_layering(main, joinpath(main, "ProjecturedFsm.jl");
+    main = package_source_root(ProjecturedFsm)
+    check_layering(main, pathof(ProjecturedFsm);
                    name = "fsm",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFsm; all = true)

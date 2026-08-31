@@ -31,11 +31,11 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
     end
 end
 
-include("SequenceChartGeometry.jl")
-include("SequenceChartRowReferenceStep.jl")
-include("SequenceChart.jl")
-include("SequenceChartPlot.jl")
-include("SequenceChartToSequenceChartPlot.jl")
-include("SequenceChartPlotToGraphics.jl")
+include("../../../source/sequencechart/SequenceChartGeometry.jl")
+include("../../../source/sequencechart/SequenceChartRowReferenceStep.jl")
+include("../../../source/sequencechart/SequenceChart.jl")
+include("../../../source/sequencechart/SequenceChartPlot.jl")
+include("../../../source/sequencechart/SequenceChartToSequenceChartPlot.jl")
+include("../../../source/sequencechart/SequenceChartPlotToGraphics.jl")
 
 end # module ProjecturedSequenceChart

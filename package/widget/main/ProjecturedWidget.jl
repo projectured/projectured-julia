@@ -59,14 +59,14 @@ const TextModule = ProjecturedText.TextModule
 const DocumentReflectionModule = ProjecturedReflection.DocumentReflectionModule
 const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
 
-include("Widget.jl")
-include("WidgetToGraphics.jl")
-include("ObjectToWidget.jl")
-include("ObjectFieldToWidget.jl")
-include("ReflectionToWidget.jl")
-include("CellTableToWidgetTable.jl")
-include("WidgetHoverTracking.jl")
-include("ProjectionConfiguring.jl")
-include("WidgetPopupResolver.jl")
+include("../../../source/widget/Widget.jl")
+include("../../../source/widget/WidgetToGraphics.jl")
+include("../../../source/widget/ObjectToWidget.jl")
+include("../../../source/widget/ObjectFieldToWidget.jl")
+include("../../../source/widget/ReflectionToWidget.jl")
+include("../../../source/widget/CellTableToWidgetTable.jl")
+include("../../../source/widget/WidgetHoverTracking.jl")
+include("../../../source/widget/ProjectionConfiguring.jl")
+include("../../../source/widget/WidgetPopupResolver.jl")
 
 end # module ProjecturedWidget

@@ -49,9 +49,9 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("Json.jl")
-include("JsonParser.jl")
-include("JsonToSyntax.jl")
-include("JsonFile.jl")   # FileDocument wrapping a JsonDocument
+include("../../../source/json/Json.jl")
+include("../../../source/json/JsonParser.jl")
+include("../../../source/json/JsonToSyntax.jl")
+include("../../../source/json/JsonFile.jl")   # FileDocument wrapping a JsonDocument
 
 end # module ProjecturedJson

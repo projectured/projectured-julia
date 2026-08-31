@@ -96,8 +96,8 @@ implementing (PAR-INTERFACE-DECLARES-ONLY).
 function test_kernel_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
     # is not under a src/), so derive the package root from `pathof`.
-    main = normpath(dirname(pathof(ProjecturedKernel)))
-    check_layering(main, joinpath(main, "ProjecturedKernel.jl");
+    main = package_source_root(ProjecturedKernel)
+    check_layering(main, pathof(ProjecturedKernel);
                    name = "kernel",
                    layers = ["cell", "clock", "event", "device", "gesture", "backend",
                              "document", "reference", "selection", "operation",
@@ -164,7 +164,7 @@ end
 
 export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
-export check_layering, test_layering_checkers
+export check_layering, package_source_root, test_layering_checkers
 # kernel unit suites
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,

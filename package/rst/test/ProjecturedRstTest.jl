@@ -73,8 +73,8 @@ include("serializer/RstEmbedTest.jl")
 Static layered-architecture guard for `ProjecturedRst`.
 """
 function test_rst_layering()
-    main = normpath(dirname(pathof(ProjecturedRst)))
-    check_layering(main, joinpath(main, "ProjecturedRst.jl");
+    main = package_source_root(ProjecturedRst)
+    check_layering(main, pathof(ProjecturedRst);
                    name = "rst",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedRst; all = true)

@@ -73,8 +73,8 @@ include("document/DatabaseTest.jl")
 Static layered-architecture guard for `ProjecturedDatabase`.
 """
 function test_database_layering()
-    main = normpath(dirname(pathof(ProjecturedDatabase)))
-    check_layering(main, joinpath(main, "ProjecturedDatabase.jl");
+    main = package_source_root(ProjecturedDatabase)
+    check_layering(main, pathof(ProjecturedDatabase);
                    name = "database",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedDatabase; all = true)

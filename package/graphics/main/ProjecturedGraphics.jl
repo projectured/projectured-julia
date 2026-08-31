@@ -33,8 +33,8 @@ const IdentityProjectionModule = ProjecturedProjection.IdentityProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
-include("PointReferenceStep.jl")
-include("Graphics.jl")
-include("GraphicsCaching.jl")
+include("../../../source/graphics/PointReferenceStep.jl")
+include("../../../source/graphics/Graphics.jl")
+include("../../../source/graphics/GraphicsCaching.jl")
 
 end # module ProjecturedGraphics

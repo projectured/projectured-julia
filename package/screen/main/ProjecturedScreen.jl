@@ -28,8 +28,8 @@ const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
-include("ScreenDocument.jl")
-include("WindowManaging.jl")
-include("ScreenToScreen.jl")
+include("../../../source/screen/ScreenDocument.jl")
+include("../../../source/screen/WindowManaging.jl")
+include("../../../source/screen/ScreenToScreen.jl")
 
 end # module ProjecturedScreen

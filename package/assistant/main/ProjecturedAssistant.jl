@@ -46,9 +46,9 @@ for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedDomain,
     end
 end
 
-include("Assistant.jl")
-include("AssistantToWidget.jl")
-include("AssistantTurn.jl")
+include("../../../source/assistant/Assistant.jl")
+include("../../../source/assistant/AssistantToWidget.jl")
+include("../../../source/assistant/AssistantTurn.jl")
 
 using .AssistantModule
 using .AssistantToWidgetModule

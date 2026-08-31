@@ -74,8 +74,8 @@ include("serializer/XmlFileTest.jl")
 Static layered-architecture guard for `ProjecturedXml`.
 """
 function test_xml_layering()
-    main = normpath(dirname(pathof(ProjecturedXml)))
-    check_layering(main, joinpath(main, "ProjecturedXml.jl");
+    main = package_source_root(ProjecturedXml)
+    check_layering(main, pathof(ProjecturedXml);
                    name = "xml",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedXml; all = true)

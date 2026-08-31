@@ -73,8 +73,8 @@ include("external/DbCatalogSqlTest.jl")
 Static layered-architecture guard for `ProjecturedDbCatalog`.
 """
 function test_dbcatalog_layering()
-    main = normpath(dirname(pathof(ProjecturedDbCatalog)))
-    check_layering(main, joinpath(main, "ProjecturedDbCatalog.jl");
+    main = package_source_root(ProjecturedDbCatalog)
+    check_layering(main, pathof(ProjecturedDbCatalog);
                    name = "dbcatalog",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedDbCatalog; all = true)

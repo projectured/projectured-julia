@@ -77,8 +77,8 @@ include("serializer/JsonFileTest.jl")
 Static layered-architecture guard for `ProjecturedJson`.
 """
 function test_json_layering()
-    main = normpath(dirname(pathof(ProjecturedJson)))
-    check_layering(main, joinpath(main, "ProjecturedJson.jl");
+    main = package_source_root(ProjecturedJson)
+    check_layering(main, pathof(ProjecturedJson);
                    name = "json",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedJson; all = true)

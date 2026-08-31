@@ -34,7 +34,7 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("Book.jl")
-include("BookToSyntax.jl")
+include("../../../source/book/Book.jl")
+include("../../../source/book/BookToSyntax.jl")
 
 end # module ProjecturedBook

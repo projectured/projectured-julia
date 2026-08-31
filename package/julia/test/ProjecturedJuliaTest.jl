@@ -74,8 +74,8 @@ include("editor/JuliaTypeinTest.jl")
 Static layered-architecture guard for `ProjecturedJulia`.
 """
 function test_julia_layering()
-    main = normpath(dirname(pathof(ProjecturedJulia)))
-    check_layering(main, joinpath(main, "ProjecturedJulia.jl");
+    main = package_source_root(ProjecturedJulia)
+    check_layering(main, pathof(ProjecturedJulia);
                    name = "julia",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedJulia; all = true)

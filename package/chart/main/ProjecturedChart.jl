@@ -34,10 +34,10 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
     end
 end
 
-include("ChartSampleReferenceStep.jl")
-include("Chart.jl")
-include("ChartPlot.jl")
-include("ChartToChartPlot.jl")
-include("ChartPlotToGraphics.jl")
+include("../../../source/chart/ChartSampleReferenceStep.jl")
+include("../../../source/chart/Chart.jl")
+include("../../../source/chart/ChartPlot.jl")
+include("../../../source/chart/ChartToChartPlot.jl")
+include("../../../source/chart/ChartPlotToGraphics.jl")
 
 end # module ProjecturedChart

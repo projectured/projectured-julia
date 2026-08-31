@@ -36,24 +36,24 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("Graph.jl")
-include("GraphLayout.jl")
-include("GraphLayoutEngine.jl")
+include("../../../source/graph/Graph.jl")
+include("../../../source/graph/GraphLayout.jl")
+include("../../../source/graph/GraphLayoutEngine.jl")
 # The two layouters OMNeT++ draws a network with, ported file for file from
 # `omnet-cpp/src/layout/`. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.
-include("omnetpp/LcgRandom.jl")
-include("omnetpp/Geometry.jl")
-include("omnetpp/GraphComponent.jl")
-include("omnetpp/BasicSpringEmbedderLayout.jl")
-include("omnetpp/ForceDirectedParametersBase.jl")
-include("omnetpp/ForceDirectedParameters.jl")
-include("omnetpp/ForceDirectedEmbedding.jl")
-include("omnetpp/StarTreeEmbedding.jl")
-include("omnetpp/HeapEmbedding.jl")
-include("omnetpp/ForceDirectedGraphLayouter.jl")
-include("GraphLayoutChoice.jl")
-include("GraphToGraphLayout.jl")
-include("GraphLayoutToGraphics.jl")
+include("../../../source/graph/omnetpp/LcgRandom.jl")
+include("../../../source/graph/omnetpp/Geometry.jl")
+include("../../../source/graph/omnetpp/GraphComponent.jl")
+include("../../../source/graph/omnetpp/BasicSpringEmbedderLayout.jl")
+include("../../../source/graph/omnetpp/ForceDirectedParametersBase.jl")
+include("../../../source/graph/omnetpp/ForceDirectedParameters.jl")
+include("../../../source/graph/omnetpp/ForceDirectedEmbedding.jl")
+include("../../../source/graph/omnetpp/StarTreeEmbedding.jl")
+include("../../../source/graph/omnetpp/HeapEmbedding.jl")
+include("../../../source/graph/omnetpp/ForceDirectedGraphLayouter.jl")
+include("../../../source/graph/GraphLayoutChoice.jl")
+include("../../../source/graph/GraphToGraphLayout.jl")
+include("../../../source/graph/GraphLayoutToGraphics.jl")
 
 end # module ProjecturedGraph

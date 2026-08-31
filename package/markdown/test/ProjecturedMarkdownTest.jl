@@ -72,8 +72,8 @@ include("serializer/MarkdownEmbedTest.jl")
 Static layered-architecture guard for `ProjecturedMarkdown`.
 """
 function test_markdown_layering()
-    main = normpath(dirname(pathof(ProjecturedMarkdown)))
-    check_layering(main, joinpath(main, "ProjecturedMarkdown.jl");
+    main = package_source_root(ProjecturedMarkdown)
+    check_layering(main, pathof(ProjecturedMarkdown);
                    name = "markdown",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedMarkdown; all = true)

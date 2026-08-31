@@ -15,7 +15,13 @@
 # cannot be fooled by what happens to be in a session.
 # ============================================================================
 
-using TOML
+# Two keys of a `Project.toml` are all this guard reads, and a regex reads them.
+# `using TOML` would make the standard library a declared dependency of every
+# package that includes this file, and `test_package_graph()` asserts that a
+# package declares exactly what its source names.
+_project_key(text, key) =
+    (m = match(Regex("(?m)^\\s*" * key * " = \"([^\"]+)\""), text)) === nothing ?
+        nothing : m.captures[1]
 
 _entries(path) = isdir(path) ? sort!(readdir(path)) : String[]
 _subdirs(path) = filter(d -> isdir(joinpath(path, d)), _entries(path))
@@ -83,16 +89,19 @@ function package_violations(root::AbstractString)
     for name in _subdirs(base)
         directory = joinpath(base, name)
         isfile(joinpath(directory, "Project.toml")) || continue   # not flattened yet
-        project = TOML.parsefile(joinpath(directory, "Project.toml"))
-        haskey(project, "name") || continue                       # an environment, reported elsewhere
-        haskey(project, "entryfile") &&
-            push!(out, "package/$name — names an `entryfile`; the root is src/$(project["name"]).jl")
-        roots = _jl(directory)
+        text = read(joinpath(directory, "Project.toml"), String)
+        package = _project_key(text, "name")
+        package === nothing && continue                           # an environment, reported elsewhere
+        _project_key(text, "entryfile") === nothing ||
+            push!(out, "package/$name — names an `entryfile`; the root is src/$package.jl")
+        # `runtests.jl` is Julia's, not this tree's: `Pkg.test` looks for it in
+        # the package directory and nowhere else.
+        roots = filter(!=("runtests.jl"), _jl(directory))
         isempty(roots) ||
             push!(out, "package/$name — holds $(length(roots)) `.jl` file(s) beside its " *
-                       "Project.toml; the root is src/$(project["name"]).jl")
-        isfile(joinpath(directory, "src", project["name"] * ".jl")) ||
-            push!(out, "package/$name — has no src/$(project["name"]).jl")
+                       "Project.toml; the root is src/$package.jl")
+        isfile(joinpath(directory, "src", package * ".jl")) ||
+            push!(out, "package/$name — has no src/$package.jl")
         for sub in _subdirs(directory)
             (sub == "src" || sub == "ext") && continue
             push!(out, "package/$name/$sub — a package directory holds no folders but src/ and ext/")
@@ -219,7 +228,7 @@ tree_violations(root::AbstractString) =
          environment_violations(root), ships_violations(root),
          guard_root_violations(root))
 
-# Runnable on its own. It needs no environment — TOML is a standard library:
+# Runnable on its own. It needs no environment and no dependency:
 #
 #     julia test/suite/tree.jl
 #

@@ -39,10 +39,10 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("Julia.jl")
-include("JuliaParser.jl")
-include("JuliaInsertionToSyntax.jl")
-include("JuliaFile.jl")
-include("JuliaToSyntax.jl")
+include("../../../source/julia/Julia.jl")
+include("../../../source/julia/JuliaParser.jl")
+include("../../../source/julia/JuliaInsertionToSyntax.jl")
+include("../../../source/julia/JuliaFile.jl")
+include("../../../source/julia/JuliaToSyntax.jl")
 
 end # module ProjecturedJulia

@@ -34,8 +34,8 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
-include("OsClipboard.jl")
-include("Clipboard.jl")
-include("ClipboardToAny.jl")
+include("../../../source/clipboard/OsClipboard.jl")
+include("../../../source/clipboard/Clipboard.jl")
+include("../../../source/clipboard/ClipboardToAny.jl")
 
 end # module ProjecturedClipboard

@@ -39,10 +39,10 @@ for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, 
     end
 end
 
-include("Markdown.jl")
-include("MarkdownParser.jl")
-include("MarkdownToSyntax.jl")
-include("MarkdownFile.jl")
-include("MarkdownToLayout.jl")
+include("../../../source/markdown/Markdown.jl")
+include("../../../source/markdown/MarkdownParser.jl")
+include("../../../source/markdown/MarkdownToSyntax.jl")
+include("../../../source/markdown/MarkdownFile.jl")
+include("../../../source/markdown/MarkdownToLayout.jl")
 
 end # module ProjecturedMarkdown

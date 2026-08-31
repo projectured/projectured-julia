@@ -33,7 +33,7 @@ for _src in (ProjecturedCollection, ProjecturedJulia, ProjecturedKernel, Project
     end
 end
 
-include("Formula.jl")
-include("FormulaToSyntax.jl")
+include("../../../source/formula/Formula.jl")
+include("../../../source/formula/FormulaToSyntax.jl")
 
 end # module ProjecturedFormula

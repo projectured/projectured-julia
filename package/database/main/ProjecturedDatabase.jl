@@ -27,8 +27,8 @@ for _src in (ProjecturedKernel,)
     end
 end
 
-include("DatabaseInstance.jl")
-include("Database.jl")
-include("DatabaseAdapters.jl")
+include("../../../source/database/DatabaseInstance.jl")
+include("../../../source/database/Database.jl")
+include("../../../source/database/DatabaseAdapters.jl")
 
 end # module ProjecturedDatabase

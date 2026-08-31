@@ -73,8 +73,8 @@ include("projection/FormulaToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedFormula`.
 """
 function test_formula_layering()
-    main = normpath(dirname(pathof(ProjecturedFormula)))
-    check_layering(main, joinpath(main, "ProjecturedFormula.jl");
+    main = package_source_root(ProjecturedFormula)
+    check_layering(main, pathof(ProjecturedFormula);
                    name = "formula",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFormula; all = true)

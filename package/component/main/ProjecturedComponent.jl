@@ -14,6 +14,6 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
-include("Component.jl")
+include("../../../source/component/Component.jl")
 
 end # module ProjecturedComponent

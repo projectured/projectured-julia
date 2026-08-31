@@ -27,6 +27,6 @@ const GeometryModule = ProjecturedStyle.GeometryModule
 const ImageModule = ProjecturedStyle.ImageModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
 
-include("Pdf.jl")
+include("../../../source/pdf/Pdf.jl")
 
 end # module ProjecturedPdf

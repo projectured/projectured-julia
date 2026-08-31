@@ -241,8 +241,8 @@ own entry file plus the file inventory of its own folder.
 function test_substrate_layering()
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
-        main = normpath(dirname(pathof(pkg)))
-        check_layering(main, joinpath(main, "$(nameof(pkg)).jl"); name = String(nameof(pkg)))
+        main = package_source_root(pkg)
+        check_layering(main, pathof(pkg); name = String(nameof(pkg)))
     end
 end
 

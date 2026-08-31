@@ -39,10 +39,10 @@ for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedKernel, Pr
     end
 end
 
-include("Rst.jl")
-include("RstParser.jl")
-include("RstToSyntax.jl")
-include("RstFile.jl")
-include("RstToLayout.jl")
+include("../../../source/rst/Rst.jl")
+include("../../../source/rst/RstParser.jl")
+include("../../../source/rst/RstToSyntax.jl")
+include("../../../source/rst/RstFile.jl")
+include("../../../source/rst/RstToLayout.jl")
 
 end # module ProjecturedRst

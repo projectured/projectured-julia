@@ -21,6 +21,6 @@ const ColorModule = ProjecturedStyle.ColorModule
 const FontModule = ProjecturedStyle.FontModule
 const TextModule = ProjecturedText.TextModule
 
-include("Console.jl")
+include("../../../source/console/Console.jl")
 
 end # module ProjecturedConsole

@@ -190,14 +190,20 @@ kernel layer **declares** a seam, and the slice beside it **fills** that seam.
 | `package/repl/PrecompileStatements.jl` (12 775 lines) | `asset/precompile/` | a recording, beside the reference images |
 | `package/repl/record/driver.jl` | `source/repl/record/` | it is code |
 | `package/executable/build/`, `build.log` | nothing — untracked output | a build artifact is not a folder of the design |
-| `package/executable/builder/` | `package/ProjecturedBuilder/` and `source/builder/` | the tool is a package like any other, and it gets its own slice |
+| `package/executable/builder/` | `package/ProjecturedBuilder/` | the tool is a package like any other; it is one file, so it owns no source folder |
+| `package/executable/main/Precompile.jl`, `AppConfig.default.jl` | `package/ProjecturedExecutable/src/`, beside the root | neither is library source: one is a PackageCompiler execution script, the other a config template whose generated sibling the build writes next to it, and both are found by `@__DIR__` |
+| `package/adaptagrams/deps/` | stays in the package | `Pkg.build` runs `<pkgdir>/deps/build.jl`; `deps/` is Julia's choice like `src/` and `ext/` |
+| `package/web/assets/` | `asset/web/` | a static asset, and the repository already has `asset/` |
 | `bench/` | `source/bench/` (the package) and `test/bench/` (the bodies) | `ProjecturedBench` is a package; its four benchmark files are not source |
 | the root `Project.toml` and `Manifest.toml` | `environment/all/` | the alias follows, see §10 |
 | the 4 stray `Manifest.toml` | deleted | a package that doubles as an environment is the entanglement this tree undoes |
 
-`builder` and `bench` are the only two new slice folders. Both are packages
-today that live inside another slice's directory, and flattening `package/` gives
-them a name of their own either way.
+`bench` is the only new slice folder. `builder` becomes a package directory of
+its own but owns no source, because it is a single file — like `sdl`, `web`,
+`llm`, `mcp`, `odbc`, `tulip`, `video`, `adaptagrams` and the two umbrellas,
+whose whole content is the root file the package holds. Eleven of the 62 slices
+have no `source/` folder for that reason, which is why step 2 created 51 and not
+62.
 
 ## 8. Steps
 
@@ -212,11 +218,32 @@ and the narrowest suite the step touches.
        rather than on each directory; it starts to bite at step 5.
        `test_tree()` is exported from `ProjecturedTest` and runs first in
        `test_all()`.
-2. [ ] **Move `source/`.** 386 files. Of those, 60 are package **root** files and
-       go to `package/<Name>/src/`, not to `source/`; 326 move. Each slice folder
-       moves whole, and `kernel/` moves whole with its seventeen layers. Fix the
-       root files' `include` paths in the same commit, and update the seal list
-       per §6.
+2. [x] **Move `source/`.** — done. **325 files** moved into 51 slice folders,
+       and **51 root files** had their `include` lines rewritten to
+       `../../../source/<slice>/…`. That prefix is right both now and after step
+       5, because a package root file sits three levels below the repository
+       root either way, so step 5 does not touch an include again.
+
+       Every `include` inside a moved file is a sibling of it, so the whole
+       subtree moved with its own links intact. Four things did not move
+       themselves and had to be repaired by hand:
+
+       - `source/style/Font.jl` and `source/kernel/tool/Documentation.jl` each
+         name a depth to the repository root. Both were three or four levels
+         down and are now two or three.
+       - `package/repl/ProjecturedRepl.jl` names the recording driver, which is
+         code and moved to `source/repl/record/`.
+       - **The two static guards had gone blind.** `check_layering` was given
+         the package folder as its source root, which after the move holds only
+         the root file; it reported ten interface files "not on disk". The fix
+         is `package_source_root(pkg)`, one helper in `CheckLayering.jl`, and 22
+         call sites now pass `(package_source_root(X), pathof(X))`.
+         `PackageGraphTest` was worse: its two walks over `package/*/main/` and
+         its `@compile_workload` walk still **passed**, over almost nothing.
+         Both now walk `source/` as well.
+
+       The second of those is the one to remember. A guard that stops looking
+       reports success, and only the first one failed loudly.
 3. [ ] **Move `test/`.** 222 files, one slice folder at a time, keeping the role
        folders inside each. `test/suite/` takes the cross-slice files.
 4. [ ] **Move `example/`.** 153 files, the same way.

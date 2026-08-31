@@ -72,8 +72,8 @@ include("projection/FileSystemToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedFileSystem`.
 """
 function test_filesystem_layering()
-    main = normpath(dirname(pathof(ProjecturedFileSystem)))
-    check_layering(main, joinpath(main, "ProjecturedFileSystem.jl");
+    main = package_source_root(ProjecturedFileSystem)
+    check_layering(main, pathof(ProjecturedFileSystem);
                    name = "filesystem",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFileSystem; all = true)

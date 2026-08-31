@@ -641,6 +641,22 @@ end
 # ── the shared entry point ─────────────────────────────────────────────────
 
 """
+    package_source_root(pkg) -> String
+
+The folder a package's source lives in: `source/<slice>/` at the repository
+root. A package is a name and an include list; the two do not share a directory
+(`plan/pending/repository-tree.md`), so the root file `pathof` returns is the
+**top file** and this is the `src_root` beside it.
+
+The package root file sits three levels below the repository root, both before
+and after the flattening of `package/`, so the depth is stable. The slice folder
+is the package name without its `Projectured` prefix, in lower case.
+"""
+package_source_root(pkg::Module) =
+    normpath(joinpath(dirname(pathof(pkg)), "..", "..", "..", "source",
+                      lowercase(replace(String(nameof(pkg)), "Projectured" => ""))))
+
+"""
     check_layering(src_root, top_file; name = "package",
                    layers = String[], exempt_files = Set{String}(),
                    check_private_imports = false,

@@ -72,8 +72,8 @@ include("projection/MathToGraphicsTest.jl")
 Static layered-architecture guard for `ProjecturedMath`.
 """
 function test_math_layering()
-    main = normpath(dirname(pathof(ProjecturedMath)))
-    check_layering(main, joinpath(main, "ProjecturedMath.jl");
+    main = package_source_root(ProjecturedMath)
+    check_layering(main, pathof(ProjecturedMath);
                    name = "math",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedMath; all = true)

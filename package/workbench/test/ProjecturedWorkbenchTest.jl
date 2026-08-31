@@ -82,8 +82,8 @@ include("projection/WorkbenchTabClickTest.jl")
 Static layered-architecture guard for `ProjecturedWorkbench`.
 """
 function test_workbench_layering()
-    main = normpath(dirname(pathof(ProjecturedWorkbench)))
-    check_layering(main, joinpath(main, "ProjecturedWorkbench.jl");
+    main = package_source_root(ProjecturedWorkbench)
+    check_layering(main, pathof(ProjecturedWorkbench);
                    name = "workbench",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedWorkbench; all = true)

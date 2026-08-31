@@ -152,7 +152,7 @@ records is the whole stack down to SDL.
 """
 record_precompile_statements(;
         output::AbstractString = joinpath(@__DIR__, "PrecompileStatements.jl"),
-        driver::AbstractString = joinpath(@__DIR__, "record", "driver.jl"),
+        driver::AbstractString = joinpath(@__DIR__, "../../source/repl/record/driver.jl"),
         kwargs...) =
     ProjecturedExample.record_precompile_statements(driver, output; kwargs...)
 

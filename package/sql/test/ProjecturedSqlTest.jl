@@ -74,8 +74,8 @@ include("projection/SqlToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedSql`.
 """
 function test_sql_layering()
-    main = normpath(dirname(pathof(ProjecturedSql)))
-    check_layering(main, joinpath(main, "ProjecturedSql.jl");
+    main = package_source_root(ProjecturedSql)
+    check_layering(main, pathof(ProjecturedSql);
                    name = "sql",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedSql; all = true)

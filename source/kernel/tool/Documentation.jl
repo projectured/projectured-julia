@@ -19,7 +19,7 @@ namespaced by package (`kernel/reference`, `visual/widget`, …) so guides live 
 to the code they document without name collisions.
 """
 function _guide_roots()
-    repo = joinpath(@__DIR__, "../../../..")
+    repo = joinpath(@__DIR__, "../../..")
     roots = Tuple{String,String}[(joinpath(repo, "documentation"), "")]
     pkg_dir = joinpath(repo, "package")
     if isdir(pkg_dir)

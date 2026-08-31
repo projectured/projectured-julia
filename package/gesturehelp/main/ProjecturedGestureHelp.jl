@@ -44,11 +44,11 @@ const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 
-include("GestureMap.jl")
-include("CommandPalette.jl")
-include("GestureMapToSyntax.jl")
-include("CommandPaletteToSyntax.jl")
-include("CommandPaletteDecorator.jl")
-include("GestureHelpDecorator.jl")
+include("../../../source/gesturehelp/GestureMap.jl")
+include("../../../source/gesturehelp/CommandPalette.jl")
+include("../../../source/gesturehelp/GestureMapToSyntax.jl")
+include("../../../source/gesturehelp/CommandPaletteToSyntax.jl")
+include("../../../source/gesturehelp/CommandPaletteDecorator.jl")
+include("../../../source/gesturehelp/GestureHelpDecorator.jl")
 
 end # module ProjecturedGestureHelp

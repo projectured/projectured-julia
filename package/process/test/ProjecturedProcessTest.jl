@@ -78,8 +78,8 @@ include("projection/ProcessToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedProcess`.
 """
 function test_process_layering()
-    main = normpath(dirname(pathof(ProjecturedProcess)))
-    check_layering(main, joinpath(main, "ProjecturedProcess.jl");
+    main = package_source_root(ProjecturedProcess)
+    check_layering(main, pathof(ProjecturedProcess);
                    name = "process",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedProcess; all = true)

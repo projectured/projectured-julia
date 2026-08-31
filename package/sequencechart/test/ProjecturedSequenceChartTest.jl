@@ -73,8 +73,8 @@ include("projection/SequenceChartTest.jl")
 Static layered-architecture guard for `ProjecturedSequenceChart`.
 """
 function test_sequencechart_layering()
-    main = normpath(dirname(pathof(ProjecturedSequenceChart)))
-    check_layering(main, joinpath(main, "ProjecturedSequenceChart.jl");
+    main = package_source_root(ProjecturedSequenceChart)
+    check_layering(main, pathof(ProjecturedSequenceChart);
                    name = "sequencechart",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedSequenceChart; all = true)

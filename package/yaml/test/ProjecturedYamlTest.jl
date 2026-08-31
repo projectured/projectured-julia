@@ -73,8 +73,8 @@ include("document/YamlParserTest.jl")
 Static layered-architecture guard for `ProjecturedYaml`.
 """
 function test_yaml_layering()
-    main = normpath(dirname(pathof(ProjecturedYaml)))
-    check_layering(main, joinpath(main, "ProjecturedYaml.jl");
+    main = package_source_root(ProjecturedYaml)
+    check_layering(main, pathof(ProjecturedYaml);
                    name = "yaml",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedYaml; all = true)

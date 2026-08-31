@@ -19,7 +19,7 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 
-include("BoundedSync.jl")
-include("DocumentReflection.jl")
+include("../../../source/reflection/BoundedSync.jl")
+include("../../../source/reflection/DocumentReflection.jl")
 
 end # module ProjecturedReflection

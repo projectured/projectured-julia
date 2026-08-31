@@ -37,7 +37,7 @@ const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 
-include("NaturalRegistry.jl")
-include("NaturalProjection.jl")
+include("../../../source/natural/NaturalRegistry.jl")
+include("../../../source/natural/NaturalProjection.jl")
 
 end # module ProjecturedNatural

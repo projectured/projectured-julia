@@ -41,9 +41,9 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("Evaluator.jl")
-include("Conversation.jl")
-include("ConversationToWidget.jl")
-include("ConversationEditor.jl")
+include("../../../source/conversation/Evaluator.jl")
+include("../../../source/conversation/Conversation.jl")
+include("../../../source/conversation/ConversationToWidget.jl")
+include("../../../source/conversation/ConversationEditor.jl")
 
 end # module ProjecturedConversation

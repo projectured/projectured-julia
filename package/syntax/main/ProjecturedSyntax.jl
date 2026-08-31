@@ -56,14 +56,14 @@ const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
 const DomainModule = ProjecturedDomain.DomainModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
-include("Syntax.jl")
-include("SyntaxToText.jl")
-include("ObjectToSyntax.jl")
-include("ObjectFieldToSyntax.jl")
-include("CollectionToSyntax.jl")
-include("PrimitiveToSyntax.jl")
-include("InsertionToSyntax.jl")
-include("SyntaxNatural.jl")
+include("../../../source/syntax/Syntax.jl")
+include("../../../source/syntax/SyntaxToText.jl")
+include("../../../source/syntax/ObjectToSyntax.jl")
+include("../../../source/syntax/ObjectFieldToSyntax.jl")
+include("../../../source/syntax/CollectionToSyntax.jl")
+include("../../../source/syntax/PrimitiveToSyntax.jl")
+include("../../../source/syntax/InsertionToSyntax.jl")
+include("../../../source/syntax/SyntaxNatural.jl")
 
 # The reflection tail this package can draw with, offered to the natural
 # renderer. Runtime state, so it is registered on load rather than baked into an

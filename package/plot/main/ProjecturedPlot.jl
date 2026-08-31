@@ -14,7 +14,7 @@ using ProjecturedStyle
 
 const ColorModule = ProjecturedStyle.ColorModule
 
-include("PlotGeometry.jl")
-include("PlotStyle.jl")
+include("../../../source/plot/PlotGeometry.jl")
+include("../../../source/plot/PlotStyle.jl")
 
 end # module ProjecturedPlot

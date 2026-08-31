@@ -18,8 +18,8 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
-include("BinarySerialization.jl")
-include("FileProject.jl")
-include("TextFile.jl")
+include("../../../source/serialization/BinarySerialization.jl")
+include("../../../source/serialization/FileProject.jl")
+include("../../../source/serialization/TextFile.jl")
 
 end # module ProjecturedSerialization

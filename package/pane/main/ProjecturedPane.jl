@@ -41,10 +41,10 @@ const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingPro
 const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 
-include("Pane.jl")
-include("PaneSurgery.jl")
-include("PaneGeometry.jl")
-include("PaneGestures.jl")
-include("PaneToWidget.jl")
+include("../../../source/pane/Pane.jl")
+include("../../../source/pane/PaneSurgery.jl")
+include("../../../source/pane/PaneGeometry.jl")
+include("../../../source/pane/PaneGestures.jl")
+include("../../../source/pane/PaneToWidget.jl")
 
 end # module ProjecturedPane

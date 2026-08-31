@@ -17,6 +17,6 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
-include("Focus.jl")
+include("../../../source/focus/Focus.jl")
 
 end # module ProjecturedFocus

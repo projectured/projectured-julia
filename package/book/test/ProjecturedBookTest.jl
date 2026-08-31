@@ -73,8 +73,8 @@ include("projection/BookToSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedBook`.
 """
 function test_book_layering()
-    main = normpath(dirname(pathof(ProjecturedBook)))
-    check_layering(main, joinpath(main, "ProjecturedBook.jl");
+    main = package_source_root(ProjecturedBook)
+    check_layering(main, pathof(ProjecturedBook);
                    name = "book",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedBook; all = true)

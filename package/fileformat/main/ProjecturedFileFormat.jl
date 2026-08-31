@@ -50,9 +50,9 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const FileProjectModule = ProjecturedSerialization.FileProjectModule
 
-include("NaturalFormat.jl")
-include("DocumentFile.jl")
-include("EmbedToSyntax.jl")
+include("../../../source/fileformat/NaturalFormat.jl")
+include("../../../source/fileformat/DocumentFile.jl")
+include("../../../source/fileformat/EmbedToSyntax.jl")
 
 # An embed draws as what it embeds, and the two rows that say so are this
 # package's rather than the renderer's: a stub and a file document are its

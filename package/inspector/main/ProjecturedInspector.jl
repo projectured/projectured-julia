@@ -31,8 +31,8 @@ const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 
-include("ReferenceInspector.jl")
-include("ReferenceInspectorToText.jl")
-include("HoverProbe.jl")
+include("../../../source/inspector/ReferenceInspector.jl")
+include("../../../source/inspector/ReferenceInspectorToText.jl")
+include("../../../source/inspector/HoverProbe.jl")
 
 end # module ProjecturedInspector

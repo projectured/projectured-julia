@@ -36,9 +36,9 @@ const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
-include("Layout.jl")
-include("ConstraintSolver.jl")
-include("LayoutToGraphics.jl")
-include("CollectionToLayout.jl")
+include("../../../source/layout/Layout.jl")
+include("../../../source/layout/ConstraintSolver.jl")
+include("../../../source/layout/LayoutToGraphics.jl")
+include("../../../source/layout/CollectionToLayout.jl")
 
 end # module ProjecturedLayout

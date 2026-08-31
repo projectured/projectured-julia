@@ -75,8 +75,8 @@ include("projection/ConversationEditorTest.jl")
 Static layered-architecture guard for `ProjecturedConversation`.
 """
 function test_conversation_layering()
-    main = normpath(dirname(pathof(ProjecturedConversation)))
-    check_layering(main, joinpath(main, "ProjecturedConversation.jl");
+    main = package_source_root(ProjecturedConversation)
+    check_layering(main, pathof(ProjecturedConversation);
                    name = "conversation",
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedConversation; all = true)

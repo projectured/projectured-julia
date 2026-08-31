@@ -48,19 +48,19 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationApiModule = ProjecturedKernel.OperationModule
 const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
 
-include("TextSpanReferenceStep.jl")
-include("TextColumnReferenceStep.jl")
-include("TextRangeReferenceStep.jl")
-include("Text.jl")
-include("TextToGraphics.jl")
-include("TextToString.jl")
-include("LineNumbering.jl")
-include("WordWrapping.jl")
-include("TextFiltering.jl")
-include("TextFirstLine.jl")
-include("TextHighlighting.jl")
-include("SelectionInverting.jl")
-include("PrimitiveToText.jl")
-include("ReferenceToText.jl")
+include("../../../source/text/TextSpanReferenceStep.jl")
+include("../../../source/text/TextColumnReferenceStep.jl")
+include("../../../source/text/TextRangeReferenceStep.jl")
+include("../../../source/text/Text.jl")
+include("../../../source/text/TextToGraphics.jl")
+include("../../../source/text/TextToString.jl")
+include("../../../source/text/LineNumbering.jl")
+include("../../../source/text/WordWrapping.jl")
+include("../../../source/text/TextFiltering.jl")
+include("../../../source/text/TextFirstLine.jl")
+include("../../../source/text/TextHighlighting.jl")
+include("../../../source/text/SelectionInverting.jl")
+include("../../../source/text/PrimitiveToText.jl")
+include("../../../source/text/ReferenceToText.jl")
 
 end # module ProjecturedText

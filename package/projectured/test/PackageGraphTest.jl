@@ -142,9 +142,8 @@ dependency the package does not have.
 """
 function _named_packages(name)
     isempty(_MODULE_OWNER) && _build_module_owner()
-    dir = _MAIN_DIR[name]
     named = Set{String}()
-    for (root, _dirs, files) in walkdir(dir), f in files
+    for dir in _MAIN_DIR[name], (root, _dirs, files) in walkdir(dir), f in files
         endswith(f, ".jl") || continue
         # A docstring may show a `using` line as an example, which is prose, not
         # a dependency.
@@ -164,17 +163,25 @@ function _named_packages(name)
 end
 
 const _MODULE_OWNER = Dict{String,String}()
-const _MAIN_DIR = Dict{String,String}()
+# Package => the folders its code lives in. There are two, and a package may
+# have only the first: the directory that holds its root file, and `source/`,
+# where everything the root file includes lives. Scanning one of them is how a
+# guard goes on passing while it covers nothing — the root file alone names
+# almost no dependency.
+const _MAIN_DIR = Dict{String,Vector{String}}()
 
-"Fill `_MODULE_OWNER` (submodule => package) and `_MAIN_DIR` (package => folder)."
+"Fill `_MODULE_OWNER` (submodule => package) and `_MAIN_DIR` (package => folders)."
 function _build_module_owner()
     for entry in sort(readdir(joinpath(_PACKAGE_ROOT, "package")))
         dir = joinpath(_PACKAGE_ROOT, "package", entry, "main")
         proj = joinpath(dir, "Project.toml")
         isfile(proj) || continue
         name = match(r"(?m)^name = \"([^\"]+)\"", read(proj, String)).captures[1]
-        _MAIN_DIR[name] = dir
-        for (root, _dirs, files) in walkdir(dir), f in files
+        dirs = [dir]
+        source = joinpath(_PACKAGE_ROOT, "source", entry)
+        isdir(source) && push!(dirs, source)
+        _MAIN_DIR[name] = dirs
+        for d in dirs, (root, _dirs, files) in walkdir(d), f in files
             endswith(f, ".jl") || continue
             for m in eachmatch(r"(?m)^module\s+(\w+)\s*$", read(joinpath(root, f), String))
                 m.captures[1] == name || (_MODULE_OWNER[m.captures[1]] = name)
@@ -315,8 +322,12 @@ function test_package_graph()
 
         @testset "a compile workload lives only in a leaf" begin
             offenders = String[]
-            for (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, "package"))
+            # Both trees: a package is a name and an include list, and the
+            # list it names lives under `source/`.
+            for area in ("package", "source"),
+                (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, area))
                 (occursin(joinpath("package", "repl"), root) ||
+                 occursin(joinpath("source", "repl"), root) ||
                  occursin(joinpath("package", "executable"), root)) && continue
                 for file in files
                     endswith(file, ".jl") || continue
