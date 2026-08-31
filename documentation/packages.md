@@ -166,7 +166,7 @@ dependency.
 | `ProjecturedGestureHelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
 | `ProjecturedGestureLog` | Collection, Graphics, Projection, Style, Syntax, Text | — |
 | `ProjecturedFileFormat` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedNaturalProjection` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedNatural` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
 

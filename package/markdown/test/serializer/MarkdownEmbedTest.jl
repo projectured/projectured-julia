@@ -15,7 +15,7 @@ using ProjecturedSerialization.FileProjectModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedMarkdown.MarkdownModule: MarkdownDocument, MarkdownRoot
 using ProjecturedMarkdown.MarkdownToSyntaxModule: MarkdownToSyntax
-using ProjecturedNaturalProjection.NaturalProjectionModule: natural_to_syntax_dispatch
+using ProjecturedNatural.NaturalProjectionModule: natural_to_syntax_dispatch
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
@@ -30,7 +30,7 @@ using ProjecturedKernel.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedKernel.SelectionModule: set_selection!, get_selection
 using ProjecturedFileFormat.NaturalFormatModule: document_to_text
-using ProjecturedNaturalProjection.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedWidget.WidgetModule: WidgetButton
 using ProjecturedStyle.GeometryModule: Point2D
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas

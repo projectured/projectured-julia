@@ -21,11 +21,11 @@ module ProjecturedGraph
 using ProjecturedCollection
 using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedNaturalProjection
+using ProjecturedNatural
 using ProjecturedProjection
 using ProjecturedStyle
 
-for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, ProjecturedNaturalProjection, ProjecturedProjection, ProjecturedStyle)
+for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, ProjecturedNatural, ProjecturedProjection, ProjecturedStyle)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

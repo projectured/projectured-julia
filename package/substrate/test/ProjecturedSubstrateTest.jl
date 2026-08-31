@@ -50,7 +50,7 @@ import ProjecturedInspector
 import ProjecturedGestureHelp
 import ProjecturedGestureLog
 import ProjecturedFileFormat
-import ProjecturedNaturalProjection
+import ProjecturedNatural
 import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelTest
@@ -119,7 +119,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedGestureHelp,
                   ProjecturedGestureLog,
                   ProjecturedFileFormat,
-                  ProjecturedNaturalProjection,
+                  ProjecturedNatural,
                   ProjecturedConsole,
                   ProjecturedPdf)
 # The tests were written against the flat `Projectured` namespace. Build the

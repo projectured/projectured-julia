@@ -82,7 +82,7 @@ package, below every domain:
   palette (`ProjecturedGestureHelp`), the gesture log
   (`ProjecturedGestureLog`). They render a *projection*, not a content kind.
 - **The render-anything projection.** `NaturalToGraphics`
-  (`ProjecturedNaturalProjection`) draws any document, so it cannot name any
+  (`ProjecturedNatural`) draws any document, so it cannot name any
   domain. Both its tables come from `NaturalRegistryModule`, and each domain
   registers its own row.
 

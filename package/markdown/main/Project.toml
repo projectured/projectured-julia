@@ -12,7 +12,7 @@ ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
-ProjecturedNaturalProjection = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
@@ -27,7 +27,7 @@ ProjecturedFileFormat = {path = "../../fileformat/main"}
 ProjecturedGraphics = {path = "../../graphics/main"}
 ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedLayout = {path = "../../layout/main"}
-ProjecturedNaturalProjection = {path = "../../naturalprojection/main"}
+ProjecturedNatural = {path = "../../natural/main"}
 ProjecturedPrimitive = {path = "../../primitive/main"}
 ProjecturedProjection = {path = "../../projection/main"}
 ProjecturedSerialization = {path = "../../serialization/main"}

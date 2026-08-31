@@ -11,7 +11,7 @@ is**. §1 is the argument that it should stay that way.
 ## 1. Nothing here depends on the caller
 
 `ProjecturedGraph` depends on `ProjecturedCollection`, `ProjecturedGraphics`,
-`ProjecturedKernel`, `ProjecturedNaturalProjection`, `ProjecturedProjection` and
+`ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedProjection` and
 `ProjecturedStyle`. `ProjecturedAdaptagrams` is a package of its own, because it
 carries a native dependency, and it reaches this one through
 `register_layout_engine!` rather than the other way round.

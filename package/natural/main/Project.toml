@@ -1,8 +1,8 @@
-name = "ProjecturedNaturalProjection"
+name = "ProjecturedNatural"
 uuid = "09daa789-626e-40de-aeba-3b7256e1b478"
 version = "0.1.0"
 authors = []
-entryfile = "ProjecturedNaturalProjection.jl"
+entryfile = "ProjecturedNatural.jl"
 
 # Render any document, from a registry. Each domain registers its own row from a
 # file it already has, so the renderer names no domain.

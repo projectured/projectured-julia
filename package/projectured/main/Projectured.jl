@@ -49,7 +49,7 @@ import ProjecturedInspector
 import ProjecturedGestureHelp
 import ProjecturedGestureLog
 import ProjecturedFileFormat
-import ProjecturedNaturalProjection
+import ProjecturedNatural
 import ProjecturedConsole
 import ProjecturedPdf
 
@@ -86,7 +86,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedText, ProjecturedWidget, ProjecturedSyntax,
                   ProjecturedPane, ProjecturedClipboard, ProjecturedTooltip,
                   ProjecturedInspector, ProjecturedGestureHelp, ProjecturedGestureLog,
-                  ProjecturedFileFormat, ProjecturedNaturalProjection, ProjecturedConsole,
+                  ProjecturedFileFormat, ProjecturedNatural, ProjecturedConsole,
                   ProjecturedPdf,
                   ProjecturedJson, ProjecturedYaml, ProjecturedXml,
                   ProjecturedMarkdown, ProjecturedRst, ProjecturedBook,

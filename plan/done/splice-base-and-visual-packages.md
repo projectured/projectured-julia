@@ -157,7 +157,7 @@ the statements again after step 6.
 | `gesturehelp` | `ProjecturedGestureHelp` | `visual/gesturehelp` | 6 | 910 |
 | `gesturelog` | `ProjecturedGestureLog` | `visual/gesturelog` | 4 | 599 |
 | `fileformat` | `ProjecturedFileFormat` | `visual/fileformat` | 3 | 623 |
-| `naturalprojection` | `ProjecturedNaturalProjection` | `visual/naturalprojection` | 2 | 331 |
+| `naturalprojection` | `ProjecturedNatural` | `visual/naturalprojection` | 2 | 331 |
 | `console` | `ProjecturedConsole` | `visual/backend/Console.jl` | 1 | 346 |
 | `pdf` | `ProjecturedPdf` | `visual/backend/Pdf.jl` | 1 | 827 |
 
@@ -211,7 +211,7 @@ module of it. Julia needs each direct dependency in `[deps]`.
 | `ProjecturedGestureHelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
 | `ProjecturedGestureLog` | Collection, Graphics, Projection, Style, Syntax, Text | — |
 | `ProjecturedFileFormat` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedNaturalProjection` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedNatural` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
 

@@ -46,7 +46,7 @@ import ProjecturedInspector
 import ProjecturedGestureHelp
 import ProjecturedGestureLog
 import ProjecturedFileFormat
-import ProjecturedNaturalProjection
+import ProjecturedNatural
 import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelExample
@@ -83,7 +83,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedGestureHelp,
                   ProjecturedGestureLog,
                   ProjecturedFileFormat,
-                  ProjecturedNaturalProjection,
+                  ProjecturedNatural,
                   ProjecturedConsole,
                   ProjecturedPdf)
 

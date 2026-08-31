@@ -59,7 +59,7 @@ const SUBSTRATE = [
     "ProjecturedText", "ProjecturedWidget", "ProjecturedSyntax",
     "ProjecturedPane", "ProjecturedClipboard", "ProjecturedTooltip",
     "ProjecturedInspector", "ProjecturedGestureHelp", "ProjecturedGestureLog",
-    "ProjecturedFileFormat", "ProjecturedNaturalProjection", "ProjecturedConsole",
+    "ProjecturedFileFormat", "ProjecturedNatural", "ProjecturedConsole",
     "ProjecturedPdf",
 ]
 

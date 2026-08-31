@@ -418,7 +418,7 @@ domain renders its `Nothing` / `Insertion` by registering `XNothing => Insertion
 / `XInsertion => …InsertionToSyntaxLeaf()` in its `XToSyntax` dispatch table — and those renderers
 lived, at the time, in a `domain/main/insertion/` slice (the **domain** package). That worked for
 every domain because every domain sat *above* visual: even the Text domain kit rendered through
-[`NaturalProjection.jl`](../../package/naturalprojection/main/NaturalProjection.jl)
+[`NaturalProjection.jl`](../../package/natural/main/NaturalProjection.jl)
 (`TextNothing => InsertionNothingToSyntaxLeaf()`, `TextInsertion => DomainInsertionToSyntaxLeaf(TextDocument)`),
 which was in domain and could reach them.
 

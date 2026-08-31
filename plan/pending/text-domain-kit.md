@@ -9,7 +9,7 @@
 > construction and still carries `indent_indices`). All paths below are
 > updated for the 2026-08-09 per-domain package split (`package/visual/` no
 > longer exists; its content is now `package/text/`, `package/syntax/`,
-> `package/naturalprojection/`, `package/console/`, `package/domain/`, and
+> `package/natural/`, `package/console/`, `package/domain/`, and
 > others). Historical "Verified" pass-count lines below cite aggregator
 > functions (`test_visual()`, `test_domain()`) that no longer exist under
 > those names post-split; the current equivalents are `test_substrate()`
@@ -164,7 +164,7 @@ and make `resolve_insertion` order-dependent. Take the convention.
 ### Rendering the new pair — cheapest correct route
 
 `TextNothing` and `TextInsertion` are `<: TextDocument`, and the **natural projection** routes
-`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/naturalprojection/main/NaturalProjection.jl#L160))
+`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/natural/main/NaturalProjection.jl#L160))
 — a Text→Graphics chain whose printer is typed `print_document(::TextToGraphics, _, ::TextBlock, _)`.
 A bare `TextNothing` root would not render.
 

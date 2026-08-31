@@ -1,5 +1,5 @@
 """
-    ProjecturedNaturalProjection
+    ProjecturedNatural
 
 Render any document, from a registry. The registry holds no entry of its
 own: each domain registers its own row from a file it already has, so the
@@ -8,7 +8,7 @@ renderer never names a domain.
 The submodules below are aliased so this package's source files keep their
 relative `..XxxModule` references.
 """
-module ProjecturedNaturalProjection
+module ProjecturedNatural
 
 using ProjecturedCollection
 using ProjecturedDomain
@@ -46,4 +46,4 @@ const FileProjectModule = ProjecturedSerialization.FileProjectModule
 include("NaturalRegistry.jl")
 include("NaturalProjection.jl")
 
-end # module ProjecturedNaturalProjection
+end # module ProjecturedNatural

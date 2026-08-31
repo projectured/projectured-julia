@@ -30,7 +30,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
-ProjecturedNaturalProjection = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlot = "fab29e63-3751-46a0-88a9-22680e33c7d8"
@@ -74,7 +74,7 @@ ProjecturedKernel = {path = "../../kernel/main"}
 ProjecturedKernelExample = {path = "../../kernel/example"}
 ProjecturedKernelTest = {path = "../../kernel/test"}
 ProjecturedLayout = {path = "../../layout/main"}
-ProjecturedNaturalProjection = {path = "../../naturalprojection/main"}
+ProjecturedNatural = {path = "../../natural/main"}
 ProjecturedPane = {path = "../../pane/main"}
 ProjecturedPdf = {path = "../../pdf/main"}
 ProjecturedPlot = {path = "../../plot/main"}

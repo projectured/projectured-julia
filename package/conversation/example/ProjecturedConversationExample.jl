@@ -18,7 +18,7 @@ import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedPdf
 import ProjecturedConsole
-import ProjecturedNaturalProjection
+import ProjecturedNatural
 import ProjecturedFileFormat
 import ProjecturedGestureLog
 import ProjecturedGestureHelp
@@ -58,7 +58,7 @@ using ProjecturedKernelExample
 using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedNaturalProjection, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

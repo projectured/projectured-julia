@@ -15,7 +15,7 @@ module ProjecturedFileSystem
 
 using ProjecturedCollection
 using ProjecturedKernel
-using ProjecturedNaturalProjection
+using ProjecturedNatural
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
@@ -23,7 +23,7 @@ using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedNaturalProjection, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

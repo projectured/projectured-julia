@@ -19,7 +19,7 @@ using ProjecturedFileFormat
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedLayout
-using ProjecturedNaturalProjection
+using ProjecturedNatural
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedSerialization
@@ -28,7 +28,7 @@ using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, ProjecturedKernel, ProjecturedLayout, ProjecturedNaturalProjection, ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
