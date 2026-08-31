@@ -7,7 +7,10 @@ The top of the domain stack: a workspace of open documents, its tab and pane
 shell, the widget projection that draws it, the assistant panel, and the file
 wrapper that saves a whole workbench.
 
-It opens documents of every kind, so it depends on the domains it can open.
+It opens a document of any kind, and it names none of them: a file is read by
+`import_document`, which asks the natural-format seam, and the assistant's
+fenced blocks go the same way. Which kinds a session can open is therefore the
+caller's choice of packages, not this one's dependency list.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -20,28 +23,18 @@ using ProjecturedCollection
 using ProjecturedConversation
 using ProjecturedFileFormat
 using ProjecturedFileSystem
-using ProjecturedJson
-using ProjecturedJulia
 using ProjecturedKernel
 using ProjecturedLayout
-using ProjecturedMarkdown
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
-using ProjecturedXml
-using ProjecturedYaml
 using ProjecturedConversation
 using ProjecturedFileSystem
-using ProjecturedJson
-using ProjecturedJulia
-using ProjecturedMarkdown
-using ProjecturedXml
-using ProjecturedYaml
 
-for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget, ProjecturedXml, ProjecturedYaml)
+for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

@@ -1568,7 +1568,7 @@ uuid = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 version = "0.1.0"
 
 [[deps.ProjecturedWorkbench]]
-deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
+deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 entryfile = "ProjecturedWorkbench.jl"
 path = "package/workbench/main"
 uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
