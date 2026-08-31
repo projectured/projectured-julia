@@ -77,14 +77,17 @@ const _LEAVES = ("ProjecturedRepl", "ProjecturedExecutable", "ProjecturedBench")
 """
     _is_main_package(name) -> Bool
 
-A package that holds code, rather than a suite, an example gallery or a leaf.
-`package/` is flat, so the kind a directory used to encode is now read from the
-name: the reserved suffixes are `Test` and `Example`, and the two leaves are
-named outright.
+A package that holds code, rather than a suite or an example gallery. `package/`
+is flat, so the kind a directory used to encode is read from the name, and the
+reserved suffixes are the whole of it.
+
+A leaf and the build tool are included. They are code, they declare
+dependencies, and the rules that do **not** apply to them say so themselves —
+`_LEAVES` is what they test against. Excluding them here instead cost two
+assertions in "every package declares exactly the packages it names", and a
+guard that stops looking is the failure this whole move kept finding.
 """
-_is_main_package(name) =
-    !endswith(name, "Test") && !endswith(name, "Example") &&
-    !(name in _LEAVES) && name != "ProjecturedBuilder"
+_is_main_package(name) = !endswith(name, "Test") && !endswith(name, "Example")
 
 """
     _source_dir(name) -> Union{String,Nothing}

@@ -356,6 +356,39 @@ means the flatten has one job.
        entry carries the note that a package root file is the one member that
        lives with its package. `README.md`'s layout table is the new tree.
 
+## 8b. The full suite, diffed against clean main
+
+Run on both sides, 47 minutes each:
+
+| | clean main | this branch |
+| --- | ---: | ---: |
+| pass | 869 701 | 869 751 |
+| **fail** | **484** | **484** |
+| **error** | **3** | **3** |
+| **broken** | **1585** | **1585** |
+
+Fail, error and broken are identical, which is the result that matters. Every
+difference in the pass column is accounted for:
+
+- `repository tree` — the new guard, 1 assertion.
+- `package dependency graph` 592 → 717. Three causes, all of them the guard
+  seeing more: a third leaf to check every package against, `ProjecturedBench`
+  inside `package/` at last, and `_is_main_package` widened to include the
+  leaves and the build tool. That last one was a **regression I introduced and
+  then measured**: the first version excluded them and quietly dropped two
+  assertions from "every package declares exactly the packages it names", which
+  is now 126 against clean main's 120.
+- `DomainExamples` and `Printers` each **−34**. One example is not hermetic:
+  `make_workbench_document_example` roots a `Workspace` at its own folder, and
+  that folder lost the two files a package keeps — `Project.toml` and the root
+  `.jl`. Fewer files listed, fewer atoms printed, fewer assertions. Nothing
+  regressed; the example's input is the tree, so its count moves when the tree
+  does.
+
+  Left as it is, because this plan changes paths and not behaviour. Making it
+  hermetic means pointing it at a fixture, the way `filesystem` already does,
+  and that is a change worth its own decision.
+
 ## 9. What omnet-julia already paid for
 
 Take these as facts, not as risks:
