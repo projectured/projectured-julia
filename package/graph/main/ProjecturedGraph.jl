@@ -40,7 +40,7 @@ include("Graph.jl")
 include("GraphLayout.jl")
 include("GraphLayoutEngine.jl")
 # The two layouters OMNeT++ draws a network with, ported file for file from
-# `omnetpp-cpp/src/layout/`. Each keeps the C++ file's name and the order of its
+# `omnet-cpp/src/layout/`. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.
 include("omnetpp/LcgRandom.jl")
 include("omnetpp/Geometry.jl")

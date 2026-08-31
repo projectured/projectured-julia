@@ -14,7 +14,7 @@ the output into the matching `@testset` in
 With `OMNETPP` set to an OMNeT++ source tree that has been built:
 
 ```bash
-OMNETPP=$HOME/workspace/omnetpp-cpp
+OMNETPP=$HOME/workspace/omnet-cpp
 for name in springembedder forcedirected; do
     g++ -std=c++17 -O2 -I$OMNETPP/src -I$OMNETPP/include $name.cc \
         -L$OMNETPP/lib -lopplayout -loppcommon -Wl,-rpath,$OMNETPP/lib \

@@ -107,7 +107,7 @@ and `max_iterations` bound the work instead.
 ## The ported files
 
 `main/omnetpp/` holds the port, one file per C++ file in
-`omnetpp-cpp/src/layout/`, keeping the original's name and the order of its
+`omnet-cpp/src/layout/`, keeping the original's name and the order of its
 definitions so a later fix over there can be read across.
 
 | here | there |

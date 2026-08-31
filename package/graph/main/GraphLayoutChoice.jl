@@ -5,7 +5,7 @@ Which engine a caller gets when it names none, and when that is decided.
 
 `DeferredLayout` decides **when the layout runs**, not when the projection is
 built, and it decides the way Qtenv decides
-(`omnetpp-cpp/src/qtenv/modulelayouter.cc:363-372`): twenty vertices or more go
+(`omnet-cpp/src/qtenv/modulelayouter.cc:363-372`): twenty vertices or more go
 to `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
 which is better and costs more. A package with a native engine registers a
 factory and takes over both.

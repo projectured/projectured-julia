@@ -251,13 +251,13 @@ end
 @testset "SpringEmbedderLayout draws what OMNeT++ draws" begin
     # The point of a port is that it answers what the original answers. These are
     # the positions OMNeT++'s own BasicSpringEmbedderLayout produces, read out of
-    # a program linked against libopplayout.so from omnetpp-cpp and given the
+    # a program linked against libopplayout.so from omnet-cpp and given the
     # same graph, the same node sizes and seed 1.
     #
     # They are centres, which is what GraphLayouter::getNodePosition answers; the
     # engine reports corners, so each is the centre less half the size.
     #
-    # To regenerate, build a program against `omnetpp-cpp/src/layout` that calls
+    # To regenerate, build a program against `omnet-cpp/src/layout` that calls
     # addMovableNode / addFixedNode / addAnchoredNode / addEdge in this order,
     # then setSeed(1), setSize(...) and execute().
     corners(centres, w, h) = [(round(Int, x - w/2), round(Int, y - h/2), w, h)

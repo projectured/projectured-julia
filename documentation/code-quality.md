@@ -4,7 +4,7 @@ How the code of this repository reads, and what keeps it readable. A human reads
 this code to learn what it does. Every rule here serves that reader.
 
 The rules that hold in all three repositories are in
-`omnetpp-team/policy/code-quality-rules.md`. Read them first. This document adds
+`omnet-team/policy/code-quality-rules.md`. Read them first. This document adds
 what is true here: the shape of a file, the local rules, the size budgets, and
 the measured baseline. It never weakens a shared rule.
 
@@ -108,7 +108,7 @@ better as one list.
 ## 4. The measured baseline
 
 Reproduce these with the commands in
-`omnetpp-team/policy/code-quality-rules.md`. A number that grows without a
+`omnet-team/policy/code-quality-rules.md`. A number that grows without a
 reason is the signal the steward watches.
 
 | Measurement | 2026-08-14 |
