@@ -105,9 +105,10 @@ mutable struct WebBackend <: Backend
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
-    # Paths relative to this package's main/ (web/main/): web assets at web/assets,
-    # fonts at the shared <repo-root>/font.
-    webdir  = normpath(joinpath(@__DIR__, "..", "assets"))
+    # Both are shared assets at the repository root, three levels up from the
+    # directory that holds this package's root file: the web client the browser
+    # loads, and the fonts every backend measures with.
+    webdir  = normpath(joinpath(@__DIR__, "..", "..", "..", "asset", "web"))
     fontdir = normpath(joinpath(@__DIR__, "..", "..", "..", "asset", "font"))
     WebBackend(String(host), Int(port), webdir, fontdir,
                nothing, Channel{Any}(256), nothing,

@@ -14,17 +14,20 @@
 
 The directories scanned for guide documentation, each paired with the prefix
 prepended to the guide names found under it. The top-level `documentation/` tree
-keeps bare names (`concepts`, `getting-started`, …); each package's `doc/` tree is
-namespaced by package (`kernel/reference`, `visual/widget`, …) so guides live next
-to the code they document without name collisions.
+keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
+`documentation/package/` is namespaced by slice (`kernel/reference`,
+`widget/widget`, …) so two slices may both have a guide of one name.
+
+The bare walk skips `documentation/package/`, which its own roots cover. Without
+that, every slice guide would be listed twice under two names.
 """
 function _guide_roots()
     repo = joinpath(@__DIR__, "../../..")
     roots = Tuple{String,String}[(joinpath(repo, "documentation"), "")]
-    pkg_dir = joinpath(repo, "package")
+    pkg_dir = joinpath(repo, "documentation", "package")
     if isdir(pkg_dir)
         for pkg in sort(readdir(pkg_dir))
-            d = joinpath(pkg_dir, pkg, "doc")
+            d = joinpath(pkg_dir, pkg)
             isdir(d) && push!(roots, (d, "$pkg/"))
         end
     end
@@ -41,6 +44,10 @@ function _all_guides()
     for (root, prefix) in _guide_roots()
         isdir(root) || continue
         for (dir, _, files) in walkdir(root)
+            # The per-slice roots below cover documentation/package/, and they
+            # give a guide the namespaced name every citation uses. Walking it
+            # here as well would list each of those guides twice.
+            (prefix == "" && occursin(joinpath("documentation", "package"), dir)) && continue
             for file in sort(files)
                 endswith(file, ".md") || continue
                 filepath = joinpath(dir, file)

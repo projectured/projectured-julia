@@ -210,6 +210,11 @@ have no `source/` folder for that reason, which is why step 2 created 51 and not
 Each step is one commit. Do not run `test_all()` after each one — run the guard
 and the narrowest suite the step touches.
 
+**Step 8 runs before step 5, not after it.** Prose, the recording and the web
+client all sit inside package directories, and the flatten's rule is that a
+package directory holds a `Project.toml` and a `src/`. Moving them out first
+means the flatten has one job.
+
 1. [x] **Write the guard.** — done, `test/suite/tree.jl`. It found five
        violations on the tree as it stood, all of them the stray `Manifest.toml`
        of a package that had become an environment, and they went in the same
@@ -282,8 +287,17 @@ and the narrowest suite the step touches.
 7. [ ] **Make the environments.** Four: `all`, `kernel`, `editor`, `tool`. The
        root `Project.toml` and `Manifest.toml` become `environment/all/`. Delete
        the four stray Manifests.
-8. [ ] **Move the prose and the recording.** §7's table, in one commit each for
-       the doc folders and for `asset/precompile/`.
+8. [x] **Move the prose and the recording.** — done, and done **before** step 5
+       rather than after it, so the flatten has nothing left to carry. 33 guides
+       from 19 slices and two READMEs now sit in `documentation/package/<slice>/`,
+       the 12 775-line recording in `asset/precompile/`, and the web client in
+       `asset/web/`.
+
+       The editor's own documentation tool walked `package/*/doc/`. It now walks
+       `documentation/package/<slice>/`, and the bare walk over `documentation/`
+       skips that subtree — without the skip every slice guide is listed twice,
+       under `kernel/cell` and under `package/kernel/cell`. Checked: 58 guides,
+       no duplicate, every path on disk.
 9. [ ] **Repair every relative markdown link by resolution.** Not by rule — see
        §9. `CLAUDE.md`, `README.md`, `documentation/`, and every moved `doc/`
        file.

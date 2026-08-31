@@ -120,7 +120,7 @@ end
 # leaves. What belongs here is what only this repository knows: which run to
 # record, and the list that run produced.
 
-include("PrecompileStatements.jl")
+include("../../asset/precompile/PrecompileStatements.jl")
 
 """
     StatementScope
@@ -151,7 +151,8 @@ package replays. Needs a display: the driver opens a real window, so that what i
 records is the whole stack down to SDL.
 """
 record_precompile_statements(;
-        output::AbstractString = joinpath(@__DIR__, "PrecompileStatements.jl"),
+        output::AbstractString =
+            joinpath(@__DIR__, "../../asset/precompile/PrecompileStatements.jl"),
         driver::AbstractString = joinpath(@__DIR__, "../../source/repl/record/driver.jl"),
         kwargs...) =
     ProjecturedExample.record_precompile_statements(driver, output; kwargs...)
