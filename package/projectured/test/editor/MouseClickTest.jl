@@ -339,7 +339,7 @@ function test_mouse_clicks()
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
-                              "book", "conversation", "object",
+                              "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               "collection", "reversing", "filtering",

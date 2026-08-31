@@ -27,11 +27,10 @@ using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
-using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
@@ -44,7 +43,6 @@ end
 
 include("Evaluator.jl")
 include("Conversation.jl")
-include("ConversationToSyntax.jl")
 include("ConversationToWidget.jl")
 include("ConversationEditor.jl")
 

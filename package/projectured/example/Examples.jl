@@ -35,7 +35,6 @@ const examples = [
     graphics_image_example,
     rotating_vector_example,
     assistant_example,
-    conversation_example,
     conversation_widget_example,
     conversation_editor_example,
     sql_syntax_example,

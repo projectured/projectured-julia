@@ -107,7 +107,7 @@ include(joinpath(_EXAMPLE_DIR, "Precompile.jl"))
 include(joinpath(_EXAMPLE_DIR, "PrecompileRecording.jl"))
 
 export EditorDomain, EditorIntrospection, JsonXmlToSyntax, assistant_example, book_example
-export build_file_editor, clipboard_example, conversation_editor_example, conversation_example
+export build_file_editor, clipboard_example, conversation_editor_example
 export conversation_widget_example, domain_for_path, dragging_example, editor_domain
 export filesystem_example, filesystem_widget_example, focusing_example, formula_example
 export chart_example, chart_line_example, chart_bar_example,
@@ -139,7 +139,7 @@ export make_book_document_example, make_book_projection_example, make_clipboard_
 export make_clipboard_document_example, make_clipboard_projection
 export make_clipboard_projection_example, make_conversation_document_example
 export make_conversation_editor_document_example, make_conversation_editor_projection_example
-export make_conversation_projection_example, make_conversation_widget_projection_example
+export make_conversation_widget_projection_example
 export make_conversation_conversation_document_example, make_conversation_draft_document_example
 export make_conversation_part_document_example, make_conversation_turn_document_example
 export make_database_instance_document_example, make_dragging_document_example
@@ -384,7 +384,6 @@ export graphics_image_example
 export rotating_vector_example
 export make_rotating_vector_document
 export assistant_example
-export conversation_example
 export conversation_widget_example
 export conversation_editor_example
 export sql_syntax_example

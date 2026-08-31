@@ -76,7 +76,7 @@ function repl_broken(name)
     # @broken: clicking maps to a selection that fails to re-apply on these
     # domains (SelectionMismatch) — a whole class the introduced-token / phantom-
     # caret work resolves. plan/pending/simplest-syntax-document.md
-    name in ("conversation", "conversation_widget", "filesystem", "navigator",
+    name in ("conversation_widget", "filesystem", "navigator",
              "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatch", msg)
     # @broken: caret on a projection-introduced token → under-typed
     # ProjectionReferenceStep path the graph/workbench maps cannot wrap.
@@ -370,7 +370,7 @@ function test_click_roundtrips()
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
-                              "book", "conversation", "object",
+                              "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               # pre-existing: CollectionToSyntax lacks
@@ -451,7 +451,7 @@ function test_text_nav_invariants_all()
                               "filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
-                              "book", "conversation", "object",
+                              "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",
                               # pre-existing: CollectionToSyntax lacks
