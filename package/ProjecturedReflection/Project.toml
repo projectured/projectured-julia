@@ -1,0 +1,15 @@
+name = "ProjecturedReflection"
+uuid = "0807f717-a2ae-4bc5-a9a1-1eb2de00c335"
+version = "0.1.0"
+authors = []
+
+# A bounded shadow of a large or live Julia object: the UnsyncedDocument marker,
+# the sync policies, and the reflected node tree.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}

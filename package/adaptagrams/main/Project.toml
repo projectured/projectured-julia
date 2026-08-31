@@ -1,9 +1,0 @@
-name = "ProjecturedAdaptagrams"
-uuid = "c86b9063-147e-43d0-b3a0-65343fae9a66"
-version = "0.1.0"
-authors = []
-entryfile = "ProjecturedAdaptagrams.jl"
-
-[deps]
-ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
-Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"

@@ -55,9 +55,10 @@ nothing else.**
 
 No `Manifest.toml` — that is what makes a package double as an environment,
 which is the entanglement this tree exists to undo. No second `.jl` — a second
-one is source, and source lives in `source/`. No folder but `src/` and `ext/`,
-which are Julia's choice and not this tree's: the loader finds a root at
-`src/<Name>.jl`, and `pkgdir` derives the package directory from it. A flat root
+one is source, and source lives in `source/`. No folder but `src/`, `ext/` and
+`deps/`, which are Julia's choice and not this tree's: the loader finds a root at
+`src/<Name>.jl`, `pkgdir` derives the package directory from it, and `Pkg.build`
+runs `deps/build.jl` from the package directory and nowhere else. A flat root
 loads and then `pkgdir` throws, which is how omnet-julia found this.
 
 The per-directory half is skipped while **any** slice still has the
@@ -88,7 +89,13 @@ function package_violations(root::AbstractString)
 
     for name in _subdirs(base)
         directory = joinpath(base, name)
-        isfile(joinpath(directory, "Project.toml")) || continue   # not flattened yet
+        # A directory here that is not a package is a leftover of the flatten,
+        # and `continue` on it is how one hid: `package/adaptagrams/` kept its
+        # `deps/` after everything else had moved out.
+        if !isfile(joinpath(directory, "Project.toml"))
+            push!(out, "package/$name — a directory under package/ that is not a package")
+            continue
+        end
         text = read(joinpath(directory, "Project.toml"), String)
         package = _project_key(text, "name")
         package === nothing && continue                           # an environment, reported elsewhere
@@ -103,8 +110,13 @@ function package_violations(root::AbstractString)
         isfile(joinpath(directory, "src", package * ".jl")) ||
             push!(out, "package/$name — has no src/$package.jl")
         for sub in _subdirs(directory)
-            (sub == "src" || sub == "ext") && continue
-            push!(out, "package/$name/$sub — a package directory holds no folders but src/ and ext/")
+            # All three are Julia's choice, not this tree's: the loader finds a
+            # root at `src/<Name>.jl` and an extension at `ext/<Name>Ext.jl`,
+            # and `Pkg.build` runs `deps/build.jl` from the package directory
+            # and nowhere else.
+            (sub == "src" || sub == "ext" || sub == "deps") && continue
+            push!(out, "package/$name/$sub — a package directory holds no folders " *
+                       "but src/, ext/ and deps/")
         end
     end
     out

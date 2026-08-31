@@ -1,0 +1,21 @@
+name = "ProjecturedLayout"
+uuid = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
+version = "0.1.0"
+authors = []
+
+# Spatial arrangement: the container documents, the constraint solver, the
+# renderer onto a canvas, and the bridge from a collection.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedFocus = {path = "../ProjecturedFocus"}
+ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}

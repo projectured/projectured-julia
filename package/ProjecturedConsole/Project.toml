@@ -1,0 +1,17 @@
+name = "ProjecturedConsole"
+uuid = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+version = "0.1.0"
+authors = []
+
+# The console backend. It renders the text domain to an ANSI terminal and needs
+# no third-party package.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+ProjecturedText = {path = "../ProjecturedText"}

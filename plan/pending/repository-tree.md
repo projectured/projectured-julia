@@ -276,10 +276,30 @@ means the flatten has one job.
        this machine — a database example opens a PostgreSQL ODBC connection at
        load time and the driver is not installed — and it fails identically on
        clean main.
-5. [ ] **Flatten `package/`.** 116 directories, one per package, each holding
-       `Project.toml` and `src/<Name>.jl`. Delete `entryfile` from every
-       `Project.toml` — see §9. The 2260 `[sources]` entries all collapse to
-       `../<Name>`.
+5. [x] **Flatten `package/`.** — done. **117 directories**, one per package,
+       each holding `Project.toml` and `src/<Name>.jl`. Every `entryfile` line is
+       gone, and every `[sources]` entry collapsed to `../<Name>`, or to
+       `package/<Name>` in the repository-root environment.
+
+       Four things the flatten turned up:
+
+       - **A manifest records paths.** Nothing resolved until `Pkg.resolve()`
+         rewrote the root `Manifest.toml`. Do that before believing any failure.
+       - **`bench/` was a package outside `package/`.** It is
+         `ProjecturedBench`, so it moves in, and it is the 117th. Its three
+         benchmark bodies go to `test/bench/` and `juliac-trim/` to `tool/`.
+       - **That move made a third leaf visible.** `ProjecturedBench` loads
+         `ProjecturedExample`, which only a leaf may do, and the guard had never
+         seen it because it walked `package/` and the bench was outside. The leaf
+         set is now one `_LEAVES` constant, and it names three.
+       - **`deps/` stays in the package.** `Pkg.build` runs
+         `<pkgdir>/deps/build.jl` and nowhere else, so the guard allows it beside
+         `src/` and `ext/` as Julia's choice rather than this tree's.
+
+       Verified: every stem loads; `test_kernel()` 1540/3/2, the clean-main
+       baseline; `test_package_graph()` 709/2 — the same two pre-existing
+       domain-edge failures, the count risen because there is a third leaf to
+       check every package against.
 6. [ ] **Repair the other two repositories.** 184 `[sources]` entries in
        omnet-julia and inet-julia name a path here. Do this in the same hour as
        step 5, and land all three; between the two commits neither of those

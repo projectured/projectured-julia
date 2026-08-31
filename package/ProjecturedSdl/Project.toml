@@ -1,0 +1,23 @@
+name = "ProjecturedSdl"
+uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
+version = "0.1.0"
+authors = []
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+
+[sources]
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedScreen = {path = "../ProjecturedScreen"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+
+[compat]
+SDL2_jll = "2.32.10"

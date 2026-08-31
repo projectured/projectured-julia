@@ -65,16 +65,52 @@ const SUBSTRATE = [
 
 
 """
+The leaves: a package nothing may depend on, and the only place a
+`@compile_workload` may live. `ProjecturedBench` joined the list when the tree
+moved it from `bench/` at the repository root into `package/`, where this guard
+could finally see it — it loads `ProjecturedExample` to measure it, which is a
+leaf's privilege and nobody else's. `ProjecturedBuilder` is not here: it is a
+tool that drives a build, not an artifact a session loads.
+"""
+const _LEAVES = ("ProjecturedRepl", "ProjecturedExecutable", "ProjecturedBench")
+
+"""
+    _is_main_package(name) -> Bool
+
+A package that holds code, rather than a suite, an example gallery or a leaf.
+`package/` is flat, so the kind a directory used to encode is now read from the
+name: the reserved suffixes are `Test` and `Example`, and the two leaves are
+named outright.
+"""
+_is_main_package(name) =
+    !endswith(name, "Test") && !endswith(name, "Example") &&
+    !(name in _LEAVES) && name != "ProjecturedBuilder"
+
+"""
+    _source_dir(name) -> Union{String,Nothing}
+
+Where a package's source lives, or `nothing` when it has none — an umbrella and
+a one-file package keep everything in the root file the package holds.
+"""
+function _source_dir(name)
+    slice = lowercase(replace(name, "Projectured" => ""))
+    isempty(slice) && return nothing
+    dir = joinpath(_PACKAGE_ROOT, "source", slice)
+    isdir(dir) ? dir : nothing
+end
+
+"""
     _read_package_graph() -> Dict{String,Vector{String}}
 
-Every `package/*/main` package, mapped to the `Projectured*` packages it
+Every package that holds code, mapped to the `Projectured*` packages it
 declares. Read from the `Project.toml` files, not from the loaded modules, so a
 dependency that is declared but unused still shows up.
 """
 function _read_package_graph()
     graph = Dict{String,Vector{String}}()
     for entry in sort(readdir(joinpath(_PACKAGE_ROOT, "package")))
-        proj = joinpath(_PACKAGE_ROOT, "package", entry, "main", "Project.toml")
+        _is_main_package(entry) || continue
+        proj = joinpath(_PACKAGE_ROOT, "package", entry, "Project.toml")
         isfile(proj) || continue
         text = read(proj, String)
         name = match(r"(?m)^name = \"([^\"]+)\"", text)
@@ -173,13 +209,14 @@ const _MAIN_DIR = Dict{String,Vector{String}}()
 "Fill `_MODULE_OWNER` (submodule => package) and `_MAIN_DIR` (package => folders)."
 function _build_module_owner()
     for entry in sort(readdir(joinpath(_PACKAGE_ROOT, "package")))
-        dir = joinpath(_PACKAGE_ROOT, "package", entry, "main")
+        _is_main_package(entry) || continue
+        dir = joinpath(_PACKAGE_ROOT, "package", entry)
         proj = joinpath(dir, "Project.toml")
         isfile(proj) || continue
         name = match(r"(?m)^name = \"([^\"]+)\"", read(proj, String)).captures[1]
-        dirs = [dir]
-        source = joinpath(_PACKAGE_ROOT, "source", entry)
-        isdir(source) && push!(dirs, source)
+        dirs = [joinpath(dir, "src")]
+        source = _source_dir(name)
+        source === nothing || push!(dirs, source)
         _MAIN_DIR[name] = dirs
         for d in dirs, (root, _dirs, files) in walkdir(d), f in files
             endswith(f, ".jl") || continue
@@ -301,7 +338,7 @@ function test_package_graph()
 
         @testset "nothing depends on a leaf" begin
             for (name, deps) in sort(collect(packages))
-                for leaf in ("ProjecturedRepl", "ProjecturedExecutable")
+                for leaf in _LEAVES
                     leaf in deps &&
                         println(stderr, "\n$name depends on the leaf $leaf")
                     @test !(leaf in deps)
@@ -312,7 +349,7 @@ function test_package_graph()
         @testset "an example package is a dependency only of a leaf, an example or a test" begin
             for (name, deps) in sort(collect(packages))
                 (endswith(name, "Example") || endswith(name, "Test")) && continue
-                name in ("ProjecturedRepl", "ProjecturedExecutable") && continue
+                name in _LEAVES && continue
                 examples = sort(filter(d -> endswith(d, "Example"), deps))
                 isempty(examples) ||
                     println(stderr, "\n$name depends on the example package(s) $examples")
@@ -326,9 +363,8 @@ function test_package_graph()
             # list it names lives under `source/`.
             for area in ("package", "source"),
                 (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, area))
-                (occursin(joinpath("package", "repl"), root) ||
-                 occursin(joinpath("source", "repl"), root) ||
-                 occursin(joinpath("package", "executable"), root)) && continue
+                (any(leaf -> occursin(joinpath("package", leaf), root), _LEAVES) ||
+                 occursin(joinpath("source", "repl"), root)) && continue
                 for file in files
                     endswith(file, ".jl") || continue
                     path = joinpath(root, file)

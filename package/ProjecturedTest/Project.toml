@@ -1,0 +1,97 @@
+name = "ProjecturedTest"
+uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+version = "0.1.0"
+authors = []
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
+ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
+ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedConversationTest = "475e7e6a-a374-4244-9dfc-8229b9ae86be"
+ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
+ProjecturedDbCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedFileSystemTest = "58f0a119-c25e-4957-a8ea-27a85642ba0e"
+ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
+ProjecturedFsmTest = "01095f28-dae7-4131-b352-cd496415c16e"
+ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJsonTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
+ProjecturedJuliaTest = "caf9ed19-1e68-4f5e-8085-d28b12c9e002"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
+ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
+ProjecturedMathTest = "35efe23a-a24b-424c-93f0-086222c9adeb"
+ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
+ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedRstTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
+ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSdlTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
+ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedSqlTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
+ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
+ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
+ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
+ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+ProjecturedWorkbenchTest = "dee3d367-0cd3-47f5-9f81-9b83918ba741"
+ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedXmlTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
+ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+ProjecturedYamlTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedAssistant = {path = "../ProjecturedAssistant"}
+ProjecturedBookTest = {path = "../ProjecturedBookTest"}
+ProjecturedChartTest = {path = "../ProjecturedChartTest"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedConversationTest = {path = "../ProjecturedConversationTest"}
+ProjecturedDatabaseTest = {path = "../ProjecturedDatabaseTest"}
+ProjecturedDbCatalogTest = {path = "../ProjecturedDbCatalogTest"}
+ProjecturedDomain = {path = "../ProjecturedDomain"}
+ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
+ProjecturedFileSystemTest = {path = "../ProjecturedFileSystemTest"}
+ProjecturedFormulaTest = {path = "../ProjecturedFormulaTest"}
+ProjecturedFsmTest = {path = "../ProjecturedFsmTest"}
+ProjecturedGraphTest = {path = "../ProjecturedGraphTest"}
+ProjecturedJson = {path = "../ProjecturedJson"}
+ProjecturedJsonTest = {path = "../ProjecturedJsonTest"}
+ProjecturedJulia = {path = "../ProjecturedJulia"}
+ProjecturedJuliaTest = {path = "../ProjecturedJuliaTest"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
+ProjecturedMarkdownTest = {path = "../ProjecturedMarkdownTest"}
+ProjecturedMathTest = {path = "../ProjecturedMathTest"}
+ProjecturedOdbcTest = {path = "../ProjecturedOdbcTest"}
+ProjecturedProcessTest = {path = "../ProjecturedProcessTest"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedRstTest = {path = "../ProjecturedRstTest"}
+ProjecturedSdlTest = {path = "../ProjecturedSdlTest"}
+ProjecturedSequenceChartTest = {path = "../ProjecturedSequenceChartTest"}
+ProjecturedSerialization = {path = "../ProjecturedSerialization"}
+ProjecturedSqlTest = {path = "../ProjecturedSqlTest"}
+ProjecturedSubstrateTest = {path = "../ProjecturedSubstrateTest"}
+ProjecturedSyntax = {path = "../ProjecturedSyntax"}
+ProjecturedText = {path = "../ProjecturedText"}
+ProjecturedTulipTest = {path = "../ProjecturedTulipTest"}
+ProjecturedVideoTest = {path = "../ProjecturedVideoTest"}
+ProjecturedWorkbench = {path = "../ProjecturedWorkbench"}
+ProjecturedWorkbenchTest = {path = "../ProjecturedWorkbenchTest"}
+ProjecturedXml = {path = "../ProjecturedXml"}
+ProjecturedXmlTest = {path = "../ProjecturedXmlTest"}
+ProjecturedYaml = {path = "../ProjecturedYaml"}
+ProjecturedYamlTest = {path = "../ProjecturedYamlTest"}

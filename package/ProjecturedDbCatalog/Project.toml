@@ -1,0 +1,24 @@
+name = "ProjecturedDbCatalog"
+uuid = "b1d9ff6e-938d-43f9-b327-c16571782863"
+version = "0.1.0"
+authors = []
+
+# The database catalog domain.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+
+[sources]
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedSql = {path = "../ProjecturedSql"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+ProjecturedSyntax = {path = "../ProjecturedSyntax"}
+ProjecturedText = {path = "../ProjecturedText"}

@@ -1,0 +1,19 @@
+name = "ProjecturedScreen"
+uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+version = "0.1.0"
+authors = []
+
+# The window model: the screen document, its windows, and the projection that
+# lifts open, close, resize and defocus operations from below.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}

@@ -1,0 +1,15 @@
+name = "ProjecturedDragging"
+uuid = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
+version = "0.1.0"
+authors = []
+
+# The DraggingState wrapper document and the press-drag-drop reader that
+# relocates elements of a CellVector without losing their identity.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}

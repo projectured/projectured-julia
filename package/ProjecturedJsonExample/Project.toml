@@ -1,0 +1,76 @@
+name = "ProjecturedJsonExample"
+uuid = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+version = "0.1.0"
+authors = []
+
+# The Json tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedComponent = "94db0aeb-e7ca-45ac-ad76-29882a6d5dc2"
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedDragging = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
+ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
+ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
+ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
+ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
+ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPlot = "fab29e63-3751-46a0-88a9-22680e33c7d8"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedReflection = "0807f717-a2ae-4bc5-a9a1-1eb2de00c335"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
+ProjecturedVersioning = "a4ca456b-a893-43e8-800f-57a1f4488681"
+ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
+
+[sources]
+ProjecturedClipboard = {path = "../ProjecturedClipboard"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedComponent = {path = "../ProjecturedComponent"}
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedDomain = {path = "../ProjecturedDomain"}
+ProjecturedDragging = {path = "../ProjecturedDragging"}
+ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
+ProjecturedFocus = {path = "../ProjecturedFocus"}
+ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
+ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
+ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedInspector = {path = "../ProjecturedInspector"}
+ProjecturedJson = {path = "../ProjecturedJson"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedLayout = {path = "../ProjecturedLayout"}
+ProjecturedNatural = {path = "../ProjecturedNatural"}
+ProjecturedPane = {path = "../ProjecturedPane"}
+ProjecturedPdf = {path = "../ProjecturedPdf"}
+ProjecturedPlot = {path = "../ProjecturedPlot"}
+ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedReflection = {path = "../ProjecturedReflection"}
+ProjecturedScreen = {path = "../ProjecturedScreen"}
+ProjecturedSerialization = {path = "../ProjecturedSerialization"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
+ProjecturedSyntax = {path = "../ProjecturedSyntax"}
+ProjecturedText = {path = "../ProjecturedText"}
+ProjecturedTooltip = {path = "../ProjecturedTooltip"}
+ProjecturedVersioning = {path = "../ProjecturedVersioning"}
+ProjecturedWidget = {path = "../ProjecturedWidget"}

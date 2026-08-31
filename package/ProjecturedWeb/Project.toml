@@ -1,0 +1,25 @@
+name = "ProjecturedWeb"
+uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
+version = "0.1.0"
+authors = []
+
+[deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+
+[sources]
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedScreen = {path = "../ProjecturedScreen"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+
+[compat]
+HTTP = "1.11.0"
+JSON3 = "1.14.3"
