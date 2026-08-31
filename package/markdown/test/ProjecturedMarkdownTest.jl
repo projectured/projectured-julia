@@ -64,7 +64,7 @@ for _src in _SOURCES
     end
 end
 
-include("serializer/MarkdownEmbedTest.jl")
+include("../../../test/markdown/serializer/MarkdownEmbedTest.jl")
 
 """
     test_markdown_layering()

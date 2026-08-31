@@ -72,9 +72,9 @@ for _src in _SOURCES
     end
 end
 
-include("editor/AssistantMvpTest.jl")
-include("projection/WorkbenchContentPaneTest.jl")
-include("projection/WorkbenchTabClickTest.jl")
+include("../../../test/workbench/editor/AssistantMvpTest.jl")
+include("../../../test/workbench/projection/WorkbenchContentPaneTest.jl")
+include("../../../test/workbench/projection/WorkbenchTabClickTest.jl")
 
 """
     test_workbench_layering()

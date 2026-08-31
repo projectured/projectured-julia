@@ -64,7 +64,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/FileSystemToSyntaxTest.jl")
+include("../../../test/filesystem/projection/FileSystemToSyntaxTest.jl")
 
 """
     test_filesystem_layering()

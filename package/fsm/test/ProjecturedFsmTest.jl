@@ -70,10 +70,10 @@ for _src in _SOURCES
     end
 end
 
-include("document/FsmTest.jl")
-include("projection/FsmDiagramTest.jl")
-include("projection/FsmToJuliaCodeTest.jl")
-include("projection/FsmToSyntaxTest.jl")
+include("../../../test/fsm/document/FsmTest.jl")
+include("../../../test/fsm/projection/FsmDiagramTest.jl")
+include("../../../test/fsm/projection/FsmToJuliaCodeTest.jl")
+include("../../../test/fsm/projection/FsmToSyntaxTest.jl")
 
 """
     test_fsm_layering()

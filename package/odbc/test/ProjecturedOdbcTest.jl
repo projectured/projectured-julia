@@ -32,9 +32,9 @@ function teardown_persons_table(adapter)
     db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
-include("external/DatabaseTest.jl")
-include("external/DbCatalogTest.jl")
-include("external/DbCatalogSyntaxTest.jl")
+include("../../../test/odbc/external/DatabaseTest.jl")
+include("../../../test/odbc/external/DbCatalogTest.jl")
+include("../../../test/odbc/external/DbCatalogSyntaxTest.jl")
 
 "Run the ODBC database + catalog suite (skips when no DB is reachable)."
 function test_odbc()

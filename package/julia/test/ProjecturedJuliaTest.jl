@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("document/JuliaParserTest.jl")
-include("document/JuliaDefinitionTest.jl")
-include("editor/JuliaTypeinTest.jl")
+include("../../../test/julia/document/JuliaParserTest.jl")
+include("../../../test/julia/document/JuliaDefinitionTest.jl")
+include("../../../test/julia/editor/JuliaTypeinTest.jl")
 
 """
     test_julia_layering()

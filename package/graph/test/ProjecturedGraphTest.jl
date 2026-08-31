@@ -67,7 +67,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/GraphTest.jl")
+include("../../../test/graph/projection/GraphTest.jl")
 
 """
     test_graph_layering()

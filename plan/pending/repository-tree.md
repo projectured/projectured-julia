@@ -244,8 +244,19 @@ and the narrowest suite the step touches.
 
        The second of those is the one to remember. A guard that stops looking
        reports success, and only the first one failed loudly.
-3. [ ] **Move `test/`.** 222 files, one slice folder at a time, keeping the role
-       folders inside each. `test/suite/` takes the cross-slice files.
+3. [x] **Move `test/`.** — done. **201 files** into 27 slice folders, and 27
+       root files rewritten. Two files stayed with their package: the root, and
+       `runtests.jl`, which `Pkg.test` looks for in the package directory and
+       nowhere else. The guard allows it there by name.
+
+       `test/suite/` holds only `tree.jl`. The umbrella's own suites are
+       `test/projectured/`, because `projectured` is a slice like any other —
+       that is what flat buys, and it is why the `substrate` stem's 78 files
+       needed no judgement at all.
+
+       The tree guard names the walkers it protects, and two of them moved in
+       this step, so its list moved with them. `test_kernel()` is 1540/3/2 here
+       and on clean main; `test_package_graph()` is 592/2 on both.
 4. [ ] **Move `example/`.** 153 files, the same way.
 5. [ ] **Flatten `package/`.** 116 directories, one per package, each holding
        `Project.toml` and `src/<Name>.jl`. Delete `entryfile` from every

@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 
-include("document/YamlParserTest.jl")
+include("../../../test/yaml/document/YamlParserTest.jl")
 
 """
     test_yaml_layering()

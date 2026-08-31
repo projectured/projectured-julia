@@ -66,11 +66,11 @@ for _src in _SOURCES
     end
 end
 
-include("document/ProcessTest.jl")
-include("projection/ProcessDebugTest.jl")
-include("projection/ProcessDiagramTest.jl")
-include("projection/ProcessToJuliaCodeTest.jl")
-include("projection/ProcessToSyntaxTest.jl")
+include("../../../test/process/document/ProcessTest.jl")
+include("../../../test/process/projection/ProcessDebugTest.jl")
+include("../../../test/process/projection/ProcessDiagramTest.jl")
+include("../../../test/process/projection/ProcessToJuliaCodeTest.jl")
+include("../../../test/process/projection/ProcessToSyntaxTest.jl")
 
 """
     test_process_layering()

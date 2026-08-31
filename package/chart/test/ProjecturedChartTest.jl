@@ -64,7 +64,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/ChartTest.jl")
+include("../../../test/chart/projection/ChartTest.jl")
 
 """
     test_chart_layering()

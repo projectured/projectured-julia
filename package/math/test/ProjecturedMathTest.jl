@@ -64,7 +64,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/MathToGraphicsTest.jl")
+include("../../../test/math/projection/MathToGraphicsTest.jl")
 
 """
     test_math_layering()

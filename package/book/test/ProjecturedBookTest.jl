@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 
-include("projection/BookToSyntaxTest.jl")
+include("../../../test/book/projection/BookToSyntaxTest.jl")
 
 """
     test_book_layering()

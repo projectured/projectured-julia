@@ -12,7 +12,7 @@
 
 using Test
 
-const _PACKAGE_ROOT = normpath(joinpath(@__DIR__, "..", "..", ".."))
+const _PACKAGE_ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 
 # domain package -> the other domain packages it may depend on.
 # An edge here is one domain embedding another domain's content: a state

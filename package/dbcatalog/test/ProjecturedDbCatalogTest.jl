@@ -65,7 +65,7 @@ for _src in _SOURCES
     end
 end
 
-include("external/DbCatalogSqlTest.jl")
+include("../../../test/dbcatalog/external/DbCatalogSqlTest.jl")
 
 """
     test_dbcatalog_layering()

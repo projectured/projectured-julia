@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("document/XmlParserTest.jl")
-include("projection/XmlToSyntaxTest.jl")
-include("serializer/XmlFileTest.jl")
+include("../../../test/xml/document/XmlParserTest.jl")
+include("../../../test/xml/projection/XmlToSyntaxTest.jl")
+include("../../../test/xml/serializer/XmlFileTest.jl")
 
 """
     test_xml_layering()

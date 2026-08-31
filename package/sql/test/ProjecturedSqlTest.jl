@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("document/SqlDocumentTest.jl")
-include("document/SqlParserTest.jl")
-include("projection/SqlToSyntaxTest.jl")
+include("../../../test/sql/document/SqlDocumentTest.jl")
+include("../../../test/sql/document/SqlParserTest.jl")
+include("../../../test/sql/projection/SqlToSyntaxTest.jl")
 
 """
     test_sql_layering()

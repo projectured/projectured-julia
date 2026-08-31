@@ -65,7 +65,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/FormulaToSyntaxTest.jl")
+include("../../../test/formula/projection/FormulaToSyntaxTest.jl")
 
 """
     test_formula_layering()

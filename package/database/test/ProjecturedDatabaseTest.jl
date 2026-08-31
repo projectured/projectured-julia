@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 
-include("document/DatabaseTest.jl")
+include("../../../test/database/document/DatabaseTest.jl")
 
 """
     test_database_layering()

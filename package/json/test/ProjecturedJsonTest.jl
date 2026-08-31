@@ -64,12 +64,12 @@ for _src in _SOURCES
     end
 end
 
-include("document/JsonParserTest.jl")
-include("document/JsonTest.jl")
-include("editor/JsonContentClicksTest.jl")
-include("editor/JsonPlaceholderNavTest.jl")
-include("projection/JsonToSyntaxTest.jl")
-include("serializer/JsonFileTest.jl")
+include("../../../test/json/document/JsonParserTest.jl")
+include("../../../test/json/document/JsonTest.jl")
+include("../../../test/json/editor/JsonContentClicksTest.jl")
+include("../../../test/json/editor/JsonPlaceholderNavTest.jl")
+include("../../../test/json/projection/JsonToSyntaxTest.jl")
+include("../../../test/json/serializer/JsonFileTest.jl")
 
 """
     test_json_layering()

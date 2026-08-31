@@ -67,7 +67,7 @@ for _src in _SOURCES
     end
 end
 
-include("projection/ConversationEditorTest.jl")
+include("../../../test/conversation/projection/ConversationEditorTest.jl")
 
 """
     test_conversation_layering()

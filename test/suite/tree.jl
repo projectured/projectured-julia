@@ -192,10 +192,8 @@ the move itself.
 """
 function guard_root_violations(root::AbstractString)
     out = String[]
-    guards = [joinpath(root, "package", "projectured", "test", "PackageGraphTest.jl"),
-              joinpath(root, "package", "kernel", "test", "layering", "CheckLayering.jl"),
-              joinpath(root, "package", "ProjecturedTest", "src", "PackageGraphTest.jl"),
-              joinpath(root, "test", "suite", "PackageGraphTest.jl")]
+    guards = [joinpath(root, "test", "projectured", "PackageGraphTest.jl"),
+              joinpath(root, "test", "kernel", "layering", "CheckLayering.jl")]
     present = filter(isfile, guards)
     isempty(present) &&
         push!(out, "no guard of this list is at its path — every walker moved, and " *

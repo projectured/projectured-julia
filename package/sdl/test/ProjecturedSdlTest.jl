@@ -25,12 +25,12 @@ function __init__()
     initialize_backend!(SdlBackend())
 end
 
-include("backend/DirtyRectTest.jl")
-include("backend/KeysymTest.jl")
-include("backend/DeviceConfigTest.jl")
-include("backend/InputCoalescingTest.jl")
-include("backend/NativeWindowTest.jl")
-include("projection/GraphicsToFileTest.jl")
+include("../../../test/sdl/backend/DirtyRectTest.jl")
+include("../../../test/sdl/backend/KeysymTest.jl")
+include("../../../test/sdl/backend/DeviceConfigTest.jl")
+include("../../../test/sdl/backend/InputCoalescingTest.jl")
+include("../../../test/sdl/backend/NativeWindowTest.jl")
+include("../../../test/sdl/projection/GraphicsToFileTest.jl")
 
 "Run the whole SDL backend suite."
 function test_sdl()

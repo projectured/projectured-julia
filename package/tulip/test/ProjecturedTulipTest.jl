@@ -14,7 +14,7 @@ using Projectured
 using ProjecturedExample
 using ProjecturedTulip
 
-include("document/ConstraintSolverTest.jl")
+include("../../../test/tulip/document/ConstraintSolverTest.jl")
 
 "Run the Tulip constraint-solver suite."
 function test_tulip()

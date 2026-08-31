@@ -64,8 +64,8 @@ for _src in _SOURCES
     end
 end
 
-include("projection/SequenceChartGeometryTest.jl")
-include("projection/SequenceChartTest.jl")
+include("../../../test/sequencechart/projection/SequenceChartGeometryTest.jl")
+include("../../../test/sequencechart/projection/SequenceChartTest.jl")
 
 """
     test_sequencechart_layering()

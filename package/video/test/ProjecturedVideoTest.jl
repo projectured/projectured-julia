@@ -15,7 +15,7 @@ using ProjecturedExample
 using ProjecturedVideo
 using ProjecturedSubstrateTest    # collect_position_selections (caret seeds)
 
-include("editor/VideoTest.jl")
+include("../../../test/video/editor/VideoTest.jl")
 
 "Run the video-recording suite."
 function test_video()
