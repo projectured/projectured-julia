@@ -66,8 +66,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Formula.jl")
-include("projection/Formula.jl")
+include("../../../example/formula/document/Formula.jl")
+include("../../../example/formula/projection/Formula.jl")
 
 export make_formula_document_example, make_formula_formula_document_example, make_formula_environment_document_example
 export make_formula_insertion_document_example, make_formula_reference_document_example, make_formula_projection_example

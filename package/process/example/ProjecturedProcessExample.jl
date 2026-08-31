@@ -67,8 +67,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Process.jl")
-include("projection/Process.jl")
+include("../../../example/process/document/Process.jl")
+include("../../../example/process/projection/Process.jl")
 
 export make_process_step_document_example, make_process_sequence_document_example, make_process_decision_document_example
 export make_process_while_document_example, make_process_foreach_document_example, make_process_return_document_example

@@ -696,7 +696,7 @@ end
 
 """
     generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
-                                 image_dir=joinpath(@__DIR__, "..", "..", "..", "asset", "image", "example"))
+                                 image_dir=joinpath(@__DIR__, "..", "..", "asset", "image", "example"))
 
 Generate a PNG screenshot for every example in `examples` into `image_dir`.
 Filename pattern: `{example-name-with-hyphens}.png`. One failure does not

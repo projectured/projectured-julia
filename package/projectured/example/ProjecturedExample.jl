@@ -58,7 +58,9 @@ using ProjecturedLlm
 # `ProjecturedTulipExample`), so this package depends on none of them — it
 # precompiles with no native build and no database driver.
 
-const _EXAMPLE_DIR = @__DIR__
+# The bodies live in `example/projectured`, not beside this file:
+# a package is a name and an include list.
+const _EXAMPLE_DIR = normpath(joinpath(@__DIR__, "../../../example/projectured"))
 
 # The cross-domain compositions: a document that mixes two domains, the
 # render-anything example, the engine-feature demonstrations over a domain

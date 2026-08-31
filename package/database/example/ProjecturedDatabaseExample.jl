@@ -65,7 +65,7 @@ for _src in _SOURCES
     end
 end
 
-include("document/DatabaseInstance.jl")
+include("../../../example/database/document/DatabaseInstance.jl")
 
 export make_database_instance_document_example
 

@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Markdown.jl")
-include("projection/Markdown.jl")
+include("../../../example/markdown/document/Markdown.jl")
+include("../../../example/markdown/projection/Markdown.jl")
 
 export make_markdown_text_document_example, make_markdown_code_document_example, make_markdown_thematic_break_document_example
 export make_markdown_insertion_document_example, make_markdown_heading_document_example, make_markdown_paragraph_document_example

@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Rst.jl")
-include("projection/Rst.jl")
+include("../../../example/rst/document/Rst.jl")
+include("../../../example/rst/projection/Rst.jl")
 
 export make_rst_text_document_example, make_rst_literal_document_example, make_rst_transition_document_example
 export make_rst_comment_document_example, make_rst_target_document_example, make_rst_insertion_document_example

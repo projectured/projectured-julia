@@ -32,10 +32,10 @@ import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd
 
-include("Harness.jl")
-include("LlmFake.jl")         # FakeLlm — canned-reply test double (no network)
-include("LlmScripted.jl")     # ScriptedLlm + scripted-round builders
-include("BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
+include("../../../example/kernel/Harness.jl")
+include("../../../example/kernel/LlmFake.jl")         # FakeLlm — canned-reply test double (no network)
+include("../../../example/kernel/LlmScripted.jl")     # ScriptedLlm + scripted-round builders
+include("../../../example/kernel/BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
 
 export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures

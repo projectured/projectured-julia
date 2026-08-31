@@ -76,8 +76,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Conversation.jl")
-include("projection/Conversation.jl")
+include("../../../example/conversation/document/Conversation.jl")
+include("../../../example/conversation/projection/Conversation.jl")
 
 export _conversation_widget_graphics
 export make_conversation_document_example, make_conversation_editor_document_example, make_conversation_part_document_example

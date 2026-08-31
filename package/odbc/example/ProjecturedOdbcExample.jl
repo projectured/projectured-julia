@@ -20,7 +20,9 @@ import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_database_instance_document_example, make_sql_document_example
 
-const _PKG_DIR = @__DIR__
+# The bodies live in `example/odbc`, not beside this file:
+# a package is a name and an include list.
+const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/odbc"))
 
 include(joinpath(_PKG_DIR, "document", "Database.jl"))
 include(joinpath(_PKG_DIR, "document", "DbCatalog.jl"))

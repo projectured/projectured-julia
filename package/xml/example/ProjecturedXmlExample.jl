@@ -66,12 +66,12 @@ for _src in _SOURCES
     end
 end
 
-include("document/Xml.jl")
-include("projection/Xml.jl")
+include("../../../example/xml/document/Xml.jl")
+include("../../../example/xml/projection/Xml.jl")
 
-include("document/Mixed.jl")
+include("../../../example/xml/document/Mixed.jl")
 
-include("projection/Mixed.jl")
+include("../../../example/xml/projection/Mixed.jl")
 
 export make_mixed_document_example, make_mixed_projection_example, JsonXmlToSyntax
 export make_xml_text_document_example, make_xml_element_document_example, make_xml_attribute_document_example

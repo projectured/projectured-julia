@@ -47,7 +47,7 @@ end
 # video context exists), so constructing the example document never touches
 # SDL. A decode failure degrades to `nothing` rather than throwing.
 function _load_inline_image(name::AbstractString)
-    path = joinpath(@__DIR__, "..", "..", "..", "..", "asset", "image", name)
+    path = joinpath(@__DIR__, "..", "..", "..", "asset", "image", name)
     img = ImageFile(path)
     set_cell_function!(getfield(img, :raw), () -> begin
         try

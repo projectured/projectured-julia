@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/FileSystem.jl")
-include("projection/FileSystem.jl")
+include("../../../example/filesystem/document/FileSystem.jl")
+include("../../../example/filesystem/projection/FileSystem.jl")
 
 export filesystem_example_root
 export make_filesystem_document_example, make_filesystem_file_document_example, make_filesystem_directory_document_example

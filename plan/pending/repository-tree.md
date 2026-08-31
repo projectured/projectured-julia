@@ -257,7 +257,20 @@ and the narrowest suite the step touches.
        The tree guard names the walkers it protects, and two of them moved in
        this step, so its list moved with them. `test_kernel()` is 1540/3/2 here
        and on clean main; `test_package_graph()` is 592/2 on both.
-4. [ ] **Move `example/`.** 153 files, the same way.
+4. [x] **Move `example/`.** — done. **133 files** into 27 slice folders, 27 root
+       files rewritten, and five directory constants redirected.
+
+       That last part is the one worth knowing. Five example roots include
+       through `const _PKG_DIR = @__DIR__` rather than by a literal path, so
+       rewriting `include` lines would have missed them entirely. Each const now
+       reads `normpath(joinpath(@__DIR__, "../../../example/<slice>"))`, and
+       every `include(joinpath(_PKG_DIR, …))` under it works unchanged.
+
+       Verified: 102 examples load, `test_json()` 169/169, `test_domain_examples()`
+       green, `test_tree()` green. `ProjecturedAdaptagramsExample` cannot load on
+       this machine — a database example opens a PostgreSQL ODBC connection at
+       load time and the driver is not installed — and it fails identically on
+       clean main.
 5. [ ] **Flatten `package/`.** 116 directories, one per package, each holding
        `Project.toml` and `src/<Name>.jl`. Delete `entryfile` from every
        `Project.toml` — see §9. The 2260 `[sources]` entries all collapse to

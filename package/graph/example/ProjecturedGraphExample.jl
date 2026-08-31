@@ -68,8 +68,8 @@ for _src in _SOURCES
     end
 end
 
-include("document/Graph.jl")
-include("projection/Graph.jl")
+include("../../../example/graph/document/Graph.jl")
+include("../../../example/graph/projection/Graph.jl")
 
 export make_graph_document_example, make_graph_graph_document_example, make_graph_layout_document_example
 export make_graph_projection_example
