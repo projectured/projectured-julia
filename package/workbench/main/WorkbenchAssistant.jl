@@ -29,36 +29,23 @@ module WorkbenchAssistantModule
 
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule
-import ..ProjectionApiModule: read_intent, print_document
+import ..ProjectionApiModule: read_intent
 import ..CellModule: Cell, ComputedCell
 import ..TextModule: TextBlock, TextString
 import ..PrimitiveModule: PrimitiveString
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..JuliaModule: JuliaDocument
-import ..JsonModule: JsonDocument
-import ..XmlModule: XmlDocument
-import ..YamlModule: YamlDocument
-import ..MarkdownModule: MarkdownDocument
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..JuliaToSyntaxModule: JuliaToSyntax
-import ..JsonToSyntaxModule: JsonToSyntax
-import ..XmlToSyntaxModule: XmlToSyntax
-import ..YamlToSyntaxModule: YamlToSyntax
-import ..MarkdownToSyntaxModule: MarkdownToSyntax
-import ..SyntaxToTextModule: SyntaxToText
-import ..JuliaParserModule: juliaparse
-import ..JsonParserModule: jsonparse
-import ..XmlParserModule: xmlparse
-import ..YamlParserModule: yamlparse
-import ..MarkdownParserModule: markdownparse
+# The assistant names no source domain. What it needs of one — parse this
+# fenced block, render this document back to its own text — is the natural-format
+# seam, which every domain registers itself with. A domain that is not loaded
+# has no method there, and the fenced-text fallback below answers instead.
+import ..NaturalFormatModule: parse_natural, natural_syntax_projection,
+                              natural_extension, document_to_text
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
                               ConversationThinking, thinking_part
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
-import ..JuliaModule: JuliaDocument, JuliaIdentifier
 import ..WorkbenchModule: WorkbenchAssistant
 import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane,
                                    WorkbenchAssistantToWidgetCard
@@ -82,24 +69,6 @@ import ..ConversationEditorModule: composer_read, composer_host_op,
                                     ComposerSubmitOperation, ComposerEvaluateOperation,
                                     finalize_draft!, reset_draft!,
                                     SUBMIT_HANDLER, EVAL_HANDLER
-import ..JsonModule: JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString,
-                     JsonArray, JsonObject
-import ..JsonParserModule: jsonparse
-import ..MarkdownModule: MarkdownText, MarkdownCode
-
-# Convert a parsed JsonDocument into native Julia values (so LLM tool-call argument
-# JSON can be parsed with the project's own parser instead of JSON3, keeping this
-# module dependency-free).
-_json_native(::JsonNull)   = nothing
-_json_native(j::JsonBool)   = j.value
-_json_native(j::JsonNumber) = j.value
-_json_native(j::JsonString) = String(j.value)
-_json_native(j::JsonArray)  = Any[_json_native(e) for e in j.elements]
-# Iterate the `entries` collection field directly: JsonObject does not forward
-# `length` (collection-fold), which the Dict constructor needs to presize the
-# generator, so building the Dict straight off `j` throws.
-_json_native(j::JsonObject) = Dict{String,Any}(e.key => _json_native(e.value) for e in j.entries)
-
 export register_draft_handlers!
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
@@ -165,80 +134,63 @@ function _text_to_string(t::TextBlock)
 end
 
 _text_to_string(s::PrimitiveString) = something(s.value, "")
+# Any other content — a document a part holds — answers with its own source
+# text, through the seam. `_content_to_string` is where that decision lives.
+_text_to_string(d) = _content_to_string(d)
 
-# Plain (marker-free) text of a parsed-Markdown content: concatenate its string
-# leaves. `MarkdownText`/`MarkdownCode` carry a `content::String`; container nodes
-# (root, paragraph, strong, …) forward the vector protocol over their children, so
-# recurse through those; non-text leaves (thematic break, image, …) contribute
-# nothing. Assistant prose is stored as a `MarkdownRoot`, so this reads back its text.
-_markdown_plain(d::MarkdownText) = d.content
-_markdown_plain(d::MarkdownCode) = d.content
-function _markdown_plain(d::MarkdownDocument)
-    applicable(length, d) || return ""
-    io = IOBuffer()
-    for i in 1:length(d)
-        c = d[i]
-        c isa MarkdownDocument && print(io, _markdown_plain(c))
-    end
-    String(take!(io))
-end
-_text_to_string(d::MarkdownDocument) = _markdown_plain(d)
-
-# Stringify an arbitrary part content (text / Julia placeholder / etc).
+# Stringify an arbitrary part content (text / a document / a placeholder).
+# A document the seam can render answers with its own source text, which is what
+# the editor shows and therefore what the model should see.
 _content_to_string(t::TextBlock) = _text_to_string(t)
-_content_to_string(d::MarkdownDocument) = _markdown_plain(d)
-_content_to_string(d) = hasproperty(d, :name) ? String(d.name) : string(d)
-
-# ── Domain document → source text, via its print chain ─────────────────────────
-# Serialize a structured document by projecting it through `…→syntax→text` and
-# flattening the resulting (possibly nested) TextBlock — the same rendering the
-# editor shows, so the LLM sees exactly the displayed source. Built once.
-
-const _JULIA_TO_TEXT = ChainingProjection(RecursiveProjection(JuliaToSyntax()),
-                                            RecursiveProjection(SyntaxToText()))
-const _JSON_TO_TEXT  = ChainingProjection(RecursiveProjection(JsonToSyntax()),
-                                            RecursiveProjection(SyntaxToText()))
-const _XML_TO_TEXT   = ChainingProjection(RecursiveProjection(XmlToSyntax()),
-                                            RecursiveProjection(SyntaxToText()))
-const _YAML_TO_TEXT  = ChainingProjection(RecursiveProjection(YamlToSyntax()),
-                                            RecursiveProjection(SyntaxToText()))
-const _MARKDOWN_TO_TEXT = ChainingProjection(RecursiveProjection(MarkdownToSyntax()),
-                                               RecursiveProjection(SyntaxToText()))
-
-_flatten_text!(io, s::TextString) = (c = s.content; c isa AbstractString && print(io, c); nothing)
-_flatten_text!(io, t::TextBlock)   = (for e in t.elements; _flatten_text!(io, e); end; nothing)
-_flatten_text!(io, _)             = nothing
-
-function _via_chain(chain, doc)
-    try
-        io = IOBuffer()
-        _flatten_text!(io, print_document(chain, doc).output)
-        String(take!(io))
-    catch
-        _content_to_string(doc)
-    end
+function _content_to_string(d)
+    applicable(natural_syntax_projection, d) && return _doc_source(d)
+    hasproperty(d, :name) ? String(d.name) : string(d)
 end
 
-# Source text for a structured document (no fence).
-_doc_source(c::JuliaDocument) = _via_chain(_JULIA_TO_TEXT, c)
-_doc_source(c::JsonDocument)  = _via_chain(_JSON_TO_TEXT, c)
-_doc_source(c::XmlDocument)   = _via_chain(_XML_TO_TEXT, c)
-_doc_source(c::YamlDocument)  = _via_chain(_YAML_TO_TEXT, c)
-_doc_source(c::MarkdownDocument) = _via_chain(_MARKDOWN_TO_TEXT, c)
-_doc_source(c)               = _content_to_string(c)
+# ── Document → source text ──────────────────────────────────────────────────
+# `document_to_text` is the natural-format seam's own chain: the domain's
+# `*ToSyntax`, then `SyntaxToText`, then `TextToString`. The assistant built five
+# copies of it, one per domain, and naming five domains was the price.
+#
+# A document whose domain registered nothing — or which is not a document at all
+# — falls back to the plain stringification above.
+function _doc_source(c)
+    applicable(natural_syntax_projection, c) || return _content_to_string(c)
+    try
+        document_to_text(c)
+    catch
+        hasproperty(c, :name) ? String(c.name) : string(c)
+    end
+end
 
 # One LLM text-block string for a part's content: prose as-is, a structured
-# document fenced with its kind (```julia / ```json / ```xml / ```yaml). A
-# MarkdownDocument is prose the assistant wrote (or a ```markdown block), so it
-# round-trips as its raw markdown *source* — unfenced — which is exactly the text
-# Claude produced.
-_block_text(c::TextBlock)      = _content_to_string(c)
-_block_text(c::JuliaDocument) = "```julia\n" * _doc_source(c) * "\n```"
-_block_text(c::JsonDocument)  = "```json\n"  * _doc_source(c) * "\n```"
-_block_text(c::XmlDocument)   = "```xml\n"   * _doc_source(c) * "\n```"
-_block_text(c::YamlDocument)  = "```yaml\n"  * _doc_source(c) * "\n```"
-_block_text(c::MarkdownDocument) = _doc_source(c)
-_block_text(c)               = _content_to_string(c)
+# document fenced with its kind (```julia / ```json / ```xml / ```yaml). Markdown
+# is prose the assistant wrote (or a ```markdown block), so it round-trips as its
+# raw markdown *source* — unfenced — which is exactly the text Claude produced.
+#
+# The fence names the document's own natural extension, so a domain says what it
+# is called rather than this file listing them.
+_block_text(c::TextBlock) = _content_to_string(c)
+function _block_text(c)
+    applicable(natural_extension, c) || return _content_to_string(c)
+    name = _fence_language(natural_extension(c))
+    name == "markdown" ? _doc_source(c) :
+        "```" * name * "\n" * _doc_source(c) * "\n```"
+end
+
+# The fence language a natural extension is written as. The two that differ are
+# the two whose extension is an abbreviation of the language's name.
+_fence_language(extension::AbstractString) =
+    let ext = lstrip(extension, '.')
+        ext == "jl" ? "julia" : ext == "md" ? "markdown" : ext
+    end
+
+# The natural extension a fence language is written as — the inverse, for a block
+# the model sent.
+_fence_extension(language::AbstractString) =
+    language == "julia" ? :jl :
+    language == "markdown" ? :md :
+    language == "yml" ? :yaml : Symbol(language)
 
 # Part / turn helpers for the uniform turn/part model.
 _part_content(p::ConversationPart) = p.content
@@ -417,22 +369,24 @@ function register_draft_handlers!()
 end
 
 # ═══════════════════════════════════════════════════════════════════════
-# Code → JuliaDocument for an EvaluatorForm
+# Code → a Julia document for an EvaluatorForm
 # ═══════════════════════════════════════════════════════════════════════
-# Parse the executed code into a real `JuliaDocument` so it renders as a
-# syntax-highlighted Julia document in the conversation (its natural form), not a
-# single opaque identifier. Fall back to the smallest projectable wrapper
-# (`JuliaIdentifier`) if the snippet doesn't parse.
+# Parse the executed code through the natural-format seam so it renders as a
+# syntax-highlighted Julia document in the conversation, which is its natural
+# form. With no Julia domain loaded, or with a snippet that does not parse, the
+# code is kept as a string: it still renders, and it still runs.
 
 function _eval_form_doc(code::AbstractString)
     # Strip surrounding blank lines so the rendered form does not carry an empty
     # leading/trailing gutter line (common when the snippet is a triple-quoted
     # block). Execution still runs the original code; only the display is trimmed.
     src = strip(String(code))
+    applicable(parse_natural, Val(:jl), src) || return PrimitiveString(src)
     try
-        juliaparse(src)
+        parse_natural(Val(:jl), src)
     catch
-        JuliaIdentifier(src)
+        # The snippet does not parse. A string still renders and still runs.
+        PrimitiveString(src)
     end
 end
 
@@ -843,14 +797,10 @@ end
 # A fenced code block → a part whose content is the parsed domain document, with
 # a graceful fallback to fenced text when the language is unknown or won't parse.
 function _code_part(lang::AbstractString, body::AbstractString)
-    parser = lang == "julia" ? juliaparse :
-             lang == "json"  ? jsonparse  :
-             lang == "xml"   ? xmlparse   :
-             (lang == "yaml" || lang == "yml") ? yamlparse :
-             (lang == "markdown" || lang == "md") ? markdownparse : nothing
-    if parser !== nothing
+    kind = Val(_fence_extension(lang))
+    if applicable(parse_natural, kind, body)
         doc = try
-            parser(body)
+            parse_natural(kind, body)
         catch
             nothing
         end
@@ -859,14 +809,15 @@ function _code_part(lang::AbstractString, body::AbstractString)
     ConversationPart("```" * lang * "\n" * body * "\n```")
 end
 
-# A run of prose → one real `MarkdownRoot` part, so headings / lists / **bold** /
-# `code` / links become a genuine projectured Markdown document (rendered by the
-# conversation's `MarkdownDocument` projection) instead of flat text. `markdownparse`
-# is contractually total; the try/catch is belt-and-braces so a bug there can never
-# break the turn — it degrades to a plain-text part.
+# A run of prose → one real markdown part, so headings / lists / **bold** /
+# `code` / links become a genuine projectured document instead of flat text. It
+# needs the markdown domain: with none loaded the seam has no method for `:md`
+# and the prose stays a plain-text part, which is what it already degraded to
+# when the parse failed.
 function _prose_part(s::AbstractString)
+    applicable(parse_natural, Val(:md), s) || return ConversationPart(String(s))
     doc = try
-        markdownparse(s)
+        parse_natural(Val(:md), s)
     catch
         nothing
     end
@@ -877,15 +828,19 @@ end
     parse_markdown_blocks(text::AbstractString) -> Vector{ConversationPart}
 
 Split a completed assistant text block into conversation parts. Top-level fenced
-code blocks are peeled out at the source level so a ```julia / ```json / ```xml /
-```yaml block becomes a live parsed `JuliaDocument` / `JsonDocument` /
-`XmlElement` / `YamlDocument`; every run of prose between and around the fences
-(headings, lists, **bold**, `code`, links, …) is parsed by the project's own
-`markdownparse` into a real `MarkdownRoot`. So the assistant's markdown becomes a
-genuine projectured document rather than flat text. A
-fenced block whose language is unknown or that fails to parse falls back to fenced
-text; a ```markdown block is parsed to `MarkdownRoot` like prose. Nothing here
-throws — a malformed block never breaks the turn.
+code blocks are peeled out at the source level and handed to the natural-format
+seam, so a ```julia / ```json / ```xml / ```yaml block becomes a live document of
+that domain; every run of prose between and around the fences (headings, lists,
+**bold**, `code`, links, …) goes the same way as markdown. So the assistant's
+answer becomes a genuine projectured document rather than flat text.
+
+**Each of those needs its domain loaded.** The seam answers for a language only
+when the domain that owns it has registered a parser, and a language it cannot
+place falls back to fenced text — the same fallback a block that fails to parse
+already took. This module names no domain, so what an answer renders as is the
+caller's choice of packages.
+
+Nothing here throws: a malformed block never breaks the turn.
 """
 function parse_markdown_blocks(text::AbstractString)
     out = Any[]

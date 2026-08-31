@@ -15,6 +15,7 @@ module ProjecturedYaml
 
 using ProjecturedCollection
 using ProjecturedDomain
+using ProjecturedFileFormat
 using ProjecturedKernel
 using ProjecturedPrimitive
 using ProjecturedProjection
@@ -22,7 +23,7 @@ using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedKernel, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
