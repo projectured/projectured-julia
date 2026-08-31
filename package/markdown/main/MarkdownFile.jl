@@ -35,7 +35,7 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
 import ..MarkdownParserModule: markdownparse
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
 import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
-                              natural_extension, parse_natural
+                              natural_extension, natural_format, parse_natural
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, document_section,
@@ -162,6 +162,8 @@ _substitute_markers(n::MarkdownLink,      ctx::LoaderContext) = _visit_vector!(n
 natural_syntax_projection(::MarkdownDocument) = MarkdownToSyntax()
 natural_extension(::MarkdownDocument) = ".md"
 parse_natural(::Val{:md}, text::AbstractString) = markdownparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:MarkdownDocument}) = :md
 
 # ── The `section` vocabulary function ──────────────────────────────────────
 

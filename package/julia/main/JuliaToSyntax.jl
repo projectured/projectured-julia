@@ -1005,11 +1005,13 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
 import ..JuliaParserModule: juliaparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
 natural_syntax_projection(::JuliaDocument) = JuliaToSyntax()
 natural_extension(::JuliaDocument) = ".jl"
 parse_natural(::Val{:jl}, text::AbstractString) = juliaparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:JuliaDocument}) = :jl
 new_document_seed(::Val{:jl}) = JuliaInsertion()
 
 # ── Natural-projection registration ─────────────────────────────────────────

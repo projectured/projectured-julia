@@ -2075,11 +2075,13 @@ SqlInsertionToSyntaxLeaf() =
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
 import ..SqlDocumentModule: SqlDocument
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
 natural_syntax_projection(::SqlDocument) = SqlToSyntax()
 natural_extension(::SqlDocument) = ".sql"
 parse_natural(::Val{:sql}, text::AbstractString) = sqlparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:SqlDocument}) = :sql
 new_document_seed(::Val{:sql}) = SqlInsertion()
 
 # ── Natural-projection registration ─────────────────────────────────────────

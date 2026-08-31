@@ -7,8 +7,10 @@ A chat with an assistant: the turn and part documents, the expression
 evaluator, the syntax and widget projections, and the editor that drives the
 loop.
 
-A turn may carry a JSON, Julia or XML payload, so this depends on those three
-domains.
+A turn may carry a payload of any source domain — a JSON object, a Julia
+expression — and this package names none of them. What a person may type into the
+composer is whatever domain the session loaded and the natural-format seam can
+read; `ProjecturedFileFormat` is that seam.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -19,8 +21,7 @@ module ProjecturedConversation
 
 using ProjecturedCollection
 using ProjecturedDomain
-using ProjecturedJson
-using ProjecturedJulia
+using ProjecturedFileFormat
 using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
@@ -29,12 +30,8 @@ using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
-using ProjecturedXml
-using ProjecturedJson
-using ProjecturedJulia
-using ProjecturedXml
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget, ProjecturedXml)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

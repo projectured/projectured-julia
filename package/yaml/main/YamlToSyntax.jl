@@ -305,7 +305,7 @@ end
 # JSON, XML, Julia and Markdown. A caller that asks the seam rather than the
 # domain — the assistant's fenced code blocks, for one — needs them here.
 import ..YamlParserModule: yamlparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 
 natural_syntax_projection(::YamlDocument) = YamlToSyntax()
 natural_extension(::YamlDocument) = ".yaml"
@@ -313,5 +313,7 @@ parse_natural(::Val{:yaml}, text::AbstractString) = yamlparse(text)
 # `.yml` is the same format under the other spelling, and a fenced block is
 # written either way.
 parse_natural(::Val{:yml}, text::AbstractString) = yamlparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:YamlDocument}) = :yaml
 
 end # module

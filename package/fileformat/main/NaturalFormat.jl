@@ -36,7 +36,7 @@ import ..RecursiveProjectionModule: RecursiveProjection
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToStringModule: TextToString
 
-export natural_syntax_projection, natural_extension, parse_natural,
+export natural_syntax_projection, natural_extension, natural_format, parse_natural,
        document_to_text, import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation
 
@@ -72,6 +72,23 @@ Registered per domain; an unregistered extension has no method — `import_docum
 checks `applicable` and errors cleanly rather than throwing a `MethodError`.
 """
 function parse_natural end
+
+"""
+    natural_format(::Type{<:Document}) -> Symbol | Nothing
+
+The format key a domain's documents are written in — `JsonDocument` → `:json`.
+It is the type-level inverse of [`natural_extension`](@ref), and it is what turns
+a **type** into the key [`parse_natural`](@ref) takes.
+
+`natural_extension` answers for an instance, which a caller that holds a document
+already has. A caller that holds only a type — the insertion a person is typing
+into, before there is anything to parse — has no instance to ask, and this is the
+seam it asks instead.
+
+Registered per domain, in the same file as `parse_natural`, on the domain's
+abstract root. `nothing` for every type no domain claimed.
+"""
+natural_format(::Type) = nothing
 
 _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 

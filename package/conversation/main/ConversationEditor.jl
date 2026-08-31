@@ -35,15 +35,15 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
+import ..ConversationToWidgetModule: FORMAT_GLYPHS, FORMAT_LABELS
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
-import ..JuliaModule: JuliaDocument, JuliaInsertion, JuliaIdentifier
-import ..JsonModule: JsonInsertion, JsonDocument
-import ..XmlModule: XmlInsertion, XmlDocument
 import ..TextModule: TextBlock, TextString
-import ..JuliaParserModule: juliaparse
-import ..JsonParserModule: jsonparse
-import ..XmlParserModule: xmlparse
+# The composer names no source domain. Which kinds it offers, what each is
+# called, and how a typed source becomes a document are all asked of two seams:
+# `insertion_root` says a type is a domain's insertion, and `natural_format` /
+# `parse_natural` say that domain's key and how to read its text.
+import ..NaturalFormatModule: natural_format, parse_natural
 import ..ToolModule: execute_julia_code, last_evaluated_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
@@ -52,7 +52,7 @@ import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
 import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_red, color_completion_hint, color_slate_600
-import ..DomainModule: resolve_insertion, make_insertion_document
+import ..DomainModule: resolve_insertion, make_insertion_document, insertion_root
 import ..DocumentInsertionToSyntaxModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
@@ -81,9 +81,12 @@ _active_part(d::ConversationDraft) =
 _active_content(d::ConversationDraft) =
     (p = _active_part(d); p === nothing ? nothing : p.content)
 
-# The editing-state contents all carry an editable `value` you can type into.
+# The editing-state contents all carry an editable `value` you can type into: the
+# plain text part, the kind chooser, and any domain's insertion. `insertion_root`
+# is what makes the last of those a question rather than a list — it answers a
+# domain root for an insertion type and `Document` for everything else.
 _is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion ||
-                  c isa JuliaInsertion || c isa JsonInsertion || c isa XmlInsertion
+                  insertion_root(typeof(c)) !== Document
 _is_editable(::Nothing) = false
 
 _value(c) = something(c.value, "")
@@ -249,9 +252,18 @@ end
 
 # Kind keyword → the domain insertion the chooser grows into, resolved over the
 # reflected candidates (exact name/alias or unambiguous prefix — `juli⏎` works),
-# filtered to the kinds the composer can actually parse/evaluate today. Each is
-# an editable insertion you then type a source into.
-_composer_kind(T) = T in (JuliaInsertion, JsonInsertion, XmlInsertion)
+# filtered to the kinds the composer can actually parse. Each is an editable
+# insertion you then type a source into.
+#
+# The filter was a list of three. It is the question itself now: is this a
+# domain's insertion, and can that domain read its own text? So the composer
+# offers whatever domains a session loaded, and offering one it cannot commit is
+# not expressible.
+function _composer_kind(T)
+    insertion_root(T) === Document && return false
+    key = natural_format(T)
+    key !== nothing && applicable(parse_natural, Val(key), "")
+end
 function _composer_factory(name::AbstractString)
     T = resolve_insertion(Document, name)
     (T === nothing || !_composer_kind(T)) && return nothing
@@ -266,11 +278,14 @@ function evaluate_operation(editor, op::ComposerCommitChooserOperation)
     _replace_active!(op.draft, doc)
 end
 
-# Parse a source insertion into its domain document, by insertion type.
-_parse_source(c::JuliaInsertion) = _try_parse(juliaparse, _value(c))
-_parse_source(c::JsonInsertion)  = _try_parse(jsonparse, _value(c))
-_parse_source(c::XmlInsertion)   = _try_parse(xmlparse, _value(c))
-_parse_source(_) = nothing
+# Parse a source insertion into its domain document, through the seam.
+function _parse_source(c)
+    insertion_root(typeof(c)) === Document && return nothing
+    key = natural_format(typeof(c))
+    key === nothing && return nothing
+    _try_parse(text -> parse_natural(Val(key), text), _value(c))
+end
+_parse_source(::Nothing) = nothing
 
 function evaluate_operation(editor, op::ComposerCommitSourceOperation)
     doc = _parse_source(_active_content(op.draft))
@@ -282,7 +297,9 @@ end
 
 function evaluate_operation(editor, op::ComposerEvaluateOperation)
     c = _active_content(op.draft)
-    c isa JuliaInsertion || return nothing
+    # Running code is Julia's, so this one names a format rather than a domain:
+    # it is the Julia kind that ALT+ENTER evaluates.
+    natural_format(typeof(c)) === :jl || return nothing
     src = _value(c)
     isempty(strip(src)) && return nothing
     set = editor.tools
@@ -292,7 +309,10 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
         sprint(showerror, e, catch_backtrace())
     end
     is_err = occursin("ERROR", output) || occursin("Error", output)
-    form = something(_try_parse(juliaparse, src), JuliaIdentifier(src))
+    # The executed source as a document, so it renders as Julia rather than as an
+    # opaque leaf. A snippet that does not parse is kept as a string: it still
+    # renders, and it still ran.
+    form = something(_parse_source(c), PrimitiveString(src))
     # A Document return value (e.g. a live GraphicsCircle / SimulationTaskDocument)
     # is kept as the result so it renders live; otherwise the text repr.
     # `execute_julia_code` `println`s the result repr, so the captured output ends
@@ -389,25 +409,25 @@ const _AVATAR_SIZE = 22
 const _GAP         = 6
 
 # Per-part glyph/label, covering both editing states and committed content.
+#
+# A domain's insertion is a subtype of its own root, so one entry of the badge
+# tables covers a kind while it is typed and after it is committed. The tables are
+# `ConversationToWidgetModule`'s, which draws the same badge on a committed part.
 _kind_glyph(::PrimitiveString)   = "✎"
 _kind_glyph(::DocumentInsertion) = "+"
-_kind_glyph(::JuliaInsertion)    = "λ"
-_kind_glyph(::JuliaDocument)     = "λ"
 _kind_glyph(::EvaluatorForm)     = "="
 _kind_glyph(::TextBlock)          = "¶"
-_kind_glyph(::JsonDocument)      = "{}"   # JsonInsertion and committed JSON
-_kind_glyph(::XmlDocument)       = "<>"   # XmlInsertion and committed XML
-_kind_glyph(_)                   = "?"
+_kind_glyph(c)                   = _format_glyph(natural_format(typeof(c)))
+_format_glyph(::Nothing)         = "?"
+_format_glyph(key::Symbol)       = get(FORMAT_GLYPHS, key, "{}")
 
-_kind_label(::JsonDocument)      = "json"
-_kind_label(::XmlDocument)       = "xml"
 _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
-_kind_label(::JuliaInsertion)    = "julia"
-_kind_label(::JuliaDocument)     = "julia"
 _kind_label(f::EvaluatorForm)    = eval_kind_label(f)
 _kind_label(::TextBlock)          = "text"
-_kind_label(_)                   = "doc"
+_kind_label(c)                   = _format_label(natural_format(typeof(c)))
+_format_label(::Nothing)         = "doc"
+_format_label(key::Symbol)       = get(FORMAT_LABELS, key, String(key))
 
 # A header row: a small avatar glyph followed by a styled kind-title label.
 # Matches the part-kind heading style of the conversation history cards
@@ -477,7 +497,7 @@ function _editable_body(c::DocumentInsertion)
     body
 end
 
-# Plain editable text (`PrimitiveString` / `JuliaInsertion`): one span, a pale
+# Plain editable text (a `PrimitiveString` or a domain's insertion): one span, a pale
 # placeholder while empty, caret in the single span.
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
@@ -670,7 +690,9 @@ function _composer_bindings(draft::ConversationDraft)
                 (d, sel) -> true, "Choose insertion kind", "composer"),
             revert, backspace, insert,
         ]
-    elseif c isa JuliaInsertion
+    elseif natural_format(typeof(c)) === :jl
+        # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
+        # Julia's alone, which is why this arm names the format.
         GestureBinding[
             GestureBinding(KeyDownPattern(:return, [:alt], nothing),
                 (d, e) -> ComposerEvaluateOperation(d),
@@ -681,10 +703,10 @@ function _composer_bindings(draft::ConversationDraft)
                 (d, sel) -> true, "Commit source", "composer"),
             revert, backspace, insert,
         ]
-    elseif c isa JsonInsertion || c isa XmlInsertion
-        # Editable source insertion: ENTER parses it into a JsonDocument/XmlElement
-        # (no-op while it doesn't parse). Structural key-driven insertion (`[` →
-        # JsonArray, …) is still future work.
+    elseif insertion_root(typeof(c)) !== Document
+        # Any other domain's source insertion: ENTER parses it into that domain's
+        # document, and does nothing while it does not parse. Structural
+        # key-driven insertion (`[` → JsonArray, …) is still future work.
         GestureBinding[
             newline,
             GestureBinding(KeyDownPattern(:return, nothing, nothing),

@@ -20,9 +20,6 @@ import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, Ra
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: insert_elements, delete_elements
-import ..JsonParserModule: jsonparse_file
-import ..XmlParserModule: xmlparse_file
-import ..JuliaParserModule: juliaparse_file
 export WorkbenchDocument, title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 

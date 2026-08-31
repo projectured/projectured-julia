@@ -27,7 +27,9 @@ import ..DocumentModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
 import ..EvaluatorModule: EvaluatorForm, eval_kind_label
-import ..JuliaModule: JuliaDocument
+# The badge on a part names the part's format, which the document itself
+# answers; this file names no domain.
+import ..NaturalFormatModule: natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout
@@ -79,19 +81,36 @@ const _KIND_STYLE = StyleText(_TITLE_FONT, color_slate_600)
 
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
+"""
+    FORMAT_GLYPHS, FORMAT_LABELS
+
+The badge a part carries, keyed by the format its document is written in. A
+domain's insertion is a subtype of that domain's root, so one entry covers a kind
+while it is typed and after it is committed.
+
+`FORMAT_LABELS` holds the two formats whose key is an abbreviation of the
+language's name; every other label is the key itself. The decoration belongs to
+this package; the kinds do not, and a format with no entry draws the generic
+badge.
+"""
+const FORMAT_GLYPHS = Dict(:jl => "λ", :json => "{}", :xml => "<>", :md => "¶")
+const FORMAT_LABELS = Dict(:jl => "julia", :md => "markdown")
+
 function _kind_glyph(content)
     content isa EvaluatorForm      && return "="
     content isa ConversationThinking && return "∴"
-    content isa JuliaDocument      && return "λ"
     content isa TextBlock           && return "¶"
-    return "?"
+    key = natural_format(typeof(content))
+    key === nothing && return "?"
+    get(FORMAT_GLYPHS, key, "{}")
 end
 function _kind_label(content)
     content isa EvaluatorForm      && return eval_kind_label(content)
     content isa ConversationThinking && return "thinking"
-    content isa JuliaDocument      && return "julia"
     content isa TextBlock           && return "text"
-    return "doc"
+    key = natural_format(typeof(content))
+    key === nothing && return "doc"
+    get(FORMAT_LABELS, key, String(key))
 end
 
 # ── Helpers ────────────────────────────────────────────────────────────────

@@ -40,7 +40,7 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRo
 import ..RstParserModule: rstparse
 import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
 import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
-                              natural_extension, parse_natural
+                              natural_extension, natural_format, parse_natural
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             LoaderContext, register_file_document_type!,
                             document_section, parse_marker_text, ReferenceStub
@@ -117,6 +117,8 @@ _substitute_markers(n::RstDefinitionItem, ctx::LoaderContext) = _visit_vector!(n
 natural_syntax_projection(::RstDocument) = RstToSyntax()
 natural_extension(::RstDocument) = ".rst"
 parse_natural(::Val{:rst}, text::AbstractString) = rstparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:RstDocument}) = :rst
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 

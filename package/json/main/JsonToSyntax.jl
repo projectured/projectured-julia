@@ -216,11 +216,13 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # JSON's seams for import_document / export_document / read+write_document_file.
 import ..JsonParserModule: jsonparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, parse_natural
+import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
 natural_syntax_projection(::JsonDocument) = JsonToSyntax()
 natural_extension(::JsonDocument) = ".json"
 parse_natural(::Val{:json}, text::AbstractString) = jsonparse(text)
+# The key a type answers with, for a caller that holds no instance.
+natural_format(::Type{<:JsonDocument}) = :json
 new_document_seed(::Val{:json}) = JsonInsertion()
 
 # ── Natural-projection registration ─────────────────────────────────────────
