@@ -40,7 +40,7 @@ spreadsheet's `A1`) is just one naming convention among others.
 ## Design decisions
 
 - **Formula code is the existing `Julia` domain.** Reusing `JuliaDocument`
-  ([Julia.jl](../../package/julia/main/Julia.jl)) gives us parsing
+  ([Julia.jl](../../source/julia/Julia.jl)) gives us parsing
   (`juliaparse`), `JuliaToSyntax` rendering, and character-level editing for free.
   A formula body is a `JuliaDocument` tree; the only new leaf inside it is the
   cross-formula **reference**.
@@ -187,13 +187,13 @@ tested.
 - `formula_to_expr(code::JuliaDocument, env) -> Expr` — walk the Julia body to a
   native `Expr`, mapping each `FormulaReference` to a `Symbol` bound to the
   target's name. (Inverse of `juliaparse`; analogous to the `Base.show`
-  source-rendering already in [Julia.jl](../../package/julia/main/Julia.jl), but
+  source-rendering already in [Julia.jl](../../source/julia/Julia.jl), but
   producing an `Expr`.)
 - `evaluate_formula(formula, env) -> result document` — evaluate in a sandbox
   module (the same `Core.eval`-in-a-scratch-module technique as
-  `execute_julia_code` in [CodeExecution.jl](../../package/kernel/main/tool/CodeExecution.jl)),
+  `execute_julia_code` in [CodeExecution.jl](../../source/kernel/tool/CodeExecution.jl)),
   with each dependency name bound to its evaluated value. Wrap the value in a result
-  document (`result_text`-style, like [Evaluator.jl](../../package/conversation/main/Evaluator.jl)).
+  document (`result_text`-style, like [Evaluator.jl](../../source/conversation/Evaluator.jl)).
 - `FormulaFormula.result` is `Cell(() -> evaluate_formula(self, env))`: reading a
   dependency's value inside the thunk registers the reactive dependency, so a
   change to any upstream formula invalidates exactly the downstream results.

@@ -6,13 +6,16 @@ A Julia reimplementation of [ProjecturEd](https://github.com/projectured/project
 
 **Some files in this repository are *sealed*. A sealed file MUST NOT be modified by an AI in any way — no edits, no reformatting, no "while I'm here" cleanups, no incidental changes as part of a larger task — unless the user gives explicit permission for that specific file in the current conversation.** This overrides every other instruction, including a broad task that would otherwise touch a sealed file. If a change you are asked to make would require editing a sealed file, STOP and tell the user the file is sealed and ask for explicit permission before proceeding.
 
-The list below is authoritative. It is the ordered inventory of the kernel main folder (`package/kernel/main/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
+The list below is authoritative. It is the ordered inventory of the kernel's source folder (`source/kernel/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
 
 **Audit a file against [documentation/architecture-requirements.md](documentation/architecture-requirements.md) the moment you introduce it as the next file — before inviting review and before offering to seal.** Present the audit result first; never say "seal as-is" or ask whether to seal until the audit has been reported. A file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
 
-### `package/kernel/main/` seal status
+### `source/kernel/` seal status
 
-- 🔒 `ProjecturedKernel.jl` — module root, the layer diagram
+- 🔒 `ProjecturedKernel.jl` — module root, the layer diagram. It is the one entry
+  that does not live under `source/kernel/`: a package root file belongs to its
+  package, at `package/ProjecturedKernel/src/ProjecturedKernel.jl`. Every entry
+  below is a path under `source/kernel/`.
 
 The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
@@ -152,19 +155,19 @@ The canonical reading order for contributors is in [README.md](README.md) under 
 1. [documentation/concepts.md](documentation/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
 2. [documentation/architecture.md](documentation/architecture.md) — the package graph, the kernel's layers, and the module inventory.
 2b. [documentation/packages.md](documentation/packages.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
-3. [package/kernel/doc/cell.md](package/kernel/doc/cell.md) — the pull-based reactive cell system that powers incrementality.
-4. [package/kernel/doc/macros.md](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap`.
-5. [package/kernel/doc/projection-system.md](package/kernel/doc/projection-system.md) — the four interface functions and the printer/reader pair.
-6. [package/kernel/doc/editor.md](package/kernel/doc/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
+3. [documentation/package/kernel/cell.md](documentation/package/kernel/cell.md) — the pull-based reactive cell system that powers incrementality.
+4. [documentation/package/kernel/macros.md](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap`.
+5. [documentation/package/kernel/projection-system.md](documentation/package/kernel/projection-system.md) — the four interface functions and the printer/reader pair.
+6. [documentation/package/kernel/editor.md](documentation/package/kernel/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
 
 Per-package reference guides live in each package's `doc/` directory next to the
 code they document; the cross-cutting concept/architecture/tooling guides stay in
 [documentation/](documentation/). When touching selection/reference handling or a
 specific domain, also consult:
 
-- [package/kernel/doc/reference.md](package/kernel/doc/reference.md) and [package/kernel/doc/selection.md](package/kernel/doc/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
+- [documentation/package/kernel/reference.md](documentation/package/kernel/reference.md) and [documentation/package/kernel/selection.md](documentation/package/kernel/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
 - [documentation/domains.md](documentation/domains.md) — the twenty domain packages, what depends on what, and how to add one.
-- Per-domain guides: [json](package/json/doc/json.md), [xml](package/xml/doc/xml.md), [rst](package/rst/doc/rst.md), [fsm](package/fsm/doc/fsm.md), [process](package/process/doc/process.md), [graph-layout](package/graph/doc/graph-layout.md), [math](package/math/doc/math.md), [workbench](package/workbench/doc/workbench.md), [versioning](package/versioning/doc/versioning.md); [text](package/text/doc/text.md), [syntax](package/syntax/doc/syntax.md), [graphics](package/graphics/doc/graphics.md), [widget](package/widget/doc/widget.md), [collection](package/collection/doc/collection.md) and [bounded-sync](package/reflection/doc/bounded-sync.md) (substrate).
+- Per-domain guides: [json](documentation/package/json/json.md), [xml](documentation/package/xml/xml.md), [rst](documentation/package/rst/rst.md), [fsm](documentation/package/fsm/fsm.md), [process](documentation/package/process/process.md), [graph-layout](documentation/package/graph/graph-layout.md), [math](documentation/package/math/math.md), [workbench](documentation/package/workbench/workbench.md), [versioning](documentation/package/versioning/versioning.md); [text](documentation/package/text/text.md), [syntax](documentation/package/syntax/syntax.md), [graphics](documentation/package/graphics/graphics.md), [widget](documentation/package/widget/widget.md), [collection](documentation/package/collection/collection.md) and [bounded-sync](documentation/package/reflection/bounded-sync.md) (substrate).
 
 When iterating in the REPL or running the test suite:
 
@@ -184,7 +187,7 @@ Pick the narrowest scope that exercises your change:
 
 - A single example: `test_printer(json_example)`, `test_reader(json_example)`, `test_position_navigation(json_example)`, `test_repl(json_example)`, or `test_example(json_example)` for all three at once. Add `test_position_navigation(json_example; check_reaches_all=true)` to also assert navigation reaches every enumerated position.
 - A single domain or pipeline stage: e.g. `test_json_document()`, `test_syntax()`, `test_json_to_syntax()`, `test_syntax_to_text()`.
-- One package's whole suite: `test_kernel()`, `test_substrate()`, and one per domain — `test_json()`, `test_sql()`, `test_workbench()`, … Each lives in its own test package (`package/<name>/test`) that only depends on the packages below it, so these also run in an environment without SDL/ODBC/Tulip installed (`julia --project=package/kernel/test`, etc.). Each includes its package's static layering guard (`test_kernel_layering()`, `test_json_layering()`, …).
+- One package's whole suite: `test_kernel()`, `test_substrate()`, and one per domain — `test_json()`, `test_sql()`, `test_workbench()`, … Each is its own test package (`package/Projectured<Name>Test`) that only depends on the packages below it, so these also run in an environment without SDL/ODBC/Tulip installed (`julia --project=package/ProjecturedKernelTest`, etc.). Each includes its package's static layering guard (`test_kernel_layering()`, `test_json_layering()`, …).
 - The reactive primitive only: `test_cell()`.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 

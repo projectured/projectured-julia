@@ -136,8 +136,8 @@ one — that is the checkable constraint for the whole change.
 
 Everything that fires a binding already goes through one of three places:
 `fire_gesture_bindings`, `read_bound_gesture` and `read_projection_gesture`
-([GestureBinding.jl](../../package/kernel/main/binding/GestureBinding.jl),
-[GestureBindings.jl](../../package/kernel/main/projection/GestureBindings.jl)).
+([GestureBinding.jl](../../source/kernel/binding/GestureBinding.jl),
+[GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl)).
 Each gets one branch: on a `CollectIntents` payload, build an `Intent` per
 binding in the table instead of firing the first match.
 
@@ -325,7 +325,7 @@ This phase has no end state that blocks the others. It can land after Phase 6.
 ### Phase 7 — documentation — **done**
 
 1. The binding-layer section of
-   [devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md).
+   [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md).
 2. The gesturemap slice in the domain architecture guide.
 
 ## Risks

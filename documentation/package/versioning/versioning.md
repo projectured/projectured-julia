@@ -7,15 +7,15 @@ the downstream domains are ordinary, non-versioned documents and every existing
 projection pipeline works unchanged.
 
 It is structurally the same pattern as the clipboard
-([`ClipboardModule`](../../../package/clipboard/main/Clipboard.jl) +
-[`ClipboardToAny.jl`](../../../package/clipboard/main/ClipboardToAny.jl)):
+([`ClipboardModule`](../../../source/clipboard/Clipboard.jl) +
+[`ClipboardToAny.jl`](../../../source/clipboard/ClipboardToAny.jl)):
 a wrapper document holding a payload, and a projection that decides which child
 becomes the output and re-roots edits back into that child.
 
 ## Documents — `VersioningModule`
 
 Two levels, defined in
-[`package/versioning/main/Versioning.jl`](../../../package/versioning/main/Versioning.jl):
+[`package/versioning/main/Versioning.jl`](../../../source/versioning/Versioning.jl):
 
 - **`VersionedObject`** — the container that *has versions*: a `versions`
   `CellVector` of `ObjectVersion`s (newest-first by convention) plus the active
@@ -56,7 +56,7 @@ matches. New modes are new subtypes with zero changes to the projection.
 
 ## Elimination projection — `VersioningToAnyProjection`
 
-[`package/versioning/main/VersioningToAny.jl`](../../../package/versioning/main/VersioningToAny.jl)
+[`package/versioning/main/VersioningToAny.jl`](../../../source/versioning/VersioningToAny.jl)
 is the direct analogue of `ClipboardSliceToAnyProjection`:
 
 - **Printer** — `(idx, version) = select_version(input)`, recurse into

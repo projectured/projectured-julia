@@ -26,7 +26,7 @@ own baseline. The 93 `test_domain` failures are pre-existing on `main` — they 
 
 ## The mechanism
 
-[`ReactiveCell.jl`](../../package/kernel/main/cell/ReactiveCell.jl) — **🔒 sealed**:
+[`ReactiveCell.jl`](../../source/kernel/cell/ReactiveCell.jl) — **🔒 sealed**:
 
 - reading a cell inside a computation registers the edge in both directions —
   `push!(c.dependents, observer)` (strong) and `push!(observer.deps, c)`;
@@ -77,7 +77,7 @@ it used to die — so more walks actually run. Every phase after Phase 1 is flat
 
 ## The detector
 
-[`CellTest.jl`](../../package/kernel/test/cell/CellTest.jl) — *"an upstream cell does not
+[`CellTest.jl`](../../test/kernel/cell/CellTest.jl) — *"an upstream cell does not
 retain a discarded downstream cell"*. Builds 100 computed cells that read one source,
 forces them, drops them, GCs, and asserts the source's `dependents` is back where it
 started. Currently `@test_broken` (they all survive). **When the fix lands this flips to an

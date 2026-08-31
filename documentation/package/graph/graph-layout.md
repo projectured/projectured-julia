@@ -38,7 +38,7 @@ caller's business, and what `:pin` means to an algorithm is this package's.
 The two ported ones are the two OMNeT++ draws a network with, and they are ports
 rather than new algorithms because the caller wants *the* picture Qtenv draws,
 not *a* force-directed layout. Their positions are asserted against the C++
-originals — see [../test/reference/](../test/reference/).
+originals — see [../test/reference/](../../../test/graph/reference/).
 
 `AdaptagramsLayout` is the only one with a native dependency, so it lives in its
 own package and reaches this one through `register_layout_engine!`. When its
@@ -129,6 +129,6 @@ its original.
 
 ## Measuring
 
-`graphlayoutbench()` in [../../../bench/](../../../bench/) times every engine
+`graphlayoutbench()` in [../../../bench/](../../../package/ProjecturedBench/) times every engine
 over 10, 60 and 300 vertices and prints the answer as characters beside the
 numbers. Run it before changing a constant, and again after.

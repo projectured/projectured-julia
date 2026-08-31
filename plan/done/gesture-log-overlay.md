@@ -18,11 +18,11 @@ and almost every arrow key.
 These facts come from the current code. Read them before you design a change.
 
 - The editor loop makes one operation per gesture. See
-  [Editor.jl:97](../../package/kernel/main/editor/Editor.jl#L97). `read!` seeds
+  [Editor.jl:97](../../source/kernel/editor/Editor.jl#L97). `read!` seeds
   an `Intent(window_input, nothing)`, calls `read_intent` on the root
   projection, and takes `change.operation`. The loop already logs the operation
   with `@info "[operation] ..."`
-  ([Editor.jl:165](../../package/kernel/main/editor/Editor.jl#L165)).
+  ([Editor.jl:165](../../source/kernel/editor/Editor.jl#L165)).
 - A view concern belongs in a decorator projection, not in the editor loop.
   `GestureHelpProjection` is the model to copy
   ([GestureHelpDecorator.jl](../../package/domain/main/gesturemap/GestureHelpDecorator.jl)).
@@ -51,7 +51,7 @@ These facts come from the current code. Read them before you design a change.
   ([ScreenToScreen.jl:146](../../package/visual/main/screen/ScreenToScreen.jl#L146)).
 - The printer context carries the space that the parent gives
   (`ctx.available_width`, `ctx.available_height`,
-  [PrinterContext.jl:49](../../package/kernel/main/projection/PrinterContext.jl#L49)).
+  [PrinterContext.jl:49](../../source/kernel/projection/PrinterContext.jl#L49)).
   `ScreenToScreen` sets it from the window size
   ([ScreenToScreen.jl:83](../../package/visual/main/screen/ScreenToScreen.jl#L83)).
 - No `describe_event` function and no `Base.show` method for an event or an
@@ -226,7 +226,7 @@ step. Mark each step here when it is complete.
   `package/domain/main/gesturelog/GestureLog.jl` with `GestureLogEntry`,
   `GestureLog`, `record_gesture!`, `describe_gesture`, `describe_operation` and
   `default_gesture_log_filter`. Include it in
-  [ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain.jl) next to
+  [ProjecturedDomain.jl](../../package/ProjecturedDomain/src/ProjecturedDomain.jl) next to
   the `gesturemap` document include. Export the new names beside the
   `GestureMap` exports.
 - [x] **Step 2 — Add the syntax printer.** DONE. Add
@@ -324,7 +324,7 @@ broken count as before this work.
 ## Limitations to state in the documentation
 
 - The editor makes the zoom operation **after** the pipeline declines the
-  gesture ([Editor.jl:129](../../package/kernel/main/editor/Editor.jl#L129)).
+  gesture ([Editor.jl:129](../../source/kernel/editor/Editor.jl#L129)).
   No projection sees it, so the log does not hold it.
 - A gesture that no reader answers leaves no entry. The log holds operations,
   not every key.

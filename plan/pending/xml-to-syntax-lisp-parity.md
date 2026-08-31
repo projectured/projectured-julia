@@ -9,7 +9,7 @@
 > **rewritten onto the `@domain`/`@gestures` domain-insertion-kit machinery**
 > (the same kit [text-domain-kit.md](text-domain-kit.md) documents for the
 > Text domain). It now lives in
-> [`package/xml/main/Xml.jl`](../../package/xml/main/Xml.jl) — `@gestures
+> [`package/xml/main/Xml.jl`](../../source/xml/Xml.jl) — `@gestures
 > XmlDocument` (lines 103-107: `"`/`<`/`@` insertion replace, plus an `@`
 > attribute-replace case beyond the original Lisp scope) and `@gestures
 > XmlElement` (lines 128-133: `<`/`"` element/text insert, `KeyDown(:insert)`
@@ -31,7 +31,7 @@
 > intermediate implementation that has since been superseded by this
 > refactor; treat their line numbers as historical, not current, and use this
 > banner as the up-to-date picture. Covered by
-> [`XmlToSyntaxTest.jl`](../../package/xml/test/projection/XmlToSyntaxTest.jl)
+> [`XmlToSyntaxTest.jl`](../../test/xml/projection/XmlToSyntaxTest.jl)
 > (44 `@test`s including a new `test_xml_override_gestures()` not in the
 > original plan) — not re-run here, but the code exists.
 >
@@ -39,7 +39,7 @@
 > unblocked than the last check found: the JSON plan §4 placeholder mechanism
 > has not just landed, it is now a genuinely **shared, exported** helper —
 > `hinted_text` (renamed from the JSON-local `_hinted_text`) in
-> [`package/text/main/Text.jl:177`](../../package/text/main/Text.jl), used by
+> [`package/text/main/Text.jl:177`](../../source/text/Text.jl), used by
 > JSON (`package/json/main/JsonToSyntax.jl`, 6 call sites) but by **zero** call
 > sites in `package/xml/main/XmlToSyntax.jl`. Separately, the top-level
 > `XmlInsertion` placeholder problem this section originally described (a
@@ -54,7 +54,7 @@
 ## Origin
 
 This plan comes from comparing the Julia
-[`XmlToSyntax.jl`](../../package/xml/main/XmlToSyntax.jl)
+[`XmlToSyntax.jl`](../../source/xml/XmlToSyntax.jl)
 against the original Common Lisp
 [`xml-to-syntax.lisp`](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp).
 The Julia port's **printer** is sound and its School-A reference mapping is
@@ -98,13 +98,13 @@ The Lisp reader gives the editor its entire XML-authoring vocabulary
   ([:246](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L246)).
 
 The Julia version has none of these. Its readers
-([XmlToSyntax.jl:69](../../package/xml/main/XmlToSyntax.jl#L69),
-[:82](../../package/xml/main/XmlToSyntax.jl#L82),
-[:225](../../package/xml/main/XmlToSyntax.jl#L225),
-[:237](../../package/xml/main/XmlToSyntax.jl#L237))
+([XmlToSyntax.jl:69](../../source/xml/XmlToSyntax.jl#L69),
+[:82](../../source/xml/XmlToSyntax.jl#L82),
+[:225](../../source/xml/XmlToSyntax.jl#L225),
+[:237](../../source/xml/XmlToSyntax.jl#L237))
 only re-target *existing* text edits (`StringReplaceRangeOperation`) and
 replace-selection (clicks). `XmlInsertionToSyntaxLeaf` has **no reader at all**
-([:103-114](../../package/xml/main/XmlToSyntax.jl#L103-L114)).
+([:103-114](../../source/xml/XmlToSyntax.jl#L103-L114)).
 
 ---
 
@@ -126,7 +126,7 @@ This plan does **not** re-specify the shared machinery; it depends on it:
   [json-to-syntax-lisp-parity.md §4](../done/json-to-syntax-lisp-parity.md). XML reuses
   it for its four placeholders (§4).
 - **Collapse wiring** (the dormant `collapsed` field on `XmlElement`,
-  [Xml.jl:161](../../package/xml/main/Xml.jl#L161)) is
+  [Xml.jl:161](../../source/xml/Xml.jl#L161)) is
   [collapse-expand-syntax-nodes.md](collapse-expand-syntax-nodes.md). **Out of
   scope here.**
 
@@ -160,7 +160,7 @@ What remains — and what this plan covers:
 > concrete operation vocabulary changed.
 
 Today the only document-mutating operations are `ReplaceSelectionOperation`
-([Operations.jl:162](../../package/kernel/main/operation/Operations.jl#L162)),
+([Operations.jl:162](../../source/kernel/operation/Operations.jl#L162)),
 `StringReplaceRangeOperation`
 (find its current location under `package/*/main/` before picking this up —
 `Primitive.jl` moved during the per-domain package split) and
@@ -183,8 +183,8 @@ Both map onto the operations the JSON plan introduces:
 
 XML's containers for the insert case are `XmlElement.cell` (children) and
 `XmlElement.attrs` (attributes), both `CellVector`
-([Xml.jl:159-160](../../package/xml/main/Xml.jl#L159-L160),
-insert helper [Xml.jl:208-211](../../package/xml/main/Xml.jl#L208-L211)).
+([Xml.jl:159-160](../../source/xml/Xml.jl#L159-L160),
+insert helper [Xml.jl:208-211](../../source/xml/Xml.jl#L208-L211)).
 **If the JSON plan has already landed these operations, this plan adds no new
 operation types** — it only emits them from XML readers. If this plan lands
 first, define them per the JSON plan's §1 spec.
@@ -214,7 +214,7 @@ Replicate that selection-state gating per command.
 ## 3. The XML reader command set
 
 All methods live in
-[`XmlToSyntax.jl`](../../package/xml/main/XmlToSyntax.jl),
+[`XmlToSyntax.jl`](../../source/xml/XmlToSyntax.jl),
 alongside the existing `projection_read` methods.
 
 ### 3.1 Insertion replace (`xml/insertion->syntax/leaf` reader) — ✅ done
@@ -225,7 +225,7 @@ alongside the existing `projection_read` methods.
 > `XmlElement("")` (cursor `tag{0}`) on `<`.
 
 `XmlInsertionToSyntaxLeaf` currently has **no reader**
-([XmlToSyntax.jl:103-114](../../package/xml/main/XmlToSyntax.jl#L103-L114)).
+([XmlToSyntax.jl:103-114](../../source/xml/XmlToSyntax.jl#L103-L114)).
 Add `projection_read(::XmlInsertionToSyntaxLeaf, iomap, ::KeyPress)` that, on an
 insertion selection, returns a `ReplaceDocumentOperation` with a fresh document
 whose initial selection is pre-placed:
@@ -236,8 +236,8 @@ whose initial selection is pre-placed:
 | `<` | `XmlElement("")` (empty, no attrs) | [:311-314](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L311-L314) |
 
 The text replacement pre-selects `.cell[0:0]`; the element replacement
-pre-selects `.tag[0:0]` (Julia constructors: [Xml.jl:125](../../package/xml/main/Xml.jl#L125),
-[Xml.jl:165](../../package/xml/main/Xml.jl#L165)).
+pre-selects `.tag[0:0]` (Julia constructors: [Xml.jl:125](../../source/xml/Xml.jl#L125),
+[Xml.jl:165](../../source/xml/Xml.jl#L165)).
 
 ### 3.2 Element structural insert (`xml/element->syntax/node` reader) — ✅ done
 
@@ -248,7 +248,7 @@ pre-selects `.tag[0:0]` (Julia constructors: [Xml.jl:125](../../package/xml/main
 > follow-up selection, appending at `length(...)`.
 
 On `XmlElementToSyntaxNode`
-([XmlToSyntax.jl:225](../../package/xml/main/XmlToSyntax.jl#L225)),
+([XmlToSyntax.jl:225](../../source/xml/XmlToSyntax.jl#L225)),
 add a `KeyPress`/`KeyDown` reader emitting `CollectionInsertOperation` +
 `ReplaceSelectionOperation` (a small compound, or evaluate both):
 
@@ -262,7 +262,7 @@ add a `KeyPress`/`KeyDown` reader emitting `CollectionInsertOperation` +
 Notes:
 - The Lisp uses a generic `document/insertion` for the Insert key and an
   `xml/insertion` for type-in flows; Julia has only `XmlInsertion`
-  ([Xml.jl:50-55](../../package/xml/main/Xml.jl#L50-L55)). Use `XmlInsertion`
+  ([Xml.jl:50-55](../../source/xml/Xml.jl#L50-L55)). Use `XmlInsertion`
   for both — collapse the distinction unless a generic insertion type is later
   introduced.
 - Space gating per §2: only fire when the cursor is in the start tag / an
@@ -296,10 +296,10 @@ cursor name→value
 
 **The Julia port has no such projection.** Attributes are rendered *inline* by
 the helper `_attr_node`
-([XmlToSyntax.jl:337-364](../../package/xml/main/XmlToSyntax.jl#L337-L364))
+([XmlToSyntax.jl:337-364](../../source/xml/XmlToSyntax.jl#L337-L364))
 inside `XmlElementToSyntaxNode`, and `XmlToSyntax`'s dispatch table has no
 `XmlAttribute` entry
-([XmlToSyntax.jl:366-372](../../package/xml/main/XmlToSyntax.jl#L366-L372)).
+([XmlToSyntax.jl:366-372](../../source/xml/XmlToSyntax.jl#L366-L372)).
 So the `=` command has nowhere natural to live. Two options:
 
 - **(a) Handle it in `XmlElementToSyntaxNode`'s reader.** Detect that the cursor
@@ -334,15 +334,15 @@ an emptiness flag the reader can test) for (line numbers re-verified 2026-08-12
 against the current file):
 
 - `XmlText` → `"enter xml text"`
-  ([content leaf at XmlToSyntax.jl:65-66](../../package/xml/main/XmlToSyntax.jl#L65)).
+  ([content leaf at XmlToSyntax.jl:65-66](../../source/xml/XmlToSyntax.jl#L65)).
 - element tag → `"enter xml element name"`
   (tag leaf — find its current line in `XmlElementToSyntaxNode`'s printer,
   `package/xml/main/XmlToSyntax.jl`; the section moved since the last audit).
 - attribute name → `"enter xml attribute name"`
-  ([name leaf at XmlToSyntax.jl:92](../../package/xml/main/XmlToSyntax.jl#L92),
+  ([name leaf at XmlToSyntax.jl:92](../../source/xml/XmlToSyntax.jl#L92),
   now inside the separate `XmlAttributeToSyntaxNode` projection — see §3.3).
 - attribute value → `"enter xml attribute value"`
-  ([value leaf at XmlToSyntax.jl:93-95](../../package/xml/main/XmlToSyntax.jl#L93)).
+  ([value leaf at XmlToSyntax.jl:93-95](../../source/xml/XmlToSyntax.jl#L93)).
 - `XmlInsertion` placeholder — **already done**, via `DomainInsertionToSyntaxLeaf`
   (see the top status banner), not via `hinted_text`.
 
@@ -368,9 +368,9 @@ The Lisp maps end-tag edits to `xml/end-tag`
 Julia renders the closing tag from the same `e.tag` field but the closing-tag
 leaf (child 4) carries no cursor and `map_reference_backward`'s `child_i == 4`
 falls through to `nothing`
-([XmlToSyntax.jl:218-220](../../package/xml/main/XmlToSyntax.jl#L218-L220)).
+([XmlToSyntax.jl:218-220](../../source/xml/XmlToSyntax.jl#L218-L220)).
 Since `_apply_string_replace!(::XmlElement, "tag", …)` already updates both tags
-reactively ([Xml.jl:287-290](../../package/xml/main/Xml.jl#L287-L290)),
+reactively ([Xml.jl:287-290](../../source/xml/Xml.jl#L287-L290)),
 either route child-4 value edits to `.tag` too, or document that the end tag is
 display-only and edited via the start tag. **Chose display-only**; recorded as a
 comment on the `child_i == 4` fall-through in `map_reference_backward`.
@@ -382,7 +382,7 @@ comment on the `child_i == 4` fall-through in `map_reference_backward`.
 The Lisp indents deep element children by 2 and gives the closing tag
 indentation 0 ([xml-to-syntax.lisp:279-285](../../../projectured-lisp/source/projection/primitive/xml-to-syntax.lisp#L279-L285));
 Julia's body node uses `indentation = 1`
-([XmlToSyntax.jl:284-291](../../package/xml/main/XmlToSyntax.jl#L284-L291)).
+([XmlToSyntax.jl:284-291](../../source/xml/XmlToSyntax.jl#L284-L291)).
 Cosmetic only; round-trips fine. **Defer / likely won't-do.**
 
 ---
@@ -421,20 +421,20 @@ items are individually optional.
 > registration line in `package/xml/example/` or `package/projectured/example/Gallery.jl`
 > before picking this up — not confirmed here).
 
-> Created [`XmlToSyntaxTest.jl`](../../package/xml/test/projection/XmlToSyntaxTest.jl)
+> Created [`XmlToSyntaxTest.jl`](../../test/xml/projection/XmlToSyntaxTest.jl)
 > with `test_xml_to_syntax()` (printer) + `test_xml_to_syntax_reader()` (reader),
-> registered in [`ProjecturedTest.jl`](../../package/xml/test/ProjecturedXmlTest.jl) next to
+> registered in [`ProjecturedTest.jl`](../../package/ProjecturedXmlTest/src/ProjecturedXmlTest.jl) next to
 > the JSON ones. All reader sections below are covered (insertion replace, element
 > insert, attribute insert + gating, `=` navigation). The **placeholder** test is
 > deferred with Phase 5.
 
 There is **no** `XmlToSyntaxTest.jl` today (only
-[`JsonToSyntaxTest.jl`](../../package/json/test/projection/JsonToSyntaxTest.jl)) —
+[`JsonToSyntaxTest.jl`](../../test/json/projection/JsonToSyntaxTest.jl)) —
 historical: both now exist, see the "done" note above. Create
 `package/xml/test/projection/XmlToSyntaxTest.jl` with a `test_xml_to_syntax()` mirroring
 `test_json_to_syntax()`, register it in
-[`ProjecturedTest.jl`](../../package/xml/test/ProjecturedXmlTest.jl) (next to
-`test_json_to_syntax()` at [:69](../../package/xml/test/ProjecturedXmlTest.jl#L69)), and add
+[`ProjecturedTest.jl`](../../package/ProjecturedXmlTest/src/ProjecturedXmlTest.jl) (next to
+`test_json_to_syntax()` at [:69](../../package/ProjecturedXmlTest/src/ProjecturedXmlTest.jl#L69)), and add
 a reader section:
 
 - **Insertion replace**: cursor on an `XmlInsertion`, feed `KeyPress('"')` /
@@ -453,7 +453,7 @@ a reader section:
 
 Run with `test_reader(xml_example)` / `test_selection(xml_example)` /
 `test_repl(xml_example)` (the `xml_example` is registered at
-[DomainExamples.jl:17](../../package/projectured/example/DomainExamples.jl#L17)); these run under
+[DomainExamples.jl:17](../../example/projectured/DomainExamples.jl#L17)); these run under
 `SDL_VIDEODRIVER=dummy` like the other reader suites. Broad sweeps
 (`test_readers()` / `test_selections()`) only as a final check, per
 [CLAUDE.md](../../CLAUDE.md).
@@ -499,19 +499,19 @@ Do **not** "fix" these toward the Lisp shape — they are deliberate choices:
 
 - **School-A delegation** in the element reference mappers. Re-verified
   2026-08-12 at a different location than cited: `map_reference_forward` is at
-  [XmlToSyntax.jl:156](../../package/xml/main/XmlToSyntax.jl#L156), and
+  [XmlToSyntax.jl:156](../../source/xml/XmlToSyntax.jl#L156), and
   `map_reference_backward` is no longer hand-written here at all — it is
   called (line 144) but resolves to the generic default implementation in
   `package/kernel/main/projection/Projection.jl`, an even more thorough form of
   School-A delegation than the plan describes.
 - **Multiple-dispatch readers** vs. the Lisp `typecase` operation-mapper lambdas.
 - **`xml_escape_attr`**
-  ([XmlToSyntax.jl:223](../../package/xml/main/XmlToSyntax.jl#L223)) and
+  ([XmlToSyntax.jl:223](../../source/xml/XmlToSyntax.jl#L223)) and
   **`_xml_text_escape`** (renamed from `xml_escape_text`,
-  [XmlToSyntax.jl:210](../../package/xml/main/XmlToSyntax.jl#L210))
+  [XmlToSyntax.jl:210](../../source/xml/XmlToSyntax.jl#L210))
   — proper XML escaping.
 - The single reactive `e.tag` field driving both open and close tags
-  ([XmlToSyntax.jl:111](../../package/xml/main/XmlToSyntax.jl#L111),
-  [:121](../../package/xml/main/XmlToSyntax.jl#L121)) — editing
+  ([XmlToSyntax.jl:111](../../source/xml/XmlToSyntax.jl#L111),
+  [:121](../../source/xml/XmlToSyntax.jl#L121)) — editing
   one updates both with no extra wiring.
 </content>

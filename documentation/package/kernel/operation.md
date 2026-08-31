@@ -6,8 +6,8 @@ the projection pipeline produces operations; the editor applies them via
 `evaluate_operation`.
 
 The abstract supertype lives in
-[operation/Interface.jl](../../../package/kernel/main/operation/Interface.jl) and the built-in operations
-in [operation/Operations.jl](../../../package/kernel/main/operation/Operations.jl).
+[operation/Interface.jl](../../../source/kernel/operation/Interface.jl) and the built-in operations
+in [operation/Operations.jl](../../../source/kernel/operation/Operations.jl).
 
 ```julia
 abstract type Operation end
@@ -257,9 +257,9 @@ When you do need a new one:
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
   `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
   is handled in **both** the default `read_intent`
-  ([projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl)) **and**
+  ([projection/Projection.jl](../../../source/kernel/projection/Projection.jl)) **and**
   `reroot_operation`
-  ([operation/Rerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
+  ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing
   from either is **silently passed through unmapped** — its reference stays in the
   wrong domain with no error. A `ReplaceReferencedValueOperation` that carries its own root
@@ -289,7 +289,7 @@ edit the reader side of the projection pipeline produces and
 supertype, the built-in concrete operations, the selection propagation, the
 splice helpers, and the **two open seams** below.
 
-The layer lives in [main/operation/](../main/operation/), inside one aggregator
+The layer lives in [main/operation/](../../../source/kernel/operation/), inside one aggregator
 module (`OperationModule`) split across three fragments:
 
 ```

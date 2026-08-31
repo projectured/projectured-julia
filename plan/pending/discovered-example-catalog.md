@@ -45,7 +45,7 @@ old fixtures later; that is out of scope here.
   thunk-for-freshness shape and its oracle fields were carried into
   [`plan/done/atomic-example-catalog.md`](../done/atomic-example-catalog.md) instead.
 - `Example` (`struct Example` in
-  [`Harness.jl`](../../package/kernel/example/Harness.jl)) — the existing
+  [`Harness.jl`](../../example/kernel/Harness.jl)) — the existing
   registry the testers already consume. Catalog entries **are** `Example`s (see "Data
   structure"), so `test_printer`/`test_reader`/`run_example` take them unchanged.
 - The chain shape already exists in the wild (a hand-wired path the graph would synthesize):
@@ -81,7 +81,7 @@ runnable(ex)      = ex.terminal in (:text, :graphics)    # graphics→screen/web
 
 An earlier draft proposed a separate `Case` struct. Don't — it is just `Example`
 minus one field. `Example`
-(`struct Example` in [`Harness.jl`](../../package/kernel/example/Harness.jl))
+(`struct Example` in [`Harness.jl`](../../example/kernel/Harness.jl))
 already is
 `name + make_document + make_projection` (plus cached instances and optional
 `render_width`/`render_height`). The *only* thing a catalog entry needs beyond that is
@@ -172,10 +172,10 @@ needs, and it subsumes the ladder — the shared `Syntax→Text→Graphics` tail
 
 **The one hard constraint: a projection's *output* type is not recoverable statically.**
 Confirmed both ways — the printer types only its input
-([`SyntaxToText.jl:146`](../../package/syntax/main/SyntaxToText.jl#L146)
+([`SyntaxToText.jl:146`](../../source/syntax/SyntaxToText.jl#L146)
 `print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)`), and the reader
 dispatches on the *iomap*/operation, not the output document
-([`SyntaxToText.jl:158`](../../package/syntax/main/SyntaxToText.jl#L158)
+([`SyntaxToText.jl:158`](../../source/syntax/SyntaxToText.jl#L158)
 `read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op)`). Type inference won't help
 either — the reactive layer erases field types to `Cell`/`Any` (the same erasure the
 `CellVector{T}` metadata relies on). So graph **edges cannot be built from the method
@@ -285,7 +285,7 @@ the graph could replace later.
 `minimal(::Type{T})` builds the smallest valid instance by reading declared field
 types (which the `@document` macro already captures — today as `field_names` /
 `field_types` on the `CellStructPlan` built while the macro expands, in
-[`CellStructPlan.jl`](../../package/kernel/main/cell/CellStructPlan.jl); the old
+[`CellStructPlan.jl`](../../source/kernel/cell/CellStructPlan.jl); the old
 `original_fields`/`IFoo`-companion route this paragraph names no longer exists
 under those names):
 
@@ -360,7 +360,7 @@ Goal: let `minimal` fill a container with one child of the right domain, driven 
 `CellVector`" idea as **metadata only** — which matches your own reasoning that
 `@document` erases field types to `Cell`/`Any` at runtime, so `{T}` carries no runtime
 weight. Concretely, we do **not** make `CellVector` a real parametric type (its storage
-is already `elements::Vector{Cell}`, in [`Collection.jl`](../../package/collection/main/Collection.jl));
+is already `elements::Vector{Cell}`, in [`Collection.jl`](../../source/collection/Collection.jl));
 putting a concrete `CellVector{JsonDocument}` into the `IFoo` field would instead impose
 a runtime invariant that every elements-vector actually *be* `CellVector{JsonDocument}`,
 breaking snapshots). Instead:
@@ -368,7 +368,7 @@ breaking snapshots). Instead:
 - **Widen the macro's CellVector detection.** `@document` special-cases a
   collection field by a bare-symbol match on its declared type. Today this lives
   as `is_collection_field_type(::Val{name})`
-  ([`DocumentMacro.jl:259`](../../package/kernel/main/document/DocumentMacro.jl#L259)),
+  ([`DocumentMacro.jl:259`](../../source/kernel/document/DocumentMacro.jl#L259)),
   an opt-in trait rather than the plain `ftype === :CellVector` check this
   paragraph describes — re-check this note against the current mechanism before
   acting on it. Writing `CellVector{JsonDocument}` makes `ftype` an `Expr`, so any

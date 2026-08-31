@@ -2,7 +2,7 @@
 
 > **Status (2026-08-12): IN PROGRESS.** P1 to P4 are done: `deps`/`dependents`
 > in
-> [package/kernel/main/cell/ReactiveCell.jl](../../package/kernel/main/cell/ReactiveCell.jl)
+> [package/kernel/main/cell/ReactiveCell.jl](../../source/kernel/cell/ReactiveCell.jl)
 > are `Union{Nothing, …}` and allocate lazily, confirmed by the "L1" struct
 > comment and the `nothing`-guarded read/write/invalidate paths. P5 (L4,
 > object-granular reactivity) is not started. L2 (lazy reactive-collection
@@ -29,13 +29,13 @@ always empty.
 
 - **Eager per-cell bookkeeping.** `ReactiveCell{T}` allocates a
   `deps::Set{ReactiveCell}` **and** a `dependents::Vector{WeakRef}` at
-  construction ([ReactiveCell.jl:38-39](../../package/kernel/main/cell/ReactiveCell.jl#L38-L39)).
+  construction ([ReactiveCell.jl:38-39](../../source/kernel/cell/ReactiveCell.jl#L38-L39)).
   For a data tree almost every cell is a **primitive leaf** (reads nothing → `deps`
   stays empty) that until a projection looks at it is **observed by nothing**
   (`dependents` stays empty). The empty `Set` alone is 88 B / 36.6 ns; it plus the
   `WeakRef[]` are ~144 of the 168 B and most of the time.
 - **Reactive collections wrap every element.** A reactive `CellVector` stores one
-  `ReactiveCell` slot per element ([CellVector.jl:5-13](../../package/collection/main/CellVector.jl#L5-L13));
+  `ReactiveCell` slot per element ([CellVector.jl:5-13](../../source/collection/CellVector.jl#L5-L13));
   the immutable/mutable kinds store elements directly in a plain `Vector`. So a
   reactive collection multiplies the per-cell cost by its length — a million
   queued items you are *not* looking at each cost a full `ReactiveCell`.
@@ -50,9 +50,9 @@ reactive machinery, and most of it is avoidable.
 Make both fields `Union{Nothing, …}`, `nothing` at construction; allocate on the
 **first real dependency**:
 - `dependents` allocated the first time some computation reads this cell
-  (`getindex`'s register branch, [ReactiveCell.jl:98-105](../../package/kernel/main/cell/ReactiveCell.jl#L98-L105)).
+  (`getindex`'s register branch, [ReactiveCell.jl:98-105](../../source/kernel/cell/ReactiveCell.jl#L98-L105)).
 - `deps` allocated the first time this cell (as a computed cell) reads another
-  (`recompute!`, [ReactiveCell.jl:132-146](../../package/kernel/main/cell/ReactiveCell.jl#L132-L146)).
+  (`recompute!`, [ReactiveCell.jl:132-146](../../source/kernel/cell/ReactiveCell.jl#L132-L146)).
 
 Every read/write/invalidate path (`getindex`, `setindex!`, `invalidate!`,
 `_invalidate_walk!`, `_detach_upstream!`, `_register_dependent!` /

@@ -16,7 +16,7 @@
 > examples, so it is not run as a matter of course.
 
 The central object is the template engine
-[ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl),
+[ProjectionTemplate.jl](../../source/kernel/projection/ProjectionTemplate.jl),
 which backs almost every printer (`@projection_template`): Json/Xml/Math/Book/Sql
 → Syntax, the generic `CopyingProjection`/`SortingProjection`, etc. Its locality
 properties are inherited by all of them, so it dominates the audit.
@@ -24,15 +24,15 @@ properties are inherited by all of them, so it dominates the audit.
 ## Finding 1 — Dimension A (selection isolation): engine is **clean** (CONFIRMED PASS, 2026-08-12)
 
 A selection move writes input `:selection` cells (`set_selection!`,
-[SelectionDefaults.jl:182](../../package/kernel/main/selection/SelectionDefaults.jl#L182)).
+[SelectionDefaults.jl:182](../../source/kernel/selection/SelectionDefaults.jl#L182)).
 For the template engine to be dimension-A clean, **no content cell may read
 `doc.selection`.** Reading the builders confirms it:
 
 - **Value cells** read only the bound field: `bound(:value, …, hinted_text(() ->
-  …, () -> …, …))` ([JsonToSyntax.jl:61-77](../../package/json/main/JsonToSyntax.jl#L61)).
+  …, () -> …, …))` ([JsonToSyntax.jl:61-77](../../source/json/JsonToSyntax.jl#L61)).
   The thunks close over `doc.value`, never `doc.selection`.
 - **Children cells** read the element documents through `child_iomaps[]`
-  ([ProjectionTemplate.jl `_node_print`](../../package/kernel/main/projection/ProjectionTemplate.jl));
+  ([ProjectionTemplate.jl `_node_print`](../../source/kernel/projection/ProjectionTemplate.jl));
   the recursion reads each element's own fields, not the parent's selection.
 - **Selection cells** are the only ones that read `doc.selection`, via
   `_with_selection(out, ComputedCell(() -> map_selection_forward(doc, …)))` in each
@@ -78,14 +78,14 @@ Both effects are *identity* churn, not *invalidation* — the old sibling object
 are orphaned, not marked invalid — which is exactly why the harness measures
 dimension C by `lost_objects` (identity diff), not by the invalidation set.
 `_mixed_print` and `_sections_print`
-([ProjectionTemplate.jl:593-720](../../package/kernel/main/projection/ProjectionTemplate.jl#L593))
+([ProjectionTemplate.jl:593-720](../../source/kernel/projection/ProjectionTemplate.jl#L593))
 still have the same `ComputedCell(() -> …)` shape and the same defect — they
 were not converted when `_node_print` was fixed (see below).
 
 The irony: the **document** side already has per-slot incrementality — a manual
 `push!`/`insert!` on an input `CellVector` keeps every existing slot cell and
 only reassigns `.elements`
-([Collection.jl invariants](../../package/collection/main/Collection.jl#L11-L19)),
+([Collection.jl invariants](../../source/collection/Collection.jl#L11-L19)),
 so editing one element invalidates only that slot. The **output** side used to
 discard that win by regenerating the whole vector from a single computed thunk —
 now fixed for `_node_print`, per below.
@@ -98,7 +98,7 @@ element / object entry was appended; after the fix, `lost < 5%` — passes 22/22
 **Fix landed (Phase 4), partially:** keyed reconciliation — key child iomaps by
 the element document `objectid` (stable across edits to *other* elements; see the
 "incremental write" assertions at
-[JsonToSyntaxTest.jl:101](../../package/json/test/projection/JsonToSyntaxTest.jl#L101)),
+[JsonToSyntaxTest.jl:101](../../test/json/projection/JsonToSyntaxTest.jl#L101)),
 reuse the existing child iomap + slot cell when the same element reappears, and
 project only genuinely new elements. Implemented as the generic
 `reconcile_child_iomaps`/`reconcile_child_iomap` in
@@ -110,7 +110,7 @@ projection does **not yet** inherit the fix.
 
 `_inline_print`'s children cell is `make_children_container(() -> begin
 map(thunk()) do leaf … end end)`
-([ProjectionTemplate.jl:649-681](../../package/kernel/main/projection/ProjectionTemplate.jl#L649)).
+([ProjectionTemplate.jl:649-681](../../source/kernel/projection/ProjectionTemplate.jl#L649)).
 The `thunk()` still rebuilds the whole token-leaf vector on every recompute, so
 any dependency change regenerates all decorative + bound leaves (fresh objects).
 Narrower than Finding 2 (token nodes are small and few), but the same identity

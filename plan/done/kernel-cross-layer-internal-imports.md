@@ -150,7 +150,7 @@ to the `DocumentModule` export list.
 ### 5. Enforce it in the layering guard
 
 Extend the shared `check_layering`
-([package/kernel/test/layering/CheckLayering.jl](../../package/kernel/test/layering/CheckLayering.jl))
+([package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl))
 with a fifth check, mirroring the existing `layer_errors` shape:
 
 - **Walker**: `collect_edges` currently keeps only the referenced module name;

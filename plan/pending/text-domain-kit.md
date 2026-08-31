@@ -34,7 +34,7 @@
 > emission change into a new plan: that settles ownership, not direction. Defer
 > the call.
 
-Three related changes to [package/text/main/Text.jl](../../package/text/main/Text.jl),
+Three related changes to [package/text/main/Text.jl](../../source/text/Text.jl),
 ordered so each lands on its own:
 
 1. **`@domain Text`** — give the text domain the insertion kit every other domain has (PAR-DOMAIN-OWNS-EDITS).
@@ -57,16 +57,16 @@ X` line rather than re-implementing the root/placeholder/insertion/gesture/trait
 The Text domain is the one editable domain that never got one, and the evidence that hand-rolling
 rots is already in the tree:
 
-- **`TextInsertion` is dead.** [Text.jl:58](../../package/text/main/Text.jl#L58) declares
+- **`TextInsertion` is dead.** [Text.jl:58](../../source/text/Text.jl#L58) declares
   `@document struct TextInsertion <: TextDocument; value::Any = nothing; end`. It is constructed
   nowhere, printed nowhere, has no traits, no gesture, no reader. Its `value::Any = nothing` does
   not even match the kit's `value::String = ""`, so the shared insertion gestures
   (`_insertion_insert` / `_insertion_tab` / `_insertion_commit` in
-  [InsertionToSyntax.jl](../../package/syntax/main/InsertionToSyntax.jl)) could not drive
+  [InsertionToSyntax.jl](../../source/syntax/InsertionToSyntax.jl)) could not drive
   it if they ever reached it.
 - **`TextNothing` does not exist.** There is no way to represent "this text slot is empty".
 - **The `"text"` short name is a hand-written hack in the wrong package.**
-  [InsertionToSyntax.jl:326](../../package/syntax/main/InsertionToSyntax.jl#L326) carries
+  [InsertionToSyntax.jl:326](../../source/syntax/InsertionToSyntax.jl#L326) carries
 
   ```julia
   # `TextBlock` is a plain visual document, not an `@domain` kit, so its historic
@@ -77,7 +77,7 @@ rots is already in the tree:
   i.e. the *domain* package reaches down into a *visual* type to patch a missing kit.
 - **A committed `"text"` insertion is unusable — confirmed in the REPL.**
   `make_insertion_document(TextBlock)` has no `@insertion` override, so it hits the generic fallback
-  ([Domain.jl:124](../../package/domain/main/Domain.jl#L124)) → `TextBlock()` →
+  ([Domain.jl:124](../../source/domain/Domain.jl#L124)) → `TextBlock()` →
   `length(d.elements) == 0`, `getfield(d, :selection)[] === nothing`. The `@gestures TextBlock`
   `KeyPress` rule routes to `_text_insert` → `_text_selection_range`, which does
   `sel isa ConcreteReferencePath || return nothing` and so declines on a `nothing` selection: **the
@@ -93,7 +93,7 @@ rots is already in the tree:
 
 ### What lands
 
-In [Text.jl](../../package/text/main/Text.jl):
+In [Text.jl](../../source/text/Text.jl):
 
 ```julia
 @domain Text                     # generates: abstract TextDocument <: Document (exported),
@@ -107,13 +107,13 @@ In [Text.jl](../../package/text/main/Text.jl):
   `@document struct TextInsertion` — the macro emits both. Drop `TextDocument` from the manual
   `export` list (`@domain` exports the root).
 - **Delete** `DomainModule.insertion_aliases(::Type{<:TextBlock}) = ["text"]` from
-  [InsertionToSyntax.jl](../../package/syntax/main/InsertionToSyntax.jl) and its comment.
+  [InsertionToSyntax.jl](../../source/syntax/InsertionToSyntax.jl) and its comment.
 - **Layering:** `DomainModule` lives in the `domain` package
-  ([Domain.jl](../../package/domain/main/Domain.jl)). *(As executed, after the
+  ([Domain.jl](../../source/domain/Domain.jl)). *(As executed, after the
   later per-domain package split: there is no `package/visual/` any more — the
   `text` package depends on `ProjecturedDomain` directly and imports it as
   `const DomainModule = ProjecturedDomain.DomainModule` in
-  [ProjecturedText.jl:26](../../package/text/main/ProjecturedText.jl#L26), then
+  [ProjecturedText.jl:26](../../package/ProjecturedText/src/ProjecturedText.jl#L26), then
   `import ..DomainModule: @domain, @insertion` in `TextModule`. Same effect the
   original plan called for — a re-export was needed only under the old
   single-`visual`-package layout.)*
@@ -156,7 +156,7 @@ placeholder that renders and takes Insert.
 Keeping the alias on the container instead would leave two candidates answering exactly to `"text"`
 and make `resolve_insertion` order-dependent. Take the convention.
 
-- Update [DocumentInsertionTest.jl:39](../../package/projectured/test/projection/DocumentInsertionTest.jl#L39):
+- Update [DocumentInsertionTest.jl:39](../../test/projectured/projection/DocumentInsertionTest.jl#L39):
   `@test "text" in DS.insertion_names(TextBlock)  # hand-written alias` becomes the assertion that
   `"text"` resolves to `TextInsertion` and that `TextBlock` answers to `"Text"` under
   `root = TextDocument`.
@@ -164,7 +164,7 @@ and make `resolve_insertion` order-dependent. Take the convention.
 ### Rendering the new pair — cheapest correct route
 
 `TextNothing` and `TextInsertion` are `<: TextDocument`, and the **natural projection** routes
-`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../package/natural/main/NaturalProjection.jl#L160))
+`TextDocument => prose_chain` ([NaturalProjection.jl:160](../../source/natural/NaturalProjection.jl#L160))
 — a Text→Graphics chain whose printer is typed `print_document(::TextToGraphics, _, ::TextBlock, _)`.
 A bare `TextNothing` root would not render.
 
@@ -240,7 +240,7 @@ Mechanics, as executed:
 - One mechanical sweep over `package/`, `documentation/`, `plan/pending/` and `plan/tentative/`;
   **`plan/done/` left alone** — those are history.
 - **The one trap: `_TextTexture` / `_TextTextureKey`** in
-  [ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — the SDL glyph-texture cache
+  [ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl) — the SDL glyph-texture cache
   contains the old name as a *substring*, and a naive replace corrupts it into `_TextBlockure`.
   The sweep used a negative lookahead (`s/TextText(?!ure)/TextBlock/g`), which also carries the
   compound names across correctly (`PrimitiveStringToTextText` → `…ToTextBlock`,
@@ -264,13 +264,13 @@ flat span list by every consumer, independently:
 
 | Consumer | How it finds lines today |
 |---|---|
-| [TextToGraphics.jl:267-296](../../package/text/main/TextToGraphics.jl#L267-L296) | `lines_cell` scans `elements` for `TextNewline`, groups, then builds **per-line reactive cells** (`get_line_cells`, `_layout_line`) — lines are already the incrementality unit |
-| [LineNumbering.jl](../../package/text/main/LineNumbering.jl) | *"Lines are delimited by TextNewline elements"*; prepends a prefix span per line and remaps every reference index |
-| [WordWrapping.jl](../../package/text/main/WordWrapping.jl) | splices **soft `TextNewline`s** into the span list and maintains a `WrapSeg` back-map |
-| [TextFirstLine.jl](../../package/text/main/TextFirstLine.jl) | truncates at the first `TextNewline` *or embedded `'\n'`* |
-| [Console.jl:198](../../package/console/main/Console.jl#L198) | `_render_span!(::TextNewline)` → `'\n'` |
-| [TextToString.jl](../../package/text/main/TextToString.jl) | `TextNewlineToString` |
-| [SyntaxToText.jl:778](../../package/syntax/main/SyntaxToText.jl#L778) | emits `TextNewline` + an **indent `TextString`**, plus `indent_indices` and splice-widening machinery to keep carets out of it |
+| [TextToGraphics.jl:267-296](../../source/text/TextToGraphics.jl#L267-L296) | `lines_cell` scans `elements` for `TextNewline`, groups, then builds **per-line reactive cells** (`get_line_cells`, `_layout_line`) — lines are already the incrementality unit |
+| [LineNumbering.jl](../../source/text/LineNumbering.jl) | *"Lines are delimited by TextNewline elements"*; prepends a prefix span per line and remaps every reference index |
+| [WordWrapping.jl](../../source/text/WordWrapping.jl) | splices **soft `TextNewline`s** into the span list and maintains a `WrapSeg` back-map |
+| [TextFirstLine.jl](../../source/text/TextFirstLine.jl) | truncates at the first `TextNewline` *or embedded `'\n'`* |
+| [Console.jl:198](../../source/console/Console.jl#L198) | `_render_span!(::TextNewline)` → `'\n'` |
+| [TextToString.jl](../../source/text/TextToString.jl) | `TextNewlineToString` |
+| [SyntaxToText.jl:778](../../source/syntax/SyntaxToText.jl#L778) | emits `TextNewline` + an **indent `TextString`**, plus `indent_indices` and splice-widening machinery to keep carets out of it |
 
 Two payoffs:
 
@@ -301,7 +301,7 @@ Two payoffs:
 
 ### The real cost: the flat cursor machinery goes from 2 levels to 3
 
-Everything in [Text.jl](../../package/text/main/Text.jl) that touches carets assumes a **flat**
+Everything in [Text.jl](../../source/text/Text.jl) that touches carets assumes a **flat**
 span list — `.elements[i].content{k}`, with an `Int` span index:
 `_text_span_infos`, `_text_span_text`, `_step_left` / `_step_right`, `_word_step_*`,
 `_text_selection_range`, `_text_replace_path`, `_build_selection_path`, `_cursor_position`,

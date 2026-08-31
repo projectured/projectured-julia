@@ -56,7 +56,7 @@ perf!(editor)      # report the reactive counters of this frame
 ```
 
 The loop lives in
-[Editor.jl](../package/kernel/main/editor/Editor.jl). Every concept in the next
+[Editor.jl](../source/kernel/editor/Editor.jl). Every concept in the next
 part is a part of one of these four steps.
 
 ---
@@ -85,7 +85,7 @@ box), and `ImmutableCell` (frozen). The reactive kind is the default.
 **The rule.** Invalidation is eager, recomputation is lazy. This is why a deep
 pipeline is affordable: an edit invalidates a path of cells, but only the cells
 that the screen actually pulls on run again. See
-[cell.md](../package/kernel/doc/cell.md).
+[cell.md](package/kernel/cell.md).
 
 ### 2.2 Document and domain
 
@@ -139,7 +139,7 @@ matches.
 
 **The rule.** A `.field` step is `getfield`. So a document's field names are its
 public path vocabulary, and a rename of a field breaks every stored path. See
-[reference.md](../package/kernel/doc/reference.md).
+[reference.md](package/kernel/reference.md).
 
 ### 2.4 Selection — where the caret is
 
@@ -161,7 +161,7 @@ selection works everywhere for free.
 
 **The rule.** Because the suffix lives on the node, a projection can read a
 node's selection and does not need the path to the root. See
-[selection.md](../package/kernel/doc/selection.md).
+[selection.md](package/kernel/selection.md).
 
 ### 2.5 Gesture — what the user did
 
@@ -226,7 +226,7 @@ evaluate_operation(editor, ReplaceSelectionOperation(ref))
 
 **The rule.** Before you write a new operation type, ask whether the change is a
 slot write. Most changes are. See
-[operation.md](../package/kernel/doc/operation.md).
+[operation.md](package/kernel/operation.md).
 
 ### 2.7 Projection — the bidirectional map
 
@@ -270,7 +270,7 @@ reference map from that record. Nothing is generated per type.
 **The rule.** A projection transforms **one level** and delegates every child
 back through the same four functions. It never walks the subtree itself. This is
 the recursion contract, and part 4 explains why everything depends on it. See
-[projection-system.md](../package/kernel/doc/projection-system.md).
+[projection-system.md](package/kernel/projection-system.md).
 
 ### 2.8 IO map — the record of the print
 
@@ -688,11 +688,11 @@ printer and reader by hand — see [debugging.md](debugging.md).
 |---|---|
 | See the concepts at work | [Examples tour](examples-tour.md) |
 | Set up and run something | [Getting started](getting-started.md) |
-| Understand the incrementality | [Reactive cells](../package/kernel/doc/cell.md) |
-| Understand the four functions in depth | [Projection system](../package/kernel/doc/projection-system.md) |
-| Understand the combinators in depth | [Higher-order projections](../package/kernel/doc/higher-order-projections.md) · [Generic projections](../package/kernel/doc/generic-projections.md) |
-| Understand paths and the caret | [References](../package/kernel/doc/reference.md) · [Selection](../package/kernel/doc/selection.md) |
-| Understand the macros | [Macros](../package/kernel/doc/macros.md) |
+| Understand the incrementality | [Reactive cells](package/kernel/cell.md) |
+| Understand the four functions in depth | [Projection system](package/kernel/projection-system.md) |
+| Understand the combinators in depth | [Higher-order projections](package/kernel/higher-order-projections.md) · [Generic projections](package/kernel/generic-projections.md) |
+| Understand paths and the caret | [References](package/kernel/reference.md) · [Selection](package/kernel/selection.md) |
+| Understand the macros | [Macros](package/kernel/macros.md) |
 | Find the code | [Architecture](architecture.md) · [Terminology](terminology.md) · [Orientation](orientation.md) |
 | Add your own domain | [Tutorial: new domain](tutorial-new-domain.md) |
 | Know the direction of the project | [Vision](vision.md) · [Roadmap](roadmap.md) |

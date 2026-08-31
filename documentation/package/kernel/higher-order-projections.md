@@ -204,7 +204,7 @@ identity.
 
 ## Compound combinators
 
-[projection/HigherOrderCompound.jl](../../../package/projection/main/HigherOrderCompound.jl)
+[projection/HigherOrderCompound.jl](../../../source/projection/compound/HigherOrderCompound.jl)
 defines `ApplyAtProjection`, the most useful combinator built on top:
 
 ```julia

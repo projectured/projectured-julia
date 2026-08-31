@@ -70,7 +70,7 @@ document slot maps to this edit" and defer — exactly as the fully-opaque leave
 ## How the fall-through already works (no change needed)
 
 An `Intent` carries **both** the gesture and the operation
-([Projection.jl:193-197](../../package/kernel/main/projection/Projection.jl#L193-L197)):
+([Projection.jl:193-197](../../source/kernel/projection/Projection.jl#L193-L197)):
 
 ```julia
 payload = change.operation === nothing ? change.gesture : change.operation
@@ -225,7 +225,7 @@ inherit it). Today
 [ReaderDefaults.jl:39-52](../../package/base/main/projection/ReaderDefaults.jl#L39-L52)
 early-returns `nothing` only for the *fully opaque* leaf (`bound_field === nothing`); a
 bound leaf editing a non-value field falls through to `_atomic_backward`, which wraps it
-in a `ProjectionReference` ([ProjectionTemplate.jl:867-868](../../package/kernel/main/projection/ProjectionTemplate.jl#L867-L868))
+in a `ProjectionReference` ([ProjectionTemplate.jl:867-868](../../source/kernel/projection/ProjectionTemplate.jl#L867-L868))
 and hands back a bogus `ReplaceStringRangeOperation` targeting introduced output.
 
 Generalize the early return: after `new_ref = map_reference_backward(...)`, if `new_ref`
@@ -267,7 +267,7 @@ head, true).
 
 ### 2c. Fall-through
 
-No change — [Projection.jl:193-197](../../package/kernel/main/projection/Projection.jl#L193-L197)
+No change — [Projection.jl:193-197](../../source/kernel/projection/Projection.jl#L193-L197)
 already preserves the gesture across the template's `nothing`.
 
 **Result (implemented + verified)**
@@ -304,7 +304,7 @@ already-correct; not re-touched).
 > gesture). Left for a future, deliberate change.
 
 The entry check is the last survivor because `replace_document` is a blind slot-write
-([Operations.jl:196-217](../../package/kernel/main/operation/Operations.jl#L196-L217)) —
+([Operations.jl:196-217](../../source/kernel/operation/Operations.jl#L196-L217)) —
 replacing `object.entries[i]` with a bare `JsonNull` would violate the `JsonObject`
 invariant. The literal reading of the existing "an entry is retyped through its value"
 comment is to **re-target**: when the named node is a `JsonObjectEntry`,

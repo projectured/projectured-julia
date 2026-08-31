@@ -35,7 +35,7 @@ syntax-backed document, while the rightward walk from Ctrl+Home traverses the wh
 Pure-text examples are symmetric and unaffected. Found by the bidirectional cursor walk
 ([text-navigation-right-to-left-walk.md](../done/text-navigation-right-to-left-walk.md)); the ten
 examples are marked `@test_broken` via `NAV_LEFT_WALK_STALLS` in
-[ExampleSweeps.jl](../../package/projectured/test/editor/ExampleSweeps.jl). Reproduce with
+[ExampleSweeps.jl](../../test/projectured/editor/ExampleSweeps.jl). Reproduce with
 `test_text_nav_invariants(syntax_example)`.
 
 ## Root cause (established)

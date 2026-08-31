@@ -7,7 +7,7 @@ it can not resolve, it stops with a verifier error.
 This guide states the one rule that decides whether a call resolves, shows what
 that rule costs ProjecturEd, and gives four ways to keep an abstract type and
 still compile. The probe that measured every number is in
-[bench/juliac-trim/](../bench/juliac-trim/).
+[bench/juliac-trim/](../tool/juliac-trim/).
 
 ## The rule
 

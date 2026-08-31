@@ -6,7 +6,7 @@ overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
 [documentation/concepts.md](../../../documentation/concepts.md).
 
-The layer lives in [main/document/](../main/document/), inside one aggregator
+The layer lives in [main/document/](../../../source/kernel/document/), inside one aggregator
 module (`DocumentModule`) split across fragments that share its namespace:
 
 ```
@@ -73,12 +73,12 @@ Two operations every document reuses, both generic over structure — struct
 fields (`fieldnames`), `Vector` elements, and per-slot cells are all traversed
 uniformly:
 
-- **`copy_document`** ([DocumentCopy.jl](../main/document/DocumentCopy.jl)) —
+- **`copy_document`** ([DocumentCopy.jl](../../../source/kernel/document/DocumentCopy.jl)) —
   deep-copies a subtree, allocating fresh `Cell`s so the copy shares no reactive
   state with the source. `copy_document(doc)` preserves each cell's kind;
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
   immutable).
-- **`sync_document!`** ([DocumentSync.jl](../main/document/DocumentSync.jl)) — the
+- **`sync_document!`** ([DocumentSync.jl](../../../source/kernel/document/DocumentSync.jl)) — the
   double-buffer shadow sync: mutate a `MutableCell`-kind document freely (no
   per-edit reactive overhead), then at a pause point diff-copy it into a
   `ReactiveCell`-kind shadow, writing a shadow cell only when its value changed so
@@ -105,14 +105,14 @@ cells, not in its type name.
 ## The reflection walk
 
 There is exactly one traversal of an object graph
-([DocumentWalk.jl](../main/document/DocumentWalk.jl)): `walk_document` descends
+([DocumentWalk.jl](../../../source/kernel/document/DocumentWalk.jl)): `walk_document` descends
 positional collections, dicts, arrays, and structs uniformly, stops at scalar
 leaves / `is_walk_opaque` nodes / `maxdepth`, and folds a scalar match up to its
 enclosing `Document`. What it deliberately leaves open is how to *name* the node
 it stands on — those are the location functions of a `DocumentWalk`, a parameter
 object the caller supplies (`locate_field` / `locate_element` / `initial` /
 `policy`). Its two callers differ only there: `search_documents`
-([DocumentSearch.jl](../main/document/DocumentSearch.jl)) uses the defaults, so a
+([DocumentSearch.jl](../../../source/kernel/document/DocumentSearch.jl)) uses the defaults, so a
 node's location is the node itself, while `search_references` (one layer up)
 supplies functions that build a `Reference`. Passing the location functions in
 — rather than dispatching them off a subtype — is what keeps the walk *below* the
@@ -121,7 +121,7 @@ the caller supplies it.
 
 ## The protocol helpers
 
-[ForwardProtocol.jl](../main/document/ForwardProtocol.jl) gives a wrapper document
+[ForwardProtocol.jl](../../../source/kernel/document/ForwardProtocol.jl) gives a wrapper document
 another type's method protocol without a hand-written method per function:
 
 - **`@forward_protocol [fns] on T to field`** — forward the listed functions to a
@@ -135,7 +135,7 @@ another type's method protocol without a hand-written method per function:
 
 ## Debug rendering
 
-[DocumentDefaults.jl](../main/document/DocumentDefaults.jl) gives `Document` a
+[DocumentDefaults.jl](../../../source/kernel/document/DocumentDefaults.jl) gives `Document` a
 depth-limited `Base.show` (bounded by the `:document_depth` IOContext key, with the
 `selection` field skipped as noise). A debug aid only — nothing in the editor
 pipeline reads it; a domain that wants a *presentable* rendering writes a
@@ -148,4 +148,4 @@ never `Collection` or `Primitive`. That constraint — you cannot reach for the
 engine documents as fixtures — is what keeps the interface sufficient. If the
 contract cannot be exercised without the concrete documents, it is not actually a
 contract. See
-[test/document/DocumentContractTest.jl](../test/document/DocumentContractTest.jl).
+[test/document/DocumentContractTest.jl](../../../test/kernel/document/DocumentContractTest.jl).

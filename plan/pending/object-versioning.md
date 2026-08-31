@@ -57,8 +57,8 @@ document holding a `content`/payload, and a projection that decides which child
 becomes the output and re-roots edits back into the chosen child. Versioning is
 "clipboard, but the payload is a list of timestamped value objects and the
 toggle is a selection criterion." Read
-[`package/clipboard/main/ClipboardToAny.jl`](../../package/clipboard/main/ClipboardToAny.jl)
-and [`package/clipboard/main/Clipboard.jl`](../../package/clipboard/main/Clipboard.jl)
+[`package/clipboard/main/ClipboardToAny.jl`](../../source/clipboard/ClipboardToAny.jl)
+and [`package/clipboard/main/Clipboard.jl`](../../source/clipboard/Clipboard.jl)
 before implementing — this plan mirrors them deliberately.
 
 ## Goal
@@ -79,7 +79,7 @@ pointed at `package/projectured/example/document/Versioning.jl` — that file on
 holds the example builder `make_versioning_document_example`, not the module.)
 
 A new domain module, modeled on `ClipboardModule`. All fields are `Cell`-backed
-via `@document` (see [macros.md](../../package/kernel/doc/macros.md)).
+via `@document` (see [macros.md](../../documentation/package/kernel/macros.md)).
 
 ```julia
 module VersioningModule
@@ -306,7 +306,7 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
   - Use the narrowest helpers per [documentation/testing.md](../../documentation/testing.md):
     `test_printer(versioning_example)`, `test_reader(versioning_example)`,
     `test_text_navigation(versioning_example)` — never `test_all`.
-- **[package/versioning/doc/versioning.md](../../package/versioning/doc/versioning.md)** —
+- **[package/versioning/doc/versioning.md](../../documentation/package/versioning/versioning.md)** —
   a short domain guide once the code lands, linked from `CLAUDE.md`'s per-domain list.
   **As built:** this file exists.
 
@@ -383,7 +383,7 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
   criterion/policy later.
 - **Timestamp/author source.** `CreateVersionOperation` needs the current time
   and the acting author/origin. Where does the editor expose these? Possibly via
-  the printer/projection context (see [package/kernel/doc/editor.md](../../package/kernel/doc/editor.md))
+  the printer/projection context (see [package/kernel/doc/editor.md](../../documentation/package/kernel/editor.md))
   — confirm before step 3.
 - **Persistence.** `VersionProperties`/`ObjectVersion` snapshot through the
   generated `I`-structs; long-lived version history intersects the external

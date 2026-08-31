@@ -606,7 +606,7 @@ family [:1159-1315](../../package/visual/main/syntax/SyntaxToText.jl#L1159).
   literal string `"::TextBlock…content::String{0}::Position"`** — must change;
   TypeReferenceTest.jl [:123](../../package/domain/test/reference/TypeReferenceTest.jl#L123).
 - Drivers/sweeps: NavigationPresets.jl, TypeinTest.jl, ClickRoundtripTest.jl, and
-  ExampleSweeps.jl [:141-467](../../package/projectured/test/editor/ExampleSweeps.jl#L141).
+  ExampleSweeps.jl [:141-467](../../test/projectured/editor/ExampleSweeps.jl#L141).
 
 ## Risks
 

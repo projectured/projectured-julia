@@ -204,10 +204,10 @@ method would silently change behavior rather than error). Only then was the test
 
 Found by grep; all name `Reference.jl` or "three fragments" and go stale:
 
-- [package/kernel/doc/reference.md](../../package/kernel/doc/reference.md) — lines 19, 26, 32,
+- [package/kernel/doc/reference.md](../../documentation/package/kernel/reference.md) — lines 19, 26, 32,
   35, 39 (the fragment tree and the "three fragments" prose) and 580 (`Reference.jl`
   documents the higher-type-opaquely rule → now `Interface.jl`).
-- [package/kernel/doc/selection.md](../../package/kernel/doc/selection.md):69 — "the generic
+- [package/kernel/doc/selection.md](../../documentation/package/kernel/selection.md):69 — "the generic
   implementation in `Reference.jl` walks the path step by step" → `ReferenceEvaluation.jl`.
 - [documentation/architecture.md](../../documentation/architecture.md):308 (the include tree)
   and 383 (the module-inventory table row).

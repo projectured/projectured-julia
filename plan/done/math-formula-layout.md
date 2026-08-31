@@ -245,7 +245,7 @@ x height 11. `test_visual()` stays green (52469 pass, 1 broken, 0 fail).
 
 New file: `package/domain/main/math/MathToGraphics.jl`, included after
 `math/MathToSyntax.jl` in
-[ProjecturedDomain.jl](../../package/domain/main/ProjecturedDomain.jl).
+[ProjecturedDomain.jl](../../package/ProjecturedDomain/src/ProjecturedDomain.jl).
 
 ### D1. The box protocol
 

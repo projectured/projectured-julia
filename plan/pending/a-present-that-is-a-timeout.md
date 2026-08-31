@@ -87,7 +87,7 @@ Three alternatives were considered and rejected:
 
 - [x] **1. Time the present at window open, and drop vsync when it is a
   timeout.** `_drop_pathological_vsync!` in
-  [ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl), called from
+  [ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl), called from
   `_open_native_window!`. It says so once when it fires, because a person
   wondering why their frames tear deserves to find the reason in the log.
 

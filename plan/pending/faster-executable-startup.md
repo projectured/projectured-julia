@@ -11,7 +11,7 @@
 ## Goal
 
 Make the native binary produced by `build_executable`
-([package/executable/builder/ProjecturedBuilder.jl](../../package/executable/builder/ProjecturedBuilder.jl))
+([package/executable/builder/ProjecturedBuilder.jl](../../package/ProjecturedBuilder/src/ProjecturedBuilder.jl))
 reach an interactive editor as fast as possible. The app is *already* a
 PackageCompiler `create_app` sysimage with a precompile workload, so "precompiled" is
 the baseline — this plan is about the layers **on top of** precompilation.
@@ -19,10 +19,10 @@ the baseline — this plan is about the layers **on top of** precompilation.
 ## Where we are today
 
 - **Julia 1.12.6**, **PackageCompiler 2.2.5**, `create_app`.
-- Precompile workload: [`Precompile.jl`](../../package/executable/main/Precompile.jl)
+- Precompile workload: [`Precompile.jl`](../../package/ProjecturedExecutable/src/Precompile.jl)
   → `ProjecturedExecutable.precompile_warmup()`.
 - `create_app` is invoked with **no** tuning args
-  ([ProjecturedBuilder.jl:263-266](../../package/executable/builder/ProjecturedBuilder.jl#L263-L266)):
+  ([ProjecturedBuilder.jl:263-266](../../package/ProjecturedBuilder/src/ProjecturedBuilder.jl#L263-L266)):
   no `cpu_target`, `filter_stdlibs`, `incremental`, or `sysimage_build_args`. Still
   true today — confirmed against the current `BuildSpec` fields.
 - `__init__` work is light: SDL installs a display-size provider; Adaptagrams
@@ -86,7 +86,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
 **What was built**
 
 - `warm_file_editor(domain; workbench=false)` in
-  [package/projectured/example/FileEditor.jl](../../package/projectured/example/FileEditor.jl)
+  [package/projectured/example/FileEditor.jl](../../example/projectured/FileEditor.jl)
   (exported from `ProjecturedExample`). It drives the **exact windowed pipeline
   `run_file_editor` runs** — `_build_window_scene` + `_multi_window_projection`
   over a `ScreenDocument` — through one print and a spread of synthetic events,
@@ -105,7 +105,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
 - `_WARMUP_EVENTS`: Ctrl+Home (seed caret), arrow nav, Ctrl+End, two `KeyPress`
   (type), backspace, delete.
 - `precompile_warmup()` in
-  [package/executable/main/ProjecturedExecutable.jl](../../package/executable/main/ProjecturedExecutable.jl)
+  [package/executable/main/ProjecturedExecutable.jl](../../package/ProjecturedExecutable/src/ProjecturedExecutable.jl)
   now calls `warm_file_editor(APP_DOMAIN; workbench=APP_WORKBENCH)` after the
   offscreen render. Runs for **every** baked backend (the reader/evaluator are
   backend-independent), not just SDL.

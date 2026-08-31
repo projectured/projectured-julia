@@ -16,7 +16,7 @@ landed.
 ## Remaining tests (§6 of the original plan)
 
 Existing coverage in
-[`package/substrate/test/projection/WordWrappingTest.jl`](../../package/substrate/test/projection/WordWrappingTest.jl)
+[`package/substrate/test/projection/WordWrappingTest.jl`](../../test/substrate/projection/WordWrappingTest.jl)
 covers character preservation, no-wrap, selection round-trip, and
 `available_width`-from-context. Still to add:
 
@@ -42,7 +42,7 @@ documented in `package/kernel/doc/cell.md`, "PerformanceCounterModule —
 instrumentation").
 
 Using `perf_counters()` (see
-[package/kernel/doc/cell.md](../../package/kernel/doc/cell.md), "PerformanceCounterModule — instrumentation"), assert:
+[package/kernel/doc/cell.md](../../documentation/package/kernel/cell.md), "PerformanceCounterModule — instrumentation"), assert:
 
 - Changing `:available_width` re-wraps and invalidates only the wrap /
   layout cells, not upstream syntax/text cells.

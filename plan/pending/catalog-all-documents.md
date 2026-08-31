@@ -2,9 +2,9 @@
 
 > **Status (2026-08-12): IN PROGRESS.** Workstreams 1 to 3 are done:
 > `JsonObjectEntryToSyntaxNode` exists in
-> [package/json/main/JsonToSyntax.jl](../../package/json/main/JsonToSyntax.jl);
+> [package/json/main/JsonToSyntax.jl](../../source/json/JsonToSyntax.jl);
 > the catalog test lives at
-> [package/projectured/test/projection/CatalogTest.jl](../../package/projectured/test/projection/CatalogTest.jl)
+> [package/projectured/test/projection/CatalogTest.jl](../../test/projectured/projection/CatalogTest.jl)
 > with `test_catalog()` and a per-entry `@test_broken`/`@catalog-broken`
 > mechanism. Workstream 4 (fix the `@test_broken` bugs) is still open: 14
 > `@catalog-broken` comment groups remain in `CatalogTest.jl`, naming a bug

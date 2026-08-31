@@ -121,7 +121,7 @@ Add four projection types following the exact pattern already used by
 `_kw`, `ChildrenIoMap`, `iomap_cell` + `sel` cell, `map_reference_forward` /
 `map_reference_backward`, and the `projection_read(::ReplaceSelectionOperation)`
 flat-position fallback). Each needs a matching reader — projections are bidirectional
-(see [CLAUDE.md](../../CLAUDE.md) conventions and [package/kernel/doc/projection-system.md](../../package/kernel/doc/projection-system.md)).
+(see [CLAUDE.md](../../CLAUDE.md) conventions and [package/kernel/doc/projection-system.md](../../documentation/package/kernel/projection-system.md)).
 
 1. **`SqlInsertStatementToSyntaxNode`** — renders
    `INSERT INTO <table> (<col>, …) VALUES (<val>, …)`.
@@ -208,20 +208,20 @@ separately without touching the rest of this work.
 and the example list at 179-180; exported via `package/projectured/example/Examples.jl:42-43`
 and `package/projectured/example/ProjecturedExample.jl`.
 
-In [package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) (already present):
+In [package/sql/example/document/Sql.jl](../../example/sql/document/Sql.jl) (already present):
 
 ```julia
 make_sql_insert_document_example()  # INSERT INTO persons (name, age) VALUES ('Ada', 36)
 make_sql_update_document_example()  # UPDATE persons SET age = 37 WHERE name = 'Ada'
 ```
 
-In [package/sql/example/projection/Sql.jl](../../package/sql/example/projection/Sql.jl)
+In [package/sql/example/projection/Sql.jl](../../example/sql/projection/Sql.jl)
 (already present): matching `make_sql_insert_syntax_projection_example` / `…_update_…`
 (same three-stage `SqlToSyntax → SyntaxToText → TextToGraphics` pipeline as
 `make_sql_syntax_projection_example`).
 
 Registered as `sql_insert_syntax_example` and `sql_update_syntax_example` in
-[package/projectured/example/DomainExamples.jl](../../package/projectured/example/DomainExamples.jl)
+[package/projectured/example/DomainExamples.jl](../../example/projectured/DomainExamples.jl)
 and the example list there.
 
 ---
@@ -235,7 +235,7 @@ table/columns[i]/values[i] and UPDATE table/assignments[i].column_name/value plu
 `where_clause.condition.expression.left` sub-reference, asserting backward∘forward==path.
 Exported and wired into `test_projections()` (`package/projectured/test/ProjecturedTest.jl`).
 
-In [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/projection/SqlToSyntaxTest.jl):
+In [package/sql/test/projection/SqlToSyntaxTest.jl](../../test/sql/projection/SqlToSyntaxTest.jl):
 
 - Replace the "Stubs compile" asserts with real round-trip rendering checks via the
   `sql_text` helper already defined there. Cover the index-shifting/optional branches,
@@ -259,7 +259,7 @@ In [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/proje
   `assignments[i].value`, and a `where_clause.condition.expression.left` sub-reference
   (UPDATE). Build multi-step paths with `Reference(steps...)`.
 - Needs `Reference`, `map_reference_forward`, `map_reference_backward` imported in
-  [package/projectured/test/ProjecturedTest.jl](../../package/projectured/test/ProjecturedTest.jl),
+  [package/projectured/test/ProjecturedTest.jl](../../package/ProjecturedTest/src/ProjecturedTest.jl),
   and the new test wired into `test_projections()` + the module `export` — already done.
 
 ### Verifying

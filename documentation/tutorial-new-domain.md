@@ -109,10 +109,10 @@ end # module
   `entries` by `getfield`, so these names *are* the domain's reference
   vocabulary — choose them deliberately; renaming one later breaks stored
   references. (See the `Document` contract in
-  [document/DocumentInterface.jl](../package/kernel/main/document/DocumentInterface.jl).)
+  [document/DocumentInterface.jl](../source/kernel/document/DocumentInterface.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
-- See [reactive cells](../package/kernel/doc/cell.md) and [macros](../package/kernel/doc/macros.md)
+- See [reactive cells](package/kernel/cell.md) and [macros](package/kernel/macros.md)
   for the cell system and `@document` macro.
 
 ---
@@ -353,8 +353,8 @@ end # module
   mappers can locate the child IO map for a given child.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
   pattern for domains with multiple types.
-- See [the projection system guide](../package/kernel/doc/projection-system.md) and
-  [the selection deep dive](../package/kernel/doc/selection.md).
+- See [the projection system guide](package/kernel/projection-system.md) and
+  [the selection deep dive](package/kernel/selection.md).
 
 ---
 
@@ -500,5 +500,5 @@ BookmarkList
 
 For the next level of complexity — a domain with cross-references, a custom
 reader that handles structural events, or a `TableToGraphics`-style direct
-renderer — read [the projection system guide](../package/kernel/doc/projection-system.md) §"Writing a
+renderer — read [the projection system guide](package/kernel/projection-system.md) §"Writing a
 custom projection" and look at `MathToSyntax.jl` as a real-world reference.

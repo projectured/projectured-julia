@@ -22,7 +22,7 @@ beat a text edit. The domains then stop guessing.
 ## The two defects
 
 **Defect 1 — the bridge drops the gesture.**
-[`package/kernel/main/projection/Projection.jl:194`](../../package/kernel/main/projection/Projection.jl#L194):
+[`package/kernel/main/projection/Projection.jl:194`](../../source/kernel/projection/Projection.jl#L194):
 
 ```julia
 function read_intent(p::Projection, recursion, change::Intent, iomap)

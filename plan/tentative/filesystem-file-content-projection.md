@@ -74,7 +74,7 @@ generic `document_read` fallback.
 `Editor` lives in the **kernel** layer
 ([package/kernel/src/editor/Editor.jl](../../package/kernel/src/editor/Editor.jl));
 `FileSystemFile` lives in the **domain** layer
-([package/filesystem/example/document/FileSystem.jl](../../package/filesystem/example/document/FileSystem.jl)).
+([package/filesystem/example/document/FileSystem.jl](../../example/filesystem/document/FileSystem.jl)).
 Domain depends on kernel, never the reverse. Therefore the kernel cannot know
 about `FileSystemFile`. The kernel must expose a **generic per-frame extension
 point**; the file-specific synchronizer is implemented in the domain layer and

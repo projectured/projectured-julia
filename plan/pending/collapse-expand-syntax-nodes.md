@@ -2,9 +2,9 @@
 
 > **Status (2026-08-12): IN PROGRESS.** JSON and XML are still not wired: a
 > fresh check of
-> [package/json/main/JsonToSyntax.jl](../../package/json/main/JsonToSyntax.jl)
+> [package/json/main/JsonToSyntax.jl](../../source/json/JsonToSyntax.jl)
 > and
-> [package/xml/main/XmlToSyntax.jl](../../package/xml/main/XmlToSyntax.jl)
+> [package/xml/main/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl)
 > finds no `collapsed` keyword in either file's `@projection_template` body
 > (both projections were since rewritten to use `@projection_template` rather
 > than a hand-written `projection_print`, but the missing hookup is
@@ -42,22 +42,22 @@ because the domain printers still hard-code `Cell(false)` for the node's
 ## 1. JSON hookup ⏳
 
 **⏳ OPEN (verified 2026-08-12):** still not wired. The file is
-[package/json/main/JsonToSyntax.jl](../../package/json/main/JsonToSyntax.jl).
+[package/json/main/JsonToSyntax.jl](../../source/json/JsonToSyntax.jl).
 The array node (`JsonArrayToSyntaxNode`) and the object node
 (`JsonObjectToSyntaxNode`) now build their `SyntaxNode` through a
 `@projection_template` (the projections were rewritten to use that macro
 since this plan was written) that omits the `collapsed=` keyword entirely, so
 they fall back to the `SyntaxNode` constructor default `false`
-([package/syntax/main/Syntax.jl](../../package/syntax/main/Syntax.jl),
+([package/syntax/main/Syntax.jl](../../source/syntax/Syntax.jl),
 `collapsed::Bool = false` at line 557). The `collapsed::Bool = false` domain
 fields exist in
-[package/json/main/Json.jl](../../package/json/main/Json.jl) (line 63
+[package/json/main/Json.jl](../../source/json/Json.jl) (line 63
 `JsonArray`, line 83 `JsonObject`). No `json` case exists in
 `CollapseRoundtripTest.jl` (only the `syntax` example is covered).
 
 `JsonArrayToSyntaxNode` and `JsonObjectToSyntaxNode` do not mention
 `collapsed` anywhere in
-[`JsonToSyntax.jl`](../../package/json/main/JsonToSyntax.jl) — grepping the
+[`JsonToSyntax.jl`](../../source/json/JsonToSyntax.jl) — grepping the
 file for `collapsed` returns zero matches, confirming no live hookup.
 `JsonObject` / `JsonArray` already carry a `collapsed::Cell` field.
 
@@ -75,7 +75,7 @@ remains dormant.
 
 **⏳ OPEN (verified 2026-08-12), and the shape changed since this plan was
 written.** File is
-[package/xml/main/XmlToSyntax.jl](../../package/xml/main/XmlToSyntax.jl).
+[package/xml/main/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl).
 `XmlElementToSyntaxNode` now builds its output through a
 `@projection_template` that wraps `[tag_leaf, attrs_node, body_node,
 close_leaf]` in a **`SyntaxConcatenation`**, not a `SyntaxNode` — the two
@@ -88,7 +88,7 @@ a `collapsed` field added to `SyntaxConcatenation`, or the element template
 restructured to build a `SyntaxNode`/`SyntaxCollapsible` instead — a real
 design decision this plan did not anticipate. `XmlElement` already has the
 `collapsed::Bool` field
-([package/xml/main/Xml.jl](../../package/xml/main/Xml.jl), line 56). No `xml`
+([package/xml/main/Xml.jl](../../source/xml/Xml.jl), line 56). No `xml`
 case in `CollapseRoundtripTest.jl`.
 
 - Pass `getfield(e, :collapsed)` through to a node that can carry it — either
@@ -100,11 +100,11 @@ case in `CollapseRoundtripTest.jl`.
 ## 3. Verify Book inherits it ⏳
 
 **⏳ OPEN (verified 2026-08-12):** the code half is confirmed in place —
-[package/book/main/BookToSyntax.jl](../../package/book/main/BookToSyntax.jl)
+[package/book/main/BookToSyntax.jl](../../source/book/BookToSyntax.jl)
 passes `collapsed=b.collapsed` into the `SyntaxNode` constructor at all three
 call sites (lines 177, 348, 508). The remaining deliverable (a `book`
 roundtrip test case) is **not** present:
-[package/substrate/test/editor/CollapseRoundtripTest.jl](../../package/substrate/test/editor/CollapseRoundtripTest.jl)
+[package/substrate/test/editor/CollapseRoundtripTest.jl](../../test/substrate/editor/CollapseRoundtripTest.jl)
 only covers the `syntax` example; no `book` collapse test exists anywhere
 under `package/*/test/`.
 

@@ -19,8 +19,8 @@ This **supersedes Phases 1–3** of
 [`plan/pending/discovered-example-catalog.md`](discovered-example-catalog.md) and keeps
 its **landed Phase 0** as the foundation (the projection graph — `BRIDGES`, `_step`,
 `path_sequences`, `paths`, `projection_to`, and `Example.terminal` — already on `main` in
-[`package/projectured/example/Catalog.jl`](../../package/projectured/example/Catalog.jl)
-and [`CatalogTest.jl`](../../package/projectured/test/projection/CatalogTest.jl)).
+[`package/projectured/example/Catalog.jl`](../../example/projectured/Catalog.jl)
+and [`CatalogTest.jl`](../../test/projectured/projection/CatalogTest.jl)).
 
 **The one pivot from the old plan:** documents come from a *hand-authored registry*, not
 from `minimal()`. This is a net simplification and a fidelity win:

@@ -208,5 +208,5 @@ Once you have a feel for these examples, the natural next steps are:
 
 - [Concepts](concepts.md) — if you want the conceptual model before the code
 - [Architecture](architecture.md) — module inventory and package/layer/slice structure
-- [Projection system](../package/kernel/doc/projection-system.md) — the four interface functions
+- [Projection system](package/kernel/projection-system.md) — the four interface functions
 - [Tutorial: new domain](tutorial-new-domain.md) — add your own domain

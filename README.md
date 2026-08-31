@@ -45,7 +45,7 @@ fragment directly. Either way the run is recorded in the conversation as a
 re-readable code execution.
 
 The conversation is a real ProjecturEd domain
-([Conversation.jl](package/conversation/main/Conversation.jl)): messages, streaming
+([Conversation.jl](source/conversation/Conversation.jl)): messages, streaming
 response blocks, and code executions are all structured documents, projected and
 selectable like everything else. The editor edits its own AI session with the
 same machinery it uses to edit your data.
@@ -54,13 +54,13 @@ Under the hood:
 
 - The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
   `Projectured` preloaded and `editor` bound — its handler lives in
-  [CodeExecution.jl](package/kernel/main/tool/CodeExecution.jl).
+  [CodeExecution.jl](source/kernel/tool/CodeExecution.jl).
 - Before writing code, the AI reads the editor's own guides, modules, classes,
   and functions, exposed as resources, so it works from real signatures
-  ([Documentation.jl](package/kernel/main/tool/Documentation.jl)).
+  ([Documentation.jl](source/kernel/tool/Documentation.jl)).
 - The in-editor assistant and an external **MCP server** (`127.0.0.1:9876/mcp`)
   share the editor's one tool set
-  ([ToolSet.jl](package/kernel/main/tool/ToolSet.jl)), so an external MCP
+  ([ToolSet.jl](source/kernel/tool/ToolSet.jl)), so an external MCP
   client can drive the editor too.
 - The assistant uses Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY`
   is set, and a deterministic offline backend otherwise, so the example runs
@@ -182,8 +182,8 @@ properties the editor lives on:
 Deep pipelines are therefore affordable, and that is what lets projections stay
 small, pure, and composable — the subject of the next section.
 
-See the [reactive cells](package/kernel/doc/cell.md) guide for the engine and its
-invariants, and the [macros](package/kernel/doc/macros.md) guide for the codegen
+See the [reactive cells](documentation/package/kernel/cell.md) guide for the engine and its
+invariants, and the [macros](documentation/package/kernel/macros.md) guide for the codegen
 behind `@document`, `@projection`, and `@iomap`.
 
 ---
@@ -220,8 +220,8 @@ which has non-obvious payoffs:
   renders the **Text** domain straight to the terminal (ANSI colors, keyboard
   navigation, no graphics step). An IDE-plugin backend could follow the same way.
 
-See the [projection system](package/kernel/doc/projection-system.md) and [higher-order
-projections](package/kernel/doc/higher-order-projections.md) guides for the mechanics.
+See the [projection system](documentation/package/kernel/projection-system.md) and [higher-order
+projections](documentation/package/kernel/higher-order-projections.md) guides for the mechanics.
 
 ---
 
@@ -245,7 +245,7 @@ projections](package/kernel/doc/higher-order-projections.md) guides for the mech
 | **Collection** | `CellVector` (reactive indexed vector) and `ListNode` (lazy doubly-linked list) |
 
 All domains support **selection** and **cursor movement** end-to-end. The SDL
-backend is the primary frontend; a [web backend](package/kernel/doc/devices-and-backends.md#web-backend)
+backend is the primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#web-backend)
 renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
 after `using ProjecturedWeb`). The in-editor
 AI assistant plus the MCP server are built in. Character-level manual editing is
@@ -297,16 +297,26 @@ and the [testing guide](documentation/testing.md) for running the test suite.
 
 ## Repository layout
 
+One dimension per level: what a file **is** decides its top folder, and which
+**slice** it belongs to decides the folder under that. The slices are flat, and
+`kernel` is the one with layers inside it. See
+[plan/pending/repository-tree.md](plan/pending/repository-tree.md).
+
 | Path | Contents |
 |---|---|
-| [package/](package/) | One folder per package triad: `main/` (the code), `test/`, and `example/` as three sibling packages — API, documents, projections, references, editor, devices, backends |
-| [package/projectured/example/](package/projectured/example/) | `ProjecturedExample` package — concrete examples and `run_example` / `print_example` / `write_example_image` helpers |
-| [package/projectured/example/workspace/](package/projectured/example/workspace/) | On-disk fixtures used by examples |
-| [package/projectured/test/](package/projectured/test/) | `ProjecturedTest` package — `test_all` and every per-package helper |
-| [documentation/](documentation/) | All architecture and topic guides — see [the guide index](documentation/README.md) for the reading-order index |
-| [package/executable/](package/executable/) | Build configuration for a standalone executable |
-| [asset/font/](asset/font/), [asset/image/](asset/image/) | Bundled assets and screenshots |
+| [source/](source/) | The system — one folder per slice, and `kernel/` with its seventeen layers |
+| [test/](test/) | The suites, one folder per slice, plus `suite/` for what belongs to no package |
+| [example/](example/) | Documents, galleries and workload bodies, one folder per slice |
+| [package/](package/) | One directory per package, named for the package: a `Project.toml` and a `src/<Name>.jl`, and nothing else |
+| [environment/](environment/) | `all/` — the resolved closure the whole suite runs in. No code |
+| [documentation/](documentation/) | Cross-cutting guides, plus [package/](documentation/package/) for the per-slice ones — see [the guide index](documentation/README.md) |
+| [asset/](asset/) | Fonts, screenshots, the web client, and the precompile recording |
+| [tool/](tool/) | Scripts that are not part of the system |
 | [plan/](plan/) | Design notes and work-in-progress plans |
+
+A package and its code do not share a directory. `package/ProjecturedJson/` is a
+name and an include list; the code it includes is `source/json/`, its suite is
+`test/json/` and its documents are `example/json/`.
 
 ## Guides
 
@@ -322,27 +332,27 @@ Three reading tracks — pick the one that matches your goal.
 ### Building something? Read next
 
 5. [Architecture](documentation/architecture.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
-6. [Reactive cells](package/kernel/doc/cell.md) — the `Cell` system that powers incrementality.
-7. [Macros](package/kernel/doc/macros.md) — `@document`, `@projection`, `@iomap` macros.
-8. [Projection system](package/kernel/doc/projection-system.md) — the four projection interface functions and the printer/reader pair.
+6. [Reactive cells](documentation/package/kernel/cell.md) — the `Cell` system that powers incrementality.
+7. [Macros](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap` macros.
+8. [Projection system](documentation/package/kernel/projection-system.md) — the four projection interface functions and the printer/reader pair.
 9. [Tutorial: new domain](documentation/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
 
 ### Going deeper
 
-- [Higher-order projections](package/kernel/doc/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
-- [Generic projections](package/kernel/doc/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
-- [Operations](package/kernel/doc/operation.md) — what an operation is and how the reader chain produces them.
-- [Editor](package/kernel/doc/editor.md) — the REPL loop, event handling, and rendering pipeline.
-- [Reference guide](package/kernel/doc/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
-- [Selection guide](package/kernel/doc/selection.md) — how selection propagates through nested documents.
-- [Devices and backends](package/kernel/doc/devices-and-backends.md) — the `Backend`/`Device` split.
+- [Higher-order projections](documentation/package/kernel/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
+- [Generic projections](documentation/package/kernel/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
+- [Operations](documentation/package/kernel/operation.md) — what an operation is and how the reader chain produces them.
+- [Editor](documentation/package/kernel/editor.md) — the REPL loop, event handling, and rendering pipeline.
+- [Reference guide](documentation/package/kernel/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
+- [Selection guide](documentation/package/kernel/selection.md) — how selection propagates through nested documents.
+- [Devices and backends](documentation/package/kernel/devices-and-backends.md) — the `Backend`/`Device` split.
 - [Static compilation](documentation/static-compilation.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
 - [Design decisions](documentation/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
-- [Selection deep dive](package/kernel/doc/selection.md) — the full reference/selection mechanism with worked examples.
+- [Selection deep dive](documentation/package/kernel/selection.md) — the full reference/selection mechanism with worked examples.
 
 ### Per-domain guides
 
-[json](package/json/doc/json.md) · [xml](package/xml/doc/xml.md) · [rst](package/rst/doc/rst.md) · [text](package/text/doc/text.md) · [syntax](package/syntax/doc/syntax.md) · [graphics](package/graphics/doc/graphics.md) · [widget](package/widget/doc/widget.md) · [workbench](package/workbench/doc/workbench.md) · [collection](package/collection/doc/collection.md)
+[json](documentation/package/json/json.md) · [xml](documentation/package/xml/xml.md) · [rst](documentation/package/rst/rst.md) · [text](documentation/package/text/text.md) · [syntax](documentation/package/syntax/syntax.md) · [graphics](documentation/package/graphics/graphics.md) · [widget](documentation/package/widget/widget.md) · [workbench](documentation/package/workbench/workbench.md) · [collection](documentation/package/collection/collection.md)
 
 ### Working in the REPL
 

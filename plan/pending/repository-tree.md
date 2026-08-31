@@ -330,9 +330,31 @@ means the flatten has one job.
        skips that subtree — without the skip every slice guide is listed twice,
        under `kernel/cell` and under `package/kernel/cell`. Checked: 58 guides,
        no duplicate, every path on disk.
-9. [ ] **Repair every relative markdown link by resolution.** Not by rule — see
-       §9. `CLAUDE.md`, `README.md`, `documentation/`, and every moved `doc/`
-       file.
+9. [x] **Repair every relative markdown link by resolution.** — done, and the
+       resolution was git's own rename detection between the branch point and
+       `HEAD`, so a link changed only where the exact file it named moved, and
+       only to where it moved to.
+
+       It took three passes, and the second is the one a rule would have missed:
+
+       1. **From the linking file's current directory.** 668 links.
+       2. **From the linking file's *old* directory**, for the 33 guides that
+          moved themselves. A guide that said `../main/document/DocumentCopy.jl`
+          resolved from `package/kernel/doc/`, and from
+          `documentation/package/kernel/` the same text resolves to nothing the
+          map has ever heard of. 22 links.
+       3. **By unique basename**, for ten links that named a file that had
+          already moved before this branch — `../main/math/Math.jl` had not been
+          right for some time. One of the ten was ambiguous (`Math.jl` exists in
+          the source and in two example folders) and was resolved by hand.
+
+       Measured: **the move introduced 0 broken links.** The repository had 939
+       distinct broken markdown links at the branch point and has 926 now, all
+       926 in `plan/`, where a done plan cites a tree from before this branch.
+
+       `CLAUDE.md`'s seal list header now names `source/kernel/`, and its first
+       entry carries the note that a package root file is the one member that
+       lives with its package. `README.md`'s layout table is the new tree.
 
 ## 9. What omnet-julia already paid for
 

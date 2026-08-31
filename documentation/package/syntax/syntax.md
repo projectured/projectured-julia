@@ -4,7 +4,7 @@
 
 The syntax domain provides a generic intermediate representation between semantic domains (JSON, XML) and text. It represents structured data as a tree of nodes with delimiters.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../../../package/kernel/doc/reference.md#the-boundary-axis). In Syntax the axis appears as child nodes *and* as characters within delimiters or leaf values; the same `[i]` / `{k}` syntax addresses both.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../kernel/reference.md#the-boundary-axis). In Syntax the axis appears as child nodes *and* as characters within delimiters or leaf values; the same `[i]` / `{k}` syntax addresses both.
 
 ## Types
 
@@ -101,7 +101,7 @@ cell to hand on, so the two are reactive by different means.
 
 The syntax tree's keyboard navigation is entirely geometry-free — it walks the
 `SyntaxNode` tree and its selection paths — so it lives on the document:
-`read_gesture(::SyntaxNode, gesture)` ([syntax/Syntax.jl](../../../package/syntax/main/Syntax.jl))
+`read_gesture(::SyntaxNode, gesture)` ([syntax/Syntax.jl](../../../source/syntax/Syntax.jl))
 maps an input gesture to a `ReplaceSelectionOperation` on the tree:
 
 - `Ctrl+Alt+Home` → select the root node (`∅`)
@@ -112,4 +112,4 @@ maps an input gesture to a `ReplaceSelectionOperation` on the tree:
 
 `SyntaxCompoundToText` delegates to this and keeps only the geometry/output-driven
 mouse hit-testing (collapse glyph, Alt+click). See
-[projection-system.md](../../../package/kernel/doc/projection-system.md) for the full reader split.
+[projection-system.md](../kernel/projection-system.md) for the full reader split.

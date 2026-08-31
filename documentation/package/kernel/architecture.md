@@ -49,13 +49,13 @@ Layer 17 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
-[test/runtests.jl](../test/runtests.jl) statically parses `import ..XxxModule`
+[test/runtests.jl](../../../package/ProjecturedKernelTest/runtests.jl) statically parses `import ..XxxModule`
 lines and asserts every dep points to the same or a lower layer; the
 per-layer runners (`test/<layer>/`) exercise each layer against its
 own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
-The package file [main/ProjecturedKernel.jl](../main/ProjecturedKernel.jl) includes
+The package file [main/ProjecturedKernel.jl](../../../package/ProjecturedKernel/src/ProjecturedKernel.jl) includes
 one **layer fragment per layer folder** (`cell/CellLayer.jl`, …,
 `editor/EditorLayer.jl`), bottom-to-top; each layer fragment holds its layer's
 ordered include list (~50 module files total, each defining exactly one module).
@@ -126,7 +126,7 @@ The include tree — the layer fragments in order, and each fragment's own inclu
 list — is a hand-maintained **topological sort**: every file appears after the
 modules named in its `import ..XxxModule` headers. Julia enforces this
 only implicitly (an out-of-order include throws `UndefVarError` deep in
-precompilation), so [test/runtests.jl](../test/runtests.jl) enforces it
+precompilation), so [test/runtests.jl](../../../package/ProjecturedKernelTest/runtests.jl) enforces it
 **statically, without loading the package** (~0.4 s): it parses each file's AST and
 asserts every relative `..XxxModule` import resolves to a module defined by an
 *earlier* include, plus that every source file is included exactly once and each
@@ -146,7 +146,7 @@ legitimately sit later in the list than its depth requires.
 
 ## Folder layout
 
-Each layer lives in its own folder under [main/](../main/):
+Each layer lives in its own folder under [main/](../../../package/ProjecturedKernel/):
 
 | Folder | Holds |
 | --- | --- |

@@ -15,10 +15,10 @@ Almost every part is in place.
 
 - A gesture binding is reified data. It carries the operation as a closure, a
   description, a domain tag, and an `applicable` precondition —
-  [GestureBinding.jl](../../package/kernel/main/binding/GestureBinding.jl).
+  [GestureBinding.jl](../../source/kernel/binding/GestureBinding.jl).
 - A collector gathers every binding reachable at a point in a projection chain —
   `collect_gesture_bindings` in
-  [GestureBindings.jl](../../package/kernel/main/projection/GestureBindings.jl).
+  [GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl).
 - A decorator opens the help window from F1 and fills it with that set —
   [GestureHelpDecorator.jl](../../package/domain/main/gesturemap/GestureHelpDecorator.jl).
 - `GestureRow` already renders one binding as a line —
@@ -243,7 +243,7 @@ would land in the wrong place. Write `query` and `selection` with a
 self-contained `ReplaceReferencedValueOperation(palette, "query", …)` and
 `ReplaceReferencedValueOperation(palette, "selection", …)` instead. An operation
 that carries its own root passes through every rerooting stage unchanged —
-[Rerooting.jl](../../package/kernel/main/operation/Rerooting.jl) — which is the
+[Rerooting.jl](../../source/kernel/operation/Rerooting.jl) — which is the
 same reason a widget edit works.
 
 **Enter.** The decorator calls `binding.operation(iomap.input, nothing)` and
@@ -346,7 +346,7 @@ Three decisions taken during the work:
 2. ~~Add `nothing` rules to JSON and to XML.~~
 3. ~~Test the JSON example through the real editor pipeline.~~
 4. ~~Write the palette section in
-   [package/kernel/doc/devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md),
+   [package/kernel/doc/devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md),
    which holds the gesture-binding text today.~~
 
 Two commands fill a real gap, and each is one line over an existing helper:

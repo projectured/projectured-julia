@@ -439,7 +439,7 @@ against `libopplayout` — four for the spring embedder, six for the
 force-directed one — every one of them agreeing to six decimals.
 
 A reader's entry point is
-[`package/graph/doc/graph-layout.md`](../../package/graph/doc/graph-layout.md):
+[`package/graph/doc/graph-layout.md`](../../documentation/package/graph/graph-layout.md):
 the seam, the engines, the constraint vocabulary, what makes a layout
 repeatable, and which ported file came from which original.
 

@@ -167,7 +167,7 @@ keeping, handed over without copying them, since a positional collection documen
 is not `view`-able.
 
 An earlier version put a second, bounded walk in
-[BoundedSync.jl](../main/document/BoundedSync.jl) beside the sealed one. It
+[BoundedSync.jl](../../../source/reflection/BoundedSync.jl) beside the sealed one. It
 worked, but it mirrored `_sync_fields!` / `_sync_elements!` / `copy_document`
 line for line — two traversals differing only by a policy check, kept in step by
 hand — and it could only reach the kinded-copy machinery by importing kernel

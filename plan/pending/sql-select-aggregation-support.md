@@ -30,12 +30,12 @@ GROUP BY p.department
 
 | Layer | File | Phase |
 |-------|------|-------|
-| Document model | [package/sql/main/Sql.jl](../../package/sql/main/Sql.jl) | 1 |
+| Document model | [package/sql/main/Sql.jl](../../source/sql/Sql.jl) | 1 |
 | Doc model guide | [plan/done/sql-statement.md](../done/sql-statement.md) | 1 (maintain after) |
-| Parser | [package/sql/main/SqlParser.jl](../../package/sql/main/SqlParser.jl) | 2 |
-| Sql→Syntax projection | [package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl) | 3 |
-| Examples | [package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) | 1 / 3 |
-| Tests | [package/sql/test/projection/SqlToSyntaxTest.jl](../../package/sql/test/projection/SqlToSyntaxTest.jl) and parser/printer tests | each phase |
+| Parser | [package/sql/main/SqlParser.jl](../../source/sql/SqlParser.jl) | 2 |
+| Sql→Syntax projection | [package/sql/main/SqlToSyntax.jl](../../source/sql/SqlToSyntax.jl) | 3 |
+| Examples | [package/sql/example/document/Sql.jl](../../example/sql/document/Sql.jl) | 1 / 3 |
+| Tests | [package/sql/test/projection/SqlToSyntaxTest.jl](../../test/sql/projection/SqlToSyntaxTest.jl) and parser/printer tests | each phase |
 
 ---
 
@@ -61,7 +61,7 @@ GROUP BY p.department
 
 ## Phase 1 — Document structure
 
-Add to [package/sql/main/Sql.jl](../../package/sql/main/Sql.jl) and
+Add to [package/sql/main/Sql.jl](../../source/sql/Sql.jl) and
 export from `SqlDocumentModule`.
 
 ### New abstract type
@@ -146,7 +146,7 @@ Add `Base.show` for the new leaves and `SqlAggregateExpression` /
 ### Example document
 
 Add an aggregation example to
-[package/sql/example/document/Sql.jl](../../package/sql/example/document/Sql.jl) (e.g.
+[package/sql/example/document/Sql.jl](../../example/sql/document/Sql.jl) (e.g.
 `make_sql_aggregation_document_example`) built from the target query above, for
 use by later phases' tests.
 
@@ -169,7 +169,7 @@ abstract-type table (`SqlSelectExpression` now also has
 
 ## Phase 2 — Parser support
 
-Edit [package/sql/main/SqlParser.jl](../../package/sql/main/SqlParser.jl).
+Edit [package/sql/main/SqlParser.jl](../../source/sql/SqlParser.jl).
 
 ### Aggregate function in SELECT
 
@@ -229,7 +229,7 @@ raw `SqlScalarValue`). Replace that for the supported five functions:
 ## Phase 3 — Sql→Syntax projection (full bidirectional)
 
 Edit
-[package/sql/main/SqlToSyntax.jl](../../package/sql/main/SqlToSyntax.jl).
+[package/sql/main/SqlToSyntax.jl](../../source/sql/SqlToSyntax.jl).
 Follow the patterns documented in
 [sql-to-syntax-selection-support.md](../done/sql-to-syntax-selection-support.md) — every
 new node projection needs `projection_print`, `map_reference_forward`,

@@ -43,10 +43,10 @@
 The four generic projection functions — `projection_print` (now
 `print_document`), `projection_read` (now `read_intent`), `map_reference_forward`,
 `map_reference_backward` (all in
-[`package/kernel/main/projection/ProjectionApi.jl`](../../package/kernel/main/projection/ProjectionApi.jl)) —
+[`package/kernel/main/projection/ProjectionApi.jl`](../../source/kernel/projection/ProjectionApi.jl)) —
 are implemented across dozens of files, now scattered under
 [`package/<domain>/main/`](../../package) for each domain package plus
-[`package/projection/main/{higherorder,generic,compound}/`](../../package/projection/main)
+[`package/projection/main/{higherorder,generic,compound}/`](../../package/ProjecturedProjection)
 (was one tree, `program/src/projection/`, before the per-domain package
 split). Their parameter names have drifted, so the same slot reads differently
 from one file to the next. A survey of every signature (figures below are from
@@ -66,7 +66,7 @@ counts before starting, since the file set has since scattered):
 
 The goal is readability only — **zero behaviour change**. Note that part of the
 codebase already uses the chosen terse scheme (paths re-verified 2026-08-12):
-[`package/conversation/main/ConversationToWidget.jl`](../../package/conversation/main/ConversationToWidget.jl)
+[`package/conversation/main/ConversationToWidget.jl`](../../source/conversation/ConversationToWidget.jl)
 (`rec, ref = recursion, ctx.reference`, still present at lines 121, 138, 156)
 and
 [`package/conversation/main/ConversationToSyntax.jl`](../../package/conversation/main/ConversationToSyntax.jl)
@@ -148,33 +148,33 @@ that grouped them by directory no longer exists as one tree.*
 
 **A. Mapper-only / generic — low risk.** Only `prj` (or unnamed
 `::Type`), `rec`, `ref`; `iomap`/`ctx` unchanged. Most higher-order projections
-([`package/projection/main/higherorder/`](../../package/projection/main/higherorder)),
-[`package/projection/main/generic/`](../../package/projection/main/generic),
+([`package/projection/main/higherorder/`](../../source/projection/higherorder)),
+[`package/projection/main/generic/`](../../source/projection/generic),
 `compound/` (find its current location before starting — not confirmed here),
 and the widget/graphics/layout readers (e.g.
 `package/widget/main/WidgetToGraphics.jl`, `package/layout/main/LayoutToGraphics.jl`).
 
 **B. Domain printers with a single-letter input — higher risk (13 files, current paths):**
-[`package/json/main/JsonToSyntax.jl`](../../package/json/main/JsonToSyntax.jl),
-[`package/xml/main/XmlToSyntax.jl`](../../package/xml/main/XmlToSyntax.jl),
-[`package/math/main/MathToSyntax.jl`](../../package/math/main/MathToSyntax.jl),
-[`package/book/main/BookToSyntax.jl`](../../package/book/main/BookToSyntax.jl),
-[`package/julia/main/JuliaToSyntax.jl`](../../package/julia/main/JuliaToSyntax.jl),
-[`package/syntax/main/ObjectToSyntax.jl`](../../package/syntax/main/ObjectToSyntax.jl),
-[`package/syntax/main/CollectionToSyntax.jl`](../../package/syntax/main/CollectionToSyntax.jl),
-[`package/filesystem/main/FileSystemToSyntax.jl`](../../package/filesystem/main/FileSystemToSyntax.jl),
-[`package/syntax/main/PrimitiveToSyntax.jl`](../../package/syntax/main/PrimitiveToSyntax.jl),
-[`package/text/main/PrimitiveToText.jl`](../../package/text/main/PrimitiveToText.jl),
-[`package/syntax/main/SyntaxToText.jl`](../../package/syntax/main/SyntaxToText.jl),
-[`package/text/main/TextToString.jl`](../../package/text/main/TextToString.jl),
-[`package/widget/main/WidgetToGraphics.jl`](../../package/widget/main/WidgetToGraphics.jl).
+[`package/json/main/JsonToSyntax.jl`](../../source/json/JsonToSyntax.jl),
+[`package/xml/main/XmlToSyntax.jl`](../../source/xml/XmlToSyntax.jl),
+[`package/math/main/MathToSyntax.jl`](../../source/math/MathToSyntax.jl),
+[`package/book/main/BookToSyntax.jl`](../../source/book/BookToSyntax.jl),
+[`package/julia/main/JuliaToSyntax.jl`](../../source/julia/JuliaToSyntax.jl),
+[`package/syntax/main/ObjectToSyntax.jl`](../../source/syntax/ObjectToSyntax.jl),
+[`package/syntax/main/CollectionToSyntax.jl`](../../source/syntax/CollectionToSyntax.jl),
+[`package/filesystem/main/FileSystemToSyntax.jl`](../../source/filesystem/FileSystemToSyntax.jl),
+[`package/syntax/main/PrimitiveToSyntax.jl`](../../source/syntax/PrimitiveToSyntax.jl),
+[`package/text/main/PrimitiveToText.jl`](../../source/text/PrimitiveToText.jl),
+[`package/syntax/main/SyntaxToText.jl`](../../source/syntax/SyntaxToText.jl),
+[`package/text/main/TextToString.jl`](../../source/text/TextToString.jl),
+[`package/widget/main/WidgetToGraphics.jl`](../../source/widget/WidgetToGraphics.jl).
 Note `JsonToSyntax.jl` has since been rewritten onto `@projection_template` in
 large part — check per-function whether a hand-written `print_document`
 signature still needs the rename or the template macro already governs it.
 
 **C. The interface + defaults (do first — defines the names).**
-[`ProjectionApi.jl`](../../package/kernel/main/projection/ProjectionApi.jl) and
-[`Projection.jl`](../../package/kernel/main/projection/Projection.jl): rename the
+[`ProjectionApi.jl`](../../source/kernel/projection/ProjectionApi.jl) and
+[`Projection.jl`](../../source/kernel/projection/Projection.jl): rename the
 default-method params **and** update the signature lines in the docstrings so
 the documented API matches. *(⏳ OPEN — both still use old param names in
 signatures and docstrings; the function names in this file, `projection_print`
@@ -210,10 +210,10 @@ updated when this plan is picked up.)*
    `package/widget/main/WidgetToGraphics.jl`,
    `package/text/main/TextToGraphics.jl`).*
 5. **⏳ OPEN (verified, optional):** **(Optional, separate)** guide-prose pass — the signature snippets in
-   [`package/kernel/doc/projection-system.md`](../../package/kernel/doc/projection-system.md)
+   [`package/kernel/doc/projection-system.md`](../../documentation/package/kernel/projection-system.md)
    (already updated to say `print_document`, still shows old parameter names
    at line 10) and
-   [`package/kernel/doc/reference.md`](../../package/kernel/doc/reference.md) and siblings
+   [`package/kernel/doc/reference.md`](../../documentation/package/kernel/reference.md) and siblings
    still show `projection/recursion/input/context/reference`. Larger prose
    churn; recommend as a follow-up rather than blocking the code change.
 

@@ -61,7 +61,7 @@ These spans render nothing. They exist because a syntax document always *materia
 delimiter, present or not:
 
 - `SyntaxLeaf`'s `open`/`close` default to `TextString("")`
-  ([Syntax.jl:247](../../package/syntax/main/Syntax.jl#L247)), and `SyntaxLeafToText`
+  ([Syntax.jl:247](../../source/syntax/Syntax.jl#L247)), and `SyntaxLeafToText`
   unconditionally emits three spans, `[leaf.open, leaf.value, leaf.close]`.
 - `SyntaxNode`'s `open`/`close`/`sep` default the same way, and `SyntaxNodeToText` pushes `node.open`,
   a `node.sep` between children, and `node.close` regardless of content.
@@ -298,7 +298,7 @@ spans or an `.open{0}` caret.
 Caret counts *will* drop — that is the point. `json_null`: 3 spans → 1, and its rightward walk should
 now end at `.value{4}`, exactly where Ctrl+End lands, so `right_reaches_end` / `left_reaches_start`
 should agree by construction. Re-measure `NAV_LEFT_WALK_STALLS` / `NAV_RIGHT_WALK_MISSES_END` in
-[ExampleSweeps.jl](../../package/projectured/test/editor/ExampleSweeps.jl); do not guess.
+[ExampleSweeps.jl](../../test/projectured/editor/ExampleSweeps.jl); do not guess.
 
 ## Phase 2 — printers and readers for the six wrapper types
 
@@ -312,7 +312,7 @@ Make the wrappers real. Each gets the full projection surface, following the sha
    need a `child_iomap` plus the element range the child occupies; the multi-child ones
    (`Concatenation`, `Separation`) need `child_iomaps` + `child_elem_ranges` + `indent_indices` —
    i.e. the existing `SyntaxNodeToTextIoMap` shape
-   ([SyntaxToText.jl:155](../../package/syntax/main/SyntaxToText.jl#L155));
+   ([SyntaxToText.jl:155](../../source/syntax/SyntaxToText.jl#L155));
 3. `print_document` — splice the child's `output.elements`, adding only this wrapper's own spans;
 4. `map_reference_forward` / `map_reference_backward` — peel the one step this wrapper owns and
    delegate the tail to the child's mapper (School A: delegate through the child's IO map, never
@@ -322,7 +322,7 @@ Make the wrappers real. Each gets the full projection surface, following the sha
    `ToggleCollapseOperation` and the 4-arg geometric reader for marker clicks;
 6. `render` in `Syntax.jl`;
 7. registration in the `SyntaxToText` `TypeDispatchingProjection`
-   ([SyntaxToText.jl:818](../../package/syntax/main/SyntaxToText.jl#L818)).
+   ([SyntaxToText.jl:818](../../source/syntax/SyntaxToText.jl#L818)).
 
 Do them in dependency order, one commit each, each with its own tests:
 
@@ -355,7 +355,7 @@ Do them in dependency order, one commit each, each with its own tests:
   which is the whole difference between the two types and is asserted as such.
 
   **Field order is load-bearing — `separator` must precede `children`.** `@document`'s Rule Y
-  ([StructPlan.jl](../../package/kernel/main/cell/CellStructPlan.jl)) generates a positional constructor
+  ([StructPlan.jl](../../source/kernel/cell/CellStructPlan.jl)) generates a positional constructor
   per arity from `required_count` upward, where `required_count` counts the fields *before the trailing
   run of defaulted ones*. Declared `children, separator=nothing`, the trailing run is
   `separator, selection`, `required_count` is 1, and the generated arity-1 `SyntaxSeparation(Any)`
@@ -396,14 +396,14 @@ insertion = SyntaxInsertion`, generating `SyntaxNothing` and adopting the existi
 `@domain`'s docstring explicitly notes the projection-table entries are *not* generated, so add
 `SyntaxNothing => SyntaxNothingToText()` and `SyntaxInsertion => SyntaxInsertionToText()` to the
 `TypeDispatchingProjection` at
-[SyntaxToText.jl:818](../../package/syntax/main/SyntaxToText.jl#L818).
+[SyntaxToText.jl:818](../../source/syntax/SyntaxToText.jl#L818).
 
 **Layering constraint — check this first.** *(See the 2026-08-12 resolution note
 right after this block — the constraint described here no longer holds.)* The
 existing renderers for these two roles, `NothingToSyntaxLeaf` and
 `InsertionToSyntaxLeaf` (with the `_nothing_label` helper that turns
 `JsonNothing` into "empty json"), live in
-[package/syntax/main/InsertionToSyntax.jl](../../package/syntax/main/InsertionToSyntax.jl)
+[package/syntax/main/InsertionToSyntax.jl](../../source/syntax/InsertionToSyntax.jl)
 — at the time this was written, the **domain** package, which sat *above*
 visual, so `SyntaxToText` (in visual) could not import them. Options, decide
 before writing code: move the label helper (and possibly the generic
@@ -418,7 +418,7 @@ domain renders its `Nothing` / `Insertion` by registering `XNothing => Insertion
 / `XInsertion => …InsertionToSyntaxLeaf()` in its `XToSyntax` dispatch table — and those renderers
 lived, at the time, in a `domain/main/insertion/` slice (the **domain** package). That worked for
 every domain because every domain sat *above* visual: even the Text domain kit rendered through
-[`NaturalProjection.jl`](../../package/natural/main/NaturalProjection.jl)
+[`NaturalProjection.jl`](../../source/natural/NaturalProjection.jl)
 (`TextNothing => InsertionNothingToSyntaxLeaf()`, `TextInsertion => DomainInsertionToSyntaxLeaf(TextDocument)`),
 which was in domain and could reach them.
 
@@ -526,7 +526,7 @@ Two bugs this shook out, both found by tests, neither guessable:
 
 All green, but **`test_domain`'s pass count legitimately drops 110766 → 110182 (−584)**. Do not
 "fix" this. The printer walker emits *one assertion per reactive cell*
-([PrinterTest.jl](../../package/kernel/test/editor/PrinterTest.jl)), so its count tracks the size of
+([PrinterTest.jl](../../test/kernel/editor/PrinterTest.jl)), so its count tracks the size of
 the reactive graph. Merging `open_index` + `close_index` into one `own_spans` cell removes one `Cell`
 per compound IoMap, and there are exactly 584 compound IoMaps across the domain examples — confirmed
 by re-adding a dummy `Cell`, which restores the count to 110766 precisely. **New `test_domain`
@@ -651,7 +651,7 @@ call. That conclusion is now obsolete: **the conflict was never in the construct
 engine's detection.**
 
 `ProjectionTemplate._has_fixed_children` now accepts *either* storage
-([ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl)):
+([ProjectionTemplate.jl](../../source/kernel/projection/ProjectionTemplate.jl)):
 
 - a raw `Vector` counts unconditionally, exactly as before;
 - an **element collection** (`is_element_collection` — the document-layer trait `CellVector` opts into;
@@ -668,7 +668,7 @@ Gating the new case on "carries a marker" makes the rule **strictly additive**: 
 changes behaviour.
 
 The symptom this removes, reproduced before fixing and now a regression test
-([ProjectionTemplateTest.jl](../../package/substrate/test/projection/ProjectionTemplateTest.jl)): a
+([ProjectionTemplateTest.jl](../../test/substrate/projection/ProjectionTemplateTest.jl)): a
 blueprint written `SyntaxConcatenation([...])` fell through to `_atomic_print` and its `bound` markers
 reached the printer unresolved, which read `.content` off a `Bound` and died with
 `type Bound has no field 'content'`. The test now asserts the same blueprint renders identically
@@ -682,9 +682,9 @@ written three ways — positional `SyntaxNode`, `SyntaxConcatenation([...])`, an
 - **Reference depth.** Every wrapper adds a `.content` hop, so a wrapped node's paths get longer.
   Check the impact on `strip_reference_types`, `@reference_case` patterns, and above all tree
   navigation: `_is_tree_selection` / `_promote_to_structural` / `_descend_to_text_cursor`
-  ([Syntax.jl:426-561](../../package/syntax/main/Syntax.jl#L426-L561)) walk chains of
+  ([Syntax.jl:426-561](../../source/syntax/Syntax.jl#L426-L561)) walk chains of
   `.children[i]` steps and must hop transparently over wrapper `.content` steps. `@gestures
-  SyntaxNode` ([Syntax.jl:394](../../package/syntax/main/Syntax.jl#L394)) is registered on
+  SyntaxNode` ([Syntax.jl:394](../../source/syntax/Syntax.jl#L394)) is registered on
   `SyntaxNode` — decide whether tree navigation moves to `SyntaxNavigation` or the gesture table
   follows the content.
 - **Collapse semantics.** `ToggleCollapseOperation` carries a `SyntaxNode` today. If collapse moves
@@ -781,7 +781,7 @@ first Phase 1 commit regressed `test_domain` unnoticed because it was not on thi
 
 - **The width-0 indent slot.** `SyntaxToText` emits an empty `TextString` before each close so
   ancestors always have a slot to widen and element counts do not depend on depth
-  ([SyntaxToText.jl:479-486](../../package/syntax/main/SyntaxToText.jl#L479-L486)). Optional
+  ([SyntaxToText.jl:479-486](../../source/syntax/SyntaxToText.jl#L479-L486)). Optional
   delimiters do **not** remove it, and it is the remaining source of the left-motion stall. Phase 2.4
   localizes it to `SyntaxIndentationToText`; the fix lands with the text-selection work below.
 - **A text-domain reference step that ignores spans.** The span-boundary duplicate — one visual caret,

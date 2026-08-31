@@ -17,7 +17,7 @@
 ## Step 1 (cont.) — Backend `:tooltip` style
 
 **⏳ OPEN (re-verified 2026-08-12):** `_WINDOW_FLAGS_TOOLTIP` in
-[package/sdl/main/ProjecturedSdl.jl:481](../../package/sdl/main/ProjecturedSdl.jl)
+[package/sdl/main/ProjecturedSdl.jl:481](../../package/ProjecturedSdl/src/ProjecturedSdl.jl)
 still only sets `SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP |
 SDL_WINDOW_ALLOW_HIGHDPI` (plus `SDL_WINDOW_SHOWN`) — no UTILITY/SKIP_TASKBAR/no-input-focus flag. No
 `screen_origin` symbol exists anywhere in `package/` (grep finds it only in plan
@@ -38,7 +38,7 @@ Missing:
 ## Step 6 — Real position derivation
 
 **⏳ OPEN (re-verified 2026-08-12):** `_multi_window_projection_tooltipped` is now in
-[package/projectured/example/Gallery.jl:513-521](../../package/projectured/example/Gallery.jl)
+[package/projectured/example/Gallery.jl:513-521](../../example/projectured/Gallery.jl)
 (moved from `Examples.jl` — that file is gone; the examples now live in
 `Gallery.jl`) and still hard-codes `position = _ -> (100, 100, 1200, 600)` — no
 `char_to_coord` lookup, no `screen_origin` combination, no display clamp, no
@@ -46,7 +46,7 @@ Missing:
 
 Today the example tooltip uses a fixed `(100, 100, 1200, 600)` placement
 inside `_multi_window_projection_tooltipped` in
-[package/projectured/example/Gallery.jl](../../package/projectured/example/Gallery.jl).
+[package/projectured/example/Gallery.jl](../../example/projectured/Gallery.jl).
 The plan called for the position to be derived from the decorated node's
 screen coordinates.
 
@@ -67,7 +67,7 @@ Required:
 ## Step 5 (cont.) — Verify show delay with examples
 
 **⏳ OPEN (re-verified 2026-08-12):**
-[package/substrate/test/projection/TooltipTest.jl](../../package/substrate/test/projection/TooltipTest.jl)
+[package/substrate/test/projection/TooltipTest.jl](../../test/substrate/projection/TooltipTest.jl)
 has no `delay_ms` always-on trigger, no flicker trigger, and no test exercising
 the delay threshold — its triggers are plain `show[]` refs only.
 
@@ -79,7 +79,7 @@ isn't:
 - A "flicker" trigger that flips on every selection move and therefore
   never crosses the delay threshold.
 
-Plus tests covering both cases in [TooltipTest.jl](../../package/substrate/test/projection/TooltipTest.jl).
+Plus tests covering both cases in [TooltipTest.jl](../../test/substrate/projection/TooltipTest.jl).
 
 ## Step 7 (cont.) — Additional example tooltips
 
@@ -112,13 +112,13 @@ keeps both windows open and closed independently.
 ## Step 9 — Optional: pointer-based hover — DONE (via the hover inspector)
 
 **✅ DONE (re-verified 2026-08-12):** `HoverProbeProjection`
-([package/inspector/main/HoverProbe.jl](../../package/inspector/main/HoverProbe.jl)),
+([package/inspector/main/HoverProbe.jl](../../source/inspector/HoverProbe.jl)),
 `ReferenceInspector` document + test
-([package/projectured/test/projection/HoverProbeTest.jl](../../package/projectured/test/projection/HoverProbeTest.jl)),
+([package/projectured/test/projection/HoverProbeTest.jl](../../test/projectured/projection/HoverProbeTest.jl)),
 the `inspector=true` pipeline
-([package/projectured/example/Gallery.jl:556 `_multi_window_projection_inspector`](../../package/projectured/example/Gallery.jl)),
+([package/projectured/example/Gallery.jl:556 `_multi_window_projection_inspector`](../../example/projectured/Gallery.jl)),
 and throttled idle `MouseMove` forwarding in the SDL backend
-([package/sdl/main/ProjecturedSdl.jl:548-549,2569](../../package/sdl/main/ProjecturedSdl.jl))
+([package/sdl/main/ProjecturedSdl.jl:548-549,2569](../../package/ProjecturedSdl/src/ProjecturedSdl.jl))
 all exist.
 
 **Implemented** by the hover click-reference inspector — see

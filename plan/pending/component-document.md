@@ -38,7 +38,7 @@ A component:
 ### ComponentMasterDetail (document only)
 
 **✅ DONE (re-verified 2026-08-12):** `ComponentMasterDetail` exists at
-[package/component/main/Component.jl](../../package/component/main/Component.jl)
+[package/component/main/Component.jl](../../source/component/Component.jl)
 (in `ComponentModule`) with all six listed fields (`master`, `detail`,
 `selected_item`, `master_title`, `detail_title`, `split_ratio`) plus the
 standard `selection::Reference`. `component` is now its own package
@@ -46,7 +46,7 @@ standard `selection::Reference`. `component` is now its own package
 file included from a `ProjecturedDomain.jl` document-slice list — that
 umbrella-include pattern no longer exists anywhere in the repository.
 
-**File**: [Component.jl](../../package/component/main/Component.jl)
+**File**: [Component.jl](../../source/component/Component.jl)
 
 A two-pane component: master (tree/list) on the left, detail (inspector/form) on the right. Selecting an item in the master pane reactively updates the detail pane.
 
@@ -62,7 +62,7 @@ Fields:
 
 ### ComponentMasterDetail projection
 
-**⏳ OPEN (re-verified 2026-08-12):** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in the module docstring in [package/component/main/Component.jl](../../package/component/main/Component.jl) ("not yet implemented, tracked in `plan/pending/component-document.md`"); there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
+**⏳ OPEN (re-verified 2026-08-12):** No `ComponentToWidget` projection exists. The name `ComponentToWidget` appears only in the module docstring in [package/component/main/Component.jl](../../source/component/Component.jl) ("not yet implemented, tracked in `plan/pending/component-document.md`"); there is no projection file or implementation anywhere under `package/` (grep finds zero references outside that comment). None of the described forward-projection/reader/reactive behaviors are implemented.
 
 Create `ComponentToWidget` projection that maps `ComponentMasterDetail` to:
 ```
@@ -78,7 +78,7 @@ Key behaviors:
 
 ### DbCatalog browser example
 
-**⏳ OPEN (re-verified 2026-08-12):** No example uses `ComponentMasterDetail` / master-detail. [package/dbcatalog/example/document/DbCatalog.jl](../../package/dbcatalog/example/document/DbCatalog.jl) exists but a search for `ComponentMasterDetail`/`MasterDetail`/`master.detail` across `package/*/example/` returns no matches. This depends on the (still OPEN) projection above.
+**⏳ OPEN (re-verified 2026-08-12):** No example uses `ComponentMasterDetail` / master-detail. [package/dbcatalog/example/document/DbCatalog.jl](../../example/dbcatalog/document/DbCatalog.jl) exists but a search for `ComponentMasterDetail`/`MasterDetail`/`master.detail` across `package/*/example/` returns no matches. This depends on the (still OPEN) projection above.
 
 Build a concrete example using `ComponentMasterDetail`:
 - Master pane: `DbCatalogRdbms` → `DbCatalogToSyntax` → `SyntaxToText` → `TextToGraphics` (tree with expand/collapse)

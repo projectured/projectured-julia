@@ -17,22 +17,22 @@ the fields of the original objects. The fields can come from different objects.
 
 Five things come close. None of them is this document.
 
-- [Focusing.jl](../../package/projection/main/generic/Focusing.jl) —
+- [Focusing.jl](../../source/projection/generic/Focusing.jl) —
   `FocusingProjection(part_type, part::Reference)` navigates into the input along
   a reference path and maps references both ways. It is a **projection**, not a
   document. It focuses one whole pipeline on one part, so it can not gather
   three fields of two objects into one form.
-- [ObjectToWidget.jl](../../package/widget/main/ObjectToWidget.jl) — takes one
+- [ObjectToWidget.jl](../../source/widget/ObjectToWidget.jl) — takes one
   root object and emits a fixed 2-column grid of its fields. Its io map holds
   `controls::Vector{Tuple{Any,Reference}}`, which is exactly the binding this
   plan reifies, but that binding is private to the projection.
-- [ReferenceInspector.jl](../../package/inspector/main/ReferenceInspector.jl) —
+- [ReferenceInspector.jl](../../source/inspector/ReferenceInspector.jl) —
   `ReferenceInspector(reference, target)` has the right shape, but it is
   display-only and renders as prose.
-- [DocumentCore.jl](../../package/domain/main/DocumentCore.jl) —
+- [DocumentCore.jl](../../source/domain/DocumentCore.jl) —
   `DocumentReference(path)` holds a path and no root object, so it can not name a
   value.
-- [DocumentReflection.jl](../../package/reflection/main/DocumentReflection.jl) —
+- [DocumentReflection.jl](../../source/reflection/DocumentReflection.jl) —
   `ReflectedNode` is a bounded read-only shadow. The link to the original cell is
   lost.
 
@@ -76,9 +76,9 @@ path. The widget projection emits no label at all, so it needs none.
    code as an n-step path.
 
 The kernel made this same choice one layer down:
-[Operations.jl:230](../../package/kernel/main/operation/Operations.jl#L230) stores
+[Operations.jl:230](../../source/kernel/operation/Operations.jl#L230) stores
 a `Reference` and adds an `AbstractString` shorthand. Note that
-[FieldReferenceStep](../../package/kernel/main/reference/ReferenceStep.jl#L130)
+[FieldReferenceStep](../../source/kernel/reference/ReferenceStep.jl#L130)
 holds a `String`, not a `Symbol`.
 
 **The one cost.** Every `ReferencePath` node carries a type checkpoint. A path
@@ -120,7 +120,7 @@ flat child list, so the label must be a separate child. The caller places the
 `WidgetLabel`.
 
 The value type picks the control. Do not write a second classification. Reuse the
-one in [ObjectToWidget.jl:148](../../package/widget/main/ObjectToWidget.jl#L148):
+one in [ObjectToWidget.jl:148](../../source/widget/ObjectToWidget.jl#L148):
 
 | Value | Control |
 | --- | --- |
@@ -139,7 +139,7 @@ reader must convert it to the type of the current value.
 ### ObjectFieldToSyntax
 
 It emits the per-field node that
-[ObjectToSyntax.jl:250](../../package/syntax/main/ObjectToSyntax.jl#L250) already
+[ObjectToSyntax.jl:250](../../source/syntax/ObjectToSyntax.jl#L250) already
 builds inline:
 
 ```julia
@@ -275,13 +275,13 @@ One commit per step. Do the work in a dedicated git worktree.
 - [x] **6. Examples and the guides.** Landed: two examples, and sections in
       widget.md, syntax.md and architecture.md. Add a form example under
       `package/substrate/example/`. Update
-      [package/widget/doc/widget.md](../../package/widget/doc/widget.md) and
-      [package/syntax/doc/syntax.md](../../package/syntax/doc/syntax.md).
+      [package/widget/doc/widget.md](../../documentation/package/widget/widget.md) and
+      [package/syntax/doc/syntax.md](../../documentation/package/syntax/syntax.md).
 
 ## What the work settled
 
 **The element write works.** `ElementReferenceStep` is not a type —
-[ReferenceStep.jl:59](../../package/kernel/main/reference/ReferenceStep.jl#L59)
+[ReferenceStep.jl:59](../../source/kernel/reference/ReferenceStep.jl#L59)
 defines it as `RangeReferenceStep(index - 1, index)` — and
 `_write_slot!(parent, ::RangeReferenceStep, value)` writes `parent[i] = value`.
 No new kernel method was needed. A test writes `server.tags[2]` through an
@@ -289,7 +289,7 @@ No new kernel method was needed. A test writes `server.tags[2]` through an
 control whose path starts at `tags`.
 
 One trap was found while checking it:
-[Operations.jl:196](../../package/kernel/main/operation/Operations.jl#L196)
+[Operations.jl:196](../../source/kernel/operation/Operations.jl#L196)
 overloads the same terminal step with an `AbstractVector` value as a **splice**.
 An `ObjectField` whose value is itself a vector can not be written by a plain
 replace. Recorded in both guides.
@@ -306,7 +306,7 @@ dependency edit and no `[sources]` edit. Both `ProjecturedWidget` and
 ## Open questions
 
 - Tab traversal between the controls of a form. `is_focusable_document` in
-  [Focus.jl](../../package/focus/main/Focus.jl) is the trait, and `WidgetModule`
+  [Focus.jl](../../source/focus/Focus.jl) is the trait, and `WidgetModule`
   marks its enabled interactive leaves. A control here is an ordinary
   `WidgetText` or `WidgetCheckbox`, so it should already be marked — but no test
   asserts it. Add one.

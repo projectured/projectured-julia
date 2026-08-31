@@ -245,7 +245,7 @@ names as an **interface file** and asserts it declares without implementing, and
 exports every name it declares (requirement #72) — the kernel's nine contract files
 today. The guard is implemented **once** — the shared
 `check_layering` in
-[package/kernel/test/layering/CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)
+[package/kernel/test/layering/CheckLayering.jl](../test/kernel/layering/CheckLayering.jl)
 — and each test package applies it to its main package
 (`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
 `test_domain_layering()`), running inside `test_<package>()`. It runs without loading

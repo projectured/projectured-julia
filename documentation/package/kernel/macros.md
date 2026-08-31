@@ -3,9 +3,9 @@
 Three macros — `@document`, `@projection`, and `@iomap` — generate the
 boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
-[document/DocumentMacro.jl](../../../package/kernel/main/document/DocumentMacro.jl),
-[projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl), and
-[iomap/IoMapDefaults.jl](../../../package/kernel/main/iomap/IoMapDefaults.jl) respectively.
+[document/DocumentMacro.jl](../../../source/kernel/document/DocumentMacro.jl),
+[projection/Projection.jl](../../../source/kernel/projection/Projection.jl), and
+[iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl) respectively.
 
 All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
@@ -14,7 +14,7 @@ through generated `getproperty` / `setproperty!` methods.
 ## `@cell_struct` — the codegen the three build on
 
 The shared pattern is implemented **once, in the cell layer**:
-[cell/CellStruct.jl](../../../package/kernel/main/cell/CellStruct.jl) defines
+[cell/CellStruct.jl](../../../source/kernel/cell/CellStruct.jl) defines
 `@cell_struct struct T [<: Super] … end` — every field becomes a transparent
 `Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
 `getfield`), and `field::T = value` defaults produce the keyword constructor

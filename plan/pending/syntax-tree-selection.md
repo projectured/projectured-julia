@@ -22,7 +22,7 @@ questions.
 `TextSpanReferenceStep` (`package/text/main/TextSpanReferenceStep.jl`) — same
 `(start, stop)` flat-offset payload, still `:structural` (terminal). Its
 renderer, `_compute_span_rows` in
-[`package/text/main/TextToGraphics.jl`](../../package/text/main/TextToGraphics.jl)
+[`package/text/main/TextToGraphics.jl`](../../source/text/TextToGraphics.jl)
 (around line 1151), already paints the **ragged content-hugging per-row
 rectangles** this section asked for, not a single bounding box — that upgrade
 landed as part of the whole-element highlight, not as a separate range feature.
@@ -41,8 +41,8 @@ producer emits it yet**.
 **⏳ still OPEN (verified 2026-08-12):** nothing constructs a
 `TextRangeReferenceStep` with `start != stop` from a live gesture — grep for
 `MouseDown` / `MouseDrag` / `Shift` in
-[`package/text/main/Text.jl`](../../package/text/main/Text.jl) and
-[`TextToGraphics.jl`](../../package/text/main/TextToGraphics.jl) finds nothing.
+[`package/text/main/Text.jl`](../../source/text/Text.jl) and
+[`TextToGraphics.jl`](../../source/text/TextToGraphics.jl) finds nothing.
 Every construction site builds a degenerate `(pos, pos)` caret. So the
 **character-range** half of this slice has a data model, a forward-mapped
 representation, and a renderer, but no interactive way to create one (no

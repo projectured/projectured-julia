@@ -9,16 +9,16 @@ and how to add one. For the whole-system picture see
 
 A domain with a reference guide keeps it in its own package:
 
-- [json.md](../package/json/doc/json.md) — the JSON domain
-- [xml.md](../package/xml/doc/xml.md) — the XML domain
-- [rst.md](../package/rst/doc/rst.md) — the reStructuredText domain
-- [math.md](../package/math/doc/math.md) — the mathematical notation domain
-- [chart.md](../package/chart/doc/chart.md) — the chart domain
-- [sequencechart.md](../package/sequencechart/doc/sequencechart.md) — the sequence chart domain
-- [fsm.md](../package/fsm/doc/fsm.md) — the state machine domain
-- [process.md](../package/process/doc/process.md) — the process domain
-- [graph-layout.md](../package/graph/doc/graph-layout.md) — the graph domain's layout engines
-- [workbench.md](../package/workbench/doc/workbench.md) — the workbench application
+- [json.md](package/json/json.md) — the JSON domain
+- [xml.md](package/xml/xml.md) — the XML domain
+- [rst.md](package/rst/rst.md) — the reStructuredText domain
+- [math.md](package/math/math.md) — the mathematical notation domain
+- [chart.md](package/chart/chart.md) — the chart domain
+- [sequencechart.md](package/sequencechart/sequencechart.md) — the sequence chart domain
+- [fsm.md](package/fsm/fsm.md) — the state machine domain
+- [process.md](package/process/process.md) — the process domain
+- [graph-layout.md](package/graph/graph-layout.md) — the graph domain's layout engines
+- [workbench.md](package/workbench/workbench.md) — the workbench application
 
 ## What a domain package is
 

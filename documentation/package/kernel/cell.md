@@ -5,7 +5,7 @@ lightweight pull-based reactive engine that replaces the original Common Lisp
 ProjecturEd's `hu.dwim.computed-class`. It is **layer 1 of the kernel** — the bottom
 of the dependency DAG, the one part with no kernel dependencies that everything else
 is built on. The engine lives in
-[CellModule.jl](../../../package/kernel/main/cell/CellModule.jl); every other layer
+[CellModule.jl](../../../source/kernel/cell/CellModule.jl); every other layer
 is built on top of it.
 
 This guide leads with the concepts and how-to (what a cell is, how tracking and
@@ -147,7 +147,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Layer structure
 
-The layer lives in [package/kernel/main/cell/](../../../package/kernel/main/cell/):
+The layer lives in [package/kernel/main/cell/](../../../source/kernel/cell/):
 the instrumentation counter module, the cell engine, and the transparent-cell
 struct codegen, loaded in this order:
 
@@ -259,7 +259,7 @@ Public surface: `with_performance_counters(f, store=…)` (bind a store for `f`)
 `@performance_time key expr` (time `expr`, record the elapsed ns under `key`), and
 `@count_performance key` (the hot-path bump). The editor's read-eval-print loop
 binds a fresh store and reports it every frame (see
-[Editor.run_editor!](../../../package/kernel/main/editor/Editor.jl)), which is the
+[Editor.run_editor!](../../../source/kernel/editor/Editor.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
 Animation clock: `ClockModule` is its own kernel layer (layer 2, `clock/`),

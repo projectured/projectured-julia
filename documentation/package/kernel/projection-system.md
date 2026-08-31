@@ -27,7 +27,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[package/kernel/main/projection/ProjectionApi.jl](../../../package/kernel/main/projection/ProjectionApi.jl) and dispatched on
+[package/kernel/main/projection/ProjectionApi.jl](../../../source/kernel/projection/ProjectionApi.jl) and dispatched on
 the concrete projection struct.
 
 ## The recursion contract
@@ -80,7 +80,7 @@ School A — a worked before/after example of this contract.
 ### `print_document` — the printer
 
 Forward transformation from the input domain to the output domain. Returns an
-`IoMap` (subtype of `IoMap`, see [iomap/IoMapInterface.jl](../../../package/kernel/main/iomap/IoMapInterface.jl))
+`IoMap` (subtype of `IoMap`, see [iomap/IoMapInterface.jl](../../../source/kernel/iomap/IoMapInterface.jl))
 that records the input, the output, and any extra data the reader needs to
 invert the transformation.
 
@@ -92,7 +92,7 @@ The two extra arguments are essential:
   that never descends ignores it. A node projection threads it **twice** — as
   the projection to call *and* as that call's own `recursion` argument; see
   [§ Recursion across projections](#recursion-across-projections).
-- **`context`** is a [`PrinterContext`](../../../package/kernel/main/projection/PrinterContext.jl):
+- **`context`** is a [`PrinterContext`](../../../source/kernel/projection/PrinterContext.jl):
   a downward-flowing, extensible struct carrying the `reference` path from the
   editor's document root to the *current* input, plus optional layout extent
   (`available_width`/`available_height`) and an open `properties` Dict. Each
@@ -105,7 +105,7 @@ The two extra arguments are essential:
   `EmptyReference()`).
 
 A two-argument convenience overload `print_document(p, input)` is defined in
-[projection/Projection.jl](../../../package/kernel/main/projection/Projection.jl) and supplies
+[projection/Projection.jl](../../../source/kernel/projection/Projection.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
@@ -134,7 +134,7 @@ reader route events by selection — see below and
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([projection/Intent.jl](../../../package/kernel/main/projection/Intent.jl)) —
+The reader's payload is a **`Intent`** ([projection/Intent.jl](../../../source/kernel/operation/Intent.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
@@ -236,7 +236,7 @@ really the *projection's* business:
 The geometry-independent half is a property of the **domain document**, not of
 the projection that happens to render it. It lives behind
 `read_gesture(document, gesture) -> Union{Operation, Nothing}`
-([document/DocumentInterface.jl](../../../package/kernel/main/document/DocumentInterface.jl)): the document maps the
+([document/DocumentInterface.jl](../../../source/kernel/document/DocumentInterface.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
 the gesture (which also serves as "I decline this gesture so an outer layer can
@@ -287,10 +287,10 @@ This is the reader-side mirror of three things the printer side already does:
   the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
 - **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
   route a mouse gesture to the hit child and lift the returned operation with
-  `reroot_operation` ([operation/Rerooting.jl](../../../package/kernel/main/operation/Rerooting.jl)).
+  `reroot_operation` ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
 
 The template engine applies the rule **automatically**: the `RuleIoMap` reader in
-[projection/ProjectionTemplate.jl](../../../package/kernel/main/projection/ProjectionTemplate.jl)
+[projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
 handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
 declined — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
 by (1) finding the selected child from the node's `selection` and its

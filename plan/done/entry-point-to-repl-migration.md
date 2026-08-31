@@ -36,11 +36,11 @@ the migration rather than in spite of it.
 projectured-julia has solved this once and the answer should be copied verbatim
 into the other two repos. Three ingredients:
 
-1. **A value that names the thing** — [Harness.jl:15](../../package/kernel/example/Harness.jl#L15)
+1. **A value that names the thing** — [Harness.jl:15](../../example/kernel/Harness.jl#L15)
    `struct Example(name, make_document, make_projection; …)`.
 2. **Verbs over that value** — `run_example`, `print_example`,
    `write_example_image`, `write_example_pdf`, `record_example_video`
-   ([Examples.jl:40](../../package/projectured/example/Examples.jl#L40)), each
+   ([Examples.jl:40](../../example/projectured/Examples.jl#L40)), each
    with a `run_example("json")` string-lookup method against a registry.
 3. **A package that exports them** — `ProjecturedExample`, so `using
    ProjecturedExample; run_example("json")` is the entire interface.
@@ -52,7 +52,7 @@ call, tab-complete, pass keywords to, and compose — and none of them needs a
 process boundary.
 
 The harness is also *extensible by wrapping, not by growing*: `LiveExample`
-([LiveExamples.jl:28](../../package/sdl/example/LiveExamples.jl#L28)) pairs an
+([LiveExamples.jl:28](../../example/sdl/LiveExamples.jl#L28)) pairs an
 `Example` with a scripted timeline instead of adding a timeline field to
 `Example`. The `WatchExample` this plan introduces (§4.2.1) is the same move for
 a background driver — a third member of that family, not a change to the first.
@@ -67,10 +67,10 @@ Everything below is measured against that bar.
 
 | Symbol | File | What it is for |
 |---|---|---|
-| `julia_main(args::Vector{String})::Cint` | [ProjecturedExecutable.jl:147](../../package/executable/main/ProjecturedExecutable.jl#L147) | Parses the binary's runtime args (`FILE`, `--backend`, `-h`, `-v`), resolves the domain from the file extension, calls `run_file_editor`. Returns a process exit code. |
-| `julia_main()::Cint` | [ProjecturedExecutable.jl:183](../../package/executable/main/ProjecturedExecutable.jl#L183) | `ARGS` overload. **This is the PackageCompiler entry point** — `Builder.jl:225` names it in `executables = [spec.app_name => "julia_main"]`. |
-| `main()` | [ProjecturedExecutable.jl:186](../../package/executable/main/ProjecturedExecutable.jl#L186) | Convenience alias so `julia ProjecturedExecutable.jl` works. |
-| `PROGRAM_FILE` guard → `exit(main())` | [ProjecturedExecutable.jl:188](../../package/executable/main/ProjecturedExecutable.jl#L188) | Makes the module file self-executing. |
+| `julia_main(args::Vector{String})::Cint` | [ProjecturedExecutable.jl:147](../../package/ProjecturedExecutable/src/ProjecturedExecutable.jl#L147) | Parses the binary's runtime args (`FILE`, `--backend`, `-h`, `-v`), resolves the domain from the file extension, calls `run_file_editor`. Returns a process exit code. |
+| `julia_main()::Cint` | [ProjecturedExecutable.jl:183](../../package/ProjecturedExecutable/src/ProjecturedExecutable.jl#L183) | `ARGS` overload. **This is the PackageCompiler entry point** — `Builder.jl:225` names it in `executables = [spec.app_name => "julia_main"]`. |
+| `main()` | [ProjecturedExecutable.jl:186](../../package/ProjecturedExecutable/src/ProjecturedExecutable.jl#L186) | Convenience alias so `julia ProjecturedExecutable.jl` works. |
+| `PROGRAM_FILE` guard → `exit(main())` | [ProjecturedExecutable.jl:188](../../package/ProjecturedExecutable/src/ProjecturedExecutable.jl#L188) | Makes the module file self-executing. |
 | `parse_runtime_args`, `resolve_backend`, `resolve_domain` | same file, 67–109 | The CLI surface; pure functions, already testable. |
 | `print_help`, `print_version`, `precompile_warmup` | same file, 30/59/122 | Already exported and REPL-callable. |
 
@@ -131,8 +131,8 @@ should stay exactly one call into the already-REPL-callable
 
 | Symbol | File | What it is for |
 |---|---|---|
-| `main()` + top-level call at :55 | [colorbench.jl:25](../../bench/colorbench.jl#L25) | Prints `isbits`/`sizeof` for four ways of representing a colour, to justify the selection-parameter design of `@document`. |
-| `report(name)` + top-level `ARGS` loop at :87 | [fanout.jl:55](../../bench/fanout.jl#L55) | Walks a live example pipeline, forces every cell, and prints a cell-kind census plus the `dependents` fanout distribution attributed to `struct.field`. Backs the "immutable style cut fanout 21%" claim. |
+| `main()` + top-level call at :55 | [colorbench.jl:25](../../test/bench/colorbench.jl#L25) | Prints `isbits`/`sizeof` for four ways of representing a colour, to justify the selection-parameter design of `@document`. |
+| `report(name)` + top-level `ARGS` loop at :87 | [fanout.jl:55](../../test/bench/fanout.jl#L55) | Walks a live example pipeline, forces every cell, and prints a cell-kind census plus the `dependents` fanout distribution attributed to `struct.field`. Backs the "immutable style cut fanout 21%" claim. |
 
 `fanout.jl` is genuinely useful interactively — you want to run `report("json")`
 then `report("workbench")` in one session and compare, which is exactly what a
@@ -155,7 +155,7 @@ colorbench()` works and the file stops running on load.
 
 ### 3.5 `package/adaptagrams/deps/build.jl` — **must stay a script**
 
-[build.jl:88](../../package/adaptagrams/deps/build.jl#L88) `main()` + the
+[build.jl:88](../../package/ProjecturedAdaptagrams/deps/build.jl#L88) `main()` + the
 top-level call at :124. This is a `Pkg.build` hook: Pkg runs `deps/build.jl` as a
 process, by convention, and there is no function-call form. Leave it. (Its
 functionality *is* already reachable another way — `ProjecturedAdaptagrams.isavailable()`
@@ -308,7 +308,7 @@ today. It is a superset of `run_shell!`. Eight scripts additionally define
 
 **The gap: a driver.** `run_example` has no equivalent of the `@async
 drive!(native, shadow)` task, its `finally` teardown, or `run_shell!`'s
-`on_frame` hook. `LiveExample` ([LiveExamples.jl:28](../../package/sdl/example/LiveExamples.jl#L28))
+`on_frame` hook. `LiveExample` ([LiveExamples.jl:28](../../example/sdl/LiveExamples.jl#L28))
 is the precedent for how to add one: it wraps an `Example` and pairs it with a
 *timeline*, rather than growing `Example` itself. Do the same with a driver:
 
@@ -357,7 +357,7 @@ driver at all — they are plain `Example`s and go straight into a registry.
 
 **Three cautions.**
 
-1. **`Example`'s constructor is eager.** [Harness.jl:41](../../package/kernel/example/Harness.jl#L41)
+1. **`Example`'s constructor is eager.** [Harness.jl:41](../../example/kernel/Harness.jl#L41)
    calls `make_document()` and `make_projection()` and caches the results, so a
    module-level `const mm1k_example = Example(…)` builds a `SequentialSimulator`
    (with closures in its FES) at *precompile* time and shares that one instance
@@ -365,7 +365,7 @@ driver at all — they are plain `Example`s and go straight into a registry.
    is free; a simulator is stateful and re-running a cached, already-advanced one
    is wrong. `LiveExample` already sidesteps this — it never touches
    `ex.document`, calling `make_document()` fresh in both of its drivers
-   ([LiveExamples.jl:92,116](../../package/sdl/example/LiveExamples.jl#L92)).
+   ([LiveExamples.jl:92,116](../../example/sdl/LiveExamples.jl#L92)).
    `WatchExample` must do the same, and the registry should hold factories rather
    than constructed `Example`s for the heavy demos.
 2. **This is also the fix for §6.1.** `Example("mm1k", make_mm1k_document,
@@ -384,7 +384,7 @@ driver at all — they are plain `Example`s and go straight into a registry.
 
 **Which package.** No new one is needed. `OmnetppPresentationExample` is already
 the `<Stem>Example` package the naming convention
-([naming.md](../../package/kernel/doc/naming.md)) calls for — it just contains
+([naming.md](../../documentation/package/kernel/naming.md)) calls for — it just contains
 `example_dir(name)`, a path helper, instead of examples. Optionally mirror
 projectured's opt-in split (`ProjecturedSdlExample` hosts what needs a real
 window, so the base example package precompiles with no native build): keep
@@ -396,7 +396,7 @@ precompile time — `OmnetppPresentationExample` depends on all three today.
 **One small upstream change.** `run_example`'s core forwards only `mcp` to
 `run_editor!` ([Gallery.jl:277](../../package/domain/example/Gallery.jl#L277));
 `run_editor!` itself already accepts `on_frame`
-([Editor.jl:301](../../package/kernel/main/editor/Editor.jl#L301)). Add the
+([Editor.jl:301](../../source/kernel/editor/Editor.jl#L301)). Add the
 `on_frame` passthrough — additive, and it is what lets the inspector/workbench
 demos (whose documents are bounded reflections needing a per-frame sync) drop
 `run_shell!` entirely.

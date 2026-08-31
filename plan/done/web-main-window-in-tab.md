@@ -14,11 +14,11 @@ common single-window case.
 
 ## Current behavior (and why the button/popups exist)
 
-[package/web/assets/index.html](../../package/web/assets/index.html) serves a
+[package/web/assets/index.html](../../asset/web/index.html) serves a
 *host* page: a disabled **"Launch editor windows"** button plus status text. The
 tab itself never paints the editor.
 
-[package/web/assets/client.js](../../package/web/assets/client.js) flow:
+[package/web/assets/client.js](../../asset/web/client.js) flow:
 
 1. Load fonts, open the WebSocket, enable the Launch button on `ws.onopen`.
 2. Server sends `{type:"update", full:[…], patches:[…], close:[…]}`. A `launched`
@@ -170,9 +170,9 @@ sends with `window: mainId`, exactly as a popup did with its own id).
 
 - [package/web/src/ProjecturedWeb.jl](../../package/web/src/ProjecturedWeb.jl) —
   `_window_meta` gains `primary`; `write_to_devices` computes/passes it.
-- [package/web/assets/index.html](../../package/web/assets/index.html) — canvas +
+- [package/web/assets/index.html](../../asset/web/index.html) — canvas +
   overlay instead of the Launch button.
-- [package/web/assets/client.js](../../package/web/assets/client.js) — remove
+- [package/web/assets/client.js](../../asset/web/client.js) — remove
   `launched` gate/button; bind primary → page canvas; lazy secondary popups;
   tab resize; reconnect reset.
 - [package/example/src/Examples.jl](../../package/example/src/Examples.jl) and the

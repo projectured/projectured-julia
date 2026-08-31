@@ -19,9 +19,9 @@ OS toolkit. Qt is used here only as a well-known, exhaustive checklist of "what 
 mature UI toolkit offers" so we can see, deliberately, what we have, what we are
 missing, and what we are choosing not to build.
 
-See [package/widget/doc/widget.md](../../package/widget/doc/widget.md)
+See [package/widget/doc/widget.md](../../documentation/package/widget/widget.md)
 for the current widget set and
-[package/widget/main/Widget.jl](../../package/widget/main/Widget.jl)
+[package/widget/main/Widget.jl](../../source/widget/Widget.jl)
 for the source of truth. (`package/visual/` — the location named when this
 analysis was written — no longer exists; it was split into `package/widget/`,
 `package/style/`, `package/syntax/`, `package/pane/`, `package/graphics/`,
@@ -61,7 +61,7 @@ constructor sugar over `WidgetDialog`, not separate types); `WidgetStatusBar`
 `AnchoredLayout` (see [anchored-layout.md](anchored-layout.md), status DONE) and
 `ConstraintLayout`. `FormLayout` (Stage 6) is **not** an 8th `LayoutDocument`
 subtype — it is a constructor function in
-[package/layout/main/Layout.jl](../../package/layout/main/Layout.jl) that builds
+[package/layout/main/Layout.jl](../../source/layout/Layout.jl) that builds
 a `GridLayout` with per-column `align`/`stretch` set for a label/field form.
 
 **Cross-cutting machinery already in place:**

@@ -4,12 +4,12 @@
 > `ChaseArming`, and `SettledArming` do not exist anywhere under `package/`.
 > The prior art this plan builds on is in place and current: the per-editor
 > `Clock` lives at
-> [package/kernel/main/clock/Clock.jl](../../package/kernel/main/clock/Clock.jl)
+> [package/kernel/main/clock/Clock.jl](../../source/kernel/clock/Clock.jl)
 > (not `cell/Clock.jl` as cited below) with `get_reactive_clock_time`/
 > `get_clock_time` (not `get_reactive_time`/`get_time` as cited below), and
 > `WidgetSwitch`'s flip-site-armed sliding knob is implemented in
-> [package/widget/main/Widget.jl](../../package/widget/main/Widget.jl) and
-> [package/widget/main/WidgetToGraphics.jl](../../package/widget/main/WidgetToGraphics.jl)
+> [package/widget/main/Widget.jl](../../source/widget/Widget.jl) and
+> [package/widget/main/WidgetToGraphics.jl](../../source/widget/WidgetToGraphics.jl)
 > (`_switch_fraction`/`_switch_toggle`, `anim_from`/`anim_t0`/`duration`
 > fields) — exactly the shape this plan's "Rejected alternatives" section
 > describes as the coupling to remove.
@@ -41,14 +41,14 @@ hard requirements:
 ## Prior art in-tree
 
 - **The per-editor `Clock`**
-  ([package/kernel/main/clock/Clock.jl](../../package/kernel/main/clock/Clock.jl),
+  ([package/kernel/main/clock/Clock.jl](../../source/kernel/clock/Clock.jl),
   from [plan/done/per-editor-animation-clock.md](../done/per-editor-animation-clock.md))
   gives the SUBSCRIBE/SAMPLE split this design leans on: `get_reactive_time`
   (tracked, re-run every tick) vs `get_time` (untracked, arm without
   subscribing) — named `get_reactive_clock_time`/`get_clock_time` in the shipped
   code. `PrinterContext.clock` delivers it to every printer.
 - **`WidgetSwitch`'s sliding knob**
-  ([package/widget/main/WidgetToGraphics.jl](../../package/widget/main/WidgetToGraphics.jl),
+  ([package/widget/main/WidgetToGraphics.jl](../../source/widget/WidgetToGraphics.jl),
   `_switch_fraction` / `_switch_toggle`) already implements interruptible,
   no-jump chasing — but arms **at the flip site**: the reader bundles
   `anim_from`/`anim_t0` writes into a `CompoundOperation` ahead of the toggle,
@@ -221,10 +221,10 @@ projection — including whatever widget recurses into the boolean via
 The recursion contract makes the binding external to all involved projections:
 
 - **Per document type**:
-  [`TypeDispatchingProjection`](../../package/projection/main/higherorder/TypeDispatching.jl)
+  [`TypeDispatchingProjection`](../../source/projection/higherorder/TypeDispatching.jl)
   maps `BoolDoc → SettledArming` or `→ ChaseArming` for the whole pipeline.
 - **Per widget / per location**:
-  [`ReferenceDispatchingProjection`](../../package/projection/main/higherorder/ReferenceDispatching.jl)
+  [`ReferenceDispatchingProjection`](../../source/projection/higherorder/ReferenceDispatching.jl)
   switches the arming projection by document-root-relative reference, so *this*
   switch animates while *that* one snaps — no flag on the widget, no change to
   any other projection.
@@ -245,7 +245,7 @@ already accepts for iomap rebuilds, and rare in practice.
 
 The `memory` box in the arming snapshot cell is a side effect inside a thunk,
 which the cell invariants
-([package/kernel/doc/cell.md](../../package/kernel/doc/cell.md), "Invariants
+([package/kernel/doc/cell.md](../../documentation/package/kernel/cell.md), "Invariants
 the engine relies on") forbid. This is deliberate and must be **named, bounded,
 and documented**, not hidden:
 

@@ -199,7 +199,7 @@ to fix only the tractable bugs (dragging/json) and document the rest:
 - [ ] 14. **JSON ∅ tree-nav** and **JsonToSyntax reader line-117 array-insert
   (1)** — **⏳ OPEN, needs re-diagnosis (2026-08-12).** `package/json/main/JsonToSyntax.jl`
   has since been rewritten onto `@projection_template` (per
-  [documentation guidance](../../package/kernel/doc/macros.md) to prefer that
+  [documentation guidance](../../documentation/package/kernel/macros.md) to prefer that
   macro); the old reader's line-117 array-insert quirk could not be re-located
   by line number under the new implementation. `"json"` does not appear in the
   current `tree_broken` registry

@@ -2,7 +2,7 @@
 
 > **Status (2026-08-12): DONE.** Part A (audit), Part B (harness), and Part C
 > (docs) all landed. The harness lives at
-> [package/projectured/test/editor/RecursionContractTest.jl](../../package/projectured/test/editor/RecursionContractTest.jl)
+> [package/projectured/test/editor/RecursionContractTest.jl](../../test/projectured/editor/RecursionContractTest.jl)
 > (moved from `package/test/src/editor/` in the later package split). The one
 > confirmed violation, `SyntaxNodeToText`/`SyntaxListToText` (now
 > `SyntaxCompoundToText`/`SyntaxListToText`), was fixed by
@@ -25,7 +25,7 @@ A projection exposes exactly **four** generic functions — the "great four":
 
 Every screen the user sees and every gesture they make flows through one or more
 projections via these four functions and nothing else. They are declared in
-[package/kernel/main/projection/ProjectionApi.jl](../../package/kernel/main/projection/ProjectionApi.jl)
+[package/kernel/main/projection/ProjectionApi.jl](../../source/kernel/projection/ProjectionApi.jl)
 and dispatched on the concrete projection struct.
 
 Each of the four is **recursive**: when a projection descends into child
@@ -77,7 +77,7 @@ was performed (the four functions plus every private helper they call).
 **`SyntaxNodeToText` / `SyntaxListToText`** (now `SyntaxCompoundToText` /
 `SyntaxListToText`, and the violation described here is fixed — see the status
 banner) —
-[package/syntax/main/SyntaxToText.jl](../../package/syntax/main/SyntaxToText.jl)
+[package/syntax/main/SyntaxToText.jl](../../source/syntax/SyntaxToText.jl)
 
 - `projection_print(::SyntaxNodeToText, recursion, node, ctx)` (≈ L194) threads
   `recursion` but **never invokes it**. It calls `_collect_spans` (≈ L778) →
@@ -127,7 +127,7 @@ Distinguish "walks **its own** input domain" (allowed) from "walks / flattens
 ## Part B — Validation strategy (no fifth recursive function)
 
 > **Implemented** in
-> [package/projectured/test/editor/RecursionContractTest.jl](../../package/projectured/test/editor/RecursionContractTest.jl)
+> [package/projectured/test/editor/RecursionContractTest.jl](../../test/projectured/editor/RecursionContractTest.jl)
 > (this file moved from `package/test/src/editor/` in the later package split).
 > The realized harness keeps the two highest-value, lowest-false-positive checks:
 > the **delegation probe** (the composition-substitution idea below, realized with a
@@ -150,15 +150,15 @@ on projections — so it introduces no new per-projection generic function.
 All building blocks already exist (paths as of 2026-08-12; the test package split
 moved them out of a shared `package/test/src/editor/`):
 
-- `_walk!` ([PrinterTest.jl:45](../../package/kernel/test/editor/PrinterTest.jl)) —
+- `_walk!` ([PrinterTest.jl:45](../../test/kernel/editor/PrinterTest.jl)) —
   reflexive walk of an iomap, forcing every `Cell`.
 - `collect_text_selections` / `collect_tree_selections` — renamed
   `collect_position_selections`
-  ([SelectionEnumeration.jl](../../package/substrate/test/document/SelectionEnumeration.jl)) —
+  ([SelectionEnumeration.jl](../../test/substrate/document/SelectionEnumeration.jl)) —
   ground-truth references enumerated directly from a document. This is the name
   the shipped harness actually uses.
 - `_assert_reaches_all`
-  ([NavigationTest.jl](../../package/kernel/test/editor/NavigationTest.jl), renamed
+  ([NavigationTest.jl](../../test/kernel/editor/NavigationTest.jl), renamed
   from `TextNavigationTest.jl`) — subset assertion.
 - `explore_text_selections` / `explore_tree_selections` — renamed
   `explore_position_selections` — navigation BFS.
@@ -222,7 +222,7 @@ skip was never needed as a permanent fixture: the shipped harness's
 ### Wiring
 
 `test_recursion_contracts()` is exported from
-[package/projectured/test/ProjecturedTest.jl](../../package/projectured/test/ProjecturedTest.jl)
+[package/projectured/test/ProjecturedTest.jl](../../package/ProjecturedTest/src/ProjecturedTest.jl)
 and is documented in
 [documentation/testing.md](../../documentation/testing.md) (line 364 onward), but
 is **still opt-in** — `test_all()` does not call it, even though the violator
@@ -237,19 +237,19 @@ State the contract — including the "no fifth recursive function" rule — as a
 first-class, named concept, cross-linked across the API and guides.
 
 - **API** —
-  [package/kernel/main/projection/ProjectionApi.jl](../../package/kernel/main/projection/ProjectionApi.jl):
+  [package/kernel/main/projection/ProjectionApi.jl](../../source/kernel/projection/ProjectionApi.jl):
   add a **"The recursion contract"** section to the module docstring naming the four
   functions, the delegation vehicles (`recursion` / `child_iomaps`), and the negative
   constraint (no fifth recursive generic function; it breaks composition because not
   all projections implement it).
 - **Guide** —
-  [package/kernel/doc/projection-system.md](../../package/kernel/doc/projection-system.md):
+  [package/kernel/doc/projection-system.md](../../documentation/package/kernel/projection-system.md):
   add a dedicated **"The recursion contract"** section consolidating the rule, the
   "no fifth function" constraint, and a pointer to how it is validated; reinforce the
   existing "Recursion across projections" and "School B" anti-pattern callouts to
   reference the named contract.
 - **Guide** —
-  [package/kernel/doc/higher-order-projections.md](../../package/kernel/doc/higher-order-projections.md):
+  [package/kernel/doc/higher-order-projections.md](../../documentation/package/kernel/higher-order-projections.md):
   cross-link the `RecursiveProjection` section to the named contract (it already
   explains `recursion` keeps projections single-level/composable).
 - **Concepts / architecture** (the deferred "B4" from the syntaxtotext plan):

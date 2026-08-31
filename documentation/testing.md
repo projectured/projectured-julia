@@ -8,11 +8,11 @@ main:     ProjecturedKernel ← the 28 substrate packages ← the 20 domains ←
 tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubstrateTest ← the 20 domain test packages ← ProjecturedTest
 ```
 
-- [package/kernel/test](../package/kernel/test/ProjecturedKernelTest.jl) —
+- [package/kernel/test](../package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl) —
   kernel unit tests + the **shared generic drivers** (`test_printer`,
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
-- [package/substrate/test](../package/substrate/test/ProjecturedSubstrateTest.jl) —
+- [package/substrate/test](../package/ProjecturedSubstrateTest/src/ProjecturedSubstrateTest.jl) —
   the unit tests of all twenty-eight substrate packages: the collection and
   copying tests, the ground-truth selection enumerators, the syntax, text,
   graphics and layout documents, the text, graphics and widget projections, and
@@ -25,14 +25,14 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubs
   only the guard so far; their first suite lands there.
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
-  umbrella): [package/sdl/test](../package/sdl/test) (`test_sdl()` — DirtyRect,
-  write_image), [package/tulip/test](../package/tulip/test) (`test_tulip()` —
-  the LP constraint solver), [package/video/test](../package/video/test)
-  (`test_video()` — record_video), and [package/odbc/test](../package/odbc/test)
+  umbrella): [package/sdl/test](../package/ProjecturedSdlTest) (`test_sdl()` — DirtyRect,
+  write_image), [package/tulip/test](../package/ProjecturedTulipTest) (`test_tulip()` —
+  the LP constraint solver), [package/video/test](../package/ProjecturedVideoTest)
+  (`test_video()` — record_video), and [package/odbc/test](../package/ProjecturedOdbcTest)
   (`test_odbc()` — the live-DB adapter + DbCatalog suites). Like the opt-in
   example packages they resolve through the root env and precompile only where
   the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
-- [package/projectured/test](../package/projectured/test/ProjecturedTest.jl) — the umbrella:
+- [package/projectured/test](../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,
   `ExampleTest`, `CatalogTest`, `RecursionContract`, `MouseClick`,
@@ -85,7 +85,7 @@ Runs everything: the four per-package suites (`test_kernel()`, `test_substrate()
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
-[test/ProjecturedTest.jl](../package/projectured/test/ProjecturedTest.jl)).
+[test/ProjecturedTest.jl](../package/ProjecturedTest/src/ProjecturedTest.jl)).
 
 `test_all` is just a `@testset` that calls the per-package functions in
 sequence; pick the one you actually need and skip the rest.
@@ -166,7 +166,7 @@ markdown blocks/inlines, …) — so every projection is exercised, not just the
 with its failure recorded `@test_broken` — the failure is *information* (a real bug to fix),
 keyed on its signature so a *different* failure still surfaces as an unmarked `Fail` (a
 regression). The open bugs are `grep "@catalog-broken"` in
-[CatalogTest.jl](../package/projectured/test/projection/CatalogTest.jl). Still *out of scope*
+[CatalogTest.jl](../test/projectured/projection/CatalogTest.jl). Still *out of scope*
 only for whole domains not yet wired: **formula** / **dbcatalog** (ODBC-gated) /
 **conversation**. See `plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
 
@@ -272,14 +272,14 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **A failure means:** an edit at some caret produces the wrong string or wrong caret, a character lands in neighbouring chrome (the boundary carets `0`/`n` are what catch this), or the caret fails to render.
 
 **Structural insert-by-typing** — turning a *nothing* placeholder into a real document.
-- **Today:** `test_document_insertion()` is a *domain-specific* suite (in [DocumentInsertionTest.jl](../package/projectured/test/projection/DocumentInsertionTest.jl)), **not** example-driven. It asserts the insert-by-typing machinery directly: the factory/completion functions (`default_factory`, `default_completion`), the reflection-derived insertion names and resolution (`DomainModule.insertion_names` / `resolve_insertion`), the completion states (`:empty` / `:invalid` / `:unambiguous` / `:ambiguous`), and that typing a domain name into a `DocumentInsertion` commits the corresponding `document/insertion`.
+- **Today:** `test_document_insertion()` is a *domain-specific* suite (in [DocumentInsertionTest.jl](../test/projectured/projection/DocumentInsertionTest.jl)), **not** example-driven. It asserts the insert-by-typing machinery directly: the factory/completion functions (`default_factory`, `default_completion`), the reflection-derived insertion names and resolution (`DomainModule.insertion_names` / `resolve_insertion`), the completion states (`:empty` / `:invalid` / `:unambiguous` / `:ambiguous`), and that typing a domain name into a `DocumentInsertion` commits the corresponding `document/insertion`.
 **Live example construction** — rebuilding a whole document from nothing by typing.
-- **`test_construct` / `test_json_construct`** (engine in [ConstructTest.jl](../package/projectured/test/editor/ConstructTest.jl); the oracle `compare_content` lives in the kernel test) are the *reachability* counterpart to `test_typein`: seed the domain's empty `*Nothing` placeholder, drive the editor's own gestures to rebuild a target document from scratch, then assert the result equals the target **by content**.
+- **`test_construct` / `test_json_construct`** (engine in [ConstructTest.jl](../test/projectured/editor/ConstructTest.jl); the oracle `compare_content` lives in the kernel test) are the *reachability* counterpart to `test_typein`: seed the domain's empty `*Nothing` placeholder, drive the editor's own gestures to rebuild a target document from scratch, then assert the result equals the target **by content**.
 - **Drive:** recurse over the *target's* structure — a leaf is authored by typing its surface (opening delimiter + value; the closing delimiter is projection chrome, so it is not typed), a container by its kind-selecting keystroke (`[`/`{`/digit/`"`/…) followed by navigating to each child slot (programmatic ∅ selection) and recursing. Every keystroke goes through the real `read_intent → evaluate_operation` loop.
 - **Asserts:** `compare_content(reached, target)` — a strict recursive content-equality (types compared by name, cells unwrapped, `:selection`/`:ref` skipped) that returns the **first mismatch path** (`.field` / `[i]`), or empty when equal. Strict on scalar type, so `42 ≠ 42.0`.
 - **A failure means:** an editor authoring gap (a kind with no gesture recipe), a reader/operation bug (wrong shape or non-inverting leaf), or a located content regression. Covers JSON scalars and arrays today; the cross-domain `test_construct(example::Example)` sweep is still pending (see [plan/pending/live-example-construction.md](../plan/pending/live-example-construction.md)).
 
-> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../package/substrate/test/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../package/projectured/test/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
+> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../test/substrate/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../test/projectured/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
 
 ## The walker helpers (non-`@testset` variants)
 
@@ -290,13 +290,13 @@ every test has a sibling that does the same work without wrapping it in
 
 | Helper | Location | What it does |
 |---|---|---|
-| `walk_printer_output(doc, proj)` | [kernel/test PrinterTest.jl](../package/kernel/test/editor/PrinterTest.jl) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
-| `walk_reader_events(doc, proj)` | [kernel/test ReaderTest.jl](../package/kernel/test/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
-| `walk_repl_loop(doc, proj)` | [kernel/test ReplTest.jl](../package/kernel/test/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
-| `explore_selections(doc, proj; nav_keys, seed_gesture)` | [kernel/test NavigationTest.jl](../package/kernel/test/editor/NavigationTest.jl) | The generic navigation BFS over reachable selection states, parameterized by gesture set and seed. Returns `(state_count, errors, visited)`. |
-| `explore_position_selections(doc, proj[, initial])` / `explore_tree_selections(doc, proj)` | [visual/test NavigationPresets.jl](../package/substrate/test/editor/NavigationPresets.jl) | The two presets over `explore_selections`: position (caret) navigation keys and Alt+arrow structural navigation. |
-| `collect_position_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../package/substrate/test/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all positions/carets / all whole-element nodes), for the completeness suites to check against. |
-| `walk_typein(doc, proj; positions=:all)` | [visual/test TypeinTest.jl](../package/substrate/test/editor/TypeinTest.jl) | Types a character at every character boundary of every reachable string — undoing each edit so the next boundary starts from the same string — and verifies the cursor renders and the edit lands. The boundary carets (`0` and `n`) are the ones that catch a character landing in the neighbouring chrome. Returns one `(ref, position, length, ok, message)` result per (string, position); `positions=:ends` / `:first` trade coverage for time. |
+| `walk_printer_output(doc, proj)` | [kernel/test PrinterTest.jl](../test/kernel/editor/PrinterTest.jl) | Calls `print_document`, reflexively walks every field of the resulting iomap, and forces every `Cell` via `c[]`. Returns `(errors, status)`. |
+| `walk_reader_events(doc, proj)` | [kernel/test ReaderTest.jl](../test/kernel/editor/ReaderTest.jl) | Prints once, then fires every key / mouse event in `_ALL_READER_EVENTS` through `read_intent`. Returns `errors::Vector{String}`. |
+| `walk_repl_loop(doc, proj)` | [kernel/test ReplTest.jl](../test/kernel/editor/ReplTest.jl) | The complete read → evaluate → reprint → walk cycle, repeated for every event. The closest thing to driving the real editor headlessly. Returns `errors::Vector{String}`. |
+| `explore_selections(doc, proj; nav_keys, seed_gesture)` | [kernel/test NavigationTest.jl](../test/kernel/editor/NavigationTest.jl) | The generic navigation BFS over reachable selection states, parameterized by gesture set and seed. Returns `(state_count, errors, visited)`. |
+| `explore_position_selections(doc, proj[, initial])` / `explore_tree_selections(doc, proj)` | [visual/test NavigationPresets.jl](../test/substrate/editor/NavigationPresets.jl) | The two presets over `explore_selections`: position (caret) navigation keys and Alt+arrow structural navigation. |
+| `collect_position_selections(doc)` / `collect_tree_selections(doc; is_node)` | [base/test SelectionEnumeration.jl](../test/substrate/document/SelectionEnumeration.jl) | Ground-truth selections enumerated directly from the document (all positions/carets / all whole-element nodes), for the completeness suites to check against. |
+| `walk_typein(doc, proj; positions=:all)` | [visual/test TypeinTest.jl](../test/substrate/editor/TypeinTest.jl) | Types a character at every character boundary of every reachable string — undoing each edit so the next boundary starts from the same string — and verifies the cursor renders and the edit lands. The boundary carets (`0` and `n`) are the ones that catch a character landing in the neighbouring chrome. Returns one `(ref, position, length, ok, message)` result per (string, position); `positions=:ends` / `:first` trade coverage for time. |
 
 `walk_printer_output`, `walk_reader_events`, `walk_repl_loop`, and
 `explore_position_selections` keep their plain return values for REPL use; each also
@@ -315,7 +315,7 @@ julia> result.state_count, length(result.errors)
 ## The shared reflexive walker
 
 `_walk!` (in
-[kernel-test/editor/PrinterTest.jl](../package/kernel/test/editor/PrinterTest.jl))
+[kernel-test/editor/PrinterTest.jl](../test/kernel/editor/PrinterTest.jl))
 is the workhorse behind every printer-based test. It descends every field
 via `fieldnames` / `getfield`, follows every `Vector`, forces every `Cell`,
 and uses an `objectid` `Set` to break cycles. New document types are
@@ -324,14 +324,14 @@ struct.
 
 If you write a domain that stores state outside of struct fields (e.g. in a
 side table), `_walk!` will not see it; either expose it as a field or add a
-dedicated test under [domain/test/document/](../package/projectured/test/document/).
+dedicated test under [domain/test/document/](../test/projectured/document/).
 
 ## Validating the recursion contract
 
 The four core projection functions (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) must each be **recursive** —
 descending into children only by delegating to the child projection's own version
-of the same function. That is [the recursion contract](../package/kernel/doc/projection-system.md#the-recursion-contract),
+of the same function. That is [the recursion contract](package/kernel/projection-system.md#the-recursion-contract),
 and a load-bearing half of it is that **no fifth recursive function may be
 introduced** to do the descent: the four functions are the only interface every
 projection implements, so any extra recursive function would break the moment a
@@ -361,7 +361,7 @@ walkers rather than introducing an interface method:
   fails. This is what flags `SyntaxToText`.
 
 The harness lives in
-[package/projectured/test/editor/RecursionContractTest.jl](../package/projectured/test/editor/RecursionContractTest.jl):
+[package/projectured/test/editor/RecursionContractTest.jl](../test/projectured/editor/RecursionContractTest.jl):
 
 | Function | What it does |
 |---|---|
@@ -464,7 +464,7 @@ aggregator, so `Pkg.test` and the REPL functions cover the same ground.
 
 …but for iterative work the REPL functions are much faster because they
 keep the SDL backend initialised between runs (`__init__` in
-[projectured/test/ProjecturedTest.jl:13](../package/projectured/test/ProjecturedTest.jl#L13)).
+[projectured/test/ProjecturedTest.jl:13](../package/ProjecturedTest/src/ProjecturedTest.jl#L13)).
 
 ## Typical workflows
 

@@ -10,7 +10,7 @@ is the only end-to-end *linear* cursor walk in the suite. It does exactly one th
 3. assert the walk terminates, takes at least one step, and never revisits the previous state.
 
 So `left` is never exercised end-to-end. The BFS driver (`test_position_navigation`,
-[NavigationTest.jl](../../package/kernel/test/editor/NavigationTest.jl)) *does* fire `left`, but as
+[NavigationTest.jl](../../test/kernel/editor/NavigationTest.jl)) *does* fire `left`, but as
 one of ten keys in a reachability search — it asserts "no reader threw" and "the enumerated
 positions are reachable", never "walking left from the end retraces the walk right from the start".
 A `left` reader that skips a caret, stalls one position early, or lands on a different (but

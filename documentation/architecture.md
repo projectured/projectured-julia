@@ -5,8 +5,8 @@ inventory, and the projection pipeline status. The division vocabulary
 (package / layer / slice / module) is defined in [terminology.md](terminology.md).
 For design rationale see the
 [design decisions guide](design-decisions.md). For the full reference/selection
-mechanism see the [reference guide](../package/kernel/doc/reference.md) and
-[selection guide](../package/kernel/doc/selection.md).
+mechanism see the [reference guide](package/kernel/reference.md) and
+[selection guide](package/kernel/selection.md).
 
 ---
 
@@ -60,7 +60,7 @@ ProjecturEd is organized as **one engine, twenty-eight substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its seventeen layers depend only downward, and
 the ordering is enforced statically by the shared
-[layered-architecture guard](../package/kernel/test/layering/CheckLayering.jl).
+[layered-architecture guard](../test/kernel/layering/CheckLayering.jl).
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone.
 
@@ -129,23 +129,23 @@ rules.
 
 Each source package also has a `doc/` directory with the per-layer / per-slice /
 per-domain reference guides that used to live at the top level. The kernel set
-([cell](../package/kernel/doc/cell.md),
-[macros](../package/kernel/doc/macros.md),
-[document](../package/kernel/doc/document.md),
-[reference](../package/kernel/doc/reference.md),
-[selection](../package/kernel/doc/selection.md),
-[finding-and-selecting](../package/kernel/doc/finding-and-selecting.md),
-[operation](../package/kernel/doc/operation.md),
-[projection-system](../package/kernel/doc/projection-system.md),
-[higher-order-projections](../package/kernel/doc/higher-order-projections.md),
-[generic-projections](../package/kernel/doc/generic-projections.md),
-[devices-and-backends](../package/kernel/doc/devices-and-backends.md),
-[agent](../package/kernel/doc/agent.md),
-[editor](../package/kernel/doc/editor.md),
-[naming](../package/kernel/doc/naming.md)) is the largest; the per-domain guides
+([cell](package/kernel/cell.md),
+[macros](package/kernel/macros.md),
+[document](package/kernel/document.md),
+[reference](package/kernel/reference.md),
+[selection](package/kernel/selection.md),
+[finding-and-selecting](package/kernel/finding-and-selecting.md),
+[operation](package/kernel/operation.md),
+[projection-system](package/kernel/projection-system.md),
+[higher-order-projections](package/kernel/higher-order-projections.md),
+[generic-projections](package/kernel/generic-projections.md),
+[devices-and-backends](package/kernel/devices-and-backends.md),
+[agent](package/kernel/agent.md),
+[editor](package/kernel/editor.md),
+[naming](package/kernel/naming.md)) is the largest; the per-domain guides
 live next to the code, in the `doc/` folder of the package they document —
-[widget](../package/widget/doc/widget.md), [text](../package/text/doc/text.md),
-[collection](../package/collection/doc/collection.md) and the rest.
+[widget](package/widget/widget.md), [text](package/text/text.md),
+[collection](package/collection/collection.md) and the rest.
 
 Optional engines plug into **factory seams** owned by the kernel
 (`make_agent_server(kind, …)`) or the domain (`make_database_adapter(kind)`):
@@ -221,7 +221,7 @@ four-function interface (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) and recurses into children
 **only** by delegating to the child projection's own version of those four. No
 projection adds a fifth recursive function; that is [the recursion
-contract](../package/kernel/doc/projection-system.md#the-recursion-contract) and the reason any domain
+contract](package/kernel/projection-system.md#the-recursion-contract) and the reason any domain
 composes with any higher-order projection.
 
 **Higher-order** (`higherorder/`):
@@ -303,8 +303,8 @@ composes with any higher-order projection.
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/doc/devices-and-backends.md#consolebackend)) |
-| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../package/web/assets/) |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](package/kernel/devices-and-backends.md#consolebackend)) |
+| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../asset/web/) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |

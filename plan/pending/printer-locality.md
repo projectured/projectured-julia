@@ -33,9 +33,9 @@ audit decides which land.
 ## Why locality matters here
 
 The reactive engine
-([package/kernel/main/cell/ReactiveCell.jl](../../package/kernel/main/cell/ReactiveCell.jl))
+([package/kernel/main/cell/ReactiveCell.jl](../../source/kernel/cell/ReactiveCell.jl))
 is **pull-based and write-driven with no equality check** (see
-[package/kernel/doc/cell.md](../../package/kernel/doc/cell.md), the
+[package/kernel/doc/cell.md](../../documentation/package/kernel/cell.md), the
 "Propagation is write-driven, not value-driven" invariant): writing a cell
 unconditionally invalidates the transitive closure of its dependents, and a
 thunk that recomputes to an unchanged value does **not** stop propagation. So
@@ -46,7 +46,7 @@ input write reach a minimal set of output cells, and by preserving the
 projections (SyntaxToText → TextToGraphics → layout) don't re-do work.
 
 The editor reprints every frame and resets its performance counters each loop
-([package/kernel/main/editor/Editor.jl](../../package/kernel/main/editor/Editor.jl)),
+([package/kernel/main/editor/Editor.jl](../../source/kernel/editor/Editor.jl)),
 so over-invalidation is paid on every keystroke and is directly measurable.
 
 ## The three locality dimensions
@@ -66,7 +66,7 @@ old and new selection paths.
 - This is the load-bearing case the user singled out. Today selection is wired
   as a `ComputedCell(() -> map_selection_forward(doc, path -> map_reference_forward(p, im, path)))`
   in each of `_node_print`/`_fixed_print`/`_mixed_print`/`_inline_print`/`_sections_print`
-  ([package/kernel/main/projection/ProjectionTemplate.jl](../../package/kernel/main/projection/ProjectionTemplate.jl)
+  ([package/kernel/main/projection/ProjectionTemplate.jl](../../source/kernel/projection/ProjectionTemplate.jl)
   — line numbers shifted with the rewrite; grep the file for `_with_selection`),
   which reads `doc.selection` **and**, through the deferred `iomap_cell`, the
   target child's iomap. Reading the child iomap makes the selection cell depend
@@ -86,7 +86,7 @@ the strictly-derived cells above it (the span that contains it, the line it lays
 out on) — **not sibling leaves, not sibling subtrees.**
 
 - Model already verified for SyntaxToText:
-  [SyntaxToTextTest.jl:24-27](../../package/substrate/test/projection/SyntaxToTextTest.jl#L24)
+  [SyntaxToTextTest.jl:24-27](../../test/substrate/projection/SyntaxToTextTest.jl#L24)
   asserts the spans-structure cell stays `is_cell_up_to_date` across a value
   change. Generalised to every leaf in every example by
   `explore_value_locality`/`test_value_locality` in
@@ -108,14 +108,14 @@ Inserting / removing / reordering **one** element of a collection must:
   and `children = CellVector(() -> [im.output for im in child_iomaps[]])`, so any
   structural edit re-projected **every** sibling from scratch. **As of
   2026-08-12**, `_node_print`
-  ([ProjectionTemplate.jl:440-467](../../package/kernel/main/projection/ProjectionTemplate.jl#L440))
+  ([ProjectionTemplate.jl:440-467](../../source/kernel/projection/ProjectionTemplate.jl#L440))
   calls `reconcile_child_iomaps`
-  ([IoMapReconcile.jl](../../package/kernel/main/iomap/IoMapReconcile.jl)), which
+  ([IoMapReconcile.jl](../../source/kernel/iomap/IoMapReconcile.jl)), which
   keys the cache by `(objectid(element), index)` and reuses the prior child iomap
   for every unchanged sibling — confirmed by `test_template_structural_locality()`
   (JSON collections orphan ≈1% of output objects on insert, down from ≈97%).
-  **`_mixed_print`** ([:593-637](../../package/kernel/main/projection/ProjectionTemplate.jl#L593))
-  and **`_sections_print`** ([:696-720](../../package/kernel/main/projection/ProjectionTemplate.jl#L696))
+  **`_mixed_print`** ([:593-637](../../source/kernel/projection/ProjectionTemplate.jl#L593))
+  and **`_sections_print`** ([:696-720](../../source/kernel/projection/ProjectionTemplate.jl#L696))
   still build their `coll_iomaps` / `section_iomaps` with a plain
   `ComputedCell(() -> [… for … in …])` comprehension — **not** reconciled — so
   they retain the original defect. This is the highest-value remaining Phase 4
@@ -125,7 +125,7 @@ Inserting / removing / reordering **one** element of a collection must:
 
 Add a locality walker beside the existing test walkers (sibling of
 `walk_printer_output` in
-[package/kernel/test/editor/PrinterTest.jl](../../package/kernel/test/editor/PrinterTest.jl);
+[package/kernel/test/editor/PrinterTest.jl](../../test/kernel/editor/PrinterTest.jl);
 see [documentation/testing.md](../../documentation/testing.md) "walker helpers").
 
 **Landed** as `package/projectured/test/editor/PrinterLocalityTest.jl` (561 lines).
@@ -172,7 +172,7 @@ the intent — noted inline.
 ## Phase 2 — Mutation generators
 
 Reuse the selection enumerators already in the suite
-([SelectionEnumeration.jl](../../package/substrate/test/document/SelectionEnumeration.jl):
+([SelectionEnumeration.jl](../../test/substrate/document/SelectionEnumeration.jl):
 `collect_position_selections`, `collect_tree_selections` — the actual names;
 there is no `collect_text_selections`) to drive dimension A exhaustively, and
 derive value/structural edits from the document structure.
@@ -190,7 +190,7 @@ derive value/structural edits from the document structure.
   transitions.
 - [x] **B (value):** for each reachable leaf with an editable bound field
   (reuse `walk_typein`'s reachability,
-  [TypeinTest.jl](../../package/substrate/test/editor/TypeinTest.jl)), write a
+  [TypeinTest.jl](../../test/substrate/editor/TypeinTest.jl)), write a
   new value and assert only that leaf's cell + strict ancestors moved.
 
   Built as `explore_value_locality` / `_find_input_value_leaves` — its own
@@ -211,7 +211,7 @@ derive value/structural edits from the document structure.
 ## Phase 3 — Audit sweep and classification
 
 - [ ] Run the harness over every entry in `examples` (~90; see
-  [package/projectured/example/Examples.jl](../../package/projectured/example/Examples.jl)),
+  [package/projectured/example/Examples.jl](../../example/projectured/Examples.jl)),
   three dimensions each. Produce a table: example × dimension × {pass, fail,
   exception-candidate} with the offending cell/object named on failure.
 
@@ -335,7 +335,7 @@ Likely **justified exceptions** (must be written down, with the reason):
   functions, not a data table with per-example/per-dimension justification
   strings.
 - [ ] Document the principle in
-  [documentation/projection-system.md](../../package/kernel/doc/projection-system.md)
+  [documentation/projection-system.md](../../documentation/package/kernel/projection-system.md)
   (a "Locality: smallest possible output change" subsection next to the
   recursion principle) and in the `projection_print` docstring
   ([package/kernel/src/api/ProjectionApi.jl](../../package/kernel/src/api/ProjectionApi.jl)):
@@ -344,10 +344,10 @@ Likely **justified exceptions** (must be written down, with the reason):
 
   Partially done, in different places than planned. There is no standalone
   "Locality" subsection in
-  [package/kernel/doc/projection-system.md](../../package/kernel/doc/projection-system.md)
+  [package/kernel/doc/projection-system.md](../../documentation/package/kernel/projection-system.md)
   (the function is now called `print_document`, not `projection_print`, and its
   docstring lives in
-  [package/kernel/main/projection/ProjectionApi.jl](../../package/kernel/main/projection/ProjectionApi.jl)),
+  [package/kernel/main/projection/ProjectionApi.jl](../../source/kernel/projection/ProjectionApi.jl)),
   but `projection-system.md`'s "Purity" section covers reconciliation, and
   [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
   states the rule formally as **PAR-STABLE-IOMAP-IDENTITY** ("its children
@@ -393,8 +393,8 @@ Likely **justified exceptions** (must be written down, with the reason):
 - **Keyed reconciliation correctness.** Keying by element `objectid` assumes the
   document mutates elements in place (it does — see the "incremental write"
   assertions in
-  [JsonToSyntaxTest.jl:101](../../package/json/test/projection/JsonToSyntaxTest.jl#L101)
-  and [XmlToSyntaxTest.jl:83](../../package/xml/test/projection/XmlToSyntaxTest.jl#L83)).
+  [JsonToSyntaxTest.jl:101](../../test/json/projection/JsonToSyntaxTest.jl#L101)
+  and [XmlToSyntaxTest.jl:83](../../test/xml/projection/XmlToSyntaxTest.jl#L83)).
   Verify operations never replace an unchanged element with a fresh equal object,
   which would defeat the key. This is exactly the assumption `reconcile_child_iomaps`
   now relies on in production (`package/kernel/main/iomap/IoMapReconcile.jl`).

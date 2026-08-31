@@ -36,7 +36,7 @@ This plan does 2 and 3.
 
 ## Step 1 — Deliver the newest pointer sample — DONE
 
-**File**: [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl)
+**File**: [package/sdl/main/ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl)
 
 `read_from_devices` returns the first motion event that passes the rate limit
 and leaves the newer ones in the SDL queue. The next call drops them all. So the
@@ -80,7 +80,7 @@ front of it, and a blocked sample is held rather than dropped.
 
 ## Step 2 — Drain the input of a frame before the paint — DONE
 
-**File**: [package/kernel/main/editor/Editor.jl](../../package/kernel/main/editor/Editor.jl)
+**File**: [package/kernel/main/editor/Editor.jl](../../source/kernel/editor/Editor.jl)
 
 `read!` returns as soon as one operation appears, and `run_frame!` then paints.
 A burst of input therefore needs one frame for each operation, and the frame

@@ -58,7 +58,7 @@ then focus g2 tab 2:   g1.selection = nothing
 
 The pane holds no active-tab field on purpose — the tab a group shows is the tab
 its own selection names, and `pane_shown_tab_index` falls back to tab 1 when that
-selection is gone ([PaneSurgery.jl:238](../../package/pane/main/PaneSurgery.jl#L238)).
+selection is gone ([PaneSurgery.jl:238](../../source/pane/PaneSurgery.jl#L238)).
 The selection layer erases the state the rule reads.
 
 **A pane forgets its caret.** Same cause, one level deeper.
@@ -67,7 +67,7 @@ The selection layer erases the state the rule reads.
 
 `set_selection!` writes the whole remaining path into every node along it, so the
 root holds the complete path and each child holds the tail
-([SelectionDefaults.jl:83](../../package/kernel/main/selection/SelectionDefaults.jl#L83)).
+([SelectionDefaults.jl:83](../../source/kernel/selection/SelectionDefaults.jl#L83)).
 The chain is shared by identity: `child.selection[] === parent.selection[].tail`.
 
 A node's cell therefore holds the **entire** suffix below it, not one step.
@@ -82,7 +82,7 @@ content: ::PrimitiveString.value{4}
 
 `replace_selection!` runs `_sync_selection!`, which walks both paths together.
 Where they diverge it installs the new suffix and **clears the old branch**
-([SelectionDefaults.jl:196](../../package/kernel/main/selection/SelectionDefaults.jl#L196)):
+([SelectionDefaults.jl:196](../../source/kernel/selection/SelectionDefaults.jl#L196)):
 
 ```julia
 if old isa ConcreteReference
@@ -121,7 +121,7 @@ selectable. This is the pivot `@document` already documents.
 
 **Where it lives: the reference layer.** `@document` emits the injected field's
 type as an *expression*, resolved in the caller's module
-([DocumentMacro.jl:351-375](../../package/kernel/main/document/DocumentMacro.jl#L351)),
+([DocumentMacro.jl:351-375](../../source/kernel/document/DocumentMacro.jl#L351)),
 which is why the type has to be nameable in every module that declares a
 document. The macro's own comment says a module that declares documents
 necessarily uses the reference layer. So a `SelectionDocument` declared there
@@ -217,7 +217,7 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
 0. ✅ **Done. A tab switch bypasses the selection writer.**
    `evaluate_operation(editor, ::SelectTabOperation)` now calls `replace_selection!`
    on the widget
-   ([Widget.jl:2027-2030](../../package/widget/main/Widget.jl#L2027)), not a bare
+   ([Widget.jl:2027-2030](../../source/widget/Widget.jl#L2027)), not a bare
    field assignment. The widget stays the root, so the identity rooting is
    unchanged; only the writer runs.
 1. ✅ **Done. The cell holds three shapes.** `nothing`, a bare `Reference`, or a
@@ -236,13 +236,13 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
    edited document and sometimes a projection output:
    - `make_widget_tabbed_pane_document_example` and
      `make_widget_split_pane_document_example` build a widget **as the document**
-     ([Widget.jl:379](../../package/substrate/example/document/Widget.jl#L379),
-     [:284](../../package/substrate/example/document/Widget.jl#L284)). The writer
+     ([Widget.jl:379](../../example/substrate/document/Widget.jl#L379),
+     [:284](../../example/substrate/document/Widget.jl#L284)). The writer
      walks it, so the method on the widget fires.
    - The pane examples build a `PaneTree`. There the widget tree is the iomap
      output, which the writer never reaches, and the widget's selection is not
      stored at all — `_forward_selection!` makes it a computed image
-     ([PaneToWidget.jl:177](../../package/pane/main/PaneToWidget.jl#L177)). Only the
+     ([PaneToWidget.jl:177](../../source/pane/PaneToWidget.jl#L177)). Only the
      method on the pane documents fires.
 5. ✅ **Done. A printer maps an absent selection too.** `map_selection_forward`
    answers `nothing` for a document that holds no selection. That is right for a
@@ -250,9 +250,9 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
    that, and both pass `map_missing = true`:
    - `_compose_node_selection` case 4 promotes the **first child's** caret when the
      node holds none of its own
-     ([SyntaxToText.jl:802](../../package/syntax/main/SyntaxToText.jl#L802)).
+     ([SyntaxToText.jl:802](../../source/syntax/SyntaxToText.jl#L802)).
    - `_atomic_print`'s unbound branch calls the mapper unconditionally
-     ([ProjectionTemplate.jl:401](../../package/kernel/main/projection/ProjectionTemplate.jl#L401)),
+     ([ProjectionTemplate.jl:401](../../source/kernel/projection/ProjectionTemplate.jl#L401)),
      because a projection that *introduces* a selection answers a real image for
      `nothing`.
 
@@ -263,14 +263,14 @@ caret. A `JsonObject` is not a keeper, so ∅ on it stays ∅.
    reader's output down to that pane. A reader that claims the click matches the
    **tail** resolves the prefix to find which pane was clicked, and matches that
    pane against its own children by identity, falling through when no child owns
-   the pane ([WorkbenchToWidget.jl](../../package/workbench/main/WorkbenchToWidget.jl)).
+   the pane ([WorkbenchToWidget.jl](../../source/workbench/WorkbenchToWidget.jl)).
 
 ## What the rendering costs
 
 A selection is painted in few places. In the text pipeline it is **one**:
 `TextToGraphics` builds a single `overlay` cell and drives one `cursor_rect` plus
 the highlight rects from it
-([TextToGraphics.jl:282-309](../../package/text/main/TextToGraphics.jl#L282)).
+([TextToGraphics.jl:282-309](../../source/text/TextToGraphics.jl#L282)).
 Widgets that paint their own selection band are a second, smaller family.
 
 The property reads are mostly **mapping** code — forward and backward maps,

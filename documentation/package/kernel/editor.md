@@ -3,7 +3,7 @@
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
 that responds to user input. The implementation lives in
-[package/kernel/main/editor/Editor.jl](../../../package/kernel/main/editor/Editor.jl), whose `run_editor!`
+[package/kernel/main/editor/Editor.jl](../../../source/kernel/editor/Editor.jl), whose `run_editor!`
 function is the entry point.
 
 ## The Editor struct
@@ -223,7 +223,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
 launches it on `http://127.0.0.1:9876/mcp` via the `make_agent_server(:mcp, …)`
 seam (see
-[package/kernel/main/agent/AgentServer.jl](../../../package/kernel/main/agent/AgentServer.jl)). The server
+[package/kernel/main/agent/AgentServer.jl](../../../source/kernel/agent/AgentServer.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
@@ -277,7 +277,7 @@ every lower layer into the frame-by-frame drive — read from the device, evalua
 the gesture into an operation, apply the operation to the document, print the
 document through the projection, tick the clock.
 
-The layer lives in [main/editor/](../main/editor/):
+The layer lives in [main/editor/](../../../source/kernel/editor/):
 
 ```
 Editor.jl    (EditorModule)    — the run_editor! loop and Editor struct
@@ -322,7 +322,7 @@ reuse the four sub-steps) and `OperationModule` (to preview
 
 ### Testing
 
-The per-layer editor test folder, [test/editor/](../test/editor/), drives
+The per-layer editor test folder, [test/editor/](../../../test/kernel/editor/), drives
 the loop against the dependency-free `HeadlessBackend` from
 `ProjecturedKernelExample` — one place the loop can be exercised without any real backend
 package, and the biggest current kernel-local test gap.

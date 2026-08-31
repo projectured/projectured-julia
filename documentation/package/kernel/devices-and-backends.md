@@ -9,8 +9,8 @@ panel) without modifying existing backends beyond the device's own
 dispatch.
 
 The abstract interfaces live in
-[backend/BackendInterface.jl](../../../package/kernel/main/backend/BackendInterface.jl) and
-[device/Device.jl](../../../package/kernel/main/device/Device.jl). There are three backends: the
+[backend/BackendInterface.jl](../../../source/kernel/backend/BackendInterface.jl) and
+[device/Device.jl](../../../source/kernel/device/Device.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).
@@ -54,7 +54,7 @@ happened and decides no meaning, so it must not turn one key into a quit before
 any reader has seen it — a dialog, an insertion and the command palette all bind
 Escape, and a quit cannot be declined. The editor loop quits on an unmodified
 Escape that the pipeline did not handle, in the same place it recognises the
-readability zoom (`read!` in [editor/Editor.jl](../../../package/kernel/main/editor/Editor.jl)).
+readability zoom (`read!` in [editor/Editor.jl](../../../source/kernel/editor/Editor.jl)).
 
 ## Backends
 
@@ -77,7 +77,7 @@ There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
 
 ### SdlBackend
 
-`SdlBackend` (in [package/sdl/main/ProjecturedSdl.jl](../../../package/sdl/main/ProjecturedSdl.jl)) implements
+`SdlBackend` (in [package/sdl/main/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
 - A font measurement cache shared across all windows.
@@ -90,7 +90,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [package/console/main/Console.jl](../../../package/console/main/Console.jl))
+`ConsoleBackend` (in [package/console/main/Console.jl](../../../source/console/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -108,7 +108,7 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - Because the console has no screen/window layer, the pipeline supplies its own
   window-input-unwrapping seam — `WindowInputUnwrappingProjection`
-  ([projection/higherorder/WindowInputUnwrapping.jl](../../../package/kernel/main/projection/higherorder/WindowInputUnwrapping.jl))
+  ([projection/higherorder/WindowInputUnwrapping.jl](../../../source/projection/higherorder/WindowInputUnwrapping.jl))
   — that strips the `WindowInput` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
 - **Limitation:** character-level text editing (cursor left/right, insertion,
@@ -121,11 +121,11 @@ Run it with `run_console_example()` (one-shot) or
 
 ### WebBackend
 
-`WebBackend` ([package/web/main/ProjecturedWeb.jl](../../../package/web/main/ProjecturedWeb.jl)) runs the editor
+`WebBackend` ([package/web/main/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl)) runs the editor
 inside an HTTP + WebSocket server and moves the **final rendering step into the
 browser**. The Julia process keeps the document, projection pipeline, reactive
 cells, and the read-eval-print loop; a connected JavaScript client
-([package/web/assets/](../../../package/web/assets/)) is a thin terminal that captures raw mouse and
+([package/web/assets/](../../../asset/web/)) is a thin terminal that captures raw mouse and
 keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 
 ```
@@ -221,7 +221,7 @@ both directions; the SDL-texture `Ptr` image form is skipped (decoded RGBA
 buffers are sent as base64). SDL stays the default; the web backend is additive
 and selected explicitly.
 
-[package/web/main/ProjecturedWeb.jl](../../../package/web/main/ProjecturedWeb.jl) is a worked second example: it
+[package/web/main/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl) is a worked second example: it
 adds a whole new transport (HTTP + WebSocket, with the renderer living in a
 browser) yet touches no projection or domain code, precisely because it speaks
 the same event vocabulary and consumes the same `ScreenDocument` output as the
@@ -235,15 +235,15 @@ export lives alongside the backend layer but does **not** subtype
 `Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
 file:
 
-- **`write_image`** ([package/sdl/main/ProjecturedSdl.jl](../../../package/sdl/main/ProjecturedSdl.jl)) rasterizes a
+- **`write_image`** ([package/sdl/main/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([package/pdf/main/Pdf.jl](../../../package/pdf/main/Pdf.jl)) walks the same
+- **`write_pdf`** ([package/pdf/main/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
   `sdl_measure_text`.
 
-See [the graphics guide](../../../package/graphics/doc/graphics.md) for both APIs.
+See [the graphics guide](../graphics/graphics.md) for both APIs.
 
 ## Projections that need the backend
 
@@ -300,7 +300,7 @@ Layer 3 of the kernel — **input events and the pattern language**. The layer
 depends on nothing: an event is data, and knows neither the device that
 produced it nor the document it will end up changing.
 
-The layer lives in [main/event/](../../../package/kernel/main/event/):
+The layer lives in [main/event/](../../../source/kernel/event/):
 
 ```
 EventModule.jl   (EventModule)        — the input event vocabulary, five fragments:
@@ -334,11 +334,11 @@ vocabulary, not a document type; the window *document* and its operations
 
 One surface syntax for saying "this kind of event, with these field values
 and these modifiers held", ridden by two consumers: an
-[`EventPattern`](../../../package/kernel/main/event/EventPattern.jl) is
+[`EventPattern`](../../../source/kernel/event/EventPattern.jl) is
 *data* answering `matches(pattern, event)` and `describe(pattern)` — the
 per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
 type and its most-constrained field, all producing the one generic
-`EventPattern{E<:Event}` struct; [`@event_case`](../../../package/kernel/main/event/EventPattern.jl)
+`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventPattern.jl)
 compiles a table of `pattern => result` rules straight to `isa`/field tests,
 first match wins. Both ride on one parser — exported as a macro-authoring API
 (`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
@@ -367,7 +367,7 @@ a screen's resolution and HiDPI scale, a mouse's button count and scroll wheel,
 a keyboard's layout — but interprets nothing, so this layer names no document,
 no operation, and no backend type, and has no imports of its own.
 
-The layer lives in [main/device/](../../../package/kernel/main/device/):
+The layer lives in [main/device/](../../../source/kernel/device/):
 
 ```
 DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
@@ -393,7 +393,7 @@ endofunction on the event stream — events in, events out — so this layer
 names no document and no operation; what a gesture *means* is decided by
 whoever binds it, in the `binding/` layer far above.
 
-The layer lives in [main/gesture/](../../../package/kernel/main/gesture/) as
+The layer lives in [main/gesture/](../../../source/kernel/gesture/) as
 one module:
 
 ```
@@ -416,7 +416,7 @@ Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
 packages, and the dependency-free `HeadlessBackend` test double lives in
 `ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
-The layer lives in [main/backend/](../../../package/kernel/main/backend/):
+The layer lives in [main/backend/](../../../source/kernel/backend/):
 
 ```
 BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
@@ -434,7 +434,7 @@ Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 and add methods for their own `::MyBackend` type. A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
 pick a backend without depending on its package uses
-[`ProjecturedExample.default_backend`](../../projectured/example/DefaultBackend.jl),
+[`ProjecturedExample.default_backend`](../../../example/projectured/DefaultBackend.jl),
 which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.
@@ -478,7 +478,7 @@ pulls gesture bindings up to layer 11 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
 event/device/gesture layers above.
 
-The layer lives in [main/binding/](../../../package/kernel/main/binding/):
+The layer lives in [main/binding/](../../../source/kernel/binding/):
 
 ```
 GestureBinding.jl (GestureBindingModule) — GestureBinding, the per-document-type
@@ -490,7 +490,7 @@ A `GestureBinding` is reified *data*: an `EventPattern` (what fires it, and
 how it is described) + `operation(document, event) -> Operation | Nothing` +
 an `applicable(document, selection) -> Bool` precondition + a human
 `description` + a `domain` tag + an optional `name` — the same declaration both
-fires the edit and can be listed to a user. [`@gestures`](../../../package/kernel/main/binding/Gestures.jl)
+fires the edit and can be listed to a user. [`@gestures`](../../../source/kernel/binding/Gestures.jl)
 emits the `get_document_gesture_bindings_own` method holding a type's own
 table; `get_document_gesture_bindings` walks it plus every supertype's.
 `fire_gesture_bindings(bindings, target, selection, event)` is the one firing
@@ -554,7 +554,7 @@ gesture rendering (`"Ctrl+K"`), which is not a command name.
 
 This is what puts an operation in front of a user without spending a key on it.
 The command palette in the domain package lists these by name; see
-[the gesturemap slice](../../domain/main/gesturemap/CommandPalette.jl).
+[the gesturemap slice](../../../source/gesturehelp/CommandPalette.jl).
 
 ### Downward edges
 

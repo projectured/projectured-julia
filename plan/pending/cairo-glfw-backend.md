@@ -41,13 +41,13 @@ is closest to the SDL-free one:
 - The **`Backend` / `Device` split** is designed for this. A new backend needs
   only `init!`, `quit!`, `measure_text`, `read_from_devices`, `write_to_devices`
   (+ optional `pointer_position`, `display_size` provider). See
-  [package/kernel/doc/devices-and-backends.md](../../package/kernel/doc/devices-and-backends.md)
+  [package/kernel/doc/devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md)
   §"Adding a new backend".
 - **`write_to_devices(::CairoBackend, devices, ::ScreenDocument)`** is the same
   window-reconciliation loop as SDL's (diff desired `WindowDocument.id`s against
   live windows; open/close/update-geometry; render each window's `content`
   canvas). Copy the shape of `write_to_devices(::SdlBackend, …)` and
-  `_update_window_geometry!` in [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl).
+  `_update_window_geometry!` in [package/sdl/main/ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl).
 - **Input is *better* than SDL's**: GLFW delivers events through callbacks with a
   clean, portable key enum (`GLFW.KEY_LEFT`, …) instead of SDL's magic keysym
   integers. We translate to the same backend-agnostic vocabulary

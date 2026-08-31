@@ -9,7 +9,7 @@ backend choice is fixed ("baked in") or selectable at runtime ("delayed").
 ## Building
 
 The build interface is a plain Julia function, `build_executable` (in the
-[`ProjecturedBuilder`](builder/) package) — there is no CLI and no build script.
+[`ProjecturedBuilder`](../../../package/ProjecturedBuilder/) package) — there is no CLI and no build script.
 Name the backend by its real type, so load its package first (`using ProjecturedSdl`
 for `SdlBackend`, `using ProjecturedWeb` for `WebBackend`; `ConsoleBackend` comes with
 `Projectured`). The repository root environment resolves both packages:
@@ -44,7 +44,7 @@ build_executable(BuildSpec(; domain=:json, backends=[SdlBackend]); compile=false
 The compile has to `Pkg.activate` the app environment; `build_executable` restores
 the caller's active project on the way out, so a REPL session is left where it was.
 
-`build_executable` (1) generates [`main/AppConfig.jl`](main/) — the baked
+`build_executable` (1) generates [`main/AppConfig.jl`](../../../package/ProjecturedExecutable/) — the baked
 configuration constants plus the `using` line(s) for exactly the compiled-in
 backends; (2) develops the local Projectured packages it needs by path (so they
 resolve without a registry); and (3) runs `create_app`.
@@ -64,7 +64,7 @@ resolve without a registry); and (3) runs `create_app`.
 | `mcp` | `false` | start an MCP server alongside the editor loop |
 
 The generated `main/AppConfig.jl` is git-ignored; the checked-in
-[`main/AppConfig.default.jl`](main/AppConfig.default.jl) (the v1 spec) is the fallback
+[`main/AppConfig.default.jl`](../../../package/ProjecturedExecutable/src/AppConfig.default.jl) (the v1 spec) is the fallback
 used when no build has run yet.
 
 ## Running the produced binary

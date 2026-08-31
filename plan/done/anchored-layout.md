@@ -2,15 +2,15 @@
 
 > **Status (2026-08-12): DONE.** `AnchoredEntry`, `AnchoredLayout`, and
 > `compute_anchored_positions` are implemented in
-> [package/layout/main/Layout.jl](../../package/layout/main/Layout.jl).
+> [package/layout/main/Layout.jl](../../source/layout/Layout.jl).
 > `AnchoredLayoutToGraphicsCanvas` is implemented and wired into the
 > `LayoutToGraphics` factory in
-> [package/layout/main/LayoutToGraphics.jl](../../package/layout/main/LayoutToGraphics.jl).
+> [package/layout/main/LayoutToGraphics.jl](../../source/layout/LayoutToGraphics.jl).
 > Tests cover placement, stacking, reference-based targets, and bounding
 > regions in
-> [package/substrate/test/projection/AnchoredLayoutTest.jl](../../package/substrate/test/projection/AnchoredLayoutTest.jl),
+> [package/substrate/test/projection/AnchoredLayoutTest.jl](../../test/substrate/projection/AnchoredLayoutTest.jl),
 > and an example use appears in
-> [package/substrate/example/document/Layout.jl](../../package/substrate/example/document/Layout.jl).
+> [package/substrate/example/document/Layout.jl](../../example/substrate/document/Layout.jl).
 > The built design differs from the draft below: fields are named `target`/
 > `reference` (not `target_document`/`target_reference`), there is no
 > `show_leader` field, and Phase 6 (line-leader connector rendering) is not
@@ -160,18 +160,18 @@ After placement, anchored children may be offset from their targets. Add optiona
 ## Implementation Steps
 
 1. ✅ DONE (2026-08-12) — `AnchoredEntry` and `AnchoredLayout` document types are in
-   [package/layout/main/Layout.jl](../../package/layout/main/Layout.jl).
+   [package/layout/main/Layout.jl](../../source/layout/Layout.jl).
 2. ✅ DONE (2026-08-12) — `compute_anchored_positions` is a pure algorithm in the
    same file.
 3. ✅ DONE (2026-08-12) — `AnchoredLayoutToGraphicsCanvas` is in
-   [package/layout/main/LayoutToGraphics.jl](../../package/layout/main/LayoutToGraphics.jl).
+   [package/layout/main/LayoutToGraphics.jl](../../source/layout/LayoutToGraphics.jl).
 4. ✅ DONE (2026-08-12) — Target resolution is `_al_target_rect`/`_al_rect_of` in the
    same file (a different name than the draft's `resolve_target_position`, same role).
 5. ✅ DONE (2026-08-12) — `AnchoredLayout => AnchoredLayoutToGraphicsCanvas()` is wired
    into the `LayoutToGraphics()` factory; both symbols are exported from their modules.
 6. ⏳ OPEN — Line-leader rendering (`show_leader`, connector lines) is not built.
 7. ✅ DONE (2026-08-12) — Tests exist in
-   [package/substrate/test/projection/AnchoredLayoutTest.jl](../../package/substrate/test/projection/AnchoredLayoutTest.jl).
+   [package/substrate/test/projection/AnchoredLayoutTest.jl](../../test/substrate/projection/AnchoredLayoutTest.jl).
 
 ## Examples
 

@@ -64,7 +64,7 @@ project
 Whether a layer is materialised as a folder is a code-organisation detail, not
 part of the definition. Today each kernel layer happens to be a folder, and the
 static layering guard
-([CheckLayering.jl](../package/kernel/test/layering/CheckLayering.jl)) enforces
+([CheckLayering.jl](../test/kernel/layering/CheckLayering.jl)) enforces
 both rules — the ordered layers of the kernel, which is the one package that
 declares them, and the topological include order of every other package.
 

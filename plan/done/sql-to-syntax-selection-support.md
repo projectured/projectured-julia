@@ -299,7 +299,7 @@ end
 > `test/src/editor/SelectionTest.jl` also does not exist. The live mechanism used
 > by the SQL selection test is **`test_position_navigation(label, document,
 > projection)`**, defined in
-> [package/substrate/test/editor/NavigationPresets.jl](../../package/substrate/test/editor/NavigationPresets.jl)
+> [package/substrate/test/editor/NavigationPresets.jl](../../test/substrate/editor/NavigationPresets.jl)
 > (this is itself a later rename of the `test_text_navigation` name this file's
 > 2026-06-23 audit pointed to — that name is gone too). The *intent* (SDL-free
 > deterministic measure + Sql→Syntax→Text→Graphics pipeline) is **✅ DONE**, but

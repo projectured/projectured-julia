@@ -273,13 +273,13 @@ concreteness buys nothing there.
 ### Why the styles want it
 
 `DStyleText` has 454 uses and they all look like
-[CollectionToSyntax.jl:35](../../package/syntax/main/CollectionToSyntax.jl#L35):
+[CollectionToSyntax.jl:35](../../source/syntax/CollectionToSyntax.jl#L35):
 
 ```julia
 delim::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
 ```
 
-The comment at [StyleText.jl:28](../../package/style/main/StyleText.jl#L28) says
+The comment at [StyleText.jl:28](../../source/style/StyleText.jl#L28) says
 why: "`DStyleText` is concrete and inlines in config cells". A field cannot inline
 a UnionAll, so those sites had to reach past the bare name. With `[DC]` they write
 `ImmutableCell{StyleText}` and the `D` prefix leaves the source.

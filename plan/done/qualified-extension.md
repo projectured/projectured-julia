@@ -105,7 +105,7 @@ Confirmed against the real Julia in this environment, not assumed:
 
 ## The one real cost: PAR-MODULE-BOUNDARY-IS-API loses coverage unless the guard is extended
 
-`check_private_imports` in [package/kernel/test/layering/CheckLayering.jl](../../package/kernel/test/layering/CheckLayering.jl)
+`check_private_imports` in [package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
 collects imported symbols only from the `import X: a, b` form (the `:(:)` head, ~L85).
 
 Qualification **bypasses exports entirely** — verified: `X.internal_helper()` reaches a
@@ -223,8 +223,8 @@ Generics: `initialize_backend!`, `quit_backend!` (8 sites). Note these files als
 
 - [x] [package/kernel/main/backend/HeadlessBackend.jl](../../package/kernel/main/backend/HeadlessBackend.jl) — via `..BackendModule`
 - [x] [package/visual/main/backend/Console.jl](../../package/visual/main/backend/Console.jl) — via `..BackendApiModule` (alias)
-- [x] [package/sdl/main/ProjecturedSdl.jl](../../package/sdl/main/ProjecturedSdl.jl) — via `ProjecturedDomain.BackendApiModule`
-- [x] [package/web/main/ProjecturedWeb.jl](../../package/web/main/ProjecturedWeb.jl) — via `ProjecturedDomain.BackendApiModule`
+- [x] [package/sdl/main/ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl) — via `ProjecturedDomain.BackendApiModule`
+- [x] [package/web/main/ProjecturedWeb.jl](../../package/ProjecturedWeb/src/ProjecturedWeb.jl) — via `ProjecturedDomain.BackendApiModule`
 
 ### Method
 
