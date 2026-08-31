@@ -8,6 +8,7 @@ version = "0.1.0"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
@@ -33,6 +34,7 @@ ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
 [sources]
+ProjecturedAssistant = {path = "../../assistant/main"}
 ProjecturedBookExample = {path = "../../book/example"}
 ProjecturedChartExample = {path = "../../chart/example"}
 ProjecturedConversationExample = {path = "../../conversation/example"}

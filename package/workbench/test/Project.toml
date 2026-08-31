@@ -8,6 +8,7 @@ entryfile = "ProjecturedWorkbenchTest.jl"
 # ProjecturedTest, which is where a fixture that names several domains belongs.
 
 [deps]
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedComponent = "94db0aeb-e7ca-45ac-ad76-29882a6d5dc2"
@@ -54,6 +55,7 @@ ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedAssistant = {path = "../../assistant/main"}
 ProjecturedClipboard = {path = "../../clipboard/main"}
 ProjecturedCollection = {path = "../../collection/main"}
 ProjecturedComponent = {path = "../../component/main"}

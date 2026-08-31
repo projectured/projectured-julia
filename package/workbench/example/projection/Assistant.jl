@@ -26,7 +26,7 @@ conversation_widget_entry(; measure=truetype_measure_text) =
 """
     make_assistant_projection_example(; measure=truetype_measure_text)
 
-Build a projection chain that takes a `WorkbenchAssistant` to a
+Build a projection chain that takes a `Assistant` to a
 `GraphicsCanvas`. Unlike the full workbench projection, this chain is
 focused on the assistant alone — no tabs, no navigator, no editor.
 

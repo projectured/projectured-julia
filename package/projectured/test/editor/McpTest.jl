@@ -1,6 +1,6 @@
 using Test
 using ProjecturedKernel.ToolModule
-using ProjecturedWorkbench.WorkbenchAssistantModule: SubmitJuliaOperation, _eval_result
+using ProjecturedAssistant.AssistantTurnModule: SubmitJuliaOperation, _eval_result
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -454,7 +454,7 @@ function test_workbench_editor_reference()
     @testset "workbench editor reference" begin
         tools = register_default_tools!(ToolSet())
 
-        a = WorkbenchAssistant(; llm = FakeLlm("ok"))
+        a = Assistant(; llm = FakeLlm("ok"))
         a.input.value = "editor !== nothing"
         a.input.selection = ConcreteReference(
             FieldReferenceStep("value"),
@@ -469,7 +469,7 @@ function test_workbench_editor_reference()
         @test occursin("true", _eval_result(exec))
         @test !exec.is_error
 
-        a.input.value = "editor.document isa WorkbenchAssistant"
+        a.input.value = "editor.document isa Assistant"
         a.input.selection = ConcreteReference(
             FieldReferenceStep("value"),
             ConcreteReference(RangeReferenceStep(0, length(a.input.value)),

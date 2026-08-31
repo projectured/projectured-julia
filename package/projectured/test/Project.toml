@@ -6,6 +6,7 @@ entryfile = "ProjecturedTest.jl"
 
 [deps]
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
@@ -54,6 +55,7 @@ ProjecturedYamlTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedAssistant = {path = "../../assistant/main"}
 ProjecturedBookTest = {path = "../../book/test"}
 ProjecturedChartTest = {path = "../../chart/test"}
 ProjecturedCollection = {path = "../../collection/main"}

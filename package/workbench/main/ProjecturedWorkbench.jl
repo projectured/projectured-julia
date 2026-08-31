@@ -4,8 +4,11 @@
 The workbench application.
 
 The top of the domain stack: a workspace of open documents, its tab and pane
-shell, the widget projection that draws it, the assistant panel, and the file
-wrapper that saves a whole workbench.
+shell, the widget projection that draws it, and the file wrapper that saves a
+whole workbench.
+
+The assistant is `ProjecturedAssistant`'s. It is a panel here like any other, and
+a program that wants one beside its own panes takes that package alone.
 
 It opens a document of any kind, and it names none of them: a file is read by
 `import_document`, which asks the natural-format seam, and the assistant's
@@ -19,6 +22,7 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedWorkbench
 
+using ProjecturedAssistant
 using ProjecturedCollection
 using ProjecturedConversation
 using ProjecturedFileFormat
@@ -34,7 +38,7 @@ using ProjecturedWidget
 using ProjecturedConversation
 using ProjecturedFileSystem
 
-for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
@@ -49,12 +53,9 @@ include("Workspace.jl")
 include("Workbench.jl")
 include("WorkspaceToFileSystem.jl")
 include("WorkbenchToWidget.jl")
-include("WorkbenchAssistant.jl")
 include("WorkbenchFile.jl")
 
-# What a draft's ENTER and ALT+ENTER mean. Runtime state in the composer's own
-# package, so it is registered on load rather than baked into an image — and
-# from HERE, because Julia calls `__init__` on a package's top-level module only.
-__init__() = WorkbenchAssistantModule.register_draft_handlers!()
+# The draft's key handlers are registered by `ProjecturedAssistant`, which owns
+# them now.
 
 end # module ProjecturedWorkbench

@@ -48,7 +48,7 @@ for _src in (ProjecturedKernelExample, ProjecturedSubstrateExample,
 end
 # Loaded so the assistant example can use a real Claude model when
 # ANTHROPIC_API_KEY is set: it defines the `AnthropicLlm` backend and its
-# `stream_turn` method, which `WorkbenchAssistant` discovers by reflection.
+# `stream_turn` method, which `Assistant` discovers by reflection.
 # The assistant *example documents* pass an explicit `FakeLlm` for offline use.
 using ProjecturedLlm
 

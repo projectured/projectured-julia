@@ -1,8 +1,8 @@
 """
-    WorkbenchAssistantModule
+    AssistantTurnModule
 
 Operations, streaming orchestration, and message building for the
-in-editor AI chat surface. Glue between `WorkbenchModule.WorkbenchAssistant`, the
+in-editor AI chat surface. Glue between `WorkbenchModule.Assistant`, the
 editor's `ToolSet`, and the `LlmModule` provider seam.
 
 Submit flows:
@@ -25,7 +25,7 @@ Internal helpers:
   become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
   block, when it closes.
 """
-module WorkbenchAssistantModule
+module AssistantTurnModule
 
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule
@@ -46,9 +46,9 @@ import ..ReferenceModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
                               ConversationThinking, thinking_part
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
-import ..WorkbenchModule: WorkbenchAssistant
-import ..WorkbenchToWidgetModule: WorkbenchAssistantToWidgetSplitPane,
-                                   WorkbenchAssistantToWidgetCard
+import ..AssistantModule: Assistant
+import ..AssistantToWidgetModule: AssistantToWidgetSplitPane,
+                                   AssistantToWidgetCard
 import ..EventModule: KeyDown
 import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
                       register_default_tools!, execute_julia_code, last_evaluated_value
@@ -87,7 +87,7 @@ Snapshot `assistant.input` into a user message, clear the input,
 flip `status` to `:streaming`, and launch an async Claude turn.
 """
 struct SubmitProseOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 """
@@ -98,7 +98,7 @@ Snapshot `assistant.input`, parse it as Julia, evaluate via the shared
 Synchronous (no network).
 """
 struct SubmitJuliaOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 """
@@ -107,7 +107,7 @@ end
 Empty `assistant.input`.
 """
 struct ClearInputOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 """
@@ -116,7 +116,7 @@ end
 Drop all messages from `assistant.conversation` and clear the input.
 """
 struct ResetConversationOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -198,7 +198,7 @@ _part_text(p::ConversationPart) = _content_to_string(p.content)
 _eval_code(ef::EvaluatorForm)   = _doc_source(ef.form)
 _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 
-function _set_input!(a::WorkbenchAssistant, s::AbstractString)
+function _set_input!(a::Assistant, s::AbstractString)
     a.input.value = String(s)
     n = length(s)
     a.input.selection = @reference(a.input, value{n})
@@ -250,7 +250,7 @@ end
 # Flip to streaming and launch the agent loop on a task. `FakeLlm` synthesises
 # events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
 # same `_handle_llm_event!` consumes both, because both speak `LlmEvent`.
-function _launch_agent_turn!(editor, a::WorkbenchAssistant)
+function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     @async begin
         try
@@ -287,7 +287,7 @@ This is what the panel emits when the composer's `ComposerSubmitOperation` fires
 (ENTER on a text typein).
 """
 struct SubmitDraftTurnOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 function evaluate_operation(editor, op::SubmitDraftTurnOperation)
@@ -320,7 +320,7 @@ No Claude call now. The next prose turn synthesises the evaluation into the
 history, which is what `build_messages` already does with an `EvaluatorForm`.
 """
 struct EvaluateDraftTurnOperation <: Operation
-    assistant::WorkbenchAssistant
+    assistant::Assistant
 end
 
 # Both of these name the ASSISTANT they act on rather than a path into one, so
@@ -574,10 +574,10 @@ end
 Write the assistant's chat history to `path` as a readable transcript (the same
 rendering as `conversation_to_string`: `Role:` headers, prose / fenced source
 blocks, `> code` / `= result` for tool calls, `∴` for thinking). Accepts a
-`WorkbenchAssistant` (uses its `.conversation`) or a `ConversationConversation`
+`Assistant` (uses its `.conversation`) or a `ConversationConversation`
 directly. Returns `path`.
 """
-write_conversation(a::WorkbenchAssistant, path::AbstractString) =
+write_conversation(a::Assistant, path::AbstractString) =
     write_conversation(a.conversation, path)
 
 function write_conversation(conversation::ConversationConversation, path::AbstractString)
@@ -614,7 +614,7 @@ function _discover_remote_llm(api_key::AbstractString, model::AbstractString)
     nothing
 end
 
-function _run_agent_loop!(editor, a::WorkbenchAssistant)
+function _run_agent_loop!(editor, a::Assistant)
     # The real backend's `stream_turn` errors with a clear HTTP message if the
     # API key is empty, so leave key validation to the backend.
     set = editor.tools
@@ -630,7 +630,7 @@ function _run_agent_loop!(editor, a::WorkbenchAssistant)
     if llm === nothing
         llm = isempty(key) ? nothing : _discover_remote_llm(key, a.model)
         llm === nothing && error(
-            "WorkbenchAssistant: no LLM backend available. Set ANTHROPIC_API_KEY " *
+            "Assistant: no LLM backend available. Set ANTHROPIC_API_KEY " *
             "and load ProjecturedLlm for real Claude, or construct the assistant " *
             "with an explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample " *
             "in tests/examples).")
@@ -893,24 +893,24 @@ end
 # `ComposerSubmitOperation` (ENTER on a text typein) — which merely normalizes the
 # draft — and turn it into a `SubmitDraftTurnOperation` that pushes the draft into
 # the conversation and launches a streaming turn.
-function read_intent(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::AssistantToWidgetSplitPane,
                           iomap, op::ComposerSubmitOperation)
-    iomap.input isa WorkbenchAssistant || return op
-    SubmitDraftTurnOperation(iomap.input::WorkbenchAssistant)
+    iomap.input isa Assistant || return op
+    SubmitDraftTurnOperation(iomap.input::Assistant)
 end
 
 # Fallback for when the composer chain declines a raw key (so it reaches the
 # panel directly): route it to the draft, intercepting submit as above.
-function read_intent(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::AssistantToWidgetSplitPane,
                           iomap, evt::KeyPress)
-    iomap.input isa WorkbenchAssistant || return nothing
+    iomap.input isa Assistant || return nothing
     composer_read(iomap.input.draft, evt)
 end
 
-function read_intent(::WorkbenchAssistantToWidgetSplitPane,
+function read_intent(::AssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
-    iomap.input isa WorkbenchAssistant || return nothing
-    a = iomap.input::WorkbenchAssistant
+    iomap.input isa Assistant || return nothing
+    a = iomap.input::Assistant
     composer_host_op(a, composer_read(a.draft, evt))
 end
 
@@ -922,17 +922,17 @@ end
 # enclosing renderer draws. Routing them here is what lets an assistant in the
 # middle of a page be typed into at all.
 
-read_intent(::WorkbenchAssistantToWidgetCard, iomap, evt::KeyPress) =
-    (a = iomap.input; a isa WorkbenchAssistant ?
+read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
+    (a = iomap.input; a isa Assistant ?
         composer_host_op(a, composer_read(a.draft, evt)) : nothing)
 
-read_intent(::WorkbenchAssistantToWidgetCard, iomap, evt::KeyDown) =
-    (a = iomap.input; a isa WorkbenchAssistant ?
+read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
+    (a = iomap.input; a isa Assistant ?
         composer_host_op(a, composer_read(a.draft, evt)) : nothing)
 
 # An operation the composer made below, said onward. `composer_host_op` is what
 # turns the two the assistant owns into its own; the rest pass.
-read_intent(::WorkbenchAssistantToWidgetCard, iomap, op::Operation) =
-    (a = iomap.input; a isa WorkbenchAssistant ? composer_host_op(a, op) : op)
+read_intent(::AssistantToWidgetCard, iomap, op::Operation) =
+    (a = iomap.input; a isa Assistant ? composer_host_op(a, op) : op)
 
 end # module

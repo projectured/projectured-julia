@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # test/editor/AssistantMvpTest.jl
 #
-# End-to-end test for the WorkbenchAssistant MVP. Drives the printer /
+# End-to-end test for the Assistant MVP. Drives the printer /
 # reader / evaluate_operation pipeline by hand — no SDL, no graphics
 # layout — and asserts the four scenes from
 # `plan/workbench-assistant-mvp.md`:
@@ -15,7 +15,7 @@
 # Typing goes through the standard `PrimitiveString → Syntax → Text →
 # Graphics` chain (PrimitiveStringToSyntaxLeaf catches `KeyPress`).
 # Enter goes through `WorkbenchToWidget` so the
-# `WorkbenchAssistantToWidgetSplitPane.read_intent` handler fires.
+# `AssistantToWidgetSplitPane.read_intent` handler fires.
 # The test deliberately does not wire the full assistant → graphics
 # chain — that path is exercised by the standalone assistant example
 # (see [`make_assistant_only_example`](../example/Examples.jl)).
@@ -26,7 +26,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
-using ProjecturedWorkbench.WorkbenchAssistantModule: _text_to_string, _run_agent_loop!,
+using ProjecturedAssistant.AssistantTurnModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc
 import ProjecturedKernel.LlmModule: stream_turn,
@@ -58,7 +58,7 @@ function _input_chain()
 end
 
 # Chain that exercises the Enter keybinding. WorkbenchToWidget dispatches
-# WorkbenchAssistant to WorkbenchAssistantToWidgetSplitPane, whose
+# Assistant to AssistantToWidgetSplitPane, whose
 # read_intent for KeyDown :return returns SubmitProseOperation.
 function _workbench_chain()
     RecursiveProjection(WorkbenchToWidget())
@@ -67,7 +67,7 @@ end
 function make_assistant_mvp_setup(; reply::AbstractString = "Yes, sir!")
     # Use FakeLlm so the agent loop runs without network and produces a
     # deterministic reply.
-    a = WorkbenchAssistant(; llm = FakeLlm(reply))
+    a = Assistant(; llm = FakeLlm(reply))
     # Pre-seed selection so PrimitiveStringToSyntaxLeaf has a cursor to
     # work with on the first KeyPress.
     a.input.selection = ConcreteReference(
@@ -79,7 +79,7 @@ end
 # After SubmitProseOperation launches `_run_agent_loop!` on an @async task,
 # spin until status returns to `:idle` (or until the deadline). Tests must
 # observe the post-stream state.
-function _mvp_wait_idle!(a::WorkbenchAssistant; timeout_seconds::Real = 2.0)
+function _mvp_wait_idle!(a::Assistant; timeout_seconds::Real = 2.0)
     deadline = time() + timeout_seconds
     while a.status === :streaming && time() < deadline
         yield()
@@ -90,18 +90,18 @@ end
 
 # Type a string into the assistant's draft turn via the composer (Stage 6: the
 # input pane is the composer on `a.draft`, not the old PrimitiveString box).
-function _mvp_type!(a::WorkbenchAssistant, s::AbstractString)
+function _mvp_type!(a::Assistant, s::AbstractString)
     for c in s
         evaluate_operation(nothing, ComposerInputOperation(a.draft, string(c)))
     end
 end
 
 # The active typein's current text (the draft's last part, a PrimitiveString).
-_mvp_draft_text(a::WorkbenchAssistant) =
+_mvp_draft_text(a::Assistant) =
     something(a.draft.parts[length(a.draft.parts)].content.value, "")
 
 # Press Enter on the assistant panel and apply the resulting operation.
-function _mvp_enter!(a::WorkbenchAssistant)
+function _mvp_enter!(a::Assistant)
     chain = _workbench_chain()
     iomap = print_document(chain, a)
     op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys()))
@@ -195,7 +195,7 @@ end
 """
     test_assistant_mvp()
 
-Run the WorkbenchAssistant MVP test suite: the four scripted scenes
+Run the Assistant MVP test suite: the four scripted scenes
 plus the reactive-thunk probe. No SDL, no network.
 """
 function test_assistant_mvp()
@@ -226,7 +226,7 @@ function _mvp_test_resource_collapse()
                              Dict("uri" => "resource://guides")),
             _final_text_script("Read it."),
         ])
-        a = WorkbenchAssistant(; llm = llm)
+        a = Assistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("look it up")]))
         _run_agent_loop!((document = a, tools = tools), a)
 
@@ -312,7 +312,7 @@ end
 
 function _mvp_test_thinking_stream()
     @testset "thinking block captured from stream" begin
-        a = WorkbenchAssistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
+        a = Assistant(; llm = FakeLlm("Hello"; thinking = "Let me reason…"))
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("hi")]))
         tools = register_default_tools!(ToolSet())
         _run_agent_loop!((document = a, tools = tools), a)
@@ -452,7 +452,7 @@ function _mvp_test_scripted_builders()
                 stop_reason = "tool_use"),
             make_scripted_turn(make_scripted_say("Done."; delay = 0.0)),
         ]; delay = 0.0)
-        a = WorkbenchAssistant(; llm = llm)
+        a = Assistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute")]))
         _run_agent_loop!((document = a, tools = tools), a)
 
@@ -484,7 +484,7 @@ function _mvp_test_tool_use_roundtrip()
                              Dict("code" => "1+1")),
             _final_text_script("Done."),
         ])
-        a = WorkbenchAssistant(; llm = llm)
+        a = Assistant(; llm = llm)
         push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("compute 1+1")]))
 
         # Drive the agent loop synchronously (no @async) so we can assert

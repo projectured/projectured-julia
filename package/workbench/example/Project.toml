@@ -9,6 +9,7 @@ entryfile = "ProjecturedWorkbenchExample.jl"
 # that runs them, live in the ProjecturedExample umbrella.
 
 [deps]
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
@@ -62,6 +63,7 @@ ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
 [sources]
+ProjecturedAssistant = {path = "../../assistant/main"}
 ProjecturedBook = {path = "../../book/main"}
 ProjecturedBookExample = {path = "../../book/example"}
 ProjecturedClipboard = {path = "../../clipboard/main"}

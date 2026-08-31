@@ -74,6 +74,7 @@ import ProjecturedFormula
 import ProjecturedFsm
 import ProjecturedProcess
 import ProjecturedConversation
+import ProjecturedAssistant
 import ProjecturedWorkbench
 
 const _SOURCES = (ProjecturedKernel,
@@ -94,7 +95,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedChart, ProjecturedSequenceChart,
                   ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm,
                   ProjecturedProcess, ProjecturedConversation,
-                  ProjecturedWorkbench)
+                  ProjecturedAssistant, ProjecturedWorkbench)
 
 # A binding is re-exported when it is a submodule this source defines, or a
 # submodule of a package this source reaches but the list does not name. The

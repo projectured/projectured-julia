@@ -1,5 +1,5 @@
 # A standalone conversation document — the chat history on its own, with no
-# WorkbenchAssistant wrapper / input box. Lets the conversation rendering be
+# Assistant wrapper / input box. Lets the conversation rendering be
 # tested in isolation (`test_example(conversation_example)`,
 # `print_example(conversation_example)`, `write_example_image(...)`).
 #

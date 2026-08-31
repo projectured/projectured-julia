@@ -16,7 +16,7 @@ _conversation_widget_graphics(; measure=truetype_measure_text) =
         YamlDocument     => make_yaml_projection_example(measure=measure),
         XmlDocument      => make_xml_projection_example(measure=measure),
         # Assistant chat shows *rendered* markdown; the model still receives the raw
-        # source (WorkbenchAssistant `_block_text`/`_doc_source` use the source chain).
+        # source (Assistant `_block_text`/`_doc_source` use the source chain).
         MarkdownDocument => make_markdown_rendered_projection_example(measure=measure),
         # Pass a graphics document straight through; the layout sizes/places it
         # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).

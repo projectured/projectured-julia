@@ -125,12 +125,12 @@ and renders without a role/avatar header. It exists as its own document type onl
 so the composer can dispatch on it: without a distinct type, a
 `ConversationTurn => composer` projection entry would also turn the history turns
 into editable composers. The `parts` are mutated in place by the composer
-operations; `assistant` back-links the owning `WorkbenchAssistant` (or `nothing`
+operations; `assistant` back-links the owning `Assistant` (or `nothing`
 when standalone) so ENTER can submit the draft into the conversation.
 """
 @document struct ConversationDraft <: ConversationDocument
     parts::CellVector
-    assistant::Any        # the owning WorkbenchAssistant (or nothing, standalone)
+    assistant::Any        # the owning Assistant (or nothing, standalone)
 end
 
 ConversationDraft(parts::Vector, assistant = nothing) =

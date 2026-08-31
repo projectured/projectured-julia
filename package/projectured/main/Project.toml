@@ -12,6 +12,7 @@ ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedComponent = "94db0aeb-e7ca-45ac-ad76-29882a6d5dc2"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
@@ -63,6 +64,7 @@ ProjecturedCollection = {path = "../../collection/main"}
 ProjecturedComponent = {path = "../../component/main"}
 ProjecturedConsole = {path = "../../console/main"}
 ProjecturedConversation = {path = "../../conversation/main"}
+ProjecturedAssistant = {path = "../../assistant/main"}
 ProjecturedDatabase = {path = "../../database/main"}
 ProjecturedDbCatalog = {path = "../../dbcatalog/main"}
 ProjecturedDomain = {path = "../../domain/main"}

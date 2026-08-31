@@ -1,4 +1,4 @@
-# Stage 6 — the composer wired into the live WorkbenchAssistant panel.
+# Stage 6 — the composer wired into the live Assistant panel.
 # Submitting the draft turn (ENTER on a text typein → SubmitDraftTurnOperation)
 # pushes it into the conversation, resets the draft in place, and streams a reply.
 
@@ -14,7 +14,7 @@ end
 function test_assistant_composer_panel()
     @testset "Assistant composer panel (Stage 6)" begin
         @testset "panel renders + routes keys to the draft" begin
-            a = WorkbenchAssistant(; llm = FakeLlm("ok"))
+            a = Assistant(; llm = FakeLlm("ok"))
             proj = make_assistant_projection_example()
             iom = print_document(proj, a)
             @test iom.output isa GraphicsCanvas
@@ -23,7 +23,7 @@ function test_assistant_composer_panel()
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin
-            a = WorkbenchAssistant(; llm = FakeLlm("hello there"))
+            a = Assistant(; llm = FakeLlm("hello there"))
             for ch in "hi assistant"
                 evaluate_operation(nothing, ComposerInputOperation(a.draft, string(ch)))
             end
@@ -44,7 +44,7 @@ function test_assistant_composer_panel()
         end
 
         @testset "empty draft does not submit" begin
-            a = WorkbenchAssistant(; llm = FakeLlm("x"))
+            a = Assistant(; llm = FakeLlm("x"))
             evaluate_operation(nothing, SubmitDraftTurnOperation(a))
             @test length(a.conversation.turns) == 0
             @test a.status === :idle
@@ -60,7 +60,7 @@ function test_assistant_composer_panel()
             a = nothing
             for p in (:navigation_page, :editing_page, :information_page, :control_page)
                 for e in getfield(doc, p)[].elements
-                    e isa WorkbenchAssistant && (a = e)
+                    e isa Assistant && (a = e)
                 end
             end
             @test a !== nothing

@@ -3,6 +3,7 @@ Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
 ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
@@ -123,6 +124,7 @@ Projectured = {path = "package/projectured/main"}
 ProjecturedAdaptagrams = {path = "package/adaptagrams/main"}
 ProjecturedAdaptagramsExample = {path = "package/adaptagrams/example"}
 ProjecturedBench = {path = "bench"}
+ProjecturedAssistant = {path = "package/assistant/main"}
 ProjecturedBook = {path = "package/book/main"}
 ProjecturedBookExample = {path = "package/book/example"}
 ProjecturedBookTest = {path = "package/book/test"}

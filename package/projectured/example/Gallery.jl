@@ -670,7 +670,7 @@ function record_assistant_conversation_video(filename::AbstractString = tempname
     # A fresh assistant with a deterministic canned reply. The composer edits the
     # draft's active part (cursor defaults to end-of-value), so no selection seed
     # is needed for the keypresses to land.
-    assistant  = WorkbenchAssistant(; llm = FakeLlm(reply))
+    assistant  = Assistant(; llm = FakeLlm(reply))
     projection = make_assistant_projection_example()
 
     # A composer part-break: commit the active part and start the next one.

@@ -49,7 +49,7 @@ function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")
     descriptor = WorkbenchDescriptor(EmptyReference())
 
     # Example doc: explicit FakeLlm so the embedded assistant works offline.
-    assistant = WorkbenchAssistant(; llm = FakeLlm())
+    assistant = Assistant(; llm = FakeLlm())
     # Place a zero-width cursor inside the input so the first KeyPress lands
     # there even before the user clicks. Once the input renders, the existing
     # mouse-click chain keeps focus in sync.
@@ -88,7 +88,7 @@ make_workbench_navigator_document_example()  = WorkbenchNavigator(make_navigator
 make_workbench_page_document_example()       = WorkbenchPage([make_workbench_operator_document_example()])
 make_workbench_editor_document_example() =
     WorkbenchEditor(make_text_document_example(); title="readme.txt", filename="readme.txt")
-make_workbench_assistant_document_example() = WorkbenchAssistant(; llm = FakeLlm())
+make_workbench_assistant_document_example() = Assistant(; llm = FakeLlm())
 
 function make_workbench_workbench_document_example()
     nav_page     = WorkbenchPage([make_workbench_navigator_document_example()])
