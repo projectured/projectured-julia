@@ -204,11 +204,14 @@ them a name of their own either way.
 Each step is one commit. Do not run `test_all()` after each one — run the guard
 and the narrowest suite the step touches.
 
-1. [ ] **Write the guard.** `test/tree.jl`, ported from omnet-julia's, with the
-       five rules of §3. Four of them are vacuous today because `source/`,
-       `example/` and `environment/` do not exist. It must pass now, and every
-       step below must keep it passing. Register it in the suite that
-       `test_all()` runs.
+1. [x] **Write the guard.** — done, `test/suite/tree.jl`. It found five
+       violations on the tree as it stood, all of them the stray `Manifest.toml`
+       of a package that had become an environment, and they went in the same
+       commit. `package/repl/` is already at the flat depth, so the
+       per-directory half of the package rule is gated on the whole folder
+       rather than on each directory; it starts to bite at step 5.
+       `test_tree()` is exported from `ProjecturedTest` and runs first in
+       `test_all()`.
 2. [ ] **Move `source/`.** 386 files. Of those, 60 are package **root** files and
        go to `package/<Name>/src/`, not to `source/`; 326 move. Each slice folder
        moves whole, and `kernel/` moves whole with its seventeen layers. Fix the

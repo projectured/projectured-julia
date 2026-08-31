@@ -124,6 +124,10 @@ end
 
 include("ExportCollisionTest.jl")
 include("PackageGraphTest.jl")
+# The tree guard, which lives at the repository root rather than in a package:
+# it reads directories and project files, and it has to run before the packages
+# it describes exist. See `plan/pending/repository-tree.md` §3.
+include("../../../test/suite/tree.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
@@ -220,6 +224,24 @@ function test_domain_examples()
 end
 
 """
+    test_tree()
+
+The repository tree guard: every top-level folder holds one kind of thing.
+`plan/pending/repository-tree.md` §3 states the rules and `test/suite/tree.jl`
+is them. It loads nothing and reads directory entries, so it runs in well under
+a second.
+"""
+function test_tree()
+    @testset "repository tree" begin
+        root = normpath(joinpath(@__DIR__, "..", "..", ".."))
+        for violation in tree_violations(root)
+            @test violation == ""
+        end
+        @test isempty(tree_violations(root))
+    end
+end
+
+"""
     test_all()
 
 The full suite: the three engine test packages and the twenty domain test
@@ -230,6 +252,7 @@ function test_all()
     @testset "Projectured" begin
     # The per-package suites: the kernel unit tests, the substrate documents and
     # projections, every domain, and the layering guard of each package.
+    test_tree()
     test_package_graph()
     test_kernel()
     test_substrate()
@@ -317,7 +340,7 @@ function test_table()
     end
 end
 
-export test_all, test_domain_examples, test_package_graph
+export test_all, test_domain_examples, test_package_graph, test_tree
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
