@@ -297,10 +297,22 @@ means the flatten has one job.
        baseline; `test_package_graph()` 709/2 — the same two pre-existing
        domain-edge failures, the count risen because there is a third leaf to
        check every package against.
-6. [ ] **Repair the other two repositories.** 184 `[sources]` entries in
-       omnet-julia and inet-julia name a path here. Do this in the same hour as
-       step 5, and land all three; between the two commits neither of those
-       repositories resolves.
+6. [ ] **Repair the other two repositories.** — **prepared, and it cannot run
+       until this branch reaches `main`.** omnet-julia and inet-julia reach into
+       this repository by relative path, and those paths resolve against the
+       **main checkout**, not this worktree. Editing them now would break them
+       against a tree that has not moved yet.
+
+       `tool/repair-sibling-sources.py` carries all 117 old-to-new package
+       directories and rewrites **442 path entries** across 14 project and
+       manifest files in the two siblings. Run it the hour the branch lands, and
+       land all three together: between the two commits neither sibling
+       resolves. Then delete the script — it describes a move, and a move
+       happens once.
+
+       The count is larger than the 184 of §2 because a `Manifest.toml` records
+       paths too. `Pkg.resolve()` in each sibling would rebuild those, but
+       rewriting them keeps the resolved versions.
 7. [x] **Make the environments.** — done, and **one** rather than four. The
        root `Project.toml` and `Manifest.toml` are `environment/all/`, whose
        `[sources]` name `../../package/<Name>`. The five stray package manifests
