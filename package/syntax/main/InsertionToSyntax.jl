@@ -47,7 +47,8 @@ import ..EventModule: KeyPress, KeyDown, ModifierKeys
 import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
 import ..DomainModule: insertion_root, nothing_document, insertion_names,
-                       insertion_candidates, complete_insertion, resolve_insertion,
+                       insertion_candidates, complete_insertion, name_completion,
+                       resolve_insertion,
                        make_insertion_document
 import ..TextModule: TextString
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument, SyntaxDelimitation
@@ -71,7 +72,7 @@ import ..CellModule: Cell, ComputedCell
 
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,
-       default_factory, default_completion, name_completion, parse_completion,
+       default_factory, default_completion, parse_completion,
        insertion_insert, insertion_delete
 
 # ── Projection ────────────────────────────────────────────────────────────────
@@ -107,18 +108,6 @@ InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractStrin
 #               on an ambiguous prefix is the *partial* completion the hint
 #               doesn't show.
 
-"""
-    name_completion(ins) -> (; state, hint, extension)
-
-The default policy: name completion over the reflected candidates of the
-insertion's own domain (`insertion_root(typeof(ins))`).
-"""
-function name_completion(ins)
-    c = complete_insertion(insertion_root(typeof(ins)), something(ins.value, ""))
-    (state = c.state,
-     hint = c.state === :unambiguous ? c.continuation : "",
-     extension = c.continuation)
-end
 
 # Source insertions (SQL) are committable when the buffer parses: green =
 # complete source, red = not (yet) parseable; there is nothing to Tab-extend.

@@ -87,7 +87,8 @@ import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 export var"@domain", var"@insertion",
        insertion_root, nothing_document, insertion_document, domain_prefix,
        domain_insertion, insertable, insertion_aliases, make_insertion_document,
-       insertion_names, insertion_candidates, complete_insertion, resolve_insertion,
+       insertion_names, insertion_candidates, complete_insertion, name_completion,
+       resolve_insertion,
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
 
@@ -359,6 +360,31 @@ function complete_insertion(root::Type, typed::AbstractString)
     (state = length(ms) == 1 ? :unambiguous : :ambiguous,
      continuation = continuation,
      matches = Type[T for (T, _) in ms])
+end
+
+"""
+    name_completion(insertion) -> (; state, hint, extension)
+
+The default completion policy for an insertion buffer: name completion over the
+reflected candidates of the insertion's own domain.
+
+- `state` — `:empty` / `:invalid` / `:ambiguous` / `:unambiguous`, which a
+  projection paints the buffer with.
+- `hint` — the pale continuation drawn after the typed text, and only when the
+  prefix is unambiguous.
+- `extension` — what Tab appends: the matching names' common remainder, which on
+  an ambiguous prefix is the partial completion the hint does not show.
+
+It is the reading of [`complete_insertion`](@ref) that a projection wants, and it
+belongs beside it: nothing in it is about syntax, and a composer that draws its
+own chooser needs it without needing a syntax tree.
+"""
+function name_completion(insertion)
+    c = complete_insertion(insertion_root(typeof(insertion)),
+                           something(insertion.value, ""))
+    (state = c.state,
+     hint = c.state === :unambiguous ? c.continuation : "",
+     extension = c.continuation)
 end
 
 """

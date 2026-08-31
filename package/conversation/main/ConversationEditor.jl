@@ -53,7 +53,7 @@ import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
 import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_red, color_completion_hint, color_slate_600
 import ..DomainModule: resolve_insertion, make_insertion_document, insertion_root
-import ..DocumentInsertionToSyntaxModule: name_completion
+import ..DomainModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
 import ..EventModule: KeyDown, KeyPress, MousePress
