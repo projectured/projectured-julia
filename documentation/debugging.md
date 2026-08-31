@@ -3,12 +3,12 @@
 Most day-to-day debugging of ProjecturEd is done from a Julia REPL launched
 against the repo's top-level project. The root [Project.toml](../Project.toml)
 already depends on `Projectured`, `ProjecturedExample`, and `ProjecturedTest`,
-so a single `julia --project=.` from the repo root gives you access to every
+so a single `julia --project=environment/all` from the repo root gives you access to every
 public symbol used below.
 
 ```sh
 cd projectured
-julia --project=.
+julia --project=environment/all
 ```
 
 ```julia

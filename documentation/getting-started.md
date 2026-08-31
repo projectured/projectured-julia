@@ -16,7 +16,7 @@ For a guided tour of the examples see [the examples tour](examples-tour.md).
 ```sh
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
-julia --project=.
+julia --project=environment/all
 ```
 
 ```julia

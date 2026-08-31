@@ -123,10 +123,7 @@ package/                     flat — one directory per package, 116 of them
   each holding Project.toml, src/<Name>.jl, and ext/ where there is one
 
 environment/                 Project.toml + Manifest.toml, never any code
-  all/                       everything, for the full suite
-  kernel/                    no SDL, no ODBC, no Tulip
-  editor/                    what the binary compiles
-  tool/                      the build tool's own closure
+  all/                       everything, for the full suite — what `jp` loads
 
 documentation/  plan/  asset/  bin/
 ```
@@ -304,9 +301,24 @@ means the flatten has one job.
        omnet-julia and inet-julia name a path here. Do this in the same hour as
        step 5, and land all three; between the two commits neither of those
        repositories resolves.
-7. [ ] **Make the environments.** Four: `all`, `kernel`, `editor`, `tool`. The
-       root `Project.toml` and `Manifest.toml` become `environment/all/`. Delete
-       the four stray Manifests.
+7. [x] **Make the environments.** — done, and **one** rather than four. The
+       root `Project.toml` and `Manifest.toml` are `environment/all/`, whose
+       `[sources]` name `../../package/<Name>`. The five stray package manifests
+       went in step 1.
+
+       `kernel`, `editor` and `tool` are **not** created, and that is a decision
+       rather than an omission: each already has an environment that is not a
+       file this repository writes. A package directory activates as its own
+       environment, so `julia --project=package/ProjecturedKernelTest` is the
+       SDL-free run that `environment/kernel` would have been; the builder does
+       `Pkg.activate(exe_dir)` on the executable's own package directory, which
+       is `environment/editor`; and the build tool is
+       `package/ProjecturedBuilder`. Writing three more files that duplicate
+       those closures would give three more things to keep in step.
+
+       **`julia --project=.` no longer works from the repository root, by
+       design.** Eight documents and one module header said it; all nine now say
+       `--project=environment/all`. §10 is the alias.
 8. [x] **Move the prose and the recording.** — done, and done **before** step 5
        rather than after it, so the flatten has nothing left to carry. 33 guides
        from 19 slices and two READMEs now sit in `documentation/package/<slice>/`,

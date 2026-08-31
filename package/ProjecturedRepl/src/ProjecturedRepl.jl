@@ -6,7 +6,7 @@
 # loads after. This is that package: it names the session, runs the workload,
 # and is the last thing the alias loads.
 #
-#     julia --project=. -e 'using Revise, ProjecturedRepl'
+#     julia --project=environment/all -e 'using Revise, ProjecturedRepl'
 #
 # Revise stays in the alias rather than in the dependencies here: it has to be
 # loaded before the packages it tracks, and as a dependency its position in the

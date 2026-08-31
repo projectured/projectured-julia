@@ -67,7 +67,7 @@ at a time.
 
 ```sh
 cd projectured
-julia --project=.
+julia --project=environment/all
 ```
 
 ```julia

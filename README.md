@@ -275,7 +275,7 @@ the next milestone (see the [Roadmap](documentation/roadmap.md)).
 ```sh
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
-julia --project=.
+julia --project=environment/all
 ```
 
 ```julia

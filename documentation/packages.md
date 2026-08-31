@@ -82,7 +82,7 @@ function rather than code inside the macro. Both leaves call the same one.
 ## The session
 
 ```bash
-jp   # julia --project=. -i -e 'using Revise, ProjecturedRepl'
+jp   # julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'
 ```
 
 `ProjecturedRepl` re-exports what it names, so one `using` gives the session you

@@ -15,7 +15,7 @@ for `SdlBackend`, `using ProjecturedWeb` for `WebBackend`; `ConsoleBackend` come
 `Projectured`). The repository root environment resolves both packages:
 
 ```julia
-using ProjecturedSdl, ProjecturedBuilder     # julia --project=.
+using ProjecturedSdl, ProjecturedBuilder     # julia --project=environment/all
 ```
 
 ### The two shipping configurations

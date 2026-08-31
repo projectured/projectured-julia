@@ -56,7 +56,7 @@ helpers and the walker utilities behind them.
 ## Running an example
 
 ```julia
-julia --project=.
+julia --project=environment/all
 using Projectured, ProjecturedExample
 run_example()            # JSON example
 run_example("widget")    # widget form example
