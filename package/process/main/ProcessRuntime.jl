@@ -7,7 +7,8 @@ editor, and a runtime that could touch a document would make that untrue (and
 would let a probe write a document cell from the process's own task, which is
 the one thing the debug design forbids).
 
-`omnet-julia`'s `Fsm` runtime plays exactly this role for `FsmToJuliaCode`,
+The `Fsm` runtime an embedder supplies plays exactly this role for
+`FsmToJuliaCode`,
 and like it, **the protocol is the contract, not this file**: an embedder that
 wants its own recording or its own scheduler implements `process_at!` over its
 own trace type and realized code neither knows nor cares.

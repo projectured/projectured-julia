@@ -109,8 +109,7 @@ function _split_component_index(component::AbstractString, text::AbstractString)
     endswith(component, ']') || return (component, nothing)
     # A hand reverse scan, not `findlast`: Base's Char method wraps the Char
     # in `isequal` and lands in the generic `findlast(::Function, ...)`,
-    # whose widened body is unresolvable under a trimmed build (the
-    # omnet-julia laws ledger, row 4).
+    # whose widened body is unresolvable under a trimmed build.
     open = nothing
     let i = lastindex(component)
         while i >= firstindex(component)

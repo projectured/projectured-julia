@@ -33,7 +33,8 @@ module DomainModule
 # `@code_native`, `versioninfo` — and its only dependency is `Markdown`. This
 # package used one function from it, and that single import put `Markdown` in
 # the closure of every program that reads a NED or INI file, because
-# `OmnetLegacyFormat` depends on this package. The file below already warns that
+# a downstream package that reads those files depends on this one. The file
+# below already warns that
 # "adding a sixth from a rendering package would put the editor back in the
 # closure of everything that reads a NED file"; the dependency arrived through
 # the back door instead.

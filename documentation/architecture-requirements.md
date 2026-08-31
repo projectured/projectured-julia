@@ -30,8 +30,9 @@ document to open without a link. The downstream projects cite these rules as
 | repository | product | architectural |
 | --- | --- | --- |
 | **projectured-julia** | **`PR-`** | **`PAR-`** |
-| omnet-julia | `OR-` | `OAR-` |
-| inet-julia | `IR-` | `IAR-` |
+
+Every other repository allocates its own pair of prefixes and states them in
+its own documents. This one names no repository but itself.
 
 Three rules govern the IDs:
 

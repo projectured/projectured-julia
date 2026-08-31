@@ -49,7 +49,7 @@ guard-dependent *target* is expressed (TCP's `state->active ? CLOSED : LISTEN`).
 ## Execution semantics (the contract)
 
 This is what the code generator emits and what the runtime support module
-(`Fsm.jl`, in omnet-julia's simulator package) upholds. It is a faithful
+(`Fsm.jl`, which an embedder supplies) upholds. It is a faithful
 distillation of INET's `FSMA.h` engine, which all three reference machines are
 built on.
 

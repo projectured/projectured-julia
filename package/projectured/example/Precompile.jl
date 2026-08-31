@@ -46,8 +46,8 @@ collection, layout and widget — the same renderer an editor puts on screen. A
 hand-written domain→chain table would be a second registry to keep in step with
 this one.
 
-A downstream package passes its own: `OmnetPresentationExample` splices the
-simulation-embed entry and the workbench dispatch into the same renderer, so its
+A downstream package passes its own: one splices its simulation-embed entry
+and its workbench dispatch into the same renderer, so its
 atoms compile through the projection its reader will actually meet.
 """
 function precompile_atoms(atoms;

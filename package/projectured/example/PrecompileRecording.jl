@@ -6,16 +6,16 @@
 # instance Julia had to compile, check the list in, and let later builds replay
 # it.
 #
-# What a workload cannot cover is what nobody thought to run. Measured in
-# omnet-julia, the workload reached the printers and never reached the
+# What a workload cannot cover is what nobody thought to run. Measured
+# downstream, the workload reached the printers and never reached the
 # readers — atoms are documents and a document is printed, not read — so the
 # read half of the first click cost 528 ms with the workload and 518 ms without
 # it. A recording does not need the thought: it records what a person did.
 #
 # This file is the machinery only. What to drive is a driver script, and which
 # list to replay is a file, and both belong to the leaf being built —
-# `ProjecturedRepl`, `OmnetRepl`, `InetRepl`. One implementation, three
-# products.
+# `ProjecturedRepl` here, and the repl leaf of each downstream repository.
+# One implementation, three products.
 #
 # See plan/pending/recorded-precompile-workload.md.
 # ═══════════════════════════════════════════════════════════════════════════

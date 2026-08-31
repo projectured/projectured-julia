@@ -64,8 +64,8 @@ The vocabulary is the extension seam: each function is registered by
 the package that owns its machinery, with
 `register_marker_function!(:name, f)`, and is called as
 `f(ctx, args...)`. This module registers `file` (the project loader
-itself); the Julia domain registers `definition`; omnet-julia's
-presentation registers `realize`.
+itself); the Julia domain registers `definition`; a downstream
+presentation package registers `realize`.
 
 Three properties every marker keeps:
 

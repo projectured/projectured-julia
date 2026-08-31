@@ -178,7 +178,7 @@ end
 _binding(mod::Module, name::Symbol) = Base.invokelatest(getfield, mod, name)
 
 # Load a generated component as a real module. The runtime it calls
-# (`Fsm`, `fsm_goto!`, …) lives in omnet-julia, which this package does not
+# (`Fsm`, `fsm_goto!`, …) lives in an embedder, which this package does not
 # depend on — so the probe module is given a local stand-in with the same
 # contract. That the generated code compiles and runs against *an*
 # implementation of the contract is what is being checked here; the real
