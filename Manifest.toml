@@ -848,7 +848,7 @@ uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
 version = "0.1.0"
 
 [[deps.ProjecturedAssistant]]
-deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 entryfile = "ProjecturedAssistant.jl"
 path = "package/assistant/main"
 uuid = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"

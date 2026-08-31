@@ -31,14 +31,13 @@ using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
-using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
 for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedDomain,
              ProjecturedFileFormat, ProjecturedKernel, ProjecturedLayout,
              ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle,
-             ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+             ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
