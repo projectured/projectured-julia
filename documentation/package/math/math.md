@@ -1,5 +1,7 @@
 # The math domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 A formula is a document. `MathAssignment(MathVariable("W"), MathFraction(…))` is
 the structure; how it looks is the projection's business. Two projections read
 it:

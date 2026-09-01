@@ -262,7 +262,7 @@ Consequences:
   reuse the `_SpyRecursion` pattern for the delegation/order assertions. This is
   the coverage that *did not exist directly* before.
 - **Phase 4 — retier & document.** Make `test_atomic()` the documented default in
-  [`documentation/testing.md`](../../documentation/testing.md) and CLAUDE.md's
+  [`documentation/testing.md`](../../documentation/guide/testing-guide.md) and CLAUDE.md's
   "Testing a change"; mark the complex-registry sweeps as the integration tier.
   Re-measure dev-loop time vs. the Phase 0 baseline.
 

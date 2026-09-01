@@ -1,7 +1,7 @@
 # juliac trim probe
 
 Development-only measurements that back
-[documentation/static-compilation.md](../../documentation/static-compilation.md).
+[documentation/guide/static-compilation-guide.md](../../documentation/guide/static-compilation-guide.md).
 Nothing here is a dependency of anything that ships. The probe is standalone
 Julia. It does not load `Projectured`.
 

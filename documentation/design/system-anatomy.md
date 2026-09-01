@@ -1,12 +1,14 @@
 # Architecture
 
+> **Kind:** design · **Status:** current · **Stands on:** [division-terminology.md](../rule/division-terminology.md), [editor-concepts.md](editor-concepts.md)
+
 This document covers the conceptual pipeline, the package layout, the module
 inventory, and the projection pipeline status. The division vocabulary
-(package / layer / slice / module) is defined in [terminology.md](terminology.md).
+(package / layer / slice / module) is defined in [terminology.md](../rule/division-terminology.md).
 For design rationale see the
-[design decisions guide](design-decisions.md). For the full reference/selection
-mechanism see the [reference guide](package/kernel/reference.md) and
-[selection guide](package/kernel/selection.md).
+[design decisions guide](architecture-decisions.md). For the full reference/selection
+mechanism see the [reference guide](../package/kernel/reference.md) and
+[selection guide](../package/kernel/selection.md).
 
 ---
 
@@ -37,7 +39,7 @@ mechanism see the [reference guide](package/kernel/reference.md) and
 ```
 
 Four conceptual stages, bottom to top. (These stages span packages — they are
-*not* layers in the [terminology.md](terminology.md) sense, which are ordered
+*not* layers in the [terminology.md](../rule/division-terminology.md) sense, which are ordered
 strata *inside* a package; the packages and their internal layers/slices are
 described in the next section.)
 
@@ -54,13 +56,13 @@ described in the next section.)
 
 The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
-`@compile_workload` may live, are in [packages.md](packages.md).
+`@compile_workload` may live, are in [packages.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its seventeen layers depend only downward, and
 the ordering is enforced statically by the shared
-[layered-architecture guard](../test/kernel/layering/CheckLayering.jl).
+[layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone.
 
@@ -70,7 +72,7 @@ as separate packages under the same directory. The substrate shares one
 example package and one test package
 (`ProjecturedSubstrateExample`, `ProjecturedSubstrateTest`), because the files
 of both were written against the flat namespace. See
-[architecture-rules.md](architecture-rules.md#the-triad--every-main-package-has-its-code-its-tests-and-its-examples)
+[architecture-rules.md](../rule/architecture-rules.md#the-triad--every-main-package-has-its-code-its-tests-and-its-examples)
 for the rules.
 
 ```
@@ -92,7 +94,7 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      naturalprojection;
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
-        │                      is in [packages.md](packages.md).
+        │                      is in [packages.md](../rule/package-rules.md).
 The twenty domain packages     one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ filesystem/ graph/ chart/
@@ -101,7 +103,7 @@ The twenty domain packages     one package per concrete source domain
         │                      documents, its parser and its projections.
         │                      Deps: the kernel, the substrate packages it uses,
         │                      and the domains it embeds. See
-        │                      [domains.md](domains.md).
+        │                      [domains.md](domain-inventory.md).
 Projectured (projectured/)     umbrella: `using Projectured` re-exports every
                                package above as a single flat public API.
 
@@ -123,29 +125,29 @@ of a single layer by feature, which is now a kernel-only notion; **module** =
 namespace/import surface. Files sit below all four levels as readability
 boundaries only: fragments (0-module files that share their aggregator's
 namespace) let a module split across files with zero API cost. See
-[terminology.md](terminology.md) for the definitions and
-[architecture-rules.md](architecture-rules.md) for the durable division
+[terminology.md](../rule/division-terminology.md) for the definitions and
+[architecture-rules.md](../rule/architecture-rules.md) for the durable division
 rules.
 
 Each source package also has a `doc/` directory with the per-layer / per-slice /
 per-domain reference guides that used to live at the top level. The kernel set
-([cell](package/kernel/cell.md),
-[macros](package/kernel/macros.md),
-[document](package/kernel/document.md),
-[reference](package/kernel/reference.md),
-[selection](package/kernel/selection.md),
-[finding-and-selecting](package/kernel/finding-and-selecting.md),
-[operation](package/kernel/operation.md),
-[projection-system](package/kernel/projection-system.md),
-[higher-order-projections](package/kernel/higher-order-projections.md),
-[generic-projections](package/kernel/generic-projections.md),
-[devices-and-backends](package/kernel/devices-and-backends.md),
-[agent](package/kernel/agent.md),
-[editor](package/kernel/editor.md),
-[naming](package/kernel/naming.md)) is the largest; the per-domain guides
+([cell](../package/kernel/cell.md),
+[macros](../package/kernel/macros.md),
+[document](../package/kernel/document.md),
+[reference](../package/kernel/reference.md),
+[selection](../package/kernel/selection.md),
+[finding-and-selecting](../package/kernel/finding-and-selecting.md),
+[operation](../package/kernel/operation.md),
+[projection-system](../package/kernel/projection-system.md),
+[higher-order-projections](../package/kernel/higher-order-projections.md),
+[generic-projections](../package/kernel/generic-projections.md),
+[devices-and-backends](../package/kernel/devices-and-backends.md),
+[agent](../package/kernel/agent.md),
+[editor](../package/kernel/editor.md),
+[naming](../package/kernel/naming.md)) is the largest; the per-domain guides
 live next to the code, in the `doc/` folder of the package they document —
-[widget](package/widget/widget.md), [text](package/text/text.md),
-[collection](package/collection/collection.md) and the rest.
+[widget](../package/widget/widget.md), [text](../package/text/text.md),
+[collection](../package/collection/collection.md) and the rest.
 
 Optional engines plug into **factory seams** owned by the kernel
 (`make_agent_server(kind, …)`) or the domain (`make_database_adapter(kind)`):
@@ -221,7 +223,7 @@ four-function interface (`print_document`, `read_intent`,
 `map_reference_forward`, `map_reference_backward`) and recurses into children
 **only** by delegating to the child projection's own version of those four. No
 projection adds a fifth recursive function; that is [the recursion
-contract](package/kernel/projection-system.md#the-recursion-contract) and the reason any domain
+contract](../package/kernel/projection-system.md#the-recursion-contract) and the reason any domain
 composes with any higher-order projection.
 
 **Higher-order** (`higherorder/`):
@@ -303,8 +305,8 @@ composes with any higher-order projection.
 |---|---|
 | `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](package/kernel/devices-and-backends.md#consolebackend)) |
-| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../asset/web/) |
+| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
+| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../../asset/web) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
@@ -332,7 +334,7 @@ ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains �
 ```
 
 The substrate packages form their own DAG, and so do the twenty domains.
-[packages.md](packages.md) has the substrate table; [domains.md](domains.md)
+[packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
 has the domain table.
 
 **Inside ProjecturedKernel — 17 layers**, in include order; each imports only layers
@@ -412,7 +414,7 @@ concept, and each declares the exact set of packages it imports:
 **The twenty domain packages** — one package per concrete source domain, each
 holding one slice: its documents, its parser and its projections. Fourteen need
 only the engine packages; five build on one layer of domains; the workbench
-application sits on top. [domains.md](domains.md) has the table and the rules
+application sits on top. [domains.md](domain-inventory.md) has the table and the rules
 for adding one.
 
 ---

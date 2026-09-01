@@ -1,5 +1,7 @@
 # Workbench Domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 <img width="1285" alt="Workbench example" src="../../../asset/image/example/workbench.png">
 
 The workbench domain models an IDE-style workspace. It is implemented in

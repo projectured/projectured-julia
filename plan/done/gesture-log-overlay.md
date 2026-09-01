@@ -272,7 +272,7 @@ step. Mark each step here when it is complete.
 - [x] **Step 8 — Update the documentation.** DONE. Add the slice to the inventory in
   [package/domain/doc/architecture.md](../../package/domain/doc/architecture.md).
   Add a short section to
-  [documentation/debugging.md](../../documentation/debugging.md), because the
+  [documentation/debugging.md](../../documentation/guide/debugging-guide.md), because the
   overlay is a debugging aid.
 - [x] **Step 9 — Move this plan to `plan/done/`.** DONE.
 

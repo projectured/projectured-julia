@@ -148,7 +148,7 @@ Drop "click *Launch*" wording now that the editor appears immediately:
   "open `http://host:port`; the main window appears in that tab. Additional
   windows open as popups on first interaction."
 - [documentation/devices-and-backends.md](../../documentation/devices-and-backends.md)
-  (≈ lines 134–142), [documentation/debugging.md](../../documentation/debugging.md)
+  (≈ lines 134–142), [documentation/debugging.md](../../documentation/guide/debugging-guide.md)
   (≈ line 54), and [README.md](../../README.md) (≈ line 198) — remove "and click
   **Launch**".
 

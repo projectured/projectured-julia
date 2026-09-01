@@ -138,10 +138,10 @@ must be explained by a `# @broken:` marker added in this step.
 - Update the `ClickRoundtripTest.jl` header comment: `test_text_nav_invariants` now walks both
   directions and cross-checks them. (Describe what it *is*, not that it changed.)
 - Add a row for `test_text_nav_invariants` / `test_text_nav_invariants_all` to the function table in
-  [documentation/testing.md](../../documentation/testing.md) — it is currently absent, so there is
+  [documentation/testing.md](../../documentation/guide/testing-guide.md) — it is currently absent, so there is
   no discoverable entry point for the linear cursor walk.
 - If Step 2/3 turned up reader bugs, note the coverage status in
-  [documentation/architecture.md](../../documentation/architecture.md) next to the existing
+  [documentation/architecture.md](../../documentation/design/system-anatomy.md) next to the existing
   keyboard-navigation row.
 
 ## Findings

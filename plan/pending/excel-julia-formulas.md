@@ -137,7 +137,7 @@ FormulaDocument (abstract)
   `=expr` or bare `name = expr`) into a `FormulaFormula`.
 
 Register in `Projectured.jl`: `include`, `using`, `export` (mirroring the
-[tutorial](../../documentation/tutorial-new-domain.md) Step 2).
+[tutorial](../../documentation/guide/new-domain-guide.md) Step 2).
 
 ---
 
@@ -244,7 +244,7 @@ dispatching:
   line); a plain list, like `BookmarkList` in the tutorial.
 
 Mappers (`map_reference_forward`/`map_reference_backward`) follow the School-A
-peel-and-delegate pattern from the [tutorial](../../documentation/tutorial-new-domain.md) Step 3,
+peel-and-delegate pattern from the [tutorial](../../documentation/guide/new-domain-guide.md) Step 3,
 so cursor movement and character edits round-trip through `code`/`result`. No
 custom `projection_read` is needed for plain editing; only the new operations
 (Phase 5) add reader logic.
@@ -374,7 +374,7 @@ caret walk as not reaching start/end. `test_typeins()` excludes formula entirely
 (only `"json","text","xml","book","syntax"` are covered), consistent with there
 being no live insertion buffer to type into (Phase 5).
 
-Per the testing conventions ([testing.md](../../documentation/testing.md), CLAUDE.md), add targeted
+Per the testing conventions ([testing.md](../../documentation/guide/testing-guide.md), CLAUDE.md), add targeted
 helpers — do not lean on `test_all`:
 
 - ✅ DONE — `test_formula_to_syntax()` — printer output for each view mode; reference renders

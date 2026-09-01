@@ -1,5 +1,7 @@
 # Terminology — package, layer, slice, module
 
+> **Kind:** reference · **Status:** current · **Stands on:** nothing; it is the head of the chain
+
 The vocabulary used to describe how the codebase is divided. Four terms, one
 per kind of division. Every architecture document in this repository uses them
 in exactly this sense; when writing docs, comments, or plans, use these words
@@ -44,7 +46,7 @@ and no synonyms.
   invalidated as the session finishes loading. That is why a
   `@compile_workload` may appear only in a leaf, and why depending on one makes
   it stop being one. `test_package_graph()` asserts both. See
-  [packages.md](packages.md).
+  [packages.md](package-rules.md).
 
 Files are below all of this: a file is a readability boundary only and is
 **not** part of the terminology — fragments share their aggregator module's
@@ -64,7 +66,7 @@ project
 Whether a layer is materialised as a folder is a code-organisation detail, not
 part of the definition. Today each kernel layer happens to be a folder, and the
 static layering guard
-([CheckLayering.jl](../test/kernel/layering/CheckLayering.jl)) enforces
+([CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)) enforces
 both rules — the ordered layers of the kernel, which is the one package that
 declares them, and the topological include order of every other package.
 
@@ -80,4 +82,4 @@ declares them, and the topological include order of every other package.
 
 For the decision rules — *when* to create a package, layer, slice, or module —
 see [architecture-rules.md](architecture-rules.md). For what each package
-contains, see [architecture.md](architecture.md).
+contains, see [architecture.md](../design/system-anatomy.md).

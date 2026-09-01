@@ -126,7 +126,7 @@ Inserting / removing / reordering **one** element of a collection must:
 Add a locality walker beside the existing test walkers (sibling of
 `walk_printer_output` in
 [package/kernel/test/editor/PrinterTest.jl](../../test/kernel/editor/PrinterTest.jl);
-see [documentation/testing.md](../../documentation/testing.md) "walker helpers").
+see [documentation/testing.md](../../documentation/guide/testing-guide.md) "walker helpers").
 
 **Landed** as `package/projectured/test/editor/PrinterLocalityTest.jl` (561 lines).
 The signature and internals differ from the sketch below in ways that still meet
@@ -312,7 +312,7 @@ Likely **justified exceptions** (must be written down, with the reason):
 
 - [ ] Promote the passing checks into the suite as `test_printer_locality(ex)` /
   `test_printer_localities()`, mirroring `test_printer` / `test_printers`
-  ([documentation/testing.md](../../documentation/testing.md)), emitting one
+  ([documentation/testing.md](../../documentation/guide/testing-guide.md)), emitting one
   `@test` per (example, dimension, mutation) unit so the pass count reflects the
   work and a regression names the offending cell.
 
@@ -349,7 +349,7 @@ Likely **justified exceptions** (must be written down, with the reason):
   docstring lives in
   [package/kernel/main/projection/ProjectionApi.jl](../../source/kernel/projection/ProjectionApi.jl)),
   but `projection-system.md`'s "Purity" section covers reconciliation, and
-  [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+  [documentation/architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
   states the rule formally as **PAR-STABLE-IOMAP-IDENTITY** ("its children
   reconcile by identity... goes through the shared reconciler... `reconcile_child_iomaps`
   (in the iomap layer)") and **PAR-SHARED-CHILDREN-IOMAP**. The exceptions-must-be-justified

@@ -69,7 +69,7 @@ Under the hood:
 > **Status.** The assistant and the MCP bridge work end-to-end, but are new and
 > still evolving. Selection and cursor movement work across every domain;
 > character-level manual editing is the next milestone (see the
-> [Roadmap](documentation/roadmap.md)).
+> [Roadmap](documentation/requirement/delivery-roadmap.md)).
 
 ---
 
@@ -249,7 +249,7 @@ backend is the primary frontend; a [web backend](documentation/package/kernel/de
 renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
 after `using ProjecturedWeb`). The in-editor
 AI assistant plus the MCP server are built in. Character-level manual editing is
-the next milestone (see the [Roadmap](documentation/roadmap.md)).
+the next milestone (see the [Roadmap](documentation/requirement/delivery-roadmap.md)).
 
 ### Screenshots
 
@@ -290,8 +290,8 @@ julia> print_example("syntax")        # dump a projection's output to stdout
 julia> write_example_image("json", "/tmp/snapshot.bmp")   # save to file
 ```
 
-See the [debugging guide](documentation/debugging.md) for the full REPL helper catalogue
-and the [testing guide](documentation/testing.md) for running the test suite.
+See the [debugging guide](documentation/guide/debugging-guide.md) for the full REPL helper catalogue
+and the [testing guide](documentation/guide/testing-guide.md) for running the test suite.
 
 ---
 
@@ -324,18 +324,18 @@ Three reading tracks — pick the one that matches your goal.
 
 ### New here? Start with
 
-1. [Introduction](documentation/introduction.md) — the engineer's introduction: every concept with its real code, how the concepts combine, and how to extrapolate what the system can do.
-2. [Concepts](documentation/concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
-3. [Examples tour](documentation/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
-4. [Getting started](documentation/getting-started.md) — prerequisites, setup, and the REPL helpers.
+1. [Introduction](documentation/design/editor-derivation.md) — the engineer's introduction: every concept with its real code, how the concepts combine, and how to extrapolate what the system can do.
+2. [Concepts](documentation/design/editor-concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
+3. [Examples tour](documentation/guide/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
+4. [Getting started](documentation/guide/setup-guide.md) — prerequisites, setup, and the REPL helpers.
 
 ### Building something? Read next
 
-5. [Architecture](documentation/architecture.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/terminology.md) defines the division vocabulary (package / layer / slice / module).
+5. [Architecture](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/rule/division-terminology.md) defines the division vocabulary (package / layer / slice / module).
 6. [Reactive cells](documentation/package/kernel/cell.md) — the `Cell` system that powers incrementality.
 7. [Macros](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap` macros.
 8. [Projection system](documentation/package/kernel/projection-system.md) — the four projection interface functions and the printer/reader pair.
-9. [Tutorial: new domain](documentation/tutorial-new-domain.md) — step-by-step: add a new domain from scratch.
+9. [Tutorial: new domain](documentation/guide/new-domain-guide.md) — step-by-step: add a new domain from scratch.
 
 ### Going deeper
 
@@ -346,8 +346,8 @@ Three reading tracks — pick the one that matches your goal.
 - [Reference guide](documentation/package/kernel/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
 - [Selection guide](documentation/package/kernel/selection.md) — how selection propagates through nested documents.
 - [Devices and backends](documentation/package/kernel/devices-and-backends.md) — the `Backend`/`Device` split.
-- [Static compilation](documentation/static-compilation.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
-- [Design decisions](documentation/design-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
+- [Static compilation](documentation/guide/static-compilation-guide.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
+- [Design decisions](documentation/design/architecture-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
 - [Selection deep dive](documentation/package/kernel/selection.md) — the full reference/selection mechanism with worked examples.
 
 ### Per-domain guides
@@ -356,12 +356,12 @@ Three reading tracks — pick the one that matches your goal.
 
 ### Working in the REPL
 
-- [Debugging](documentation/debugging.md) — `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, forcing reactive cells.
-- [Testing](documentation/testing.md) — `test_all`, per-package helpers, walker utilities.
+- [Debugging](documentation/guide/debugging-guide.md) — `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, forcing reactive cells.
+- [Testing](documentation/guide/testing-guide.md) — `test_all`, per-package helpers, walker utilities.
 
 ## Roadmap
 
-See [the roadmap](documentation/roadmap.md) for near-, medium-, and long-term plans.
+See [the roadmap](documentation/requirement/delivery-roadmap.md) for near-, medium-, and long-term plans.
 The three next priorities: character editing, mouse click-to-select, and undo/redo.
 
 ## Contributing

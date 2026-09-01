@@ -150,7 +150,7 @@ here as the intended pattern; the consuming plan
 
 - **Sealed files.** `ReactiveCell.jl`, `CellVector.jl`, `CellStruct.jl` are sealed;
   the owner has authorized unsealing for this work. **Audit each against
-  [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+  [documentation/architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
   before re-sealing.**
 - **Correctness guard.** L1's risk is entirely "did any path forget to handle
   `nothing`". The pull-based semantics (lazy recompute, weak dependents, task-local

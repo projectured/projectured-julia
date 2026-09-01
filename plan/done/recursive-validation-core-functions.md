@@ -66,7 +66,7 @@ codebase against it, and designs a validation that uses only the four functions.
 
 A full sweep of every projection implementation under (old, pre-restructure
 paths — the twenty domains are each their own package now, see
-[documentation/domains.md](../../documentation/domains.md), each with a
+[documentation/domains.md](../../documentation/design/domain-inventory.md), each with a
 `main/`/`example/`/`test/` split) `package/kernel/src/projection/`,
 `package/domain/src/projection/`, `package/projectured/example/src/projection/`,
 and the opt-in example packages' `package/{odbc,adaptagrams,tulip}/example/src/projection/`
@@ -224,7 +224,7 @@ skip was never needed as a permanent fixture: the shipped harness's
 `test_recursion_contracts()` is exported from
 [package/projectured/test/ProjecturedTest.jl](../../package/ProjecturedTest/src/ProjecturedTest.jl)
 and is documented in
-[documentation/testing.md](../../documentation/testing.md) (line 364 onward), but
+[documentation/testing.md](../../documentation/guide/testing-guide.md) (line 364 onward), but
 is **still opt-in** — `test_all()` does not call it, even though the violator
 that motivated keeping it out is now fixed. Adding it to `test_all()` is the one
 small remaining follow-up.
@@ -254,11 +254,11 @@ first-class, named concept, cross-linked across the API and guides.
   explains `recursion` keeps projections single-level/composable).
 - **Concepts / architecture** (the deferred "B4" from the syntaxtotext plan):
   one-line mention in
-  [documentation/concepts.md](../../documentation/concepts.md) (projections combine
+  [documentation/concepts.md](../../documentation/design/editor-concepts.md) (projections combine
   by single-level delegation through `recursion`) and a note in
-  [documentation/architecture.md](../../documentation/architecture.md).
+  [documentation/architecture.md](../../documentation/design/system-anatomy.md).
 - **Testing** —
-  [documentation/testing.md](../../documentation/testing.md): a
+  [documentation/testing.md](../../documentation/guide/testing-guide.md): a
   **"Validating the recursion contract"** subsection describing the Part B harness
   and that it adds no per-projection function.
 

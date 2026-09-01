@@ -11,7 +11,7 @@
 > `DatabaseInstanceToDbCatalog`, `DbCatalogRdbms`, and `DbCatalogSchema` all
 > exist with the shapes this plan assumes. Each domain is its own package now
 > (`sql`, `dbcatalog`, `database`) — see
-> [documentation/domains.md](../../documentation/domains.md). Every
+> [documentation/domains.md](../../documentation/design/domain-inventory.md). Every
 > `program/src/...` path below needs translating to the package layout when
 > this plan is picked up: `program/src/document/*.jl` maps to
 > `package/<domain>/main/*.jl`; `program/src/projection/primitive/*.jl` also
@@ -187,7 +187,7 @@ BoundSqlStatement(
 
 **File:** `package/dbcatalog/main/BoundSql.jl` (proposed — `dbcatalog` already
 depends on `sql`; confirm the package placement against
-[documentation/domains.md](../../documentation/domains.md) before creating it,
+[documentation/domains.md](../../documentation/design/domain-inventory.md) before creating it,
 since `BoundSql` also needs `DatabaseInstanceDocumentModule` from
 `package/database/main/`, which `dbcatalog` does not depend on today).
 **Module:** `BoundSqlDocumentModule`

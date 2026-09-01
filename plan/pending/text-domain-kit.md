@@ -15,7 +15,7 @@
 > those names post-split; the current equivalents are `test_substrate()`
 > (text/syntax/widget/graphics/… live under `package/substrate/`) and the
 > per-domain `test_<domain>()` functions — see
-> [documentation/testing.md](../../documentation/testing.md).
+> [documentation/testing.md](../../documentation/guide/testing-guide.md).
 
 > **Decision (2026-08-12): this plan owns the `SyntaxToText` emission change.**
 > `SyntaxToText` emits `TextLine(...; indentation)` and sheds `indent_indices`
@@ -51,7 +51,7 @@ one that needs a decision before any code is written.
 
 ### Why
 
-[PAR-DOMAIN-OWNS-EDITS](../../documentation/architecture-requirements.md#par-domain-owns-edits) ("Every domain defines its own structural
+[PAR-DOMAIN-OWNS-EDITS](../../documentation/rule/architecture-invariants.md#par-domain-owns-edits) ("Every domain defines its own structural
 operations and its own insertion type") says to *"generate the whole insertion kit with one `@domain
 X` line rather than re-implementing the root/placeholder/insertion/gesture/traits per domain"*.
 The Text domain is the one editable domain that never got one, and the evidence that hand-rolling

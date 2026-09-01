@@ -1,5 +1,7 @@
 # The RST domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 The `rst` slice holds reStructuredText: a document model, a parser, a
 two-style projection, and a `FileDocument` wrapper. It was built against the
 documentation of [INET](https://github.com/inet-framework/inet) — 349 files

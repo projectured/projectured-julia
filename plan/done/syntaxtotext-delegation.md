@@ -463,7 +463,7 @@ Replace flat-char input-tree walks with: *classify the element index into a zone
   [documentation/projection-system.md](../../documentation/projection-system.md)
   past-tense (worked before/after example) — both the intro (§ two prohibitions)
   and the § Mapping-references callout. Updated
-  [documentation/testing.md](../../documentation/testing.md) (delegation-probe note).
+  [documentation/testing.md](../../documentation/guide/testing-guide.md) (delegation-probe note).
 - [x] **Forced by S1–S3:** promoted `RecursionContractTest.jl` — `SyntaxNodeToText`
   now delegates, so its `@test_broken` would be an unexpected pass; emptied
   `_is_known_flattener` and updated the comments (`SyntaxListToText` was never probed
@@ -487,8 +487,8 @@ every child to `recursion`") is now stated in four places — verified 2026-07-0
   extension naming `SyntaxNodeToText` + this plan (~L552).
 - **B3** ✅ [documentation/higher-order-projections.md](../../documentation/higher-order-projections.md)
   (~L116) — `recursion` keeps projections single-level and composable.
-- **B4** ✅ [documentation/concepts.md:186–191](../../documentation/concepts.md#L186-L191)
-  and [documentation/architecture.md:130–135](../../documentation/architecture.md#L130-L135)
+- **B4** ✅ [documentation/concepts.md:186–191](../../documentation/design/editor-concepts.md#L186-L191)
+  and [documentation/architecture.md:130–135](../../documentation/design/system-anatomy.md#L130-L135)
   — single-level transform + the recursion contract, with cross-links.
 
 ---

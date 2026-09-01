@@ -246,7 +246,7 @@ gains the `document` filter and iterates the registry. `catalog_domain` reads
 - [x] **Gallery / docs.** Screenshot gallery + `run_example`-by-name stay **curated (`origin=:manual`)**;
   generated entries are runnable on demand (`run_example(catalog_entry)`) but are not added to the
   gallery/tour (they'd balloon it with ~90 near-identical scalar shots). The catalog + hierarchy/
-  filters are documented in [`documentation/testing.md`](../../documentation/testing.md)
+  filters are documented in [`documentation/testing.md`](../../documentation/guide/testing-guide.md)
   ("The generated example catalog").
 
 ## Implementation results (2026-07-15)

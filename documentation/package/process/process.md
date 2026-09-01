@@ -1,5 +1,7 @@
 # The `process` domain — structured flowcharts
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 An algorithm as a first-class document: steps, decisions, loops and jumps that
 nest, run to completion, and project both to a notation and to a flowchart. The
 slice exists so a procedure can be drawn the way a specification draws it — and

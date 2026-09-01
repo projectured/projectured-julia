@@ -1,9 +1,11 @@
 # ProjecturedKernel — architecture
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 Contributor-facing guide to the **internal** structure of the `ProjecturedKernel`
 package: its layers, what depends on what, and the conventions the code assumes.
 For the whole-system picture (packages, backends, the projection pipeline) see the
-repository-level [documentation/architecture.md](../../../documentation/architecture.md);
+repository-level [documentation/design/system-anatomy.md](../../design/system-anatomy.md);
 this document is **only about the kernel**.
 
 ## What the kernel is

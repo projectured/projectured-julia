@@ -1,5 +1,7 @@
 # Pane Domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 The pane tree is the generic way to organize documents on the screen: tab groups,
 splits between them, and the gestures that rearrange the lot. It is implemented in
 [package/pane/main/](../../../package/ProjecturedPane/) and rendered by

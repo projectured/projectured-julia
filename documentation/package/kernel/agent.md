@@ -1,5 +1,7 @@
 # The agent stack — tool, llm, agent
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 Three kernel layers, not one. They are separate because they are separately
 useful, and the shortest way to see that is to notice what each works without:
 
@@ -37,7 +39,7 @@ A `Tool` is a name, a description, abstractly-described parameters, and a handle
 Anthropic's `input_schema` is `ProjecturedLlm`'s job, rendering it into MCP's
 parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
 
-**One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md#par-per-editor-state)).
+**One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 `Editor` owns one. Nothing here is process-global: not the tool list, not the
 resource list, not the scratch module `execute_julia_code` evaluates into, not its
 last result. Two editors in one process therefore cannot see each other's tools or

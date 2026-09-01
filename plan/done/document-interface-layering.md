@@ -57,7 +57,7 @@ layer's first file introduces its own concept with everything below already know
 ## Cost — contract cohesion
 
 "The Document contract" stops being one file: the type is at l2, the selection API
-at l3, the gesture seam at l5. Mitigation: [`concepts.md`](../../documentation/concepts.md)
+at l3, the gesture seam at l5. Mitigation: [`concepts.md`](../../documentation/design/editor-concepts.md)
 becomes the single place that tells the whole story (it is *allowed* to assume the
 full cluster); each layer's file holds only its piece plus a one-line pointer to
 `concepts.md`.

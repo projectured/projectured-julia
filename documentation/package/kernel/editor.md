@@ -1,5 +1,7 @@
 # Editor
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
 that responds to user input. The implementation lives in
@@ -194,7 +196,7 @@ to the screen root and fail. `op_prefix` (a `Reference`) closes the gap:
 leave it empty (the default) for an unwrapped, single-document pipeline.
 
 In the example packages this is wired up for you — see `play_live_example` and
-`LiveExample` in [the live-examples debugging section](../../../documentation/debugging.md#live-examples-scripted-sessions-on-a-real-window).
+`LiveExample` in [the live-examples debugging section](../../guide/debugging-guide.md#live-examples-scripted-sessions-on-a-real-window).
 
 ## Devices and backends
 
@@ -311,7 +313,7 @@ that subscribed to `get_reactive_editor_time()`.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
 - `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
-  ([PAR-PER-EDITOR-STATE](../../../documentation/architecture-requirements.md#par-per-editor-state)).
+  ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 - `..AgentServerModule` — the make_agent_server/start/stop seam driven by
   `Editor` when an agent server is configured.
 

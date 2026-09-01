@@ -90,7 +90,7 @@ This unifies three existing plans into one staged line of work:
 > Path note: this plan was written against the repo's old, pre-restructure
 > `program/src/...` namespace. File paths quoted below have been updated to
 > their current locations (mostly `package/kernel/main/...` and per-domain
-> `package/<domain>/main/...`, per [documentation/domains.md](../../documentation/domains.md)).
+> `package/<domain>/main/...`, per [documentation/domains.md](../../documentation/design/domain-inventory.md)).
 > Several of the *symbol names* quoted below (`document_read`, `document_gestures`,
 > `projection_gestures`, `collect_gestures`, `@event_case`/`EventCase.jl`) were
 > also renamed after this plan shipped — see the status banner at the top for

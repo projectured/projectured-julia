@@ -225,7 +225,7 @@ syntax, xml, yaml = iomap.output
    exists today.
 3. **NOT STARTED:** Add tests — no `ParallelTest.jl` exists.
    `package/projection/` (a "generic" package, see
-   [documentation/packages.md](../../documentation/packages.md)) has no `test/`
+   [documentation/packages.md](../../documentation/rule/package-rules.md)) has no `test/`
    directory of its own; `ChainingProjection`/`SwitchingProjection` are exercised
    indirectly through the domain suites that use them (e.g.
    `package/substrate/test/ProjecturedSubstrateTest.jl`), not by a dedicated unit

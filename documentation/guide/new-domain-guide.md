@@ -1,5 +1,7 @@
 # Tutorial: Adding a New Domain
 
+> **Kind:** procedure · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
+
 This tutorial walks through adding a complete new domain to ProjecturEd —
 document types, projection to Syntax, reader, example, and test.
 
@@ -15,7 +17,7 @@ that renders like this:
 Each step links to the relevant guide for deeper context.
 
 A domain is a package. Before Step 1, create `package/bookmark/main/` with a
-`Project.toml` and a root module, as [domains.md](domains.md) describes — the
+`Project.toml` and a root module, as [domains.md](../design/domain-inventory.md) describes — the
 steps below fill it in.
 
 ---
@@ -109,10 +111,10 @@ end # module
   `entries` by `getfield`, so these names *are* the domain's reference
   vocabulary — choose them deliberately; renaming one later breaks stored
   references. (See the `Document` contract in
-  [document/DocumentInterface.jl](../source/kernel/document/DocumentInterface.jl).)
+  [document/DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
   downstream computed cells.
-- See [reactive cells](package/kernel/cell.md) and [macros](package/kernel/macros.md)
+- See [reactive cells](../package/kernel/cell.md) and [macros](../package/kernel/macros.md)
   for the cell system and `@document` macro.
 
 ---
@@ -353,8 +355,8 @@ end # module
   mappers can locate the child IO map for a given child.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
   pattern for domains with multiple types.
-- See [the projection system guide](package/kernel/projection-system.md) and
-  [the selection deep dive](package/kernel/selection.md).
+- See [the projection system guide](../package/kernel/projection-system.md) and
+  [the selection deep dive](../package/kernel/selection.md).
 
 ---
 
@@ -500,5 +502,5 @@ BookmarkList
 
 For the next level of complexity — a domain with cross-references, a custom
 reader that handles structural events, or a `TableToGraphics`-style direct
-renderer — read [the projection system guide](package/kernel/projection-system.md) §"Writing a
+renderer — read [the projection system guide](../package/kernel/projection-system.md) §"Writing a
 custom projection" and look at `MathToSyntax.jl` as a real-world reference.

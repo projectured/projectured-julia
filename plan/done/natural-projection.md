@@ -268,7 +268,7 @@ Per repo guidance, keep scopes narrow (no `test_all`).
 - A new **mixed/natural example** (heterogeneous nesting) — `test_example` it
   (printer + reader + text-navigation).
 - Recursion-contract validation: run the external validator
-  ([testing.md](../../documentation/testing.md#validating-the-recursion-contract))
+  ([testing.md](../../documentation/guide/testing-guide.md#validating-the-recursion-contract))
   over `NaturalToGraphics` composed with the mixed example, to confirm every
   level delegates through the four functions (no School-B self-walk).
 - The `Any` fallback: feed a plain Julia struct (no registered entry) and

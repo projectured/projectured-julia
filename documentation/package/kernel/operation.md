@@ -1,5 +1,7 @@
 # Operations
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 An **operation** is a user gesture expressed in the document's own terms,
 decoupled from the raw device event that triggered it. The reader side of
 the projection pipeline produces operations; the editor applies them via

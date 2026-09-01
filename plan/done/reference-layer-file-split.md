@@ -72,7 +72,7 @@ All five reference files are 🔒 **sealed**. The split edits three of them and 
 
 Every reference file the split touched dropped back to ⬜ **unsealed** in the CLAUDE.md seal
 list, pending re-audit against
-[architecture-requirements.md](../../documentation/architecture-requirements.md). Carrying a
+[architecture-requirements.md](../../documentation/rule/architecture-invariants.md). Carrying a
 seal across a content change would defeat the point of the seal; re-sealing is the user's
 call. The audit should be cheap — the code is unchanged, only its home is new.
 
@@ -209,9 +209,9 @@ Found by grep; all name `Reference.jl` or "three fragments" and go stale:
   documents the higher-type-opaquely rule → now `Interface.jl`).
 - [package/kernel/doc/selection.md](../../documentation/package/kernel/selection.md):69 — "the generic
   implementation in `Reference.jl` walks the path step by step" → `ReferenceEvaluation.jl`.
-- [documentation/architecture.md](../../documentation/architecture.md):308 (the include tree)
+- [documentation/architecture.md](../../documentation/design/system-anatomy.md):308 (the include tree)
   and 383 (the module-inventory table row).
-- [documentation/concepts.md](../../documentation/concepts.md):186 — the `Reference` row's
+- [documentation/concepts.md](../../documentation/design/editor-concepts.md):186 — the `Reference` row's
   file pointer.
 - [CLAUDE.md](../../CLAUDE.md):35–37 — the seal list (see the open decision above).
 

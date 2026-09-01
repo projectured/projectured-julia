@@ -1,9 +1,11 @@
 # Roadmap
 
+> **Kind:** what · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
+
 This document distils the development priorities for ProjecturEd into three
 horizons: what has been **delivered**, what is **in progress**, and what is
 **planned**. The detailed design notes and open questions for each item live in
-[the further development plan](../plan/tentative/further-development.md).
+[the further development plan](../../plan/tentative/further-development.md).
 
 The ordering principle: **deepen the end-to-end path first** (make editing
 actually work end-to-end), **then widen** (more domains, more layouts, more
@@ -109,7 +111,7 @@ editor, analogous to VS Code extensions.
 ### 8. Annotation domain
 
 Attaching typed annotations to any document through a global registry is
-described in the design ([editor/annotation.md](../plan/tentative/annotation.md)) but not
+described in the design ([editor/annotation.md](../../plan/tentative/annotation.md)) but not
 yet implemented; no annotation types or functions exist in the code today.
 
 ### 9. Self-hosting

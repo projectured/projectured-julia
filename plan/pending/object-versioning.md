@@ -303,7 +303,7 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
     `VersionedObject` projects through both layers.
   - **Empty:** a `VersionedObject` with no matching version projects as
     `DocumentNothing` without error.
-  - Use the narrowest helpers per [documentation/testing.md](../../documentation/testing.md):
+  - Use the narrowest helpers per [documentation/testing.md](../../documentation/guide/testing-guide.md):
     `test_printer(versioning_example)`, `test_reader(versioning_example)`,
     `test_text_navigation(versioning_example)` — never `test_all`.
 - **[package/versioning/doc/versioning.md](../../documentation/package/versioning/versioning.md)** —
@@ -314,7 +314,7 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
 
 > **Audit note (2026-08-12):** Steps 1–4 and 6 are implemented, now in the
 > standalone `package/versioning/` package (its own package, not a module folded
-> into a shared domain package — see [documentation/packages.md](../../documentation/packages.md)).
+> into a shared domain package — see [documentation/packages.md](../../documentation/rule/package-rules.md)).
 > Only the optional History view (step 5) remains open.
 
 1. **✅ DONE (verified):** **`VersioningModule`** — `VersionProperties`,

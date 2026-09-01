@@ -1,5 +1,7 @@
 # Naming
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 How things are named in the kernel. The goal is guessability in both
 directions: given a concept, you can derive its name; given a name, you can
 tell what kind of thing it is and what it does — without looking it up.

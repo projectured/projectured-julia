@@ -1,5 +1,7 @@
 # Code quality
 
+> **Kind:** rule · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
+
 How the code of this repository reads, and what keeps it readable. A human reads
 this code to learn what it does. Every rule here serves that reader.
 
@@ -12,10 +14,10 @@ the measured baseline. It never weakens a shared rule.
 
 | Subject | Owner |
 | --- | --- |
-| Names of types, functions, files, and modules | [package/kernel/doc/naming.md](package/kernel/naming.md) |
+| Names of types, functions, files, and modules | [package/kernel/doc/naming.md](../package/kernel/naming.md) |
 | What belongs in which package, layer, slice, and module | [architecture-rules.md](architecture-rules.md) |
-| What the code must do | [architecture-requirements.md](architecture-requirements.md) |
-| The words for the divisions and the pipeline | [terminology.md](terminology.md) |
+| What the code must do | [architecture-requirements.md](architecture-invariants.md) |
+| The words for the divisions and the pipeline | [terminology.md](division-terminology.md) |
 
 `naming.md` is the authority on every name. This document starts where a name
 ends.
@@ -23,7 +25,7 @@ ends.
 ## 1. The shape of a file
 
 **A module file** carries the docstring, the import list, the export list, and
-the ordered includes. [JsonToSyntax.jl](../source/json/JsonToSyntax.jl) and
+the ordered includes. [JsonToSyntax.jl](../../source/json/JsonToSyntax.jl) and
 `CellModule.jl` show the two forms.
 
 **A fragment file opens with a one-line comment**, not a docstring:
@@ -38,7 +40,7 @@ owns the fragment and what the fragment adds.
 
 **A contract fragment says where each body lives**, so a reader who wants the
 implementation does not have to search.
-[DocumentInterface.jl:1](../source/kernel/document/DocumentInterface.jl#L1)
+[DocumentInterface.jl:1](../../source/kernel/document/DocumentInterface.jl#L1)
 is the model: it names `DocumentDefaults.jl`, `DocumentCopy.jl`,
 `DocumentSync.jl`, `DocumentWalk.jl`, and `DocumentMacro.jl` in its first seven
 lines.
@@ -61,7 +63,7 @@ the file, and its imports sit there because they serve only it.
 ## 2. Local rules
 
 **A contract fragment holds no body.**
-[DocumentInterface.jl](../source/kernel/document/DocumentInterface.jl) is
+[DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl) is
 193 lines of docstring and `function f end`. Every body lives in a named
 sibling. A reader who wants the promise reads one short file.
 
@@ -72,7 +74,7 @@ dependency in the wrong direction.
 
 **A projection delegates through its child.** An object projection sends each
 entry to the entry projection rather than inline. The comment in
-[JsonToSyntax.jl:105](../source/json/JsonToSyntax.jl#L105) calls this
+[JsonToSyntax.jl:105](../../source/json/JsonToSyntax.jl#L105) calls this
 School A and says why: the child then projects on its own as well.
 
 **Use `@projection_template`, not a hand-written printer and reader.** The

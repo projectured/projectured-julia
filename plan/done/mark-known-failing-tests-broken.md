@@ -181,7 +181,7 @@ we don't yet have a root cause.
    `test_video()` — only for the ones with the native dep installed.
    Un-installable suites are out of scope (nothing to observe).
 5. **Convention document.** Add a short section to
-   [documentation/testing.md](../../documentation/testing.md): the invariant
+   [documentation/testing.md](../../documentation/guide/testing-guide.md): the invariant
    ("every known failure is `@test_broken` with a reason"), the marker
    format, when to use `@test_skip` instead, and the grep command to
    enumerate.

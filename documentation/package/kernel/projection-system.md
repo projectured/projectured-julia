@@ -1,5 +1,7 @@
 # The Projection System
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 A **projection** is a bidirectional transformation between two domains. It is the
 central abstraction of ProjecturEd: every screen the user sees, and every gesture
 they make, flows through one or more projections.
@@ -55,7 +57,7 @@ Two corollaries, both load-bearing:
    composition. Express all descent through the four functions everyone already
    implements. (This is also why the contract is **validated externally**, by a
    test harness that drives the four functions over composed examples — see
-   [Validating the recursion contract](../../../documentation/testing.md#validating-the-recursion-contract) —
+   [Validating the recursion contract](../../guide/testing-guide.md#validating-the-recursion-contract) —
    rather than by adding an introspection method projections would have to
    implement.)
 
@@ -387,7 +389,7 @@ to it stay valid. What *varies* (the `output`, its selection, the child IoMaps) 
 a **computed cell** that re-derives from the projection's input and parameter
 cells; an operation writes a cell and the change propagates through the existing
 IoMap with no re-print. This is
-[PAR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#par-stable-iomap-identity),
+[PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity),
 and `reconcile_child_iomaps` (iomap layer) is the shared way to keep child-IoMap
 identity across a structural edit. Note the split: `@iomap`/`@projection` give the
 transparent cell *fields*, but wiring those fields as **derivations** (a
@@ -438,7 +440,7 @@ domain (via `map_reference_backward`).
    or define your own `@iomap` struct when you carry extra data. Wire whatever
    varies (`output`, child IoMaps) as computed cells so a parameter/input change
    re-derives it through the same IoMap
-   ([PAR-STABLE-IOMAP-IDENTITY](../../../documentation/architecture-requirements.md#par-stable-iomap-identity));
+   ([PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity));
    reconcile child collections with `reconcile_child_iomaps`.
 3. Implement `map_reference_forward` and `map_reference_backward` — usually
    the cleanest way is `@reference_case`. `print_document` wires its output
@@ -590,7 +592,7 @@ function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, refere
 end
 ```
 
-See [the tutorial](../../../documentation/tutorial-new-domain.md) for a complete worked
+See [the tutorial](../../guide/new-domain-guide.md) for a complete worked
 example with document types, example, and test.
 
 ## Recursion across projections

@@ -1,10 +1,12 @@
 # Packages
 
+> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [system-anatomy.md](../design/system-anatomy.md)
+
 What a package here is for, what it may depend on, and which one you load.
 
-- [architecture.md](architecture.md) — what the layers hold and how they stack.
-- [domains.md](domains.md) — the twenty domain packages, and what makes one.
-- [terminology.md](terminology.md) — package, layer, slice, module, leaf.
+- [architecture.md](../design/system-anatomy.md) — what the layers hold and how they stack.
+- [domains.md](../design/domain-inventory.md) — the twenty domain packages, and what makes one.
+- [terminology.md](division-terminology.md) — package, layer, slice, module, leaf.
 
 This document is the shape those are arranged in.
 
@@ -173,7 +175,7 @@ dependency.
 ### The twenty domains
 
 Each domain depends on the kernel, on the substrate packages it uses, and on
-the domains it embeds. [domains.md](domains.md) has the table.
+the domains it embeds. [domains.md](../design/domain-inventory.md) has the table.
 
 ### The packages that own a third-party dependency
 
@@ -223,7 +225,7 @@ becomes an optional stem like `ProjecturedOdbc`, named in the table above.
 
 1. Decide whether it is a **sub-stem** (a layer, no third-party dependency) or a
    **stem of its own** (it has one). Only the first may be aggregated. For a new
-   domain, [domains.md](domains.md) has the rest.
+   domain, [domains.md](../design/domain-inventory.md) has the rest.
 2. Give it the kinds it needs, with the reserved suffixes.
 3. Name every third-party dependency in the table above, with its reason.
 4. Do not depend on a leaf, and do not put a `@compile_workload` outside one.

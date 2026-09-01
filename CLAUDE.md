@@ -8,7 +8,7 @@ A Julia reimplementation of [ProjecturEd](https://github.com/projectured/project
 
 The list below is authoritative. It is the ordered inventory of the kernel's source folder (`source/kernel/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
 
-**Audit a file against [documentation/architecture-requirements.md](documentation/architecture-requirements.md) the moment you introduce it as the next file — before inviting review and before offering to seal.** Present the audit result first; never say "seal as-is" or ask whether to seal until the audit has been reported. A file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
+**Audit a file against [documentation/rule/architecture-invariants.md](documentation/rule/architecture-invariants.md) the moment you introduce it as the next file — before inviting review and before offering to seal.** Present the audit result first; never say "seal as-is" or ask whether to seal until the audit has been reported. A file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
 
 ### `source/kernel/` seal status
 
@@ -148,13 +148,13 @@ When a file is sealed, flip its `⬜` to `🔒` in the same commit. Do not remov
 
 ## Before working in this repo
 
-Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module / leaf) is defined in [documentation/terminology.md](documentation/terminology.md) — use those terms exactly. Before adding a package, read [documentation/packages.md](documentation/packages.md): it says what a package may depend on, and that a `@compile_workload` belongs only in a leaf.
+Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module / leaf) is defined in [documentation/rule/division-terminology.md](documentation/rule/division-terminology.md) — use those terms exactly. Before adding a package, read [documentation/rule/package-rules.md](documentation/rule/package-rules.md): it says what a package may depend on, and that a `@compile_workload` belongs only in a leaf.
 
 The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
 
-1. [documentation/concepts.md](documentation/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
-2. [documentation/architecture.md](documentation/architecture.md) — the package graph, the kernel's layers, and the module inventory.
-2b. [documentation/packages.md](documentation/packages.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
+1. [documentation/design/editor-concepts.md](documentation/design/editor-concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
+2. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, and the module inventory.
+2b. [documentation/rule/package-rules.md](documentation/rule/package-rules.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
 3. [documentation/package/kernel/cell.md](documentation/package/kernel/cell.md) — the pull-based reactive cell system that powers incrementality.
 4. [documentation/package/kernel/macros.md](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap`.
 5. [documentation/package/kernel/projection-system.md](documentation/package/kernel/projection-system.md) — the four interface functions and the printer/reader pair.
@@ -166,13 +166,13 @@ code they document; the cross-cutting concept/architecture/tooling guides stay i
 specific domain, also consult:
 
 - [documentation/package/kernel/reference.md](documentation/package/kernel/reference.md) and [documentation/package/kernel/selection.md](documentation/package/kernel/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
-- [documentation/domains.md](documentation/domains.md) — the twenty domain packages, what depends on what, and how to add one.
+- [documentation/design/domain-inventory.md](documentation/design/domain-inventory.md) — the twenty domain packages, what depends on what, and how to add one.
 - Per-domain guides: [json](documentation/package/json/json.md), [xml](documentation/package/xml/xml.md), [rst](documentation/package/rst/rst.md), [fsm](documentation/package/fsm/fsm.md), [process](documentation/package/process/process.md), [graph-layout](documentation/package/graph/graph-layout.md), [math](documentation/package/math/math.md), [workbench](documentation/package/workbench/workbench.md), [versioning](documentation/package/versioning/versioning.md); [text](documentation/package/text/text.md), [syntax](documentation/package/syntax/syntax.md), [graphics](documentation/package/graphics/graphics.md), [widget](documentation/package/widget/widget.md), [collection](documentation/package/collection/collection.md) and [bounded-sync](documentation/package/reflection/bounded-sync.md) (substrate).
 
 When iterating in the REPL or running the test suite:
 
-- [documentation/debugging.md](documentation/debugging.md) — REPL debugging tips: `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, and forcing reactive cells.
-- [documentation/testing.md](documentation/testing.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_position_navigations`, `test_repls`, and the walker helpers behind them.
+- [documentation/guide/debugging-guide.md](documentation/guide/debugging-guide.md) — REPL debugging tips: `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, and forcing reactive cells.
+- [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_position_navigations`, `test_repls`, and the walker helpers behind them.
 
 ## Conventions
 
@@ -191,8 +191,8 @@ Pick the narrowest scope that exercises your change:
 - The reactive primitive only: `test_cell()`.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 
-Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the per-package aggregators (`test_kernel()` / `test_substrate()` / the twenty `test_<domain>()`), the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_position_navigations()` / `test_repls()`), and rarely `test_all()` (which runs every per-package suite plus the umbrella integration tests, and takes about 47 minutes), when you specifically want a broad sweep after the targeted test already passes. See [documentation/testing.md](documentation/testing.md) for the full table of test functions and which package each one covers.
+Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the per-package aggregators (`test_kernel()` / `test_substrate()` / the twenty `test_<domain>()`), the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_position_navigations()` / `test_repls()`), and rarely `test_all()` (which runs every per-package suite plus the umbrella integration tests, and takes about 47 minutes), when you specifically want a broad sweep after the targeted test already passes. See [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) for the full table of test functions and which package each one covers.
 
 Always narrow down tests to the smallest reasonable scope — never default to `test_all()`, it is slow. Prefer single-example or single-domain test functions as described in the "Testing a change" section above.
 
-**Reading the summary.** An unmarked `Fail` or `Error` is a regression from your change — do not need to bisect to know. Known-failing assertions are marked `@test_broken` and appear in the `Broken` column; only `Fail` / `Error` counts should be zero after a passing run. If the count of `Broken` changes, read the `# @broken:` comment on the marker: fewer broken means an assertion started passing (promote it to `@test`); more broken means a new marker was added. See the "Marking known-failing tests" section in [documentation/testing.md](documentation/testing.md).
+**Reading the summary.** An unmarked `Fail` or `Error` is a regression from your change — do not need to bisect to know. Known-failing assertions are marked `@test_broken` and appear in the `Broken` column; only `Fail` / `Error` counts should be zero after a passing run. If the count of `Broken` changes, read the `# @broken:` comment on the marker: fewer broken means an assertion started passing (promote it to `@test`); more broken means a new marker was added. See the "Marking known-failing tests" section in [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md).

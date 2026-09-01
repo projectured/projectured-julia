@@ -1,5 +1,7 @@
 # Widget Domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 <img width="1024" alt="Widget example" src="../../../asset/image/example/widget.png">
 
 The widget domain is the UI layer that sits between domain-specific projections

@@ -6,8 +6,8 @@ Planning note (not yet an implementation task). Answers three questions:
 2. Which domain files should move down into `base`.
 3. How `base` would be rearranged internally with no backward-compat concern.
 
-The authorities used throughout: [architecture-rules.md](../../documentation/architecture-rules.md)
-(placement), [architecture-requirements.md](../../documentation/architecture-requirements.md)
+The authorities used throughout: [architecture-rules.md](../../documentation/rule/architecture-rules.md)
+(placement), [architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
 (`PAR-LOWEST-PACKAGE`, `PAR-FRAMEWORKS-SINK`, `PAR-DOMAINS-INDEPENDENT`,
 `PAR-PROJECTION-PLACEMENT`), and [base/doc/architecture.md](../../package/base/doc/architecture.md).
 

@@ -1,5 +1,7 @@
 # The `fsm` domain — extended state machines
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 A state machine as a first-class document: named states with entry actions,
 guarded event- and condition-driven transitions, first-class timers, extended
 state variables, and embedded Julia code. The slice exists to express real

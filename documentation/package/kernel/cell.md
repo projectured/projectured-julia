@@ -1,5 +1,7 @@
 # Reactive cells
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 The reactive cell system is the foundation of ProjecturEd's incrementality. It is a
 lightweight pull-based reactive engine that replaces the original Common Lisp
 ProjecturEd's `hu.dwim.computed-class`. It is **layer 1 of the kernel** — the bottom
@@ -98,7 +100,7 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
   that recomputes to an unchanged value does *not* stop propagation (the engine
   is not glitch-free / not value-stabilising). So `c[] = c[]` is not free; a
   printer that rewrites `selection` every frame pays for the whole subtree it
-  feeds. See [the design-decisions note](../../../documentation/design-decisions.md#10-propagation-is-write-driven-not-value-driven).
+  feeds. See [the design-decisions note](../../design/architecture-decisions.md#10-propagation-is-write-driven-not-value-driven).
 - **Thunks must be pure and deterministic in their cell inputs.** A thunk may run
   zero, one, or many times for a single logical change, and its cached result is
   reused until invalidation. It must therefore have no side effects and depend

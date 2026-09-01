@@ -1,5 +1,7 @@
 # Chart Domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 Native line, bar, histogram, scatter and colored-strip charts, re-implementing
 the chart types of the OMNeT++ analysis tool as a ProjecturEd domain. A chart is an ordinary
 document rendered by a bidirectional projection straight to graphics — no

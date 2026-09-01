@@ -1,5 +1,7 @@
 # Architectural requirements — how to develop ProjecturEd
 
+> **Kind:** rule · **Status:** current · **Stands on:** [accepted-requirements.md](../requirement/accepted-requirements.md), [architecture-decisions.md](../design/architecture-decisions.md)
+
 This document collects the **internal development requirements** the project
 must be built to, so that it stays tractable and maintainable as it grows. It
 is for contributors, developers, and AI assistants working in the codebase
@@ -7,7 +9,7 @@ alike.
 
 It is deliberately distinct from its two siblings:
 
-- [requirements.md](requirements.md) states what the editor must do as
+- [requirements.md](../requirement/accepted-requirements.md) states what the editor must do as
   **externally observable capabilities** (behaviour of the editor, usability of
   the project). Those are *product* requirements, carrying `PR-` IDs.
 - [architecture-rules.md](architecture-rules.md) is the decision procedure for
@@ -21,7 +23,7 @@ mis-mapped cursor) rather than loudly when violated. Each requirement is a few
 sentences and carries a symbolic ID — `PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE` —
 to cite in reviews, commit messages, guard failures, and plans. The division
 vocabulary (package / layer / slice / module) is used exactly as defined in
-[terminology.md](terminology.md).
+[terminology.md](division-terminology.md).
 
 **A prefix names the repository that owns the rule**, so a citation says which
 document to open without a link. The downstream projects cite these rules as
@@ -42,7 +44,7 @@ Three rules govern the IDs:
   regrouping. Adding a requirement appends a section and an index row; nothing
   else moves, and no existing citation changes.
 - **Each ID is a heading**, so a citation can link to the requirement itself:
-  `[PAR-PURE-THUNK](architecture-requirements.md#par-pure-thunk)`.
+  `[PAR-PURE-THUNK](architecture-invariants.md#par-pure-thunk)`.
 
 When a rule here and a rule in a per-topic guide appear to conflict, the
 per-topic guide wins for its topic and this document should be corrected; when
@@ -1076,13 +1078,13 @@ synonyms.** Avoid "tier" and architectural "level"; say "package" or "layer";
 say "per-package" (not "per-layer") for `test_kernel()`…; name a pipeline stage
 by the thing (the Syntax domain, the `syntax/` slice, the `SyntaxToText`
 projection), not "the syntax layer"; use "end-to-end path", not "vertical
-slice", for MVP scope. See [terminology.md](terminology.md).
+slice", for MVP scope. See [terminology.md](division-terminology.md).
 
 ### PAR-NEVER-GUESS-NAMES
 
 **Do not guess names or signatures — search for them.** Use `search_api`, the
 `resource://modules`/`classes`/`functions` catalogues, the [orientation
-index](orientation.md), or ripgrep before naming a type or function; a
+index](../guide/orientation.md), or ripgrep before naming a type or function; a
 hallucinated name is worse than an admitted gap. Property access already
 unwraps cells — write `node.field`, not `node.field[]`.
 
@@ -1149,7 +1151,7 @@ for both.
 **Follow the naming law — names must be guessable in both directions.** A name
 tells you what kind of thing it is and what it does, and a concept tells you
 its name, without a lookup (see
-[kernel/doc/naming.md](package/kernel/naming.md)). Module name =
+[kernel/doc/naming.md](../package/kernel/naming.md)). Module name =
 filename + `Module`, and every exported name has exactly one owning module.
 Name new concepts onto the pipeline ladder **Event → Gesture → Intent →
 Operation → Document**, not alongside it: events are noun-first and suffixless

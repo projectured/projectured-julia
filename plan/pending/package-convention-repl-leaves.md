@@ -732,10 +732,10 @@ and the existing guides point at it.
   the dependency direction, the full table of what depends on what, the external
   dependency of each package and why it has one, the environments and what each
   is for, and which package is the leaf the alias loads.
-- [documentation/architecture.md](../../documentation/architecture.md) in
+- [documentation/architecture.md](../../documentation/design/system-anatomy.md) in
   projectured-julia gains the leaf and workload rules next to the existing
   layer and slice vocabulary, and links to `packages.md`. The division
-  vocabulary in [terminology.md](../../documentation/terminology.md) gains
+  vocabulary in [terminology.md](../../documentation/rule/division-terminology.md) gains
   `leaf` as a term, since the whole convention turns on it.
 - Each repository's `CLAUDE.md` gains one line: where a new package goes, and
   that a `@compile_workload` belongs only in a leaf.

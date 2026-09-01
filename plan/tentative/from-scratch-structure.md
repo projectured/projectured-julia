@@ -2,14 +2,14 @@
 
 > **Layout note.** This plan was written when every domain lived in one
 > `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
+> [documentation/domains.md](../../documentation/design/domain-inventory.md). A path or a
 > module name below that still says `package/domain/` or `ProjecturedDomain`
 > needs translating when the plan is picked up.
 
 A ground-up redesign of the package/layer/slice/module tree that follows
-[architecture-rules.md](../../documentation/architecture-rules.md) and the numbered
+[architecture-rules.md](../../documentation/rule/architecture-rules.md) and the numbered
 requirements in
-[architecture-requirements.md](../../documentation/architecture-requirements.md)
+[architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
 with no concession to backward compatibility. This is a *target*, not a plan: no phases,
 no migration, no aliases. It answers one question — if the code were placed by the rules
 today, where would every file sit?

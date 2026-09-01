@@ -1,5 +1,7 @@
 # Collections
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 <img width="240" alt="Collection example" src="../../../asset/image/example/collection.png">
 
 The collection domain provides four generic, reactive container types used

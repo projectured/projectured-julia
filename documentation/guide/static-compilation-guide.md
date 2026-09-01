@@ -1,5 +1,7 @@
 # Static compilation with juliac
 
+> **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
+
 `juliac --trim` builds a small executable from Julia code. It emits only the
 code that it can prove reachable from the entry point. When it meets a call that
 it can not resolve, it stops with a verifier error.
@@ -7,7 +9,7 @@ it can not resolve, it stops with a verifier error.
 This guide states the one rule that decides whether a call resolves, shows what
 that rule costs ProjecturEd, and gives four ways to keep an abstract type and
 still compile. The probe that measured every number is in
-[bench/juliac-trim/](../tool/juliac-trim/).
+[bench/juliac-trim/](../../tool/juliac-trim).
 
 ## The rule
 

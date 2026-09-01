@@ -23,7 +23,7 @@ to modify:
 
 **Do not start any step before that permission is given for the files that step touches.**
 The seals hold until then. When a sealed file is restructured, re-audit it against
-[architecture-requirements.md](../../documentation/architecture-requirements.md) and
+[architecture-requirements.md](../../documentation/rule/architecture-invariants.md) and
 re-seal it in the same commit; new files (`DocumentWalk.jl`, `DocumentPlan.jl`, …) enter
 the inventory as `⬜` and are sealed on their own review.
 
@@ -477,7 +477,7 @@ they cannot drift silently:
 - [x] Seal inventory in [CLAUDE.md](../../CLAUDE.md).
 - [x] Move this plan to `plan/done/`.
 
-### Audit against [architecture-requirements.md](../../documentation/architecture-requirements.md)
+### Audit against [architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
 
 Clean on every mechanical requirement:
 

@@ -21,7 +21,7 @@ engine     generic    rendering    feature slices
 
 ## Driving principles — package vs layer vs module vs file (decided)
 
-> Documented durably in [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
+> Documented durably in [documentation/architecture-rules.md](../../documentation/rule/architecture-rules.md)
 > (the division rules, the per-package membership tests, the placement invariant, the
 > seam pattern, and enforcement). This section keeps the review-time rationale.
 

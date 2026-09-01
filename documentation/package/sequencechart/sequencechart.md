@@ -1,5 +1,7 @@
 # The sequence chart domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 <img width="900" alt="Sequencechart example" src="../../../asset/image/example/sequencechart.png">
 
 A sequence chart answers one question — *what happened where, in what order, and

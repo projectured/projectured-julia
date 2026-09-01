@@ -1,5 +1,7 @@
 # Versioning domain
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 A generic, domain-neutral overlay that lets **any** document subtree carry
 multiple versions of itself. Versioning is an optional, recursive wrapper layer
 plus an *elimination projection* that collapses the wrapper away — after which

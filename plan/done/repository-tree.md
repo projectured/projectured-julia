@@ -159,7 +159,7 @@ the problems appeared:
   `example/substrate/`, and step 3 becomes mechanical.
 
 The grouping is not lost; it moves to where overlap is allowed.
-[documentation/packages.md](../../documentation/packages.md) already carries it,
+[documentation/packages.md](../../documentation/rule/package-rules.md) already carries it,
 and it can say a slice is both a backend and a carrier of a third-party
 dependency without contradicting itself.
 

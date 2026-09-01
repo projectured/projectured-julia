@@ -1,8 +1,10 @@
 # Getting Started
 
+> **Kind:** procedure · **Status:** current · **Stands on:** [editor-concepts.md](../design/editor-concepts.md)
+
 This guide covers prerequisites, setup, and the REPL helpers you will use
 every day. For the conceptual foundation (what projectional editing is, the
-five core ideas, the key event walkthrough) see [the concepts guide](concepts.md).
+five core ideas, the key event walkthrough) see [the concepts guide](../design/editor-concepts.md).
 For a guided tour of the examples see [the examples tour](examples-tour.md).
 
 ## Prerequisites
@@ -54,7 +56,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")              # vector PDF, select
 write_example_pdf("widget", "/tmp/book.pdf"; paginate=true) # flow tall content onto pages
 ```
 
-See [the graphics guide](package/graphics/graphics.md) for the `write_image` and
+See [the graphics guide](../package/graphics/graphics.md) for the `write_image` and
 `write_pdf` APIs.
 
 ## Inspecting document structure
@@ -76,7 +78,7 @@ ref = @reference entries[1].value.value{3}
 evaluate_reference(editor.document, ref)
 ```
 
-See [the reference guide](package/kernel/reference.md) for the full grammar
+See [the reference guide](../package/kernel/reference.md) for the full grammar
 (`.field`, `[i]`, `{k}`, `[i, j]`, `.field(expr)`, `.point(x, y)`,
 `.proj(p, sub)`).
 
@@ -91,7 +93,7 @@ test_position_navigations()          # position (caret) navigation, no-error swe
 test_position_navigations_complete() # + reaches every enumerated position (curated)
 ```
 
-See [the testing guide](testing.md) for all per-package helpers.
+See [the testing guide](testing-guide.md) for all per-package helpers.
 
 ## For AI assistants using MCP
 

@@ -1,8 +1,8 @@
 # Symbolic requirement IDs
 
 Replace the sequential numbers in
-[requirements.md](../../documentation/requirements.md) and
-[architecture-requirements.md](../../documentation/architecture-requirements.md)
+[requirements.md](../../documentation/requirement/accepted-requirements.md) and
+[architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
 with **stable symbolic IDs** — `PAR-PURE-THUNK` instead of `AR-1`, `PR-NO-INVALID-STATES`
 instead of product requirement `1` — and rewrite every citation across the repo.
 
@@ -77,7 +77,7 @@ fragility the numbers had. With the ID alone in the heading, the anchor is `#par
 and is stable under any prose edit.
 
 The payoff: a citation can deep-link to the exact requirement —
-`[PAR-PURE-THUNK](../../documentation/architecture-requirements.md#par-pure-thunk)` — which
+`[PAR-PURE-THUNK](../../documentation/rule/architecture-invariants.md#par-pure-thunk)` — which
 list items cannot do today (every existing link lands at the top of the file and makes
 the reader hunt). It also keeps the body text byte-identical to what was there before.
 
@@ -340,7 +340,7 @@ pass. All 117 IDs are live; 191 numeric citations were rewritten across 31 files
 - [x] **6. Fix the prose that describes the scheme**, not just the IDs:
       [documentation/README.md](../../documentation/README.md) (lines 50, 105 — "the
       numbered … requirements", "Numbered internal development requirements (PAR-N)") and
-      [documentation/architecture-rules.md](../../documentation/architecture-rules.md)
+      [documentation/architecture-rules.md](../../documentation/rule/architecture-rules.md)
       (line 19 — "the numbered PAR-N"). `CLAUDE.md` references the document but no ID, so
       it needs no change.
 - [x] **7. Resolve the two bare citations.** `plan/pending/chase-animation.md:68` cites

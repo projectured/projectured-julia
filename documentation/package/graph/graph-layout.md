@@ -1,5 +1,7 @@
 # Graph layout
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+
 How a graph gets from a list of vertices and edges to a picture: which engines
 exist, what each one is, what a caller can ask of them, and which one runs when
 the caller does not say.

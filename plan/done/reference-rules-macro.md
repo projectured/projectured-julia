@@ -260,7 +260,7 @@ failures or errors. Also clean under `--depwarn=error`.
   `ReferenceModule`'s sealed export list.
 - **`match_reference_step_value` is declared in this fragment**, not in
   `ReferenceInterface.jl` where a layer's open generics belong
-  ([PAR-INTERFACE-DECLARES-ONLY](../../documentation/architecture-requirements.md#par-interface-declares-only));
+  ([PAR-INTERFACE-DECLARES-ONLY](../../documentation/rule/architecture-invariants.md#par-interface-declares-only));
   that file is sealed. The error default stays here either way, beside the DSL
   that first reaches it, as `match_reference_step`'s does in `ReferenceCase.jl`.
 - **No extension step registers the interpreted seam yet.** `.point`, `.proj`,

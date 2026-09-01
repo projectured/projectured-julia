@@ -1,5 +1,7 @@
 # ProjecturEd presentations
 
+> **Kind:** reference · **Status:** current · **Stands on:** [product-vision.md](../requirement/product-vision.md)
+
 Slide decks about ProjecturEd, written in [Marp](https://marp.app/) Markdown
 so they version-control cleanly and render to HTML / PDF / PPTX.
 
@@ -66,4 +68,4 @@ Conventions used in `projectured-overview.md`, reusable as you grow it:
 The overview deck is grounded in the guides and source. When the project
 gains features that are currently forthcoming (e.g. undo/redo, versioning,
 live collaboration), update the corresponding slide so claims stay honest —
-see [`../guide/roadmap.md`](../documentation/roadmap.md).
+see [`../guide/roadmap.md`](../requirement/delivery-roadmap.md).

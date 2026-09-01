@@ -284,7 +284,7 @@ and documented**, not hidden:
 1. **`TrajectoryDoc` + trajectory math.** The document, `trajectory_value(snap, t)`,
    and the constant-speed `t1`. Placement: the visual package next to the
    widget/graphics consumers (or base if a lower-layer consumer appears first) —
-   decide against [documentation/architecture.md](../../documentation/architecture.md)
+   decide against [documentation/architecture.md](../../documentation/design/system-anatomy.md)
    at implementation time.
 2. **`ChasePlayback`** — the pure chasing projection with settle-by-dropping-
    the-subscription. Test first: `test_printer` over hand-built TrajectoryDocs

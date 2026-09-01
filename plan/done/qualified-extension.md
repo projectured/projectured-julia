@@ -256,7 +256,7 @@ its `print_document` / `evaluate_operation` imports are untouched by design).
 
 ## Phase 4 — write the rule down
 
-- [x] Add **PAR-QUALIFIED-EXTENSION** to [documentation/architecture-requirements.md](../../documentation/architecture-requirements.md)
+- [x] Add **PAR-QUALIFIED-EXTENSION** to [documentation/architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
       (72 is the current highest), stating the table above, the same-module-fragment carve-out,
       and the reason: the compiler can only distinguish "new function" from "extension of
       another layer's contract" if the name arrives via `using`. Cross-reference PAR-MODULE-BOUNDARY-IS-API

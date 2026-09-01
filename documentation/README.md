@@ -1,161 +1,128 @@
-# Guide Index
+# The documentation
 
-Three reading tracks depending on your goal.
+> **Kind:** reference · **Status:** current · **Stands on:** every document in this folder
 
-Guides come in two kinds. **Cross-cutting guides** — concepts, the whole-system
-architecture, onboarding, and the repo-wide tooling — live here in
-`documentation/`. **Per-package reference guides** live next to the code they
-document, in each package's `doc/` directory
-([kernel](package/kernel/), one per substrate package such as
-[widget](package/widget/), and one per domain such as
-[json](package/json/)). The AI
-agent sees both sets through `list_guides` / `read_guide`.
+This folder holds the documents of the editor, from why it exists to how the
+code is laid out. This file is the map. It draws the chain that derives the code
+from first principles, lists every document with its place in the chain, and
+states the header that every document carries.
 
----
+The structure is the one omnet-julia uses, so a reader who knows one repository
+knows the other. See
+[omnet-julia/documentation/README.md](../../omnet-julia/documentation/README.md).
 
-## Track 1 — New here (user / evaluator)
+## The folders and the chain
 
-You want to understand what ProjecturEd is, see it in action, and form a
-mental model before diving into code.
+Each folder answers one question that a reader brings. The folders follow the
+chain: each row stands on the row above it. A reader who wants to know why a
+thing is the way it is walks up; a reader who wants to know what to build walks
+down.
 
-1. [Introduction](introduction.md) — the engineer's introduction: every concept
-   with its real code, how the concepts combine, and how to extrapolate what the
-   system can do.
-2. [Concepts](concepts.md) — what projectional editing is, the five core
-   ideas, and a step-by-step walkthrough of a key event.
-3. [Examples tour](examples-tour.md) — guided tour of six examples with
-   screenshots and what to try.
-4. [Getting started](getting-started.md) — prerequisites, setup, and REPL
-   helpers (`run_example`, `print_example`, `write_example_image`).
-5. [Debugging](debugging.md) — driving the printer/reader by hand, forcing
-   reactive cells, inspecting selection.
+```
+requirement/   why does anyone want it, and what must it do
+  └─ design/   how is it built, why not otherwise, and what is each part
+       ├─ rule/        what is a change checked against
+       └─ the code     design/system-anatomy.md and package/ say where it lives
+```
 
----
+Beside the chain:
 
-## Track 2 — Building something (contributor)
+```
+guide/         how to do a task: set up, debug, test, add a domain, compile
+package/       the guide of each slice
+presentation/  the slide decks
+```
 
-You want to add a domain, a projection, a backend, or extend an existing one.
+Three folders that omnet-julia has are **not** here, because there is nothing
+yet to put in them. `evidence/` holds a risk register and the numbers measured
+against a predecessor; `study/` holds experiments that are not decisions;
+`history/` holds how the chain came to be. Until then the history is
+[plan/done/](../plan/done/), one plan per step.
 
-1. [Introduction](introduction.md) then [Concepts](concepts.md) — start here if
-   you haven't already.
-2. [Architecture](architecture.md) — the package chain, layer/slice structure,
-   full module inventory, pipeline status. See [Terminology](terminology.md)
-   for the division vocabulary (package / layer / slice / module).
-3. [Reactive cells](package/kernel/cell.md) — the three cell kinds
-   (`ReactiveCell` / `MutableCell` / `ImmutableCell`), dependency tracking, and
-   the eager-invalidate / lazy-recompute rule. Everything assumes you understand
-   this.
-4. [Macros](package/kernel/macros.md) — `@document`, `@projection`,
-   `@iomap` and why field access looks like plain Julia even though every field
-   is a `Cell`.
-5. [Projection system](package/kernel/projection-system.md) — the four
-   interface functions, the printer/reader pair, and the projection taxonomy.
-6. [Tutorial: new domain](tutorial-new-domain.md) — step-by-step: define
-   document types, write a projection, implement the reader, add an example,
-   write a test.
-7. [Design decisions](design-decisions.md) — rationale for key choices.
-8. [Architecture requirements](architecture-requirements.md) — the internal
-   development requirements (`PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE`, …) every
-   change must respect; keep this open as a checklist while you work.
-9. [Naming](package/kernel/naming.md) then
-   [Code quality](code-quality.md) — how a name is derived, and the shape the
-   code around it takes: file layout, comments, public surface, size budgets.
+## Every document
 
-Then read the guide for the domain or area you are touching:
+In the order of the chain. The kind is the one in the document's header.
 
-- Higher-order projections: [higher-order projections guide](package/kernel/higher-order-projections.md)
-- Generic projections: [generic projections guide](package/kernel/generic-projections.md)
-- Operations: [operations guide](package/kernel/operation.md)
-- Editor loop: [editor guide](package/kernel/editor.md)
-- References + DSL: [reference guide](package/kernel/reference.md)
-- Selection mechanism: [selection guide](package/kernel/selection.md)
-- Finding / selecting nodes by content: [finding-and-selecting guide](package/kernel/finding-and-selecting.md)
-- Backends and devices: [devices and backends guide](package/kernel/devices-and-backends.md)
-- Per-package: each package's own `doc/`, for example [widget/doc/](package/widget/) and [collection/doc/](package/collection/) — see [domains.md](domains.md)
+| Document | Kind | What it answers |
+| --- | --- | --- |
+| [product-vision.md](requirement/product-vision.md) | why | What is the long-term potential, which pain does it address, and how does it relate to other tools? |
+| [accepted-requirements.md](requirement/accepted-requirements.md) | what | What must the editor do, as capabilities observable from outside? `PR-…` |
+| [delivery-roadmap.md](requirement/delivery-roadmap.md) | what | What is delivered, what is in progress, and what is next? |
+| [architecture-decisions.md](design/architecture-decisions.md) | decision | Why is it built this way, and why not otherwise? |
+| [architecture-invariants.md](rule/architecture-invariants.md) | rule | What must every change respect, so the system stays tractable as it grows? `PAR-…` |
+| [architecture-rules.md](rule/architecture-rules.md) | rule | How is the code divided, and where does a new thing belong? |
+| [package-rules.md](rule/package-rules.md) | rule | What is a package for, what may it depend on, and which one do I load? |
+| [code-quality-rules.md](rule/code-quality-rules.md) | rule | How does the code read, and what keeps it readable? |
+| [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
+| [editor-concepts.md](design/editor-concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
+| [editor-derivation.md](design/editor-derivation.md) | design | How do the concepts combine into a system, each one with its real code? |
+| [system-anatomy.md](design/system-anatomy.md) | design | What is the editor made of? The pipeline, the package graph, the layers, the module inventory. |
+| [domain-inventory.md](design/domain-inventory.md) | reference | What are the twenty domains, what depends on what, and what makes one? |
+| [package/README.md](package/README.md) | reference | The guide of each slice, one folder per slice. |
+| [orientation.md](guide/orientation.md) | reference | Where do I look first, and what do I search for? |
+| [setup-guide.md](guide/setup-guide.md) | procedure | How do I install it and open a session? |
+| [examples-tour.md](guide/examples-tour.md) | reference | Which examples exist, what does each show, and what should I try? |
+| [debugging-guide.md](guide/debugging-guide.md) | procedure | How do I drive the printer and the reader by hand, and force a cell? |
+| [testing-guide.md](guide/testing-guide.md) | procedure | Which test covers my change, and how do I read the summary? |
+| [new-domain-guide.md](guide/new-domain-guide.md) | procedure | How do I add a domain: documents, projection, reader, example, test? |
+| [static-compilation-guide.md](guide/static-compilation-guide.md) | procedure | How do I get a `juliac --trim` binary out of this repository? |
+| [presentation/README.md](presentation/README.md) | reference | Which slide decks exist, and how do I render one? |
 
----
+## The header
 
-## Track 3 — AI agent
+Every document starts with one block-quote line under its title:
 
-You are an AI assistant working in this repo via MCP or a chat interface.
-[CLAUDE.md](../CLAUDE.md) is the canonical entry point — it already captures
-the contributor reading order and conventions tuned for non-trivial changes.
-Read it first; it will point you here and to the specific guides you need.
+```markdown
+> **Kind:** decision · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
+```
 
----
+**Kind** is one of:
 
-## Full guide listing
+| Kind | The document answers |
+| --- | --- |
+| why | What does a user gain? |
+| what | What must the editor do? |
+| decision | How is it built, and why not otherwise? |
+| rule | What is a change checked against? |
+| design | What is each part, in the settled form? |
+| reference | Where is what, and how is it used? |
+| procedure | How do I do this task? |
 
-### Conceptual (top level)
+`evidence`, `study` and `history` are kinds omnet-julia uses that no document
+here carries yet. Add one when the folder that holds it arrives.
 
-| Guide | Contents |
-|---|---|
-| [Introduction](introduction.md) | The engineer's introduction — every concept with its code, how they combine, what the combinations make possible |
-| [Concepts](concepts.md) | Plain-English conceptual guide — the five core ideas and a key-event walkthrough |
-| [Examples tour](examples-tour.md) | Guided tour of six examples with what to try |
-| [Vision](vision.md) | Long-term potential, positioning, and "compared to…" |
-| [Roadmap](roadmap.md) | Near-, medium-, and long-term development priorities |
+**Status** is `current` (a qualifier can follow a semicolon), `snapshot <date>`,
+`superseded by <document>`, or `generated, do not edit`.
 
-### Getting started (top level)
+**Stands on** names the documents the document depends on directly, by their
+path from the citing file. It is the citation direction, which can differ from
+the order of the chain: a benefit names the requirements it comes from, and a
+requirement never names a benefit.
 
-| Guide | Contents |
-|---|---|
-| [Getting started](getting-started.md) | Setup and REPL helpers |
-| [Debugging](debugging.md) | REPL debugging: print_example, write_example_image, forcing cells |
-| [Testing](testing.md) | test_all and per-package test helpers |
-| [Static compilation](static-compilation.md) | juliac `--trim`: why an abstract type blocks it, and four ways to keep the abstract type |
-| [Tutorial: new domain](tutorial-new-domain.md) | Step-by-step: add a new domain |
-| [Orientation](orientation.md) | Concept→symbol search index for navigating the code |
+## Two rules that hold everywhere
 
-### Architecture (top level)
+**A document describes what is.** How it came to be is in
+[plan/done/](../plan/done/), one plan per step. A reader who wants the current
+state is not made to read the history, and a reader who wants the history finds
+it in one place.
 
-| Guide | Contents |
-|---|---|
-| [Terminology](terminology.md) | The division vocabulary: package, layer, slice, module |
-| [Architecture](architecture.md) | Package chain, layer/slice structure, module inventory, pipeline status |
-| [Architecture rules](architecture-rules.md) | Decision rules: when to create a package, layer, slice, or module, and where code belongs |
-| [Architecture requirements](architecture-requirements.md) | Internal development requirements (`PAR-…`): the invariants and conventions every change must respect |
-| [Design decisions](design-decisions.md) | Rationale for key architectural choices |
-| [Requirements](requirements.md) | Implementation-independent behavior/capability spec |
-| [Code quality](code-quality.md) | File shape, comments, public surface, redundancy, size budgets, and the measured baseline |
+**Cite, do not repeat.** A statement that belongs to one document is linked from
+the others. Two copies drift, and one of them is then wrong. A bare `§N` means a
+section of the file you are reading; cite any other file by name.
 
-The kernel documents its own internal structure in
-[its `doc/architecture.md`](package/kernel/architecture.md); it is the
-one layered package. Every other package is one concept, and the graph they
-form is in [architecture.md](architecture.md) and [domains.md](domains.md).
+## The neighbours
 
-### The projection system (kernel)
+| Folder | What it holds |
+| --- | --- |
+| [plan/pending/](../plan/pending/) and [plan/done/](../plan/done/) | The design and implementation plans. A done plan is a step of the history. |
+| [../CLAUDE.md](../CLAUDE.md) | Which kernel files are sealed, and the audit before a seal. |
+| [asset/](../asset/) | Fonts, the reference screenshots the examples are checked against, the web client, and the precompile recording. |
 
-| Guide | Contents |
-|---|---|
-| [Projection system](package/kernel/projection-system.md) | The four interface functions, the recursion contract, and the projection taxonomy |
-| [Higher-order projections](package/kernel/higher-order-projections.md) | Chaining, Recursive, the dispatchers, Nesting, Switching |
-| [Generic projections](package/kernel/generic-projections.md) | Identity, Copying, Sorting, Reversing, Filtering, Focusing, … |
-| [Operations](package/kernel/operation.md) | Operations: what they are and how the reader produces them |
-| [Macros](package/kernel/macros.md) | @document, @projection, @iomap |
-| [Reactive cells](package/kernel/cell.md) | The three cell kinds, dependency tracking, eager invalidation and lazy recompute |
+## Where to start
 
-### Editor and runtime (kernel)
-
-| Guide | Contents |
-|---|---|
-| [Editor](package/kernel/editor.md) | REPL loop, event handling, rendering pipeline |
-| [Reference guide](package/kernel/reference.md) | Reference paths and the @reference / @reference_case DSL |
-| [Selection guide](package/kernel/selection.md) | How selection is stored and propagated, incl. the recursion algorithm |
-| [Finding and selecting](package/kernel/finding-and-selecting.md) | Search for nodes by content (`search_references` / `search_documents`), resolve paths (`evaluate_reference`), select |
-| [Devices and backends](package/kernel/devices-and-backends.md) | Backend/Device split, the SDL, Console, and Web backends, and how to add a new one |
-
-### Per-domain (in the owning package)
-
-| Guide | Domain | Package |
-|---|---|---|
-| [JSON domain](package/json/json.md) | JSON | domain |
-| [XML domain](package/xml/xml.md) | XML | domain |
-| [Workbench domain](package/workbench/workbench.md) | Workbench (IDE shell) | domain |
-| [Versioning domain](package/versioning/versioning.md) | Versioning overlay | substrate |
-| [Text domain](package/text/text.md) | Text | substrate |
-| [Syntax domain](package/syntax/syntax.md) | Syntax (intermediate) | substrate |
-| [Graphics domain](package/graphics/graphics.md) | Graphics + write_image + write_pdf | substrate |
-| [Widget domain](package/widget/widget.md) | Widgets | substrate |
-| [Collection domain](package/collection/collection.md) | CellVector and ListNode | substrate |
-| [Bounded sync](package/reflection/bounded-sync.md) | shadowing something too big to walk whole | substrate |
+1. New to projectional editing: [editor-concepts.md](design/editor-concepts.md), then [examples-tour.md](guide/examples-tour.md).
+2. New and an engineer: [editor-derivation.md](design/editor-derivation.md), then [system-anatomy.md](design/system-anatomy.md).
+3. About to open a session: [setup-guide.md](guide/setup-guide.md), then [debugging-guide.md](guide/debugging-guide.md).
+4. About to change code: [architecture-invariants.md](rule/architecture-invariants.md), then [architecture-rules.md](rule/architecture-rules.md) and [package-rules.md](rule/package-rules.md).
+5. About to add a domain: [domain-inventory.md](design/domain-inventory.md), then [new-domain-guide.md](guide/new-domain-guide.md).
+6. About to run a test: [testing-guide.md](guide/testing-guide.md).

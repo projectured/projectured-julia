@@ -1,28 +1,30 @@
 # Architecture rules — how the code is divided and where things belong
 
+> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
+
 The decision rules behind the package/layer/slice/module structure (the terms
-are defined precisely in [terminology.md](terminology.md)). They apply to the
+are defined precisely in [terminology.md](division-terminology.md)). They apply to the
 codebase as it exists today (the opt-in packages already obey them); the structure
 was established by
-[plan/done/kernel-layered-architecture.md](../plan/done/kernel-layered-architecture.md)
+[plan/done/kernel-layered-architecture.md](../../plan/done/kernel-layered-architecture.md)
 and
-[plan/done/domain-layered-architecture.md](../plan/done/domain-layered-architecture.md),
+[plan/done/domain-layered-architecture.md](../../plan/done/domain-layered-architecture.md),
 and extended to the sibling test/example DAGs by
-[plan/done/test-package-split.md](../plan/done/test-package-split.md) and
-[plan/done/example-package-split.md](../plan/done/example-package-split.md).
+[plan/done/test-package-split.md](../../plan/done/test-package-split.md) and
+[plan/done/example-package-split.md](../../plan/done/example-package-split.md).
 When a "where does this go?" question comes up, answer it from these rules — and if
 the rules don't answer it, extend the rules, don't improvise.
 
 These are the *placement* rules (where code lives). For the *invariants and
 conventions* every change must respect — reactivity, the projection contract,
 references/selection, operations, testing — see
-[architecture-requirements.md](architecture-requirements.md) (the `PAR-…`
+[architecture-requirements.md](architecture-invariants.md) (the `PAR-…`
 development requirements).
 
 ## The four levels of division
 
 Each level answers to a different criterion. "Should X be a package?" is really four
-questions, one per level ([terminology.md](terminology.md) defines the terms):
+questions, one per level ([terminology.md](division-terminology.md) defines the terms):
 
 | Level | Is a boundary of | Create one when | Cost |
 | --- | --- | --- | --- |
@@ -119,7 +121,7 @@ each under its opt-in package's folder: `package/odbc/example`
 `package/adaptagrams/example` (`ProjecturedAdaptagramsExample`, the native
 graph-layout examples), `package/tulip/example` (`ProjecturedTulipExample`, the
 LP-solved constraint layout). They replace the old single `ProjecturedExtrasExample`
-aggregate ([plan/done/extras-example-split.md](../plan/done/extras-example-split.md)).
+aggregate ([plan/done/extras-example-split.md](../../plan/done/extras-example-split.md)).
 One example, `dvdrental_relationship`, needs two engines (its document is
 DB-derived, its layout native), so `adaptagrams/example` depends on
 `odbc/example` for that document — the lowest-home rule applied to a genuinely
@@ -245,7 +247,7 @@ names as an **interface file** and asserts it declares without implementing, and
 exports every name it declares (requirement #72) — the kernel's nine contract files
 today. The guard is implemented **once** — the shared
 `check_layering` in
-[package/kernel/test/layering/CheckLayering.jl](../test/kernel/layering/CheckLayering.jl)
+[package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
 — and each test package applies it to its main package
 (`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
 `test_domain_layering()`), running inside `test_<package>()`. It runs without loading

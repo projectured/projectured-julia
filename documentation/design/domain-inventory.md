@@ -1,24 +1,26 @@
 # The domain packages
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md)
+
 Contributor guide to the twenty packages that hold ProjecturEd's concrete
 source domains: what a domain package contains, how they depend on each other,
 and how to add one. For the whole-system picture see
-[architecture.md](architecture.md).
+[architecture.md](system-anatomy.md).
 
 ## Per-domain guides
 
 A domain with a reference guide keeps it in its own package:
 
-- [json.md](package/json/json.md) — the JSON domain
-- [xml.md](package/xml/xml.md) — the XML domain
-- [rst.md](package/rst/rst.md) — the reStructuredText domain
-- [math.md](package/math/math.md) — the mathematical notation domain
-- [chart.md](package/chart/chart.md) — the chart domain
-- [sequencechart.md](package/sequencechart/sequencechart.md) — the sequence chart domain
-- [fsm.md](package/fsm/fsm.md) — the state machine domain
-- [process.md](package/process/process.md) — the process domain
-- [graph-layout.md](package/graph/graph-layout.md) — the graph domain's layout engines
-- [workbench.md](package/workbench/workbench.md) — the workbench application
+- [json.md](../package/json/json.md) — the JSON domain
+- [xml.md](../package/xml/xml.md) — the XML domain
+- [rst.md](../package/rst/rst.md) — the reStructuredText domain
+- [math.md](../package/math/math.md) — the mathematical notation domain
+- [chart.md](../package/chart/chart.md) — the chart domain
+- [sequencechart.md](../package/sequencechart/sequencechart.md) — the sequence chart domain
+- [fsm.md](../package/fsm/fsm.md) — the state machine domain
+- [process.md](../package/process/process.md) — the process domain
+- [graph-layout.md](../package/graph/graph-layout.md) — the graph domain's layout engines
+- [workbench.md](../package/workbench/workbench.md) — the workbench application
 
 ## What a domain package is
 
@@ -35,7 +37,7 @@ true of that content and nothing else:
 Each package is a triad — `package/<name>/{main, test, example}` — plus a
 `doc/` where a guide exists. Every package depends on `ProjecturedKernel`, on
 the substrate packages it actually imports, and on whichever domains it
-embeds. [packages.md](packages.md) has the substrate table.
+embeds. [packages.md](../rule/package-rules.md) has the substrate table.
 
 ## The dependency table
 

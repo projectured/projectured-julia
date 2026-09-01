@@ -1,5 +1,7 @@
 # Bounded sync — a shadow that grows only where someone looked
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 `sync_document!(shadow, source)` walks the whole source. That is right for a
 small document and ruinous for a large one. A discrete-event simulation engine
 holds per-module hash and count arrays with over a thousand entries each plus a

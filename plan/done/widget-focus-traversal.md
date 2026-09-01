@@ -255,7 +255,7 @@ focused iff `getfield(w,:selection)[] !== nothing` (background fact 3).
   `widget_disabled` in Stage 1).
 - Add a `test_text_navigation`-style Tab walk asserting Tab reaches every
   focusable (reuse the navigation harness; see
-  [documentation/testing.md](../../documentation/testing.md)).
+  [documentation/testing.md](../../documentation/guide/testing-guide.md)).
 - **Un-skip** the `syntax-to-widget` keyboard-navigation case this stage unblocks
   (its plan flags Stage 2 as the blocker).
 

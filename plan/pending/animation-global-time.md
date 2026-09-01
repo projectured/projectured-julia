@@ -73,7 +73,7 @@ tick!()      # EDITOR_TIME[] = <current logical time>
 ```
 
 Because invalidation is **write-driven** (see
-[design-decisions §10](../../documentation/design-decisions.md) and
+[design-decisions §10](../../documentation/design/architecture-decisions.md) and
 [cell.md](../../documentation/package/kernel/cell.md)), writing
 `EDITOR_TIME` unconditionally invalidates every cell that *read* it —
 transitively — and the next pull during `write_to_devices` recomputes exactly

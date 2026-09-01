@@ -1,5 +1,7 @@
 # Finding and Selecting Nodes
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 How to locate a node in a document by *content* (not by a path you already know),
 turn that into a reference, resolve a reference back to a node, and move the
 selection there. This is the practical workflow for tasks like "select the string
@@ -240,7 +242,7 @@ This is a **debugging / inspection** tool: the returned paths are rooted at the
 iomap (`::…IoMap.input…` / `.output…`), so — like searching `jsondoc` above —
 they are **not** selectable on the screen. It is the go-to move for "the value is
 in the document but not on screen — which stage dropped it?" and for diagnosing
-reactivity. The [debugging guide](../../../documentation/debugging.md#searching-the-pipeline-state-iomaps)
+reactivity. The [debugging guide](../../guide/debugging-guide.md#searching-the-pipeline-state-iomaps)
 covers the workflow (reading iomap paths, `search_references` vs `search_documents`
 counts as a reactivity signal).
 

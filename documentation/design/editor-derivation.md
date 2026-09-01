@@ -1,10 +1,12 @@
 # Introduction — how ProjecturEd works
 
+> **Kind:** design · **Status:** current · **Stands on:** [editor-concepts.md](editor-concepts.md), [system-anatomy.md](system-anatomy.md)
+
 This guide is for a software engineer who is new to ProjecturEd. It explains the
 main concepts, how the concepts combine, and what the combinations make
 possible. Read it before the architecture guide and before the code.
 
-[Concepts](concepts.md) gives the short conceptual model. This guide is the long
+[Concepts](editor-concepts.md) gives the short conceptual model. This guide is the long
 form: it names every part, shows the real code of each part, and then spends
 most of its length on **combination** — because almost nothing in ProjecturEd is
 interesting alone. The last part gives you the rules to predict what the system
@@ -56,7 +58,7 @@ perf!(editor)      # report the reactive counters of this frame
 ```
 
 The loop lives in
-[Editor.jl](../source/kernel/editor/Editor.jl). Every concept in the next
+[Editor.jl](../../source/kernel/editor/Editor.jl). Every concept in the next
 part is a part of one of these four steps.
 
 ---
@@ -85,7 +87,7 @@ box), and `ImmutableCell` (frozen). The reactive kind is the default.
 **The rule.** Invalidation is eager, recomputation is lazy. This is why a deep
 pipeline is affordable: an edit invalidates a path of cells, but only the cells
 that the screen actually pulls on run again. See
-[cell.md](package/kernel/cell.md).
+[cell.md](../package/kernel/cell.md).
 
 ### 2.2 Document and domain
 
@@ -139,7 +141,7 @@ matches.
 
 **The rule.** A `.field` step is `getfield`. So a document's field names are its
 public path vocabulary, and a rename of a field breaks every stored path. See
-[reference.md](package/kernel/reference.md).
+[reference.md](../package/kernel/reference.md).
 
 ### 2.4 Selection — where the caret is
 
@@ -161,7 +163,7 @@ selection works everywhere for free.
 
 **The rule.** Because the suffix lives on the node, a projection can read a
 node's selection and does not need the path to the root. See
-[selection.md](package/kernel/selection.md).
+[selection.md](../package/kernel/selection.md).
 
 ### 2.5 Gesture — what the user did
 
@@ -226,7 +228,7 @@ evaluate_operation(editor, ReplaceSelectionOperation(ref))
 
 **The rule.** Before you write a new operation type, ask whether the change is a
 slot write. Most changes are. See
-[operation.md](package/kernel/operation.md).
+[operation.md](../package/kernel/operation.md).
 
 ### 2.7 Projection — the bidirectional map
 
@@ -270,7 +272,7 @@ reference map from that record. Nothing is generated per type.
 **The rule.** A projection transforms **one level** and delegates every child
 back through the same four functions. It never walks the subtree itself. This is
 the recursion contract, and part 4 explains why everything depends on it. See
-[projection-system.md](package/kernel/projection-system.md).
+[projection-system.md](../package/kernel/projection-system.md).
 
 ### 2.8 IO map — the record of the print
 
@@ -644,7 +646,7 @@ much about the design as the finished parts.
 
 You write no reader and no reference mapper for the normal case. The template
 engine derives both from the markers. A simple domain is 50 to 150 lines. The
-worked walkthrough is [tutorial-new-domain.md](tutorial-new-domain.md).
+worked walkthrough is [tutorial-new-domain.md](../guide/new-domain-guide.md).
 
 ### 6.2 Add a projection
 
@@ -676,9 +678,9 @@ test_example(json_example)              # all three
 test_json()                             # one domain
 ```
 
-The full table is in [testing.md](testing.md). For work in the REPL —
+The full table is in [testing.md](../guide/testing-guide.md). For work in the REPL —
 `run_example`, `print_example`, `write_example_image`, and how to drive the
-printer and reader by hand — see [debugging.md](debugging.md).
+printer and reader by hand — see [debugging.md](../guide/debugging-guide.md).
 
 ---
 
@@ -686,13 +688,13 @@ printer and reader by hand — see [debugging.md](debugging.md).
 
 | Goal | Guide |
 |---|---|
-| See the concepts at work | [Examples tour](examples-tour.md) |
-| Set up and run something | [Getting started](getting-started.md) |
-| Understand the incrementality | [Reactive cells](package/kernel/cell.md) |
-| Understand the four functions in depth | [Projection system](package/kernel/projection-system.md) |
-| Understand the combinators in depth | [Higher-order projections](package/kernel/higher-order-projections.md) · [Generic projections](package/kernel/generic-projections.md) |
-| Understand paths and the caret | [References](package/kernel/reference.md) · [Selection](package/kernel/selection.md) |
-| Understand the macros | [Macros](package/kernel/macros.md) |
-| Find the code | [Architecture](architecture.md) · [Terminology](terminology.md) · [Orientation](orientation.md) |
-| Add your own domain | [Tutorial: new domain](tutorial-new-domain.md) |
-| Know the direction of the project | [Vision](vision.md) · [Roadmap](roadmap.md) |
+| See the concepts at work | [Examples tour](../guide/examples-tour.md) |
+| Set up and run something | [Getting started](../guide/setup-guide.md) |
+| Understand the incrementality | [Reactive cells](../package/kernel/cell.md) |
+| Understand the four functions in depth | [Projection system](../package/kernel/projection-system.md) |
+| Understand the combinators in depth | [Higher-order projections](../package/kernel/higher-order-projections.md) · [Generic projections](../package/kernel/generic-projections.md) |
+| Understand paths and the caret | [References](../package/kernel/reference.md) · [Selection](../package/kernel/selection.md) |
+| Understand the macros | [Macros](../package/kernel/macros.md) |
+| Find the code | [Architecture](system-anatomy.md) · [Terminology](../rule/division-terminology.md) · [Orientation](../guide/orientation.md) |
+| Add your own domain | [Tutorial: new domain](../guide/new-domain-guide.md) |
+| Know the direction of the project | [Vision](../requirement/product-vision.md) · [Roadmap](../requirement/delivery-roadmap.md) |

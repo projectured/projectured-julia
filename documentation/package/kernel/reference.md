@@ -1,5 +1,7 @@
 # References
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 References are path-like pointers into document trees. A reference is a
 sequence of typed *steps* that descend one level at a time through a document
 tree, addressing exactly one location inside it. References let the editor

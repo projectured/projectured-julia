@@ -2,7 +2,7 @@
 
 > **Layout note.** This plan was written when every domain lived in one
 > `ProjecturedDomain` package. Each domain is its own package now — see
-> [documentation/domains.md](../../documentation/domains.md). A path or a
+> [documentation/domains.md](../../documentation/design/domain-inventory.md). A path or a
 > module name below that still says `package/domain/` or `ProjecturedDomain`
 > needs translating when the plan is picked up.
 
@@ -394,7 +394,7 @@ this clearly — silent data loss in either direction is the thing to avoid.
    equals the file text; typing a character reads back a
    `StringReplaceRangeOperation` on `content{…}`; selection round-trips via the two
    reference mappers. Reuse the `walk_printer_output` / reader walkers per
-   [documentation/testing.md](../../documentation/testing.md).
+   [documentation/testing.md](../../documentation/guide/testing-guide.md).
 
 The synchronizer tests drive `synchronize!` **directly** (no live loop), so they
 are deterministic and fast. Tests must use the session scratch dir for temp files

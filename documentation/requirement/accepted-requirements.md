@@ -1,23 +1,25 @@
 # Requirements
 
+> **Kind:** what · **Status:** current · **Stands on:** [product-vision.md](product-vision.md)
+
 This document states what ProjecturEd is required to do, as capabilities
 observable from the outside — by a person or an AI assistant using the editor,
 or by someone working with the project. Each requirement is written to hold
 regardless of how it is implemented and regardless of what kind of content is
 being edited. Requirements describe intended behaviour; the
-[roadmap](roadmap.md) tracks how much of it is delivered today.
+[roadmap](delivery-roadmap.md) tracks how much of it is delivered today.
 
 These are the *product* requirements (what the editor and project must do). For
 the *internal development* requirements that keep the codebase tractable — the
 invariants and conventions every change must respect — see
-[architecture-requirements.md](architecture-requirements.md).
+[architecture-requirements.md](../rule/architecture-invariants.md).
 
 Each requirement carries a symbolic ID — `PR-NO-INVALID-STATES`,
 `PR-UNDO-REDO` — to cite in reviews, commit messages, and plans. An ID is
 permanent and is never reused; it names the requirement, not the section it sits
 in, so requirements can be regrouped without invalidating a citation. Each ID is
 a heading, so a citation can link to the requirement itself:
-`[PR-UNDO-REDO](requirements.md#pr-undo-redo)`.
+`[PR-UNDO-REDO](accepted-requirements.md#pr-undo-redo)`.
 
 Two parts follow: the **behaviour of the editor** (what the editor must do for
 the person using it) and the **usability of the project** (what the project

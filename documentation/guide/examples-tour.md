@@ -1,5 +1,7 @@
 # Examples Tour
 
+> **Kind:** reference · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
+
 This guide walks through six ProjecturEd examples in order of complexity.
 For each one: what it demonstrates, how to run it, what to try, and which
 concepts it illustrates. Screenshots for each example are embedded inline below.
@@ -206,7 +208,7 @@ The navigator pane on the left shows the document tree.
 
 Once you have a feel for these examples, the natural next steps are:
 
-- [Concepts](concepts.md) — if you want the conceptual model before the code
-- [Architecture](architecture.md) — module inventory and package/layer/slice structure
-- [Projection system](package/kernel/projection-system.md) — the four interface functions
-- [Tutorial: new domain](tutorial-new-domain.md) — add your own domain
+- [Concepts](../design/editor-concepts.md) — if you want the conceptual model before the code
+- [Architecture](../design/system-anatomy.md) — module inventory and package/layer/slice structure
+- [Projection system](../package/kernel/projection-system.md) — the four interface functions
+- [Tutorial: new domain](new-domain-guide.md) — add your own domain

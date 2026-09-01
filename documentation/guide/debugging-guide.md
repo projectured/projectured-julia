@@ -1,7 +1,9 @@
 # Debugging in the REPL
 
+> **Kind:** procedure · **Status:** current · **Stands on:** [setup-guide.md](setup-guide.md)
+
 Most day-to-day debugging of ProjecturEd is done from a Julia REPL launched
-against the repo's top-level project. The root [Project.toml](../environment/all/Project.toml)
+against the repo's top-level project. The root [Project.toml](../../environment/all/Project.toml)
 already depends on `Projectured`, `ProjecturedExample`, and `ProjecturedTest`,
 so a single `julia --project=environment/all` from the repo root gives you access to every
 public symbol used below.
@@ -27,10 +29,10 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The gallery lives at
-[domain/example/Gallery.jl](../example/projectured/Gallery.jl) (the
+[domain/example/Gallery.jl](../../example/projectured/Gallery.jl) (the
 `Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
-[projectured/example/Examples.jl](../example/projectured/Examples.jl), and
+[projectured/example/Examples.jl](../../example/projectured/Examples.jl), and
 `using ProjecturedExample` provides all of them. It accepts a
 few keyword arguments worth knowing:
 
@@ -50,7 +52,7 @@ always the first thing to try — the `Example` struct caches one shared
 instance per example.
 
 To drive the same example from a browser instead of an SDL window, pass a
-[web backend](package/kernel/devices-and-backends.md#web-backend) to
+[web backend](../package/kernel/devices-and-backends.md#web-backend) to
 `run_example` (after `using ProjecturedWeb`, so `WebBackend` is in scope):
 
 ```julia
@@ -90,7 +92,7 @@ Two things stay outside the panel:
 
 The panel is not interactive. A click goes through it to the content below.
 
-The slice is [domain/main/gesturelog/](../package/ProjecturedGestureLog/):
+The slice is [domain/main/gesturelog/](../../package/ProjecturedGestureLog):
 `GestureLog.jl` (the buffer and the rendering of a gesture and an operation),
 `GestureLogToSyntax.jl` (one line per entry), `GestureLogRecorder.jl` (the
 decorator that records) and `GestureLogOverlay.jl` (the decorator that draws).
@@ -114,7 +116,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[visual/example/Harness.jl](../example/substrate/Harness.jl). It calls
+[visual/example/Harness.jl](../../example/substrate/Harness.jl). It calls
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
@@ -150,7 +152,7 @@ julia> print_document(proj, doc)                   # reprint after the edit
 ```
 
 This is exactly the read-eval-print loop from
-[package/kernel/main/editor/Editor.jl](../source/kernel/editor/Editor.jl), peeled
+[package/kernel/main/editor/Editor.jl](../../source/kernel/editor/Editor.jl), peeled
 apart so you can step through it one call at a time.
 
 ### Bisecting the pipeline (a keystroke declines — which stage?)
@@ -200,7 +202,7 @@ declining while its interior succeeds points at the delimiter|content span bound
 ## Searching the pipeline state (iomaps)
 
 `search_references` / `search_documents` (the content-search primitives from the
-[finding-and-selecting guide](package/kernel/finding-and-selecting.md)) are usually run
+[finding-and-selecting guide](../package/kernel/finding-and-selecting.md)) are usually run
 against `editor.document`, but they walk **any** object graph — unwrapping cells,
 descending struct fields and collections. An **iomap** is exactly such a graph:
 the value `print_document` returns links a projection's *input* to its *output*
@@ -273,7 +275,7 @@ hand-stepping `print_document` layer by layer.
 > (`::…IoMap.input…` / `.output…`), so they are for **inspection only** — do
 > **not** feed them to `set_selection!` / `replace_selection!`. For a selectable
 > path, search `editor.document` instead (see the
-> [finding-and-selecting guide](package/kernel/finding-and-selecting.md)).
+> [finding-and-selecting guide](../package/kernel/finding-and-selecting.md)).
 
 ## Tracing projection calls (event propagation)
 
@@ -289,7 +291,7 @@ When you want to see *what reads what* — how a single event propagates down
 through the projection stack — point logging at the four projection interface
 generic functions (`read_intent`, `print_document`,
 `map_reference_forward`, `map_reference_backward`). These are declared in
-[package/kernel/main/projection/ProjectionApi.jl](../source/kernel/projection/ProjectionApi.jl) and each
+[package/kernel/main/projection/ProjectionApi.jl](../../source/kernel/projection/ProjectionApi.jl) and each
 projection adds its own method; the recursion happens peer-to-peer (a
 projection's `read_intent` calls `read_intent` on its children
 directly), so to see the whole tree you must instrument the generic function
@@ -342,14 +344,14 @@ julia> clear_selection!(doc)
 julia> set_selection!(doc, some_path)
 ```
 
-The reference DSL is documented in [the reference guide](package/kernel/reference.md);
-see [the selection guide](package/kernel/selection.md) for how selections propagate
+The reference DSL is documented in [the reference guide](../package/kernel/reference.md);
+see [the selection guide](../package/kernel/selection.md) for how selections propagate
 through nested documents.
 
 ## Forcing reactive cells
 
 Every reactive value in the system is a `Cell` (see
-[reactive cells](package/kernel/cell.md)). When something looks empty in the
+[reactive cells](../package/kernel/cell.md)). When something looks empty in the
 REPL, it is usually because you are looking at the wrapper, not the value:
 
 ```julia
@@ -358,7 +360,7 @@ julia> doc.value[]       # forces evaluation
 ```
 
 The walker used by the test suite (`_walk!` in
-[kernel/test/editor/PrinterTest.jl](../test/kernel/editor/PrinterTest.jl)) is a
+[kernel/test/editor/PrinterTest.jl](../../test/kernel/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
 ## Generating all screenshots
@@ -461,7 +463,7 @@ and the `timed_event` / `timed_operation` helpers.
 
 ## Workspace fixtures
 
-Sample documents live in [projectured/example/workspace/](../example/projectured/workspace/)
+Sample documents live in [projectured/example/workspace/](../../example/projectured/workspace)
 (`contact-list.json`, `hello-world.html`, `lorem-ipsum.txt`). The examples
 that load files read from this directory; point a new example there when
 you need an on-disk fixture.
@@ -475,6 +477,6 @@ you need an on-disk fixture.
    and step through `print_document` / `read_intent` /
    `evaluate_operation` by hand.
 5. Cross-reference with the test helpers documented in
-   [the testing guide](testing.md) — `walk_printer_output`, `walk_reader_events`,
+   [the testing guide](testing-guide.md) — `walk_printer_output`, `walk_reader_events`,
    `walk_repl_loop`, and `explore_position_selections` all take a `(document,
    projection)` pair and exercise one slice of the editor loop.

@@ -1,5 +1,7 @@
 # Selection
 
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+
 Selection is the mechanism that tracks the current cursor position or focused
 region within a document. A **selection** is a specific use of a *reference*:
 the [`Reference`](reference.md) stored in a document's `selection::Cell`
@@ -14,7 +16,7 @@ and the recursion algorithm that ties them together. For the reference
 `@reference_case` DSLs, type checkpoints — see the sibling
 [reference guide](reference.md); this page cross-links to it rather than
 restating the vocabulary. For a gentler introduction see
-[§4 Selection in the concepts guide](../../../documentation/concepts.md).
+[§4 Selection in the concepts guide](../../design/editor-concepts.md).
 
 ## The document contract
 

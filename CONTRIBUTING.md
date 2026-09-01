@@ -34,7 +34,7 @@ package/kernel/
 Each subfolder holds its own `Project.toml` with its code directly beside it
 (no `main/` level — the `entryfile` key names the entry module file). The
 packages are linked by `[sources]` path dependencies. See
-[documentation/architecture-rules.md](documentation/architecture-rules.md) for
+[documentation/architecture-rules.md](documentation/rule/architecture-rules.md) for
 the main/test/example DAGs and the rules that keep them parallel.
 
 ## Running the tests
@@ -50,7 +50,7 @@ test_json()         # one domain
 test_printer(json_example)  # one example
 ```
 
-See [documentation/testing.md](documentation/testing.md) for the full list of per-layer
+See [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) for the full list of per-layer
 helpers and the walker utilities behind them.
 
 ## Running an example
@@ -112,7 +112,7 @@ makes review harder.
 1. Fork the repository and create a branch.
 2. Make your changes. Follow the style guidelines above.
 3. Run the narrowest test that covers the change (see
-   [documentation/testing.md](documentation/testing.md)) and confirm it passes.
+   [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md)) and confirm it passes.
 4. If you added a domain or projection, add a corresponding test file and
    register it in the test package of the lowest tier that can express it —
    `package/<domain>/test` when the fixture is that domain's document,
@@ -125,10 +125,10 @@ makes review harder.
 
 ## Adding a new domain (quick checklist)
 
-A full walkthrough is in [documentation/tutorial-new-domain.md](documentation/tutorial-new-domain.md).
+A full walkthrough is in [documentation/guide/new-domain-guide.md](documentation/guide/new-domain-guide.md).
 The short version:
 
-A domain is a package. [documentation/domains.md](documentation/domains.md) has
+A domain is a package. [documentation/design/domain-inventory.md](documentation/design/domain-inventory.md) has
 the full rules; the short version:
 
 - [ ] `package/mydomain/main/Project.toml` — a fresh UUID, deps on
