@@ -21,30 +21,6 @@ using ProjecturedSdl
 
 # The SDL backend must be live for the dirty-rect / write_image paths. Built in
 # __init__ (runtime, after the extension loads) rather than at precompile time.
-function __init__()
-    initialize_backend!(SdlBackend())
-end
-
-include("../../../test/sdl/backend/DirtyRectTest.jl")
-include("../../../test/sdl/backend/KeysymTest.jl")
-include("../../../test/sdl/backend/DeviceConfigTest.jl")
-include("../../../test/sdl/backend/InputCoalescingTest.jl")
-include("../../../test/sdl/backend/NativeWindowTest.jl")
-include("../../../test/sdl/projection/GraphicsToFileTest.jl")
-
-"Run the whole SDL backend suite."
-function test_sdl()
-    @testset "ProjecturedSdl" begin
-        test_dirty_rect()
-        test_sdl_keysym()
-        test_device_config()
-        test_input_coalescing()
-        test_native_window()
-        test_write_image()
-    end
-end
-
-export test_sdl, test_dirty_rect, test_sdl_keysym, test_device_config,
-       test_input_coalescing, test_native_window, test_write_image
+include("../../../test/sdl/Suite.jl")
 
 end # module ProjecturedSdlTest

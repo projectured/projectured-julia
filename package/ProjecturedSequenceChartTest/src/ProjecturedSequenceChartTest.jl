@@ -67,39 +67,6 @@ end
 include("../../../test/sequencechart/projection/SequenceChartGeometryTest.jl")
 include("../../../test/sequencechart/projection/SequenceChartTest.jl")
 
-"""
-    test_sequencechart_layering()
-
-Static layered-architecture guard for `ProjecturedSequenceChart`.
-"""
-function test_sequencechart_layering()
-    main = package_source_root(ProjecturedSequenceChart)
-    check_layering(main, pathof(ProjecturedSequenceChart);
-                   name = "sequencechart",
-                   extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedSequenceChart; all = true)
-                         if isdefined(ProjecturedSequenceChart, n) &&
-                            getfield(ProjecturedSequenceChart, n) isa Module &&
-                            getfield(ProjecturedSequenceChart, n) !== ProjecturedSequenceChart &&
-                            parentmodule(getfield(ProjecturedSequenceChart, n)) !== ProjecturedSequenceChart))
-end
-
-"""
-    test_sequencechart()
-
-Run this package's whole suite: the layering guard and every sequencechart test.
-"""
-function test_sequencechart()
-    @testset "ProjecturedSequenceChart" begin
-        test_sequencechart_layering()
-        test_sequencechart_geometry()
-        test_sequencechart_projection()
-        test_sequencechart_scale()
-        test_sequencechart_selection()
-    end
-end
-
-export test_sequencechart, test_sequencechart_layering, test_sequencechart_projection, test_sequencechart_geometry
-export test_sequencechart_scale, test_sequencechart_selection
+include("../../../test/sequencechart/Suite.jl")
 
 end # module ProjecturedSequenceChartTest

@@ -422,9 +422,29 @@ executable directory the builder compiles. `ProjecturedExecutable` also gave up
 `Precompile.jl` and `AppConfig.default.jl`, and the generated `AppConfig.jl` is
 written to `source/executable/` now.
 
-**1382 lines still sit in 46 roots** — mostly a test package's `test_json()`
-aggregator and its exports, and five substrate roots between 25 and 36 lines.
-Same violation, second wave, not done here.
+**A second wave took the rest.** 28 more roots gave up **1510 lines**: the 27
+test packages' `test_json()` / `test_json_layering()` aggregators, to
+`test/<slice>/Suite.jl`, and `ProjecturedRepl`'s 127 lines to
+`source/repl/Repl.jl`. `ProjecturedFileFormat`'s twenty-line `__init__`
+registration went to `source/fileformat/NaturalRegistration.jl`.
+
+Four of those roots put code **before** their include list, so a body moved with
+its own includes inside it — and those paths had been written from the package
+root's directory. Each was re-expressed by resolving it, not by editing the
+text: `include("../../../test/json/document/JsonTest.jl")` in the root becomes
+`include("document/JsonTest.jl")` beside the body.
+
+**Eight lines are left, in eight roots, and all eight belong there.** Five are
+`const _PKG_DIR = …`, the folder an include list reads from, which is part of the
+include list. Two are a one-line `__init__` that calls a function defined in
+`source/`, which is load-time wiring rather than code. So the rule the tree now
+keeps is:
+
+> A package root holds its docstring, its imports, its module aliases, its
+> include list, its exports, and a one-line `__init__`. Everything else is
+> source, and source lives in `source/`, `test/` or `example/`.
+
+Total moved out of package roots across the two waves: **8109 lines**.
 
 **Six directories survived the flatten.** `git mv` moves files, and a directory
 whose last tracked file left survives on anything untracked still in it:
@@ -447,9 +467,11 @@ catch.** Two defects in it, both mine:
    a **tracked** manifest only — which is what the five it originally caught
    were.
 
-Verified after both: `test_tree()` 1/1, `test_kernel()` 1540/3/2, `test_json()`
-169/169, `test_substrate()` 55158/1/1, `test_package_graph()` 717/2. Every one
-matches the clean-main baseline. The full suite is not re-run here.
+Verified after every wave: `test_tree()` 1/1, `test_kernel()` 1540/3/2,
+`test_json()` 169/169, `test_substrate()` 55158/1/1, `test_package_graph()`
+717/2. Every one matches the clean-main baseline. The full suite is deliberately
+**not** re-run here; it belongs at the end of the day's work, not after each
+step.
 
 ## 9. What omnet-julia already paid for
 

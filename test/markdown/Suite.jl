@@ -1,0 +1,30 @@
+"""
+    test_markdown_layering()
+
+Static layered-architecture guard for `ProjecturedMarkdown`.
+"""
+function test_markdown_layering()
+    main = package_source_root(ProjecturedMarkdown)
+    check_layering(main, pathof(ProjecturedMarkdown);
+                   name = "markdown",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedMarkdown; all = true)
+                         if isdefined(ProjecturedMarkdown, n) &&
+                            getfield(ProjecturedMarkdown, n) isa Module &&
+                            getfield(ProjecturedMarkdown, n) !== ProjecturedMarkdown &&
+                            parentmodule(getfield(ProjecturedMarkdown, n)) !== ProjecturedMarkdown))
+end
+
+"""
+    test_markdown()
+
+Run this package's whole suite: the layering guard and every markdown test.
+"""
+function test_markdown()
+    @testset "ProjecturedMarkdown" begin
+        test_markdown_layering()
+        test_markdown_embed()
+    end
+end
+
+export test_markdown, test_markdown_layering, test_markdown_embed

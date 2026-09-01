@@ -1,0 +1,30 @@
+"""
+    test_book_layering()
+
+Static layered-architecture guard for `ProjecturedBook`.
+"""
+function test_book_layering()
+    main = package_source_root(ProjecturedBook)
+    check_layering(main, pathof(ProjecturedBook);
+                   name = "book",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedBook; all = true)
+                         if isdefined(ProjecturedBook, n) &&
+                            getfield(ProjecturedBook, n) isa Module &&
+                            getfield(ProjecturedBook, n) !== ProjecturedBook &&
+                            parentmodule(getfield(ProjecturedBook, n)) !== ProjecturedBook))
+end
+
+"""
+    test_book()
+
+Run this package's whole suite: the layering guard and every book test.
+"""
+function test_book()
+    @testset "ProjecturedBook" begin
+        test_book_layering()
+        test_book_to_syntax()
+    end
+end
+
+export test_book, test_book_layering, test_book_to_syntax

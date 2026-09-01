@@ -1,0 +1,96 @@
+"""
+    test_kernel_layering()
+
+Static layered-architecture guard for `ProjecturedKernel`: the top include list
+must be a topological order over the real `import ..XxxModule` edges, every src
+file reached exactly once, files under a declared layer folder may only
+import from layers of index ≤ their own, cross-layer symbol imports may
+name only exported symbols, and every interface file declares without
+implementing (PAR-INTERFACE-DECLARES-ONLY).
+"""
+function test_kernel_layering()
+    # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
+    # is not under a src/), so derive the package root from `pathof`.
+    main = package_source_root(ProjecturedKernel)
+    check_layering(main, pathof(ProjecturedKernel);
+                   name = "kernel",
+                   layers = ["cell", "clock", "event", "device", "gesture", "backend",
+                             "document", "reference", "selection", "operation",
+                             "binding", "iomap", "projection", "tool", "llm", "agent", "editor"],
+                   check_private_imports = true,
+                   # A layer's contract file, and its owning module.
+                   interface_files = Dict(
+                       "cell/CellInterface.jl"       => :CellModule,
+                       "event/EventInterface.jl"     => :EventModule,
+                       "document/DocumentInterface.jl" => :DocumentModule,
+                       "reference/ReferenceInterface.jl" => :ReferenceModule,
+                       "selection/SelectionInterface.jl"      => :SelectionModule,
+                       "operation/Interface.jl"      => :OperationModule,
+                       "backend/BackendInterface.jl" => :BackendModule,
+                       "device/Device.jl"            => :DeviceModule,
+                       "projection/ProjectionApi.jl" => :ProjectionApiModule,
+                       "iomap/IoMapInterface.jl"     => :IoMapModule),
+                   # PAR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx`
+                   # + qualified extension (`Xxx.f(…) = …`). Opt-in, and it grows
+                   # as the sweep proceeds; when it covers every file the
+                   # parameter goes.
+                   qualified_files = Set([
+                       "projection/ProjectionReferenceStep.jl",   # the reference-step seam
+                       "editor/Editor.jl",
+                       "editor/Playback.jl",
+                       "llm/LlmModule.jl",
+                       "agent/AgentModule.jl"]))
+end
+
+"""
+    test_kernel()
+
+Run the whole kernel suite: the static layering guard, the `check_layering`
+self-tests, and every kernel unit test.
+"""
+function test_kernel()
+    @testset "ProjecturedKernel" begin
+        test_kernel_layering()
+        test_layering_checkers()
+        test_cell()
+        test_cell_struct()
+        test_struct_plan()
+        test_performance_counter()
+        test_clock()
+        test_document_contract()
+        test_document_macro()
+        test_reference_builder()
+        test_reference_eval()
+        test_reference_rules()
+        test_rerooting()
+        test_traversal()
+        test_event_module()
+        test_event_case()
+        test_gesture_recognizer()
+        test_gesture_binding()
+        test_headless_backend()
+        test_escape_quit()
+        test_editor_inbox()
+        test_editor_frame_drain()
+        test_agent_seam()
+        test_construct_oracle()
+    end
+end
+
+export test_kernel, test_kernel_layering
+# layering guard (shared by base/visual/domain test packages)
+export check_layering, package_source_root, test_layering_checkers
+# kernel unit suites
+export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
+       test_document_contract, test_document_macro,
+       test_reference_builder, test_reference_eval, test_reference_rules, test_rerooting,
+       test_traversal, test_event_module, test_event_case,
+       test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
+       test_editor_inbox, test_editor_frame_drain
+# generic drivers + walker internals reused by the higher test packages
+export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
+       walk_printer_output, test_printer,
+       _ALL_READER_EVENTS, walk_reader_events, test_reader,
+       walk_repl_loop, test_repl,
+       explore_selections, test_navigation, _assert_reaches_all,
+       compare_content, test_construct_oracle
