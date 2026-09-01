@@ -2480,6 +2480,42 @@ function BackendModule.quit_backend!(backend::SdlBackend)
     empty!(_font_cache)
     TTF_Quit()
     SDL_Quit()
+    # The first SDL video init registers this process with LaunchServices as a
+    # Foreground GUI app (dock icon, Force Quit entry). That registration is
+    # one-way — `SDL_Quit` never lowers it back down — so once the last window
+    # is gone and nothing pumps Cocoa's event loop any more, macOS flags the
+    # process "not responding": a permanent beachball on the dock icon even
+    # though the REPL underneath is perfectly healthy. Drop the policy back to
+    # Accessory so macOS stops expecting a foreground app to answer. SDL's
+    # video init raises it back to Regular on its own the next time a backend
+    # is opened, so this only needs to run on the way out.
+    Sys.isapple() && _macos_drop_activation_policy_to_accessory!()
+end
+
+# NSApplicationActivationPolicyAccessory: no dock icon, no menu bar, no Force
+# Quit entry — the identity a process with no open windows should have.
+const _NS_ACTIVATION_POLICY_ACCESSORY = 1
+
+# ccall's library expression must be a literal or a global constant — never a
+# local variable — so the ObjC runtime's path is hoisted out of the function.
+const _LIBOBJC = "libobjc.A.dylib"
+
+# Equivalent to the Objective-C call
+# `[[NSApplication sharedApplication] setActivationPolicy:NSApplicationActivationPolicyAccessory]`,
+# made through the ObjC runtime C API since this file has no Cocoa/AppKit
+# binding to call it through directly. `id` and `Class` are opaque pointers
+# and `SEL` is an opaque pointer; `NSApplicationActivationPolicy` is an
+# `NSInteger` (`Clong`, 8 bytes on arm64/x86_64) and `setActivationPolicy:`
+# returns `BOOL` (1 byte) — the return value is unused here.
+function _macos_drop_activation_policy_to_accessory!()
+    ns_application = ccall((:objc_getClass, _LIBOBJC), Ptr{Cvoid}, (Cstring,), "NSApplication")
+    sel_shared_application = ccall((:sel_registerName, _LIBOBJC), Ptr{Cvoid}, (Cstring,), "sharedApplication")
+    shared_application = ccall((:objc_msgSend, _LIBOBJC), Ptr{Cvoid},
+                                (Ptr{Cvoid}, Ptr{Cvoid}), ns_application, sel_shared_application)
+    sel_set_activation_policy = ccall((:sel_registerName, _LIBOBJC), Ptr{Cvoid}, (Cstring,), "setActivationPolicy:")
+    ccall((:objc_msgSend, _LIBOBJC), Cuchar, (Ptr{Cvoid}, Ptr{Cvoid}, Clong),
+          shared_application, sel_set_activation_policy, _NS_ACTIVATION_POLICY_ACCESSORY)
+    nothing
 end
 
 # ════════════════════════════════════════════════════════════════════════
