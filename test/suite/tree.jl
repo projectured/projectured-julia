@@ -1,7 +1,7 @@
 # ============================================================================
 # The guard — one dimension per level.
 #
-# `plan/pending/repository-tree.md` §3 states what each top-level folder may not
+# `plan/done/repository-tree.md` §3 states what each top-level folder may not
 # hold. This is that, as a check.
 #
 # **Written before the move, deliberately.** Three of the six rules are VACUOUS
@@ -231,7 +231,7 @@ end
 """
     tree_violations(root) -> Vector{String}
 
-Every rule of `plan/pending/repository-tree.md` §3, as lines a reader can act on.
+Every rule of `plan/done/repository-tree.md` §3, as lines a reader can act on.
 """
 tree_violations(root::AbstractString) =
     vcat(source_violations(root), package_violations(root),

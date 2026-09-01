@@ -645,7 +645,7 @@ end
 
 The folder a package's source lives in: `source/<slice>/` at the repository
 root. A package is a name and an include list; the two do not share a directory
-(`plan/pending/repository-tree.md`), so the root file `pathof` returns is the
+(`plan/done/repository-tree.md`), so the root file `pathof` returns is the
 **top file** and this is the `src_root` beside it.
 
 The package root file sits three levels below the repository root, both before

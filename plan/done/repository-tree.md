@@ -1,6 +1,8 @@
 # One dimension per level — the repository tree
 
-**Status: pending, written 2026-08-31.**
+**Status: done, 2026-09-01.** All nine steps landed on `main` as ten commits,
+`bc9a8eb6..e49e04e3`. The two sibling repositories followed in the same hour,
+and the `jp` alias with them.
 
 **Goal:** give this repository the five top-level folders that omnet-julia has —
 `example`, `source`, `test`, `package`, `environment`. Inside them the 62 slices
@@ -12,7 +14,7 @@ inside it, and those are the seventeen layers it already has.
 which did this move on 613 files and recorded what it cost.
 
 The sibling plan is
-[inet-julia/plan/pending/repository-tree.md](../../../inet-julia/plan/pending/repository-tree.md).
+[inet-julia/plan/done/repository-tree.md](../../../inet-julia/plan/done/repository-tree.md).
 
 ## 1. The problem
 
@@ -297,22 +299,25 @@ means the flatten has one job.
        baseline; `test_package_graph()` 709/2 — the same two pre-existing
        domain-edge failures, the count risen because there is a third leaf to
        check every package against.
-6. [ ] **Repair the other two repositories.** — **prepared, and it cannot run
-       until this branch reaches `main`.** omnet-julia and inet-julia reach into
-       this repository by relative path, and those paths resolve against the
-       **main checkout**, not this worktree. Editing them now would break them
-       against a tree that has not moved yet.
+6. [x] **Repair the other two repositories.** — done in the same hour as the
+       fast-forward, which is the only hour it could be done: those paths resolve
+       against the **main** checkout, so they were correct until the branch
+       landed and wrong the moment it did.
 
-       `tool/repair-sibling-sources.py` carries all 117 old-to-new package
-       directories and rewrites **442 path entries** across 14 project and
-       manifest files in the two siblings. Run it the hour the branch lands, and
-       land all three together: between the two commits neither sibling
-       resolves. Then delete the script — it describes a move, and a move
-       happens once.
+       `tool/repair-sibling-sources.py` carried all 117 old-to-new package
+       directories and rewrote **442 path entries** across 52 project and
+       manifest files. It is deleted now: it described a move, and a move happens
+       once.
 
-       The count is larger than the 184 of §2 because a `Manifest.toml` records
-       paths too. `Pkg.resolve()` in each sibling would rebuild those, but
-       rewriting them keeps the resolved versions.
+       One thing it did not predict. A `Manifest.toml` records `entryfile` as
+       well as `path`, and `entryfile` is what the flatten removed. With the
+       paths right and the `entryfile` records stale, Julia looked for
+       `<path>/Projectured.jl` instead of `<path>/src/Projectured.jl` and said
+       the package was **not installed** — a message that names neither. 176
+       stale records were dropped, and `Pkg.resolve()` does not do it for you.
+
+       Both siblings resolve and load, and each carries the change as one commit.
+
 7. [x] **Make the environments.** — done, and **one** rather than four. The
        root `Project.toml` and `Manifest.toml` are `environment/all/`, whose
        `[sources]` name `../../package/<Name>`. The five stray package manifests

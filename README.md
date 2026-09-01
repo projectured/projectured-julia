@@ -300,7 +300,7 @@ and the [testing guide](documentation/testing.md) for running the test suite.
 One dimension per level: what a file **is** decides its top folder, and which
 **slice** it belongs to decides the folder under that. The slices are flat, and
 `kernel` is the one with layers inside it. See
-[plan/pending/repository-tree.md](plan/pending/repository-tree.md).
+[plan/done/repository-tree.md](plan/done/repository-tree.md).
 
 | Path | Contents |
 |---|---|

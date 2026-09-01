@@ -3,7 +3,7 @@
 One folder per slice, holding the guides that describe that slice's code. They
 lived beside the code as `package/<slice>/doc/` until the repository tree moved
 prose out of `package/`, which now holds a name and an include list and nothing
-else — see [plan/pending/repository-tree.md](../../plan/pending/repository-tree.md).
+else — see [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
 The cross-cutting guides stay one level up, in [documentation/](../). Read those
 first: [concepts.md](../concepts.md) explains what a document, a projection and

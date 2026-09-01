@@ -126,7 +126,7 @@ include("../../../test/projectured/ExportCollisionTest.jl")
 include("../../../test/projectured/PackageGraphTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
-# it describes exist. See `plan/pending/repository-tree.md` §3.
+# it describes exist. See `plan/done/repository-tree.md` §3.
 include("../../../test/suite/tree.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
@@ -227,7 +227,7 @@ end
     test_tree()
 
 The repository tree guard: every top-level folder holds one kind of thing.
-`plan/pending/repository-tree.md` §3 states the rules and `test/suite/tree.jl`
+`plan/done/repository-tree.md` §3 states the rules and `test/suite/tree.jl`
 is them. It loads nothing and reads directory entries, so it runs in well under
 a second.
 """
