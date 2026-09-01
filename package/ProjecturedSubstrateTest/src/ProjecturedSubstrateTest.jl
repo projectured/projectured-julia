@@ -141,7 +141,7 @@ for _src in _SOURCES
 end
 
 # ── the tests of the packages that came out of base ─────────────────────────
-include("../../../test/substrate/document/CollectionTest.jl")
+include("../../../test/substrate/document/CollectionDocumentTest.jl")
 include("../../../test/substrate/document/DocumentWalkTest.jl")
 include("../../../test/substrate/document/BoundedSyncTest.jl")
 include("../../../test/substrate/document/DocumentReflectionTest.jl")
@@ -158,15 +158,15 @@ include("../../../test/substrate/serialization/FileProjectTest.jl")
 include("../../../test/substrate/serialization/MarkerLanguageTest.jl")
 # ── visual documents ─────────────────────────────────────────────────────────
 include("../../../test/substrate/document/PointReferenceTest.jl")
-include("../../../test/substrate/document/SyntaxTest.jl")
-include("../../../test/substrate/document/TextTest.jl")
-include("../../../test/substrate/document/GraphicsTest.jl")
+include("../../../test/substrate/document/SyntaxDocumentTest.jl")
+include("../../../test/substrate/document/TextDocumentTest.jl")
+include("../../../test/substrate/document/GraphicsDocumentTest.jl")
 include("../../../test/substrate/document/GeometryTest.jl")
 include("../../../test/substrate/document/FontMetricsTest.jl")
 include("../../../test/substrate/document/GraphicsLayoutTest.jl")
 include("../../../test/substrate/document/LayoutAllocatorTest.jl")
-include("../../../test/substrate/document/PrimitiveTest.jl")
-include("../../../test/substrate/document/PaneTest.jl")
+include("../../../test/substrate/document/PrimitiveDocumentTest.jl")
+include("../../../test/substrate/document/PaneDocumentTest.jl")
 include("../../../test/substrate/document/PaneGeometryTest.jl")
 include("../../../test/substrate/document/TextSelectionEnumeration.jl")
 # ── text / graphics projections ──────────────────────────────────────────────
@@ -216,7 +216,7 @@ include("../../../test/substrate/projection/AnchoredLayoutTest.jl")
 # fixtures (Primitive / Text / Screen), so this is their lowest test home.
 # (HoverProbe's tests stay in the umbrella: they wrap Json content.)
 include("../../../test/substrate/projection/ClipboardToAnyTest.jl")
-include("../../../test/substrate/projection/TooltipTest.jl")
+include("../../../test/substrate/projection/TooltipProjectionTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
 include("../../../test/substrate/projection/SplitPaneDragTest.jl")

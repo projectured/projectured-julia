@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 
-include("../../../test/database/document/DatabaseTest.jl")
+include("../../../test/database/document/DatabaseDocumentTest.jl")
 
 include("../../../test/database/DatabaseSuite.jl")
 

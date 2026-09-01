@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/sequencechart/projection/SequenceChartGeometryTest.jl")
-include("../../../test/sequencechart/projection/SequenceChartTest.jl")
+include("../../../test/sequencechart/projection/SequenceChartProjectionTest.jl")
 
 include("../../../test/sequencechart/SequencechartSuite.jl")
 

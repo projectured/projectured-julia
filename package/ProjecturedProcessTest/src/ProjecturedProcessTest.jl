@@ -66,7 +66,7 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/process/document/ProcessTest.jl")
+include("../../../test/process/document/ProcessDocumentTest.jl")
 include("../../../test/process/projection/ProcessDebugTest.jl")
 include("../../../test/process/projection/ProcessDiagramTest.jl")
 include("../../../test/process/projection/ProcessToJuliaCodeTest.jl")

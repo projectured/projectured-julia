@@ -67,7 +67,7 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/graph/projection/GraphTest.jl")
+include("../../../test/graph/projection/GraphProjectionTest.jl")
 
 include("../../../test/graph/GraphSuite.jl")
 

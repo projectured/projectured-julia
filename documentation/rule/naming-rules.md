@@ -75,7 +75,7 @@ thing, and is it the real thing or an example of one. It did not. Of 690 files,
 | `source/` | `<Slice>Document.jl` — the slice's document types | `source/json/JsonDocument.jl` |
 | | `<A>To<B>.jl` — a projection | `source/json/JsonToSyntax.jl` |
 | | `<Thing>.jl` — anything that is neither | `source/sdl/Sdl.jl` |
-| `test/` | `<Thing>Test.jl` | `test/json/projection/JsonToSyntaxTest.jl` |
+| `test/` | `<Thing>Test.jl` — `<Thing>` is the file it tests | `test/json/document/JsonDocumentTest.jl` |
 | | `<Slice>Suite.jl` — the aggregator, `test_<slice>()` | `test/json/JsonSuite.jl` |
 | `example/` | `<Thing>DocumentExample.jl` | `example/json/JsonDocumentExample.jl` |
 | | `<Thing>ProjectionExample.jl` | `example/json/JsonProjectionExample.jl` |
@@ -92,7 +92,15 @@ file: 36 of `example/`'s 47 role folders held exactly one. `test/` keeps
 `document/`, `projection/`, `editor/` and `serializer/`, where one folder groups
 52 files.
 
-The 173 renames left 13 colliding names, down from 62. Each of the 13 is one
+**A test is named for the file it tests, and the function inside settles it
+where the file name cannot.** `test/json/document/JsonTest.jl` had to become
+`JsonDocumentTest.jl` once its subject became `JsonDocument.jl`. Six of its
+neighbours look the same and are not: they sit in `projection/`, and each holds
+a `test_<slice>_projection`, so they are `<Slice>ProjectionTest.jl`. Two more in
+`test/odbc/external/` test a live query rather than a file, and are named for
+what they query — `DatabaseResultTest.jl`, `DbCatalogQueryTest.jl`.
+
+The 191 renames left 12 colliding names, down from 62. Each of the 13 is one
 concept exemplified in two slices — `PaneProjectionExample.jl` in `projectured`
 and in `substrate` — which the slice folder separates.
 
@@ -317,6 +325,7 @@ each document belongs to, are in [README.md](../README.md).
 | `<File>Module` | the Julia module a file declares | `ClockModule` |
 | `<Slice>Document` | the slice's document types | `JsonDocument` |
 | `<Slice>Suite` | the suite that defines `test_<slice>` | `JsonSuite` |
+| `<Thing>Test` | the test of one file | `JsonDocumentTest` |
 | `<Thing>DocumentExample` | an example document | `JsonDocumentExample` |
 | `<Thing>ProjectionExample` | an example projection | `JsonProjectionExample` |
 | `<Slice>Examples` | the slice's example registry | `JsonExamples` |

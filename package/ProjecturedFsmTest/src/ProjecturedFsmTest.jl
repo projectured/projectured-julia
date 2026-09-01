@@ -70,7 +70,7 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/fsm/document/FsmTest.jl")
+include("../../../test/fsm/document/FsmDocumentTest.jl")
 include("../../../test/fsm/projection/FsmDiagramTest.jl")
 include("../../../test/fsm/projection/FsmToJuliaCodeTest.jl")
 include("../../../test/fsm/projection/FsmToSyntaxTest.jl")

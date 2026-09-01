@@ -65,7 +65,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/json/document/JsonParserTest.jl")
-include("../../../test/json/document/JsonTest.jl")
+include("../../../test/json/document/JsonDocumentTest.jl")
 include("../../../test/json/editor/JsonContentClicksTest.jl")
 include("../../../test/json/editor/JsonPlaceholderNavTest.jl")
 include("../../../test/json/projection/JsonToSyntaxTest.jl")
