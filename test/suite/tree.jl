@@ -23,6 +23,29 @@ _project_key(text, key) =
     (m = match(Regex("(?m)^\\s*" * key * " = \"([^\"]+)\""), text)) === nothing ?
         nothing : m.captures[1]
 
+"""
+    _tracked_manifests(root) -> Vector{String}
+
+Every `Manifest.toml` git holds, as a repository-relative path. This is the one
+place the guard asks git anything: an untracked manifest is a local artifact and
+a tracked one is a decision, and no directory entry can tell the two apart. When
+git cannot answer, every manifest is reported rather than none — a guard that
+goes quiet is the failure this file exists to catch.
+"""
+function _tracked_manifests(root::AbstractString)
+    try
+        out = readchomp(Cmd(`git ls-files "*Manifest.toml"`; dir = root))
+        return isempty(out) ? String[] : split(out, "\n")
+    catch
+        found = String[]
+        for (dir, _, files) in walkdir(root), file in files
+            file == "Manifest.toml" &&
+                push!(found, relpath(joinpath(dir, file), root))
+        end
+        return found
+    end
+end
+
 _entries(path) = isdir(path) ? sort!(readdir(path)) : String[]
 _subdirs(path) = filter(d -> isdir(joinpath(path, d)), _entries(path))
 _jl(path) = filter(f -> endswith(f, ".jl"), _entries(path))
@@ -73,18 +96,31 @@ function package_violations(root::AbstractString)
     base = joinpath(root, "package")
     isdir(base) || return out
 
-    # Bites today, at every depth: no package may also be an environment.
-    for (dir, _, files) in walkdir(base), file in files
-        file == "Manifest.toml" || continue
-        isfile(joinpath(dir, "Project.toml")) || continue
-        push!(out, "$(relpath(joinpath(dir, file), root)) — a package that also resolves " *
-                   "an environment; the environments live in environment/")
+    # No package may also be an environment — but only a **tracked** manifest
+    # says that. Activating a package directory is a documented way to run one
+    # suite without the SDL stack (`julia --project=package/ProjecturedKernelTest`),
+    # and that writes a `Manifest.toml` there. `.gitignore` covers it; it is a
+    # local resolution artifact, like a compile cache, not a checked-in
+    # environment. The five this rule caught were all tracked.
+    for file in _tracked_manifests(root)
+        startswith(file, "package/") || continue
+        isfile(joinpath(root, dirname(file), "Project.toml")) || continue
+        push!(out, "$file — a package that also resolves an environment; " *
+                   "the environments live in environment/")
     end
 
     # Still the `<slice>/<kind>` shape somewhere? Then the rules below are not
     # yet the tree's rules, and holding one directory to them says nothing.
+    #
+    # The test is for a **package** at `<slice>/<kind>`, not for a directory.
+    # `git mv` moves files, and a directory whose last tracked file left survives
+    # on any untracked thing still in it — a build log, an allocation profile, a
+    # stale manifest. Six of those survived the flatten here, and while this
+    # gate tested `isdir` they switched the whole rule off and the guard
+    # reported that every folder held one kind of thing. That is the failure
+    # this file exists to catch, committed by this file.
     for name in _subdirs(base), kind in ("main", "test", "example")
-        isdir(joinpath(base, name, kind)) && return out
+        isfile(joinpath(base, name, kind, "Project.toml")) && return out
     end
 
     for name in _subdirs(base)

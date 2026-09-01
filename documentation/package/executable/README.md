@@ -44,7 +44,7 @@ build_executable(BuildSpec(; domain=:json, backends=[SdlBackend]); compile=false
 The compile has to `Pkg.activate` the app environment; `build_executable` restores
 the caller's active project on the way out, so a REPL session is left where it was.
 
-`build_executable` (1) generates [`main/AppConfig.jl`](../../../package/ProjecturedExecutable/) — the baked
+`build_executable` (1) generates [`source/executable/AppConfig.jl`](../../../source/executable/) — the baked
 configuration constants plus the `using` line(s) for exactly the compiled-in
 backends; (2) develops the local Projectured packages it needs by path (so they
 resolve without a registry); and (3) runs `create_app`.
@@ -63,8 +63,8 @@ resolve without a registry); and (3) runs `create_app`.
 | `width`, `height` | `nothing` | fixed window size (defaults to the display size) |
 | `mcp` | `false` | start an MCP server alongside the editor loop |
 
-The generated `main/AppConfig.jl` is git-ignored; the checked-in
-[`main/AppConfig.default.jl`](../../../package/ProjecturedExecutable/src/AppConfig.default.jl) (the v1 spec) is the fallback
+The generated `source/executable/AppConfig.jl` is git-ignored; the checked-in
+[`source/executable/AppConfig.default.jl`](../../../source/executable/AppConfig.default.jl) (the v1 spec) is the fallback
 used when no build has run yet.
 
 ## Running the produced binary

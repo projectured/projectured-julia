@@ -190,19 +190,17 @@ kernel layer **declares** a seam, and the slice beside it **fills** that seam.
 | `package/repl/record/driver.jl` | `source/repl/record/` | it is code |
 | `package/executable/build/`, `build.log` | nothing — untracked output | a build artifact is not a folder of the design |
 | `package/executable/builder/` | `package/ProjecturedBuilder/` | the tool is a package like any other; it is one file, so it owns no source folder |
-| `package/executable/main/Precompile.jl`, `AppConfig.default.jl` | `package/ProjecturedExecutable/src/`, beside the root | neither is library source: one is a PackageCompiler execution script, the other a config template whose generated sibling the build writes next to it, and both are found by `@__DIR__` |
+| `package/executable/main/Precompile.jl`, `AppConfig.default.jl` | `source/executable/` | first kept beside the root, then moved with the rest of the body — see §8c. The build writes the generated `AppConfig.jl` beside them |
 | `package/adaptagrams/deps/` | stays in the package | `Pkg.build` runs `<pkgdir>/deps/build.jl`; `deps/` is Julia's choice like `src/` and `ext/` |
 | `package/web/assets/` | `asset/web/` | a static asset, and the repository already has `asset/` |
 | `bench/` | `source/bench/` (the package) and `test/bench/` (the bodies) | `ProjecturedBench` is a package; its four benchmark files are not source |
 | the root `Project.toml` and `Manifest.toml` | `environment/all/` | the alias follows, see §10 |
 | the 4 stray `Manifest.toml` | deleted | a package that doubles as an environment is the entanglement this tree undoes |
 
-`bench` is the only new slice folder. `builder` becomes a package directory of
-its own but owns no source, because it is a single file — like `sdl`, `web`,
-`llm`, `mcp`, `odbc`, `tulip`, `video`, `adaptagrams` and the two umbrellas,
-whose whole content is the root file the package holds. Eleven of the 62 slices
-have no `source/` folder for that reason, which is why step 2 created 51 and not
-62.
+`bench` and `builder` are the new slice folders. Step 2 created 51 of the 62,
+because eleven packages held their whole content in their root file; §8c is the
+correction that gave those eleven a `source/` folder too. `bench` is the one that
+keeps its content in the root, because its content is an include list.
 
 ## 8. Steps
 
@@ -405,6 +403,53 @@ difference in the pass column is accounted for:
   Left as it is, because this plan changes paths and not behaviour. Making it
   hermetic means pointing it at a fixture, the way `filesystem` already does,
   and that is a change worth its own decision.
+
+## 8c. Two things the move left behind, found by reading the tree
+
+**Twelve package roots held real source.** `package/ProjecturedTulip/src/ProjecturedTulip.jl`
+was 259 lines of constraint solver, `ProjecturedSdl` 3084 lines of renderer.
+They kept their code because each was one file, which is a fact about their size
+and not a principle — the rule is that a package is a name and an include list.
+**6579 lines** moved to `source/<slice>/`, and each root now has the shape every
+other root has: a docstring, `module`, the import block, an include, `end`.
+
+`ProjecturedBench` was left alone: its whole body already **is** an include list,
+of the three benchmark bodies under `test/bench/`.
+
+Three paths inside the moved bodies named a depth and were repaired: the web
+client and font folders, the native shim beside `ProjecturedAdaptagrams`, and the
+executable directory the builder compiles. `ProjecturedExecutable` also gave up
+`Precompile.jl` and `AppConfig.default.jl`, and the generated `AppConfig.jl` is
+written to `source/executable/` now.
+
+**1382 lines still sit in 46 roots** — mostly a test package's `test_json()`
+aggregator and its exports, and five substrate roots between 25 and 36 lines.
+Same violation, second wave, not done here.
+
+**Six directories survived the flatten.** `git mv` moves files, and a directory
+whose last tracked file left survives on anything untracked still in it:
+`package/executable/` on 1.4 GB of compiled binary, `package/kernel/main/` on six
+allocation profiles, two more on a stale `Manifest.toml`, and
+`package/adaptagrams/` on a build log and a `.so` that was still **tracked**.
+All six are gone, and the three tracked files are untracked.
+
+**The guard was silent about all six, and that is the failure this file exists to
+catch.** Two defects in it, both mine:
+
+1. The gate that skips the flat-package rules tested `isdir(<slice>/<kind>)`.
+   `package/kernel/main/` existed, holding nothing but `.mem` files, so the gate
+   fired and switched off every rule below it — including the one written to
+   catch leftovers. It now tests for a `Project.toml` there, and a leftover
+   directory is reported.
+2. The Manifest rule flagged **any** manifest in a package directory. Activating
+   a package directory is a documented way to run one suite without the SDL
+   stack, and that writes a manifest there. The rule now asks git and applies to
+   a **tracked** manifest only — which is what the five it originally caught
+   were.
+
+Verified after both: `test_tree()` 1/1, `test_kernel()` 1540/3/2, `test_json()`
+169/169, `test_substrate()` 55158/1/1, `test_package_graph()` 717/2. Every one
+matches the clean-main baseline. The full suite is not re-run here.
 
 ## 9. What omnet-julia already paid for
 
