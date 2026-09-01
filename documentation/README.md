@@ -53,6 +53,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [architecture-rules.md](rule/architecture-rules.md) | rule | How is the code divided, and where does a new thing belong? |
 | [package-rules.md](rule/package-rules.md) | rule | What is a package for, what may it depend on, and which one do I load? |
 | [code-quality-rules.md](rule/code-quality-rules.md) | rule | How does the code read, and what keeps it readable? |
+| [naming-rules.md](rule/naming-rules.md) | rule | How is a package, a file, a module, a type or a function named? |
 | [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
 | [editor-concepts.md](design/editor-concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
 | [editor-derivation.md](design/editor-derivation.md) | design | How do the concepts combine into a system, each one with its real code? |
@@ -123,6 +124,6 @@ section of the file you are reading; cite any other file by name.
 1. New to projectional editing: [editor-concepts.md](design/editor-concepts.md), then [examples-tour.md](guide/examples-tour.md).
 2. New and an engineer: [editor-derivation.md](design/editor-derivation.md), then [system-anatomy.md](design/system-anatomy.md).
 3. About to open a session: [setup-guide.md](guide/setup-guide.md), then [debugging-guide.md](guide/debugging-guide.md).
-4. About to change code: [architecture-invariants.md](rule/architecture-invariants.md), then [architecture-rules.md](rule/architecture-rules.md) and [package-rules.md](rule/package-rules.md).
+4. About to change code: [architecture-invariants.md](rule/architecture-invariants.md), then [architecture-rules.md](rule/architecture-rules.md), [package-rules.md](rule/package-rules.md) and [naming-rules.md](rule/naming-rules.md).
 5. About to add a domain: [domain-inventory.md](design/domain-inventory.md), then [new-domain-guide.md](guide/new-domain-guide.md).
 6. About to run a test: [testing-guide.md](guide/testing-guide.md).

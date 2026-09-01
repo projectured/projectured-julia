@@ -1,15 +1,67 @@
 # Naming
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [package-rules.md](package-rules.md), [system-anatomy.md](../design/system-anatomy.md)
 
-How things are named in the kernel. The goal is guessability in both
-directions: given a concept, you can derive its name; given a name, you can
-tell what kind of thing it is and what it does — without looking it up.
-Meaningful, scheme-following names take priority over brevity or Julia
-idiom. This convention intentionally departs from Julia Base style
-(compressed lowercase names, minimal prefixes) exactly where doing so
-improves bidirectional guessability; it agrees with Julia on CamelCase
-types and modules, `!` for mutation, and avoiding abbreviations.
+How things are named here — in every package, not only the kernel. The goal is
+guessability in both directions: given a concept, you can derive its name; given
+a name, you can tell what kind of thing it is and what it does, without looking
+it up. Meaningful, scheme-following names take priority over brevity or Julia
+idiom. The convention departs from Julia Base style (compressed lowercase names,
+minimal prefixes) exactly where doing so improves bidirectional guessability; it
+agrees with Julia on CamelCase types and modules, `!` for mutation,
+`SCREAMING_SNAKE_CASE` for constants, and avoiding abbreviations.
+
+The vocabulary of the divisions — package, layer, slice, module, leaf — is
+[division-terminology.md](division-terminology.md). What a package may depend on
+is [package-rules.md](package-rules.md). This document says what each of them is
+called.
+
+## Packages
+
+### The prefix and the slice
+
+Every package name is `Projectured<Slice>` in CamelCase, and the umbrella is
+`Projectured` alone. The package directory is `package/<PackageName>/`, one
+folder per package, carrying the name exactly.
+
+The slice is the lower-case name with the prefix removed, and it is the folder
+its code lives in: `ProjecturedSequenceChart` is
+`package/ProjecturedSequenceChart/`, its code is `source/sequencechart/`, its
+suite is `test/sequencechart/` and its documents are `example/sequencechart/`.
+That derivation is a rule and not a coincidence —
+`ProjecturedKernelTest.package_source_root` computes it, and
+`test_package_graph()` walks it.
+
+### The suffix says which kind of package it is
+
+`Example`, `Test`, `Repl` and `Build` are the only reserved suffixes, and they
+mean nothing else. A package with no suffix holds the code.
+[package-rules.md](package-rules.md) states the five kinds, what each may depend
+on, and why a leaf matters.
+
+- **A package whose name merely begins with another's is a stem of its own**,
+  not a kind of it. `ProjecturedOdbc` and `ProjecturedTulip` are separate
+  packages that carry a third-party dependency, not sub-packages of
+  `Projectured`.
+- **Two leaves are named outright rather than by suffix**, because the
+  distinction they carry is real: `ProjecturedExecutable` is the artifact
+  PackageCompiler compiles, and `ProjecturedBuilder` is the tool that drives the
+  build. A tool is not a kind of artifact. `ProjecturedBench` is a leaf too.
+- **A package extension is `<Package><Dependency>Ext`.** That is the name
+  Julia's `[extensions]` table needs, and it reads as what it is. No package
+  here has one yet.
+- **A test package's entry point is `test_<slice>()`.** `ProjecturedJsonTest`
+  exports `test_json`, `ProjecturedKernelTest` exports `test_kernel`, and the
+  static layering guard beside it is `test_<slice>_layering()`. The table of
+  every scope is in [testing-guide.md](../guide/testing-guide.md).
+
+### A package holds a name and an include list
+
+A package directory holds its `Project.toml` and `src/<PackageName>.jl`, and
+that root file holds the docstring, the imports, the module aliases and the
+ordered `include`s. The code it includes lives in `source/`, `test/` or
+`example/`. The rule and what it cost are in
+[plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
 ## Files and modules
 
@@ -204,10 +256,35 @@ Two shapes are exempt from the verb-first rule, and only these:
   is a DSL keyword — `@document` reads as "here is a document definition" —
   not an action.
 
+## Identifiers in the documentation
+
+A claim the code is checked against carries an identifier, and the prefix says
+which document owns it. Both are `SCREAMING-KEBAB-CASE`.
+
+| prefix | means | lives in |
+|---|---|---|
+| `PR-…` | a capability the editor promises, observable from outside | [accepted-requirements.md](../requirement/accepted-requirements.md) |
+| `PAR-…` | an architecture rule every change must respect | [architecture-invariants.md](architecture-invariants.md) |
+
+A bare `§N` always means a section of the file you are reading. Cite any other
+file by name — the rule and the reason are under "Cite, do not repeat" in
+[README.md](../README.md).
+
+Every document in `documentation/` carries a one-line header naming its
+**Kind**, its **Status**, and what it **Stands on**. The kinds, and the folder
+each document belongs to, are in [README.md](../README.md).
+
 ## Quick reference
 
 | shape | meaning | example |
 |---|---|---|
+| `Projectured<Slice>` | a package of the product | `ProjecturedJson` |
+| `Projectured<Slice><Kind>` | its example or test package | `ProjecturedJsonTest` |
+| `<Package><Dep>Ext` | a package extension | `ProjecturedSqlSQLiteExt` |
+| `<File>Module` | the Julia module a file declares | `ClockModule` |
+| `test_<slice>` | a suite entry point | `test_json` |
+| `test_<slice>_layering` | its static layering guard | `test_json_layering` |
+| `PR-…` / `PAR-…` | a claim the code is checked against | `PAR-PURE-THUNK` |
 | `<Stem>Projection` | projection; gerund stem | `FilteringProjection` |
 | `<Verb><Noun>Operation` | executable edit resolved from an intent; flows out of a reader | `CloseWindowOperation` |
 | `<Source><Action>` | event, flows into a reader | `WindowClose` |

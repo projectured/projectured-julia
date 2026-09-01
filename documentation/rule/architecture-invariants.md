@@ -1151,7 +1151,7 @@ for both.
 **Follow the naming law — names must be guessable in both directions.** A name
 tells you what kind of thing it is and what it does, and a concept tells you
 its name, without a lookup (see
-[kernel/doc/naming.md](../package/kernel/naming.md)). Module name =
+[naming-rules.md](naming-rules.md)). Module name =
 filename + `Module`, and every exported name has exactly one owning module.
 Name new concepts onto the pipeline ladder **Event → Gesture → Intent →
 Operation → Document**, not alongside it: events are noun-first and suffixless

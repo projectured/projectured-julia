@@ -384,7 +384,7 @@ driver at all — they are plain `Example`s and go straight into a registry.
 
 **Which package.** No new one is needed. `OmnetppPresentationExample` is already
 the `<Stem>Example` package the naming convention
-([naming.md](../../documentation/package/kernel/naming.md)) calls for — it just contains
+([naming.md](../../documentation/rule/naming-rules.md)) calls for — it just contains
 `example_dir(name)`, a path helper, instead of examples. Optionally mirror
 projectured's opt-in split (`ProjecturedSdlExample` hosts what needs a real
 window, so the base example package precompiles with no native build): keep

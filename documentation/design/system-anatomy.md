@@ -144,7 +144,7 @@ per-domain reference guides that used to live at the top level. The kernel set
 [devices-and-backends](../package/kernel/devices-and-backends.md),
 [agent](../package/kernel/agent.md),
 [editor](../package/kernel/editor.md),
-[naming](../package/kernel/naming.md)) is the largest; the per-domain guides
+[naming](../rule/naming-rules.md)) is the largest; the per-domain guides
 live next to the code, in the `doc/` folder of the package they document —
 [widget](../package/widget/widget.md), [text](../package/text/text.md),
 [collection](../package/collection/collection.md) and the rest.

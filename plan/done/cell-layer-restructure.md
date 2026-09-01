@@ -136,7 +136,7 @@ Fix regardless of the rest.
 
 ### F6 — Naming-convention drift in the layer's own filenames (observation)
 
-Per [naming.md](../../documentation/package/kernel/naming.md), the folder-owning module is
+Per [naming.md](../../documentation/rule/naming-rules.md), the folder-owning module is
 `<Concept>Module.jl` and the contract fragment it includes first is
 `<Concept>.jl`/`Interface.jl`. Here the contract fragment is `AbstractCell.jl`
 (named for the type, not the role) — defensible, because `Cell` is already the

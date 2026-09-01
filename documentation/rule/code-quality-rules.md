@@ -14,7 +14,7 @@ the measured baseline. It never weakens a shared rule.
 
 | Subject | Owner |
 | --- | --- |
-| Names of types, functions, files, and modules | [package/kernel/doc/naming.md](../package/kernel/naming.md) |
+| Names of types, functions, files, and modules | [documentation/rule/naming-rules.md](naming-rules.md) |
 | What belongs in which package, layer, slice, and module | [architecture-rules.md](architecture-rules.md) |
 | What the code must do | [architecture-requirements.md](architecture-invariants.md) |
 | The words for the divisions and the pipeline | [terminology.md](division-terminology.md) |
