@@ -16,6 +16,6 @@ using ProjecturedTulip
 
 include("../../../test/tulip/document/ConstraintSolverTest.jl")
 
-include("../../../test/tulip/Suite.jl")
+include("../../../test/tulip/TulipSuite.jl")
 
 end # module ProjecturedTulipTest

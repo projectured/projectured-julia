@@ -35,7 +35,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/xml/Xml.jl")
+include("../../../source/xml/XmlDocument.jl")
 include("../../../source/xml/XmlParser.jl")
 include("../../../source/xml/XmlToSyntax.jl")
 include("../../../source/xml/XmlFile.jl")

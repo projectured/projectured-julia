@@ -36,7 +36,7 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("../../../source/graph/Graph.jl")
+include("../../../source/graph/GraphDocument.jl")
 include("../../../source/graph/GraphLayout.jl")
 include("../../../source/graph/GraphLayoutEngine.jl")
 # The two layouters OMNeT++ draws a network with, ported file for file from

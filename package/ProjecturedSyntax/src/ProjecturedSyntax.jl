@@ -56,7 +56,7 @@ const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
 const DomainModule = ProjecturedDomain.DomainModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
-include("../../../source/syntax/Syntax.jl")
+include("../../../source/syntax/SyntaxDocument.jl")
 include("../../../source/syntax/SyntaxToText.jl")
 include("../../../source/syntax/ObjectToSyntax.jl")
 include("../../../source/syntax/ObjectFieldToSyntax.jl")

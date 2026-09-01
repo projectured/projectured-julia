@@ -51,7 +51,7 @@ const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepM
 include("../../../source/text/TextSpanReferenceStep.jl")
 include("../../../source/text/TextColumnReferenceStep.jl")
 include("../../../source/text/TextRangeReferenceStep.jl")
-include("../../../source/text/Text.jl")
+include("../../../source/text/TextDocument.jl")
 include("../../../source/text/TextToGraphics.jl")
 include("../../../source/text/TextToString.jl")
 include("../../../source/text/LineNumbering.jl")

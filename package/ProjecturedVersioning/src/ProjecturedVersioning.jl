@@ -32,7 +32,7 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
-include("../../../source/versioning/Versioning.jl")
+include("../../../source/versioning/VersioningDocument.jl")
 include("../../../source/versioning/VersioningToAny.jl")
 
 end # module ProjecturedVersioning

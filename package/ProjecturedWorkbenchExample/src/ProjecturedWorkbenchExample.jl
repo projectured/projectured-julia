@@ -84,16 +84,16 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/workbench/document/Assistant.jl")
-include("../../../example/workbench/document/Navigator.jl")
-include("../../../example/workbench/document/Workbench.jl")
-include("../../../example/workbench/document/Wrapper.jl")
-include("../../../example/workbench/projection/Assistant.jl")
-include("../../../example/workbench/projection/Navigator.jl")
-include("../../../example/workbench/projection/Workbench.jl")
-include("../../../example/workbench/projection/Wrapper.jl")
+include("../../../example/workbench/AssistantDocumentExample.jl")
+include("../../../example/workbench/NavigatorDocumentExample.jl")
+include("../../../example/workbench/WorkbenchDocumentExample.jl")
+include("../../../example/workbench/WrapperDocumentExample.jl")
+include("../../../example/workbench/AssistantProjectionExample.jl")
+include("../../../example/workbench/NavigatorProjectionExample.jl")
+include("../../../example/workbench/WorkbenchProjectionExample.jl")
+include("../../../example/workbench/WrapperProjectionExample.jl")
 
-include("../../../example/workbench/document/Table.jl")
+include("../../../example/workbench/TableDocumentExample.jl")
 
 export make_table_document_example, make_math_table_document_example
 export make_assistant_document_example, make_navigator_document_example, make_workspace_folder_document_example

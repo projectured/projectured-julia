@@ -68,6 +68,6 @@ include("../../../test/sql/document/SqlDocumentTest.jl")
 include("../../../test/sql/document/SqlParserTest.jl")
 include("../../../test/sql/projection/SqlToSyntaxTest.jl")
 
-include("../../../test/sql/Suite.jl")
+include("../../../test/sql/SqlSuite.jl")
 
 end # module ProjecturedSqlTest

@@ -17,6 +17,6 @@ using ProjecturedSubstrateTest    # collect_position_selections (caret seeds)
 
 include("../../../test/video/editor/VideoTest.jl")
 
-include("../../../test/video/Suite.jl")
+include("../../../test/video/VideoSuite.jl")
 
 end # module ProjecturedVideoTest

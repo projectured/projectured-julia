@@ -67,6 +67,6 @@ end
 
 include("../../../test/formula/projection/FormulaToSyntaxTest.jl")
 
-include("../../../test/formula/Suite.jl")
+include("../../../test/formula/FormulaSuite.jl")
 
 end # module ProjecturedFormulaTest

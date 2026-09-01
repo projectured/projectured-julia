@@ -67,6 +67,6 @@ end
 
 include("../../../test/database/document/DatabaseTest.jl")
 
-include("../../../test/database/Suite.jl")
+include("../../../test/database/DatabaseSuite.jl")
 
 end # module ProjecturedDatabaseTest

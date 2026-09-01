@@ -26,8 +26,8 @@ import ProjecturedOdbcExample: make_dvdrental_relationship_graph_document_exampl
 # a package is a name and an include list.
 const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/adaptagrams"))
 
-include(joinpath(_PKG_DIR, "projection", "Graph.jl"))
-include(joinpath(_PKG_DIR, "Examples.jl"))
+include(joinpath(_PKG_DIR, "GraphProjectionExample.jl"))
+include(joinpath(_PKG_DIR, "AdaptagramsExamples.jl"))
 
 export make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example
 export graph_adaptagrams_example, dvdrental_relationship_example, adaptagrams_examples

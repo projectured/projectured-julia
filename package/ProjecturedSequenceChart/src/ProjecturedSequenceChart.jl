@@ -33,7 +33,7 @@ end
 
 include("../../../source/sequencechart/SequenceChartGeometry.jl")
 include("../../../source/sequencechart/SequenceChartRowReferenceStep.jl")
-include("../../../source/sequencechart/SequenceChart.jl")
+include("../../../source/sequencechart/SequenceChartDocument.jl")
 include("../../../source/sequencechart/SequenceChartPlot.jl")
 include("../../../source/sequencechart/SequenceChartToSequenceChartPlot.jl")
 include("../../../source/sequencechart/SequenceChartPlotToGraphics.jl")

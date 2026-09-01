@@ -50,7 +50,7 @@ for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversatio
 end
 
 include("../../../source/workbench/Workspace.jl")
-include("../../../source/workbench/Workbench.jl")
+include("../../../source/workbench/WorkbenchDocument.jl")
 include("../../../source/workbench/WorkspaceToFileSystem.jl")
 include("../../../source/workbench/WorkbenchToWidget.jl")
 include("../../../source/workbench/WorkbenchFile.jl")

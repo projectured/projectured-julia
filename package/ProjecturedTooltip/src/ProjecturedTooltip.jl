@@ -22,7 +22,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 const OperationApiModule = ProjecturedKernel.OperationModule
 
-include("../../../source/tooltip/Tooltip.jl")
+include("../../../source/tooltip/TooltipDocument.jl")
 include("../../../source/tooltip/TooltipDecorator.jl")
 
 end # module ProjecturedTooltip

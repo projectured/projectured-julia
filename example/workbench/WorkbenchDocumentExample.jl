@@ -1,4 +1,7 @@
-function make_workbench_document_example(; root=abspath(joinpath(@__DIR__, "..")))
+# The workspace this example opens is the slice's own example folder. It was
+# `..` while this file sat in `document/`; it is `@__DIR__` now, and it means
+# the same folder it always meant.
+function make_workbench_document_example(; root=abspath(@__DIR__))
     workspace = Workspace([
         WorkspaceFolder(basename(root), root),
     ])

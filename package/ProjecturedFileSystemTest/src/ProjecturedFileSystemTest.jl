@@ -66,6 +66,6 @@ end
 
 include("../../../test/filesystem/projection/FileSystemToSyntaxTest.jl")
 
-include("../../../test/filesystem/Suite.jl")
+include("../../../test/filesystem/FilesystemSuite.jl")
 
 end # module ProjecturedFileSystemTest

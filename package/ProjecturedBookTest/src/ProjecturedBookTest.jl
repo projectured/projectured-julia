@@ -67,6 +67,6 @@ end
 
 include("../../../test/book/projection/BookToSyntaxTest.jl")
 
-include("../../../test/book/Suite.jl")
+include("../../../test/book/BookSuite.jl")
 
 end # module ProjecturedBookTest

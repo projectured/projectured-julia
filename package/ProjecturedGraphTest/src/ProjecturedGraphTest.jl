@@ -69,6 +69,6 @@ end
 
 include("../../../test/graph/projection/GraphTest.jl")
 
-include("../../../test/graph/Suite.jl")
+include("../../../test/graph/GraphSuite.jl")
 
 end # module ProjecturedGraphTest

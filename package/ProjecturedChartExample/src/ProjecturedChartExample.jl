@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/chart/document/Chart.jl")
-include("../../../example/chart/projection/Chart.jl")
+include("../../../example/chart/ChartDocumentExample.jl")
+include("../../../example/chart/ChartProjectionExample.jl")
 
 export make_chart_line_document_example, make_chart_bar_document_example, make_chart_histogram_document_example
 export make_chart_scatter_document_example, make_chart_strip_document_example, make_chart_document_example

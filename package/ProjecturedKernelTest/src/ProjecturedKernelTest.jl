@@ -83,6 +83,6 @@ include("../../../test/kernel/editor/EscapeQuitTest.jl")
 include("../../../test/kernel/editor/InboxTest.jl")
 include("../../../test/kernel/editor/FrameDrainTest.jl")
 
-include("../../../test/kernel/Suite.jl")
+include("../../../test/kernel/KernelSuite.jl")
 
 end # module ProjecturedKernelTest

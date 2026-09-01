@@ -230,6 +230,6 @@ include("../../../test/substrate/editor/ClickRoundtripTest.jl")
 # _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
 include("../../../test/substrate/editor/CollapseRoundtripTest.jl")
 include("../../../test/substrate/editor/PaneConstructTest.jl")
-include("../../../test/substrate/Suite.jl")
+include("../../../test/substrate/SubstrateSuite.jl")
 
 end # module ProjecturedSubstrateTest

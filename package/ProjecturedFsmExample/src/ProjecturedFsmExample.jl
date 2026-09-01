@@ -67,8 +67,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/fsm/document/Fsm.jl")
-include("../../../example/fsm/projection/Fsm.jl")
+include("../../../example/fsm/FsmDocumentExample.jl")
+include("../../../example/fsm/FsmProjectionExample.jl")
 
 export make_fsm_variable_document_example, make_fsm_timer_document_example, make_fsm_event_document_example
 export make_fsm_state_document_example, make_fsm_transition_document_example, make_fsm_insertion_document_example

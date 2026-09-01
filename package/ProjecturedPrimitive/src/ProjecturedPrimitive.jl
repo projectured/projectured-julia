@@ -23,7 +23,7 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
-include("../../../source/primitive/Primitive.jl")
+include("../../../source/primitive/PrimitiveDocument.jl")
 include("../../../source/primitive/ObjectField.jl")
 
 end # module ProjecturedPrimitive

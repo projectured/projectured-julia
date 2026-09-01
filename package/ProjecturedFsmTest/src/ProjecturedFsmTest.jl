@@ -75,6 +75,6 @@ include("../../../test/fsm/projection/FsmDiagramTest.jl")
 include("../../../test/fsm/projection/FsmToJuliaCodeTest.jl")
 include("../../../test/fsm/projection/FsmToSyntaxTest.jl")
 
-include("../../../test/fsm/Suite.jl")
+include("../../../test/fsm/FsmSuite.jl")
 
 end # module ProjecturedFsmTest

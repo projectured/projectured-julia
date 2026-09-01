@@ -66,6 +66,6 @@ end
 
 include("../../../test/math/projection/MathToGraphicsTest.jl")
 
-include("../../../test/math/Suite.jl")
+include("../../../test/math/MathSuite.jl")
 
 end # module ProjecturedMathTest

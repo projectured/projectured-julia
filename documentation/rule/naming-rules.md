@@ -63,6 +63,39 @@ ordered `include`s. The code it includes lives in `source/`, `test/` or
 `example/`. The rule and what it cost are in
 [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
+## A file is named for what it defines
+
+A tab, a fuzzy finder and a stack trace show a file name and not its path, so
+the name must answer three questions on its own: which slice, what kind of
+thing, and is it the real thing or an example of one. It did not. Of 690 files,
+62 names were used more than once, covering 196 of them.
+
+| tree | shape | example |
+| --- | --- | --- |
+| `source/` | `<Slice>Document.jl` — the slice's document types | `source/json/JsonDocument.jl` |
+| | `<A>To<B>.jl` — a projection | `source/json/JsonToSyntax.jl` |
+| | `<Thing>.jl` — anything that is neither | `source/sdl/Sdl.jl` |
+| `test/` | `<Thing>Test.jl` | `test/json/projection/JsonToSyntaxTest.jl` |
+| | `<Slice>Suite.jl` — the aggregator, `test_<slice>()` | `test/json/JsonSuite.jl` |
+| `example/` | `<Thing>DocumentExample.jl` | `example/json/JsonDocumentExample.jl` |
+| | `<Thing>ProjectionExample.jl` | `example/json/JsonProjectionExample.jl` |
+| | `<Slice>Examples.jl` — the registry | `example/json/JsonExamples.jl` |
+
+**Only a document file carries `Document`.** A slice whose primary file defines
+no document keeps the bare name, which is why `source/sdl/Sdl.jl` is a backend
+and `source/json/JsonDocument.jl` is a document. The test is `@document` in the
+file, and it sorts all 51 slice-named files without a judgement call.
+
+**`example/` has no role folders and `test/` keeps them.** The name says
+`Document` or `Projection` now, so a folder saying it again is a folder per
+file: 36 of `example/`'s 47 role folders held exactly one. `test/` keeps
+`document/`, `projection/`, `editor/` and `serializer/`, where one folder groups
+52 files.
+
+The 173 renames left 13 colliding names, down from 62. Each of the 13 is one
+concept exemplified in two slices — `PaneProjectionExample.jl` in `projectured`
+and in `substrate` — which the slice folder separates.
+
 ## Files and modules
 
 - **Module = filename + `Module`.** `Clock.jl` defines `ClockModule`,
@@ -282,6 +315,11 @@ each document belongs to, are in [README.md](../README.md).
 | `Projectured<Slice><Kind>` | its example or test package | `ProjecturedJsonTest` |
 | `<Package><Dep>Ext` | a package extension | `ProjecturedSqlSQLiteExt` |
 | `<File>Module` | the Julia module a file declares | `ClockModule` |
+| `<Slice>Document` | the slice's document types | `JsonDocument` |
+| `<Slice>Suite` | the suite that defines `test_<slice>` | `JsonSuite` |
+| `<Thing>DocumentExample` | an example document | `JsonDocumentExample` |
+| `<Thing>ProjectionExample` | an example projection | `JsonProjectionExample` |
+| `<Slice>Examples` | the slice's example registry | `JsonExamples` |
 | `test_<slice>` | a suite entry point | `test_json` |
 | `test_<slice>_layering` | its static layering guard | `test_json_layering` |
 | `PR-…` / `PAR-…` | a claim the code is checked against | `PAR-PURE-THUNK` |

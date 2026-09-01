@@ -42,7 +42,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
 end
 
 include("../../../source/conversation/Evaluator.jl")
-include("../../../source/conversation/Conversation.jl")
+include("../../../source/conversation/ConversationDocument.jl")
 include("../../../source/conversation/ConversationToWidget.jl")
 include("../../../source/conversation/ConversationEditor.jl")
 

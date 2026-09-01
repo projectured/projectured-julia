@@ -72,6 +72,6 @@ include("../../../test/process/projection/ProcessDiagramTest.jl")
 include("../../../test/process/projection/ProcessToJuliaCodeTest.jl")
 include("../../../test/process/projection/ProcessToSyntaxTest.jl")
 
-include("../../../test/process/Suite.jl")
+include("../../../test/process/ProcessSuite.jl")
 
 end # module ProjecturedProcessTest

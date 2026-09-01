@@ -10,7 +10,7 @@ the example change every time a file was added or removed — the rendered tree
 grew and shrank with the repository, and four example suites changed their
 assertion counts with it. A fixture is fixed.
 """
-filesystem_example_root() = abspath(joinpath(@__DIR__, "..", "fixture", "project"))
+filesystem_example_root() = abspath(joinpath(@__DIR__, "fixture", "project"))
 
 make_filesystem_document_example(; root = filesystem_example_root()) =
     make_filesystem_pathname(root)

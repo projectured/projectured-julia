@@ -67,6 +67,6 @@ end
 
 include("../../../test/yaml/document/YamlParserTest.jl")
 
-include("../../../test/yaml/Suite.jl")
+include("../../../test/yaml/YamlSuite.jl")
 
 end # module ProjecturedYamlTest

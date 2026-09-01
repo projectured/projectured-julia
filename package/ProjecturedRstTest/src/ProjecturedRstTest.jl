@@ -67,6 +67,6 @@ end
 include("../../../test/rst/document/RstParserTest.jl")
 include("../../../test/rst/serializer/RstEmbedTest.jl")
 
-include("../../../test/rst/Suite.jl")
+include("../../../test/rst/RstSuite.jl")
 
 end # module ProjecturedRstTest

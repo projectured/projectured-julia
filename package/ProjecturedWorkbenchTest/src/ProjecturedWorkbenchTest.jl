@@ -76,6 +76,6 @@ include("../../../test/workbench/editor/AssistantMvpTest.jl")
 include("../../../test/workbench/projection/WorkbenchContentPaneTest.jl")
 include("../../../test/workbench/projection/WorkbenchTabClickTest.jl")
 
-include("../../../test/workbench/Suite.jl")
+include("../../../test/workbench/WorkbenchSuite.jl")
 
 end # module ProjecturedWorkbenchTest

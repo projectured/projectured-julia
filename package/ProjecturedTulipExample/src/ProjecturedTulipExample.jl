@@ -22,8 +22,8 @@ import ProjecturedExample: Example, run_example, run_console_example,
 # a package is a name and an include list.
 const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/tulip"))
 
-include(joinpath(_PKG_DIR, "projection", "Layout.jl"))
-include(joinpath(_PKG_DIR, "Examples.jl"))
+include(joinpath(_PKG_DIR, "LayoutProjectionExample.jl"))
+include(joinpath(_PKG_DIR, "TulipExamples.jl"))
 
 export make_constraint_layout_tulip_projection_example
 export constraint_layout_tulip_example, tulip_examples

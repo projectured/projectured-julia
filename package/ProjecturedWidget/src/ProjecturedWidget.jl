@@ -59,7 +59,7 @@ const TextModule = ProjecturedText.TextModule
 const DocumentReflectionModule = ProjecturedReflection.DocumentReflectionModule
 const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
 
-include("../../../source/widget/Widget.jl")
+include("../../../source/widget/WidgetDocument.jl")
 include("../../../source/widget/WidgetToGraphics.jl")
 include("../../../source/widget/ObjectToWidget.jl")
 include("../../../source/widget/ObjectFieldToWidget.jl")

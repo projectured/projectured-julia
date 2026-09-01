@@ -66,27 +66,27 @@ const _EXAMPLE_DIR = normpath(joinpath(@__DIR__, "../../../example/projectured")
 # render-anything example, the engine-feature demonstrations over a domain
 # fixture (clipboard, dragging, focusing, versioning), and the pane and table
 # layouts. A per-domain example package holds only its own domain.
-include(joinpath(_EXAMPLE_DIR, "document", "Clipboard.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Dragging.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Embed.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Focusing.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Pane.jl"))
-include(joinpath(_EXAMPLE_DIR, "document", "Versioning.jl"))
+include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "EmbedDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "VersioningDocumentExample.jl"))
 
-include(joinpath(_EXAMPLE_DIR, "projection", "Clipboard.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Dragging.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Focusing.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Graphics.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Natural.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Pane.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Versioning.jl"))
+include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "GraphicsProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
 
 # The concrete-domain `Example` instances. They name factories from all twenty
 # example packages, so they belong here rather than in any one of them.
 include(joinpath(_EXAMPLE_DIR, "DomainExamples.jl"))
 # The global interleaved registry, then the generated atomic catalog.
-include(joinpath(_EXAMPLE_DIR, "Examples.jl"))
+include(joinpath(_EXAMPLE_DIR, "ProjecturedExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 # `default_backend` picks a loaded Backend subtype by its own type name. Only
 # the two harnesses below call it, so it lives with them rather than in a

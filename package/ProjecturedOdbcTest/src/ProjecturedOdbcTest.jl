@@ -22,6 +22,6 @@ using ProjecturedOdbc
 # Live-DB fixture helpers shared by the two suites (moved down with them from the
 # umbrella). `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
 # `using ProjecturedOdbc`.
-include("../../../test/odbc/Suite.jl")
+include("../../../test/odbc/OdbcSuite.jl")
 
 end # module ProjecturedOdbcTest

@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/book/document/Book.jl")
-include("../../../example/book/projection/Book.jl")
+include("../../../example/book/BookDocumentExample.jl")
+include("../../../example/book/BookProjectionExample.jl")
 
 export make_book_paragraph_document_example, make_book_picture_document_example, make_book_insertion_document_example
 export make_book_chapter_document_example, make_book_list_document_example, make_book_book_document_example

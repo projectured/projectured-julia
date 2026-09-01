@@ -49,7 +49,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/json/Json.jl")
+include("../../../source/json/JsonDocument.jl")
 include("../../../source/json/JsonParser.jl")
 include("../../../source/json/JsonToSyntax.jl")
 include("../../../source/json/JsonFile.jl")   # FileDocument wrapping a JsonDocument

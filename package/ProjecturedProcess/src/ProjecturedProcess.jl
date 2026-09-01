@@ -41,7 +41,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/process/Process.jl")
+include("../../../source/process/ProcessDocument.jl")
 include("../../../source/process/ProcessRuntime.jl")
 include("../../../source/process/ProcessDiagram.jl")
 include("../../../source/process/ProcessDebugSession.jl")

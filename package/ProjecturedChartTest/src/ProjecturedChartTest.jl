@@ -66,6 +66,6 @@ end
 
 include("../../../test/chart/projection/ChartTest.jl")
 
-include("../../../test/chart/Suite.jl")
+include("../../../test/chart/ChartSuite.jl")
 
 end # module ProjecturedChartTest

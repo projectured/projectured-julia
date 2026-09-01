@@ -36,7 +36,7 @@ const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
-include("../../../source/layout/Layout.jl")
+include("../../../source/layout/LayoutDocument.jl")
 include("../../../source/layout/ConstraintSolver.jl")
 include("../../../source/layout/LayoutToGraphics.jl")
 include("../../../source/layout/CollectionToLayout.jl")

@@ -39,7 +39,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/julia/Julia.jl")
+include("../../../source/julia/JuliaDocument.jl")
 include("../../../source/julia/JuliaParser.jl")
 include("../../../source/julia/JuliaInsertionToSyntax.jl")
 include("../../../source/julia/JuliaFile.jl")

@@ -69,6 +69,6 @@ end
 
 include("../../../test/conversation/projection/ConversationEditorTest.jl")
 
-include("../../../test/conversation/Suite.jl")
+include("../../../test/conversation/ConversationSuite.jl")
 
 end # module ProjecturedConversationTest

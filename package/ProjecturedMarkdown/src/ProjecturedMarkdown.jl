@@ -39,7 +39,7 @@ for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, 
     end
 end
 
-include("../../../source/markdown/Markdown.jl")
+include("../../../source/markdown/MarkdownDocument.jl")
 include("../../../source/markdown/MarkdownParser.jl")
 include("../../../source/markdown/MarkdownToSyntax.jl")
 include("../../../source/markdown/MarkdownFile.jl")

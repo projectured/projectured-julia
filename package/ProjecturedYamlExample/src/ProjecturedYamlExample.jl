@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/yaml/document/Yaml.jl")
-include("../../../example/yaml/projection/Yaml.jl")
+include("../../../example/yaml/YamlDocumentExample.jl")
+include("../../../example/yaml/YamlProjectionExample.jl")
 
 export make_yaml_null_document_example, make_yaml_bool_document_example, make_yaml_number_document_example
 export make_yaml_string_document_example, make_yaml_sequence_document_example, make_yaml_mapping_document_example

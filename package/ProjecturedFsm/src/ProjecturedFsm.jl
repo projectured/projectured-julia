@@ -40,7 +40,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/fsm/Fsm.jl")
+include("../../../source/fsm/FsmDocument.jl")
 include("../../../source/fsm/FsmDiagram.jl")
 include("../../../source/fsm/FsmToSyntax.jl")
 include("../../../source/fsm/FsmToFsmDiagram.jl")

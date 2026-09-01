@@ -68,6 +68,6 @@ include("../../../test/xml/document/XmlParserTest.jl")
 include("../../../test/xml/projection/XmlToSyntaxTest.jl")
 include("../../../test/xml/serializer/XmlFileTest.jl")
 
-include("../../../test/xml/Suite.jl")
+include("../../../test/xml/XmlSuite.jl")
 
 end # module ProjecturedXmlTest

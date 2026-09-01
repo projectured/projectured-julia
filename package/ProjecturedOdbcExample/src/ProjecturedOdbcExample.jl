@@ -24,11 +24,11 @@ import ProjecturedExample: Example, run_example, run_console_example,
 # a package is a name and an include list.
 const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/odbc"))
 
-include(joinpath(_PKG_DIR, "document", "Database.jl"))
-include(joinpath(_PKG_DIR, "document", "DbCatalog.jl"))
-include(joinpath(_PKG_DIR, "projection", "DbCatalog.jl"))
-include(joinpath(_PKG_DIR, "projection", "Sql.jl"))
-include(joinpath(_PKG_DIR, "Examples.jl"))
+include(joinpath(_PKG_DIR, "DatabaseDocumentExample.jl"))
+include(joinpath(_PKG_DIR, "DbCatalogDocumentExample.jl"))
+include(joinpath(_PKG_DIR, "DbCatalogProjectionExample.jl"))
+include(joinpath(_PKG_DIR, "SqlProjectionExample.jl"))
+include(joinpath(_PKG_DIR, "OdbcExamples.jl"))
 
 export make_dbcatalog_document_example, make_dvdrental_catalog_document_example,
        make_dvdrental_dbcatalog_document_example, explore_dbcatalog!,

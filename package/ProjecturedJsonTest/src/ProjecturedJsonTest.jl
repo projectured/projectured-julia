@@ -71,6 +71,6 @@ include("../../../test/json/editor/JsonPlaceholderNavTest.jl")
 include("../../../test/json/projection/JsonToSyntaxTest.jl")
 include("../../../test/json/serializer/JsonFileTest.jl")
 
-include("../../../test/json/Suite.jl")
+include("../../../test/json/JsonSuite.jl")
 
 end # module ProjecturedJsonTest
