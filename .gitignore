@@ -29,6 +29,10 @@ results/
 # file it loads. The name holds the process id of that run.
 *.mem
 
+# Coverage reports that julia --code-coverage writes next to each source file
+# it loads. The name holds the process id of that run.
+*.cov
+
 # The workload level is a person's choice, not the project's.
 LocalPreferences.toml
 
