@@ -4,7 +4,7 @@
 `JsonFile`: a `FileDocument` whose `content` is a `JsonDocument`.
 Parse uses the existing `jsonparse`; emit runs the existing
 `JsonToSyntax → SyntaxToText → TextToString` projection chain via
-`document_to_text`.
+`print_natural_text`.
 
 Cross-file references appear in JSON as **strings** whose whole value
 matches the marker regex (see `parse_marker_text`). A post-parse walk
@@ -25,7 +25,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
                      JsonObject, JsonObjectEntry
 import ..JsonParserModule: jsonparse
-import ..NaturalFormatModule: document_to_text
+import ..NaturalNotationModule: print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!
@@ -43,11 +43,11 @@ docstring for the marker walk and the emit-side projection extension.
     content::JsonDocument = JsonNothing()
 end
 
-# Emit through the visual projection pipeline via `document_to_text`.
+# Emit through the visual projection pipeline via `print_natural_text`.
 # The `ReferenceStub` case registered in `JsonToSyntax.jl` renders
 # stubs as marker strings when the projection walks over them, so no
 # pre-emit AST mutation is needed.
-emit_text(f::JsonFile) = document_to_text(content(f))
+emit_text(f::JsonFile) = print_natural_text(content(f))
 
 # Load: parse the file with `jsonparse`, then substitute marker
 # strings with `ReferenceStub` values in the parsed tree in place.

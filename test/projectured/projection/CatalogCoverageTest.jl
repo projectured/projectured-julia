@@ -128,9 +128,8 @@ end
 # are not failures.
 function _round_trip_eligible(atom)
     try
-        extension = natural_extension(atom.make_document())
-        applicable(parse_natural,
-                   Val(Symbol(SubString(extension, 2))), "")
+        format = get_natural_format(typeof(atom.make_document()))
+        format !== nothing && has_natural_parser(format)
     catch
         false
     end
@@ -166,10 +165,9 @@ _round_trip_name(atom) = string(atom.domain) * "/" * atom.name
 function _round_trips(atom)
     try
         document = atom.make_document()
-        extension = natural_extension(document)
-        format = Symbol(SubString(extension, 2))
-        applicable(parse_natural, Val(format), "") || return false
-        parse_natural(Val(format), document_to_text(document))
+        format = get_natural_format(typeof(document))
+        (format !== nothing && has_natural_parser(format)) || return false
+        parse_natural_text(format, print_natural_text(document))
         true
     catch
         false

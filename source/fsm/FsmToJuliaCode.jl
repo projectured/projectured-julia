@@ -3,7 +3,7 @@
 
 Code generation: an `FsmComponent` → a complete, runnable Julia module, built
 as a `JuliaDocument` tree and written out through the ordinary
-`document_to_text` path.
+`print_natural_text` path.
 
 This is deliberately **not** a registered bidirectional projection. Reading a
 hand-edited generated file back into a machine is not a goal — the `.fsm`
@@ -65,7 +65,7 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
                       JuliaStruct, JuliaSubtype, JuliaFunction, JuliaTuple,
                       JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDef,
                       JuliaUnaryOp
-import ..NaturalFormatModule: document_to_text
+import ..NaturalNotationModule: print_natural_text
 
 export generate_component, generate_component_text, export_component,
        state_constant_name, machine_field_name, dispatch_function_name,
@@ -456,13 +456,13 @@ end
 """
     generate_component_text(component::FsmComponent; wrap_module = true) -> String
 
-The generated code as Julia source, through the ordinary `document_to_text`
+The generated code as Julia source, through the ordinary `print_natural_text`
 path, with a header naming the machine it came from.
 """
 generate_component_text(component::FsmComponent; wrap_module::Bool = true) =
     "# Generated from the state machine `" * component.name *
     "` — edit the machine, not this file.\n\n" *
-    document_to_text(generate_component(component; wrap_module = wrap_module)) * "\n"
+    print_natural_text(generate_component(component; wrap_module = wrap_module)) * "\n"
 
 """
     export_component(component::FsmComponent, path::AbstractString; wrap_module = true)

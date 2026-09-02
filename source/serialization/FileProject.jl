@@ -24,7 +24,7 @@ This module carries the pieces every format hooks into:
   the two `@document`-generated cell fields.
 - `emit_text(f)` — the format's path-to-text. Concrete types override
   it (a plain leaf like `TextFile` returns its `content` directly; a
-  parsed leaf like `JsonFile` delegates to `document_to_text` from the
+  parsed leaf like `JsonFile` delegates to `print_natural_text` from the
   visual layer, which is why this abstract lives free of any `visual/`
   dependency). Callers never pull in visual to save a plain text file.
 - `populate_file!(f, filename, ctx)` — the format's text-to-tree
@@ -165,7 +165,7 @@ a leaf like `JsonFile`, a raw `String` for a `TextFile`, or a
 Default reads through the `content` field. Types where the "content"
 is spread across multiple fields (e.g. omnetpp-pred's `NedFile` with
 its `children` + `version`) don't have a single `content` field and
-skip this method — their `emit_text` calls `document_to_text` on the
+skip this method — their `emit_text` calls `print_natural_text` on the
 whole node directly.
 """
 content(f) = unwrap_cell(getfield(f, :content))
@@ -176,7 +176,7 @@ content(f) = unwrap_cell(getfield(f, :content))
 Render a file document to the exact text that goes on disk. Concrete
 types override this: a raw-string leaf (`TextFile`) returns `content`,
 a parsed leaf (`JsonFile`, `XmlFile`, `JuliaFile`, `MarkdownFile`)
-projects `content` through the visual layer's `document_to_text`. The
+projects `content` through the visual layer's `print_natural_text`. The
 default here just errors so a missing override fails loudly.
 """
 emit_text(f) =

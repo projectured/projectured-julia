@@ -13,7 +13,7 @@ import ProjecturedJson
 using ProjecturedJson.JsonFileModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
-using ProjecturedFileFormat.NaturalFormatModule: document_to_text
+using ProjecturedNatural.NaturalNotationModule: print_natural_text
 
 const _MV_SOURCE = """
 using Foo
@@ -45,8 +45,8 @@ function test_marker_vocabulary()
             # fragment a reader should see is the whole definition.
             f = evaluate_marker("definition(file(\"steps.jl\"), \"packet_queue_step\")", ctx)
             @test f isa JuliaDocstring
-            @test occursin("function packet_queue_step", document_to_text(f))
-            @test occursin("Build the packet queue step", document_to_text(f))
+            @test occursin("function packet_queue_step", print_natural_text(f))
+            @test occursin("Build the packet queue step", print_natural_text(f))
 
             @test evaluate_marker("definition(file(\"steps.jl\"), \"LIMIT\")", ctx) isa JuliaConst
             @test evaluate_marker("definition(file(\"steps.jl\"), \"Marker\")", ctx) isa JuliaStruct
@@ -89,7 +89,7 @@ function test_marker_vocabulary()
                   "# Title\n\nIntro.\n\n## First\n\nOne.\n\n### Deeper\n\nDeep.\n\n## Second\n\nTwo.\n")
             ctx = LoaderContext(d)
 
-            first_section = document_to_text(
+            first_section = print_natural_text(
                 evaluate_marker("section(file(\"page.md\"), \"First\")", ctx))
             # The heading, its prose, and the subsection it contains …
             @test occursin("## First", first_section)
@@ -98,7 +98,7 @@ function test_marker_vocabulary()
             # … but not the section that follows at the same level.
             @test !occursin("Second", first_section)
 
-            last_section = document_to_text(
+            last_section = print_natural_text(
                 evaluate_marker("section(file(\"page.md\"), \"Second\")", ctx))
             @test occursin("Two.", last_section)
             @test !occursin("One.", last_section)
@@ -128,7 +128,7 @@ function test_marker_vocabulary()
             resolve_stubs!(page)
 
             # Saving puts it back as it was written — inline, with no fence.
-            saved = document_to_text(content(page))
+            saved = print_natural_text(content(page))
             @test occursin("The builder is <<definition(file(\"steps.jl\"), \"LIMIT\")>> and it runs.",
                            saved)
             @test !occursin("```", saved)
@@ -142,7 +142,7 @@ function test_marker_vocabulary()
         try
             write(joinpath(d, "page.md"), "A plain <<not a marker>> stays text.\n")
             page = load_project(MarkdownFile, "page.md", d)
-            saved = document_to_text(content(page))
+            saved = print_natural_text(content(page))
             @test occursin("<<not a marker>>", saved)
         finally
             rm(d; recursive=true, force=true)

@@ -298,22 +298,23 @@ function YamlToSyntax(; style::Symbol = :block)
     )
 end
 
-# ── Natural-format registration ─────────────────────────────────────────────
-# YAML was the one source domain that registered none of these, so
-# `document_to_text(::YamlDocument)`, `import_document("x.yaml")` and
-# `parse_natural(Val(:yaml), text)` all failed for it while they worked for
-# JSON, XML, Julia and Markdown. A caller that asks the seam rather than the
-# domain — the assistant's fenced code blocks, for one — needs them here.
+# ── What this domain's natural notation is ──────────────────────────────────
+# YAML was the one source domain that declared none of this, so a caller that
+# asked the seam rather than the domain — the assistant's fenced code blocks, for
+# one — got nothing for it while JSON, XML, Julia and Markdown worked.
 import ..YamlParserModule: yamlparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
+import ..NaturalNotationModule: register_natural_domain!, register_natural_parser!
 
-natural_syntax_projection(::YamlDocument) = YamlToSyntax()
-natural_extension(::YamlDocument) = ".yaml"
-parse_natural(::Val{:yaml}, text::AbstractString) = yamlparse(text)
-# `.yml` is the same format under the other spelling, and a fenced block is
-# written either way.
-parse_natural(::Val{:yml}, text::AbstractString) = yamlparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:YamlDocument}) = :yaml
+function __init__()
+    register_natural_domain!(YamlDocument;
+                             rung      = :syntax,
+                             make      = () -> YamlToSyntax(),
+                             format    = :yaml,
+                             extension = ".yaml",
+                             parse     = yamlparse)
+    # `.yml` is the same format under the other spelling, and a fenced block is
+    # written either way.
+    register_natural_parser!(:yml, yamlparse)
+end
 
 end # module

@@ -38,8 +38,9 @@ import ..CollectionModule: CellVector, ComputedCellVector
 # fenced block, render this document back to its own text — is the natural-format
 # seam, which every domain registers itself with. A domain that is not loaded
 # has no method there, and the fenced-text fallback below answers instead.
-import ..NaturalFormatModule: parse_natural, natural_syntax_projection,
-                              natural_extension, document_to_text
+import ..NaturalNotationModule: parse_natural_text, has_natural_parser,
+                                make_natural_projection, get_natural_extension,
+                                print_natural_text
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
@@ -143,21 +144,21 @@ _text_to_string(d) = _content_to_string(d)
 # the editor shows and therefore what the model should see.
 _content_to_string(t::TextBlock) = _text_to_string(t)
 function _content_to_string(d)
-    applicable(natural_syntax_projection, d) && return _doc_source(d)
+    make_natural_projection(d, :string) === nothing || return _doc_source(d)
     hasproperty(d, :name) ? String(d.name) : string(d)
 end
 
 # ── Document → source text ──────────────────────────────────────────────────
-# `document_to_text` is the natural-format seam's own chain: the domain's
+# `print_natural_text` is the natural-format seam's own chain: the domain's
 # `*ToSyntax`, then `SyntaxToText`, then `TextToString`. The assistant built five
 # copies of it, one per domain, and naming five domains was the price.
 #
 # A document whose domain registered nothing — or which is not a document at all
 # — falls back to the plain stringification above.
 function _doc_source(c)
-    applicable(natural_syntax_projection, c) || return _content_to_string(c)
+    make_natural_projection(c, :string) === nothing && return _content_to_string(c)
     try
-        document_to_text(c)
+        print_natural_text(c)
     catch
         hasproperty(c, :name) ? String(c.name) : string(c)
     end
@@ -172,8 +173,9 @@ end
 # is called rather than this file listing them.
 _block_text(c::TextBlock) = _content_to_string(c)
 function _block_text(c)
-    applicable(natural_extension, c) || return _content_to_string(c)
-    name = _fence_language(natural_extension(c))
+    extension = get_natural_extension(c)
+    extension === nothing && return _content_to_string(c)
+    name = _fence_language(extension)
     name == "markdown" ? _doc_source(c) :
         "```" * name * "\n" * _doc_source(c) * "\n```"
 end
@@ -381,9 +383,9 @@ function _eval_form_doc(code::AbstractString)
     # leading/trailing gutter line (common when the snippet is a triple-quoted
     # block). Execution still runs the original code; only the display is trimmed.
     src = strip(String(code))
-    applicable(parse_natural, Val(:jl), src) || return PrimitiveString(src)
+    has_natural_parser(:jl) || return PrimitiveString(src)
     try
-        parse_natural(Val(:jl), src)
+        parse_natural_text(:jl, src)
     catch
         # The snippet does not parse. A string still renders and still runs.
         PrimitiveString(src)
@@ -797,10 +799,10 @@ end
 # A fenced code block → a part whose content is the parsed domain document, with
 # a graceful fallback to fenced text when the language is unknown or won't parse.
 function _code_part(lang::AbstractString, body::AbstractString)
-    kind = Val(_fence_extension(lang))
-    if applicable(parse_natural, kind, body)
+    kind = _fence_extension(lang)
+    if has_natural_parser(kind)
         doc = try
-            parse_natural(kind, body)
+            parse_natural_text(kind, body)
         catch
             nothing
         end
@@ -815,9 +817,9 @@ end
 # and the prose stays a plain-text part, which is what it already degraded to
 # when the parse failed.
 function _prose_part(s::AbstractString)
-    applicable(parse_natural, Val(:md), s) || return ConversationPart(String(s))
+    has_natural_parser(:md) || return ConversationPart(String(s))
     doc = try
-        parse_natural(Val(:md), s)
+        parse_natural_text(:md, s)
     catch
         nothing
     end

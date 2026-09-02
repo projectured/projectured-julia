@@ -35,6 +35,7 @@ import ..PrimitiveModule: PrimitiveDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentCoreModule: DocumentNothing
 import ..NaturalRegistryModule: natural_syntax_entries, register_natural_fallback!
+import ..NaturalNotationModule: register_natural_rung!
 
 export natural_to_syntax_dispatch, register_syntax_fallback!
 
@@ -91,9 +92,22 @@ end
 """
     register_syntax_fallback!() -> nothing
 
-Tell the natural renderer that this session can draw anything. Called from
-`ProjecturedSyntax.__init__`, so loading the package is what registers it.
+Tell the natural machinery what this session can do that it could not before:
+draw a document of any shape, and take a syntax tree up to text.
+
+`syntax → text` is the one rung of the ladder that `ProjecturedNatural` cannot
+supply, because it must not name this package — this package names it, and the
+arrow cannot turn. So it is registered here, and a session without this package
+has no rung: a document that only speaks syntax then has no text and no graphics
+form, which is what "not loaded is not supported" means.
+
+Called from `ProjecturedSyntax.__init__`, so loading the package is what
+registers both.
 """
-register_syntax_fallback!() = register_natural_fallback!(:syntax, _fallback_rows)
+function register_syntax_fallback!()
+    register_natural_fallback!(:syntax, _fallback_rows)
+    register_natural_rung!(:syntax, :text, (; measure) -> SyntaxToText())
+    nothing
+end
 
 end # module SyntaxNaturalModule

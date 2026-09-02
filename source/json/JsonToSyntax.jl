@@ -149,7 +149,7 @@ function JsonToSyntax()
         JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
         # A cross-file reference — either as a resolved-later stub or as
         # an embedded FileDocument child — renders as a marker string
-        # (`"<<file(\"path\")>>"`), so document_to_text emits the right
+        # (`"<<file(\"path\")>>"`), so print_natural_text emits the right
         # thing without a pre-save AST mutation.
         ReferenceStub   => ReferenceStubToJsonSyntaxLeaf(),
         FileDocument    => EmbeddedFileDocumentToJsonSyntaxLeaf(),
@@ -216,23 +216,23 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # JSON's seams for import_document / export_document / read+write_document_file.
 import ..JsonParserModule: jsonparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
-natural_syntax_projection(::JsonDocument) = JsonToSyntax()
-natural_extension(::JsonDocument) = ".json"
-parse_natural(::Val{:json}, text::AbstractString) = jsonparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:JsonDocument}) = :json
 new_document_seed(::Val{:json}) = JsonInsertion()
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
+# ── What this domain's natural notation is ──────────────────────────────────
+# One statement: the rung it starts at and how to build it, the format it is
+# written in, the extension that names the format back, and how to read that text
+# in again. Runtime state, so `__init__` rather than a top-level call.
+import ..NaturalNotationModule: register_natural_domain!
 import ..JsonModule: JsonDocument
 
 function __init__()
-    register_natural_syntax!(:json, () -> Pair{Type,Any}[JsonDocument => JsonToSyntax()])
+    register_natural_domain!(JsonDocument;
+                             rung      = :syntax,
+                             make      = () -> JsonToSyntax(),
+                             format    = :json,
+                             extension = ".json",
+                             parse     = jsonparse)
 end
 
 end # module

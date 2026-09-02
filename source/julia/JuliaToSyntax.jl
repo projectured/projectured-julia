@@ -954,7 +954,7 @@ function JuliaToSyntax()
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
         # A cross-file reference — either as a load-produced stub or
         # as an embedded FileDocument child — renders as a
-        # `pred_ref("<<file(\"path\")>>")` call so document_to_text
+        # `pred_ref("<<file(\"path\")>>")` call so print_natural_text
         # emits the right thing without a pre-save AST mutation.
         ReferenceStub        => ReferenceStubToJuliaSyntaxLeaf(),
         FileDocument         => EmbeddedFileDocumentToJuliaSyntaxLeaf(),
@@ -1005,23 +1005,23 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
 import ..JuliaParserModule: juliaparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
-natural_syntax_projection(::JuliaDocument) = JuliaToSyntax()
-natural_extension(::JuliaDocument) = ".jl"
-parse_natural(::Val{:jl}, text::AbstractString) = juliaparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:JuliaDocument}) = :jl
 new_document_seed(::Val{:jl}) = JuliaInsertion()
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
+# ── What this domain's natural notation is ──────────────────────────────────
+# One statement: the rung it starts at and how to build it, the format it is
+# written in, the extension that names the format back, and how to read that text
+# in again. Runtime state, so `__init__` rather than a top-level call.
+import ..NaturalNotationModule: register_natural_domain!
 import ..JuliaModule: JuliaDocument
 
 function __init__()
-    register_natural_syntax!(:julia, () -> Pair{Type,Any}[JuliaDocument => JuliaToSyntax()])
+    register_natural_domain!(JuliaDocument;
+                             rung      = :syntax,
+                             make      = () -> JuliaToSyntax(),
+                             format    = :jl,
+                             extension = ".jl",
+                             parse     = juliaparse)
 end
 
 end # module

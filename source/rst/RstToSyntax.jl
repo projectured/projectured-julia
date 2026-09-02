@@ -18,7 +18,7 @@ RST → SyntaxDocument projection with two presentations, selected by
 **Indentation is written, not computed.** Every compound here carries
 `indentation=0` and puts the indent into its own `open` and `sep` text. The
 alternative — the compound's `indentation` field — indents in units of the
-pipeline's `indent_size`, which `document_to_text` fixes at two, and RST needs
+pipeline's `indent_size`, which `print_natural_text` fixes at two, and RST needs
 the indent of a directive body to be a width this slice chooses. Writing the
 spaces keeps emit under this file's control, and it works because a paragraph
 is one line: the parser joins a paragraph's source lines with a space.
@@ -1288,7 +1288,7 @@ _source_rules() = Pair{Any,Any}[
     RstRoot                    => RstRootToSyntaxNode(),
     # A cross-file reference — either as a load-produced stub or as an embedded
     # FileDocument child — goes back as the directive it was written as, so
-    # `document_to_text` writes the marker without a pre-save walk over the tree.
+    # `print_natural_text` writes the marker without a pre-save walk over the tree.
     ReferenceStub              => ReferenceStubToRstSyntaxLeaf(),
     FileDocument               => EmbeddedFileDocumentToRstSyntaxLeaf(),
     Vector{Cell}               => CopyingProjection(),
@@ -1341,7 +1341,7 @@ end
 
 # ── ReferenceStubToRstSyntaxLeaf ────────────────────────────────────────────
 # ReferenceStub → the `pred-ref` directive whose argument is the marker text.
-# One leaf holding the whole directive, so `document_to_text` writes it verbatim.
+# One leaf holding the whole directive, so `print_natural_text` writes it verbatim.
 # Both styles use it: a domain projection is the save path, and the save path is
 # by marker. The natural notation renders an embed as the document it embeds,
 # and that happens in the shared fabric (`EmbedToSyntax`), not here.

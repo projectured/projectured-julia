@@ -25,7 +25,7 @@ module ProjecturedAssistant
 using ProjecturedCollection
 using ProjecturedConversation
 using ProjecturedDomain
-using ProjecturedFileFormat
+using ProjecturedNatural
 using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
@@ -35,7 +35,7 @@ using ProjecturedText
 using ProjecturedWidget
 
 for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedDomain,
-             ProjecturedFileFormat, ProjecturedKernel, ProjecturedLayout,
+             ProjecturedNatural, ProjecturedKernel, ProjecturedLayout,
              ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle,
              ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)

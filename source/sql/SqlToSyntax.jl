@@ -2075,23 +2075,23 @@ SqlInsertionToSyntaxLeaf() =
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
 import ..SqlDocumentModule: SqlDocument
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
-natural_syntax_projection(::SqlDocument) = SqlToSyntax()
-natural_extension(::SqlDocument) = ".sql"
-parse_natural(::Val{:sql}, text::AbstractString) = sqlparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:SqlDocument}) = :sql
 new_document_seed(::Val{:sql}) = SqlInsertion()
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
+# ── What this domain's natural notation is ──────────────────────────────────
+# One statement: the rung it starts at and how to build it, the format it is
+# written in, the extension that names the format back, and how to read that text
+# in again. Runtime state, so `__init__` rather than a top-level call.
+import ..NaturalNotationModule: register_natural_domain!
 import ..SqlDocumentModule: SqlDocument
 
 function __init__()
-    register_natural_syntax!(:sql, () -> Pair{Type,Any}[SqlDocument => SqlToSyntax()])
+    register_natural_domain!(SqlDocument;
+                             rung      = :syntax,
+                             make      = () -> SqlToSyntax(),
+                             format    = :sql,
+                             extension = ".sql",
+                             parse     = sqlparse)
 end
 
 end # module

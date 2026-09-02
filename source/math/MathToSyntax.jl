@@ -2,7 +2,7 @@
     MathToSyntaxModule
 
 Math → SyntaxDocument projection: the **linear** form of a formula, one line of
-text. It is the save path (`document_to_text` runs it) and the plain-text view;
+text. It is the save path (`print_natural_text` runs it) and the plain-text view;
 `MathToGraphics` draws the two-dimensional one.
 
 A construct that has no plain-text form prints its LaTeX-like name, so the line

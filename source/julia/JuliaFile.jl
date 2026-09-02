@@ -4,7 +4,7 @@
 `JuliaFile`: a `FileDocument` whose `content` is a `JuliaDocument`
 (the projectured Julia AST from `JuliaModule`). Parse uses the
 existing `juliaparse`; emit runs the standard `JuliaToSyntax →
-SyntaxToText → TextToString` projection chain via `document_to_text`.
+SyntaxToText → TextToString` projection chain via `print_natural_text`.
 
 **Marker syntax in Julia source.** A cross-file reference reads as a
 call to a specially-named function:
@@ -40,7 +40,7 @@ import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
                       JuliaDocstring, JuliaMacroCall, JuliaStruct, JuliaAbstractType,
                       JuliaSubtype, JuliaCurly
 import ..JuliaParserModule: juliaparse
-import ..NaturalFormatModule: document_to_text
+import ..NaturalNotationModule: print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, register_marker_function!,
@@ -65,7 +65,7 @@ docstring for the `pred_ref(...)` marker convention.
     content::JuliaDocument = JuliaNothing()
 end
 
-emit_text(f::JuliaFile) = document_to_text(content(f))
+emit_text(f::JuliaFile) = print_natural_text(content(f))
 
 function populate_file!(f::JuliaFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)

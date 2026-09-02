@@ -29,7 +29,7 @@ import ..ConversationModule: ConversationDocument, ConversationConversation,
 import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
-import ..NaturalFormatModule: natural_format
+import ..NaturalNotationModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout
@@ -100,7 +100,7 @@ function _kind_glyph(content)
     content isa EvaluatorForm      && return "="
     content isa ConversationThinking && return "∴"
     content isa TextBlock           && return "¶"
-    key = natural_format(typeof(content))
+    key = get_natural_format(typeof(content))
     key === nothing && return "?"
     get(FORMAT_GLYPHS, key, "{}")
 end
@@ -108,7 +108,7 @@ function _kind_label(content)
     content isa EvaluatorForm      && return eval_kind_label(content)
     content isa ConversationThinking && return "thinking"
     content isa TextBlock           && return "text"
-    key = natural_format(typeof(content))
+    key = get_natural_format(typeof(content))
     key === nothing && return "doc"
     get(FORMAT_LABELS, key, String(key))
 end

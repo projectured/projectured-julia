@@ -20,6 +20,7 @@ module ProjecturedProcess
 using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedFileFormat
+using ProjecturedNatural
 using ProjecturedGraph
 using ProjecturedJulia
 using ProjecturedKernel
@@ -30,7 +31,7 @@ using ProjecturedText
 using ProjecturedJulia
 using ProjecturedGraph
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedGraph, ProjecturedNatural, ProjecturedJulia, ProjecturedKernel, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

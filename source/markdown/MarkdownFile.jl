@@ -4,10 +4,10 @@
 `MarkdownFile`: a `FileDocument` whose `content` is a
 `MarkdownDocument` (the projectured Markdown AST). Parse uses
 `markdownparse`; emit runs the standard `MarkdownToSyntax(style=:source)
-→ SyntaxToText → TextToString` projection chain via `document_to_text`.
-This module also registers `natural_syntax_projection` /
-`natural_extension` / `parse_natural` for `MarkdownDocument` so
-`document_to_text` works.
+→ SyntaxToText → TextToString` projection chain via `print_natural_text`.
+This module also registers this domain's natural notation — the rung it starts
+at, the format, the extension and the parser — so `print_natural_text` works for
+a `MarkdownDocument` the way it works for every other domain.
 
 **Marker syntax in Markdown.** A cross-file reference reads as a
 fenced code block with the info string `pred-ref`:
@@ -34,8 +34,7 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
                          MarkdownStrong, MarkdownLink, MarkdownText
 import ..MarkdownParserModule: markdownparse
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
-import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
-                              natural_extension, natural_format, parse_natural
+import ..NaturalNotationModule: register_natural_domain!, print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, document_section,
@@ -63,7 +62,7 @@ module docstring for the fenced-block marker convention.
     content::MarkdownDocument = MarkdownRoot()
 end
 
-emit_text(f::MarkdownFile) = document_to_text(content(f))
+emit_text(f::MarkdownFile) = print_natural_text(content(f))
 
 function populate_file!(f::MarkdownFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
@@ -154,16 +153,6 @@ _substitute_markers(n::MarkdownEmphasis,  ctx::LoaderContext) = _visit_vector!(n
 _substitute_markers(n::MarkdownStrong,    ctx::LoaderContext) = _visit_vector!(n, :content,  ctx; inline=true)
 _substitute_markers(n::MarkdownLink,      ctx::LoaderContext) = _visit_vector!(n, :content,  ctx; inline=true)
 
-# ── natural-format registration ────────────────────────────────────────────
-# Markdown didn't previously register with NaturalFormatModule; we add
-# the seams here so `document_to_text(::MarkdownDocument)` works
-# uniformly with the other formats.
-
-natural_syntax_projection(::MarkdownDocument) = MarkdownToSyntax()
-natural_extension(::MarkdownDocument) = ".md"
-parse_natural(::Val{:md}, text::AbstractString) = markdownparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:MarkdownDocument}) = :md
 
 # ── The `section` vocabulary function ──────────────────────────────────────
 
@@ -251,6 +240,16 @@ document_section(root::MarkdownRoot, title::AbstractString) = markdown_section(r
 function __init__()
     register_file_document_type!(".md",       MarkdownFile)
     register_file_document_type!(".markdown", MarkdownFile)
+    # What this domain's natural notation is: the syntax rung, the format, and
+    # how to read it back. The `:graphics` rung — a page of blocks — is
+    # registered in `MarkdownToLayout.jl`, because a domain may reach more than
+    # one rung and markdown reaches two.
+    register_natural_domain!(MarkdownDocument;
+                             rung      = :syntax,
+                             make      = () -> MarkdownToSyntax(),
+                             format    = :md,
+                             extension = ".md",
+                             parse     = markdownparse)
 end
 
 end # module

@@ -1,7 +1,7 @@
 """
 S6 tests — `JuliaFile` and `MarkdownFile` round-trip via the
 existing projectured parsers (`juliaparse`, `markdownparse`) and the
-`document_to_text` projection pipeline. Cross-file markers use each
+`print_natural_text` projection pipeline. Cross-file markers use each
 format's natural escape:
 
 - Julia:   `pred_ref("<<file(\\"path\\")>>")` — a plain call the

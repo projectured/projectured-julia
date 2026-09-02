@@ -5,7 +5,7 @@ document's own domain, and the caret walks into it and back out.
 
 The two directions are deliberately different projections and both are
 asserted here: the fabric (`natural_to_syntax_dispatch`) renders an
-embed inline, the domain projection alone (`document_to_text`, the save
+embed inline, the domain projection alone (`print_natural_text`, the save
 path) renders only the marker.
 """
 
@@ -29,7 +29,7 @@ using ProjecturedPrimitive.PrimitiveModule: ReplaceStringRangeOperation
 using ProjecturedKernel.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedKernel.SelectionModule: set_selection!, get_selection
-using ProjecturedFileFormat.NaturalFormatModule: document_to_text
+using ProjecturedNatural.NaturalNotationModule: print_natural_text
 using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedWidget.WidgetModule: WidgetButton
 using ProjecturedStyle.GeometryModule: Point2D
@@ -167,9 +167,9 @@ function test_markdown_embed()
 
     @testset "the save path stays by-marker, forced or not" begin
         _me_project() do page, d
-            before = document_to_text(content(page))
+            before = print_natural_text(content(page))
             resolve_stubs!(page)
-            after = document_to_text(content(page))
+            after = print_natural_text(content(page))
             @test before == after
             @test occursin("```pred-ref", after)
             @test occursin("<<definition(file(\"steps.jl\"), \"packet_queue_step\")>>", after)
@@ -283,10 +283,10 @@ function test_markdown_embed()
 
     @testset "the framed page still saves as its marker" begin
         _me_project(_ME_JSON_PAGE) do page, d
-            before = document_to_text(content(page))
+            before = print_natural_text(content(page))
             resolve_stubs!(page)
             print_document(_me_renderer(), content(page))   # render, cards and all
-            @test document_to_text(content(page)) == before
+            @test print_natural_text(content(page)) == before
             @test occursin("<<file(\"data.json\")>>", before)
         end
     end

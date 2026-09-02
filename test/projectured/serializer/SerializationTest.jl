@@ -84,7 +84,7 @@ function test_serialization()
                 # parser captures inter-element whitespace as text, so its text is
                 # only best-effort stable — we just require it re-imports.
                 if text_stable
-                    @test document_to_text(imported) == read(p, String)
+                    @test print_natural_text(imported) == read(p, String)
                 else
                     @test import_document(p) isa T
                 end

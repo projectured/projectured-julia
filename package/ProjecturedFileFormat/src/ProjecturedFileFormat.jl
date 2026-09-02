@@ -24,6 +24,7 @@ using ProjecturedText
 using ProjecturedWidget
 
 const NaturalRegistryModule = ProjecturedNatural.NaturalRegistryModule
+const NaturalNotationModule = ProjecturedNatural.NaturalNotationModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const OperationModule = ProjecturedKernel.OperationModule

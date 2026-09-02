@@ -2,7 +2,7 @@
     ProcessToJuliaCodeModule
 
 **Realization**: a `ProcessModel` → a runnable Julia function, built as a
-`JuliaDocument` tree and written out through the ordinary `document_to_text`
+`JuliaDocument` tree and written out through the ordinary `print_natural_text`
 path.
 
 This is deliberately **not** a registered bidirectional projection. Reading a
@@ -53,7 +53,7 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
                       JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
                       JuliaTypeAnnotation
 import ..DocumentModule: search_documents
-import ..NaturalFormatModule: document_to_text
+import ..NaturalNotationModule: print_natural_text
 
 export realize_process, realize_process_text, export_process,
        PROCESS_INSTRUMENTATION_LEVELS, TRACE_PARAMETER_NAME
@@ -273,13 +273,13 @@ end
 """
     realize_process_text(model::ProcessModel; instrumentation = :none) -> String
 
-The realized code as Julia source, through the ordinary `document_to_text`
+The realized code as Julia source, through the ordinary `print_natural_text`
 path, with a header naming the process it came from.
 """
 realize_process_text(model::ProcessModel; instrumentation::Symbol = :none) =
     "# Realized from the process `" * model.name *
     "` — edit the process, not this file.\n\n" *
-    document_to_text(realize_process(model; instrumentation = instrumentation)) * "\n"
+    print_natural_text(realize_process(model; instrumentation = instrumentation)) * "\n"
 
 """
     export_process(model::ProcessModel, path::AbstractString; instrumentation = :none)

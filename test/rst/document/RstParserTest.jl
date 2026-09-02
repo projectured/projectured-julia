@@ -9,7 +9,7 @@
 #
 # The round-trip criterion is **AST idempotence**, not byte equality:
 #
-#     rstparse(document_to_text(rstparse(text))) == rstparse(text)
+#     rstparse(print_natural_text(rstparse(text))) == rstparse(text)
 #
 # Byte equality is out of reach because the corpus writes adornment lines
 # longer than their titles and mixes indent widths. `test_rst_corpus`
@@ -174,7 +174,7 @@ function test_rst_round_trip()
             @testset "$name" begin
                 text = read(path, String)
                 doc = rstparse(text)
-                emitted = document_to_text(doc)
+                emitted = print_natural_text(doc)
                 again = rstparse(emitted)
                 difference = rst_first_difference(again, doc)
                 @test difference === nothing
@@ -222,7 +222,7 @@ function test_rst_corpus(dir::AbstractString; verbose::Bool = true, limit::Int =
         end
         local emitted
         try
-            emitted = document_to_text(doc)
+            emitted = print_natural_text(doc)
         catch e
             push!(failures, "emit: $f: $(sprint(showerror, e))")
             continue

@@ -630,7 +630,7 @@ function MarkdownToSyntax(; style::Symbol = :source)
         MarkdownRoot          => MarkdownRootToSyntaxNode(),
         # A cross-file reference — either as a load-produced stub or
         # as an embedded FileDocument child — renders as a fenced
-        # `pred-ref` code block so document_to_text emits the right
+        # `pred-ref` code block so print_natural_text emits the right
         # thing without a pre-save AST mutation.
         ReferenceStub         => ReferenceStubToMarkdownSyntaxLeaf(),
         FileDocument          => EmbeddedFileDocumentToMarkdownSyntaxLeaf(),
@@ -641,7 +641,7 @@ end
 # ── ReferenceStubToMarkdownSyntaxLeaf ───────────────────────────────────────
 # ReferenceStub → a fenced `pred-ref` code block whose body is the
 # marker text (`<<file(\"path\")>>`). Emitted as a single SyntaxLeaf
-# holding the whole block text so document_to_text writes it
+# holding the whole block text so print_natural_text writes it
 # verbatim.
 
 @projection struct ReferenceStubToMarkdownSyntaxLeaf

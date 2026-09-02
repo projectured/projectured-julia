@@ -23,6 +23,7 @@ using ProjecturedText
 const CellModule = ProjecturedKernel.CellModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const NaturalRegistryModule = ProjecturedNatural.NaturalRegistryModule
+const NaturalNotationModule = ProjecturedNatural.NaturalNotationModule
 const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule

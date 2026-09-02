@@ -170,7 +170,7 @@ function XmlToSyntax()
         # A cross-file reference — either as a load-produced stub or
         # as an embedded FileDocument child — renders as a
         # <pred:ref>&lt;&lt;file("path")&gt;&gt;</pred:ref> element
-        # so document_to_text emits the right thing without a
+        # so print_natural_text emits the right thing without a
         # pre-save AST mutation.
         ReferenceStub => ReferenceStubToXmlSyntaxLeaf(),
         FileDocument  => EmbeddedFileDocumentToXmlSyntaxLeaf(),
@@ -235,23 +235,23 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # XML's seams for import_document / export_document / read+write_document_file.
 import ..XmlParserModule: xmlparse
-import ..NaturalFormatModule: natural_syntax_projection, natural_extension, natural_format, parse_natural
 import ..DocumentFileModule: new_document_seed
-natural_syntax_projection(::XmlDocument) = XmlToSyntax()
-natural_extension(::XmlDocument) = ".xml"
-parse_natural(::Val{:xml}, text::AbstractString) = xmlparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:XmlDocument}) = :xml
 new_document_seed(::Val{:xml}) = XmlInsertion()
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
+# ── What this domain's natural notation is ──────────────────────────────────
+# One statement: the rung it starts at and how to build it, the format it is
+# written in, the extension that names the format back, and how to read that text
+# in again. Runtime state, so `__init__` rather than a top-level call.
+import ..NaturalNotationModule: register_natural_domain!
 import ..XmlModule: XmlDocument
 
 function __init__()
-    register_natural_syntax!(:xml, () -> Pair{Type,Any}[XmlDocument => XmlToSyntax()])
+    register_natural_domain!(XmlDocument;
+                             rung      = :syntax,
+                             make      = () -> XmlToSyntax(),
+                             format    = :xml,
+                             extension = ".xml",
+                             parse     = xmlparse)
 end
 
 end # module

@@ -11,11 +11,11 @@ declare a type rather than decorate one.
 using Test
 using ProjecturedJulia.JuliaParserModule: juliaparse
 using ProjecturedJulia.JuliaFileModule: julia_definition
-using ProjecturedFileFormat.NaturalFormatModule: document_to_text
+using ProjecturedNatural.NaturalNotationModule: print_natural_text
 
 # What the marker gets back when it asks a source file for one definition.
 _definition_text(source::AbstractString, name::AbstractString) =
-    strip(document_to_text(julia_definition(juliaparse(source), name)))
+    strip(print_natural_text(julia_definition(juliaparse(source), name)))
 
 # Whether the file offers a definition by that name at all.
 _offers(source::AbstractString, name::AbstractString) =

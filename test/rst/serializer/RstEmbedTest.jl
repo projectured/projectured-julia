@@ -14,7 +14,7 @@ using ProjecturedSerialization.FileProjectModule
 using ProjecturedRst.RstFileModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
 using ProjecturedRst.RstParserModule: rstparse
-using ProjecturedFileFormat.NaturalFormatModule: document_to_text
+using ProjecturedNatural.NaturalNotationModule: print_natural_text
 using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
@@ -129,9 +129,9 @@ function test_rst_embed()
 
     @testset "the page saves as its marker, forced or not" begin
         _re_project() do page, d
-            before = document_to_text(content(page))
+            before = print_natural_text(content(page))
             resolve_stubs!(page)
-            after = document_to_text(content(page))
+            after = print_natural_text(content(page))
             @test before == after
             @test occursin(".. pred-ref:: <<file(\"data.json\")>>", after)
             @test !occursin("\"a\"", after)

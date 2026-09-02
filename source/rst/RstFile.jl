@@ -4,11 +4,11 @@
 `RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
 projectured reStructuredText tree). Parse uses `rstparse`; emit runs the
 standard `RstToSyntax(style=:source) → SyntaxToText → TextToString`
-projection chain through `document_to_text`.
+projection chain through `print_natural_text`.
 
-This module also registers `natural_syntax_projection` / `natural_extension`
-/ `parse_natural` for `RstDocument`, and `.rst` as a file document type, so
-`import_document` and `export_document` reach the slice by extension.
+This module also registers this domain's natural notation — the rung it starts
+at, the format, the extension and the parser — and `.rst` as a file document
+type, so `import_document` and `export_document` reach the slice by extension.
 
 **Marker syntax in RST.** A cross-file reference reads as a directive
 whose argument is the marker:
@@ -39,8 +39,7 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRo
                     RstGridTable, RstTableRow, RstTableCell
 import ..RstParserModule: rstparse
 import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
-import ..NaturalFormatModule: document_to_text, natural_syntax_projection,
-                              natural_extension, natural_format, parse_natural
+import ..NaturalNotationModule: register_natural_domain!, print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
                             LoaderContext, register_file_document_type!,
                             document_section, parse_marker_text, ReferenceStub
@@ -57,7 +56,7 @@ A file document whose `content` is an `RstDocument`.
     content::RstDocument = RstRoot()
 end
 
-emit_text(f::RstFile) = document_to_text(content(f))
+emit_text(f::RstFile) = print_natural_text(content(f))
 
 function populate_file!(f::RstFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
@@ -112,13 +111,6 @@ _substitute_markers(n::RstTableRow,       ctx::LoaderContext) = _visit_vector!(n
 # A definition's body holds blocks; its term holds inline runs.
 _substitute_markers(n::RstDefinitionItem, ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
 
-# ── natural-format registration ───────────────────────────────────────────────
-
-natural_syntax_projection(::RstDocument) = RstToSyntax()
-natural_extension(::RstDocument) = ".rst"
-parse_natural(::Val{:rst}, text::AbstractString) = rstparse(text)
-# The key a type answers with, for a caller that holds no instance.
-natural_format(::Type{<:RstDocument}) = :rst
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 
@@ -189,6 +181,15 @@ end
 
 function __init__()
     register_file_document_type!(".rst", RstFile)
+    # What this domain's natural notation is: the syntax rung, the format, and
+    # how to read it back. The `:graphics` rung — a page of blocks — is
+    # registered in `RstToLayout.jl`.
+    register_natural_domain!(RstDocument;
+                             rung      = :syntax,
+                             make      = () -> RstToSyntax(),
+                             format    = :rst,
+                             extension = ".rst",
+                             parse     = rstparse)
 end
 
 end # module

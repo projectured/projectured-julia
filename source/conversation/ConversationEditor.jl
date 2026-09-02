@@ -41,9 +41,9 @@ import ..PrimitiveModule: PrimitiveString
 import ..TextModule: TextBlock, TextString
 # The composer names no source domain. Which kinds it offers, what each is
 # called, and how a typed source becomes a document are all asked of two seams:
-# `insertion_root` says a type is a domain's insertion, and `natural_format` /
-# `parse_natural` say that domain's key and how to read its text.
-import ..NaturalFormatModule: natural_format, parse_natural
+# `insertion_root` says a type is a domain's insertion, and `get_natural_format`
+# / `parse_natural_text` say that domain's key and how to read its text.
+import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natural_parser
 import ..ToolModule: execute_julia_code, last_evaluated_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
@@ -261,8 +261,8 @@ end
 # not expressible.
 function _composer_kind(T)
     insertion_root(T) === Document && return false
-    key = natural_format(T)
-    key !== nothing && applicable(parse_natural, Val(key), "")
+    key = get_natural_format(T)
+    key !== nothing && has_natural_parser(key)
 end
 function _composer_factory(name::AbstractString)
     T = resolve_insertion(Document, name)
@@ -281,9 +281,9 @@ end
 # Parse a source insertion into its domain document, through the seam.
 function _parse_source(c)
     insertion_root(typeof(c)) === Document && return nothing
-    key = natural_format(typeof(c))
+    key = get_natural_format(typeof(c))
     key === nothing && return nothing
-    _try_parse(text -> parse_natural(Val(key), text), _value(c))
+    _try_parse(text -> parse_natural_text(key, text), _value(c))
 end
 _parse_source(::Nothing) = nothing
 
@@ -299,7 +299,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     c = _active_content(op.draft)
     # Running code is Julia's, so this one names a format rather than a domain:
     # it is the Julia kind that ALT+ENTER evaluates.
-    natural_format(typeof(c)) === :jl || return nothing
+    get_natural_format(typeof(c)) === :jl || return nothing
     src = _value(c)
     isempty(strip(src)) && return nothing
     set = editor.tools
@@ -417,7 +417,7 @@ _kind_glyph(::PrimitiveString)   = "✎"
 _kind_glyph(::DocumentInsertion) = "+"
 _kind_glyph(::EvaluatorForm)     = "="
 _kind_glyph(::TextBlock)          = "¶"
-_kind_glyph(c)                   = _format_glyph(natural_format(typeof(c)))
+_kind_glyph(c)                   = _format_glyph(get_natural_format(typeof(c)))
 _format_glyph(::Nothing)         = "?"
 _format_glyph(key::Symbol)       = get(FORMAT_GLYPHS, key, "{}")
 
@@ -425,7 +425,7 @@ _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
 _kind_label(f::EvaluatorForm)    = eval_kind_label(f)
 _kind_label(::TextBlock)          = "text"
-_kind_label(c)                   = _format_label(natural_format(typeof(c)))
+_kind_label(c)                   = _format_label(get_natural_format(typeof(c)))
 _format_label(::Nothing)         = "doc"
 _format_label(key::Symbol)       = get(FORMAT_LABELS, key, String(key))
 
@@ -690,7 +690,7 @@ function _composer_bindings(draft::ConversationDraft)
                 (d, sel) -> true, "Choose insertion kind", "composer"),
             revert, backspace, insert,
         ]
-    elseif natural_format(typeof(c)) === :jl
+    elseif get_natural_format(typeof(c)) === :jl
         # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
         # Julia's alone, which is why this arm names the format.
         GestureBinding[

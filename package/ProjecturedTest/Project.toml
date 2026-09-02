@@ -24,6 +24,7 @@ ProjecturedJsonTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedJuliaTest = "caf9ed19-1e68-4f5e-8085-d28b12c9e002"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
@@ -72,6 +73,7 @@ ProjecturedJsonTest = {path = "../ProjecturedJsonTest"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedJuliaTest = {path = "../ProjecturedJuliaTest"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedNatural = {path = "../ProjecturedNatural"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMarkdownTest = {path = "../ProjecturedMarkdownTest"}

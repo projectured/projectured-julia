@@ -1,6 +1,6 @@
 """
 S7 tests — `XmlFile` round-trip via the existing `xmlparse` +
-`XmlToSyntax → document_to_text` pipeline. Marker syntax is a
+`XmlToSyntax → print_natural_text` pipeline. Marker syntax is a
 `<pred:ref>&lt;&lt;file(\"path\")&gt;&gt;</pred:ref>` element:
 XML's entity escaping preserves the `<<` / `>>` inside a text node,
 so the marker round-trips cleanly.

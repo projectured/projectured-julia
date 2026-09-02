@@ -1,14 +1,20 @@
 """
     NaturalRegistryModule
 
-The two tables the **natural projection** is built from, and nothing else.
+The tables the **natural projection** is built from.
+
+`NaturalNotationModule` beside this one is where a domain declares its notation
+now. What is left here is the keyed-factory form, which a domain uses when one
+registration carries several rows, and the fallback — plus the two `*_entries`
+functions, which read both tables so a domain can move from one to the other on
+its own.
 
 The natural projection renders almost any document to graphics. To do that it
 needs one dispatch entry per domain — a `JsonDocument` goes to `JsonToSyntax`, a
 `GraphGraph` goes to the two graph stages — and a table that named every domain
 would put the renderer above all of them. So the renderer declares the tables
 and each domain fills in its own row, in a file it already has. This is the same
-seam `natural_syntax_projection` uses for natural-text export, one level up: a
+seam `NaturalNotationModule` uses for natural text, one level up: a
 type key instead of an instance key.
 
 There are three tables. Two are the ways a domain becomes graphics:
@@ -31,6 +37,8 @@ shared by every renderer that uses it. Pairs are registered first, so a domain
 that wants to override another domain's row can.
 """
 module NaturalRegistryModule
+
+import ..NaturalNotationModule: register_natural_notation!, get_natural_entries
 
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        natural_syntax_entries, natural_graphics_entries, natural_fallback_entries
@@ -58,9 +66,7 @@ the reflection tail and renders as its field names instead of as itself.
 """
 function register_natural_syntax!(pairs::Pair...)
     for pr in pairs
-        key = first(pr)
-        any(e -> first(e) === key, _SYNTAX_PAIRS) && continue
-        push!(_SYNTAX_PAIRS, Pair{Type,Any}(key, last(pr)))
+        register_natural_notation!(first(pr)::Type, :syntax, () -> last(pr))
     end
     nothing
 end
@@ -126,6 +132,7 @@ function natural_syntax_entries()
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
+    append!(out, get_natural_entries(:syntax))
     out
 end
 
@@ -141,6 +148,7 @@ function natural_graphics_entries(; measure)
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
+    append!(out, get_natural_entries(:graphics; measure = measure))
     out
 end
 
