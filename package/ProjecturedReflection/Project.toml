@@ -4,12 +4,17 @@ version = "0.1.0"
 authors = []
 
 # A bounded shadow of a large or live Julia object: the UnsyncedDocument marker,
-# the sync policies, and the reflected node tree.
-
+# the sync policies, the reflected node tree, and what draws it.
+#
+# It names ProjecturedWidget because a projection belongs to the package of what
+# it READS, the way SyntaxToText is ProjecturedSyntax's. The arrow ran the other
+# way until the widget package carried this one file for it.
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedWidget = {path = "../ProjecturedWidget"}

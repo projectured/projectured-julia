@@ -90,7 +90,7 @@ using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProj
 
 using ProjecturedReflection.BoundedSyncModule
 using ProjecturedReflection.DocumentReflectionModule
-using ProjecturedWidget.ReflectionToWidgetModule
+using ProjecturedReflection.ReflectionToWidgetModule
 using ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 
 const _SOURCES = (ProjecturedKernel,

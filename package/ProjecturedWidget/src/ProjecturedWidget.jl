@@ -17,7 +17,6 @@ using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
-using ProjecturedReflection
 using ProjecturedScreen
 using ProjecturedStyle
 using ProjecturedText
@@ -56,14 +55,11 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const LayoutToGraphicsModule = ProjecturedLayout.LayoutToGraphicsModule
 const TextModule = ProjecturedText.TextModule
-const DocumentReflectionModule = ProjecturedReflection.DocumentReflectionModule
-const BoundedSyncModule = ProjecturedReflection.BoundedSyncModule
 
 include("../../../source/widget/WidgetDocument.jl")
 include("../../../source/widget/WidgetToGraphics.jl")
 include("../../../source/widget/ObjectToWidget.jl")
 include("../../../source/widget/ObjectFieldToWidget.jl")
-include("../../../source/widget/ReflectionToWidget.jl")
 include("../../../source/widget/CellTableToWidgetTable.jl")
 include("../../../source/widget/WidgetHoverTracking.jl")
 include("../../../source/widget/ProjectionConfiguring.jl")
