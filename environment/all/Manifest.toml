@@ -983,7 +983,7 @@ uuid = "56e9f339-7147-459f-9ae1-7785cace5f24"
 version = "0.1.0"
 
 [[deps.ProjecturedDragging]]
-deps = ["ProjecturedCollection", "ProjecturedKernel"]
+deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedProjection"]
 path = "../../package/ProjecturedDragging"
 uuid = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
 version = "0.1.0"
@@ -1312,7 +1312,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedScreen]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection"]
 path = "../../package/ProjecturedScreen"
 uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"
