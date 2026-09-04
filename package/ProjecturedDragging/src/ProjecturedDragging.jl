@@ -12,6 +12,8 @@ module ProjecturedDragging
 
 using ProjecturedCollection
 using ProjecturedKernel
+# Named for the wrapper helpers below; it is in every window binary already.
+using ProjecturedProjection
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule

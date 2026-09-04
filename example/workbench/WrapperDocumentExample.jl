@@ -25,11 +25,9 @@ end
 make_clipboard_document(document; collection=false) =
     collection ? ClipboardCollection(document) : ClipboardSlice(document)
 
-# Wrap any example document in a DraggingState, so a press that travels
-# `threshold` pixels becomes a drag and a drop reorders the collection under the
-# grab point. The wrapper is transparent to the printer. Pairs with
-# `make_dragging_projection`.
-make_dragging_document(document; threshold::Int=5) = DraggingState(document, threshold)
+# Dragging's two helpers moved into `ProjecturedDragging`, where the types they
+# name live, so a program can drag without this package's 52 dependencies. The
+# gallery re-exports them from there; see `DraggingWrapperModule`.
 
 # Wrap any example document in a WidgetShell, so the content sits inside a
 # top-level window frame: a menu bar, a toolbar, and a status bar that names the

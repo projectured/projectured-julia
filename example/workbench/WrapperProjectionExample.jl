@@ -15,9 +15,8 @@ end
 # shape. The dragging printer is transparent, so the content renders as usual;
 # its reader turns press → drag → drop into a MoveRangeOperation. Pairs with
 # `make_dragging_document`; the domain-specific twin is
-# `make_dragging_projection_example`.
-make_dragging_projection(projection) =
-    NestingProjection(DraggingProjection(); recursion = projection)
+# `make_dragging_projection_example`. Both moved to `ProjecturedDragging` — see
+# `WrapperDocumentExample.jl`.
 
 # Render a WidgetShell and the content it frames: the shell's own bands are
 # widgets, and the content slot defers to the example's projection. This is the

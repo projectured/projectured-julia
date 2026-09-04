@@ -102,6 +102,11 @@ export make_workbench_searcher_document_example, make_workbench_evaluator_docume
 export make_workbench_console_document_example, make_workbench_navigator_document_example, make_workbench_page_document_example
 export make_workbench_editor_document_example, make_workbench_assistant_document_example, make_workbench_workbench_document_example
 export make_scrolling_document, make_introspection_document, make_clipboard_document
+# Dragging's two wrapper helpers live in `ProjecturedDragging` now, where their
+# types are, so a program need not hold this package to drag. Re-exported here so
+# the gallery's own call sites keep working.
+using ProjecturedDragging.DraggingWrapperModule: make_dragging_document,
+                                                 make_dragging_projection
 export make_dragging_document, make_shell_document, make_workbench_document
 export make_assistant_projection_example, make_navigator_projection_example, make_workbench_projection_example
 export make_graphics_caching, make_scrolling_projection, make_dragging_projection

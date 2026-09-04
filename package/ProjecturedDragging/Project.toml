@@ -8,8 +8,10 @@ authors = []
 
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 
 [sources]
+ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
