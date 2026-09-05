@@ -61,9 +61,17 @@ end
 # Lazily allocate the edge containers on first use. A cell that never reads another
 # keeps `deps === nothing`; one never read inside a computation keeps
 # `dependents === nothing` — and pays for neither.
-@inline _deps!(c::ReactiveCell) =
+#
+# `@nospecialize` ON THE CELL, because the cell that arrives here is often a
+# `ReactiveCell{T} where T` and not one concrete cell: `deps` is a
+# `Set{ReactiveCell}` and the computing stack a `Vector{ReactiveCell}`, so
+# whatever comes out of either carries a free parameter. Neither body reads `T`,
+# so one compiled body serves every cell — and a free parameter is the one shape
+# an ahead-of-time build cannot enumerate, which is what made these calls
+# unresolvable and put them in a seal file.
+@inline _deps!(@nospecialize(c::ReactiveCell)) =
     (d = c.deps; d === nothing ? (c.deps = Set{ReactiveCell}()) : d)
-@inline _dependents!(c::ReactiveCell) =
+@inline _dependents!(@nospecialize(c::ReactiveCell)) =
     (d = c.dependents; d === nothing ? (c.dependents = WeakRef[]) : d)
 
 """
@@ -292,7 +300,12 @@ end
 # Both helpers prune entries whose reader has been collected, in the scan they are
 # already doing, so dead `WeakRef`s never accumulate.
 
-function _register_dependent!(c::ReactiveCell, observer::ReactiveCell)
+# `@nospecialize` on both: `observer` reaches here from the computing stack and
+# `c` from another cell's `deps`, and both of those hold `ReactiveCell` with a
+# free parameter. The body walks a `Vector{WeakRef}` and compares with `===`; it
+# never reads `T`.
+function _register_dependent!(@nospecialize(c::ReactiveCell),
+                              @nospecialize(observer::ReactiveCell))
     ds = _dependents!(c)
     i, n = 1, length(ds)
     @inbounds while i <= n
@@ -309,7 +322,10 @@ function _register_dependent!(c::ReactiveCell, observer::ReactiveCell)
     return nothing
 end
 
-function _unregister_dependent!(c::ReactiveCell, observer::ReactiveCell)
+# The mirror of `_register_dependent!`, and `c` is the one that arrives with a
+# free parameter here: `recompute!` iterates `c.deps`, a `Set{ReactiveCell}`.
+function _unregister_dependent!(@nospecialize(c::ReactiveCell),
+                                @nospecialize(observer::ReactiveCell))
     ds = c.dependents
     ds === nothing && return nothing
     i, n = 1, length(ds)
