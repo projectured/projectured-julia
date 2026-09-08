@@ -438,6 +438,10 @@ function _open_native_window!(w::WindowDocument)
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")
     renderer = SDL_CreateRenderer(win, -1,
         SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC)
+    # A machine with no accelerated driver — a headless build, a virtual machine
+    # without GL, the dummy video driver — has a software one, and drawing
+    # slowly is better than not drawing.
+    renderer == C_NULL && (renderer = SDL_CreateRenderer(win, -1, 0))
     @assert renderer != C_NULL "SDL renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
 
