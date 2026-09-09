@@ -1,4 +1,4 @@
-# One sizing rule, for every widget and both axes
+# One sizing rule, and one place that parametrises it
 
 > **Kind:** plan · **Status:** pending · **Stands on:**
 > [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
@@ -6,172 +6,208 @@
 ## The rule
 
 ```
-size(axis) = clamp( own fixed size (axis)
-                    else available (axis)      when the parent allocated one
-                    else content (axis),
+size(axis) = clamp( policy(axis) resolved against the parent's offer,
                     min(axis), max(axis) )
 ```
 
-Four sources, one order, both axes, every widget. **No constant, ever.**
+Four policies, one order, **both axes, every widget**. No constant, ever.
 
-Two switches — parameters of the rule, not exceptions to it:
+| policy | size on that axis |
+| --- | --- |
+| `Fixed(n)` | `n` |
+| `Fill` | the parent's offer |
+| `Content` | grows with content; the offer is ignored |
+| `Relative(weight)` | a share of the parent's, through `allocate_axis` |
 
-| switch | meaning | who declares it |
-| --- | --- | --- |
-| `content_is_not_a_source` | the widget is a viewport: it shows less than it holds | `WidgetScrollPane`, `WidgetTransformPane` |
-| `available_caps_not_fills` | `available` is a maximum, not a target | `WidgetTooltip`, `WidgetContextMenu`, `WidgetMenu` |
+## Where the policy lives
 
-And a second rule set, which is **not** the same question and already exists:
+**Not on the widget.** A policy is a statement about a *relationship*:
+`Relative(1.0)` means nothing without a parent that divides, and `Fill` means
+nothing without a parent that offers. The same `WidgetCard` must fill the width
+in a conversation column and be content-wide in a toolbar, so the container
+decides and the card is placed twice, unchanged.
+
+It lives in **`LayoutConstraint`**, which already sits between a container and its
+child and already carries `min` / `preferred` / `max` / `weight` per axis. It
+gains the four policies.
+
+**One home, not two.** A layout carries a *default constraint*, and a bare child
+means "use it". A wrapper is the same type, written explicitly, for the one child
+that differs:
+
+```julia
+VerticalLayout(gap = 6, align = :left;
+               child = LayoutConstraint(; width = Fill, height = Content))
+```
+
+The root falls out of the same type: the window already offers a size, so a root
+widget's default constraint is `Fill` on both axes.
+
+## What a parent offers, and why it is not a choice
 
 ```
-allocate_axis(available, mins, maxs, prefs, weights, gap, n)
+offer(axis) = my size on that axis    when my policy is Fixed, Fill or Relative
+              nothing                 when my policy is Content
 ```
 
-How a container divides its own resolved size among its children.
-`LayoutToGraphics:361` and `WidgetSplitPane:2344` share it.
+The second line is forced by the reactive graph, not by taste.
+[LayoutToGraphics.jl:614](../../source/layout/LayoutToGraphics.jl#L614) states it:
 
-## Why the axes look different today
+> *"a vertical stack sizes its height from the sum of its children, so a child
+> must not carry an `available_height` that ultimately reads this layout's own
+> outer height — that closes a feedback loop and stack-overflows."*
 
-Width fills and height does not, and that is **not** a per-axis rule. There is a
-`_resolve_width` and no `_resolve_height`. Once both exist, the difference falls
-out of which allocation a parent supplies: a column allocates width, a row
-allocates height, and the same rule produces the right answer for each.
+A container whose size derives from its children must not hand that size back to
+them. So the offer is **derived from the policy**, and no widget decides anything.
+
+## What this dissolves
+
+| written by hand today | becomes |
+| --- | --- |
+| `VerticalLayout` strips height ([614](../../source/layout/LayoutToGraphics.jl#L614)) | `height = Content` → offers nothing on that axis |
+| `HorizontalLayout` strips width ([523](../../source/layout/LayoutToGraphics.jl#L523)) | the same, other axis |
+| `WidgetCard` strips height ([3849](../../source/widget/WidgetToGraphics.jl#L3849)) | `height = Content` |
+| `WidgetToolbar` strips width ([3522](../../source/widget/WidgetToGraphics.jl#L3522)) | `width = Content` |
+| `WidgetScrollPane` seeds both axes ([3213](../../source/widget/WidgetToGraphics.jl#L3213)) | offers both; the **content's** policy decides whether it overflows |
+| five size constants | a policy always yields a value |
+| two inverted precedences | the policy *is* the precedence |
+| `_resolve_width` with no height twin | one `_resolve_size(ctx, axis, constraint, content)` |
+
+**There is no scroll-axis rule anywhere.** A viewport offers on both axes because
+its own size is known independently of its content. Whether the content overflows
+is the content's `Content` policy. Nothing knows which axis scrolls.
 
 ## What is there today
 
-Surveyed: all 40 `print_document` methods of
-[WidgetToGraphics.jl](../../source/widget/WidgetToGraphics.jl).
+All 40 `print_document` methods of
+[WidgetToGraphics.jl](../../source/widget/WidgetToGraphics.jl), surveyed:
 
 | pattern | width | height | widgets |
 | --- | --- | --- | --- |
 | A content only | content | content | Label, Insertion, Text, ContextMenu, MenuItem, Badge, RadioGroup, Toggle, ToggleGroup, Table, Tree, Tooltip |
 | B `_resolve_width` | available → authored → ≥ content | content | StatusBar, Card, Progress, Slider, Alert, Skeleton, Select, Option, SpinBox, List, Textarea, Accordion |
-| C own size | `w.size` | `w.size` | Button (≥ content), Avatar, Highlight, Skeleton height, Separator |
+| C own size | `w.size` | `w.size` | Button, Avatar, Highlight, Skeleton height, Separator |
 | D viewport | available → own size → **400** | available → own size → **300** | ScrollPane, TransformPane |
 | E container | `allocate_axis` | `allocate_axis` | SplitPane, TabbedPane, Dialog |
 | F **no extent** | reports `0` | reports `0` | Menu, Composite, Shell, TitlePane, Toolbar, TabbedPane, ScrollBar |
 | G theme number | literal | literal | Checkbox 18, Switch 44×24, Progress 8, Slider 24 |
 
-**A is B with no allocation offered. C is B with the authored size winning — which
-is the rule. D is B plus a constant. E is the other rule set. F and G are not
-rules; they are absences.**
+A is B with no offer. C is B with the authored size winning. D is B plus a
+constant. E is the allocator. F and G are absences.
 
-### The eight deviations
-
-| # | what | where |
-| --- | --- | --- |
-| 1 | five size constants | `_SCROLL_FALLBACK_WIDTH` 400, `_SCROLL_FALLBACK_HEIGHT` 300, `_SCROLLBAR_FALLBACK_LENGTH` 200, `_SCROLLBAR_FALLBACK_THICKNESS` 16, `_SPLIT_SLOT_FALLBACK` 200 |
-| 2 | four theme numbers acting as sizes | checkbox 18, switch 44×24, progress 8, slider 24 |
-| 3 | eight widgets report `0 × 0` | `_reactive_canvas_auto` and the 3-argument `_make_canvas` hard-code `Int32(0), Int32(0)` |
-| 4 | precedence inverted | ScrollPane and TransformPane let `available` beat the authored size |
-| 5 | no `_resolve_height` | height never fills, anywhere |
-| 6 | a dead field | `WidgetTooltip.size` is never read; its comment claims it is |
-| 7 | two allocations erased rather than declared | Toolbar sets `width = nothing`, Card sets `height = nothing` |
-| 8 | **a viewport over-constrains its content** | `WidgetScrollPane:3213` seeds **both** axes into its content |
+The eight deviations: five size constants
+(`_SCROLL_FALLBACK_WIDTH` 400, `_SCROLL_FALLBACK_HEIGHT` 300,
+`_SCROLLBAR_FALLBACK_LENGTH` 200, `_SCROLLBAR_FALLBACK_THICKNESS` 16,
+`_SPLIT_SLOT_FALLBACK` 200); four theme numbers acting as sizes; eight widgets
+reporting `0 × 0`; two inverted precedences; no `_resolve_height`; the dead
+`WidgetTooltip.size`; and the two hand-written erasures.
 
 Only five printers read `w.size` at all: Button, ScrollPane, TransformPane,
 ScrollBar, Avatar.
 
-## The conversation, under the rule
+## The conversation, constructed
 
-What it must do:
+```julia
+WidgetSplitPane(:vertical, [
+  LayoutConstraint(WidgetScrollPane(conversation; follow_end = true, padding = 5);
+                   width = Fill, height = Relative(1.0), min_height = 0),
+  LayoutConstraint(WidgetScrollPane(draft; padding = 5);
+                   width = Fill, height = Fixed(200)),
+])
 
-1. content fills the available space **horizontally**;
-2. **vertically** a card grows with its content, and collapses;
-3. the transcript and the draft scroll **separately**, divided by a split.
+VerticalLayout(gap = 6, align = :left;
+               child = LayoutConstraint(; width = Fill, height = Content))
+  WidgetCard(title = header("user"))
+    VerticalLayout(gap = 6, align = :left;
+                   child = LayoutConstraint(; width = Fill, height = Content))
+      WidgetCard(title = header("text"))
+        <the part's own document>
 
-How the rule delivers each, and what has to change:
+LayoutConstraint(WidgetCard(title = header("text")); height = Fixed(30))  # collapsed
+```
 
-| the chain | rule | today |
-| --- | --- | --- |
-| the tab gives the assistant its box | E — the tabbed pane allocates | seeds both axes into the tab content — correct |
-| the split divides that height | E — `allocate_axis` over weight 1.0 and min/preferred 200 | correct |
-| each half fills its slot | rule + `content_is_not_a_source` | ScrollPane prefers `available` — correct **by accident**, since it has no own size |
-| a card fills the width | B — `_resolve_width` | correct |
-| a card grows with its height | height = content | correct: the card strips the vertical axis for its children, *"the card is content-tall"* |
-| the transcript scrolls | content taller than the viewport | **broken — deviation 8** |
+What each requirement rests on:
 
-**Deviation 8 is the whole of it.** A vertical scroll pane hands its content the
-viewport height, so a column of cards is told it has exactly the room it has been
-given, can never overflow, and there is nothing to scroll. A viewport must pass
-the **cross** axis and withhold the **scroll** axis — which is exactly what the
-card already does for its own children, and what the toolbar does for width.
-
-So the conversation needs one change, and it is the general one: **a viewport
-allocates across, never along.**
+| requirement | what carries it |
+| --- | --- |
+| content fills horizontally | `width = Fill` in the layouts' default constraint; the literals `_CARD_WIDTH = 760` and `_PART_WIDTH = 720` are deleted |
+| cards grow vertically with content | `height = Content` in the same default |
+| collapse | `height = Fixed(30)` on one child — the clipping `WidgetScrollPane` in `_maybe_clip` disappears |
+| the two halves scroll separately | the split's two `LayoutConstraint`s, `Relative(1.0)` and `Fixed(200)` — unchanged from today |
+| the transcript actually scrolls | the column's `height = Content` outgrows the viewport the pane offers |
 
 ## Steps
 
-Each step keeps the images green (see below) before the next begins.
+Each step keeps the images green before the next begins.
 
-1. **`_resolve_size(ctx, axis, own, content_min; caps=false)`** — the rule, once.
-   `_resolve_width` becomes a call to it. Nothing else changes yet.
-2. **Height fills too.** Give every pattern-B widget the height half. The 12 of
-   them keep content as the floor.
-3. **Deviation 8 — a viewport allocates across, never along.** ScrollPane and
-   TransformPane pass the cross axis to their content and withhold the scroll
-   axis. **This is the step the conversation needs.**
-4. **Deviation 4 — flip the two precedences.** An authored size wins over an
-   allocation, as everywhere else.
-5. **Deviation 1 — delete the five constants.** A widget whose chain runs out is
-   `0`, and a `0` is a bug the images will show.
-6. **Deviation 3 — the eight zero-extent widgets report a real extent.** Each is
-   a container: its extent is its children's, laid out. This is the largest step
-   and it moves alone.
-7. **Deviation 2 — the four theme numbers become minimum sizes**, so content can
-   still push them out.
-8. **Deviations 6 and 7 — delete the dead `WidgetTooltip.size`; replace the two
-   erasures with the declared switches.**
-9. **The overlays declare `available_caps_not_fills`** and read the allocation, so
-   a tooltip stops running off the window.
+1. **The policy type.** `Fixed` / `Fill` / `Content` / `Relative` and the four
+   `LayoutConstraint` fields that carry them, beside the existing
+   min/preferred/max/weight. Nothing reads them yet.
+2. **`_resolve_size(ctx, axis, constraint, content)`** — the rule, once, both
+   axes. `_resolve_width` becomes a call to it with the old defaults, so no
+   picture moves.
+3. **The offer is derived.** A container offers per the rule above. The four
+   hand-written strips are deleted and replaced by their policy.
+4. **A default constraint on each layout** — `VerticalLayout`,
+   `HorizontalLayout`, `GridLayout`, `FlowLayout`, `StackLayout` — and a bare
+   child means "use it".
+5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
+   collapse into it. The two inverted precedences go with them.
+6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
+   bug the images show.
+7. **The eight zero-extent widgets report a real extent** — each is a container,
+   so its extent is its children laid out. The largest step; it moves alone.
+8. **The four theme numbers become `min`**, so content can still push them out.
+9. **Delete `WidgetTooltip.size`; the overlays take `Content` with
+   `max = offer`,** so a tooltip stops running off the window.
+10. **The conversation is rebuilt** as constructed above: the two width literals
+    and `_maybe_clip`'s scroll pane are deleted.
 
 ## The safety net: every widget, before and after
 
-**39 examples**, one per widget plus the two conversation ones:
+39 examples — 37 widget ones plus `widget_disabled`, `widget_focus` and
+`conversation_widget`:
 
 ```
-widget_example  widget_label  widget_text  widget_checkbox  widget_button
-widget_button_action  widget_button_image  widget_tooltip  widget_menu_item
-widget_menu  widget_toolbar  widget_composite  widget_title_pane
-widget_split_pane  widget_scroll_bar  widget_scroll_pane  widget_transform_pane
-widget_shell  widget_tabbed_pane  widget_badge  widget_separator  widget_card
-widget_switch  widget_progress  widget_slider  widget_radio_group  widget_avatar
-widget_alert  widget_skeleton  widget_toggle  widget_toggle_group  widget_select
-widget_textarea  widget_accordion  widget_table  widget_tree  widget_disabled
-widget_focus  conversation_widget
+widget  label  text  checkbox  button  button_action  button_image  tooltip
+menu_item  menu  toolbar  composite  title_pane  split_pane  scroll_bar
+scroll_pane  transform_pane  shell  tabbed_pane  badge  separator  card  switch
+progress  slider  radio_group  avatar  alert  skeleton  toggle  toggle_group
+select  textarea  accordion  table  tree  disabled  focus     + conversation_widget
 ```
 
-The procedure, run at every step:
+At every step:
 
-1. `write_example_image(name, "before/<name>.bmp")` for all 39, on the base commit.
-2. Take the step.
-3. Write the same 39 into `after/`.
-4. Compare each pair and report three numbers per example: identical, changed
-   pixels, changed size.
+1. write all 39 into `before/` on the step's base commit;
+2. take the step;
+3. write all 39 into `after/`;
+4. compare each pair — identical, changed pixels, changed size.
 
-**A change is not a failure and identity is not success.** Steps 2, 3, 5 and 6
-are *meant* to change pictures. What the comparison buys is that every change is
-one somebody looked at and named. So each step's commit records, per example,
-either "unchanged" or one line saying what changed and why it is right.
+**A changed picture is not a failure and an identical one is not success.** Steps
+5 through 10 are meant to change what things look like. What the comparison buys
+is that every change is one somebody looked at and named, so each step's commit
+records, per example, either "unchanged" or one line saying what moved and why it
+is right.
 
-Add `tool/widget-images.jl` to do the writing and the comparing, so the procedure
-is a command and not a description.
+`tool/widget-images.jl` does the writing and the comparing, so this is a command
+and not a description.
 
 ## What "done" means
 
-- One `_resolve_size`, called by every widget, on both axes.
-- `grep -c "FALLBACK" source/widget/WidgetToGraphics.jl` answers `0`.
-- No widget reports a `0 × 0` extent.
+- One `_resolve_size`, both axes, called by every widget.
+- `grep -c FALLBACK source/widget/WidgetToGraphics.jl` answers `0`.
+- No widget reports `0 × 0`.
+- No widget document carries a layout field; no printer strips an axis by hand.
 - The 39 images differ from the base only where a step said they would.
-- In the campaign window: the transcript scrolls, the composer stays put, and a
-  card fills the width and grows with its content.
+- In the campaign window: the transcript scrolls, the composer stays put, a card
+  fills the width and grows with its content, and a collapsed card is 30 tall.
 
 ## Open questions
 
-1. **Should `available` reach a widget that does not fill?** Today the toolbar and
-   the card erase it. With `available_caps_not_fills` declared instead, the
-   information survives and the widget decides. Prefer that — an erased allocation
-   is unrecoverable by anything below.
-2. **What is the extent of a container that has no children?** `0` is honest;
-   `0` is also what deviation 3 produces today by accident. The images will not
-   tell these apart, so a test must.
+1. **`preferred` and `Fixed` overlap.** `LayoutConstraint` already has
+   `preferred_width`; `Fixed(n)` says the same thing. Decide in step 1 whether
+   `Fixed` *is* `preferred` with `min = max = n`, or a fifth field. Prefer the
+   first — one concept.
+2. **What is the extent of a container with no children?** `0` is honest, and `0`
+   is also what deviation F produces today by accident. The images cannot tell
+   those apart, so a test must.
