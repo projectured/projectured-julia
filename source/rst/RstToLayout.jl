@@ -62,7 +62,8 @@ function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ct
     # share the root's element storage, and the layout renderer recurses each one.
     elements = root.elements::CellVector
     out = VerticalLayout(CellVector(getfield(elements, :elements), Cell(nothing)),
-                         Cell(p.horizontal_align), Cell(p.gap), sel)
+                         Cell(p.horizontal_align), Cell(p.gap),
+                         Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, root, out)
     iomap_cell[] = iomap
     iomap
@@ -95,7 +96,8 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
         append!(stack, collect(section.elements))
         stack
     end)
-    out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap), sel)
+    out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap),
+                         Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, section, out)
     iomap_cell[] = iomap
     iomap

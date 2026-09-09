@@ -32,7 +32,7 @@ import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 import ..NaturalNotationModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
-import ..LayoutModule: VerticalLayout, HorizontalLayout
+import ..LayoutModule: VerticalLayout, HorizontalLayout, Fill, Content
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_bold_22
@@ -145,8 +145,10 @@ function print_document(projection::ConversationConversationToWidgetComposite,
         print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
         for i in eachindex(c.turns)
     ])
+    # Every turn fills the width it is given and grows with what it holds.
     layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
-                            Cell(:left), Cell(_GAP), Cell(nothing))
+                            Cell(:left), Cell(_GAP),
+                            Cell(Fill), Cell(Content), Cell(nothing))
     ChildrenIoMap(projection, c, layout, ioms)
 end
 
@@ -159,8 +161,10 @@ function print_document(projection::ConversationTurnToWidgetComposite,
         print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
         for i in eachindex(t.parts)
     ])
+    # And so does every part inside a turn.
     body = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
-                          Cell(:left), Cell(_GAP), Cell(nothing))
+                          Cell(:left), Cell(_GAP),
+                          Cell(Fill), Cell(Content), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
                       content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH),

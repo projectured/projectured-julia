@@ -164,9 +164,26 @@ Each step keeps the images green before the next begins.
    The scroll pane is untouched, and that is the point: its own extent does not
    come from its content, so it offers on **both** axes. Nothing anywhere knows
    which axis scrolls.
-4. **A default constraint on each layout** — `VerticalLayout`,
-   `HorizontalLayout`, `GridLayout`, `FlowLayout`, `StackLayout` — and a bare
-   child means "use it".
+4. **A default policy on each stack — DONE.** `VerticalLayout` and
+   `HorizontalLayout` carry `child_width` and `child_height`, and a bare child
+   means "use them". `layout_min` / `layout_max` / `layout_preferred` /
+   `layout_weight` take the default as a last argument; a `LayoutConstraint`
+   wrapper still wins over it. **All 39 images unchanged.**
+
+   The default is two `SizePolicy` fields rather than a childless
+   `LayoutConstraint`, because a constraint's `child` is required and a
+   child-less one would be a second shape of the same idea. The vocabulary is
+   still one type.
+
+   `GridLayout`, `FlowLayout` and `StackLayout` do not carry a default yet: they
+   allocate differently and none of them is in the conversation's path. They
+   follow when a case needs them.
+
+   **The instrument earned its place here.** Two new fields changed the
+   all-positional arity of both stacks from four to six, and four call sites
+   passed four — `MarkdownToLayout`, `CollectionToLayout`, `RstToLayout` twice,
+   and the conversation. `conversation_widget` stopped drawing, the comparison
+   said `GONE`, and the `.failed` file named the arity.
 5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
    collapse into it. The two inverted precedences go with them.
 6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a

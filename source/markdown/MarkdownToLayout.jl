@@ -54,7 +54,8 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     # the layout's own), and the layout renderer recurses each element.
     elements = root.elements::CellVector
     out = VerticalLayout(CellVector(getfield(elements, :elements), Cell(nothing)),
-                         Cell(p.horizontal_align), Cell(p.gap), sel)
+                         Cell(p.horizontal_align), Cell(p.gap),
+                         Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, root, out)
     iomap_cell[] = iomap
     iomap

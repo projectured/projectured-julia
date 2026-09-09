@@ -46,7 +46,8 @@ function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector
         map_reference_forward(p, im, cv.selection)
     end)
     out = VerticalLayout(CellVector(getfield(cv, :elements), Cell(nothing)),
-                         Cell(p.horizontal_align), Cell(p.gap), sel)
+                         Cell(p.horizontal_align), Cell(p.gap),
+                         Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, cv, out)
     iomap_cell[] = iomap
     iomap

@@ -35,6 +35,68 @@ Abstract base for layout documents. Each concrete layout has a
 """
 abstract type LayoutDocument <: Document end
 
+# ── Size policy ─────────────────────────────────────────────────────────────
+
+"""
+    SizePolicy(min, preferred, max, weight)
+
+Where a child's size on one axis comes from. It is **not a fifth field**: a policy
+is a way of writing the four that `LayoutConstraint` already has, so there is one
+place a size is decided and one place to extend.
+
+Four policies say everything:
+
+| policy | means | written as |
+| --- | --- | --- |
+| `Fixed(n)` | that many pixels, whatever is offered | `min = max = preferred = n` |
+| `Content` | grow with the content | `preferred = intrinsic`, no weight |
+| `Relative(w)` | a share `w` of what is offered | `preferred = 0`, `weight = w` |
+| `Fill` | all of what is offered | `Relative(1.0)` |
+
+A policy is a statement about a **relationship**, which is why it lives here and
+not on the widget: `Relative(1.0)` means nothing without a parent that divides,
+and `Fill` means nothing without a parent that offers. The same card fills the
+width in a conversation column and is content-wide in a toolbar, because the
+container it is placed in says so and the card is placed twice, unchanged.
+"""
+struct SizePolicy
+    min::Union{Nothing,Int}
+    preferred::Union{Nothing,Int}
+    max::Union{Nothing,Int}
+    weight::Union{Nothing,Float64}
+end
+
+"""
+    Fixed(n) -> SizePolicy
+
+`n` pixels on this axis, whatever is offered.
+"""
+Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
+
+"""
+    Content -> SizePolicy
+
+Grow with the content on this axis. The child keeps its intrinsic extent, and an
+offer does not stretch it.
+"""
+const Content = SizePolicy(nothing, nothing, nothing, 0.0)
+
+"""
+    Relative(weight) -> SizePolicy
+
+A share of what the parent offers on this axis, in proportion to `weight` against
+its siblings' weights.
+"""
+Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
+
+"""
+    Fill -> SizePolicy
+
+All of what the parent offers on this axis — `Relative(1.0)`. Two `Fill` siblings
+share the offer equally, which is what a weight of one each means.
+"""
+const Fill = Relative(1.0)
+
 # ── HorizontalLayout ────────────────────────────────────────────────────────
 
 """
@@ -50,13 +112,18 @@ heights.
     children::CellVector = CellVector()
     vertical_align::Symbol = :top
     gap::Int = 0
+    child_width::Any = nothing
+    child_height::Any = nothing
 end
 
 function HorizontalLayout(children::Vector;
                           vertical_align::Symbol=:top,
-                          gap::Integer=0)
+                          gap::Integer=0,
+                          child_width::Union{Nothing,SizePolicy}=nothing,
+                          child_height::Union{Nothing,SizePolicy}=nothing)
     HorizontalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-                     Cell(vertical_align), Cell(Int(gap)), Cell(nothing))
+                     Cell(vertical_align), Cell(Int(gap)),
+                     Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
 # ── VerticalLayout ──────────────────────────────────────────────────────────
@@ -72,13 +139,18 @@ of child widths; outer height = sum of child heights + gaps.
     children::CellVector = CellVector()
     horizontal_align::Symbol = :left
     gap::Int = 0
+    child_width::Any = nothing
+    child_height::Any = nothing
 end
 
 function VerticalLayout(children::Vector;
                         horizontal_align::Symbol=:left,
-                        gap::Integer=0)
+                        gap::Integer=0,
+                        child_width::Union{Nothing,SizePolicy}=nothing,
+                        child_height::Union{Nothing,SizePolicy}=nothing)
     VerticalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-                   Cell(horizontal_align), Cell(Int(gap)), Cell(nothing))
+                   Cell(horizontal_align), Cell(Int(gap)),
+                   Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
 # ── GridLayout ──────────────────────────────────────────────────────────────
@@ -205,68 +277,6 @@ function StackLayout(children::Vector;
                 Cell(horizontal_align), Cell(vertical_align), Cell(Int(active)), Cell(nothing))
 end
 
-# ── Size policy ─────────────────────────────────────────────────────────────
-
-"""
-    SizePolicy(min, preferred, max, weight)
-
-Where a child's size on one axis comes from. It is **not a fifth field**: a policy
-is a way of writing the four that `LayoutConstraint` already has, so there is one
-place a size is decided and one place to extend.
-
-Four policies say everything:
-
-| policy | means | written as |
-| --- | --- | --- |
-| `Fixed(n)` | that many pixels, whatever is offered | `min = max = preferred = n` |
-| `Content` | grow with the content | `preferred = intrinsic`, no weight |
-| `Relative(w)` | a share `w` of what is offered | `preferred = 0`, `weight = w` |
-| `Fill` | all of what is offered | `Relative(1.0)` |
-
-A policy is a statement about a **relationship**, which is why it lives here and
-not on the widget: `Relative(1.0)` means nothing without a parent that divides,
-and `Fill` means nothing without a parent that offers. The same card fills the
-width in a conversation column and is content-wide in a toolbar, because the
-container it is placed in says so and the card is placed twice, unchanged.
-"""
-struct SizePolicy
-    min::Union{Nothing,Int}
-    preferred::Union{Nothing,Int}
-    max::Union{Nothing,Int}
-    weight::Union{Nothing,Float64}
-end
-
-"""
-    Fixed(n) -> SizePolicy
-
-`n` pixels on this axis, whatever is offered.
-"""
-Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
-
-"""
-    Content -> SizePolicy
-
-Grow with the content on this axis. The child keeps its intrinsic extent, and an
-offer does not stretch it.
-"""
-const Content = SizePolicy(nothing, nothing, nothing, 0.0)
-
-"""
-    Relative(weight) -> SizePolicy
-
-A share of what the parent offers on this axis, in proportion to `weight` against
-its siblings' weights.
-"""
-Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
-
-"""
-    Fill -> SizePolicy
-
-All of what the parent offers on this axis — `Relative(1.0)`. Two `Fill` siblings
-share the offer equally, which is what a weight of one each means.
-"""
-const Fill = Relative(1.0)
-
 # ── LayoutConstraint ────────────────────────────────────────────────────────
 
 """
@@ -336,10 +346,19 @@ Per-child minimum on `axis` (`:x` or `:y`). Reads through the
 `LayoutConstraint` wrapper when present; falls back to `0` for bare
 children.
 """
-function layout_min(doc, axis::Symbol, intrinsic::Integer)
-    doc isa LayoutConstraint || return 0
+function layout_min(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+    doc isa LayoutConstraint || return _policy_field(default, :min, 0)
     v = axis === :x ? doc.min_width : doc.min_height
-    v === nothing ? 0 : Int(v)
+    v === nothing ? _policy_field(default, :min, 0) : Int(v)
+end
+
+# One field of the layout's default policy for this axis, or the bare-child
+# answer when the layout named none. A bare child means "use the container's
+# default", not "policy lives somewhere else".
+function _policy_field(default, field::Symbol, bare)
+    default isa SizePolicy || return bare
+    v = getfield(default, field)
+    v === nothing ? bare : (field === :weight ? Float64(v) : Int(v))
 end
 
 """
@@ -347,10 +366,10 @@ end
 
 Per-child maximum on `axis`. Falls back to `typemax(Int)` for bare children.
 """
-function layout_max(doc, axis::Symbol, intrinsic::Integer)
-    doc isa LayoutConstraint || return typemax(Int)
+function layout_max(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+    doc isa LayoutConstraint || return _policy_field(default, :max, typemax(Int))
     v = axis === :x ? doc.max_width : doc.max_height
-    v === nothing ? typemax(Int) : Int(v)
+    v === nothing ? _policy_field(default, :max, typemax(Int)) : Int(v)
 end
 
 """
@@ -359,10 +378,10 @@ end
 Per-child preferred extent on `axis`. Falls back to the child's intrinsic
 extent (`intrinsic`) when the constraint is absent or `nothing`.
 """
-function layout_preferred(doc, axis::Symbol, intrinsic::Integer)
-    doc isa LayoutConstraint || return Int(intrinsic)
+function layout_preferred(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+    doc isa LayoutConstraint || return _policy_field(default, :preferred, Int(intrinsic))
     v = axis === :x ? doc.preferred_width : doc.preferred_height
-    v === nothing ? Int(intrinsic) : Int(v)
+    v === nothing ? _policy_field(default, :preferred, Int(intrinsic)) : Int(v)
 end
 
 """
@@ -370,10 +389,10 @@ end
 
 Per-child weight on `axis`. Falls back to `0.0` for bare children.
 """
-function layout_weight(doc, axis::Symbol)
-    doc isa LayoutConstraint || return 0.0
+function layout_weight(doc, axis::Symbol, default=nothing)
+    doc isa LayoutConstraint || return _policy_field(default, :weight, 0.0)
     v = axis === :x ? doc.weight_width : doc.weight_height
-    v === nothing ? 0.0 : Float64(v)
+    v === nothing ? _policy_field(default, :weight, 0.0) : Float64(v)
 end
 
 # ── Allocation algorithm (per axis, one pass) ───────────────────────────────
