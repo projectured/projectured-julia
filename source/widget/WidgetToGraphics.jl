@@ -1224,7 +1224,7 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        minimum_size = w.size::Point2D
+        authored_size = w.size::Point2D
         label_content = _button_label_content(w)
         content_width, content_height = _content_size(p.measure, p.label.font, label_content)
         padding_x = _sc(Int(p.padding.left[]))
@@ -1236,8 +1236,8 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         icon_w  = icon_width(icon, icon_sz)
         icon_gap = icon_w > 0 ? _sc(6) : 0
         full_w = icon_w + icon_gap + content_width
-        button_width  = max(Int(minimum_size.x[]), full_w + 2padding_x)
-        button_height = max(Int(minimum_size.y[]), content_height + 2padding_y)
+        button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + 2padding_x)
+        button_height = _resolve_height(ctx, Int(authored_size.y[]), content_height + 2padding_y)
         corner_radius = _sc(p.corner_radius)
         # State-driven surface: pressed > hover > resting. The reader keeps the
         # widget's transient `pressed`/`hovered` cells current; reading them here ties
@@ -3863,11 +3863,13 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
         thickness = max(1, _sc(p.stroke.width))
         elements = Any[]
         if w.orientation === :vertical
-            push!(elements, GraphicsLine(0, 0, 0, rule_length, p.stroke.color; width=thickness))
-            (width=thickness, height=rule_length, elements=elements)
+            len = _resolve_height(ctx, rule_length)
+            push!(elements, GraphicsLine(0, 0, 0, len, p.stroke.color; width=thickness))
+            (width=thickness, height=len, elements=elements)
         else
-            push!(elements, GraphicsLine(0, 0, rule_length, 0, p.stroke.color; width=thickness))
-            (width=rule_length, height=thickness, elements=elements)
+            len = _resolve_width(ctx, rule_length)
+            push!(elements, GraphicsLine(0, 0, len, 0, p.stroke.color; width=thickness))
+            (width=len, height=thickness, elements=elements)
         end
     end))
 end
@@ -4549,8 +4551,8 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
     shown() = w.visible !== false
     x = ComputedCell(() -> Int32(Int(position[].x[])))
     y = ComputedCell(() -> Int32(Int(position[].y[])))
-    width  = ComputedCell(() -> Int32(shown() ? max(0, _sc(Int(w.width))) : 0))
-    height = ComputedCell(() -> Int32(shown() ? max(0, _sc(Int(w.height))) : 0))
+    width  = ComputedCell(() -> Int32(shown() ? _resolve_width(ctx, max(0, _sc(Int(w.width)))) : 0))
+    height = ComputedCell(() -> Int32(shown() ? _resolve_height(ctx, max(0, _sc(Int(w.height)))) : 0))
     elements = ComputedCellVector(() -> begin
         cw, ch = Int(width[]), Int(height[])
         (cw <= 0 || ch <= 0) && return Any[]
@@ -4572,7 +4574,7 @@ function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetS
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         block_width  = _resolve_width(ctx, _sc(Int(w.width)))
-        block_height = _sc(Int(w.height))
+        block_height = _resolve_height(ctx, _sc(Int(w.height)))
         elements = Any[GraphicsRect(0, 0, block_width, block_height, p.fill_color, _sc(p.corner_radius))]
         (width=block_width, height=block_height, elements=elements)
     end))
