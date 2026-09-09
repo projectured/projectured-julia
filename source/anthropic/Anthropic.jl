@@ -32,7 +32,10 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
 # This package's registration on the kernel's factory seam. The method IS the
 # registration: `make_llm(:anthropic)` resolves exactly while this package is
 # loaded, and `llm_backend_names()` reads it back out of the method table.
-make_llm(::Val{:anthropic}; kwargs...) = AnthropicLlm(; kwargs...)
+#
+# `context` is accepted and ignored. Anthropic's context window comes with the
+# model and is not a parameter of a request, so there is nothing here to set.
+make_llm(::Val{:anthropic}; context::Integer = 0, kwargs...) = AnthropicLlm(; kwargs...)
 
 default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
 

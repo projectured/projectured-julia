@@ -611,9 +611,14 @@ _collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) =
 #
 # An empty `model` means "the backend's own default", which is the only sound
 # answer: a model name belongs to a provider, and a Claude id means nothing to a
-# local server.
-function _build_llm(backend::Symbol, api_key::AbstractString, model::AbstractString)
-    Base.invokelatest(make_llm, backend; api_key = api_key, model = model)
+# local server. A `context` of 0 means the same for the size of the window.
+#
+# The three keywords are what a caller can hold without knowing which provider
+# will answer, and a backend uses the ones that apply to it.
+function _build_llm(backend::Symbol, api_key::AbstractString, model::AbstractString,
+                    context::Integer)
+    Base.invokelatest(make_llm, backend;
+                      api_key = api_key, model = model, context = context)
 end
 
 # The backends whose packages are loaded, for an error message. "none" is the
@@ -645,7 +650,7 @@ function _run_agent_loop!(editor, a::Assistant)
             "of " * _backend_list() * ", or construct the assistant with an " *
             "explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample in " *
             "tests/examples).")
-        llm = _build_llm(a.backend, key, a.model)
+        llm = _build_llm(a.backend, key, a.model, a.context)
     end
     turn_t0 = time()
     @info "[assistant] turn start" llm=nameof(typeof(llm)) backend=a.backend model=a.model

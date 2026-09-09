@@ -113,13 +113,20 @@ Three functions carry the whole selection, and all three live in `llm/Llm.jl`:
 
 | function | what it answers |
 | --- | --- |
-| `make_llm(kind; model, api_key)` | build the backend registered under `kind` |
+| `make_llm(kind; model, api_key, context)` | build the backend registered under `kind` |
 | `default_llm_model(kind)` | the model this backend talks to when nobody names one |
 | `llm_backend_names()` | which backends can be built right now |
 
 `make_llm` dispatches on `Val`, and each adapter package adds one method. **The
 method table is the registry**: there is no dictionary to keep in step, nothing to
 run at load time, and a backend counts as available exactly when it can be built.
+
+Its three keywords are what a caller can hold without knowing which provider will
+answer, and **a backend uses the ones that apply to it**: a server on this machine
+ignores `api_key`, and a hosted provider ignores `context`, whose window comes with
+the model rather than with a request. Each adapter says in its own documentation
+what it ignores. That is the price of a seam a caller can use with no provider in
+mind, and it is smaller than the price of a caller that must know.
 
 ### What each adapter must answer for itself
 
@@ -132,6 +139,7 @@ one would have to decide.
 | block framing | the provider sends it | the adapter makes it |
 | a tool call's arguments | streamed fragments, parsed at the end | one parsed object |
 | reasoning | a parameter chosen from the model name | asked of the server, because a wrong ask is HTTP 400 |
+| the context window | comes with the model | `options.num_ctx`, and the server's own answer until a caller sets one |
 | a reasoning block's signature | required back, unchanged | none exists |
 | the stop reason for a tool call | the provider says `tool_use` | the provider says `stop`; the adapter counts the calls |
 

@@ -71,7 +71,7 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
 
 """
-    Assistant(; conversation, input, backend, model, system, api_key, status, llm)
+    Assistant(; conversation, input, backend, model, system, api_key, context, status, llm)
 
 The assistant panel. Holds the full chat history (`conversation`), the
 editable prompt (`input`, a `PrimitiveString` so the existing text-edit
@@ -88,6 +88,11 @@ backend existed.
 
 `model` defaults to empty, which means "the backend's own default" — a model name
 belongs to a provider, and a Claude id means nothing to a local server.
+
+`context` is how many tokens of this conversation the model may see, and `0` leaves
+the size to the backend. It is one of the three keywords every backend accepts, and
+a backend it does not apply to ignores it: a hosted provider's window comes with the
+model and cannot be set per request.
 
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
 resolved **at submit time**, not here. This keeps the choice out of the
@@ -106,6 +111,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     model::String
     system::String
     api_key::String
+    context::Int
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
@@ -121,12 +127,13 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               model::AbstractString = "",
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = "",
+                              context::Integer = 0,
                               status::Symbol = :idle,
                               collapse_thinking::Bool = true,
                               llm::Union{Nothing,Llm} = nothing)
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
-                           Cell(String(api_key)), Cell(status),
+                           Cell(String(api_key)), Cell(Int(context)), Cell(status),
                            Cell(collapse_thinking),
                            Cell(llm),
                            Cell(nothing))

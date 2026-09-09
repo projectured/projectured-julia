@@ -72,6 +72,13 @@ wire = ProjecturedOllama._wire_messages(request)
 @test OllamaLlm(; model = "").model == default_llm_model(:ollama)
 @test OllamaLlm(; base_url = "http://host:1/").base_url == "http://host:1"
 
+# ── the context window is sent only when a caller asked for a size ──
+# Ollama's own answer comes from the model and the server's configuration, and an
+# unasked-for `num_ctx` would take that away.
+@test OllamaLlm().context == 0
+@test OllamaLlm(; context = 8192).context == 8192
+@test make_llm(:ollama; context = 8192).context == 8192
+
 end
 end
 
@@ -160,6 +167,10 @@ end
 function test_ollama_backend()
 @testset "OllamaBackend" begin
 
+# The three keywords every backend accepts. Ollama uses `model` and `context`, and
+# ignores `api_key` because a server on this machine asks for none.
+@test make_llm(:ollama; model = "m", api_key = "ignored", context = 4096) isa OllamaLlm
+
 # The package registers itself, so the kernel's factory answers for it.
 @test :ollama in llm_backend_names()
 @test default_llm_model(:ollama) == "qwen3.8:27b"
@@ -185,7 +196,25 @@ function _ollama_is_up(base_url::AbstractString = "http://localhost:11434")
     end
 end
 
-function test_ollama_live(; model::AbstractString = "mistral:latest")
+# A model the server already holds in memory, or nothing.
+#
+# **The suite must not load a second model.** A model is gigabytes, and a machine
+# that is already running one for an editor has no room for the test's own choice —
+# naming a favourite here once took a 61 GB machine down to 3 GB free. Whatever is
+# resident answers "Say OK." as well as any other.
+function _ollama_resident_model(base_url::AbstractString = "http://localhost:11434")
+    try
+        r = HTTP.get(base_url * "/api/ps"; status_exception = false,
+                     readtimeout = 2, retry = false)
+        r.status == 200 || return nothing
+        models = get(JSON3.read(r.body), :models, ())
+        isempty(models) ? nothing : String(get(first(models), :name, ""))
+    catch
+        nothing
+    end
+end
+
+function test_ollama_live(; model::Union{Nothing,AbstractString} = nothing)
 @testset "OllamaLive" begin
 
 if !_ollama_is_up()
@@ -194,11 +223,22 @@ if !_ollama_is_up()
     return
 end
 
+model = model === nothing ? _ollama_resident_model() : model
+if model === nothing || isempty(model)
+    @info "[ollama] the server holds no model in memory; skipping the live test " *
+          "rather than loading gigabytes of one"
+    @test true
+    return
+end
+@info "[ollama] the live test uses the model the server already holds" model
+
 llm = make_llm(:ollama; model = model)
 evs = Any[]
 stream_turn(llm, LlmRequest(system = "Answer in three words.",
                             messages = [LlmMessage(:user, "Say hello.")]);
             on_event = ev -> push!(evs, ev))
+# A reasoning model puts its reasoning in its own block, so the text is what is
+# left; either way the turn ends and prose arrives.
 @test any(e -> e isa LlmTextDelta, evs)
 @test evs[end] == LlmTurnEnd(:end_turn)
 

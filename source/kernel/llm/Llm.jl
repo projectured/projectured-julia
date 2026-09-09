@@ -55,12 +55,26 @@ function tool_schema end
 # no process-global state.
 
 """
-    make_llm(kind::Symbol; kwargs...) -> Llm
+    make_llm(kind::Symbol; model, api_key, context, kwargs...) -> Llm
 
-Construct the backend registered under `kind` (`:anthropic`, `:ollama`). The
-keyword arguments are that backend's own configuration; each one documents what it
-takes. A missing method — its opt-in package is not loaded — raises an error that
-lists the backends that are.
+Construct the backend registered under `kind` (`:anthropic`, `:ollama`).
+
+**Every backend accepts the same three keywords, and uses the ones that apply to
+it.** They are what a caller can hold without knowing which provider will answer:
+
+- `model`   — the model to talk to; empty means the backend's own default.
+- `api_key` — the key, where there is one. A server on this machine asks for none,
+              and its adapter ignores this.
+- `context` — how many tokens of the conversation the model may see; `0` leaves it
+              to the provider. A hosted provider fixes the window with the model
+              and cannot be told, and its adapter ignores this.
+
+A backend that ignores a keyword says so in its own documentation. That is the
+price of a seam a caller can use without a provider in mind, and it is a smaller
+price than a caller that must know.
+
+A missing method — its opt-in package is not loaded — raises an error that lists
+the backends that are.
 """
 make_llm(kind::Symbol; kwargs...) = make_llm(Val(kind); kwargs...)
 

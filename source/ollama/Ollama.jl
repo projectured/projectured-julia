@@ -4,7 +4,7 @@ const _OLLAMA_URL    = "http://localhost:11434"
 const _DEFAULT_MODEL = "qwen3.8:27b"
 
 """
-    OllamaLlm(; model, base_url, max_tokens, thinking)
+    OllamaLlm(; model, base_url, max_tokens, context, thinking)
 
 A model that runs on this machine, served by Ollama. It carries its own
 configuration, because that configuration is *this backend's identity* and not a
@@ -13,6 +13,16 @@ parameter of "have a conversation".
 There is no API key: the server is local, and it asks for none. `base_url` is the
 **server**, not one endpoint, because the adapter uses two of them — `/api/chat`
 to run a turn and `/api/show` to ask what the model can do.
+
+`context` is how many tokens of the conversation the model may see. `0`, the
+default, sends nothing and leaves the size to the server — Ollama sizes it from
+the model and its own configuration, and 0.33 gives 32768 unless
+`OLLAMA_CONTEXT_LENGTH` says otherwise.
+
+Set it to take control of two things at once. A **smaller** window costs less
+memory, because the key-value cache grows with it and a large model's cache is
+gigabytes; a **larger** one holds a longer conversation before the server drops
+its oldest messages, which on a chat means the system prompt goes first.
 
 `thinking` decides whether the turn may ask for reasoning:
 
@@ -28,6 +38,7 @@ struct OllamaLlm <: Llm
     model::String
     base_url::String
     max_tokens::Int
+    context::Int
     thinking::Union{Nothing,Bool}
     # The answer of the capability question, kept per instance. Never a module
     # global: one process runs many editors, and each holds its own backend.
@@ -37,14 +48,15 @@ end
 OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
             base_url::AbstractString = _OLLAMA_URL,
             max_tokens::Integer = 4096,
+            context::Integer = 0,
             thinking::Union{Nothing,Bool} = nothing) =
     OllamaLlm(String(isempty(model) ? _DEFAULT_MODEL : model),
               String(rstrip(base_url, '/')),
-              Int(max_tokens), thinking,
+              Int(max_tokens), Int(context), thinking,
               Ref{Union{Nothing,Bool}}(nothing))
 
 # This package's registration on the kernel's factory seam. `api_key` is accepted
-# and ignored: it is one of the two keywords every backend takes, and a server on
+# and ignored: it is one of the three keywords every backend takes, and a server on
 # this machine asks for none.
 make_llm(::Val{:ollama}; api_key::AbstractString = "", kwargs...) = OllamaLlm(; kwargs...)
 
@@ -305,11 +317,16 @@ Ollama sends no block framing at all — no start, no stop, only message deltas 
 this function opens and closes the blocks itself, from what each line carries.
 """
 function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
+    options = Dict{String,Any}("num_predict" => llm.max_tokens)
+    # Sent only when a caller asked for a size. Ollama's own answer — from the
+    # model and its configuration — is the right one until somebody has a reason,
+    # and an unasked-for `num_ctx` would take that away.
+    llm.context > 0 && (options["num_ctx"] = llm.context)
     body = Dict{String,Any}(
         "model"    => llm.model,
         "stream"   => true,
         "messages" => _wire_messages(request),
-        "options"  => Dict("num_predict" => llm.max_tokens),
+        "options"  => options,
     )
     isempty(request.tools) || (body["tools"] = tool_schema(llm, request.tools))
     request.thinking && _supports_thinking(llm) && (body["think"] = true)
