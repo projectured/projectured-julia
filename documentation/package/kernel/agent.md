@@ -180,6 +180,14 @@ of the submodules it reaches. A module that means to offer more exports more, so
 the list stays a decision a person wrote down rather than a consequence of what a
 module happens to import.
 
+**How to look is always in scope.** The declaration says what a model may *do*;
+finding out what that is, is not one of the things it does. So `search_api` and
+`read_function_documentation` are bound in the namespace the code runs in, with
+the declaration already applied — which is what makes the locator `search_api`
+prints for every function, a `read_function_documentation(…)` call, name something
+the model can actually reach. It cannot widen its own view by passing a different
+list.
+
 The tool description follows the declaration too. With a list it names the modules
 and says that anything else is an `UndefVarError`; with none it keeps the wider
 text that sends a model to the guides.

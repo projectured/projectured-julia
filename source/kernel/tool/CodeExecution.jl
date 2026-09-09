@@ -77,6 +77,21 @@ function _scratch_module(set::ToolSet)
             Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(src)),
                                            (Expr(:., n) for n in syms)...)))
         end
+        # **How to look is always in scope.** The declaration says what a model may
+        # DO; finding out what that is, is not one of the things it does. Without
+        # these two the locator `search_api` prints for every function — a
+        # `read_function_documentation(…)` call — names something the model cannot
+        # reach, and it spends a round learning that.
+        #
+        # They arrive with the declaration already applied, so what they answer and
+        # what the code can call are the same set, and a model cannot widen its own
+        # view by passing a different one.
+        declared = copy(srcs)
+        Core.eval(m, :(const read_function_documentation =
+            (mod, name, type_name = nothing) ->
+                $(read_function_documentation)(mod, name, type_name; modules = $declared)))
+        Core.eval(m, :(const search_api =
+            (query; kwargs...) -> $(search_api)(query; modules = $declared, kwargs...)))
     end
     set.scratch = m
 end

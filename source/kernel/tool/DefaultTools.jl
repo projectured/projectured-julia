@@ -54,8 +54,9 @@ function _execute_julia_code_description(set::ToolSet)
     "The variable `editor` is bound to the running editor.\n\n" *
     "The functions of " * named * " are in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
-    "FIND THEM BEFORE YOU WRITE ANY CODE:\n" *
-    "- `search_api` lists them, with one line of description each.\n" *
+    "FIND THEM BEFORE YOU WRITE ANY CODE. Both of these are callable here, in " *
+    "the code you send:\n" *
+    "- `search_api(\"word\")` lists them, with one line of description each.\n" *
     "- `read_function_documentation(\"Module\", \"name\")` reads one in full and says " *
     "what its arguments are.\n\n" *
     "Returns the repr of the last expression's value (if any), followed by any " *

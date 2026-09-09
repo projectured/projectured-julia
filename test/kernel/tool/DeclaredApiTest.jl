@@ -142,6 +142,18 @@ function test_declared_api()
         @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
     end
 
+    # How to look is always in scope, and it looks only at what was declared.
+    @testset "the model can look things up from the code it writes" begin
+        set = ToolSet(; api = Module[ToyApi])
+        found = execute_julia_code(set, nothing, "search_api(\"toy\")")
+        @test occursin("toy_verb", found)
+        doc = execute_julia_code(set, nothing,
+                                 "read_function_documentation(\"ToyApi\", \"toy_verb\")")
+        @test occursin("Answer the word", doc)
+        # It cannot widen its own view: the declaration is applied for it.
+        @test occursin("No API matches", execute_julia_code(set, nothing, "search_api(\"Cell\")"))
+    end
+
     @testset "a docstring is the interface, and it is readable" begin
         set = ToolSet(; api = Module[ToyApi])
         doc = read_function_documentation("ToyApi", "toy_verb"; modules = set.api)
