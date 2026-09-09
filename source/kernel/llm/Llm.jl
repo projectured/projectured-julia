@@ -46,3 +46,62 @@ This is the provider adapter's job. A `Tool` itself describes its parameters
 abstractly and knows no wire format at all.
 """
 function tool_schema end
+
+# ── Selecting a backend by name ──────────────────────────────────────────────
+# A backend lives in an opt-in package, so nothing here can name its type. The
+# factory is keyed by symbol and dispatched on `Val`, exactly as
+# `make_agent_server(:mcp, editor)` is: each opt-in package adds one method, and
+# the method table IS the registry — there is no dictionary to keep in step, and
+# no process-global state.
+
+"""
+    make_llm(kind::Symbol; kwargs...) -> Llm
+
+Construct the backend registered under `kind` (`:anthropic`, `:ollama`). The
+keyword arguments are that backend's own configuration; each one documents what it
+takes. A missing method — its opt-in package is not loaded — raises an error that
+lists the backends that are.
+"""
+make_llm(kind::Symbol; kwargs...) = make_llm(Val(kind); kwargs...)
+
+make_llm(::Val{K}; kwargs...) where {K} = error(
+    "No LLM backend registered for :$(K). Loaded backends: " *
+    (isempty(llm_backend_names()) ? "none" :
+     join(map(n -> ":" * String(n), llm_backend_names()), ", ")) *
+    ". Load the opt-in package that provides :$(K).")
+
+"""
+    default_llm_model(kind::Symbol) -> String
+
+The model this backend talks to when nobody names one. It belongs to the backend,
+not to a caller: a Claude model id means nothing to a local server, so a caller
+that holds one model name for every provider holds the wrong name for all but one.
+"""
+default_llm_model(kind::Symbol) = default_llm_model(Val(kind))
+
+default_llm_model(::Val{K}) where {K} = error(
+    "No LLM backend registered for :$(K); it has no default model.")
+
+"""
+    llm_backend_names() -> Vector{Symbol}
+
+The backends whose packages are loaded, in alphabetical order. Read from the
+method table of `make_llm`, so a backend counts as available exactly when it can
+be built — there is nothing to register and nothing to forget to unregister.
+"""
+function llm_backend_names()
+    out = Symbol[]
+    for m in methods(make_llm)
+        # The first argument type of a registered method is `Val{:name}`; the two
+        # generic methods above take `Symbol` and `Val{K} where K`, and neither is
+        # a backend.
+        sig = m.sig
+        sig isa UnionAll && continue
+        length(sig.parameters) >= 2 || continue
+        T = sig.parameters[2]
+        T isa DataType && T <: Val || continue
+        p = T.parameters[1]
+        p isa Symbol && push!(out, p)
+    end
+    sort!(unique!(out))
+end

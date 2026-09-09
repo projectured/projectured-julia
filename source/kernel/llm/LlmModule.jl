@@ -24,7 +24,9 @@ turn.
 
 Concrete backends live outside `main`: the real provider adapters in their own
 opt-in packages, the test doubles in an example package, never in a `main`
-package.
+package. A caller that must build one names it by symbol — `make_llm(:ollama)` —
+and never its type, which is what lets the adapter live in a package whose types
+cannot be referenced at load time.
 """
 module LlmModule
 
@@ -32,6 +34,7 @@ using ..DocumentModule
 using ..ToolModule
 
 export Llm, stream_turn, tool_schema,
+       make_llm, default_llm_model, llm_backend_names,
        LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
        LlmMessage, LlmRequest,
        LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,

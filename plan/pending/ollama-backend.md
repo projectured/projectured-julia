@@ -250,15 +250,22 @@ anyway.
 
 Work in a dedicated worktree. Make one commit per step.
 
-### Step 1 — the `make_llm` seam in the kernel
+### Step 1 — the `make_llm` seam in the kernel — **DONE**
 
-- [ ] Add `make_llm` and `default_llm_model` to
+- [x] Add `make_llm` and `default_llm_model` to
       [source/kernel/llm/Llm.jl](../../source/kernel/llm/Llm.jl), with the `Val`
       fallback that errors helpfully.
-- [ ] Add `llm_backend_names()`, which reads `methods(make_llm)`.
-- [ ] Export all three from `LlmModule`.
-- [ ] Test: `test_kernel()` — the seam is declaration only, so the guard and the
-      layering test are the check.
+- [x] Add `llm_backend_names()`, which reads `methods(make_llm)`.
+- [x] Export all three from `LlmModule`.
+- [x] Test: `test_kernel_layering()` passes 10/10. The seam answers as designed:
+      with nothing loaded, `llm_backend_names()` is empty and `make_llm(:ollama)`
+      says so; after a method is added for `Val{:fake}`, the name appears and the
+      factory builds.
+
+`llm_backend_names()` reads the method table and must skip the two generic
+methods. The `Symbol` method's signature is a plain `DataType` and the `Val{K}`
+fallback's is a `UnionAll`, so the filter keeps only a method whose second
+parameter is a concrete `Val` with a `Symbol` parameter.
 
 ### Step 2 — rename `ProjecturedLlm` to `ProjecturedAnthropic`
 
