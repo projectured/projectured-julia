@@ -3601,7 +3601,7 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
             x += tw + gap; text_h = max(text_h, th)
         end
         width  = _resolve_width(ctx, x, x)
-        height = text_h + 2coy
+        height = _resolve_height(ctx, text_h + 2coy, text_h + 2coy)
         elements = Any[]
         _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
         append!(elements, labels)
@@ -3837,7 +3837,8 @@ function _card_build(p, w, ctx, tim, cim)
     card_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
-    card_height = fixed_height > 0 ? fixed_height : y + padding
+    card_height = fixed_height > 0 ? fixed_height :
+                  _resolve_height(ctx, y + padding, y + padding)
     # Card surface drawn first (behind content).
     surface = Any[]
     _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,
@@ -4376,7 +4377,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
-        alert_height = y + padding
+        alert_height = _resolve_height(ctx, y + padding, y + padding)
         surface = Any[]
         _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
                      border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
@@ -5112,7 +5113,8 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         lines = split(string(w.content), '\n')
         _, line_height = _text_size(p.measure, p.text.font, "M")
         row_count = max(Int(w.rows), length(lines))
-        area_height = row_count * line_height + 2padding_y
+        area_height = _resolve_height(ctx, row_count * line_height + 2padding_y,
+                                      length(lines) * line_height + 2padding_y)
         longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
         area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
         box_fill   = enabled ? p.background_color : p.disabled_color

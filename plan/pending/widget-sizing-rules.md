@@ -195,7 +195,20 @@ Each step keeps the images green before the next begins.
      an authored `120x60` under an offer of `900x700` now draws `120x60`, and
      drew `900x700` before. That is what lets a card set its panes' size and keep
      it.
-   - **5b** — pattern B gains the height half.
+   - **5b — the height half — four widgets DONE.** `WidgetStatusBar`,
+     `WidgetAlert`, `WidgetCard` and `WidgetTextarea` resolve height through
+     `_resolve_height`: the offer if there is one, else the authored value, never
+     under the content. **All 39 images unchanged.** Measured where they do not
+     reach: a card that drew `200x86` with no offer draws `900x700` under one, and
+     filled the width only before. The remaining pattern-B widgets follow.
+
+     **What this exposed about the safety net.** Every example draws its widget
+     standalone, inside a composite or a vertical stack — and both of those offer
+     no height. So the 39 exercise the *content* path and never the *offer* path,
+     which is the path every remaining step changes. The net still catches
+     breakage, as it did at step 4, but it cannot judge whether filling is right.
+     A fixture that puts widgets under a real offer is needed before the net means
+     what the plan claims.
    - **5c** — pattern A and C resolve through the rule.
 6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
    bug the images show.
