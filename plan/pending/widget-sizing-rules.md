@@ -212,7 +212,7 @@ and not a description.
    the eight widgets that report `0` today by accident. The images cannot tell
    them apart, so the test is what makes step 7 checkable.
 
-## Step 0 — the instrument comes first
+## Step 0 — the instrument comes first — **DONE**
 
 `tool/widget-images.jl`, written before step 1, because every step is measured
 with it:
@@ -222,3 +222,7 @@ with it:
   pixel count and any size change.
 
 The baseline is taken on the commit this branch starts from.
+
+All 39 draw. The comparison was checked against a deliberately corrupted image
+and reported it: `widget_card  CHANGED  same size 330x132  45 bytes differ`.
+`write_image` is a backend seam, so the tool loads `ProjecturedSdl` to fill it.
