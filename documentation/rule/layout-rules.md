@@ -85,9 +85,19 @@ So a `VerticalLayout` withholds height, a `HorizontalLayout` withholds width, a
 `WidgetCard` withholds height, a `WidgetToolbar` withholds width — each because
 its extent on that axis is the sum or the maximum of what it holds.
 
-A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — offers on **both**
-axes, because its own extent never comes from its content. That is what a viewport
-is. Nothing anywhere knows which axis "scrolls".
+A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — offers on every axis
+where it has an extent of its own, an authored size or the space its parent gave.
+There its extent never comes from its content, which is what a viewport is.
+
+On an axis where it has neither, a viewport has nothing to clip against. It
+withholds the offer on that axis and takes the content's own extent, exactly as
+`Content` says. A pane therefore clips the axes it was given and follows its
+content on the rest, and nothing anywhere names an axis that "scrolls". This is
+what keeps a collapsed card body — clipped to `Fixed(30)` in height — as wide as
+its text.
+
+The two directions cannot form a cycle. A clipped axis offers a cell that the
+content reads. An unclipped axis reads a cell that the content produces.
 
 ## 4. When a stack distributes instead of summing
 
@@ -110,6 +120,13 @@ computing it. `WidgetSplitPane` has always worked this way; the stacks do now to
 `allocate_axis(available, mins, maxs, prefs, weights, gap, n)` is the one
 allocator, shared by the stacks and the split.
 
+**A container with no offer divides nothing.** `WidgetSplitPane` divides its main
+axis, so with no offer on that axis it has nothing to divide. It then withholds
+that axis from its children and each slot is the child's own extent — a declared
+size, from `sizes` or a `LayoutConstraint`, or else what the child draws. Offering
+an unallocated slot instead would tell the child it has no room at all, and the
+child would draw nothing.
+
 ## 5. The worked case
 
 A scroll pane that should take what a header leaves, and scroll:
@@ -126,9 +143,9 @@ WidgetShell(size = Point2D(300, 400))
 - the label is unweighted, keeps its 26, and is not offered a slot;
 - the pane takes the remaining `374`, clips its content, and scrolls.
 
-Without the wrapper the pane has no height at all — no size of its own, none
-offered, and none from its content — and `0` is the right answer to a question
-nobody asked.
+Without the wrapper the pane is offered no height, so it clips nothing: it takes
+the height of its content and the column grows with it. The `Fill` is what makes
+it a viewport in that column.
 
 ## 6. What this replaces
 
@@ -137,8 +154,10 @@ Written down because the reasoning is easy to lose and expensive to rebuild:
 - a widget does **not** decide its own policy, and does not carry layout fields;
 - there is **no** per-axis rule: width and height differ only in which offer a
   parent supplies, and a row and a column want opposite answers from the same rule;
-- there is **no** scroll-axis rule: a viewport offers both axes and the content's
-  own policy decides whether it overflows;
+- there is **no** scroll-axis rule: a viewport clips every axis it has an extent
+  for and follows its content on the rest, and no axis is named anywhere;
 - there are **no** size constants: five once stood in
   `WidgetToGraphics.jl`, and the 300 among them was the entire height of every
-  scroll pane in a column.
+  scroll pane in a column;
+- a container that divides an axis is **not** exempt: with no offer it withholds
+  that axis and takes each slot from the child, the same as any other `Content`.

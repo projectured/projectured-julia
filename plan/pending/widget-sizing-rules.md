@@ -188,8 +188,9 @@ Each step keeps the images green before the next begins.
    `HorizontalLayout` (`:x`), `WidgetCard` (`:y`), `WidgetToolbar` (`:x`).
    **All 39 images unchanged.**
 
-   The scroll pane is untouched, and that is the point: its own extent does not
-   come from its content, so it offers on **both** axes. Nothing anywhere knows
+   The scroll pane is untouched at this step: on an axis where it has an extent,
+   that extent does not come from its content, so it offers there. Step 10
+   completes the rule for the axis where it has none. Nothing anywhere knows
    which axis scrolls.
 4. **A default policy on each stack — DONE.** `VerticalLayout` and
    `HorizontalLayout` carry `child_width` and `child_height`, and a bare child
@@ -405,13 +406,60 @@ Each step keeps the images green before the next begins.
     window there is an offer and they fill. Correct by the rule, and the picture
     is honest about what the example does.
 
-    **What is left of this step, and it needs a decision.** `_maybe_clip` builds a
-    `WidgetScrollPane` to clip a collapsed card to one row, and a scroll pane's
-    `size` is a single `Point2D` — it cannot author a height and leave the width
-    to the offer. So the clip width is still a literal. Either
-    `WidgetScrollPane` gains per-axis sizing, or `WidgetCard` learns to read a
-    `LayoutConstraint` around its content. The second is closer to the rules; the
-    first is smaller.
+    **The collapse clip — DONE, and it removed the last literal.** `_maybe_clip`
+    returns `LayoutConstraint(body; height = Fixed(30))`, and `WidgetCard` reads
+    that constraint: `_card_body` turns a pinned height into a `WidgetScrollPane`
+    with **no size at all**, printed with a context whose `available_height` is
+    that number. The pane needs no `Point2D`, so no width is written anywhere.
+
+    **This exposed the real gap, and it is the scroll pane's.** A pane with no
+    authored size and no offer answered `0` on that axis, so the collapsed card
+    lost its width and `conversation_widget` went `752 -> 594`. That `0` was the
+    one place the rule of §1 stopped one policy short: a viewport had `Fixed` and
+    the offer, but no `Content`.
+
+    `_pane_extent(offer, content_cell)` is that missing policy, written once. An
+    axis with an offer clips against it. An axis with none withholds the offer,
+    lets the content size itself, and takes the content's extent. The two cannot
+    cycle: a clipped axis offers a cell the content reads, an unclipped axis reads
+    a cell the content produces. The printer recurses **before** it builds its
+    extent cells, because on an unclipped axis the extent is the content's.
+
+    **One picture moved and it is right.** `conversation_widget` went `752x798` to
+    `854x798`: the collapsed thinking card is still clipped to the same one row,
+    but its width is its text's rather than the deleted `_CARD_WIDTH`. That card
+    is the widest thing in the example, so the canvas grew to it. The example
+    draws with no offer, so content is the only source left — in a window there is
+    an offer and the cards fill it. **The other 39 images are unchanged.**
+
+11. **The suite found what the pictures cannot — DONE.** The 40 images guard what
+    a printer draws. They say nothing about a test that clicks a coordinate, and
+    nothing about a call site no example reaches. `test_substrate()` found both.
+
+    **Three call sites still passed the old positional arity.** Step 4 added
+    `child_width` and `child_height` to both stacks, and
+    `ObjectToWidget._collapsible_card` (twice) and `EmbedToSyntax` (once) still
+    passed four positional arguments. Each threw a `MethodError` at print time.
+    Five tests failed for it, and **they were already failing on `main`**, which
+    carries steps 0 to 7b. The fix adds the two fields. No picture changed,
+    because no example reaches those two files. **56018 pass against main's
+    53735**: 2270 assertions could not run before.
+
+    **A split pane with no offer gave every slot zero.**
+    `ProjectionConfiguringTest` clicks a checkbox in a control bar and prints with
+    a bare `PrinterContext()`. The split then offered each child a slot of `0`,
+    the children drew nothing, the pane reported a height of `1`, and no click
+    reached anything. `_SPLIT_FALLBACK` used to make that pane `400x401`.
+
+    The fix is the rule of §3, which the split was the last container to miss: an
+    axis it cannot divide is an axis it must not offer. It now withholds the main
+    axis when there is no offer, and each slot is the child's declared size or
+    what the child drew. The checkbox is hit at `x = 175..185` again, the same
+    band as on `main`. **All 40 images unchanged.**
+
+    **What this says about the safety net.** Every remaining failure on this
+    branch is also on `main`, and five of main's are fixed here. The pictures were
+    necessary and not sufficient: a size that nothing draws still has to be right.
 
 ## The safety net: every widget, before and after
 
