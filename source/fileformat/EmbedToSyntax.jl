@@ -253,7 +253,7 @@ function _embed_card(p, value, title::AbstractString)
         WidgetLabel(Point2D(0, 0),
                     (card.collapsed ? _CARD_COLLAPSED : _CARD_EXPANDED) * " " * title;
                     text_style = _CARD_TITLE_STYLE)
-    ]), Cell(:top), Cell(0), Cell(nothing))
+    ]), Cell(:top), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing))
     card
 end
 

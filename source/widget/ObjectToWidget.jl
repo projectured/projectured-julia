@@ -229,9 +229,10 @@ function _collapsible_card(p::ObjectToWidget, title::AbstractString, body)
     header = HorizontalLayout(ComputedCellVector(() -> Any[
         WidgetLabel(Point2D(0, 0),
                     (card.collapsed ? _COLLAPSED_MARKER : _EXPANDED_MARKER) * " " * title)
-    ]), Cell(:top), Cell(_HEADER_GAP), Cell(nothing))
+    ]), Cell(:top), Cell(_HEADER_GAP), Cell(nothing), Cell(nothing), Cell(nothing))
     content = VerticalLayout(ComputedCellVector(() -> card.collapsed ? Any[] : Any[body]),
-                             Cell(:left), Cell(0), Cell(nothing))
+                             Cell(:left), Cell(0), Cell(nothing), Cell(nothing),
+                             Cell(nothing))
     card.title = header
     card.content = content
     card
