@@ -202,12 +202,23 @@ and not a description.
 - In the campaign window: the transcript scrolls, the composer stays put, a card
   fills the width and grows with its content, and a collapsed card is 30 tall.
 
-## Open questions
+## Decided
 
-1. **`preferred` and `Fixed` overlap.** `LayoutConstraint` already has
-   `preferred_width`; `Fixed(n)` says the same thing. Decide in step 1 whether
-   `Fixed` *is* `preferred` with `min = max = n`, or a fifth field. Prefer the
-   first — one concept.
-2. **What is the extent of a container with no children?** `0` is honest, and `0`
-   is also what deviation F produces today by accident. The images cannot tell
-   those apart, so a test must.
+1. **`Fixed(n)` IS `preferred` with `min = max = n`.** `LayoutConstraint` already
+   carries `preferred_width`; a fifth field saying the same thing would be a
+   second way to say one thing. `Fixed` is a constructor over the three fields
+   that exist.
+2. **A container with no children reports `0`**, and a test separates that from
+   the eight widgets that report `0` today by accident. The images cannot tell
+   them apart, so the test is what makes step 7 checkable.
+
+## Step 0 — the instrument comes first
+
+`tool/widget-images.jl`, written before step 1, because every step is measured
+with it:
+
+- `write_widget_images(directory)` — all 39 examples into that directory;
+- `compare_widget_images(before, after)` — per example: identical, or the changed
+  pixel count and any size change.
+
+The baseline is taken on the commit this branch starts from.
