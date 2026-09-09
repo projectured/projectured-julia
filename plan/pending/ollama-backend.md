@@ -341,15 +341,15 @@ What needs **no** edit, and why:
       — it drives the whole turn through `FakeLlm` and `ScriptedLlm`, so it covers
       the resolution path without a network.
 
-### Step 4 — the `ProjecturedOllama` package
+### Step 4 — the `ProjecturedOllama` package — **DONE**
 
-- [ ] `package/ProjecturedOllama/Project.toml` — deps `ProjecturedKernel`, `HTTP`,
+- [x] `package/ProjecturedOllama/Project.toml` — deps `ProjecturedKernel`, `HTTP`,
       `JSON3`, with the same compat bounds `ProjecturedLlm` uses today.
-- [ ] `package/ProjecturedOllama/src/ProjecturedOllama.jl` — a name and one
+- [x] `package/ProjecturedOllama/src/ProjecturedOllama.jl` — a name and one
       include, shaped like the Anthropic package.
-- [ ] `source/ollama/Ollama.jl` — `OllamaLlm`, `stream_turn`, `tool_schema`,
+- [x] `source/ollama/Ollama.jl` — `OllamaLlm`, `stream_turn`, `tool_schema`,
       `make_llm(::Val{:ollama})`, `default_llm_model(::Val{:ollama})`.
-- [ ] Register it at the same sites Step 2 lists: `environment/all`
+- [x] Register it at the same sites Step 2 lists: `environment/all`
       (dep, `[sources]`, the stem count, the manifest), `ProjecturedExecutable`,
       `ProjecturedExample` (the dep and a `using` line for the side effect),
       `SIDE_EFFECT_DEPS`, and `LOCAL_CORE_PACKAGES` in `Builder.jl`.
@@ -361,6 +361,21 @@ The adapter's parts, in the order they should be written:
 3. the HTTP call, which is `HTTP.open` with the same `readavailable` chunk loop the
    Anthropic adapter uses, splitting on `"\n"` instead of `"\n\n"`;
 4. the capability probe (D7).
+
+Measured against the server on this machine, with `mistral:latest`:
+
+- a text turn emits `LlmTextStart`, four `LlmTextDelta`s, `LlmTextStop`,
+  `LlmTurnEnd(:end_turn)`;
+- a turn that calls a tool ends in **`LlmTurnEnd(:tool_use)`** and carries the
+  call complete — `call_oh34040d get_weather Dict("city" => "Paris")`;
+- the second round renders that call and its result back, and the model answers
+  from the result: "The weather in Paris is 18 degrees and sunny.";
+- `thinking = true` on a model that cannot reason does not kill the turn, because
+  the capability is asked for. The probe answers `false` for `mistral:latest`,
+  `true` for `qwen3.8:27b`, and `false` for a model the server does not hold.
+
+`base_url` is the **server**, not one endpoint, because the adapter uses two of
+them. This differs from `AnthropicLlm`, whose `base_url` is the messages endpoint.
 
 ### Step 5 — the tests
 

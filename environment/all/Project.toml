@@ -1,5 +1,5 @@
 # The environment the whole suite resolves in: every package of this repository,
-# and the third-party packages the eight opt-in stems carry. `jp` activates it.
+# and the third-party packages the nine opt-in stems carry. `jp` activates it.
 #
 # It holds a Project.toml and a Manifest.toml and no code at all — that is what
 # an environment is, and `plan/pending/repository-tree.md` §3 is the rule.
@@ -62,6 +62,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
+ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
 ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
@@ -183,6 +184,7 @@ ProjecturedKernelExample = {path = "../../package/ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../../package/ProjecturedKernelTest"}
 ProjecturedLayout = {path = "../../package/ProjecturedLayout"}
 ProjecturedAnthropic = {path = "../../package/ProjecturedAnthropic"}
+ProjecturedOllama = {path = "../../package/ProjecturedOllama"}
 ProjecturedMarkdown = {path = "../../package/ProjecturedMarkdown"}
 ProjecturedMarkdownExample = {path = "../../package/ProjecturedMarkdownExample"}
 ProjecturedMarkdownTest = {path = "../../package/ProjecturedMarkdownTest"}

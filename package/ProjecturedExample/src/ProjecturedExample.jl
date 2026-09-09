@@ -46,11 +46,12 @@ for _src in (ProjecturedKernelExample, ProjecturedSubstrateExample,
         Core.eval(@__MODULE__, Expr(:export, _n))
     end
 end
-# Loaded so the assistant example can use a real Claude model when
-# ANTHROPIC_API_KEY is set: it defines the `AnthropicLlm` backend and its
-# `stream_turn` method, which `Assistant` discovers by reflection.
-# The assistant *example documents* pass an explicit `FakeLlm` for offline use.
+# Loaded so the assistant example can talk to a real model: each package defines
+# a backend and registers it on the kernel's factory seam, which is what makes
+# `make_llm(:anthropic)` and `make_llm(:ollama)` resolve. The assistant *example
+# documents* pass an explicit `FakeLlm` for offline use.
 using ProjecturedAnthropic
+using ProjecturedOllama
 
 # The opt-in examples that need a live database (ODBC) or the native graph-layout
 # engine (ProjecturedAdaptagrams C++ shim) live in the separate opt-in example

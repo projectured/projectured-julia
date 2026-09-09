@@ -37,7 +37,7 @@ _backend_localdir(T::Type) = _backend_module(T)
 # declares no `[sources]` of its own, so each adapter must be developed explicitly
 # too. Backends are added on top from `spec.backends`.
 const LOCAL_CORE_PACKAGES =
-    ["Projectured", "ProjecturedExample", "ProjecturedAnthropic"]
+    ["Projectured", "ProjecturedExample", "ProjecturedAnthropic", "ProjecturedOllama"]
 
 # ── BuildSpec ────────────────────────────────────────────────────────────────
 
