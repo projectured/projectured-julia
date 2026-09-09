@@ -59,6 +59,12 @@ struct ConversationPartToWidget                  <: Projection end
 
 # ── Constants / glyphs ────────────────────────────────────────────────────────
 
+# A turn card and a part card take the width they are offered — the transcript's
+# `child_width = Fill` says so, and the card resolves it. These were 760 and 720,
+# two numbers that made every conversation the same width whatever it was shown
+# in. `_maybe_clip` still needs a width for the viewport it builds when a card is
+# collapsed, because a `WidgetScrollPane`'s size is one `Point2D` and cannot
+# author one axis alone; that is the only reason they survive as a clip width.
 const _CARD_WIDTH    = 760
 const _PART_WIDTH    = 720
 const _AVATAR_SIZE   = 22
@@ -167,8 +173,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
                           Cell(Fill), Cell(Content), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
-                      content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH),
-                      width = _CARD_WIDTH)
+                      content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH))
     ChildrenIoMap(projection, t, card, ioms)
 end
 
@@ -183,8 +188,7 @@ function print_document(projection::ConversationPartToWidget,
            content
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_kind_glyph(content), _kind_label(content), _KIND_STYLE),
-                      content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH),
-                      width = _PART_WIDTH)
+                      content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH))
     SimpleIoMap(projection, part, card)
 end
 

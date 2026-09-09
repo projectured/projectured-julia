@@ -1419,7 +1419,11 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
         inner = child_iomap[].output::GraphicsCanvas
         iw, ih = Int(inner.w[]), Int(inner.h[])
         tx, ty = _inset_total(w)
-        (width=iw + tx, height=ih + ty, elements=Any[_make_canvas(cox, coy, Any[inner])])
+        # An overlay: content-sized, and capped by the window rather than stretched
+        # to it, so a menu opened near an edge does not run past it.
+        (width  = _resolve_overlay(ctx, :x, 0, iw + tx),
+         height = _resolve_overlay(ctx, :y, 0, ih + ty),
+         elements = Any[_make_canvas(cox, coy, Any[inner])])
     end)
     canvas = _reactive_canvas_cell(0, 0, build)
     WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, ctx.reference)

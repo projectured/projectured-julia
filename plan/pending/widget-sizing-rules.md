@@ -384,8 +384,24 @@ Each step keeps the images green before the next begins.
 
    `WidgetContextMenu` and `WidgetMenu` still read no offer, so they can run off
    a window edge. They take the same helper next.
-10. **The conversation is rebuilt** as constructed above: the two width literals
-    and `_maybe_clip`'s scroll pane are deleted.
+10. **The conversation — the two width literals are gone.** A turn card and a part
+    card take the width they are offered; the transcript's `child_width = Fill`
+    says so and `WidgetCard` resolves it. `760` and `720` made every conversation
+    the same width whatever it was shown in.
+
+    **One picture moved.** `conversation_widget` went from `760x798` to `752x798`
+    and its cards are content-wide rather than 760 — because that example draws
+    the conversation with **no offer**, so content is the only source left. In a
+    window there is an offer and they fill. Correct by the rule, and the picture
+    is honest about what the example does.
+
+    **What is left of this step, and it needs a decision.** `_maybe_clip` builds a
+    `WidgetScrollPane` to clip a collapsed card to one row, and a scroll pane's
+    `size` is a single `Point2D` — it cannot author a height and leave the width
+    to the offer. So the clip width is still a literal. Either
+    `WidgetScrollPane` gains per-axis sizing, or `WidgetCard` learns to read a
+    `LayoutConstraint` around its content. The second is closer to the rules; the
+    first is smaller.
 
 ## The safety net: every widget, before and after
 
