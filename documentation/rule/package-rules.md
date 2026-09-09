@@ -53,7 +53,8 @@ says why. `test_package_graph()` asserts it, along with two more:
 `Projectured` aggregates its layers — Kernel, Base, Visual and the twenty domain
 packages, none of which has a third-party dependency. It deliberately does not
 aggregate `ProjecturedSdl`, `ProjecturedOdbc`, `ProjecturedTulip`,
-`ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedMcp`, `ProjecturedWeb` or
+`ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMcp`,
+`ProjecturedWeb` or
 `ProjecturedAdaptagrams`, each of which owns one.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
@@ -182,6 +183,7 @@ the domains it embeds. [domains.md](../design/domain-inventory.md) has the table
 | package | depends on | third-party |
 | --- | --- | --- |
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
+| `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Sdl | FFMPEG |

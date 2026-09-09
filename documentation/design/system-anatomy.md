@@ -115,7 +115,8 @@ Opt-in packages (depend on the above; loaded only when you `using` them):
   Odbc (odbc/)  → Sql, DbCatalog, Database             ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
   Adaptagrams   → Graph                                native C++ shim              the graph layout engine
   Mcp  (mcp/)   → Kernel                               ModelContextProtocol         McpServer, make_agent_server(:mcp)
-  Anthropic     → Kernel                               HTTP/JSON3                   stream_turn(::AnthropicLlm)
+  Anthropic     → Kernel                               HTTP/JSON3                   AnthropicLlm; make_llm(:anthropic)
+  Ollama        → Kernel                               HTTP/JSON3                   OllamaLlm; make_llm(:ollama)
 ```
 
 The four-level division rule: **package** = one concept, or an

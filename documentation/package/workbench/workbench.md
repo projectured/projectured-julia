@@ -32,7 +32,7 @@ All subtype `WorkbenchDocument` (`<: Document`).
 | `WorkbenchSearcher()` | The "Searcher" panel |
 | `WorkbenchEvaluator(content)` | The "Evaluator" panel — eval-print loop window |
 | `WorkbenchEditor(title, filename, content)` | An open document in the editing column |
-| `WorkbenchAssistant(; conversation, input, model, system, api_key, status, llm)` | The "Assistant" panel — AI assistant window (keyword-only; field is `conversation`) |
+| `Assistant(; conversation, input, backend, model, system, api_key, status, llm)` | The "Assistant" panel — AI assistant window (keyword-only; field is `conversation`) |
 
 Each panel carries a `title` (class-level constant or per-instance for
 `WorkbenchEditor`) that becomes the title-bar text in the widget output.

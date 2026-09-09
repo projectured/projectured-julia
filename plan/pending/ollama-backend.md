@@ -405,16 +405,21 @@ The stream reader had to come out of `stream_turn` to be testable: `_line_handle
 is the translation as a function of one line, and the HTTP call is the only thing
 left around it. That separation is what lets the suite run with no server.
 
-### Step 6 — the documentation
+### Step 6 — the documentation — **DONE**
 
-- [ ] [agent.md](../../documentation/package/kernel/agent.md) — the "Who
+- [x] [agent.md](../../documentation/package/kernel/agent.md) — the "Who
       implements what" table and the "Concrete backends live outside `main`"
       paragraph.
-- [ ] [package-rules.md](../../documentation/rule/package-rules.md) — the
+- [x] [package-rules.md](../../documentation/rule/package-rules.md) — the
       third-party dependency table, and the sentence that lists the stems.
-- [ ] [system-anatomy.md](../../documentation/design/system-anatomy.md) — the
+- [x] [system-anatomy.md](../../documentation/design/system-anatomy.md) — the
       opt-in package block.
-- [ ] A short section in the assistant guide on how to select a backend.
+- [x] A section in the agent guide, "Choose a backend", with the three functions
+      that carry the selection and a table of what each adapter must answer for
+      itself. The last row of that table is the one that fails silently.
+- [x] [workbench.md](../../documentation/package/workbench/workbench.md) — the
+      panel row named `WorkbenchAssistant`, a type that no longer exists, and
+      listed the constructor without `backend`. Both corrected.
 
 ## A fault I found on the way
 

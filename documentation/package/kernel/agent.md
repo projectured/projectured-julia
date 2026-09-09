@@ -88,6 +88,57 @@ Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
 `make_llm(:ollama; model = …)`, so nothing in the core stack names a concrete
 backend and `llm_backend_names()` says which packages are loaded.
 
+### Choose a backend
+
+A person says which backend they want. Nothing guesses, because a guess is only
+ever right while one backend exists.
+
+```julia
+using ProjecturedOllama              # or ProjecturedAnthropic
+
+assistant.backend = :ollama          # which provider
+assistant.model   = ""               # empty means the backend's own default
+```
+
+An assistant that names no backend errors on submit, and the error lists the
+backends whose packages are loaded. An explicit `assistant.llm` overrides both,
+which is what a test does with a `FakeLlm`.
+
+The backend is built once per turn, not kept on the document. The key and the
+model are the backend's own configuration, so a cached backend would freeze
+whichever model was selected first and editing `assistant.model` would stop taking
+effect.
+
+Three functions carry the whole selection, and all three live in `llm/Llm.jl`:
+
+| function | what it answers |
+| --- | --- |
+| `make_llm(kind; model, api_key)` | build the backend registered under `kind` |
+| `default_llm_model(kind)` | the model this backend talks to when nobody names one |
+| `llm_backend_names()` | which backends can be built right now |
+
+`make_llm` dispatches on `Val`, and each adapter package adds one method. **The
+method table is the registry**: there is no dictionary to keep in step, nothing to
+run at load time, and a backend counts as available exactly when it can be built.
+
+### What each adapter must answer for itself
+
+The two adapters show how far providers differ below this seam, and what a third
+one would have to decide.
+
+| question | Anthropic | Ollama |
+| --- | --- | --- |
+| the stream | Server-Sent Events | newline-delimited JSON |
+| block framing | the provider sends it | the adapter makes it |
+| a tool call's arguments | streamed fragments, parsed at the end | one parsed object |
+| reasoning | a parameter chosen from the model name | asked of the server, because a wrong ask is HTTP 400 |
+| a reasoning block's signature | required back, unchanged | none exists |
+| the stop reason for a tool call | the provider says `tool_use` | the provider says `stop`; the adapter counts the calls |
+
+The last row is the one that fails silently. `run_turn!` runs a tool only when the
+turn ends in `:tool_use`, so an adapter that passes its provider's word through
+would show a tool call and never run it.
+
 ## Layer 16 — `agent/`: the two directions
 
 ```
