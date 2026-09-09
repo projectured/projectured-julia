@@ -22,6 +22,7 @@ import ..ReferenceModule: Reference
 
 export LayoutDocument, FormLayout, LayoutExpr, anchor, constrain, allocate_axis, layout_min,
        layout_max, layout_preferred, layout_weight,
+       SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
 
 # ── Abstract base ───────────────────────────────────────────────────────────
@@ -204,6 +205,68 @@ function StackLayout(children::Vector;
                 Cell(horizontal_align), Cell(vertical_align), Cell(Int(active)), Cell(nothing))
 end
 
+# ── Size policy ─────────────────────────────────────────────────────────────
+
+"""
+    SizePolicy(min, preferred, max, weight)
+
+Where a child's size on one axis comes from. It is **not a fifth field**: a policy
+is a way of writing the four that `LayoutConstraint` already has, so there is one
+place a size is decided and one place to extend.
+
+Four policies say everything:
+
+| policy | means | written as |
+| --- | --- | --- |
+| `Fixed(n)` | that many pixels, whatever is offered | `min = max = preferred = n` |
+| `Content` | grow with the content | `preferred = intrinsic`, no weight |
+| `Relative(w)` | a share `w` of what is offered | `preferred = 0`, `weight = w` |
+| `Fill` | all of what is offered | `Relative(1.0)` |
+
+A policy is a statement about a **relationship**, which is why it lives here and
+not on the widget: `Relative(1.0)` means nothing without a parent that divides,
+and `Fill` means nothing without a parent that offers. The same card fills the
+width in a conversation column and is content-wide in a toolbar, because the
+container it is placed in says so and the card is placed twice, unchanged.
+"""
+struct SizePolicy
+    min::Union{Nothing,Int}
+    preferred::Union{Nothing,Int}
+    max::Union{Nothing,Int}
+    weight::Union{Nothing,Float64}
+end
+
+"""
+    Fixed(n) -> SizePolicy
+
+`n` pixels on this axis, whatever is offered.
+"""
+Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
+
+"""
+    Content -> SizePolicy
+
+Grow with the content on this axis. The child keeps its intrinsic extent, and an
+offer does not stretch it.
+"""
+const Content = SizePolicy(nothing, nothing, nothing, 0.0)
+
+"""
+    Relative(weight) -> SizePolicy
+
+A share of what the parent offers on this axis, in proportion to `weight` against
+its siblings' weights.
+"""
+Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
+
+"""
+    Fill -> SizePolicy
+
+All of what the parent offers on this axis — `Relative(1.0)`. Two `Fill` siblings
+share the offer equally, which is what a weight of one each means.
+"""
+const Fill = Relative(1.0)
+
 # ── LayoutConstraint ────────────────────────────────────────────────────────
 
 """
@@ -218,6 +281,10 @@ these values to allocate available space across its children; a bare
 
 Each axis field is `nothing` by default. When `nothing`, the parent layout
 falls back to the bare-child interpretation for that field.
+
+Say it with a [`SizePolicy`](@ref) rather than four numbers wherever one fits:
+`LayoutConstraint(card; width = Fill, height = Content)`. A field written beside a
+policy wins over it.
 """
 @document struct LayoutConstraint
     child::Document
@@ -232,10 +299,26 @@ falls back to the bare-child interpretation for that field.
 end
 
 function LayoutConstraint(child::Document;
+                          width::Union{Nothing,SizePolicy}=nothing,
+                          height::Union{Nothing,SizePolicy}=nothing,
                           min_width=nothing, preferred_width=nothing,
                           max_width=nothing, weight_width=nothing,
                           min_height=nothing, preferred_height=nothing,
                           max_height=nothing, weight_height=nothing)
+    # A policy writes the four fields; an explicit field beside it wins, so a
+    # caller can say `width = Fill, min_width = 120` and mean both.
+    if width !== nothing
+        min_width       === nothing && (min_width       = width.min)
+        preferred_width === nothing && (preferred_width = width.preferred)
+        max_width       === nothing && (max_width       = width.max)
+        weight_width    === nothing && (weight_width    = width.weight)
+    end
+    if height !== nothing
+        min_height       === nothing && (min_height       = height.min)
+        preferred_height === nothing && (preferred_height = height.preferred)
+        max_height       === nothing && (max_height       = height.max)
+        weight_height    === nothing && (weight_height    = height.weight)
+    end
     LayoutConstraint(Cell(child),
                      Cell(min_width), Cell(preferred_width),
                      Cell(max_width), Cell(weight_width),

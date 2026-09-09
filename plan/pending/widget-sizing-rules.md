@@ -140,9 +140,15 @@ What each requirement rests on:
 
 Each step keeps the images green before the next begins.
 
-1. **The policy type.** `Fixed` / `Fill` / `Content` / `Relative` and the four
-   `LayoutConstraint` fields that carry them, beside the existing
-   min/preferred/max/weight. Nothing reads them yet.
+1. **The policy type — DONE.** `SizePolicy`, with `Fixed(n)`, `Content`,
+   `Relative(w)` and `Fill`. It is **not** a fifth field: each policy writes the
+   four that `LayoutConstraint` already has, so a size is decided in one place.
+   `LayoutConstraint(child; width = Fill, height = Content)`; a field written
+   beside a policy wins over it. **All 39 images unchanged** — nothing reads the
+   vocabulary yet.
+
+   `Fill === Relative(1.0)` falls out rather than being declared: two `Fill`
+   siblings share the offer equally, which is what a weight of one each means.
 2. **`_resolve_size(ctx, axis, constraint, content)`** — the rule, once, both
    axes. `_resolve_width` becomes a call to it with the old defaults, so no
    picture moves.
