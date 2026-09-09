@@ -329,17 +329,22 @@ What needs **no** edit, and why:
 - There is no continuous-integration script, no `ProjecturedLlmTest`, and no test
   that exercises `AnthropicLlm`.
 
-### Step 3 — the assistant selects a backend by name
+### Step 3 — the assistant selects a backend by name — **DONE**
 
-- [ ] Delete `_discover_remote_llm` from
+- [x] Delete `_discover_remote_llm` from
       [AssistantTurn.jl](../../source/assistant/AssistantTurn.jl) and resolve
       through `make_llm` (D3).
-- [ ] Add `backend::Symbol` to `Assistant` (D3's two constraints).
-- [ ] Make `model` default to `""` and resolve it through `default_llm_model`.
-- [ ] Rewrite the "no backend available" error to list `llm_backend_names()`.
-- [ ] Test: `julia --project=environment/all test/workbench/editor/AssistantMvpTest.jl`
-      — it drives the whole turn through `FakeLlm` and `ScriptedLlm`, so it covers
-      the resolution path without a network.
+- [x] Add `backend::Symbol` to `Assistant` (D3's two constraints).
+- [x] Make `model` default to `""`; the backend resolves it (D2).
+- [x] Rewrite the "no backend available" error to list `llm_backend_names()`.
+- [x] Test: `test_assistant_mvp()` is 76 pass, 1 broken, 0 fail. The 1 broken is a
+      marker that was there before. Eight of those passes are new: an assistant
+      that names no backend errors with "no LLM backend was named", one that names
+      an unloaded backend gets the seam's own message, and an explicit `llm` still
+      wins over both.
+
+`DEFAULT_ASSISTANT_MODEL = "claude-opus-4-8"` is **deleted**. It was one provider's
+model name held by a provider-neutral document, and nothing else read it.
 
 ### Step 4 — the `ProjecturedOllama` package — **DONE**
 
@@ -377,16 +382,28 @@ Measured against the server on this machine, with `mistral:latest`:
 `base_url` is the **server**, not one endpoint, because the adapter uses two of
 them. This differs from `AnthropicLlm`, whose `base_url` is the messages endpoint.
 
-### Step 5 — the tests
+### Step 5 — the tests — **DONE**
 
-- [ ] `package/ProjecturedOllamaTest` with `test_ollama()`.
-- [ ] Feed the recorded NDJSON lines in this plan through the line reader and
-      assert the event sequence. This needs no server and no model.
-- [ ] Assert the tool-call turn ends in `LlmTurnEnd(:tool_use)` (D5).
-- [ ] Assert the request render: a system message leads, a tool result carries its
-      `tool_name`, and `max_tokens` lands in `options.num_predict`.
-- [ ] One live test, skipped when `http://localhost:11434/api/version` does not
-      answer within a short timeout.
+- [x] `package/ProjecturedOllamaTest` with `test_ollama()`. Every opt-in stem here
+      has a test package — `ProjecturedSdlTest`, `ProjecturedOdbcTest`,
+      `ProjecturedTulipTest`, `ProjecturedVideoTest` — so this one follows them.
+- [x] Feed the recorded lines through the reader and assert the event sequence.
+- [x] Assert the tool-call turn ends in `LlmTurnEnd(:tool_use)` (D5).
+- [x] Assert the request render, including that a result whose call was never seen
+      still reaches the model as quoted text.
+- [x] One live test, skipped when no server answers within two seconds.
+- [x] Wire it into the umbrella: `using ProjecturedOllamaTest` and a `test_ollama()`
+      call in `test_all()`. It is **not** re-exported to `Main`, which is how the
+      other opt-in suites behave — the loop at `ProjecturedSuite.jl:39` lists the
+      domain test packages only.
+
+**Result: 65 pass, 0 fail.** `test_package_graph()` is 728 pass, 2 fail — the same
+two failures clean `main` gives (719 pass, 2 fail), so the new packages add nine
+passing checks and no regression.
+
+The stream reader had to come out of `stream_turn` to be testable: `_line_handler`
+is the translation as a function of one line, and the HTTP call is the only thing
+left around it. That separation is what lets the suite run with no server.
 
 ### Step 6 — the documentation
 

@@ -1,0 +1,206 @@
+# Drive the adapter's stream reader over recorded lines. Every line here was
+# recorded from a real Ollama server (version 0.33), so the suite tests what the
+# server sends and not what the adapter wishes it sent.
+function _events_of(lines::AbstractVector{<:AbstractString})
+    out = Any[]
+    handle = ProjecturedOllama._line_handler(ev -> push!(out, ev))
+    buf = IOBuffer()
+    for line in lines
+        write(buf, line, '\n')
+        ProjecturedOllama._drain_lines!(buf, handle)
+    end
+    ProjecturedOllama._drain_lines!(buf, handle; final = true)
+    out
+end
+
+function test_ollama_request()
+@testset "OllamaRequest" begin
+
+# ── the tool schema is a function wrapper, not Anthropic's input_schema ──
+llm  = OllamaLlm(; model = "mistral:latest")
+tool = Tool("get_weather", "Get the weather for a city",
+            NamedTuple[(name = "city", type = "string",
+                        description = "The city name", required = true),
+                       (name = "unit", type = "string",
+                        description = "celsius or fahrenheit")],
+            (args, target) -> "18 degrees")
+schema = tool_schema(llm, [tool])
+@test length(schema) == 1
+@test schema[1]["type"] == "function"
+@test schema[1]["function"]["name"] == "get_weather"
+@test schema[1]["function"]["parameters"]["required"] == ["city"]
+@test haskey(schema[1]["function"]["parameters"]["properties"], "unit")
+
+# ── the system prompt is a message, not a field beside the messages ──
+request = LlmRequest(system = "Be brief.",
+                     messages = [LlmMessage(:user, "Hello.")])
+wire = ProjecturedOllama._wire_messages(request)
+@test length(wire) == 2
+@test wire[1]["role"] == "system"
+@test wire[1]["content"] == "Be brief."
+@test wire[2]["role"] == "user"
+@test wire[2]["content"] == "Hello."
+
+# ── a tool result is its own message, and it names the TOOL ──
+# Our `LlmToolResult` carries the call's id, so the walk keeps an id-to-name map
+# and the result that follows looks its name up there.
+call = LlmToolUse("call_x1", "get_weather", Dict{String,Any}("city" => "Paris"))
+request = LlmRequest(messages = [
+    LlmMessage(:user, "Weather in Paris?"),
+    LlmMessage(:assistant, LlmContent[LlmThinking("Ask the tool.", ""), call]),
+    LlmMessage(:user, LlmContent[LlmToolResult("call_x1", "18 degrees", false)]),
+])
+wire = ProjecturedOllama._wire_messages(request)
+@test length(wire) == 3
+@test wire[2]["role"] == "assistant"
+@test wire[2]["thinking"] == "Ask the tool."
+@test wire[2]["tool_calls"][1]["function"]["name"] == "get_weather"
+@test wire[2]["tool_calls"][1]["function"]["arguments"]["city"] == "Paris"
+@test wire[3]["role"] == "tool"
+@test wire[3]["tool_name"] == "get_weather"
+@test wire[3]["content"] == "18 degrees"
+
+# A result whose call was never seen still reaches the model, as quoted text.
+request = LlmRequest(messages = [
+    LlmMessage(:user, LlmContent[LlmToolResult("unknown", "18 degrees", false)])])
+wire = ProjecturedOllama._wire_messages(request)
+@test length(wire) == 1
+@test wire[1]["role"] == "user"
+@test occursin("18 degrees", wire[1]["content"])
+
+# ── the token budget is an option, and an empty model is the default ──
+@test OllamaLlm(; model = "").model == default_llm_model(:ollama)
+@test OllamaLlm(; base_url = "http://host:1/").base_url == "http://host:1"
+
+end
+end
+
+function test_ollama_stream()
+@testset "OllamaStream" begin
+
+# ── text: the adapter opens and closes a block Ollama never framed ──
+evs = _events_of([
+    """{"message":{"role":"assistant","content":" Hello"},"done":false}""",
+    """{"message":{"role":"assistant","content":" there"},"done":false}""",
+    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}""",
+])
+@test evs[1] isa LlmTextStart
+@test evs[2] == LlmTextDelta(" Hello")
+@test evs[3] == LlmTextDelta(" there")
+@test evs[4] isa LlmTextStop
+@test evs[5] == LlmTurnEnd(:end_turn)
+
+# ── a tool call: three events out of one line, arguments already parsed ──
+evs = _events_of([
+    """{"message":{"role":"assistant","content":"","tool_calls":[{"id":"call_xdzs68uo","function":{"index":0,"name":"get_weather","arguments":{"city":"Paris"}}}]},"done":false}""",
+    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}""",
+])
+@test evs[1] == LlmToolUseStart("call_xdzs68uo", "get_weather")
+@test evs[2] isa LlmToolInputDelta
+@test occursin("Paris", evs[2].json)
+@test evs[3] isa LlmToolUseStop
+@test evs[3].tool_use.name == "get_weather"
+@test evs[3].tool_use.input == Dict{String,Any}("city" => "Paris")
+
+# **The turn that made a tool call ends in `:tool_use`, though the server said
+# "stop".** The agent loop runs a tool only on that reason, so without this the
+# assistant would show the call and never run it.
+@test evs[4] == LlmTurnEnd(:tool_use)
+
+# ── reasoning, then prose: the first closes when the second opens ──
+evs = _events_of([
+    """{"message":{"role":"assistant","content":"","thinking":"Let me"},"done":false}""",
+    """{"message":{"role":"assistant","content":"","thinking":" think."},"done":false}""",
+    """{"message":{"role":"assistant","content":"Yes"},"done":false}""",
+    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}""",
+])
+@test evs[1] isa LlmThinkingStart
+@test evs[2] == LlmThinkingDelta("Let me")
+@test evs[3] == LlmThinkingDelta(" think.")
+@test evs[4] isa LlmThinkingStop
+@test evs[5] isa LlmTextStart
+@test evs[6] == LlmTextDelta("Yes")
+@test evs[7] isa LlmTextStop
+@test evs[8] == LlmTurnEnd(:end_turn)
+
+# ── a budget that ran out ──
+evs = _events_of([
+    """{"message":{"role":"assistant","content":"a"},"done":false}""",
+    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"length"}""",
+])
+@test evs[end] == LlmTurnEnd(:max_tokens)
+
+# ── an error inside the stream is an event; a dead socket would throw ──
+evs = _events_of(["""{"error":"model runner has unexpectedly stopped"}"""])
+@test length(evs) == 1
+@test evs[1] isa LlmFailure
+@test occursin("unexpectedly stopped", evs[1].message)
+
+# ── a line split across two reads is one event, not two ──
+out = Any[]
+handle = ProjecturedOllama._line_handler(ev -> push!(out, ev))
+buf = IOBuffer()
+write(buf, """{"message":{"role":"assist""")
+ProjecturedOllama._drain_lines!(buf, handle)
+@test isempty(out)
+write(buf, """ant","content":"split"},"done":false}\n""")
+ProjecturedOllama._drain_lines!(buf, handle)
+@test out[2] == LlmTextDelta("split")
+
+# ── a call the server did not name still gets an id, because the result pairs by it ──
+evs = _events_of([
+    """{"message":{"role":"assistant","tool_calls":[{"function":{"name":"t","arguments":{}}}]},"done":false}""",
+])
+@test evs[1] isa LlmToolUseStart
+@test !isempty(evs[1].id)
+
+end
+end
+
+function test_ollama_backend()
+@testset "OllamaBackend" begin
+
+# The package registers itself, so the kernel's factory answers for it.
+@test :ollama in llm_backend_names()
+@test default_llm_model(:ollama) == "qwen3.8:27b"
+llm = make_llm(:ollama; model = "mistral:latest", api_key = "ignored")
+@test llm isa OllamaLlm
+@test llm.model == "mistral:latest"
+
+# `thinking` said outright is never asked about.
+@test ProjecturedOllama._supports_thinking(OllamaLlm(; thinking = true))
+@test !ProjecturedOllama._supports_thinking(OllamaLlm(; thinking = false))
+
+end
+end
+
+# Is a server answering? The live test needs one, and skips itself otherwise, so
+# the suite passes on a machine with no Ollama installed.
+function _ollama_is_up(base_url::AbstractString = "http://localhost:11434")
+    try
+        HTTP.get(base_url * "/api/version"; status_exception = false,
+                 readtimeout = 2, retry = false).status == 200
+    catch
+        false
+    end
+end
+
+function test_ollama_live(; model::AbstractString = "mistral:latest")
+@testset "OllamaLive" begin
+
+if !_ollama_is_up()
+    @info "[ollama] no server on http://localhost:11434; skipping the live test"
+    @test true
+    return
+end
+
+llm = make_llm(:ollama; model = model)
+evs = Any[]
+stream_turn(llm, LlmRequest(system = "Answer in three words.",
+                            messages = [LlmMessage(:user, "Say hello.")]);
+            on_event = ev -> push!(evs, ev))
+@test any(e -> e isa LlmTextDelta, evs)
+@test evs[end] == LlmTurnEnd(:end_turn)
+
+end
+end

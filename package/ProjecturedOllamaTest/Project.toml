@@ -1,0 +1,21 @@
+name = "ProjecturedOllamaTest"
+uuid = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
+version = "0.1.0"
+authors = []
+
+# The Ollama tier of the test-package DAG. The suite tests translation — a request
+# into Ollama's JSON, and Ollama's stream into events — which needs no server. The
+# one test that talks to a server skips itself when none answers.
+
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedOllama = {path = "../ProjecturedOllama"}

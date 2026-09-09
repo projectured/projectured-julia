@@ -203,25 +203,16 @@ function _tool_input(raw)
 end
 
 """
-    stream_turn(llm::OllamaLlm, request::LlmRequest; on_event)
+    _line_handler(on_event) -> Function
 
-POST a streaming chat request and translate the newline-delimited stream into
-`LlmEvent`s. An HTTP failure throws; an error reported *inside* the stream arrives
-as an `LlmFailure`.
+The stream reader, as a function of one line. It holds the state a turn needs —
+which block is open, and whether any tool call arrived — and turns each parsed
+line into events.
 
-Ollama sends no block framing at all — no start, no stop, only message deltas — so
-this function opens and closes the blocks itself, from what each line carries.
+It is separate from the transport on purpose. The translation is what is worth
+testing, and it is testable here with recorded lines and no server at all.
 """
-function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
-    body = Dict{String,Any}(
-        "model"    => llm.model,
-        "stream"   => true,
-        "messages" => _wire_messages(request),
-        "options"  => Dict("num_predict" => llm.max_tokens),
-    )
-    isempty(request.tools) || (body["tools"] = tool_schema(llm, request.tools))
-    request.thinking && _supports_thinking(llm) && (body["think"] = true)
-
+function _line_handler(on_event::Function)
     # Which block is open, so the deltas that arrive with no framing become the
     # right typed start and stop; and whether any tool call arrived, which decides
     # the stop reason below.
@@ -244,7 +235,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
         nothing
     end
 
-    handle_line = function (obj)
+    function (obj)
         err = get(obj, :error, nothing)
         if err !== nothing
             close_block!()
@@ -277,8 +268,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
                     # A server that names no call still needs one id, because the
                     # result that answers it is paired by id.
                     isempty(id) && (id = "ollama_call_" * string(call_count[]))
-                    raw   = get(f, :arguments, nothing)
-                    input = _tool_input(raw)
+                    input = _tool_input(get(f, :arguments, nothing))
                     on_event(LlmToolUseStart(id, name))
                     # The whole call arrives at once, so the fragment event carries
                     # the whole argument JSON — a panel that shows arguments as they
@@ -296,12 +286,35 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
             # `:tool_use`, so the calls this turn made decide the reason, and the
             # server's word decides only the rest.
             reason = String(get(obj, :done_reason, "stop"))
-            on_event(LlmTurnEnd(saw_tool[]        ? :tool_use :
+            on_event(LlmTurnEnd(saw_tool[]         ? :tool_use :
                                 reason == "length" ? :max_tokens :
                                                      :end_turn))
         end
         nothing
     end
+end
+
+"""
+    stream_turn(llm::OllamaLlm, request::LlmRequest; on_event)
+
+POST a streaming chat request and translate the newline-delimited stream into
+`LlmEvent`s. An HTTP failure throws; an error reported *inside* the stream arrives
+as an `LlmFailure`.
+
+Ollama sends no block framing at all — no start, no stop, only message deltas — so
+this function opens and closes the blocks itself, from what each line carries.
+"""
+function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
+    body = Dict{String,Any}(
+        "model"    => llm.model,
+        "stream"   => true,
+        "messages" => _wire_messages(request),
+        "options"  => Dict("num_predict" => llm.max_tokens),
+    )
+    isempty(request.tools) || (body["tools"] = tool_schema(llm, request.tools))
+    request.thinking && _supports_thinking(llm) && (body["think"] = true)
+
+    handle_line = _line_handler(on_event)
 
     HTTP.open("POST", llm.base_url * "/api/chat",
               ["content-type" => "application/json",
