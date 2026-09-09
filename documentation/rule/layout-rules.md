@@ -25,9 +25,18 @@ Four policies say everything:
 `Fill === Relative(1.0)` is not a special case. Two `Fill` siblings share the
 offer equally, which is what a weight of one each means.
 
+**An authored size is `Fixed`.** `w.width`, `w.height`, `w.size`, a row count — a
+caller that wrote a number meant it, so it wins over the offer and the content
+does not raise it. A widget told to be 40 wide draws 40 and lets its content
+overflow. `0` means the widget authored nothing, and it is then `Content`.
+
 **No constant.** A widget with no size of its own, no offer and no content has no
 extent on that axis, and the answer is `0`. A number invented in a printer is a
-size nobody chose, in a place nobody looks.
+size nobody chose, in a place nobody looks. A **default** on the document
+constructor is the same constant wearing a keyword: it wins over every offer and
+nobody wrote it, so a widget that can measure its content has none. A widget that
+cannot — a progress bar, a slider, a skeleton, a highlight, an avatar — keeps its
+number, because there the number **is** the content.
 
 **A style parameter is not a constant.** A checkbox's 18-pixel box, a switch's
 44×24 track, a progress bar's 8-pixel thickness and a slider's 24-pixel height are
@@ -65,6 +74,13 @@ LayoutConstraint(card; height = Fixed(30))     # min = preferred = max = 30
 A layout carries a **default** for its children — `child_width`, `child_height` —
 and a bare child uses it. A wrapper is the same vocabulary written explicitly for
 the one child that differs.
+
+Both defaults are read on **both** axes: the one the layout divides, and the one
+it does not. On the cross axis a weight takes the offer, a declared preferred
+extent takes that number, and anything else is `Content` — the offer is withheld
+and the child sizes to what it draws. A bare child has weight `0`, so `Content` is
+what a stack gives unless it says otherwise, and a badge in a column stays
+badge-shaped.
 
 ```julia
 VerticalLayout(turns; gap = 6, child_width = Fill, child_height = Content)

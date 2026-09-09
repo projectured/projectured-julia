@@ -212,13 +212,11 @@ Each step keeps the images green before the next begins.
    passed four — `MarkdownToLayout`, `CollectionToLayout`, `RstToLayout` twice,
    and the conversation. `conversation_widget` stopped drawing, the comparison
    said `GONE`, and the `.failed` file named the arity.
-5. **Every widget resolves through `_resolve_size`** — and the rest of this is
-   **not mechanical**, which is the finding. `_resolve_width` treats an authored
-   width as a *minimum* and lets an offer win; step 5a made the two viewports do
-   the opposite, so an authored size wins there. Both are defensible and the
-   codebase now does both. What `w.width` on a `WidgetCard` *means* — a fixed size
-   or a floor — is a decision, not a refactor, and the field name should say which.
-   Left for a person.
+5. **Every widget resolves through `_resolve_size`** — and the rest of this was
+   **not mechanical**, which was the finding. `_resolve_width` treated an authored
+   width as a *minimum* and let an offer win; step 5a made the two viewports do the
+   opposite. Both are defensible and the codebase did both. What `w.width` *means*
+   was a decision, not a refactor, and a person made it: it is a fixed size.
 
 5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
    collapse into it. Split into reviewable pieces, because this touches 40
@@ -258,7 +256,61 @@ Each step keeps the images green before the next begins.
      pane draws `200x90` against an offer of the whole column, and the pane with
      no size fills the column. That is both branches of 5a and the width half of
      5b, visible. The example set is **40** now, and the baseline holds it.
-   - **5c** — pattern A and C resolve through the rule.
+   - **What `w.width` means — DECIDED and DONE.** It is `Fixed`. A caller that
+     wrote a number meant it, so it wins over the offer, and the content does not
+     raise it. Twelve pattern-B widgets treated it as a floor the offer overrode,
+     so a caller who wrote `220` got whatever the parent had.
+
+     **This exposed the constant the survey missed.** Eight document constructors
+     carried a **default** width — Card 320, Alert 360, Accordion 360, Select 220,
+     Option 220, SpinBox 120, List 220, Textarea 320. A default that wins over
+     every offer is the constant §1 forbids, wearing a keyword: nobody wrote it,
+     and it cannot be told from a size somebody chose. Those are `0` now.
+     Progress, Slider, Skeleton, Highlight and Avatar keep theirs, because they
+     have no content to measure and there the number **is** the content.
+
+     Two pictures moved and both are right. In `widget` the select, slider and
+     textarea are `220`, `260` and `340` — exactly what the example authored and
+     what was ignored, and the select's chevron is no longer pushed off its own
+     box. In `conversation_widget` the cards are their content's width instead of
+     at least `320`. Card, alert and accordion are byte-identical again once the
+     defaults are gone.
+   - **5c — pattern A and C resolve through the rule — DONE.**
+
+     **Pattern C first** — Button, Separator, Skeleton, Highlight each compared an
+     authored size against their content by hand, and the button's field was
+     named `minimum_size`. All 40 images unchanged: every example authors a size
+     larger than its content, so `max` and `Fixed` agree there.
+
+     **Then the prerequisite the plan did not name.** `child_width` and
+     `child_height` were read on the main axis only. On the cross axis a stack
+     passed its own offer to every child, so `Content` could not be said there at
+     all — and pattern A filling would have stretched every badge in every column.
+     `_cross_context` is the same rule on the other axis: a weight takes the
+     offer, a declared preferred extent takes that number, anything else is
+     `Content` and the offer is withheld. A bare child has weight `0`, so
+     `Content` is the default and nothing had to be declared to get it.
+
+     `widget_offered` says `child_width = Fill` on both columns now. It was the
+     one example living off the pass-through — with the two words written down,
+     all 40 images are identical to before the change.
+
+     **Then pattern A** — Label, Badge, Toggle, MenuItem, RadioGroup, and
+     `WidgetText` in both its branches. All 40 images unchanged, which is the
+     cross-axis policy working. Measured where the examples do not reach, the
+     same badge column under an offer of `500`:
+
+     ```
+     bare column        115 wide
+     child_width=Fill   500 wide
+     ```
+
+     **Three printers are left, each for its own reason.** `WidgetToggleGroup`'s
+     width is the sum of its segments, so filling means distributing the slack
+     among them with `allocate_axis`. `WidgetTable` and `WidgetTree` build their
+     canvas from a column geometry, which has to fill before the canvas can. None
+     of the three is a deviation from the rule — each is a container whose
+     children have to share what it fills.
 6. **Delete the five constants — BLOCKED, and the block is the finding.**
    Tried, reverted. `widget_offered` changed by 26.7 % and the change was a
    regression: **the scroll pane with no authored size vanished.**
