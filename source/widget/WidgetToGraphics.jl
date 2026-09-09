@@ -715,18 +715,29 @@ function _resolve_overlay(ctx, axis::Symbol, authored::Int, content::Int)
     avail === nothing ? base : min(base, max(0, Int(avail[])))
 end
 
-function _resolve_size(ctx, axis::Symbol, intrinsic::Int, content_min::Int=0)
+# A widget's extent on one axis. `authored` is the size the widget was given —
+# `w.width`, `w.height`, a row count — and `content` is what it drew.
+#
+# An authored size is `Fixed`: a caller that wrote a number meant it, and an offer
+# that overrode it would take that away. `0` means the widget authored nothing,
+# and it is then `Content`: it fills an offer that is present and is its content
+# when there is none.
+#
+# The content is a floor under the offer, never under an authored size. A widget
+# told to be 40 wide draws 40 and lets its content overflow, because that is what
+# being told a size means.
+function _resolve_size(ctx, axis::Symbol, authored::Int, content::Int=0)
+    authored > 0 && return authored
     avail = ctx === nothing ? nothing :
             axis === :x ? ctx.available_width : ctx.available_height
-    base = avail !== nothing ? max(0, Int(avail[])) : intrinsic
-    max(base, content_min)
+    avail === nothing ? content : max(0, Int(avail[]), content)
 end
 
-_resolve_width(ctx, intrinsic::Int, content_min::Int=0) =
-    _resolve_size(ctx, :x, intrinsic, content_min)
+_resolve_width(ctx, authored::Int, content::Int=0) =
+    _resolve_size(ctx, :x, authored, content)
 
-_resolve_height(ctx, intrinsic::Int, content_min::Int=0) =
-    _resolve_size(ctx, :y, intrinsic, content_min)
+_resolve_height(ctx, authored::Int, content::Int=0) =
+    _resolve_size(ctx, :y, authored, content)
 
 # ── Canvas construction helper ─────────────────────────────────────────────
 
@@ -3703,8 +3714,8 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
             _push_text!(labels, p.text.font, s, x, coy, p.text.color)
             x += tw + gap; text_h = max(text_h, th)
         end
-        width  = _resolve_width(ctx, x, x)
-        height = _resolve_height(ctx, text_h + 2coy, text_h + 2coy)
+        width  = _resolve_width(ctx, 0, x)
+        height = _resolve_height(ctx, 0, text_h + 2coy)
         elements = Any[]
         _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
         append!(elements, labels)
@@ -3941,7 +3952,7 @@ function _card_build(p, w, ctx, tim, cim)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
     card_height = fixed_height > 0 ? fixed_height :
-                  _resolve_height(ctx, y + padding, y + padding)
+                  _resolve_height(ctx, 0, y + padding)
     # Card surface drawn first (behind content).
     surface = Any[]
     _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,
@@ -4503,7 +4514,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
-        alert_height = _resolve_height(ctx, y + padding, y + padding)
+        alert_height = _resolve_height(ctx, 0, y + padding)
         surface = Any[]
         _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
                      border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
@@ -5239,7 +5250,8 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         lines = split(string(w.content), '\n')
         _, line_height = _text_size(p.measure, p.text.font, "M")
         row_count = max(Int(w.rows), length(lines))
-        area_height = _resolve_height(ctx, row_count * line_height + 2padding_y,
+        authored_height = Int(w.rows) > 0 ? row_count * line_height + 2padding_y : 0
+        area_height = _resolve_height(ctx, authored_height,
                                       length(lines) * line_height + 2padding_y)
         longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
         area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)

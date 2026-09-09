@@ -184,7 +184,7 @@ end
 # ── WidgetSpinBox ────────────────────────────────────────────────────────────
 
 """
-    WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=120,
+    WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=0,
                   validator=numeric_validator(), <enabled/visible>)
 
 A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that add
@@ -204,7 +204,7 @@ A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that ad
 end
 
 function WidgetSpinBox(position::Point2D, value;
-                       min=nothing, max=nothing, step=1, width::Integer=120,
+                       min=nothing, max=nothing, step=1, width::Integer=0,
                        validator=numeric_validator(),
                        visible::Bool=true, enabled::Bool=true)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
@@ -214,7 +214,7 @@ end
 # ── WidgetList ───────────────────────────────────────────────────────────────
 
 """
-    WidgetList(position, items; selected=0, width=220, <enabled/visible>)
+    WidgetList(position, items; selected=0, width=0, <enabled/visible>)
 
 A single-column selectable list (Qt's `QListWidget`): `items` are stringified
 rows; the selected row draws a selection band and the row under the pointer a
@@ -274,7 +274,7 @@ nothing is selected. The inverse of the `selected` construction keyword.
 widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, "items")
 
 function WidgetList(position::Point2D, items::Vector;
-                    selected::Integer=0, width::Integer=220,
+                    selected::Integer=0, width::Integer=0,
                     visible::Bool=true, enabled::Bool=true)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
                Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0),
@@ -1377,7 +1377,7 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
-    WidgetCard(position; title, description, content, footer, width=320, collapsed=false)
+    WidgetCard(position; title, description, content, footer, width=0, collapsed=false)
 
 A rounded, bordered surface with an optional title / description header, a
 content body and an optional footer, stacked vertically.
@@ -1401,7 +1401,7 @@ Cards left at the default `collapsed=false` render exactly as before.
 end
 
 """
-    WidgetCard(position; title, description, content, footer, width=320, height=0, ...)
+    WidgetCard(position; title, description, content, footer, width=0, height=0, ...)
 
 `height = 0` (the default) is **content-tall**: the card wraps whatever its
 content measures, and its content is laid out with no height allocation. A
@@ -1414,7 +1414,7 @@ scroll *inside*; in the content-tall mode there is nothing to scroll against, so
 tall content simply extends past the card.
 """
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
-           footer=nothing, width::Integer=320, height::Integer=0,
+           footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
@@ -1560,7 +1560,7 @@ WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
 """
-    WidgetAlert(position, title, description; variant=:default, width=360)
+    WidgetAlert(position, title, description; variant=:default, width=0)
 
 A rounded, bordered callout with a bold title and muted description.
 `variant` ∈ `:default | :destructive`.
@@ -1574,7 +1574,7 @@ A rounded, bordered callout with a bold title and muted description.
     visible::Bool
 end
 WidgetAlert(position::Point2D, title, description=nothing;
-            variant::Symbol=:default, width::Integer=360, visible::Bool=true) =
+            variant::Symbol=:default, width::Integer=0, visible::Bool=true) =
     WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(variant),
                 Cell(Int(width)), Cell(visible), Cell(nothing))
 
@@ -1686,7 +1686,7 @@ end
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
 """
-    WidgetSelect(position, value; options=[], width=220)
+    WidgetSelect(position, value; options=[], width=0)
 
 A select / combobox: an input-like box showing `value` with a trailing chevron.
 `options` lists the selectable values; clicking the box opens a dropdown of those
@@ -1702,7 +1702,7 @@ popup. With no options the box is inert (renders the closed state only).
     visible::Bool
     enabled::Bool
 end
-WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=220,
+WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=0,
              visible::Bool=true, enabled::Bool=true) =
     WidgetSelect(Cell(position), Cell(value),
                  CellVector(Cell[o isa Cell ? o : Cell(o) for o in options]),
@@ -1711,7 +1711,7 @@ WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=220
 # ── WidgetOption ──────────────────────────────────────────────────────────────
 
 """
-    WidgetOption(position, select, value; label=string(value), popup_id=:widget_popup, width=220)
+    WidgetOption(position, select, value; label=string(value), popup_id=:widget_popup, width=0)
 
 One row of an open `WidgetSelect` dropdown. Holds the target `select` document (an
 identity pointer, so its click writes straight back to that object regardless of
@@ -1731,14 +1731,14 @@ to `evaluate_operation`.
     visible::Bool
 end
 WidgetOption(position::Point2D, select, value; label=string(value),
-             popup_id::Symbol=:widget_popup, width::Integer=220, visible::Bool=true) =
+             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true) =
     WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
                  Cell(popup_id), Cell(Int(width)), Cell(visible), Cell(nothing))
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
 """
-    WidgetTextarea(position, content; width=320, rows=4)
+    WidgetTextarea(position, content; width=0, rows=4)
 
 A multi-line text surface. `content` is a string (newlines split into rows).
 """
@@ -1750,7 +1750,7 @@ A multi-line text surface. `content` is a string (newlines split into rows).
     visible::Bool
     enabled::Bool
 end
-WidgetTextarea(position::Point2D, content; width::Integer=320, rows::Integer=4, visible::Bool=true, enabled::Bool=true) =
+WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(enabled), Cell(nothing))
 
@@ -1770,7 +1770,7 @@ _as_accordion_item(it::WidgetAccordionItem) = it
 _as_accordion_item(it::Tuple) = WidgetAccordionItem(it[1], it[2])
 
 """
-    WidgetAccordion(position, items; expanded=1, width=360)
+    WidgetAccordion(position, items; expanded=1, width=0)
 
 A vertical accordion. `items` is a `Vector` of `(title, body)` tuples (each wrapped
 in a [`WidgetAccordionItem`](@ref)); `expanded` is the 1-based index of the open
@@ -1783,7 +1783,7 @@ item (0 = all collapsed).
     width::Int
     visible::Bool
 end
-WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=360, visible::Bool=true) =
+WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(nothing))
 
