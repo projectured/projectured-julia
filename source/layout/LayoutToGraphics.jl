@@ -17,7 +17,7 @@ downstream position/extent cells, no re-projection of the layout.
 """
 module LayoutToGraphicsModule
 
-import ..CellModule: Cell, ComputedCell
+import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..DocumentApiModule: Document
@@ -619,11 +619,58 @@ function _vl_build(recursion, doc, ctx)
     # stack-overflows when the reactive cell evaluates. Keeping only the cross
     # axis is cycle-free because `outer_w` (below) reads child widths while each
     # child reads the *parent-supplied* `available_width` cell, never `outer_w`.
+    # A child that carries a weight on the main axis is asking for a share of this
+    # layout's height. It can have one only when this layout was offered a height
+    # itself — a share of a sum of its own children is the reactive cycle the
+    # comment above describes. So the two conditions together decide, and nothing
+    # has to be declared on the layout.
+    avail_h  = ctx.available_height
+    default  = getfield(doc, :child_height)[]
+    weighted = [layout_weight(doc.children[i], :y, default) > 0 for i in 1:n]
+    filling  = avail_h !== nothing && any(weighted)
+
+    # The allocation is forward-declared: a weighted child is offered its slot
+    # before the slots can be computed, because computing them reads the
+    # unweighted children's own heights. `set_cell_function!` installs the real
+    # thunk below and invalidates the slot cells — the order `_split_build` uses.
+    #
+    # Only a weighted child is offered a slot. Every other child keeps the
+    # withheld axis, so its height does not depend on the allocation and reading
+    # it to compute the allocation closes no loop.
+    alloc_cell = Cell(nothing)
+    slot_h = Cell[]
+    if filling
+        for i in 1:n
+            push!(slot_h, ComputedCell(() -> begin
+                v = alloc_cell[]; v === nothing ? 0 : Int32(v[i])
+            end))
+        end
+    end
+
     child_iomaps = Any[]
     for i in 1:n
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = withhold_offer(cctx, :y)
+        cctx = (filling && weighted[i]) ? with_available_size(cctx; height = slot_h[i]) :
+                                          withhold_offer(cctx, :y)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+    end
+
+    if filling
+        set_cell_function!(alloc_cell, function ()
+            mins  = Vector{Int}(undef, n); maxs  = Vector{Int}(undef, n)
+            prefs = Vector{Int}(undef, n); wts   = Vector{Float64}(undef, n)
+            for i in 1:n
+                child = doc.children[i]
+                # A weighted child's preference comes from its constraint, never
+                # from what it drew: what it drew came from the slot.
+                intrinsic = weighted[i] ? 0 : _child_h(child_iomaps[i])
+                mins[i]   = layout_min(child, :y, intrinsic, default)
+                maxs[i]   = layout_max(child, :y, intrinsic, default)
+                prefs[i]  = layout_preferred(child, :y, intrinsic, default)
+                wts[i]    = layout_weight(child, :y, default)
+            end
+            allocate_axis(Int(avail_h[]), mins, maxs, prefs, wts, gap_cell[], n)
+        end)
     end
 
     outer_w = ComputedCell(function ()
@@ -635,7 +682,8 @@ function _vl_build(recursion, doc, ctx)
         w
     end)
 
-    outer_h = ComputedCell(function ()
+    # Distributing an offer means occupying it.
+    outer_h = filling ? ComputedCell(() -> Int(avail_h[])) : ComputedCell(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0

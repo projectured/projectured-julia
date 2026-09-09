@@ -268,13 +268,42 @@ Each step keeps the images green before the next begins.
 
    That is a new step, and it comes before this one:
 
-   **6a — a stack fills its main axis when one is offered.** `VerticalLayout` and
-   `HorizontalLayout` take a main-axis policy. `Content` (today's behaviour, and
-   the default) sums the children and withholds the offer. `Fill` takes the offer,
-   allocates it with `allocate_axis`, and passes each child its slot — which is
-   what `WidgetSplitPane` already does.
+   **6a — a stack distributes its main axis when a child asks — `VerticalLayout`
+   DONE.** No policy is declared on the layout. The condition is derived:
 
-   **6b — then the constants can go.**
+   ```
+   filling = ctx.available_height !== nothing && any child carries a weight on :y
+   ```
+
+   A child asking for a share can have one only when the layout was offered a
+   height itself; a share of a sum of its own children is the cycle. Both
+   conditions together decide, so nothing has to be written on the layout.
+
+   **Only a weighted child is offered a slot.** Every other child keeps the
+   withheld axis, so its height does not depend on the allocation, and reading it
+   to compute the allocation closes no loop. That is the same trick `_split_build`
+   uses, arrived at from the other side.
+
+   Measured on the case that started this:
+
+   ```julia
+   VerticalLayout(Any[
+       WidgetLabel(Point2D(0, 0), "header"),
+       LayoutConstraint(WidgetScrollPane(...); height = Fill),
+   ]; gap = 6)                                     # the layout declares nothing
+   ```
+
+   ```
+   window      : 300 x 400
+   scroll pane : 374 px tall     (was 300, from _SCROLL_FALLBACK_HEIGHT)
+   unused below:   0 px          (was 74)
+   ```
+
+   **All 40 images unchanged**, because nothing in them carries a weight yet.
+
+   **6b** — `HorizontalLayout`, the mirror of the same.
+
+   **6c — then the constants can go.**
 7. **The eight zero-extent widgets report a real extent** — each is a container,
    so its extent is the bounds of what it drew. The largest step; it moves alone.
 
