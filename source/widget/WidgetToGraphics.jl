@@ -2359,9 +2359,13 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             push!(slot_main, ComputedCell(() -> begin v = alloc_cell[]; v === nothing ? 0 : Int(v[i]) end))
         end
     else
-        for i in 1:n
-            elem = valid_elems[i]
-            push!(slot_main, ComputedCell(() -> _split_intrinsic(elem, sizes, i, main_axis)))
+        # No main-axis offer: there is nothing to divide, so each slot is the
+        # child's own extent. A declared size — `sizes[i]` or a `LayoutConstraint`
+        # — is that extent; otherwise it is what the child draws, which is only
+        # readable after the recursion, so these are forward-declared here and
+        # filled in below, as `alloc_cell` is in the offered case.
+        for _ in 1:n
+            push!(slot_main, Cell(0))
         end
     end
 
@@ -2373,11 +2377,28 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         elem  = valid_elems[i]
         inner = _split_inner(elem)
         cell  = slot_main[i]
-        cctx  = main_axis === :x ?
-                with_available_size(ctx; width=cell) :
-                with_available_size(ctx; height=cell)
+        # Offer the slot only when there is one. Offering an unallocated slot
+        # tells the child it has no room at all, and it draws nothing; withholding
+        # the axis lets the child size itself, which is what the slot then is.
+        cctx  = avail_main === nothing ? withhold_offer(ctx, main_axis) :
+                main_axis === :x ? with_available_size(ctx; width=cell) :
+                                   with_available_size(ctx; height=cell)
         cim = print_child(recursion, inner, cctx)
         push!(inner_iomaps, cim)
+    end
+
+    # The unoffered slots, now that the children have drawn.
+    if avail_main === nothing
+        for i in 1:n
+            declared = _split_intrinsic(valid_elems[i], sizes, i, main_axis)
+            cim_local = inner_iomaps[i]
+            set_cell_function!(slot_main[i], function ()
+                declared > 0 && return declared
+                out = cim_local.output
+                out isa GraphicsCanvas || return 0
+                Int(main_axis === :x ? out.w[] : out.h[])
+            end)
+        end
     end
 
     # Build the main-axis allocation cell now that intrinsic widths are
