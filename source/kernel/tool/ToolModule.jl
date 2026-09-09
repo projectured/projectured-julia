@@ -29,7 +29,7 @@ process never share a tool registry or evaluate into each other's namespace.
 module ToolModule
 
 export Tool, Resource, ToolSet,
-       register_tool!, register_tools!, list_tools, find_tool, call_tool,
+       register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, register_resources!, list_resources, find_resource,
        read_resource,
        register_default_tools!,

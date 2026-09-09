@@ -153,7 +153,13 @@ A `ToolSet` declares its API: the modules whose names the model may call.
 
 ```julia
 editor.tools = ToolSet(; api = [CampaignAgent])
+declare_api!(editor.tools, [CampaignAgent])   # or on a set that already exists
 ```
+
+`declare_api!` is for the second case, where the editor made the `ToolSet` and a
+caller says afterwards what it is for. It drops the namespace the code runs in,
+because that namespace is built from the declaration on first use and kept: a
+declaration that arrived after it was built would otherwise do nothing.
 
 **One list decides two things**, and that is the point of it: what
 `execute_julia_code` can resolve, and what `search_api`,

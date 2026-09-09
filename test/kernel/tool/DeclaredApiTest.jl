@@ -130,6 +130,18 @@ function test_declared_api()
         @test occursin("Projectured", wide.description)
     end
 
+    # A declaration that arrives after the namespace was built must still take
+    # effect, so it drops the namespace.
+    @testset "declaring after the first evaluation still takes effect" begin
+        set = ToolSet()
+        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        declare_api!(set, Module[ToyApi])
+        @test occursin("UndefVarError", execute_julia_code(set, nothing, "string(Cell)"))
+        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        declare_api!(set, Module[])
+        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+    end
+
     @testset "a docstring is the interface, and it is readable" begin
         set = ToolSet(; api = Module[ToyApi])
         doc = read_function_documentation("ToyApi", "toy_verb"; modules = set.api)

@@ -3,6 +3,27 @@
 # ambient registry to fall back on.
 
 """
+    declare_api!(set, modules) -> set
+
+Say what a model may write on this `ToolSet`: the modules whose exported names
+`execute_julia_code` can resolve, and the modules the documentation tools search.
+
+Call it before the first evaluation. The namespace the code runs in is built on
+first use and then kept, so this drops it — a declaration that arrived after the
+namespace was built would otherwise be a declaration that did nothing.
+
+Naming no module restores the whole surface.
+"""
+function declare_api!(set::ToolSet, modules)
+    set.api = collect(Module, modules)
+    # The namespace is built from the declaration, so a new declaration needs a
+    # new namespace. What the model had assigned in it goes with it, which is
+    # right: those bindings were made against names that may no longer resolve.
+    set.scratch = nothing
+    set
+end
+
+"""
     register_tool!(set, tool) -> tool
 
 Add `tool` to `set`, replacing any tool already registered under the same name.
