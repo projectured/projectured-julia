@@ -548,12 +548,24 @@ function _hl_build(recursion, doc, ctx)
         end
     end
 
+
+    # The CROSS axis carries a policy too, and it is the same one. A child that
+    # carries a weight there asks to fill this layout's cross extent, and gets the
+    # offer. A child that declares a preferred cross extent gets that number. A
+    # child that declares nothing is `Content`, and the offer is withheld so the
+    # child sizes to what it draws — a badge in a column stays badge-shaped.
+    # This is what makes `child_width`/`child_height` mean something on the axis
+    # the layout does not divide.
+    cross_default = getfield(doc, :child_height)[]
+
     child_iomaps = Any[]
     for i in 1:n
+        child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = (filling && weighted[i]) ? with_available_size(cctx; width = slot_w[i]) :
                                           withhold_offer(cctx, :x)
-        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+        cctx = _cross_context(cctx, child, :y, cross_default)
+        push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
     if filling
@@ -644,6 +656,20 @@ end
 # changes (a part is added/swapped) — that is what makes structure reactive. The
 # per-child size/position cells it constructs stay lazy, so a child merely
 # *growing* recomputes those cells without rebuilding the stack.
+# The context a stack hands a child on the axis it does NOT divide.
+#
+# `Fill` and `Relative` take the offer, a declared preferred extent takes that
+# number, and everything else is `Content`: the offer is withheld and the child
+# sizes to what it draws. `axis` is the cross axis, and `default` is the layout's
+# own `child_width`/`child_height` for that axis.
+function _cross_context(cctx, child, axis::Symbol, default)
+    layout_weight(child, axis, default) > 0 && return cctx
+    pref = layout_preferred(child, axis, 0, default)
+    pref > 0 && return with_available_size(cctx;
+        (axis === :x ? (; width = Cell(Int32(pref))) : (; height = Cell(Int32(pref))))...)
+    withhold_offer(cctx, axis)
+end
+
 function _vl_build(recursion, doc, ctx)
     gap_cell   = getfield(doc, :gap)
     align_cell = getfield(doc, :horizontal_align)
@@ -685,12 +711,24 @@ function _vl_build(recursion, doc, ctx)
         end
     end
 
+
+    # The CROSS axis carries a policy too, and it is the same one. A child that
+    # carries a weight there asks to fill this layout's cross extent, and gets the
+    # offer. A child that declares a preferred cross extent gets that number. A
+    # child that declares nothing is `Content`, and the offer is withheld so the
+    # child sizes to what it draws — a badge in a column stays badge-shaped.
+    # This is what makes `child_width`/`child_height` mean something on the axis
+    # the layout does not divide.
+    cross_default = getfield(doc, :child_width)[]
+
     child_iomaps = Any[]
     for i in 1:n
+        child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = (filling && weighted[i]) ? with_available_size(cctx; height = slot_h[i]) :
                                           withhold_offer(cctx, :y)
-        push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+        cctx = _cross_context(cctx, child, :x, cross_default)
+        push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
     if filling

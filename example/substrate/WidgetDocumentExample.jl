@@ -306,7 +306,7 @@ function make_widget_offered_document_example(; width=760, height=420)
     filling = VerticalLayout(Any[
         WidgetAlert(Point2D(0, 0), "Filling", "This alert takes the width it is offered."),
         WidgetCard(Point2D(0, 0); title="Card", content="And so does this card."),
-    ]; gap=12)
+    ]; gap=12, child_width=Fill)
     # Filled, so the picture shows each pane's extent: a fixture that guards a
     # size has to draw the size it guards.
     holding = VerticalLayout(Any[
@@ -319,7 +319,7 @@ function make_widget_offered_document_example(; width=760, height=420)
         LayoutConstraint(WidgetScrollPane(WidgetLabel(Point2D(4, 4), "asks for the rest");
                                           content_fill_color=StyleColor(0.98, 0.92, 0.86, 1.0));
                          height=Fill),
-    ]; gap=12)
+    ]; gap=12, child_width=Fill)
     split = WidgetSplitPane(:horizontal, Any[filling, holding];
                             sizes=[div(width, 2), div(width, 2)])
     WidgetShell(split; size=Point2D(width, height))
