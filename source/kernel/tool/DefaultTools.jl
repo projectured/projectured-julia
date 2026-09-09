@@ -14,31 +14,59 @@ its own scratch namespace and last value without a registry global
 (PAR-PER-EDITOR-STATE) and without threading a context argument through the
 `(target, args)` handler signature every other tool is happy with.
 """
+# What the model is told about the code it may write. It follows the declaration,
+# because a description that names a surface the `ToolSet` does not have is an
+# instruction to waste a round.
+const _WHOLE_SURFACE_DESCRIPTION =
+    "Execute arbitrary Julia code in the editor process. " *
+    "The variable `editor` is bound to the running Editor instance " *
+    "which holds `editor.document` and `editor.projection`.\n\n" *
+    "Projectured is already imported with `using Projectured` before executing the code, " *
+    "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
+    "it is already included automatically.\n\n" *
+    "Returns the repr of the last expression's value (if any), followed by any " *
+    "captured stdout/stderr. There is no need to call print().\n\n" *
+    "MANDATORY — read these resources BEFORE writing any code:\n" *
+    "1. resource://guides\n" *
+    "2. resource://modules\n" *
+    "3. resource://guide/getting-started\n" *
+    "4. resource://guide/editor/reference\n" *
+    "5. resource://guide/editor/selection\n\n" *
+    "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
+    "- Call the `search_api` tool to find the right module, struct, or function " *
+    "(it ranks by name and docstring and returns how to read full docs).\n" *
+    "- Call the `search_documentation` tool to find the relevant guide section.\n" *
+    "- Read full text with the `read_resource` tool; read a function's full docs with " *
+    "read_function_documentation(\"Module\", \"name\") (callable directly here).\n\n" *
+    "NEVER guess names or signatures — search for them.\n" *
+    "NEVER call print(). NEVER include code comments."
+
+# The modules a `ToolSet` publishes as resources: the ones it declared, or every
+# submodule of the project when it declared none.
+_api_modules(set::ToolSet) =
+    isempty(set.api) ? _submodules(_projectured()) :
+                       [(nameof(m), m) for m in set.api]
+
+function _execute_julia_code_description(set::ToolSet)
+    isempty(set.api) && return _WHOLE_SURFACE_DESCRIPTION
+    named = join((String(nameof(m)) for m in set.api), ", ")
+    "Execute Julia code in the editor process. " *
+    "The variable `editor` is bound to the running editor.\n\n" *
+    "The functions of " * named * " are in scope, and they are the whole of what " *
+    "you may call. Anything else is an UndefVarError.\n\n" *
+    "FIND THEM BEFORE YOU WRITE ANY CODE:\n" *
+    "- `search_api` lists them, with one line of description each.\n" *
+    "- `read_function_documentation(\"Module\", \"name\")` reads one in full and says " *
+    "what its arguments are.\n\n" *
+    "Returns the repr of the last expression's value (if any), followed by any " *
+    "captured stdout/stderr. There is no need to call print().\n\n" *
+    "NEVER guess a name — search for it. NEVER call print(). NEVER write comments."
+end
+
 function register_default_tools!(set::ToolSet)
     register_tool!(set, Tool(
         "execute_julia_code",
-        "Execute arbitrary Julia code in the editor process. " *
-        "The variable `editor` is bound to the running Editor instance " *
-        "which holds `editor.document` and `editor.projection`.\n\n" *
-        "Projectured is already imported with `using Projectured` before executing the code, " *
-        "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
-        "it is already included automatically.\n\n" *
-        "Returns the repr of the last expression's value (if any), followed by any " *
-        "captured stdout/stderr. There is no need to call print().\n\n" *
-        "MANDATORY — read these resources BEFORE writing any code:\n" *
-        "1. resource://guides\n" *
-        "2. resource://modules\n" *
-        "3. resource://guide/getting-started\n" *
-        "4. resource://guide/editor/reference\n" *
-        "5. resource://guide/editor/selection\n\n" *
-        "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
-        "- Call the `search_api` tool to find the right module, struct, or function " *
-        "(it ranks by name and docstring and returns how to read full docs).\n" *
-        "- Call the `search_documentation` tool to find the relevant guide section.\n" *
-        "- Read full text with the `read_resource` tool; read a function's full docs with " *
-        "read_function_documentation(\"Module\", \"name\") (callable directly here).\n\n" *
-        "NEVER guess names or signatures — search for them.\n" *
-        "NEVER call print(). NEVER include code comments.",
+        _execute_julia_code_description(set),
         NamedTuple[
             (name = "code", type = "string",
              description = "Julia source code to evaluate", required = true),
@@ -102,8 +130,9 @@ function register_default_tools!(set::ToolSet)
                 return "Invalid regex: $(sprint(showerror, e))"
             end
             search_api(q;
-                       kind  = _arg_kind(get(args, "kind", nothing)),
-                       limit = _arg_int(get(args, "limit", 8), 8))
+                       kind    = _arg_kind(get(args, "kind", nothing)),
+                       limit   = _arg_int(get(args, "limit", 8), 8),
+                       modules = set.api)
         end,
     ))
 
@@ -136,39 +165,46 @@ function register_default_tools!(set::ToolSet)
         (target, args) -> read_resource(set, String(get(args, "uri", ""))),
     ))
 
-    register_resource!(set, Resource(
-        "resource://guides",
-        "Documentation Guides",
-        "List all available documentation with a one-paragraph description for each guide. " *
-        "Documentation files are markdown files containing tips and tricks for using ProjecturEd.",
-        list_guides,
-    ))
-    register_resource!(set, Resource(
-        "resource://modules",
-        "ProjecturEd Modules",
-        "List all modules in the ProjecturEd codebase with one-paragraph documentation " *
-        "for each module and a list of top-level types (structs).",
-        list_modules,
-    ))
-
-    for (guide_name, _) in _all_guides()
-        let gd_name = guide_name
-            register_resource!(set, Resource(
-                "resource://guide/$gd_name",
-                "Guide: $gd_name",
-                "Full content of the $gd_name documentation guide.",
-                () -> read_guide(gd_name),
-            ))
+    # The guides describe the whole editor, so a `ToolSet` that declares an API does
+    # not offer them: they would send the model to read about a surface it cannot
+    # reach. Its own modules are its documentation, and `search_api` finds them.
+    if isempty(set.api)
+        register_resource!(set, Resource(
+            "resource://guides",
+            "Documentation Guides",
+            "List all available documentation with a one-paragraph description for each guide. " *
+            "Documentation files are markdown files containing tips and tricks for using ProjecturEd.",
+            list_guides,
+        ))
+        for (guide_name, _) in _all_guides()
+            let gd_name = guide_name
+                register_resource!(set, Resource(
+                    "resource://guide/$gd_name",
+                    "Guide: $gd_name",
+                    "Full content of the $gd_name documentation guide.",
+                    () -> read_guide(gd_name),
+                ))
+            end
         end
     end
 
-    for (mod_sym, mod) in _submodules(_projectured())
+    let declared = set.api
+        register_resource!(set, Resource(
+            "resource://modules",
+            "Modules",
+            "List the modules you may call, with one-paragraph documentation for each " *
+            "and a list of its types.",
+            () -> list_modules(; modules = declared),
+        ))
+    end
+
+    for (mod_sym, mod) in _api_modules(set)
         let mn = String(mod_sym)
             register_resource!(set, Resource(
                 "resource://module/$mn",
                 "Module: $mn",
                 "Full documentation for the $mn module.",
-                () -> read_module_documentation(mn),
+                () -> read_module_documentation(mn; modules = set.api),
             ))
         end
         for (cls_sym, _) in _struct_types(mod)
@@ -177,7 +213,7 @@ function register_default_tools!(set::ToolSet)
                     "resource://type/$mn/$cn",
                     "Type: $mn.$cn",
                     "Full documentation for the $cn type in module $mn.",
-                    () -> read_type_documentation(mn, cn),
+                    () -> read_type_documentation(mn, cn; modules = set.api),
                 ))
             end
         end

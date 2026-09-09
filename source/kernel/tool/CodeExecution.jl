@@ -8,7 +8,11 @@
 # each of their submodules — the same names then resolve. The set is read at
 # run time rather than written down, because the packages below the umbrella
 # are many and each test environment loads a different subset.
-function _scratch_sources()
+function _scratch_sources(set::ToolSet)
+    # A declared API is the whole of it. The modules a `ToolSet` names are the
+    # modules a model may write, and nothing else arrives — not the umbrella, and
+    # not a package that happens to be loaded.
+    isempty(set.api) || return copy(set.api)
     loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
     haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
     packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
@@ -49,18 +53,31 @@ end
 function _scratch_module(set::ToolSet)
     set.scratch === nothing || return set.scratch
     m = Module(:ToolScratch)
-    srcs = _scratch_sources()
+    srcs = _scratch_sources(set)
     # Bind each source under its own name, so qualified access still works.
     for src in srcs
         Core.eval(m, :(const $(nameof(src)) = $src))
     end
-    for src in srcs
-        _flat_reexport!(m, src, srcs)
+    if isempty(set.api)
+        for src in srcs
+            _flat_reexport!(m, src, srcs)
+        end
+        # `Projectured` names the umbrella when it is loaded, and the scratch module
+        # itself otherwise: after the re-export the scratch module holds the same
+        # flat namespace, so `Projectured.CellVector` resolves either way.
+        Core.eval(m, :(const Projectured = $(nameof(srcs[1]) === :Projectured ? srcs[1] : m)))
+    else
+        # A declared module is taken as it stands: its own exported names, and not
+        # the names of the submodules it reaches. A module that means to offer more
+        # exports more — which is what makes the list a decision a person writes
+        # down, rather than a consequence of what it happens to import.
+        for src in srcs
+            syms = [n for n in names(src) if n !== nameof(src) && isdefined(src, n)]
+            isempty(syms) && continue
+            Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(src)),
+                                           (Expr(:., n) for n in syms)...)))
+        end
     end
-    # `Projectured` names the umbrella when it is loaded, and the scratch module
-    # itself otherwise: after the re-export the scratch module holds the same
-    # flat namespace, so `Projectured.CellVector` resolves either way.
-    Core.eval(m, :(const Projectured = $(nameof(srcs[1]) === :Projectured ? srcs[1] : m)))
     set.scratch = m
 end
 

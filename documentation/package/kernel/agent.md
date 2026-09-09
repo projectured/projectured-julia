@@ -147,6 +147,43 @@ The last row is the one that fails silently. `run_turn!` runs a tool only when t
 turn ends in `:tool_use`, so an adapter that passes its provider's word through
 would show a tool call and never run it.
 
+### What a model may write
+
+A `ToolSet` declares its API: the modules whose names the model may call.
+
+```julia
+editor.tools = ToolSet(; api = [CampaignAgent])
+```
+
+**One list decides two things**, and that is the point of it: what
+`execute_julia_code` can resolve, and what `search_api`,
+`read_function_documentation` and `resource://modules` offer. A model that finds a
+function it cannot call wastes a round and learns to distrust the answer, so the
+two are never allowed to differ.
+
+Empty — the default — means the editor's whole surface: every loaded `Projectured`
+package, which is what the workbench and the MCP server want.
+
+**The list opens as much as it narrows.** The default surface is gathered by
+package name, so a module in a package not called `Projectured…` is unreachable
+until some `ToolSet` names it. A program that embeds this editor declares its own
+verbs that way, and gets both halves from one line.
+
+A declared module is taken as it stands: its **exported** names, and not the names
+of the submodules it reaches. A module that means to offer more exports more, so
+the list stays a decision a person wrote down rather than a consequence of what a
+module happens to import.
+
+The tool description follows the declaration too. With a list it names the modules
+and says that anything else is an `UndefVarError`; with none it keeps the wider
+text that sends a model to the guides.
+
+**This is a focus mechanism and not a security boundary.** `Base` and `Core` stay
+in scope, as in every Julia module, and code that means to reach `Main` can. What
+it buys is that a name outside the list fails in the round that used it, with an
+error the model reads and corrects, instead of the model choosing among thousands
+of names that mean nothing to its task.
+
 ## Layer 16 — `agent/`: the two directions
 
 ```

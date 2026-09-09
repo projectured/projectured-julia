@@ -41,7 +41,7 @@ Resource(uri, name, description, provider; mime_type::AbstractString = "text/mar
     Resource(String(uri), String(name), String(description), String(mime_type), provider)
 
 """
-    ToolSet()
+    ToolSet(; api = Module[])
 
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
@@ -52,6 +52,25 @@ still bound in the next — and `last_value` is that call's actual return value,
 which lets a caller embed a returned `Document` live instead of stringifying it.
 Two editors in one process each get their own, so neither can see the other's
 tools or evaluate into the other's namespace.
+
+`api` is **the whole of what a model may write**: the modules whose exported names
+`execute_julia_code` can resolve, and the modules the documentation tools search.
+The two are one list on purpose — a model that finds a function it cannot call
+wastes a round and learns to distrust the answer.
+
+Empty, the default, means the editor's whole surface: every loaded `Projectured`
+package, which is what the workbench and the MCP server want. A caller that names
+modules gets those and nothing else.
+
+Naming modules **opens** as much as it narrows. The default surface is gathered by
+package name, so a module outside the `Projectured` packages is unreachable until
+some `ToolSet` names it.
+
+This is a focus mechanism and **not a security boundary**. `Base` and `Core` stay
+in scope, as they do in every Julia module, and code that means to reach `Main`
+can. What it buys is that a name outside the list fails in the round that used it,
+with an error the model reads and corrects, instead of the model choosing among
+thousands of names that mean nothing to the task.
 """
 mutable struct ToolSet
     tools::Vector{Tool}
@@ -59,9 +78,11 @@ mutable struct ToolSet
     scratch::Union{Module,Nothing}
     last_value::Any
     observers::Vector{Any}
+    api::Vector{Module}
 end
 
-ToolSet() = ToolSet(Tool[], Resource[], nothing, nothing, Any[])
+ToolSet(; api::AbstractVector{Module} = Module[]) =
+    ToolSet(Tool[], Resource[], nothing, nothing, Any[], collect(Module, api))
 
 """
     observe_evaluations!(f, set) -> f

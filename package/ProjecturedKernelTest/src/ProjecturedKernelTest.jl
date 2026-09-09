@@ -72,6 +72,7 @@ include("../../../test/kernel/gesture/GestureRecognizerTest.jl")
 include("../../../test/kernel/binding/GestureBindingTest.jl")
 include("../../../test/kernel/backend/HeadlessBackendTest.jl")
 include("../../../test/kernel/agent/AgentSeamTest.jl")
+include("../../../test/kernel/tool/DeclaredApiTest.jl")
 
 # ── generic drivers (document, projection) — reused by every layer above ────
 include("../../../test/kernel/editor/PrinterTest.jl")

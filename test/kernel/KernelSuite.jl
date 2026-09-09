@@ -73,6 +73,7 @@ function test_kernel()
         test_editor_inbox()
         test_editor_frame_drain()
         test_agent_seam()
+        test_declared_api()
         test_construct_oracle()
     end
 end
@@ -86,6 +87,7 @@ export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, 
        test_reference_builder, test_reference_eval, test_reference_rules, test_rerooting,
        test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
+       test_declared_api,
        test_editor_inbox, test_editor_frame_drain
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
