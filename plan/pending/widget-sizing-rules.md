@@ -149,11 +149,21 @@ Each step keeps the images green before the next begins.
 
    `Fill === Relative(1.0)` falls out rather than being declared: two `Fill`
    siblings share the offer equally, which is what a weight of one each means.
-2. **`_resolve_size(ctx, axis, constraint, content)`** — the rule, once, both
-   axes. `_resolve_width` becomes a call to it with the old defaults, so no
-   picture moves.
-3. **The offer is derived.** A container offers per the rule above. The four
-   hand-written strips are deleted and replaced by their policy.
+2. **`_resolve_size(ctx, axis, intrinsic, content_min)` — DONE.** The rule,
+   once, both axes: the offer if there is one, else the authored value, never
+   under the content. `_resolve_width` and the new `_resolve_height` are calls to
+   it. **All 39 images unchanged.**
+3. **The offer is derived — DONE.** `withhold_offer(ctx, axis)` in
+   `PrinterContextModule` is the rule, written once: a container whose extent on
+   an axis comes **from** its children must not offer that extent back down, or a
+   child reads the container's own outer size and closes a reactive cycle. The
+   four hand-written copies now call it — `VerticalLayout` (`:y`),
+   `HorizontalLayout` (`:x`), `WidgetCard` (`:y`), `WidgetToolbar` (`:x`).
+   **All 39 images unchanged.**
+
+   The scroll pane is untouched, and that is the point: its own extent does not
+   come from its content, so it offers on **both** axes. Nothing anywhere knows
+   which axis scrolls.
 4. **A default constraint on each layout** — `VerticalLayout`,
    `HorizontalLayout`, `GridLayout`, `FlowLayout`, `StackLayout` — and a bare
    child means "use it".

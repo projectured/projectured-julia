@@ -46,7 +46,7 @@ import ..EventModule: KeyDown
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context, with_available_size
+import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
@@ -531,7 +531,7 @@ function _hl_build(recursion, doc, ctx)
     child_iomaps = Any[]
     for i in 1:n
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = with_available_size(cctx; width=nothing)
+        cctx = withhold_offer(cctx, :x)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
@@ -622,7 +622,7 @@ function _vl_build(recursion, doc, ctx)
     child_iomaps = Any[]
     for i in 1:n
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = with_available_size(cctx; height=nothing)
+        cctx = withhold_offer(cctx, :y)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 

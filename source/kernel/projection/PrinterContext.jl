@@ -21,7 +21,8 @@ using ..DocumentModule
 using ..ReferenceModule
 using ..ClockModule
 
-export PrinterContext, make_child_context, with_available_size, with_clock,
+export PrinterContext, make_child_context, with_available_size, withhold_offer,
+       with_clock,
        with_property, get_property
 
 """
@@ -142,6 +143,26 @@ function with_available_size(ctx::PrinterContext;
                              height::Union{Nothing, Cell}=ctx.available_height)
     PrinterContext(ctx.reference, width, height, ctx.properties, ctx.clock)
 end
+
+"""
+    withhold_offer(ctx, axis) -> PrinterContext
+
+The context a container hands its children on an axis whose extent the container
+derives **from** those children.
+
+A vertical stack's height is the sum of its children's, a card's height is its
+content's, a toolbar's width is its items'. Such a container must not offer that
+extent back down: a child that reads it ultimately reads the container's own outer
+size, which closes a reactive cycle and overflows the stack when the cell
+evaluates.
+
+So the offer is derived from what the container is, not chosen at each site. This
+is that rule, written once — `axis` is the axis the container derives, and the
+other axis passes through untouched.
+"""
+withhold_offer(ctx::PrinterContext, axis::Symbol) =
+    axis === :x ? with_available_size(ctx; width = nothing) :
+                  with_available_size(ctx; height = nothing)
 
 """
     with_clock(ctx, clock) -> PrinterContext

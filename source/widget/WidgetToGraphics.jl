@@ -74,7 +74,7 @@ import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, Rang
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context, with_available_size
+import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
@@ -692,22 +692,32 @@ end
 
 # ── Width resolution (content-aware + layout-aware) ─────────────────────────
 
-# Resolve the rendered width for a width-bearing widget. The authored `intrinsic`
-# width (already font-scaled) is treated as a *minimum*, not a hard size:
+# The sizing rule, once, for both axes.
 #
-#   - when a parent layout seeded `available_width` on the context, fill that
-#     allocation (so the widget participates in automatic layout);
-#   - otherwise fall back to the intrinsic minimum;
-#   - in both cases never go narrower than `content_min` (the measured content
-#     plus its padding), so text/content is never clipped.
+#   - when the parent offered an extent on this axis, take it (so the widget
+#     participates in automatic layout);
+#   - otherwise fall back to the authored `intrinsic`;
+#   - never go under `content_min` — the measured content plus its padding — so
+#     content is never clipped.
 #
 # `content_min` defaults to 0 for widgets with no measurable content (progress,
-# slider, skeleton), which then size purely from the allocation/intrinsic.
-function _resolve_width(ctx, intrinsic::Int, content_min::Int=0)
-    avail = ctx === nothing ? nothing : ctx.available_width
+# slider, skeleton), which then size purely from the offer or the authored value.
+#
+# The two axes are the same rule with a different field. Whether a widget fills
+# on an axis is decided by whether its parent offered anything there, which is the
+# parent's business and not the widget's.
+function _resolve_size(ctx, axis::Symbol, intrinsic::Int, content_min::Int=0)
+    avail = ctx === nothing ? nothing :
+            axis === :x ? ctx.available_width : ctx.available_height
     base = avail !== nothing ? max(0, Int(avail[])) : intrinsic
     max(base, content_min)
 end
+
+_resolve_width(ctx, intrinsic::Int, content_min::Int=0) =
+    _resolve_size(ctx, :x, intrinsic, content_min)
+
+_resolve_height(ctx, intrinsic::Int, content_min::Int=0) =
+    _resolve_size(ctx, :y, intrinsic, content_min)
 
 # ── Canvas construction helper ─────────────────────────────────────────────
 
@@ -3519,7 +3529,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         # `_resolve_width` treats an authored width as a minimum and fills a
         # seeded allocation — takes the whole band, so a 140-pixel slider drawn
         # in a toolbar came out 800 wide.
-        (i, item) -> print_child(recursion, item, with_available_size(ctx; width = nothing)))
+        (i, item) -> print_child(recursion, item, withhold_offer(ctx, :x)))
     build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
         item_gap = p.item_gap
@@ -3846,7 +3856,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     avail_w = ctx.available_width
     inner_w = avail_w === nothing ? nothing :
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
-    inner_ctx = with_available_size(ctx; width=inner_w, height=nothing)
+    inner_ctx = withhold_offer(with_available_size(ctx; width=inner_w), :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
     cim = w.content isa Document ? print_child(recursion, w.content, inner_ctx) : nothing
     build = ComputedCell(() -> _card_build(p, w, ctx, tim, cim))
