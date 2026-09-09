@@ -36,6 +36,7 @@ const widget_title_pane_example  = Example("widget_title_pane",  make_widget_tit
 const widget_split_pane_example  = Example("widget_split_pane",  make_widget_split_pane_document_example,  make_widget_projection_example)
 const widget_scroll_bar_example  = Example("widget_scroll_bar",  make_widget_scroll_bar_document_example,  make_widget_projection_example)
 const widget_scroll_pane_example = Example("widget_scroll_pane", make_widget_scroll_pane_document_example, make_widget_projection_example)
+const widget_offered_example = Example("widget_offered", make_widget_offered_document_example, make_widget_projection_example)
 const widget_transform_pane_example = Example("widget_transform_pane", make_widget_transform_pane_document_example, make_widget_projection_example)
 const widget_shell_example       = Example("widget_shell",       make_widget_shell_document_example,       make_widget_projection_example)
 const widget_tabbed_pane_example = Example("widget_tabbed_pane", make_widget_tabbed_pane_document_example, make_widget_projection_example)
@@ -103,6 +104,7 @@ const substrate_examples = Example[
     widget_split_pane_example,
     widget_scroll_bar_example,
     widget_scroll_pane_example,
+    widget_offered_example,
     widget_transform_pane_example,
     widget_shell_example,
     widget_tabbed_pane_example,

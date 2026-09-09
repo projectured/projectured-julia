@@ -228,6 +228,7 @@ export widget_checkbox_example, widget_composite_example, widget_disabled_exampl
 export widget_example, widget_focus_example, widget_label_example, widget_menu_example
 export widget_menu_item_example, widget_popup_example, widget_progress_example
 export widget_radio_group_example, widget_scroll_bar_example, widget_scroll_pane_example
+export widget_offered_example, make_widget_offered_document_example
 export widget_select_example, widget_separator_example, widget_shell_example
 export widget_skeleton_example, widget_slider_example, widget_split_pane_example
 export widget_switch_example, widget_tabbed_pane_example, widget_table_example

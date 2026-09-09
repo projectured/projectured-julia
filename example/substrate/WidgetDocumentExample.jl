@@ -288,6 +288,39 @@ function make_widget_split_pane_document_example(; width=600)
                     sizes=[div(width, 2), div(width, 2)])
 end
 
+# WidgetOffered — widgets under a REAL offer, which no other example gives them.
+#
+# Every other widget example draws its widget standalone, in a composite or a
+# vertical stack, and neither of those offers a height. So they exercise the path
+# where a widget sizes itself from its content, and never the path where a parent
+# hands it an extent to fill — which is the path the sizing rules decide.
+#
+# The shell is what makes the offer real: it has a size of its own and seeds it
+# into its content on both axes. Inside it, a horizontal split divides that width
+# between two columns, so every widget below is drawn under an allocation.
+#
+# The left column holds widgets that should FILL the width they are given. The
+# right one holds a scroll pane that AUTHORED a size, which must hold against the
+# offer rather than be stretched by it, beside one that authored none.
+function make_widget_offered_document_example(; width=760, height=420)
+    filling = VerticalLayout(Any[
+        WidgetAlert(Point2D(0, 0), "Filling", "This alert takes the width it is offered."),
+        WidgetCard(Point2D(0, 0); title="Card", content="And so does this card."),
+    ]; gap=12)
+    # Filled, so the picture shows each pane's extent: a fixture that guards a
+    # size has to draw the size it guards.
+    holding = VerticalLayout(Any[
+        WidgetScrollPane(WidgetLabel(Point2D(4, 4), "authored 200x90");
+                         size=Point2D(200, 90),
+                         content_fill_color=StyleColor(0.86, 0.92, 0.98, 1.0)),
+        WidgetScrollPane(WidgetLabel(Point2D(4, 4), "no size of its own");
+                         content_fill_color=StyleColor(0.98, 0.92, 0.86, 1.0)),
+    ]; gap=12)
+    split = WidgetSplitPane(:horizontal, Any[filling, holding];
+                            sizes=[div(width, 2), div(width, 2)])
+    WidgetShell(split; size=Point2D(width, height))
+end
+
 # WidgetScrollBar — a single scroll bar with a thumb.
 make_widget_scroll_bar_document_example() =
     WidgetScrollBar(:vertical; value=0.4, thumb_size=0.3,

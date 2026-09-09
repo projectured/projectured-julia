@@ -9,6 +9,7 @@ const examples = [
     widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
     widget_composite_example, widget_title_pane_example, widget_split_pane_example,
     widget_scroll_bar_example, widget_scroll_pane_example, widget_transform_pane_example,
+    widget_offered_example,
     widget_shell_example,
     widget_tabbed_pane_example,
     # The pane examples are deliberately NOT in this list. The sweep drivers walk

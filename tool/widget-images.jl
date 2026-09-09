@@ -26,6 +26,8 @@ const WIDGET_EXAMPLES = [
     "widget_menu_item", "widget_menu", "widget_toolbar", "widget_composite",
     "widget_title_pane", "widget_split_pane", "widget_scroll_bar",
     "widget_scroll_pane", "widget_transform_pane", "widget_shell",
+    # The one example that hands its widgets a real offer on both axes.
+    "widget_offered",
     "widget_tabbed_pane", "widget_badge", "widget_separator", "widget_card",
     "widget_switch", "widget_progress", "widget_slider", "widget_radio_group",
     "widget_avatar", "widget_alert", "widget_skeleton", "widget_toggle",

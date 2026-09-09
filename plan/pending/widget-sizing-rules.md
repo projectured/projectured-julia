@@ -209,6 +209,19 @@ Each step keeps the images green before the next begins.
      breakage, as it did at step 4, but it cannot judge whether filling is right.
      A fixture that puts widgets under a real offer is needed before the net means
      what the plan claims.
+
+   - **`widget_offered` — the fixture — DONE.** A `WidgetShell` of a known size
+     seeds its extent into its content on both axes; a horizontal split divides
+     that width between two columns. The left column holds an alert and a card
+     that must **fill** what they are given; the right holds one scroll pane that
+     **authored** `200x90` and one that authored nothing. Both panes are filled
+     with colour, because a fixture that guards a size has to draw the size it
+     guards.
+
+     Looked at: the alert and the card stretch to the 380-wide slot, the authored
+     pane draws `200x90` against an offer of the whole column, and the pane with
+     no size fills the column. That is both branches of 5a and the width half of
+     5b, visible. The example set is **40** now, and the baseline holds it.
    - **5c** — pattern A and C resolve through the rule.
 6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
    bug the images show.
