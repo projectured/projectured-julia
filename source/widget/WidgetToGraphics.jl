@@ -927,6 +927,10 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
                 w.text_style isa StyleColor ? StyleText(p.text.font, w.text_style) :
                 w.text_style
         content_width, content_height = _content_size(p.measure, style.font, content)
+        # No size of its own, so the offer decides and the content is the floor.
+        # An image label fills what it is given; text stays where it is drawn.
+        content_width  = _resolve_width(ctx, 0, content_width)
+        content_height = _resolve_height(ctx, 0, content_height)
         elements = Any[]
         _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)
         (width=content_width, height=content_height, elements=elements)
@@ -1700,7 +1704,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cw += icon_w + gap
         end
         # Hover surface behind the content (Stage 6), only when hovered + enabled.
-        control_w = cw + 2cox; control_h = ch + 2coy
+        control_w = _resolve_width(ctx, 0, cw + 2cox)
+        control_h = _resolve_height(ctx, 0, ch + 2coy)
         final = Any[]
         _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
         append!(final, elems)
@@ -3838,8 +3843,8 @@ function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadg
         padding_x = _sc(Int(p.padding.left[]))
         padding_y = _sc(Int(p.padding.top[]))
         text_width, text_height = _text_size(p.measure, p.font, text)
-        badge_width  = text_width + 2padding_x
-        badge_height = text_height + 2padding_y
+        badge_width  = _resolve_width(ctx, 0, text_width + 2padding_x)
+        badge_height = _resolve_height(ctx, 0, text_height + 2padding_y)
         border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
         elements = Any[]
         _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
@@ -4447,8 +4452,10 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
             max_width = max(max_width, diameter + label_gap + label_width)
             y += row_height + row_gap
         end
-        _push_focus_ring!(elements, w, max_width, max(0, y - row_gap), p.ring_color, 0)
-        (width=max_width, height=max(0, y - row_gap), elements=elements)
+        group_width  = _resolve_width(ctx, 0, max_width)
+        group_height = _resolve_height(ctx, 0, max(0, y - row_gap))
+        _push_focus_ring!(elements, w, group_width, group_height, p.ring_color, 0)
+        (width=group_width, height=group_height, elements=elements)
     end))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
@@ -4751,8 +4758,8 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         padding_x = _sc(Int(p.padding.left[]))
         padding_y = _sc(Int(p.padding.top[]))
         text_width, text_height = _text_size(p.measure, p.font, text)
-        control_width  = text_width + 2padding_x
-        control_height = text_height + 2padding_y
+        control_width  = _resolve_width(ctx, 0, text_width + 2padding_x)
+        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
         fill       = !enabled ? p.disabled_fill : on ? p.pressed_fill : p.released_fill
         foreground = !enabled ? p.disabled_foreground : on ? p.pressed_foreground : p.released_foreground
         # Disabled and released states both show the outline; pressed drops it.
