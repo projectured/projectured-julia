@@ -29,6 +29,18 @@ offer equally, which is what a weight of one each means.
 extent on that axis, and the answer is `0`. A number invented in a printer is a
 size nobody chose, in a place nobody looks.
 
+**A style parameter is not a constant.** A checkbox's 18-pixel box, a switch's
+44×24 track, a progress bar's 8-pixel thickness and a slider's 24-pixel height are
+arguments to those projections, set at the `WidgetToGraphics(…)` factory beside
+the theme's colours, and a caller building the projection may pass others. They
+are the widget's **content** on that axis, which §1 allows. The test is not
+whether a number appears, but whether anyone can choose it:
+
+| | |
+| --- | --- |
+| a size constant in a printer body | nobody chose it, nobody can reach it — forbidden |
+| a style parameter on a projection | chosen at the factory, replaceable by a caller — it is content |
+
 ## 2. Where a policy lives
 
 **In `LayoutConstraint`, never on the widget.**

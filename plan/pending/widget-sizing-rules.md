@@ -362,7 +362,15 @@ Each step keeps the images green before the next begins.
 
      The transcript does **not** grow with the turn count. The offer reaches the
      assistant and the split honours it, end to end.
-8. **The four theme numbers become `min`**, so content can still push them out.
+8. **The four theme numbers — EXAMINED, no change.** The checkbox's 18, the
+   switch's 44×24, the progress bar's 8 and the slider's 24 are constructor
+   arguments to those projections, set at the `WidgetToGraphics(…)` factory beside
+   the theme's colours. A caller building the projection passes its own.
+
+   They are each widget's **content** on that axis, which the rule allows — a
+   checkbox's box *is* its content. The test is not whether a number appears but
+   whether anyone can choose it, and these are chosen in the open. The rules
+   document says so now, so this is not re-litigated.
 9. **Delete `WidgetTooltip.size`; the overlays take `Content` with
    `max = offer`,** so a tooltip stops running off the window.
 10. **The conversation is rebuilt** as constructed above: the two width literals
