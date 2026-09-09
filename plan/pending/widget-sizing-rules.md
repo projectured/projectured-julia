@@ -308,7 +308,15 @@ Each step keeps the images green before the next begins.
    **6b — `HorizontalLayout` — DONE.** The mirror of the same, on `:x`. All 40
    images unchanged.
 
-   **6c — then the constants can go.**
+   **6c — the constants are gone — DONE.** All five deleted;
+   `grep -c FALLBACK source/widget/WidgetToGraphics.jl` answers `0`.
+
+   The fixture's unsized pane is wrapped in `height = Fill` first, so it shows the
+   working arrangement rather than the constant. **One picture moved, and it is
+   right**: that pane was `300 px` — the constant — and stopped short of the
+   bottom with a grey band under it; it is `318 px` now and reaches the edge.
+   `420 - 90 (the authored pane) - 12 (the gap) = 318`. The authored pane is
+   unchanged at `200x90`.
 7. **The eight zero-extent widgets report a real extent** — each is a container,
    so its extent is the bounds of what it drew. The largest step; it moves alone.
 

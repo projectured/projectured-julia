@@ -317,11 +317,10 @@ end
 # here so the value is stated once — the scroll bar's track size is read by
 # both its printer and its hit-test reader, so a single source avoids a drift
 # risk between the two.
-const _SCROLL_FALLBACK_WIDTH  = 400   # WidgetScrollPane / ScrollViewport viewport
-const _SCROLL_FALLBACK_HEIGHT = 300
-const _SCROLLBAR_FALLBACK_LENGTH    = 200  # scroll bar track (long axis)
-const _SCROLLBAR_FALLBACK_THICKNESS = 16   # scroll bar track (short axis)
-const _SPLIT_SLOT_FALLBACK    = 200   # per-slot main-axis extent, no constraint/sizes
+# No size constant lives here. An extent comes from the widget's own size, from
+# what its parent offered, or from its content — and a widget with none of those
+# on an axis has no extent there. A number invented in a printer is a size nobody
+# chose, in a place nobody looks. See documentation/rule/layout-rules.md.
 
 # All widget geometry — spacing, radii, insets, positions — is in logical
 # pixels. The single global `_DISPLAY_SCALE` is applied uniformly at the SDL
@@ -2262,12 +2261,12 @@ function _wrap_child_canvas(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell)
 end
 
 """
-Per-slot intrinsic main-axis extent: read from the `LayoutConstraint`'s
-preferred when present, or fall back to the `sizes` vector, or to 200 px when
-neither is set.
+Per-slot intrinsic main-axis extent: the `LayoutConstraint`'s preferred when
+there is one, else the `sizes` vector, else nothing. A slot nobody sized and
+nobody weighted takes no room.
 """
 function _split_intrinsic(elem, sizes, i::Int, axis::Symbol)
-    intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : _SPLIT_SLOT_FALLBACK
+    intrinsic = (!isempty(sizes) && i <= length(sizes)) ? Int(sizes[i]) : 0
     layout_preferred(elem, axis, intrinsic)
 end
 
@@ -3240,11 +3239,11 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
               avail_w !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(_SCROLL_FALLBACK_WIDTH))
+              Cell(Int32(0))
     vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
               avail_h !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(_SCROLL_FALLBACK_HEIGHT))
+              Cell(Int32(0))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     follow_cell = getfield(w, :follow_end)
@@ -3437,11 +3436,11 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
               avail_w !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(_SCROLL_FALLBACK_WIDTH))
+              Cell(Int32(0))
     vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
               avail_h !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(_SCROLL_FALLBACK_HEIGHT))
+              Cell(Int32(0))
     cox, coy = _content_offset(w)
     # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
     # the viewport reactively.
@@ -3660,8 +3659,8 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    bw = sz  isa Point2D ? Int(sz.x[])  : _SCROLLBAR_FALLBACK_LENGTH
-    bh = sz  isa Point2D ? Int(sz.y[])  : _SCROLLBAR_FALLBACK_THICKNESS
+    bw = sz  isa Point2D ? Int(sz.x[])  : 0
+    bh = sz  isa Point2D ? Int(sz.y[])  : 0
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
     cw = max(1, bw - tx)
@@ -3697,8 +3696,8 @@ function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     sz  = w.size
-    bw = sz isa Point2D ? Int(sz.x[]) : _SCROLLBAR_FALLBACK_LENGTH
-    bh = sz isa Point2D ? Int(sz.y[]) : _SCROLLBAR_FALLBACK_THICKNESS
+    bw = sz isa Point2D ? Int(sz.x[]) : 0
+    bh = sz isa Point2D ? Int(sz.y[]) : 0
     cox, coy = _content_offset(w)
     tx, ty = _inset_total(w)
     cw = max(1, bw - tx)
