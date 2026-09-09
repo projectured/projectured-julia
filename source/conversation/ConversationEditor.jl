@@ -47,7 +47,7 @@ import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natu
 import ..ToolModule: execute_julia_code, last_evaluated_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
-import ..LayoutModule: VerticalLayout, HorizontalLayout
+import ..LayoutModule: VerticalLayout, HorizontalLayout, Fill, Content
 import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
 import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
@@ -527,10 +527,12 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     # part is the active typein (gets the caret). The thunk recomputes on
     # structural changes; per-part value/cursor edits re-render via the reactive
     # `TextString` thunks inside each card.
+    # Every part card fills the width it is given and grows with what it holds,
+    # the same as a turn's parts in the transcript.
     body = VerticalLayout(
         ComputedCellVector(() -> (n = length(d.parts);
                           Any[_part_card(d.parts[i].content, i == n) for i in 1:n])),
-        Cell(:left), Cell(_GAP), Cell(nothing))
+        Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
     # The caret, carried down. A key is routed by selection and stops at the
     # first container that has none, so the stack of part cards has to say which

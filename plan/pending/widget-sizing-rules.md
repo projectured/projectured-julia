@@ -136,6 +136,29 @@ What each requirement rests on:
 | the two halves scroll separately | the split's two `LayoutConstraint`s, `Relative(1.0)` and `Fixed(200)` — unchanged from today |
 | the transcript actually scrolls | the column's `height = Content` outgrows the viewport the pane offers |
 
+## A correction to the diagnosis
+
+**The assistant's split pane bounds itself correctly, and did all along.**
+Measured, with the canvas extent rather than a text dump:
+
+```
+the assistant chain, no offer            3 turns -> (410, 201)    12 turns -> (410, 201)
+the assistant chain, offer 1200x900      3 turns -> (1200, 900)   12 turns -> (1200, 900)
+```
+
+An earlier reading of this plan said "the offer arrives and is ignored". That
+rested on measuring the size of `print_object` over the drawn tree, and **a
+viewport that clips still holds its whole content in the tree** — so that number
+grows with the turn count whether or not anything is bounded. It could not answer
+the question it was asked.
+
+What is still unmeasured is whether the **window and the pane tab** deliver an
+offer to the assistant at all. That measurement is blocked: the window's content
+canvas reports `0 x 0`, which is deviation 3 — eight widgets report no extent.
+
+**So step 7 is not cleanup.** It is what makes the chain measurable end to end,
+and it should come before the rest.
+
 ## Steps
 
 Each step keeps the images green before the next begins.
