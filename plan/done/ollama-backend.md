@@ -297,7 +297,10 @@ Prose that names it, and must follow: `package-rules.md:56,184`,
 `architecture-invariants.md:762`, `AssistantDocument.jl:90,94`,
 `AssistantTurn.jl:624,636`, `Mcp.jl:103`.
 
-- [ ] Regenerate `environment/all/Manifest.toml` — deferred to one resolve after Step 4, so the whole stack precompiles once instead of twice.
+- [x] Regenerate `environment/all/Manifest.toml`. `Pkg.resolve()` cannot do this
+      alone: it refuses to run while the manifest names a package whose path is
+      gone, so the three `ProjecturedLlm` entries were edited by hand first — the
+      block, the path, and `ProjecturedExample`'s dependency list.
 - [x] **Warning: a word-boundary rename also rewrites file-path strings.** After
       the rename, grep for `Anthropic.jl` and `ProjecturedAnthropic.jl` inside
       strings and doc links and check each one. See
@@ -451,3 +454,40 @@ line is edited anyway.
 The assistant's system prompt is written for Claude and is long. A 27B local
 model may follow it poorly. That is separate work, but it decides whether the
 first Ollama turn looks like a success.
+
+## The result
+
+The assistant talks to a local model. Measured end to end in `environment/all`:
+
+```
+[assistant] turn start   llm = :OllamaLlm   backend = :ollama   model = "mistral:latest"
+[agent] round 1: done    stop = :end_turn   tool_calls = 0
+[assistant] turn done    elapsed_s = 7.49   parts = 1
+
+User:
+What is 2 plus 2? Answer in words.
+
+Assistant:
+The sum of 2 and 2 is 4.
+```
+
+The reply arrives as a `MarkdownRoot`, which is the same rendering path the
+Anthropic backend feeds. Nothing above `stream_turn` knows which provider
+answered.
+
+| test | result |
+| --- | --- |
+| `test_kernel_layering()` | 10 pass |
+| `test_ollama()` | 65 pass, 0 fail |
+| `test_assistant_mvp()` | 76 pass, 1 broken, 0 fail (the broken marker is older than this work) |
+| `test_package_graph()` | 728 pass, 2 fail — clean `main` gives 719 pass, 2 fail |
+
+## What this work did not do
+
+- The system prompt is still written for Claude, and it is long. A local model may
+  follow it poorly. That decides how good the first Ollama turn *feels*, and it is
+  separate work.
+- Two other open plans still name `ProjecturedLlm` in their prose:
+  `plan/pending/kernel-cleanup.md` and
+  `plan/pending/package-convention-repl-leaves.md`. They were left alone. A plan
+  under `plan/done/` is a record of what happened and must not be rewritten.
