@@ -1039,15 +1039,23 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
             # The box is at least as wide as the widget asks for, and always at
             # least one line tall. An empty document measures nothing in both
             # directions, and a form field of nothing cannot be clicked.
-            iw = max(Int(inner.w[]), w.width)
-            ih = max(Int(inner.h[]), _text_size(p.measure, p.text.font, "X")[2])
+            tx, ty = _inset_total(w)
+            # `w.width` is an authored inner width, so it and the offer are both
+            # outer measures here: resolve the outer extent by the one rule, then
+            # take the inner box back out of it.
+            outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0,
+                                     Int(inner.w[]) + tx)
+            outer_h = _resolve_height(ctx, 0,
+                                      max(Int(inner.h[]),
+                                          _text_size(p.measure, p.text.font, "X")[2]) + ty)
+            iw = outer_w - tx
+            ih = outer_h - ty
             elems = Any[]
             # Themed input surface: background fill + input outline + rounded corners.
             _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
             push!(elems, _make_canvas(cox, coy, Any[inner]))
-            tx, ty = _inset_total(w)
-            _push_focus_ring!(elems, w, iw + tx, ih + ty, p.ring_color, radius)
-            (width=iw + tx, height=ih + ty, elements=elems)
+            _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius)
+            (width=outer_w, height=outer_h, elements=elems)
         end)
         return WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
     end
@@ -1057,13 +1065,16 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         radius = _sc(p.corner_radius)
         text = string(w.content)
         cw, ch = _text_size(p.measure, p.text.font, text)
-        cw = max(cw, w.width)
         tx, ty = _inset_total(w)
+        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0, cw + tx)
+        outer_h = _resolve_height(ctx, 0, ch + ty)
+        cw = outer_w - tx
+        ch = outer_h - ty
         elems = Any[]
         _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
         _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
-        _push_focus_ring!(elems, w, cw + tx, ch + ty, p.ring_color, radius)
-        (width=cw + tx, height=ch + ty, elements=elems)
+        _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius)
+        (width=outer_w, height=outer_h, elements=elems)
     end))
 end
 
