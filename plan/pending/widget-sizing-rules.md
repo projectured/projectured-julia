@@ -211,6 +211,14 @@ Each step keeps the images green before the next begins.
    passed four — `MarkdownToLayout`, `CollectionToLayout`, `RstToLayout` twice,
    and the conversation. `conversation_widget` stopped drawing, the comparison
    said `GONE`, and the `.failed` file named the arity.
+5. **Every widget resolves through `_resolve_size`** — and the rest of this is
+   **not mechanical**, which is the finding. `_resolve_width` treats an authored
+   width as a *minimum* and lets an offer win; step 5a made the two viewports do
+   the opposite, so an authored size wins there. Both are defensible and the
+   codebase now does both. What `w.width` on a `WidgetCard` *means* — a fixed size
+   or a floor — is a decision, not a refactor, and the field name should say which.
+   Left for a person.
+
 5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
    collapse into it. Split into reviewable pieces, because this touches 40
    widgets and each piece is meant to be looked at:
@@ -382,8 +390,10 @@ Each step keeps the images green before the next begins.
    passed and the printer has always ignored. The line claiming "at least the
    requested size" is true now.
 
-   `WidgetContextMenu` and `WidgetMenu` still read no offer, so they can run off
-   a window edge. They take the same helper next.
+   **`WidgetContextMenu` and `WidgetMenu` — DONE.** Both are capped now.
+   `_reactive_canvas_auto` takes an optional `cap` context for the menu, whose
+   extent is computed by that helper rather than in its own printer. All three
+   overlays read the offer as a ceiling. **All 40 images unchanged.**
 10. **The conversation — the two width literals are gone.** A turn card and a part
     card take the width they are offered; the transcript's `child_width = Fill`
     says so and `WidgetCard` resolves it. `760` and `720` made every conversation

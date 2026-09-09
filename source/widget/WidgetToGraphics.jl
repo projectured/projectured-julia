@@ -797,7 +797,9 @@ _p_measure(p) = hasproperty(p, :measure) ? p.measure : nothing
 _element_size(e, measure) =
     measure === nothing ? graphics_size(e) : graphics_size(e, measure)
 
-function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure)
+# `cap` is an overlay's context: given one, the extent is capped by what the
+# parent offered rather than allowed to run past it.
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
     elems = ComputedCellVector(elems_fn)
     bounds = ComputedCell(() -> begin
         w = 0; h = 0
@@ -805,7 +807,8 @@ function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure)
             ew, eh = _element_size(e, measure)
             w = max(w, ew); h = max(h, eh)
         end
-        (w, h)
+        cap === nothing ? (w, h) :
+            (_resolve_overlay(cap, :x, 0, w), _resolve_overlay(cap, :y, 0, h))
     end)
     GraphicsCanvas(Int32(x), Int32(y),
                    ComputedCell(() -> Int32(bounds[][1])),
@@ -1807,7 +1810,9 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         end
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
+    # A menu is an overlay: capped by the window, never stretched to it.
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p);
+                                              cap = ctx),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
