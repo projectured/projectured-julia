@@ -141,8 +141,8 @@ const _INFO_MIN_HEIGHT    = 200   # information row in the center column
 const _INPUT_MIN_HEIGHT   = 200   # assistant input: the composer chat-bubble draft
 const _MAIN_WEIGHT        = 1.0   # editor / conversation / center column
 const _SIDE_WEIGHT        = 0.2   # nav / control / info — grow, but less
-const _SHELL_FALLBACK_WIDTH  = 1280  # window width when run outside a window
-const _SHELL_FALLBACK_HEIGHT = 720   # window height when run outside a window
+# No size constant. A shell drawn outside a window is offered no extent and has
+# none — a caller that wants one says so. See documentation/rule/layout-rules.md.
 
 # The fallback branch passes the document through unprojected, so its IoMap has
 # no projection to name — the one place in this file where `nothing` is the
@@ -233,12 +233,12 @@ function print_document(projection::WorkbenchWorkbenchToWidgetShell,
            () -> _strip_split_child(_strip_field(_shell_sel(), "content"), 2))
 
     # Track the window: the shell fills whatever extent the parent (the
-    # WindowDocument's CopyingProjection) seeded on the context, falling
-    # back to a sensible default when run outside a window.
+    # WindowDocument's CopyingProjection) seeded on the context. Outside a window
+    # nothing was offered, and nothing is what it has.
     aw, ah = ctx.available_width, ctx.available_height
     shell_size = Point2D(
-        ComputedCell(() -> aw === nothing ? _SHELL_FALLBACK_WIDTH  : Int(aw[])),
-        ComputedCell(() -> ah === nothing ? _SHELL_FALLBACK_HEIGHT : Int(ah[])),
+        ComputedCell(() -> aw === nothing ? 0 : Int(aw[])),
+        ComputedCell(() -> ah === nothing ? 0 : Int(ah[])),
     )
     shell = WidgetShell(main_split;
                         size=shell_size)

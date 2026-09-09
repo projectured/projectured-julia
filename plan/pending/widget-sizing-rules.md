@@ -317,6 +317,18 @@ Each step keeps the images green before the next begins.
    bottom with a grey band under it; it is `318 px` now and reaches the edge.
    `420 - 90 (the authored pane) - 12 (the gap) = 318`. The authored pane is
    unchanged at `200x90`.
+
+   **Two more were hiding outside the surveyed file.** `_SHELL_FALLBACK_WIDTH`
+   1280 and `_SHELL_FALLBACK_HEIGHT` 720 in
+   [WorkbenchToWidget.jl](../../source/workbench/WorkbenchToWidget.jl) — the survey
+   read `WidgetToGraphics.jl` only. Deleting them broke a workbench click test,
+   which drew the shell with `print_document(proj, doc)` — a bare context, no
+   offer — and clicked coordinates that existed only because of the 1280.
+
+   The test says its window size now: a shell outside a window has no extent, and
+   a test that clicks at a coordinate has to say how big the window is rather than
+   let a printer invent it. `test_workbench()` is back to its baseline, 108 pass,
+   1 broken, 0 fail.
 7. **The eight zero-extent widgets report a real extent** — each is a container,
    so its extent is the bounds of what it drew. The largest step; it moves alone.
 

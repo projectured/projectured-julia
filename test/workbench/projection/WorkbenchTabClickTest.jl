@@ -52,6 +52,11 @@ function _collect_texts!(acc, node, ox, oy)
 end
 
 function test_workbench_tab_click()
+# The extent a window would offer. Used by every check here that reads a
+# coordinate: without an offer a shell has no size, and nothing is drawn to click.
+_window_context() = with_available_size(PrinterContext();
+                                        width = Cell(1280), height = Cell(720))
+
 @testset "Workbench tab-strip routing" begin
 
 # ── Print side: the active tab follows the page selection (the regression) ──
@@ -86,7 +91,10 @@ end
 @testset "clicking the contact-list.json tab selects the JSON editor" begin
     doc  = make_workbench_document_example()
     proj = make_workbench_projection_example()
-    iomap = print_document(proj, doc)
+    # The window this is drawn in. A shell is offered its extent by the window it
+    # sits in, and outside one it has none — so a test that clicks at coordinates
+    # has to say how big the window is, rather than let a printer invent it.
+    iomap = print_document(proj, nothing, doc, _window_context())
 
     acc = Tuple{Int,Int,String}[]
     _collect_texts!(acc, iomap.output, 0, 0)
@@ -102,7 +110,8 @@ end
 
     evaluate_operation((; document = doc), op)
     # The editing page's tabbed pane now reports the JSON tab (index 3) as active.
-    iomap2 = print_document(RecursiveProjection(WorkbenchToWidget()), doc)
+    iomap2 = print_document(RecursiveProjection(WorkbenchToWidget()), nothing, doc,
+                            _window_context())
     @test _active_tab_index(iomap2.editing_page_iomap.output) == 3
 end
 
