@@ -5,6 +5,10 @@
 
 ## The rule
 
+> The settled rules live in
+> [layout-rules.md](../../documentation/rule/layout-rules.md). This plan is how
+> they were arrived at and what still has to change to reach them.
+
 ```
 size(axis) = clamp( policy(axis) resolved against the parent's offer,
                     min(axis), max(axis) )
@@ -301,7 +305,8 @@ Each step keeps the images green before the next begins.
 
    **All 40 images unchanged**, because nothing in them carries a weight yet.
 
-   **6b** — `HorizontalLayout`, the mirror of the same.
+   **6b — `HorizontalLayout` — DONE.** The mirror of the same, on `:x`. All 40
+   images unchanged.
 
    **6c — then the constants can go.**
 7. **The eight zero-extent widgets report a real extent** — each is a container,

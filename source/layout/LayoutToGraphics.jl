@@ -528,11 +528,48 @@ function _hl_build(recursion, doc, ctx)
     # stack-overflows). Keeping only the cross axis is cycle-free: `outer_h`
     # reads child heights while each child reads the parent-supplied
     # `available_height` cell, never `outer_h`.
+    # The mirror of `_vl_build`: a child that carries a weight on the main axis
+    # (width, here) asks for a share of this row's width, and can have one only
+    # when the row was offered a width itself. Only a weighted child is offered a
+    # slot, so an unweighted child's width does not depend on the allocation and
+    # is safe to read while computing it.
+    avail_w  = ctx.available_width
+    default  = getfield(doc, :child_width)[]
+    weighted = [layout_weight(doc.children[i], :x, default) > 0 for i in 1:n]
+    filling  = avail_w !== nothing && any(weighted)
+
+    alloc_cell = Cell(nothing)
+    slot_w = Cell[]
+    if filling
+        for i in 1:n
+            push!(slot_w, ComputedCell(() -> begin
+                v = alloc_cell[]; v === nothing ? 0 : Int32(v[i])
+            end))
+        end
+    end
+
     child_iomaps = Any[]
     for i in 1:n
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = withhold_offer(cctx, :x)
+        cctx = (filling && weighted[i]) ? with_available_size(cctx; width = slot_w[i]) :
+                                          withhold_offer(cctx, :x)
         push!(child_iomaps, _recurse_child(recursion, doc.children[i], cctx))
+    end
+
+    if filling
+        set_cell_function!(alloc_cell, function ()
+            mins  = Vector{Int}(undef, n); maxs  = Vector{Int}(undef, n)
+            prefs = Vector{Int}(undef, n); wts   = Vector{Float64}(undef, n)
+            for i in 1:n
+                child     = doc.children[i]
+                intrinsic = weighted[i] ? 0 : _child_w(child_iomaps[i])
+                mins[i]   = layout_min(child, :x, intrinsic, default)
+                maxs[i]   = layout_max(child, :x, intrinsic, default)
+                prefs[i]  = layout_preferred(child, :x, intrinsic, default)
+                wts[i]    = layout_weight(child, :x, default)
+            end
+            allocate_axis(Int(avail_w[]), mins, maxs, prefs, wts, gap_cell[], n)
+        end)
     end
 
     outer_h = ComputedCell(function ()
@@ -544,7 +581,8 @@ function _hl_build(recursion, doc, ctx)
         h
     end)
 
-    outer_w = ComputedCell(function ()
+    # Distributing an offer means occupying it.
+    outer_w = filling ? ComputedCell(() -> Int(avail_w[])) : ComputedCell(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0
