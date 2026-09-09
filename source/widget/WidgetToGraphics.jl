@@ -705,6 +705,16 @@ end
 # The two axes are the same rule with a different field. Whether a widget fills
 # on an axis is decided by whether its parent offered anything there, which is the
 # parent's business and not the widget's.
+# An overlay — a tooltip, a menu, a context menu — sizes to its content and to any
+# size its caller asked for, and is then CAPPED by what the parent offered rather
+# than stretched to it. A tooltip that filled its window would be a panel.
+function _resolve_overlay(ctx, axis::Symbol, authored::Int, content::Int)
+    base  = max(authored, content)
+    avail = ctx === nothing ? nothing :
+            axis === :x ? ctx.available_width : ctx.available_height
+    avail === nothing ? base : min(base, max(0, Int(avail[])))
+end
+
 function _resolve_size(ctx, axis::Symbol, intrinsic::Int, content_min::Int=0)
     avail = ctx === nothing ? nothing :
             axis === :x ? ctx.available_width : ctx.available_height
@@ -1351,8 +1361,12 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
             push!(child_iomaps, (cox, coy, cim))
             push!(body, _make_canvas(cox, coy, Any[inner]))
         end
-        vw = cw + txp
-        vh = ch + typ
+        # The size the caller asked for is a floor, its content is the other floor,
+        # and the window is the ceiling. `w.size` was never read before, though the
+        # line above has always claimed it was.
+        sz = w.size
+        vw = _resolve_overlay(ctx, :x, sz isa Point2D ? Int(sz.x[]) : 0, cw + txp)
+        vh = _resolve_overlay(ctx, :y, sz isa Point2D ? Int(sz.y[]) : 0, ch + typ)
         _push_panel!(elems, 0, 0, vw, vh; fill=p.surface_color,
                      border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
         append!(elems, body)

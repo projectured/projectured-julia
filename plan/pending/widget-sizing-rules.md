@@ -371,8 +371,19 @@ Each step keeps the images green before the next begins.
    checkbox's box *is* its content. The test is not whether a number appears but
    whether anyone can choose it, and these are chosen in the open. The rules
    document says so now, so this is not re-litigated.
-9. **Delete `WidgetTooltip.size`; the overlays take `Content` with
-   `max = offer`,** so a tooltip stops running off the window.
+9. **The overlays — `WidgetTooltip` DONE.** The field is not deleted; it is
+   honoured. `_resolve_overlay(ctx, axis, authored, content)` is the overlay rule:
+   the size the caller asked for is one floor, the content is the other, and the
+   parent's offer is the **ceiling** — an overlay is capped by its window, never
+   stretched to it. A tooltip that filled its window would be a panel.
+
+   **One picture moved and it is right.** `widget_tooltip` went from `184x38` to
+   `360x56` — which is exactly the `Point2D(360, 56)` the example has always
+   passed and the printer has always ignored. The line claiming "at least the
+   requested size" is true now.
+
+   `WidgetContextMenu` and `WidgetMenu` still read no offer, so they can run off
+   a window edge. They take the same helper next.
 10. **The conversation is rebuilt** as constructed above: the two width literals
     and `_maybe_clip`'s scroll pane are deleted.
 
