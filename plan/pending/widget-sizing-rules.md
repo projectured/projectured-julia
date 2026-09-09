@@ -265,8 +265,22 @@ Each step keeps the images green before the next begins.
      had nowhere to sit; now the pane reports what it drew and the splitter
      appears between the two. 162 bytes of 70 kB, same canvas size.
 
-   - **7b** — the three that use the 3-argument `_make_canvas`: `WidgetTabbedPane`,
-     `WidgetScrollBar`, and the split's own empty case.
+   - **7b — the 3-argument `_make_canvas` — DONE.** It reports the bounds of its
+     children too, which covers `WidgetTabbedPane`, `WidgetScrollBar`, the split's
+     empty case, and every inner offset wrapper built the same way. The bounds are
+     a computed cell, because a child's own extent may be a cell with no value yet
+     when the canvas is built. **All 40 images unchanged.**
+
+     **And the blocked measurement now reads.** Through the real chain — window,
+     screen, pane tree, tabbed pane, tab, assistant — at a window of 1200x900:
+
+     ```
+     3 turns  -> (1196, 892)
+     12 turns -> (1196, 892)
+     ```
+
+     The transcript does **not** grow with the turn count. The offer reaches the
+     assistant and the split honours it, end to end.
 8. **The four theme numbers become `min`**, so content can still push them out.
 9. **Delete `WidgetTooltip.size`; the overlays take `Content` with
    `max = offer`,** so a tooltip stops running off the window.

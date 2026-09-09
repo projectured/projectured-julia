@@ -721,10 +721,23 @@ _resolve_height(ctx, intrinsic::Int, content_min::Int=0) =
 
 # ── Canvas construction helper ─────────────────────────────────────────────
 
+# A canvas of already-drawn children, which reports the extent they reach. The
+# bounds are a computed cell rather than a number, because a child's own extent
+# may be a cell that has no value yet when this is built.
 function _make_canvas(x::Int, y::Int, elems::Vector)
-    GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0),
-                   CellVector(Cell[Cell(e) for e in elems]),
-                   layout_none, true, Cell(nothing))
+    kept = CellVector(Cell[Cell(e) for e in elems])
+    bounds = ComputedCell(() -> begin
+        w = 0; h = 0
+        for e in kept
+            ew, eh = _element_size(e, nothing)
+            w = max(w, ew); h = max(h, eh)
+        end
+        (w, h)
+    end)
+    GraphicsCanvas(Int32(x), Int32(y),
+                   ComputedCell(() -> Int32(bounds[][1])),
+                   ComputedCell(() -> Int32(bounds[][2])),
+                   kept, layout_none, true, Cell(nothing))
 end
 
 function _make_canvas(x::Int, y::Int, w::Int, h::Int, elems::Vector)
