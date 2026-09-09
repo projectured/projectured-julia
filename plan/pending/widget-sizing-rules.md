@@ -246,8 +246,35 @@ Each step keeps the images green before the next begins.
      no size fills the column. That is both branches of 5a and the width half of
      5b, visible. The example set is **40** now, and the baseline holds it.
    - **5c** — pattern A and C resolve through the rule.
-6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
-   bug the images show.
+6. **Delete the five constants — BLOCKED, and the block is the finding.**
+   Tried, reverted. `widget_offered` changed by 26.7 % and the change was a
+   regression: **the scroll pane with no authored size vanished.**
+
+   Why it vanished is what the constant was hiding. That pane sits in a
+   `VerticalLayout`, which withholds its main axis (height) from its children
+   because its own height is the sum of theirs. A viewport takes no size from its
+   content — that is what a viewport is. So the pane had no authored height, no
+   offered height, and no content height, and its whole height was
+   `_SCROLL_FALLBACK_HEIGHT = 300`.
+
+   **A stack cannot give a child a share of its main axis**, because its own main
+   axis is the sum of its children and a share of an unknown total is a cycle. So
+   a scrolling pane inside a column can only get a height by authoring one.
+
+   The capability that is missing: **a stack whose main axis is offered should be
+   able to fill it and distribute it**, rather than always summing its children.
+   Then a column inside a split takes the height the split passes across, and can
+   allocate it — and the constant has nothing left to hide.
+
+   That is a new step, and it comes before this one:
+
+   **6a — a stack fills its main axis when one is offered.** `VerticalLayout` and
+   `HorizontalLayout` take a main-axis policy. `Content` (today's behaviour, and
+   the default) sums the children and withholds the offer. `Fill` takes the offer,
+   allocates it with `allocate_axis`, and passes each child its slot — which is
+   what `WidgetSplitPane` already does.
+
+   **6b — then the constants can go.**
 7. **The eight zero-extent widgets report a real extent** — each is a container,
    so its extent is the bounds of what it drew. The largest step; it moves alone.
 
