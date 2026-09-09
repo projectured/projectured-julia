@@ -36,7 +36,7 @@ DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 
 A `Tool` is a name, a description, abstractly-described parameters, and a handler
 `(target, args) -> String`. It carries **no wire format**: rendering it into
-Anthropic's `input_schema` is `ProjecturedLlm`'s job, rendering it into MCP's
+Anthropic's `input_schema` is `ProjecturedAnthropic`'s job, rendering it into MCP's
 parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
 
 **One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
@@ -82,10 +82,11 @@ necessarily has a JSON parser, because it speaks a JSON protocol, while the kern
 has no dependencies at all and so has none.
 
 Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
-`ProjecturedLlm` (`package/llm`), and the `FakeLlm` / `ScriptedLlm` doubles in
-`ProjecturedKernelExample` — never in a `main` package (PAR-NO-TEST-DOUBLES-IN-MAIN). The workbench
-assistant finds the real one by reflection when `ProjecturedLlm` is loaded, so
-nothing in the core stack names a concrete backend.
+`ProjecturedAnthropic`, `OllamaLlm` in `ProjecturedOllama`, and the `FakeLlm` /
+`ScriptedLlm` doubles in `ProjecturedKernelExample` — never in a `main` package
+(PAR-NO-TEST-DOUBLES-IN-MAIN). A caller names a backend by symbol,
+`make_llm(:ollama; model = …)`, so nothing in the core stack names a concrete
+backend and `llm_backend_names()` says which packages are loaded.
 
 ## Layer 16 — `agent/`: the two directions
 
@@ -128,5 +129,5 @@ parts; something else might simply print them.
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
 | `make_agent_server(:mcp, …)` | `agent/AgentServer.jl` | `ProjecturedMcp` (`package/mcp`) |
-| `stream_turn`, `tool_schema` | `llm/Llm.jl` | `ProjecturedLlm` (`package/llm`); `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
+| `stream_turn`, `tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

@@ -16,8 +16,8 @@ const SOURCE_DIR = normpath(joinpath(@__DIR__, "..", "executable"))
 # - the friendly runtime `--backend` name: the type name minus `Backend`, lowercased
 #   (`SdlBackend` → `sdl`); this is only a CLI label, never a dispatch key;
 # - the package to `using` in the generated config: the type's parent module;
-# - the local dir to `develop` (for backends in their own opt-in package): derived
-#   from that module name by the `package/<short>/main` layout convention.
+# - the local dir to `develop` (for backends in their own opt-in package): the
+#   module name itself, because one package is one folder that carries its name.
 #
 # A backend whose package the core app already pulls in needs neither a `using`
 # line nor a develop. Console and Pdf are packages of the substrate, which the
@@ -29,14 +29,15 @@ const CORE_BACKEND_MODULES =
 _backend_kind(T::Type)    = Symbol(lowercase(replace(String(nameof(T)), "Backend" => "")))
 _backend_module(T::Type)  = String(nameof(parentmodule(T)))
 _backend_needs_local(T::Type) = !(_backend_module(T) in CORE_BACKEND_MODULES)
-_backend_localdir(T::Type) = lowercase(replace(_backend_module(T), "Projectured" => "")) * "/main"
+_backend_localdir(T::Type) = _backend_module(T)
 
 # Local (path) packages the app always needs, developed by path so they resolve
-# without a registry. `projectured` (the meta-package) brings `kernel`+`domain` via
-# its own `[sources]`, but `example` depends on `llm` and declares no `[sources]`
-# of its own, so `llm` must be developed explicitly too. Backends are added on top
-# from `spec.backends`.
-const LOCAL_CORE_PACKAGES = ["projectured/main", "projectured/example", "llm/main"]
+# without a registry. `Projectured` (the meta-package) brings `kernel`+`domain` via
+# its own `[sources]`, but `ProjecturedExample` depends on the LLM adapters and
+# declares no `[sources]` of its own, so each adapter must be developed explicitly
+# too. Backends are added on top from `spec.backends`.
+const LOCAL_CORE_PACKAGES =
+    ["Projectured", "ProjecturedExample", "ProjecturedAnthropic"]
 
 # ── BuildSpec ────────────────────────────────────────────────────────────────
 

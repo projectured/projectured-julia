@@ -267,16 +267,16 @@ methods. The `Symbol` method's signature is a plain `DataType` and the `Val{K}`
 fallback's is a `UnionAll`, so the filter keeps only a method whose second
 parameter is a concrete `Val` with a `Symbol` parameter.
 
-### Step 2 — rename `ProjecturedLlm` to `ProjecturedAnthropic`
+### Step 2 — rename `ProjecturedLlm` to `ProjecturedAnthropic` — **DONE**
 
 Move the code:
 
-- [ ] `git mv package/ProjecturedLlm package/ProjecturedAnthropic`, then
+- [x] `git mv package/ProjecturedLlm package/ProjecturedAnthropic`, then
       `git mv .../src/ProjecturedLlm.jl .../src/ProjecturedAnthropic.jl`.
-- [ ] `git mv source/llm source/anthropic`, then
+- [x] `git mv source/llm source/anthropic`, then
       `git mv source/anthropic/Llm.jl source/anthropic/Anthropic.jl`.
-- [ ] New UUID in `Project.toml`; fix the `include` path in the package file.
-- [ ] Register `make_llm(::Val{:anthropic}; …)` and
+- [x] New UUID in `Project.toml` (`7a22cfc9-547a-444c-98bf-c26ac0f0a0b0`); fix the `include` path in the package file.
+- [x] Register `make_llm(::Val{:anthropic}; …)` and
       `default_llm_model(::Val{:anthropic})` in the adapter.
 
 Update every site that names the package. The list is complete; I inventoried it:
@@ -297,12 +297,20 @@ Prose that names it, and must follow: `package-rules.md:56,184`,
 `architecture-invariants.md:762`, `AssistantDocument.jl:90,94`,
 `AssistantTurn.jl:624,636`, `Mcp.jl:103`.
 
-- [ ] Regenerate `environment/all/Manifest.toml`.
-- [ ] **Warning: a word-boundary rename also rewrites file-path strings.** After
+- [ ] Regenerate `environment/all/Manifest.toml` — deferred to one resolve after Step 4, so the whole stack precompiles once instead of twice.
+- [x] **Warning: a word-boundary rename also rewrites file-path strings.** After
       the rename, grep for `Anthropic.jl` and `ProjecturedAnthropic.jl` inside
       strings and doc links and check each one. See
       [[rename-file-string-corruption]].
-- [ ] Test: load `environment/all`, then `test_package_graph()`.
+- [x] Test: `ProjecturedAnthropic` loads standalone. `llm_backend_names()` is `[:anthropic]`, `default_llm_model(:anthropic)` answers, and `make_llm(:anthropic; model = "")` builds an `AnthropicLlm` on the default model. `test_package_graph()` waits for the resolve.
+
+`AnthropicLlm(; model = "")` now falls back to the default model, because a caller
+that holds no model asks for the backend's own (D2), and an empty string reaching
+the API would be an error with no explanation.
+
+**The builder's paths were repaired here**, as the fault section says.
+`LOCAL_CORE_PACKAGES` and `_backend_localdir` now name the package folder itself,
+which is the flat layout on disk.
 
 What needs **no** edit, and why:
 

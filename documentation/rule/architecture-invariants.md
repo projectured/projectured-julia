@@ -759,7 +759,7 @@ gets exactly one opt-in package that registers a method on a seam owned below â€
 either a symbol-keyed `Val` factory (`make_agent_server(:mcp)`,
 `make_database_adapter(:odbc)`, the `record_video` seam) or a
 subtype-dispatched generic (`solve_constraint_layout(::TulipConstraintSolver)`,
-`layout_graph(::AdaptagramsLayout)`, `stream_turn(::AnthropicLlm)`). Generic
+`layout_graph(::AdaptagramsLayout)`, `make_llm(:ollama)`). Generic
 code requests capability by symbol or supertype; the opt-in package binds to
 the *narrowest* package that has what it renders and errors helpfully when not
 loaded. Requesting through a seam creates no dependency, which is what keeps

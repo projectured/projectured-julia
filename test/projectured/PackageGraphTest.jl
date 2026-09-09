@@ -169,7 +169,7 @@ end
 # A package that a leaf loads for its side effect alone: the type it defines is
 # found by reflection, so no file names it. The executable bakes the LLM backend
 # in this way, which is how a built application reaches a live model.
-const SIDE_EFFECT_DEPS = Dict("ProjecturedExecutable" => ["ProjecturedLlm"])
+const SIDE_EFFECT_DEPS = Dict("ProjecturedExecutable" => ["ProjecturedAnthropic"])
 
 """
     _named_packages(name) -> Set{String}

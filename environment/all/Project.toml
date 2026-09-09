@@ -61,7 +61,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
-ProjecturedLlm = "7bcfe799-d9db-4ade-8cf5-c076331403f9"
+ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
 ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
@@ -182,7 +182,7 @@ ProjecturedKernel = {path = "../../package/ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../../package/ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../../package/ProjecturedKernelTest"}
 ProjecturedLayout = {path = "../../package/ProjecturedLayout"}
-ProjecturedLlm = {path = "../../package/ProjecturedLlm"}
+ProjecturedAnthropic = {path = "../../package/ProjecturedAnthropic"}
 ProjecturedMarkdown = {path = "../../package/ProjecturedMarkdown"}
 ProjecturedMarkdownExample = {path = "../../package/ProjecturedMarkdownExample"}
 ProjecturedMarkdownTest = {path = "../../package/ProjecturedMarkdownTest"}

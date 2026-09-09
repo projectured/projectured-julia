@@ -50,7 +50,7 @@ end
 # ANTHROPIC_API_KEY is set: it defines the `AnthropicLlm` backend and its
 # `stream_turn` method, which `Assistant` discovers by reflection.
 # The assistant *example documents* pass an explicit `FakeLlm` for offline use.
-using ProjecturedLlm
+using ProjecturedAnthropic
 
 # The opt-in examples that need a live database (ODBC) or the native graph-layout
 # engine (ProjecturedAdaptagrams C++ shim) live in the separate opt-in example

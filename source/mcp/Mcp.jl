@@ -100,7 +100,7 @@ end
     mcp_tools(editor, tools) -> Vector{MCPTool}
 
 Render the given tools into the `MCPTool` shape the MCP server expects, binding
-each handler to `editor`. This is the MCP half of the same job `ProjecturedLlm`
+each handler to `editor`. This is the MCP half of the same job `ProjecturedAnthropic`
 does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
 """

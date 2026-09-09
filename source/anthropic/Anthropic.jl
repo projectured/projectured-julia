@@ -25,7 +25,16 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
                model::AbstractString = _DEFAULT_MODEL,
                base_url::AbstractString = _ANTHROPIC_URL,
                max_tokens::Integer = 4096) =
-    AnthropicLlm(String(api_key), String(model), String(base_url), Int(max_tokens))
+    AnthropicLlm(String(api_key),
+                 String(isempty(model) ? _DEFAULT_MODEL : model),
+                 String(base_url), Int(max_tokens))
+
+# This package's registration on the kernel's factory seam. The method IS the
+# registration: `make_llm(:anthropic)` resolves exactly while this package is
+# loaded, and `llm_backend_names()` reads it back out of the method table.
+make_llm(::Val{:anthropic}; kwargs...) = AnthropicLlm(; kwargs...)
+
+default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
 
 # ═══════════════════════════════════════════════════════════════════════
 # Request → Anthropic JSON
