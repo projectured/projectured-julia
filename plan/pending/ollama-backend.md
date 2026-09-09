@@ -125,7 +125,8 @@ for the error message and for a future selector widget.
 default_llm_model(kind::Symbol) = default_llm_model(Val(kind))
 ```
 
-`ProjecturedAnthropic` returns the Claude id; `ProjecturedOllama` returns its own.
+`ProjecturedAnthropic` returns the Claude id; `ProjecturedOllama` returns
+`"qwen3.8:27b"`, which reports both `tools` and `thinking`.
 The assistant must not send a Claude model id to Ollama, and
 `DEFAULT_ASSISTANT_MODEL = "claude-opus-4-8"` in
 [AssistantDocument.jl:26](../../source/assistant/AssistantDocument.jl#L26) is an
@@ -133,14 +134,19 @@ Anthropic name sitting in a provider-neutral document.
 
 ### D3 — the assistant selects by symbol, and resolves at submit time
 
-`Assistant` gains one field, `backend::Symbol`, default `:auto`. The resolution
-order in `_run_agent_loop!` becomes:
+`Assistant` gains one field, `backend::Symbol`, default `:none`. **A person says
+which backend they want; nothing guesses.** The resolution order in
+`_run_agent_loop!` becomes:
 
 1. An explicit `llm` wins. This is what the tests and examples pass.
 2. A named `backend` calls `make_llm(backend; …)`, and its missing-method error is
    the report.
-3. `:auto` prefers `:anthropic` when an API key is present and its package is
-   loaded, then falls back to `:ollama` when that package is loaded.
+3. `:none` errors, and the error lists `llm_backend_names()`.
+
+There is no auto-detection. This is a decided behaviour change: a person who set
+`ANTHROPIC_API_KEY` and loaded the adapter used to get Claude with no further
+word, and must now write `backend = :anthropic`. The reason is that the guess was
+only ever correct while one backend existed.
 
 Resolution stays at submit time, per turn, for the reason the current code already
 gives: a backend cached on the document would freeze the model that was selected
@@ -382,16 +388,14 @@ add the Ollama package to that same list, so the fault has to be repaired first 
 the executable build cannot find either adapter. Repair it in Step 2, where the
 line is edited anyway.
 
+## Decided
+
+1. **The name is `ProjecturedAnthropic`.**
+2. **A person says which backend they want.** There is no `:auto` (D3).
+3. **The default Ollama model is `qwen3.8:27b`.**
+
 ## Open questions
 
-1. **The `:auto` order.** D3 prefers Anthropic when a key is set. Is that right,
-   or should a person always say which backend they want?
-2. **Is `ProjecturedAnthropic` the name you want**, or `ProjecturedClaude`? The
-   API is Anthropic's and the models are Claude; the current type is
-   `AnthropicLlm`, which argues for the first.
-3. **Which Ollama model is the default?** This machine holds `qwen3.8:27b`,
-   `qwen3.5:27b` (both report `tools` and `thinking`) and `mistral:latest`
-   (`tools`, no thinking). A default that is not pulled fails with HTTP 404.
-4. **The assistant's system prompt** is written for Claude and is long. A 27B
-   local model may follow it poorly. That is a separate piece of work, but it
-   decides whether the first Ollama turn looks like a success.
+The assistant's system prompt is written for Claude and is long. A 27B local
+model may follow it poorly. That is separate work, but it decides whether the
+first Ollama turn looks like a success.
