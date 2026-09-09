@@ -185,7 +185,18 @@ Each step keeps the images green before the next begins.
    and the conversation. `conversation_widget` stopped drawing, the comparison
    said `GONE`, and the `.failed` file named the arity.
 5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
-   collapse into it. The two inverted precedences go with them.
+   collapse into it. Split into reviewable pieces, because this touches 40
+   widgets and each piece is meant to be looked at:
+
+   - **5a — the two inverted precedences — DONE.** `WidgetScrollPane` and
+     `WidgetTransformPane` let an authored size win over an offer, as every other
+     widget already does. **All 39 images unchanged**, because no example both
+     authors a size and receives an offer. Measured where they do not reach:
+     an authored `120x60` under an offer of `900x700` now draws `120x60`, and
+     drew `900x700` before. That is what lets a card set its panes' size and keep
+     it.
+   - **5b** — pattern B gains the height half.
+   - **5c** — pattern A and C resolve through the rule.
 6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
    bug the images show.
 7. **The eight zero-extent widgets report a real extent** — each is a container,

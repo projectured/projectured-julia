@@ -3187,20 +3187,25 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    # Viewport extent: prefer the parent-allocated extent on each axis
-    # (from the context) so the pane fits its slot in a layout; fall back
-    # to the widget's own `size` when the context didn't allocate. The
-    # extent is held as a `Cell` so reads are deferred — the parent
-    # layout may not have built its allocation cell yet when we recurse.
+    # Viewport extent, by the one rule: an authored size wins, then the extent the
+    # parent offered, then — until the constants go — a number. The extent is held
+    # as a `Cell` so reads are deferred: the parent layout may not have built its
+    # allocation cell yet when we recurse.
+    #
+    # An authored size wins because a caller that wrote one meant it. A card sets
+    # its panes' size precisely so they do not grow with what they hold, and an
+    # offer that overrode it would take that away.
     tx, ty = _inset_total(w)
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    vw_cell = avail_w !== nothing ?
+    vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
+              avail_w !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
-    vh_cell = avail_h !== nothing ?
+              Cell(Int32(_SCROLL_FALLBACK_WIDTH))
+    vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
+              avail_h !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
+              Cell(Int32(_SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     follow_cell = getfield(w, :follow_end)
@@ -3386,15 +3391,18 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
+    # The same rule as the scroll pane's: an authored size wins over an offer.
     tx, ty = _inset_total(w)
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    vw_cell = avail_w !== nothing ?
+    vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
+              avail_w !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.x[]) : _SCROLL_FALLBACK_WIDTH))
-    vh_cell = avail_h !== nothing ?
+              Cell(Int32(_SCROLL_FALLBACK_WIDTH))
+    vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
+              avail_h !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(sz isa Point2D ? Int(sz.y[]) : _SCROLL_FALLBACK_HEIGHT))
+              Cell(Int32(_SCROLL_FALLBACK_HEIGHT))
     cox, coy = _content_offset(w)
     # The pane's affine transform, read through a Cell so a zoom/pan re-zooms
     # the viewport reactively.
