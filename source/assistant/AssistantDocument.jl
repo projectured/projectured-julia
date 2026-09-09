@@ -22,10 +22,9 @@ import ..LlmModule: Llm
 import ..ReferenceModule: Reference
 import ..ConversationModule: ConversationConversation, ConversationDraft, ConversationPart
 
-export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_MODEL, DEFAULT_ASSISTANT_SYSTEM
+export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM
 
 const ASSISTANT_TITLE = "Assistant"
-const DEFAULT_ASSISTANT_MODEL  = "claude-opus-4-8"
 """
     DEFAULT_ASSISTANT_SYSTEM
 
@@ -72,31 +71,38 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
 
 """
-    Assistant(; conversation, input, model, system, api_key, status, llm)
+    Assistant(; conversation, input, backend, model, system, api_key, status, llm)
 
 The assistant panel. Holds the full chat history (`conversation`), the
 editable prompt (`input`, a `PrimitiveString` so the existing text-edit
 projections route `KeyPress`/backspace/delete to it directly), the
-Anthropic model id (`model`), the system prompt (`system`), the Anthropic
-API key (`api_key`), a `status` symbol (`:idle`, `:streaming`, `:error`,
-...), and a pluggable `llm::Llm` that decides how submit turns are
-serviced (real Claude vs. a canned-reply fake).
+`backend` that services a turn (`:anthropic`, `:ollama`), the model id
+(`model`), the system prompt (`system`), the API key (`api_key`), a `status`
+symbol (`:idle`, `:streaming`, `:error`, ...), and a pluggable `llm::Llm` that
+overrides the backend entirely (a canned-reply fake, in a test).
+
+**A person says which backend they want.** `backend` defaults to `:none`, and an
+assistant that names none errors on submit with the list of backends whose
+packages are loaded. Nothing is guessed: a guess was only ever right while one
+backend existed.
+
+`model` defaults to empty, which means "the backend's own default" — a model name
+belongs to a provider, and a Claude id means nothing to a local server.
 
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
-resolved from `ENV["ANTHROPIC_API_KEY"]` **at submit time**, not here. This keeps
-the choice out of the precompiled image — documents are built eagerly into
-`const`s during precompilation (no key then), so resolving at construction would
-freeze the wrong choice. Resolving lazily means a key exported before launch is
-honoured. When a key is set *and* the opt-in `ProjecturedLlm` package is loaded,
-the real Claude backend is discovered by reflection; otherwise submitting errors
-with a clear message. Production `main` never fabricates a fake — tests/examples
-that want offline behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm`
-from `ProjecturedKernelExample`, e.g. `FakeLlm("ok")`).
+resolved **at submit time**, not here. This keeps the choice out of the
+precompiled image — documents are built eagerly into `const`s during
+precompilation (no key then), so resolving at construction would freeze the wrong
+choice. Resolving lazily means a key exported before launch is honoured.
+Production `main` never fabricates a fake — tests/examples that want offline
+behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
+`ProjecturedKernelExample`, e.g. `FakeLlm("ok")`).
 """
 @document struct Assistant <: Document
     conversation::ConversationConversation
     input::PrimitiveString
     draft::ConversationDraft
+    backend::Symbol
     model::String
     system::String
     api_key::String
@@ -111,14 +117,15 @@ _default_draft() = ConversationDraft([ConversationPart(PrimitiveString(""))])
 function Assistant(; conversation::ConversationConversation = ConversationConversation(),
                               input::PrimitiveString = PrimitiveString(""),
                               draft::ConversationDraft = _default_draft(),
-                              model::AbstractString = DEFAULT_ASSISTANT_MODEL,
+                              backend::Symbol = :none,
+                              model::AbstractString = "",
                               system::AbstractString = DEFAULT_ASSISTANT_SYSTEM,
                               api_key::AbstractString = "",
                               status::Symbol = :idle,
                               collapse_thinking::Bool = true,
                               llm::Union{Nothing,Llm} = nothing)
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
-                           Cell(String(model)), Cell(String(system)),
+                           Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(status),
                            Cell(collapse_thinking),
                            Cell(llm),

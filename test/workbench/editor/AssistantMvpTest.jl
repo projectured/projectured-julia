@@ -192,6 +192,48 @@ function _mvp_test_fake_llm_dispatch()
     end
 end
 
+
+# ── A person says which backend they want ───────────────────────────────
+#
+# An assistant with no explicit `llm` and no named backend does not guess. It
+# errors, and the error says which backends are loaded — because the guess was
+# only ever right while one backend existed.
+
+function _mvp_test_backend_must_be_named()
+    @testset "the backend must be named" begin
+        a = Assistant()
+        @test a.backend === :none
+        @test a.model == ""
+        tools = register_default_tools!(ToolSet())
+        err = try
+            _run_agent_loop!((document = a, tools = tools), a)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("no LLM backend was named", err.msg)
+
+        # A named backend whose package is not loaded reports that instead, and
+        # names the seam it failed on rather than the assistant.
+        a = Assistant(; backend = :nosuchprovider)
+        err = try
+            _run_agent_loop!((document = a, tools = tools), a)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ErrorException
+        @test occursin("No LLM backend registered for :nosuchprovider", err.msg)
+
+        # An explicit `llm` still wins over both, which is what every test here does.
+        a = Assistant(; llm = FakeLlm("ok"))
+        @test a.backend === :none
+        _run_agent_loop!((document = a, tools = tools), a)
+        @test length(a.conversation.turns) == 1
+    end
+end
+
 """
     test_assistant_mvp()
 
@@ -209,6 +251,7 @@ function test_assistant_mvp()
         _mvp_test_thinking_stream()
         _mvp_test_resource_collapse()
         _mvp_test_collapse_containment()
+        _mvp_test_backend_must_be_named()
     end
 end
 

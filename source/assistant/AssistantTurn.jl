@@ -57,7 +57,8 @@ import ..EventModule: KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..AgentModule: Agent, run_turn!, AgentToolResult
-import ..LlmModule: Llm, stream_turn, LlmRequest, LlmMessage, LlmContent,
+import ..LlmModule: Llm, stream_turn, make_llm, llm_backend_names,
+                     LlmRequest, LlmMessage, LlmContent,
                      LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
                      LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
                      LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
@@ -597,48 +598,57 @@ end
 # `eval_kind_label` so the resource/eval/tool classification stays single-sourced.
 _collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) == "resource"
 
-# Reflection-based discovery of the real-network backend. `AnthropicLlm` lives
-# entirely in the opt-in `ProjecturedLlm` package, which the core stack does not
-# depend on — so we cannot name the type. If that package is loaded, construct one
-# configured from the assistant's key and model; otherwise return `nothing` and the
-# caller errors (production `main` never fabricates a fake backend).
+# Build the backend this assistant names. Every real backend lives in an opt-in
+# package that the core stack does not depend on, so no type can be named here —
+# `make_llm(:ollama; …)` is how one is asked for, and the method that answers it
+# exists exactly while its package is loaded.
 #
-# The backend is built per turn rather than cached on the document, because the key
-# and the model are now the backend's own configuration: caching it would freeze
+# The backend is built per turn rather than cached on the document, because the
+# key and the model are the backend's own configuration: caching it would freeze
 # whatever model was selected the first time, and editing `assistant.model` would
-# stop taking effect.
-function _discover_remote_llm(api_key::AbstractString, model::AbstractString)
-    for m in values(Base.loaded_modules)
-        nameof(m) === :ProjecturedLlm || continue
-        isdefined(m, :AnthropicLlm) || continue
-        return Base.invokelatest(getfield(m, :AnthropicLlm); api_key = api_key, model = model)
-    end
-    nothing
+# stop taking effect. `invokelatest` because the package can be loaded after this
+# code was compiled.
+#
+# An empty `model` means "the backend's own default", which is the only sound
+# answer: a model name belongs to a provider, and a Claude id means nothing to a
+# local server.
+function _build_llm(backend::Symbol, api_key::AbstractString, model::AbstractString)
+    Base.invokelatest(make_llm, backend; api_key = api_key, model = model)
+end
+
+# The backends whose packages are loaded, for an error message. "none" is the
+# honest answer when the person loaded no adapter at all: the fix then is to load
+# one, not to name one.
+function _backend_list()
+    names = Base.invokelatest(llm_backend_names)
+    isempty(names) && return "none (load ProjecturedAnthropic or ProjecturedOllama)"
+    join(map(n -> ":" * String(n), names), ", ")
 end
 
 function _run_agent_loop!(editor, a::Assistant)
-    # The real backend's `stream_turn` errors with a clear HTTP message if the
-    # API key is empty, so leave key validation to the backend.
     set = editor.tools
-    # Resolve the backend now (not at construction): with no explicit `llm`, build
-    # the real-network one when a key is available *and* the opt-in `ProjecturedLlm`
-    # package is loaded (found by reflection). Reading ENV here — rather than baking
-    # it into the precompiled document — is what lets a key exported before launch
-    # take effect. No fallback is fabricated: this is production code, so it never
-    # conjures a fake backend. Tests/examples that want offline behaviour pass an
-    # explicit `llm` (a `FakeLlm`/`ScriptedLlm` from `ProjecturedKernelExample`).
+    # Resolve the backend now, not at construction. Reading ENV here — rather than
+    # baking it into the precompiled document — is what lets a key exported before
+    # launch take effect. A backend's own `stream_turn` reports a missing or wrong
+    # key with the provider's message, so no key is validated here.
+    #
+    # Nothing is guessed. A person says which backend they want, and an assistant
+    # that names none is an error rather than a lucky default: the guess was only
+    # ever right while one backend existed. Tests and examples that want offline
+    # behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
+    # `ProjecturedKernelExample`), and production never fabricates one.
     key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
     llm = a.llm
     if llm === nothing
-        llm = isempty(key) ? nothing : _discover_remote_llm(key, a.model)
-        llm === nothing && error(
-            "Assistant: no LLM backend available. Set ANTHROPIC_API_KEY " *
-            "and load ProjecturedLlm for real Claude, or construct the assistant " *
-            "with an explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample " *
-            "in tests/examples).")
+        a.backend === :none && error(
+            "Assistant: no LLM backend was named. Set `assistant.backend` to one " *
+            "of " * _backend_list() * ", or construct the assistant with an " *
+            "explicit `llm` (e.g. a FakeLlm from ProjecturedKernelExample in " *
+            "tests/examples).")
+        llm = _build_llm(a.backend, key, a.model)
     end
     turn_t0 = time()
-    @info "[assistant] turn start" llm=nameof(typeof(llm)) model=a.model
+    @info "[assistant] turn start" llm=nameof(typeof(llm)) backend=a.backend model=a.model
 
     # One assistant turn for the whole response. The event handler appends thinking/
     # text parts as deltas arrive, and each tool call appends an EvaluatorForm part
