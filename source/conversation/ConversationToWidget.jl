@@ -32,7 +32,7 @@ import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 import ..NaturalNotationModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
-import ..LayoutModule: VerticalLayout, HorizontalLayout, Fill, Content
+import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_bold_22
@@ -59,14 +59,9 @@ struct ConversationPartToWidget                  <: Projection end
 
 # ── Constants / glyphs ────────────────────────────────────────────────────────
 
-# A turn card and a part card take the width they are offered — the transcript's
-# `child_width = Fill` says so, and the card resolves it. These were 760 and 720,
-# two numbers that made every conversation the same width whatever it was shown
-# in. `_maybe_clip` still needs a width for the viewport it builds when a card is
-# collapsed, because a `WidgetScrollPane`'s size is one `Point2D` and cannot
-# author one axis alone; that is the only reason they survive as a clip width.
-const _CARD_WIDTH    = 760
-const _PART_WIDTH    = 720
+# No card width. A turn card and a part card take the width they are offered —
+# the transcript says `child_width = Fill` and the card resolves it — so a
+# conversation is as wide as the pane holding it.
 const _AVATAR_SIZE   = 22
 const _COLLAPSED_H   = 30   # clipped viewport height (≈ one row) when collapsed
 const _GAP           = 6
@@ -128,16 +123,11 @@ _header(glyph::AbstractString, label::AbstractString, style::StyleText) =
         WidgetLabel(Point2D(0, 0), String(label); text_style = style),
     ]; vertical_align = :center, gap = 8)
 
-# Collapse a body document by clipping it into a short scroll-pane viewport,
-# sized to the owning card's *interior* width (`width - 2·padding`). The scroll
-# pane prefers the parent-allocated width in the live editor; this fallback width
-# keeps an isolated/unallocated render from widening the card past `width`. Using
-# the card's own width (not a hardcoded constant) is what stops a 720px part card
-# from ballooning to the 760px turn width when collapsed.
-_maybe_clip(body, collapsed::Bool, width::Integer) =
-    collapsed ? WidgetScrollPane(body;
-                                 size = Point2D(width - 2 * _CARD_PADDING, _COLLAPSED_H),
-                                 padding = inset_default) : body
+# A collapsed card shows one row of its body. Saying so is a constraint on the
+# body's height; the card builds the viewport, because the card is what knows its
+# own inner width and this does not.
+_maybe_clip(body, collapsed::Bool) =
+    collapsed ? LayoutConstraint(body; height = Fixed(_COLLAPSED_H)) : body
 
 # ── print_document: conversation → vertical list of turn cards ──────────────
 
@@ -173,7 +163,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
                           Cell(Fill), Cell(Content), Cell(nothing))
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
-                      content = _maybe_clip(body, t.collapsed === true, _CARD_WIDTH))
+                      content = _maybe_clip(body, t.collapsed === true))
     ChildrenIoMap(projection, t, card, ioms)
 end
 
@@ -188,7 +178,7 @@ function print_document(projection::ConversationPartToWidget,
            content
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_kind_glyph(content), _kind_label(content), _KIND_STYLE),
-                      content = _maybe_clip(body, part.collapsed === true, _PART_WIDTH))
+                      content = _maybe_clip(body, part.collapsed === true))
     SimpleIoMap(projection, part, card)
 end
 

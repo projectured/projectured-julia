@@ -3240,6 +3240,16 @@ function _descends_into_page(widget, idx::Int)
     page isa WidgetTabPage && !(page.element isa WidgetDocument)
 end
 
+# The viewport extent of a scroll pane on one axis. It is the offer when the pane
+# has one — an authored size or the space the parent gave. It is the content's own
+# extent when the pane has neither, because a pane with nothing to clip against
+# must not clip.
+function _pane_extent(offer, content_cell)
+    offer !== nothing && return offer
+    content_cell === nothing && return Cell(Int32(0))
+    ComputedCell(() -> Int32(max(0, Int(content_cell[]))))
+end
+
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
@@ -3248,29 +3258,47 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    # Viewport extent, by the one rule: an authored size wins, then the extent the
-    # parent offered, then — until the constants go — a number. The extent is held
-    # as a `Cell` so reads are deferred: the parent layout may not have built its
-    # allocation cell yet when we recurse.
+    # Viewport extent, by the one rule every widget follows: an authored size
+    # wins, then the extent the parent offered, then the extent of the content.
+    # The extent is held as a `Cell` so reads are deferred: the parent layout may
+    # not have built its allocation cell yet when we recurse.
     #
     # An authored size wins because a caller that wrote one meant it. A card sets
     # its panes' size precisely so they do not grow with what they hold, and an
     # offer that overrode it would take that away.
+    #
+    # An axis with no authored size and no offer is not clipped at all. On that
+    # axis the pane withholds the offer, lets the content size itself, and takes
+    # the viewport extent from the content. This is what keeps a pane that clips
+    # one axis — a collapsed card body, clipped to a fixed height — as wide as
+    # its content on the other. The two cases cannot form a cycle: a clipped axis
+    # offers a cell that the content reads, and an unclipped axis reads a cell
+    # that the content produces.
     tx, ty = _inset_total(w)
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
+    offer_w = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
               avail_w !== nothing ?
-              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) :
-              Cell(Int32(0))
-    vh_cell = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
+              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) : nothing
+    offer_h = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
               avail_h !== nothing ?
-              ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) :
-              Cell(Int32(0))
+              ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) : nothing
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     follow_cell = getfield(w, :follow_end)
     inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
+    # Recurse into the content before the extent cells exist: on an unclipped axis
+    # the viewport extent is the content's own, so the content must come first.
+    content_iomap = nothing
+    content = w.content
+    inner_canvas = nothing
+    if content isa Document
+        content_ctx = with_available_size(ctx; width = offer_w, height = offer_h)
+        content_iomap = print_child(recursion, content, content_ctx)
+        inner_canvas = content_iomap.output::GraphicsCanvas
+    end
+    vw_cell = _pane_extent(offer_w, inner_canvas === nothing ? nothing : inner_canvas.w)
+    vh_cell = _pane_extent(offer_h, inner_canvas === nothing ? nothing : inner_canvas.h)
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
@@ -3281,14 +3309,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(Int32(0)),
                               Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
                               Cell(nothing)))
-    # Recurse into the content with the viewport extent on each axis — the
-    # context cells are already deferred, so the recursion stays lazy.
-    content_iomap = nothing
-    content = w.content
-    if content isa Document
-        content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
-        content_iomap = print_child(recursion, content, content_ctx)
-        inner_canvas = content_iomap.output::GraphicsCanvas
+    if inner_canvas !== nothing
         inner_elems_cv = inner_canvas.elements
         # Vertical offset of the content inside the viewport. Normally this is the
         # negated `scroll_position.y`; with `follow_end` the pane sticks to the
@@ -3908,6 +3929,21 @@ function _card_build(p, w, ctx, tim, cim)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
 end
 
+# The body a card recurses into, and the context to print it with.
+#
+# A bare document is itself. A `LayoutConstraint` pinning a height becomes a
+# viewport with **no size of its own**, printed with that height as its offer — a
+# viewport takes the offer when it authored nothing, so one number says it and the
+# width still comes from the card. Nothing here needs a `Point2D`, and nothing
+# here needs to know the card's inner width.
+function _card_body(content, inner_ctx)
+    content isa LayoutConstraint || return (content, inner_ctx)
+    pinned = content.preferred_height
+    pinned === nothing && return (content.child, inner_ctx)
+    (WidgetScrollPane(content.child; padding = inset_default),
+     with_available_size(inner_ctx; height = Cell(Int32(Int(pinned)))))
+end
+
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     position = w.position::Point2D
@@ -3928,7 +3964,15 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
     inner_ctx = withhold_offer(with_available_size(ctx; width=inner_w), :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
-    cim = w.content isa Document ? print_child(recursion, w.content, inner_ctx) : nothing
+    # A `LayoutConstraint` around the content is how a caller pins the body's
+    # height — a collapsed card showing one row of what it holds. The card does
+    # the clipping rather than the caller, because the caller does not know the
+    # card's inner width and would have to invent one; the card does know it.
+    #
+    # With no width to give — nothing offered — there is no viewport to build, so
+    # the body draws in full. A clip is a promise about a width, and there is none.
+    body, body_ctx = _card_body(w.content, inner_ctx)
+    cim = body isa Document ? print_child(recursion, body, body_ctx) : nothing
     build = ComputedCell(() -> _card_build(p, w, ctx, tim, cim))
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            ComputedCell(() -> Int32(build[].w)),
