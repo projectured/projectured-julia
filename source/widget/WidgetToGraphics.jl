@@ -53,7 +53,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none
+import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, graphics_size
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
@@ -759,10 +759,36 @@ _reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Compute
 # Auto-extent reactive canvas (w = h = 0, sized by its children) with reactive
 # membership — the container analogue of the 3-arg `_make_canvas(x, y, elems)`.
 # `elems_fn()` returns the (positioned) child element vector, re-derived reactively.
-function _reactive_canvas_auto(x::Int, y::Int, elems_fn)
-    GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0),
-                   ComputedCellVector(elems_fn),
-                   layout_none, true, Cell(nothing))
+# A canvas of positioned children, which reports the extent those children reach.
+#
+# It answered `0 x 0` before, so a container built this way told its parent it
+# occupied nothing: a layout could not place it, a scroll pane could not know
+# whether it overflowed, and a test could not read it. The extent is the bounds of
+# what was drawn, which is the only answer a container of positioned children has.
+#
+# `measure` is the projection's own text measurement — without it a canvas holding
+# text directly reports nothing, which is the same bug with more steps. A
+# projection that measures nothing (a composite holds already-drawn canvases, not
+# words) has no such field, and `nothing` here means the caller-free form.
+_p_measure(p) = hasproperty(p, :measure) ? p.measure : nothing
+
+_element_size(e, measure) =
+    measure === nothing ? graphics_size(e) : graphics_size(e, measure)
+
+function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure)
+    elems = ComputedCellVector(elems_fn)
+    bounds = ComputedCell(() -> begin
+        w = 0; h = 0
+        for e in elems
+            ew, eh = _element_size(e, measure)
+            w = max(w, ew); h = max(h, eh)
+        end
+        (w, h)
+    end)
+    GraphicsCanvas(Int32(x), Int32(y),
+                   ComputedCell(() -> Int32(bounds[][1])),
+                   ComputedCell(() -> Int32(bounds[][2])),
+                   elems, layout_none, true, Cell(nothing))
 end
 
 _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
@@ -1751,7 +1777,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         end
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
@@ -1792,7 +1818,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         elems = Any[_make_canvas(cox, coy, Any[cim.output]) for cim in cims]
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> build[].elements),
+    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
@@ -2047,7 +2073,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         end
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
@@ -2185,7 +2211,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
         end
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
@@ -3555,7 +3581,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         end
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements),
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 

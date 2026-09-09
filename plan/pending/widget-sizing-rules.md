@@ -249,7 +249,24 @@ Each step keeps the images green before the next begins.
 6. **Delete the five constants.** A chain that runs out is `0`, and a `0` is a
    bug the images show.
 7. **The eight zero-extent widgets report a real extent** — each is a container,
-   so its extent is its children laid out. The largest step; it moves alone.
+   so its extent is the bounds of what it drew. The largest step; it moves alone.
+
+   - **7a — the five auto-extent canvases — DONE.** `_reactive_canvas_auto` reads
+     the bounds of its elements instead of answering `0 x 0`:
+     `WidgetMenu`, `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`,
+     `WidgetToolbar`. `graphics_size` already existed for exactly this.
+
+     A projection that measures nothing — a composite holds already-drawn
+     canvases, not words — has no `measure` field, so `_p_measure` answers
+     `nothing` and the measure-free form is used.
+
+     **One picture moved, and it is right: `widget_split_pane` now draws its
+     splitter.** Before, the left title pane reported zero width, so the divider
+     had nowhere to sit; now the pane reports what it drew and the splitter
+     appears between the two. 162 bytes of 70 kB, same canvas size.
+
+   - **7b** — the three that use the 3-argument `_make_canvas`: `WidgetTabbedPane`,
+     `WidgetScrollBar`, and the split's own empty case.
 8. **The four theme numbers become `min`**, so content can still push them out.
 9. **Delete `WidgetTooltip.size`; the overlays take `Content` with
    `max = offer`,** so a tooltip stops running off the window.
