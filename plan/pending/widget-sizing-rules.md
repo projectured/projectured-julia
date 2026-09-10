@@ -206,10 +206,7 @@ Each step keeps the images green before the next begins.
    `GridLayout`, `FlowLayout` and `StackLayout` do not carry a default yet: they
    allocate differently and none of them is in the conversation's path. They
    follow when a case needs them. **`GridLayout`'s case arrived** — the run table
-   of the campaign runner — and it is
-   [table-columns-rows-and-frozen-headers.md](table-columns-rows-and-frozen-headers.md),
-   which also completes step 3 for the grid: it offers its cells an extent it
-   will not give them.
+   of the campaign runner — and it is steps 14 to 17.
 
    **The instrument earned its place here.** Two new fields changed the
    all-positional arity of both stacks from four to six, and four call sites
@@ -626,6 +623,116 @@ Each step keeps the images green before the next begins.
     see a wheel or a drag, and all four faults above lived there. The measurement
     that found each of them was the same shape: build the campaign's own chain,
     send the event, and print what came back.
+14. **The grid offers what it will give — the run table found it.**
+    `GridLayoutToGraphicsCanvas` recurses every child with the parent's own
+    context, so each cell is offered the grid's whole extent on **both** axes. A
+    cell that authored no height fills it, and a grid's row height is its tallest
+    cell — so one row swallows the offer.
+
+    Measured in the campaign runner's table, in the coordinates of the whole
+    canvas, inside a scroll pane 538 pixels tall:
+
+    | | header | row 1 | row 2 | row 3 |
+    | --- | --- | --- | --- | --- |
+    | the table alone | 571 | 1126 | 1681 | 2236 |
+    | the table in a stack | 571 | 608 | 645 | 682 |
+
+    555 = 538 + 17, the offer plus the cell gap. Every run fell below the fold.
+    **This is step 3 for the grid**: a grid's row height comes from its children,
+    so on `:y` it offers nothing. `withhold_offer(ctx, :y)` is already written.
+
+    `omnet-julia` holds the workaround today: `SimulationFilterToWidget` wraps the
+    table in a `VerticalLayout` inside the pane, and a stack offered a height that
+    holds no weighted child sums instead of distributing and offers that height to
+    nobody. **Step 16 deletes that wrapper.**
+
+    **Check.** The runner's table with no wrapper, printed at 900×1100: rows 37
+    apart. Of the 39 images only the table ones may change, and each must change
+    by shrinking a row to its text.
+15. **A column and a row take a policy, and the default is implicit.** This is
+    step 4 for the grid, and it is the case step 4 said it was waiting for.
+
+    | policy | a column | a row |
+    | --- | --- | --- |
+    | `Content` | as wide as its widest cell | as tall as its tallest cell |
+    | `Fixed(n)` | exactly `n` | exactly `n` |
+    | `Relative(w)` | a share of what is left | a share of what is left |
+    | `Fill` | `Relative(1.0)` | `Relative(1.0)` |
+
+    `GridLayout` has half of this already: `column_stretch::Vector{Int}` gives a
+    weighted column its content width **plus** a share of
+    `available − Σcontent − gaps`. **`column_stretch` folds into `Relative(w)`**
+    and stops being a second way to say one size. There is no row equivalent
+    today, and this is where one arrives.
+
+    The grid carries `column_policy` and `row_policy` — one policy each, the
+    default for every column and every row — with a per-column and a per-row
+    vector for the ones that differ. **Both default to `Content`**, which is what
+    a grid has always meant, so no caller changes.
+
+    **A grid must not offer a stretched column its total.** That total is content
+    plus share, so a cell's size would depend on its own content width through the
+    offer, and the cell would close a cycle. §4's rule applies per column: only a
+    weighted column is offered a slot, and every other keeps the withheld axis, so
+    its extent is safe to read while the allocation is computed. The same per row,
+    on `:y`.
+
+    **Check.** Three columns, the middle one `Fill`, in a 600-wide offer: the
+    outer two are content wide and the middle takes the rest. A grid that says
+    nothing is unchanged, and the images say so.
+16. **`WidgetTable` takes them.** The same two defaults and the same two vectors,
+    and a table's own default is `Content` on both axes — a table that says
+    nothing draws as it does today.
+
+    The campaign runner's five columns then say what they are for:
+    `configuration` `Content`, `run` `Fixed`, `iteration parameters` `Fill`,
+    `INI file` `Content`, `directory` `Fill`.
+
+    **Check.** The columns fill the pane's width and the two `Fill` ones share
+    what is left. **`SimulationFilterToWidget` in `omnet-julia` drops its
+    `VerticalLayout` wrapper**, and its `test_filter_run_table_bounded` still
+    passes — that test asserts the rows are 37 apart at a bounded height, so it is
+    what says the fix landed at the grid rather than being moved around.
+
+    A width a person can drag is not here. A policy is where a drag would write,
+    which is what makes it possible later.
+17. **A header strip stays put while the body scrolls.**
+
+    **What a table is today.** `WidgetTable` carries both strips, and both are
+    optional: `column_headers` is the top strip — a header **row** — and
+    `row_headers` is the left strip — a header **column**. `_wt_grid_children`
+    lays all of it out as **one** `GridLayout`: the column headers take grid row
+    1, the row headers take grid column 1, `row_offset` and `col_offset` say
+    whether each is there, and the corner is an empty cell. A strip aligns with
+    the body because it is the same grid, and it scrolls with the body for the
+    same reason.
+
+    Frozen panes is four regions and two offsets:
+
+    | | fixed on x | scrolls on x |
+    | --- | --- | --- |
+    | **fixed on y** | the corner | the column headers |
+    | **scrolls on y** | the row headers | the body |
+
+    **The pane freezes, and the content declares.** `WidgetScrollPane` gains a
+    frozen extent and holds that many pixels of its content still on each axis
+    while the rest travels. Three reasons it is not in the table:
+
+    - **One scroller.** A table that scrolled itself would need its own `size`
+      and `scroll_position`, and a pane around it would scroll a thing that
+      scrolls. Every wheel and drag already reaches the pane.
+    - **It is not about tables.** A sequence chart, a spreadsheet and a log with
+      a fixed first line all want it. The pane holds a prefix of *anything*.
+    - **The table already knows the number.** `_wt_geometry` computes `col_x` and
+      `row_y`, the cumulative edges, so the frozen extent is
+      `col_x[col_offset + 1]` by `row_y[row_offset + 1]`, and zero on an axis with
+      no strip.
+
+    A content that declares none freezes nothing, which is every content today.
+
+    **Check.** The runner's table scrolled to the bottom still shows the five
+    column names and the ordinals beside the rows, and the corner does not move.
+    A pane over any other content scrolls as it does today.
 
 ## The safety net: every widget, before and after
 
@@ -665,6 +772,9 @@ and not a description.
 - The 39 images differ from the base only where a step said they would.
 - In the campaign window: the transcript scrolls, the composer stays put, a card
   fills the width and grows with its content, and a collapsed card is 30 tall.
+- In the campaign runner: a table row is the height of its text, its columns fill
+  the pane's width, its header strips stay put while the body scrolls, and
+  `omnet-julia` holds no wrapper to make any of that happen.
 
 ## Decided
 
