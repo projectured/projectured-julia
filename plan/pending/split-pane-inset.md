@@ -58,7 +58,7 @@ pixels past the bottom. It must start at 8 and run 284.
       main and cross extents before the split divides them, and add it back to
       the reported outer size. Add a test that a bordered split keeps its
       children and its splitter inside the size it reports.
-- [ ] **Step 2 — fix A, the pane layer.** Drop the `border` argument on the
+- [x] **Step 2 — fix A, the pane layer.** DONE. Drop the `border` argument on the
       `WidgetSplitPane`. Keep it on the `WidgetTabbedPane`. Say in the comment
       on `_PANE_BORDER` that it is the tabbed pane's chrome and that a split
       pane takes none.

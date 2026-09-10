@@ -153,5 +153,49 @@ end
     @test graphics_size(iomap.output)[1] > 0
 end
 
+# Every rectangle of a render, in the coordinates of the whole canvas. A viewport
+# and a canvas each carry an offset, so both are added on the way down.
+function _global_rects(node, ox = 0, oy = 0, acc = Tuple{Int,Int,Int,Int}[])
+    if node isa GraphicsRect
+        push!(acc, (ox + Int(node.x[]), oy + Int(node.y[]),
+                    Int(node.w[]), Int(node.h[])))
+    elseif node isa GraphicsCanvas
+        for e in node.elements
+            _global_rects(e, ox + Int(node.x[]), oy + Int(node.y[]), acc)
+        end
+    elseif node isa GraphicsViewport
+        _global_rects(node.content, ox + Int(node.x[]), oy + Int(node.y[]), acc)
+    end
+    acc
+end
+
+@testset "a nested split's splitter meets the splitter that holds it" begin
+    # A split pane takes no inset of its own: it draws no chrome, and an inset
+    # there would push each nested layout in by that much, leaving every inner
+    # splitter short of the one it must meet.
+    WIDTH, HEIGHT = 400, 300
+    left = PaneGroup(PaneTab[_tab("l")])
+    top = PaneGroup(PaneTab[_tab("t")])
+    bottom = PaneGroup(PaneTab[_tab("b")])
+    tree = PaneTree(PaneSplit(:vertical, [left, PaneSplit(:horizontal, [top, bottom])]))
+    context = PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
+                             Dict{Symbol,Any}())
+    iomap = print_document(_chain(), nothing, tree, context)
+
+    rects = _global_rects(iomap.output)
+    # A splitter is one pixel thick. The root's is the tall one, the nested one
+    # the wide one; a tab strip draws nothing that thin.
+    verticals = filter(r -> r[3] == 1 && r[4] > 1, rects)
+    horizontals = filter(r -> r[4] == 1 && r[3] > 1, rects)
+    @test length(verticals) == 1
+    @test length(horizontals) == 1
+    outer, inner = verticals[1], horizontals[1]
+
+    @test outer[2] == 0                       # the root's splitter starts at the top
+    @test outer[2] + outer[4] == HEIGHT       # and runs to the bottom
+    @test inner[1] == outer[1] + outer[3]     # the nested one starts where it ends
+    @test inner[1] + inner[3] == WIDTH        # and reaches the right edge
+end
+
 end # testset
 end # function

@@ -114,6 +114,11 @@ end
 # The inset of a pane: what holds a tab's content off the pane's edge. It was two
 # insets of 4 — the tabbed pane's own, and a scroll pane's padding inside it. The
 # scroll pane is gone, so the page carries the whole 8.
+#
+# It belongs to the tabbed pane alone. A split pane draws no chrome — it holds
+# its children and one splitter each — so an inset there only pushes the whole
+# layout right and down, once per level of nesting, and leaves each nested
+# splitter short of the splitter of the split that holds it.
 const _PANE_BORDER = Inset(8, 8, 8, 8)
 
 # What a selection cell holds, past the live/dormant wrapper.
@@ -295,7 +300,7 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     # so the slots keep their intrinsic sizes.
     preferred = available === nothing ? nothing : 0
 
-    pane = WidgetSplitPane(axis, Any[]; border = _PANE_BORDER)
+    pane = WidgetSplitPane(axis, Any[])
     set_cell_function!(pane, () -> begin
         iomaps = element_iomaps[]
         weights = pane_normalized_weights(pane_weights(split))
