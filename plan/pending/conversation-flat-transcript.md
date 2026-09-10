@@ -199,8 +199,18 @@ corner. A card has no top-right slot, and a right-aligned element inside the
 title would have to know the card's width, which the title does not. The tag is
 one small muted label with no avatar, which is already far quieter than the bold
 22 px heading with an avatar that it replaces.
-- an `EvaluatorForm` — keep `_eval_body`, and add a hairline between the form
-  and the result.
+- an `EvaluatorForm` — a `:muted` card with an `eval` tag, keeping `_eval_body`.
+
+**Decision: no hairline between the form and the result.** The plan asked for
+one. A `WidgetSeparator` takes the width it is OFFERED, and no offer reaches it
+inside a content-tall card: neither `child_width = Fill` on the layout nor a
+`LayoutConstraint` around the rule changed it. It fell back to its own 200 px
+default and drew a stub that reads as a mistake. The panel and the gap separate
+the two well enough, so the rule is gone.
+
+**Fix found in the render: the thinking tag is a bare word.** It first carried
+the glyph `∴`, which drew as a missing-glyph box: the chrome font holds no such
+character and the renderer has no fallback. Every tag is now a bare word.
 - a `ConversationThinking` — a `:muted` card whose title is the `∴ thinking`
   header, and whose body keeps the existing `_maybe_clip` fold. An accordion was
   the first idea, and it was dropped: `_maybe_clip` is already driven by the
@@ -258,24 +268,38 @@ a band for each user turn, no band for the assistant turn, a muted panel for the
 thinking part and for the Julia part, and no panel at all for the two prose
 parts. The transcript draws no border anywhere.
 
-## Stage 4 — the composer matches the transcript ⬜
+## Stage 4 — the composer matches the transcript 🟡 PARTLY DONE
 
 In [`ConversationEditor.jl`](../../source/conversation/ConversationEditor.jl):
 
-1. Delete `_PART_WIDTH`. The draft takes the width it is offered.
-2. Replace the per-part cards with the same rules as Stage 3. The active typein
-   is a bare line with a caret and a placeholder.
-3. Put one surface around the whole draft, with a border and a focus ring.
-4. Add the `+` affordance and the hint line.
+1. ✅ Delete `_PART_WIDTH`. The draft takes the width it is offered.
+2. ✅ The per-part cards follow the Stage 3 rules. The active typein is a bare
+   line with a caret and a placeholder.
+3. ⬜ Put one surface around the whole draft, with a border and a focus ring.
+4. ⬜ Add the `+` affordance and the hint line.
 
-The caret machinery must keep working. `print_document` installs a reactive
-selection on the body
-(`set_cell_function!(getfield(body, :selection), …)`), and the forward map walks
-`children[i].content.elements[s].content{k}`. If a part is no longer wrapped in
-a card, that path loses one step. Update the forward and backward maps together
-and prove it with a click test.
+**Decision: a part stays a card, and the card stops drawing.** The plan warned
+that the caret walks `children[i].content.elements[s].content{k}`, and that a
+part which is not a card drops the `content` step. It does. So the composer
+keeps one `WidgetCard` per part and gives it `variant = :plain`, which draws no
+panel at all — the same picture, with the path intact and both reference maps
+untouched. Code and an evaluation get `:muted` with a tag, exactly as in the
+transcript. `content` is the card's own named slot
+(`_card_slot_value`), so dropping the title changes no path either.
 
-**Test:** `test_repl(assistant_example)` and `test_conversation_editor()`.
+Items 3 and 4 are **not done**. Both belong to the pane that HOSTS the draft, not
+to the draft: `AssistantToWidgetSplitPane` wraps `a.draft` in a
+`WidgetScrollPane`, and `AssistantToWidgetCard` wires its selection through
+hand-counted container depths (`suffix(2)`, `suffix(3)`). A surface added at
+either place shifts those counts, so it is its own change with its own test.
+
+**Also done here:** `_kind_glyph`, `_format_glyph`, `_header` and the whole
+`FORMAT_GLYPHS` table lost their last reader and are deleted. The composer's
+avatar goes with them; only the role line keeps one.
+
+**Test:** `test_conversation()` passes, 44 of 44. `test_assistant_mvp()` passes,
+78 of 78. A render of the composer example draws one line of placeholder text
+with a caret, and no box.
 
 ## Stage 5 — selection and node copy ⬜
 

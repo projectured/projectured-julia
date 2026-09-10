@@ -36,7 +36,7 @@ import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 # answers; this file names no domain.
 import ..NaturalNotationModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
-                       WidgetScrollPane, WidgetSeparator, Point2D, Inset, inset_default
+                       WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
@@ -94,15 +94,14 @@ const _KIND_STYLE = StyleText(_TITLE_FONT, color_slate_600)
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
 """
-    FORMAT_GLYPHS, FORMAT_LABELS, CODE_FORMATS
+    FORMAT_LABELS, CODE_FORMATS
 
 The decoration a part can carry, keyed by the format its document is written in.
 A domain's insertion is a subtype of that domain's root, so one entry covers a
 kind while it is typed and after it is committed.
 
 `FORMAT_LABELS` holds the two formats whose key is an abbreviation of the
-language's name; every other label is the key itself. `FORMAT_GLYPHS` is the
-composer's, which marks the part it is editing.
+language's name; every other label is the key itself.
 
 `CODE_FORMATS` is the set of formats that read as code. A part in one of them
 gets a panel, because code between two paragraphs of prose must be told from
@@ -110,7 +109,6 @@ them; a part in any other format gets none. The decoration and this judgement
 belong to this package; the kinds do not, and a format that names itself in
 neither table is prose as far as this file is concerned.
 """
-const FORMAT_GLYPHS = Dict(:jl => "λ", :json => "{}", :xml => "<>", :md => "¶")
 const FORMAT_LABELS = Dict(:jl => "julia", :md => "markdown")
 const CODE_FORMATS  = Set([:jl, :json, :xml])
 
@@ -228,11 +226,12 @@ _code_card(content, collapsed::Bool) =
                content = _maybe_clip(content, collapsed),
                variant = :muted)
 
-# Reasoning is secondary, so it folds. It keeps its glyph, because "thinking" is
-# a claim about the text and not a description of it.
+# Reasoning is secondary, so it folds. Its tag is the bare word, like every other
+# tag: the `∴` it carried first drew as a missing-glyph box, because the chrome
+# font holds no such character and the renderer falls back to nothing.
 _thinking_card(t::ConversationThinking, collapsed::Bool) =
     WidgetCard(Point2D(0, 0);
-               title = _header("∴", "thinking", _KIND_STYLE),
+               title = _tag("thinking"),
                content = _maybe_clip(_thinking_body(t), collapsed),
                variant = :muted)
 
@@ -242,14 +241,19 @@ _eval_card(ef::EvaluatorForm, collapsed::Bool) =
                content = _maybe_clip(_eval_body(ef), collapsed),
                variant = :muted)
 
-# An EvaluatorForm renders as its code over its result, with a rule between them
-# to say where the form ends. The form (a JuliaDocument) and result (a TextBlock)
-# are embedded directly as layout children so each is recursed through its own
-# projection chain and **sizes to its content** — wrapping them in a fixed-height
-# scroll pane would clip them to one row even when the part is expanded. The rule
-# takes the width it is offered, so it spans whatever the card gives it.
+# An EvaluatorForm renders as its code over its result. The form (a
+# JuliaDocument) and result (a TextBlock) are embedded directly as layout children
+# so each is recursed through its own projection chain and **sizes to its
+# content** — wrapping them in a fixed-height scroll pane would clip them to one
+# row even when the part is expanded.
+#
+# The panel and the gap separate the two. A rule between them was tried and
+# removed: a `WidgetSeparator` takes the width it is OFFERED, and no offer
+# reaches it here — neither `child_width = Fill` on this layout nor a
+# `LayoutConstraint` around the rule changed that — so it fell back to its own
+# 200 px default and drew a stub that read as a mistake.
 _eval_body(ef::EvaluatorForm) =
-    VerticalLayout(Any[ef.form, WidgetSeparator(Point2D(0, 0)), ef.result]; gap = _GAP)
+    VerticalLayout(Any[ef.form, ef.result]; gap = _GAP)
 
 # A thinking part's body is its reasoning text, recursed like any other text
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)

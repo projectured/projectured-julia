@@ -35,7 +35,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
-import ..ConversationToWidgetModule: FORMAT_GLYPHS, FORMAT_LABELS
+import ..ConversationToWidgetModule: FORMAT_LABELS, _is_code
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..TextModule: TextBlock, TextString
@@ -46,10 +46,10 @@ import ..TextModule: TextBlock, TextString
 import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natural_parser
 import ..ToolModule: execute_julia_code, last_evaluated_value
 import ..DocumentModule: Document
-import ..WidgetModule: WidgetCard, WidgetAvatar, WidgetLabel, Point2D
-import ..LayoutModule: VerticalLayout, HorizontalLayout, Fill, Content
+import ..WidgetModule: WidgetCard, WidgetLabel, Point2D
+import ..LayoutModule: VerticalLayout, Fill, Content
 import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_22
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_14
 import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_red, color_completion_hint, color_slate_600
 import ..DomainModule: resolve_insertion, make_insertion_document, insertion_root
@@ -404,23 +404,13 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 """
 struct ConversationComposerToWidget <: Projection end
 
-const _PART_WIDTH  = 720
-const _AVATAR_SIZE = 22
-const _GAP         = 6
+const _GAP = 8
 
-# Per-part glyph/label, covering both editing states and committed content.
+# Per-part label, covering both editing states and committed content.
 #
-# A domain's insertion is a subtype of its own root, so one entry of the badge
-# tables covers a kind while it is typed and after it is committed. The tables are
-# `ConversationToWidgetModule`'s, which draws the same badge on a committed part.
-_kind_glyph(::PrimitiveString)   = "✎"
-_kind_glyph(::DocumentInsertion) = "+"
-_kind_glyph(::EvaluatorForm)     = "="
-_kind_glyph(::TextBlock)          = "¶"
-_kind_glyph(c)                   = _format_glyph(get_natural_format(typeof(c)))
-_format_glyph(::Nothing)         = "?"
-_format_glyph(key::Symbol)       = get(FORMAT_GLYPHS, key, "{}")
-
+# A domain's insertion is a subtype of its own root, so one entry of the label
+# table covers a kind while it is typed and after it is committed. The table is
+# `ConversationToWidgetModule`'s, which draws the same tag on a committed part.
 _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
 _kind_label(f::EvaluatorForm)    = eval_kind_label(f)
@@ -429,15 +419,9 @@ _kind_label(c)                   = _format_label(get_natural_format(typeof(c)))
 _format_label(::Nothing)         = "doc"
 _format_label(key::Symbol)       = get(FORMAT_LABELS, key, String(key))
 
-# A header row: a small avatar glyph followed by a styled kind-title label.
-# Matches the part-kind heading style of the conversation history cards
-# (bigger/bold, muted accent) so a draft's parts read the same as committed ones.
-const _KIND_STYLE = StyleText(font_ubuntu_bold_22, color_slate_600)
-_header(glyph::AbstractString, label::AbstractString) =
-    HorizontalLayout(Any[
-        WidgetAvatar(Point2D(0, 0), String(glyph); size = _AVATAR_SIZE),
-        WidgetLabel(Point2D(0, 0), String(label); text_style = _KIND_STYLE),
-    ]; vertical_align = :center, gap = 8)
+# The tag a chromed part draws to name itself. Small and muted, matching the tag
+# the transcript draws on a committed part of the same kind.
+const _KIND_STYLE = StyleText(font_ubuntu_bold_14, color_slate_600)
 
 const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
@@ -514,12 +498,29 @@ end
 _committed_body(c::EvaluatorForm) = VerticalLayout(Any[c.form, c.result]; gap = _GAP)
 _committed_body(c) = c
 
-_part_card(content, active::Bool) =
+# The composer draws the chrome the transcript draws, for the same reason: the
+# content says what it is, so a frame is for the kinds it cannot say. Code and an
+# evaluation get a muted panel with a one-line tag; everything else — the active
+# typein, a committed paragraph, the kind chooser that already writes "Insert a
+# new … here" over itself — gets a `:plain` card, which draws nothing.
+#
+# It stays a card even when it draws nothing. The caret travels the path
+# `children[i].content.…`, and `content` is the card's own slot; a part that was
+# not a card would drop that step and the maps below would stop finding it.
+_part_chrome(content) =
+    content isa EvaluatorForm ? (:muted, eval_kind_label(content)) :
+    _is_code(content)         ? (:muted, _kind_label(content))     :
+    (:plain, nothing)
+
+function _part_card(content, active::Bool)
+    variant, tag = _part_chrome(content)
     WidgetCard(Point2D(0, 0);
-               title = _header(_kind_glyph(content), _kind_label(content)),
+               title = tag === nothing ? nothing :
+                       WidgetLabel(Point2D(0, 0), tag; text_style = _KIND_STYLE),
                content = (active && _is_editable(content)) ?
                          _editable_body(content) : _committed_body(content),
-               width = _PART_WIDTH)
+               variant = variant)
+end
 
 function print_document(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
     # The draft is always a user message, so it renders as just its stack of part
