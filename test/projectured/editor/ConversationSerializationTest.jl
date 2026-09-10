@@ -107,6 +107,26 @@ function test_conversation_serialization()
             @test msgs[1].content[1].text == "hello"
         end
 
+        # A pane that greets the person on open writes an assistant turn nobody
+        # sent, and a payload cannot open with an assistant message.
+        @testset "a leading assistant turn is not sent" begin
+            convo = ConversationConversation([
+                ConversationTurn(:assistant, [ConversationPart("Hello. I am here.")]),
+                ConversationTurn(:user, [ConversationPart("hi")]),
+                ConversationTurn(:assistant, [ConversationPart("hello")]),
+            ])
+            msgs = build_messages(convo)
+            @test [m.role for m in msgs] == [:user, :assistant]
+            @test msgs[1].content[1].text == "hi"
+            @test msgs[2].content[1].text == "hello"
+
+            # With no user turn there is no first message to protect, and the
+            # conversation serializes whole.
+            alone = ConversationConversation([
+                ConversationTurn(:assistant, [ConversationPart("Hello. I am here.")])])
+            @test [m.role for m in build_messages(alone)] == [:assistant]
+        end
+
         @testset "conversation_to_string is readable" begin
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("hi"), ConversationPart(jsonparse("[1,2]"))]),

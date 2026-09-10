@@ -432,11 +432,26 @@ originator carried on the `initiator` field:
 Keep the `initiator` distinction load-bearing here: collapsing user calls
 into the tool-use shape would tell Claude it had asked for a run it
 never requested.
+
+The walk starts at the first `:user` turn. A conversation may open with an
+assistant turn nobody sent — a pane that greets the person on open writes one —
+and a payload whose first message is an assistant message is rejected. A
+conversation that holds no user turn is serialised whole: there is no first
+message to protect.
 """
 function build_messages(conversation::ConversationConversation)
     out = LlmMessage[]
     turns = collect(conversation.turns)
-    i = 1
+    # A payload cannot open with an assistant message. The provider wants the
+    # first message to carry the `user` role and answers a leading assistant
+    # message with a 400, so the walk starts at the first thing a person said. A
+    # pane that greets the person on open puts an assistant turn in front of it,
+    # and nothing is lost by dropping that turn: the model never wrote it.
+    #
+    # A conversation with no user turn is left whole. There is no first message
+    # to protect, and this function is also how a turn is serialised on its own.
+    first_user = findfirst(t -> t.role === :user, turns)
+    i = first_user === nothing ? 1 : first_user
     while i <= length(turns)
         t = turns[i]
         if t.role === :user
