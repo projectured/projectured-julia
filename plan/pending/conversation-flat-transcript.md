@@ -232,14 +232,15 @@ the header of a prose part, so it had to change with the design. It now clicks
 the Julia part (`turns[2].parts[3]`), and asserts that no click anywhere yields
 a toggle for the prose part (`turns[2].parts[2]`).
 
-### This stage fixed a broken assertion ✅
+### A stale broken marker, promoted ✅
 
 `@test_broken _canvas_maxw(out_default) == _canvas_maxw(out_expanded)` in the
-same file now passes, and it is promoted to `@test`. Its comment called it
-"pre-existing drift". It was the part card: a collapsed prose part built a
-clipped viewport sized against the wrong width, which widened the card and every
-container above it. A prose part builds no card and no viewport now, so the
-default render and the all-expanded render measure the same.
+same file passes, and it is promoted to `@test`.
+
+**This stage did not fix it.** A run of the suite at the base commit reports the
+same `Unexpected Pass` at `AssistantMvpTest.jl:335`, so the assertion was
+already passing before any of this work and the marker was simply stale. The
+promotion is right; the credit is not.
 
 ### Decision: two quiet variants, not one ✅
 
@@ -423,6 +424,25 @@ that part.
 **What does not.** A selected part looks exactly like an unselected one
 (Stage 6). The composer has no frame saying a person can type in it, and no hint
 line (Stage 4, items 3 and 4).
+
+## The wide suites, against the base commit
+
+Both wide suites still report failures. Each was re-run at the base commit
+(`ecd6623b`, whose only change is this plan file) in its own worktree, and the
+counts say the failures are not this work's.
+
+| Suite | Base commit | This branch |
+| --- | --- | --- |
+| `test_substrate()` | 55959 pass, 4 fail, 3 error, 1 broken | 56059 pass, 4 fail, 3 error, 1 broken |
+| `test_workbench()` | 104 pass, 1 fail, 3 error | 106 pass, 1 fail, 2 error |
+
+- **Substrate:** the same 4 failures and 3 errors, all in the split-pane and
+  tabbed-pane drag tests. The 100 extra passes are the cell-count assertions
+  that track a document's field count, and `WidgetCard` gained two fields.
+- **Workbench:** the same 1 failure, `scrolling the tab strip reveals overflow
+  tabs` in `WorkbenchTabClickTest.jl:151`. One fewer error, because the stale
+  broken marker above is now a plain passing test. One more test, the prose-part
+  assertion this work added.
 
 ## How to test the whole thing
 
