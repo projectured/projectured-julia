@@ -585,6 +585,44 @@ Each step keeps the images green before the next begins.
     needs: such a tab must bring a `WidgetScrollPane`, or `PaneTab` must carry a
     parameter saying its content scrolls. That is a decision, not a refactor.
 
+13. **The campaign window, run — DONE, and it found three faults.** The plan's
+    last acceptance line is the one the work started for: in the campaign window
+    the transcript scrolls, the composer stays put, a card fills the width and
+    grows with its content, and a collapsed card is 30 tall. Running it found
+    three faults that no image and no printed tree could show, because all three
+    are about what an **event** does.
+
+    - **A scroll pane did not clamp.** `_scroll_by` added the delta with no floor
+      at `0` and no ceiling at `content - viewport`, so a pane scrolled its
+      content clean out of its own viewport: a transcript that fits was pushed
+      60 px above the top by one wheel notch. It clamps now, and a scroll that
+      would move nothing answers `nothing` — which is also what lets an outer
+      pane take over at the end of an inner one's travel.
+    - **`follow_end` was a lock, not a state.** The printer's offset ignored
+      `scroll_position` outright when following, so the wheel wrote a cell nothing
+      read and a pinned transcript could not be scrolled at all. The wheel turns
+      it now: scrolling away from the end releases the pin and starts from the
+      end, and scrolling back to the end pins it again.
+    - **A split a tab's content built lost its drag.** `PaneToWidget` answered
+      every `ResizeSplitPaneOperation` by looking for a pane node holding that
+      split, and returned `nothing` when it found none — and a split inside a
+      tab's content has no pane node. The grab started and the first motion went
+      nowhere. It passes the operation on now; the tree still declines to turn a
+      foreign resize into a pane weight, which is all it ever meant to say.
+      `PaneReaderTest` asserted the old contract by name, and asserts the new one.
+
+    **And one the work itself introduced.** A split allocated the whole offer to
+    its slots and then placed the first child at its own content origin, so a pane
+    tree drew `1908x1208` in a `1900x1200` window. Moving `_PANE_PADDING` into the
+    pane border at step 12b doubled that overhang and made it visible. Both panes
+    report the box they were offered now.
+
+    **What this says about the instrument.** The 40 images guard what a printer
+    draws and `test_substrate()` guards what the projections answer. Neither can
+    see a wheel or a drag, and all four faults above lived there. The measurement
+    that found each of them was the same shape: build the campaign's own chain,
+    send the event, and print what came back.
+
 ## The safety net: every widget, before and after
 
 39 examples — 37 widget ones plus `widget_disabled`, `widget_focus` and
