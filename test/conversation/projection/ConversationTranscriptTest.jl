@@ -86,4 +86,32 @@ function test_conversation_transcript()
         @test read_intent(proj, io, ReplaceSelectionOperation(EmptyReference())) isa
               ReplaceSelectionOperation
     end
+
+    # Copy needs nothing new. `ClipboardSlice` copies whatever the slice's
+    # selection names, and the selection now names a part — so the two compose,
+    # and a transcript wrapped in a slice can be copied out of message by
+    # message. This asserts the composition, because it is the whole of the
+    # copy story: no code in this package takes part in it.
+    @testset "a selected part copies into a clipboard slice" begin
+        conversation = ProjecturedConversationExample.make_conversation_document_example()
+        slice = ClipboardSlice(conversation)
+        # `content.turns[2].parts[2]`: the prose part of the assistant turn. The
+        # extra `content` step is the slice's own — the conversation hangs off it.
+        slice.selection = ConcreteReference(FieldReferenceStep("content"), _part_path(2, 2))
+        projection = ClipboardSliceToAnyProjection()
+        inner = ProjecturedConversationExample.make_conversation_widget_projection_example(
+            measure = _transcript_measure)
+        io = print_document(projection, inner, slice, PrinterContext())
+
+        op = read_intent(projection, io, KeyDown(:c, ModifierKeys(ctrl = true)))
+        @test op isa CompoundOperation
+        evaluate_operation((document = slice,), op)
+
+        # What landed in the slice is that part, deep-copied — the part itself,
+        # not the turn around it and not the whole conversation.
+        stored = slice.slice
+        @test stored isa ConversationPart
+        @test stored !== conversation.turns[2].parts[2]
+        @test stored.content isa TextBlock
+    end
 end

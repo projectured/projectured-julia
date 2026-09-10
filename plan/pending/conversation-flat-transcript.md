@@ -301,7 +301,7 @@ avatar goes with them; only the role line keeps one.
 78 of 78. A render of the composer example draws one line of placeholder text
 with a caret, and no box.
 
-## Stage 5 — selection and node copy 🟡 5a DONE, 5b OPEN
+## Stage 5 — selection and node copy ✅ DONE
 
 The transcript is read-only, but a person must be able to select a part and copy
 it out.
@@ -336,16 +336,21 @@ with three testsets — every part of the example is reachable by a click and
 named exactly, a selection round-trips through both maps, and each of the three
 edit operations is declined. `test_conversation()` passes, 63 of 63.
 `test_assistant_mvp()` passes, 78 of 78.
-3. ⬜ **Copy through the clipboard that exists.** Wrap the transcript in
-   `ClipboardSliceToAnyProjection`
-   ([`ClipboardToAny.jl:94-101`](../../source/clipboard/ClipboardToAny.jl#L94-L101))
-   with a `to_text` converter and `text = false`. It already delegates
-   non-clipboard gestures into the child reader, re-roots what comes back, and
-   mirrors a copy out to the OS clipboard through `OsClipboardModule`. Nothing
-   new is built here; the two compose.
+3. ✅ **Copy through the clipboard that exists.** It needed **no production
+   change at all.** `ClipboardSlice` copies whatever the slice's selection names,
+   and after 5a the selection names a part. Wrap a conversation in a
+   `ClipboardSlice`, project it with `ClipboardSliceToAnyProjection` over the
+   transcript projection, and `Ctrl+C` stores a deep copy of the selected
+   `ConversationPart` — the part alone, not the turn and not the conversation.
 
-**Test for 5b:** a test that selects a part, sends `Ctrl+C`, and asserts the
-slice holds the part's text.
+   A test asserts that composition, because the composition IS the copy story
+   and no code in this package takes part in it.
+
+   The OS-clipboard mirror needs a `to_text` converter, which is a choice for
+   whoever installs the slice (a conversation has no one text form). Left to the
+   caller.
+
+
 
 ## Stage 6 — hover ⬜
 
