@@ -219,8 +219,8 @@ Each step keeps the images green before the next begins.
    opposite. Both are defensible and the codebase did both. What `w.width` *means*
    was a decision, not a refactor, and a person made it: it is a fixed size.
 
-5. **Every widget resolves through `_resolve_size`.** Patterns A, B, C and D
-   collapse into it. Split into reviewable pieces, because this touches 40
+5. **Every widget resolves through `_resolve_size` — DONE.** Patterns A, B, C
+   and D collapse into it. Split into reviewable pieces, because this touches 40
    widgets and each piece is meant to be looked at:
 
    - **5a — the two inverted precedences — DONE.** `WidgetScrollPane` and
@@ -427,8 +427,8 @@ Each step keeps the images green before the next begins.
    a test that clicks at a coordinate has to say how big the window is rather than
    let a printer invent it. `test_workbench()` is back to its baseline, 108 pass,
    1 broken, 0 fail.
-7. **The eight zero-extent widgets report a real extent** — each is a container,
-   so its extent is the bounds of what it drew. The largest step; it moves alone.
+7. **The eight zero-extent widgets report a real extent — DONE.** Each is a
+   container, so its extent is the bounds of what it drew. The largest step; it moves alone.
 
    - **7a — the five auto-extent canvases — DONE.** `_reactive_canvas_auto` reads
      the bounds of its elements instead of answering `0 x 0`:
@@ -484,8 +484,8 @@ Each step keeps the images green before the next begins.
    `_reactive_canvas_auto` takes an optional `cap` context for the menu, whose
    extent is computed by that helper rather than in its own printer. All three
    overlays read the offer as a ceiling. **All 40 images unchanged.**
-10. **The conversation — the two width literals are gone.** A turn card and a part
-    card take the width they are offered; the transcript's `child_width = Fill`
+10. **The conversation — DONE, the two width literals are gone.** A turn card and
+    a part card take the width they are offered; the transcript's `child_width = Fill`
     says so and `WidgetCard` resolves it. `760` and `720` made every conversation
     the same width whatever it was shown in.
 
