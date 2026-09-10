@@ -115,6 +115,43 @@ end
     @test pane_tab_title_string(group.tabs[2]) == "made to order"
 end
 
+@testset "a click in a tab's content places a caret in it" begin
+    # A tab holds a document of another domain, and the renderer draws it. A click
+    # on that text must answer a path INTO the document, so the caret lands in it
+    # and the next key has somewhere to go. An answer truncated to the tab is what
+    # leaves a form field inside a pane dead to the pointer.
+    group = PaneGroup(PaneTab[PaneTab("a", PrimitiveString("hello"))])
+    tree = PaneTree(group)
+    # The focus, as a window opens with one: a tabbed pane routes a press to the
+    # tab its selection names, and names none until something has been clicked.
+    set_selection!(tree, pane_tab_reference(tree, group, 1))
+    editor = _PaneReaderMockEditor(tree)
+    proj = make_pane_projection_example(measure = _stub)
+    # With an extent to divide, as a window gives one: a tabbed pane draws its
+    # page inside the extent it was offered, and a print with no offer draws the
+    # tab strip alone.
+    iomap = print_document(proj, nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(400), Cell(300),
+                                          Dict{Symbol,Any}()))
+
+    caret = nothing
+    for y in 0:2:300, x in 0:2:400
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+        op isa ReplaceSelectionOperation || continue
+        occursin("PrimitiveString", string(op.path)) || continue
+        caret = op
+        break
+    end
+    @test caret !== nothing
+    if caret !== nothing
+        _apply!(editor, caret)
+        # The whole chain wrote it: the tree, the group, the tab and the string it
+        # holds each hold their own share of the path.
+        @test pane_focus(tree) == (group, 1)
+        @test get_selection(group.tabs[1].content) !== nothing
+    end
+end
+
 @testset "a report from a pane that is not ours is declined" begin
     group = PaneGroup(PaneTab[_tab("a")])
     tree = PaneTree(group)

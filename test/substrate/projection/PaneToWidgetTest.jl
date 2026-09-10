@@ -134,6 +134,19 @@ end
           pane_tab_reference(tree, group, 2)
 end
 
+@testset "a reference inside a tab's content maps into the content" begin
+    # The tab holds a document of another domain, and a caret in it is a path
+    # through `tabs[i].content`. An answer truncated to the tab is what leaves a
+    # form field in a pane with no caret and the next key with nowhere to go.
+    group = PaneGroup(PaneTab[PaneTab("a", PrimitiveString("hello"))])
+    tree = PaneTree(group)
+    iomap = print_document(_pane_stage(), tree)
+    caret = @reference ::PaneTree.root::PaneGroup.tabs::CellVector[1]::PaneTab.content::PrimitiveString.value::String{2}::Position
+    image = map_reference_forward(iomap.projection, iomap, caret)
+    @test image !== nothing
+    @test map_reference_backward(iomap.projection, iomap, image) == caret
+end
+
 @testset "the layout carries a drop indicator, invisible until a drag" begin
     tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
     iomap = print_document(_pane_stage(), tree)

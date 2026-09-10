@@ -140,7 +140,8 @@ the focused tab. Two need more than that:
 | Click a tab | Focus that tab |
 | Click a tab's close button | Close it |
 | Click the new-tab button | Open a tab |
-| Click anywhere in a pane | Focus that group |
+| Click a pane's content | Place the caret in the document the tab holds |
+| Click anywhere else in a pane | Focus that group |
 | Drag a splitter | Write the split's weights — at any depth, and from wherever the divider is now |
 | Drag a tab onto a group's strip or middle | Move it into that group |
 | Drag a tab onto a group's edge band | Split that group, the tab in the new pane |
@@ -148,6 +149,12 @@ the focused tab. Two need more than that:
 A click in a pane's empty space focuses it. Without that, most of a pane would be
 dead: its content is a document that ends where its text ends, so a press beside
 the text hits no element at all.
+
+A click ON the content is the other half, and it names a place inside that
+document. The tabbed pane hands the press to the page and prefixes what comes
+back with the tab, so the path that reaches the tree runs `tabs[i].content` and
+then into the domain of the content. That is what puts a caret in a form field
+that lives in a pane, and what gives the next key somewhere to go.
 
 ## Every edit is reactive
 

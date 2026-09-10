@@ -135,7 +135,21 @@ _typed_head(reference::ConcreteReference, document) =
         reference
 _typed_head(reference, ::Any) = reference
 
-# The tail after a scroll pane's own `content` step, or `nothing`.
+# The tail after a tab page's own `element` step, or the reference unchanged when
+# it does not start with one.
+#
+# `selector_element_pairs[i]` names a `WidgetTabPage`, and the tab's content is
+# that page's `element`. The tabbed pane adds the step only for a page whose
+# element is a foreign document — a page holding a widget keeps its own path — so
+# a reference that comes back from below carries it or does not, and both name the
+# same place.
+function _after_element_step(reference)
+    reference isa ConcreteReference || return reference
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "element") || return reference
+    reference.tail
+end
+
 # A tab's content belongs to a foreign domain, so it is not this projection's to
 # print: it passes through unchanged and the renderer below reads it. Only pane
 # nodes recurse. Mirrors the workbench's `_recurse`.
@@ -415,22 +429,20 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             i = s + 1
             entries = iomap.content_iomaps
             i <= length(entries) || return nothing
-            # Every reference this projection maps back names the **tab**, whether
-            # it is a tab-strip click or a click deep inside a pane's content.
-            #
-            # `selector_element_pairs[i]` names a `Pair`, and the tab's content
-            # widget is that pair's `element`, so every deeper path starts with
-            # `.element`. The code here used to look for a `content` step first —
-            # the field of the `WidgetScrollPane` each tab was wrapped in — and a
-            # path starting with `.element` never matched it, so the branch that
-            # mapped into the content was never taken. Removing the wrapper is what
-            # made that visible.
-            #
-            # A selection *inside* a tab's content does not come through here at
-            # all: `_forward_selection!` carries it down to the widget that holds
-            # it. What a click on a pane means to the pane tree is which pane has
-            # the focus, and that is the tab.
-            return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
+            # A bare `selector_element_pairs[i]` is a tab-strip click: it names the
+            # tab and nothing in it.
+            tab = @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
+            inside = _after_element_step(rest)
+            inside isa EmptyReference && return tab
+            # Anything deeper is a click INSIDE the tab, and it must reach the
+            # document the tab holds. A caret is the case that shows it: a click in
+            # a form field of a pane's content answers a path into that field, and
+            # an answer truncated to the tab leaves the field with no caret and the
+            # next key with nowhere to go.
+            inner = _child_backward(entries[i].iomap, inside)
+            # A content that claims nothing still says which pane was pointed at.
+            inner === nothing && return tab
+            @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(_typed_head(inner, entries[i].iomap.input))
         end
     end
 end
