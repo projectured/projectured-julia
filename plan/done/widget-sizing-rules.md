@@ -1,6 +1,6 @@
 # One sizing rule, and one place that parametrises it
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
+> **Kind:** plan · **Status:** done · **Stands on:**
 > [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
 
 ## The rule
