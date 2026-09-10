@@ -2964,13 +2964,29 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         () -> Any[pair.element for pair in w.selector_element_pairs],
         (i, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
 
+    # The page. A tabbed pane hands its content a bounded extent above, so it is the
+    # tabbed pane that keeps the promise: the page is a viewport at the content
+    # origin, sized to the slot the content was offered. Without it the page is a
+    # plain canvas and a content document — drawn as wide as it is — runs across the
+    # next pane and over the tab strip.
+    #
+    # Per bounded axis. An axis the parent did not offer was never bounded, so there
+    # is nothing to clip against and the page takes the content's own extent there.
     content_cv = ComputedCellVector(() -> begin
         cims = all_cims[]
         sel_h = geom[][4]
         active = _active_idx(get_stored_selection(w), length(cims))
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
-        cim === nothing ? Any[] : Any[_make_canvas(cox, coy + sel_h, Any[cim.output])]
+        cim === nothing && return Any[]
+        reach_w, reach_h = graphics_size(cim.output)
+        page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
+        page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
+        Any[GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy + sel_h)),
+                             Cell(Int32(page_w)), Cell(Int32(page_h)),
+                             Cell(_make_canvas(0, 0, Any[cim.output])),
+                             Cell(affine_identity),
+                             Cell(nothing))]
     end)
 
     # Clip the selector row to the pane's own width so a tab strip wider than
