@@ -540,6 +540,22 @@ make_widget_table_document_example() =
                  ["INV002", "Pending", "PayPal",      "\$150.00"],
                  ["INV003", "Unpaid",  "Bank Transfer", "\$350.00"]])
 
+# A table handed an offer, which a bare table cannot show.
+#
+# A grid's row height is its tallest cell, and a cell that authored no height
+# fills what it is offered — so a table inside a viewport drew ONE row as tall as
+# the viewport and pushed the rest below the fold. The picture is what guards it:
+# the four rows stay the height of their text inside the pane.
+make_widget_table_offered_document_example() =
+    WidgetScrollPane(
+        WidgetTable(Point2D(0, 0),
+                    ["Invoice", "Status", "Amount"],
+                    [["INV001", "Paid",    "\$250.00"],
+                     ["INV002", "Pending", "\$150.00"],
+                     ["INV003", "Unpaid",  "\$350.00"]]);
+        size = Point2D(300, 140),
+        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+
 # WidgetTree — a nested outline with expand chevrons.
 make_widget_tree_document_example() =
     WidgetTree(Point2D(40, 40), Any[

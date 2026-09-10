@@ -623,11 +623,12 @@ Each step keeps the images green before the next begins.
     see a wheel or a drag, and all four faults above lived there. The measurement
     that found each of them was the same shape: build the campaign's own chain,
     send the event, and print what came back.
-14. **The grid offers what it will give — the run table found it.**
-    `GridLayoutToGraphicsCanvas` recurses every child with the parent's own
-    context, so each cell is offered the grid's whole extent on **both** axes. A
-    cell that authored no height fills it, and a grid's row height is its tallest
-    cell — so one row swallows the offer.
+14. **The grid offers what it will give — DONE, and the picture found the half
+    this plan had missed.** `GridLayoutToGraphicsCanvas` recursed every child with
+    the parent's own context, so each cell was offered the grid's whole extent on
+    **both** axes. A cell that authored nothing fills it, and a grid's column
+    width is its widest cell and its row height its tallest — so one column or
+    one row swallows the offer.
 
     Measured in the campaign runner's table, in the coordinates of the whole
     canvas, inside a scroll pane 538 pixels tall:
@@ -638,17 +639,30 @@ Each step keeps the images green before the next begins.
     | the table in a stack | 571 | 608 | 645 | 682 |
 
     555 = 538 + 17, the offer plus the cell gap. Every run fell below the fold.
-    **This is step 3 for the grid**: a grid's row height comes from its children,
-    so on `:y` it offers nothing. `withhold_offer(ctx, :y)` is already written.
+    **This is step 3 for the grid**: both extents come from the children, so the
+    grid offers neither.
+
+    **`:y` alone was not enough, and this step said it would be.** It deferred
+    `:x` to step 15. The picture refused that: with the height withheld the rows
+    became the height of their text, and then ONE column was 300 wide and the
+    other two were clipped out of the pane. A column's width is derived exactly
+    as a row's height is, so §3 reaches it in the same breath. Step 15 is where a
+    column or a row says that it stretches, and a weighted one is offered its
+    slot then — **until something can say so, nothing may be offered.**
+
+    **A picture is what caught it.** `widget_table_offered` is a new example: the
+    table of `widget_table` inside a 300×140 `WidgetScrollPane`, because a bare
+    table is offered nothing and cannot show this at all. The baseline drew one
+    header cell over the whole pane.
 
     `omnet-julia` holds the workaround today: `SimulationFilterToWidget` wraps the
     table in a `VerticalLayout` inside the pane, and a stack offered a height that
     holds no weighted child sums instead of distributing and offers that height to
     nobody. **Step 16 deletes that wrapper.**
 
-    **Check.** The runner's table with no wrapper, printed at 900×1100: rows 37
-    apart. Of the 39 images only the table ones may change, and each must change
-    by shrinking a row to its text.
+    **Checked.** 41 images: **40 unchanged, and `widget_table_offered` changed**
+    — from one cell over the whole pane to three columns and four rows, each the
+    height of its text. That is the only picture this step is about.
 15. **A column and a row take a policy, and the default is implicit.** This is
     step 4 for the grid, and it is the case step 4 said it was waiting for.
 

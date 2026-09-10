@@ -948,10 +948,25 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                                Cell(Int32(0)), Cell(Int32(0)))
     end
 
+    # A grid derives BOTH extents from its children — a column's width is its
+    # widest cell and a row's height is its tallest — so it offers neither back.
+    # That is §3 of the layout rules, written once as `withhold_offer`.
+    #
+    # Handed the offer, a cell that authored nothing filled it, and the column or
+    # row became as large as everything the grid was given. Both halves were
+    # visible in one picture: a table in a 300×140 viewport drew ONE header cell
+    # over the whole pane, and with `:y` alone withheld it drew one 300-wide
+    # column and pushed the other two out of the clip.
+    #
+    # Step 15 of the sizing plan is where a column or a row says that it
+    # stretches, and a weighted one is offered its slot then. Until it can say
+    # so, nothing may be offered: a cell that fills what its column will not get
+    # is a size nobody chose.
+    child_ctx = ctx === nothing ? ctx : withhold_offer(withhold_offer(ctx, :y), :x)
     child_iomaps = Any[]
     for i in 1:n
         cim = _recurse_child(recursion, doc.children[i],
-                             make_child_context(ctx, doc, (@reference_step children), (@reference_step [i])))
+                             make_child_context(child_ctx, doc, (@reference_step children), (@reference_step [i])))
         push!(child_iomaps, cim)
     end
 
