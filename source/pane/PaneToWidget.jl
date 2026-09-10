@@ -47,7 +47,7 @@ import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation,
                        EndSplitterDragOperation
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetScrollPane, WidgetComposite, WidgetHighlight,
+                       WidgetComposite, WidgetHighlight,
                        Inset, Point2D
 import ..LayoutModule: LayoutConstraint
 import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
@@ -111,8 +111,10 @@ end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-const _PANE_BORDER = Inset(4, 4, 4, 4)
-const _PANE_PADDING = Inset(4, 4, 4, 4)
+# The inset of a pane: what holds a tab's content off the pane's edge. It was two
+# insets of 4 — the tabbed pane's own, and a scroll pane's padding inside it. The
+# scroll pane is gone, so the page carries the whole 8.
+const _PANE_BORDER = Inset(8, 8, 8, 8)
 
 # What a selection cell holds, past the live/dormant wrapper.
 _get_stored_selection_value(value) = value
@@ -129,13 +131,6 @@ _typed_head(reference::ConcreteReference, document) =
 _typed_head(reference, ::Any) = reference
 
 # The tail after a scroll pane's own `content` step, or `nothing`.
-function _after_content_step(reference)
-    reference isa ConcreteReference || return nothing
-    head = reference.head
-    (head isa FieldReferenceStep && head.name == "content") || return nothing
-    reference.tail
-end
-
 # A tab's content belongs to a foreign domain, so it is not this projection's to
 # print: it passes through unchanged and the renderer below reads it. Only pane
 # nodes recurse. Mirrors the workbench's `_recurse`.
@@ -349,19 +344,20 @@ end
 # ── PaneGroup ──────────────────────────────────────────────────────────────
 
 function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGroup, ctx)
-    # One entry per tab: the content's IoMap, and the scroll pane that holds it.
-    # **The scroll pane is what keeps a tab inside its own pane** — a content
-    # document is drawn as wide as it is, so without a viewport to clip it the
-    # text of one pane runs straight across the next. It is built here, beside the
-    # IoMap, so it keeps its identity — and its scroll offset — for as long as the
-    # tab lives.
+    # One entry per tab: the content's IoMap, and the widget it draws as.
+    #
+    # Nothing is wrapped around it. Keeping a tab inside its own pane is the tabbed
+    # pane's own work — it bounds the page, so it clips the page (see §3b of
+    # layout-rules.md). A scroll pane here would clip too, but it would also take
+    # the scroll: a content that manages its own panes, such as a transcript above
+    # a composer, would scroll as one block.
     content_iomaps = reconcile_child_iomaps(
         () -> Any[tab.content for tab in group.tabs],
         (i, content) -> begin
             child = _recurse(recursion, content,
                 make_child_context(ctx, group, (@reference_step tabs), (@reference_step [i]),
                                    (@reference_step content)))
-            (iomap = child, pane = WidgetScrollPane(child.output; padding = _PANE_PADDING))
+            (iomap = child, pane = child.output)
         end)
 
     # Every group offers the whole vocabulary: close a tab, open one, grab one.
@@ -385,9 +381,14 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             entries = iomap.content_iomaps
             (1 <= i <= length(entries)) || return nothing
             inner = _tab_forward(entries[i].iomap, rest)
-            inner isa EmptyReference &&
-                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetScrollPane
-            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetScrollPane.content.^(inner)
+            # The node at `[i]` is the tab's own content widget, whose type differs
+            # from tab to tab, so the checkpoint is read off the document rather
+            # than written as a literal. It used to be `::WidgetScrollPane` for
+            # every tab, because every tab was wrapped in one.
+            image = inner isa EmptyReference ?
+                    EmptyReference(get_reference_node_type(entries[i].pane)) :
+                    _typed_head(inner, entries[i].pane)
+            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(image)
         end
     end
 end
@@ -409,16 +410,22 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             i = s + 1
             entries = iomap.content_iomaps
             i <= length(entries) || return nothing
-            # A bare `selector_element_pairs[i]` is a tab-strip click: it names
-            # the tab, not anything inside it. Anything deeper comes through the
-            # scroll pane that holds the tab's content.
-            rest isa EmptyReference &&
-                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
-            content = _after_content_step(rest)
-            content === nothing && return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
-            inner = _child_backward(entries[i].iomap, content)
-            inner === nothing && return nothing
-            @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(_typed_head(inner, entries[i].iomap.input))
+            # Every reference this projection maps back names the **tab**, whether
+            # it is a tab-strip click or a click deep inside a pane's content.
+            #
+            # `selector_element_pairs[i]` names a `Pair`, and the tab's content
+            # widget is that pair's `element`, so every deeper path starts with
+            # `.element`. The code here used to look for a `content` step first —
+            # the field of the `WidgetScrollPane` each tab was wrapped in — and a
+            # path starting with `.element` never matched it, so the branch that
+            # mapped into the content was never taken. Removing the wrapper is what
+            # made that visible.
+            #
+            # A selection *inside* a tab's content does not come through here at
+            # all: `_forward_selection!` carries it down to the widget that holds
+            # it. What a click on a pane means to the pane tree is which pane has
+            # the focus, and that is the tab.
+            return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
         end
     end
 end
