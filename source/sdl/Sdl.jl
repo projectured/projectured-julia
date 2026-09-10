@@ -832,6 +832,38 @@ end
 
 # ── Render a GraphicsViewport element ────────────────────────────────
 
+# The intersection of two clip rectangles, empty when they do not meet.
+function _clip_intersect(a::SDL_Rect, b::SDL_Rect)
+    x1 = max(a.x, b.x)
+    y1 = max(a.y, b.y)
+    x2 = min(a.x + a.w, b.x + b.w)
+    y2 = min(a.y + a.h, b.y + b.h)
+    SDL_Rect(Int32(x1), Int32(y1), Int32(max(0, x2 - x1)), Int32(max(0, y2 - y1)))
+end
+
+# The clip rectangle in force, or `nothing` when there is none.
+function _clip_current(renderer::Ptr{SDL_Renderer})
+    SDL_RenderIsClipEnabled(renderer) == SDL_FALSE && return nothing
+    r = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
+    SDL_RenderGetClipRect(renderer, r)
+    r[]
+end
+
+# Put back the clip that was in force, or remove clipping when there was none.
+_clip_restore!(renderer::Ptr{SDL_Renderer}, prev::Nothing) =
+    SDL_RenderSetClipRect(renderer, C_NULL)
+_clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
+    SDL_RenderSetClipRect(renderer, Ref(prev))
+
+# Viewports nest, and SDL's clip rectangle does not. `SDL_RenderSetClipRect`
+# REPLACES what is in force, and clearing it with `C_NULL` removes clipping
+# altogether rather than putting the enclosing one back. So a viewport inside a
+# viewport used to widen the clip to its own box on the way in, and remove it
+# entirely on the way out — everything drawn after an inner viewport, still
+# inside the outer one, was unclipped. A tab page holding a scroll pane drew its
+# later content over the tab strip and outside the page.
+#
+# So a viewport intersects with the clip in force, and restores it afterwards.
 function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int)
     vx = Int(vp.x) + ox
     vy = Int(vp.y) + oy
@@ -840,13 +872,14 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     canvas = vp.content::GraphicsCanvas
     cx, cy = Int(canvas.x), Int(canvas.y)
     M = vp.transform::AffineTransform
+    prev = _clip_current(renderer)
     if M === affine_identity || (M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0 &&
                                  affine_is_axis_aligned(M))
         # Fast path: identity transform — clip + draw exactly as before.
-        clip = Ref(SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh)))
-        SDL_RenderSetClipRect(renderer, clip)
+        box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
+        SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
         _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
-        SDL_RenderSetClipRect(renderer, C_NULL)
+        _clip_restore!(renderer, prev)
         return
     end
     # Translate+scale path. Rotation/shear (off-diagonal) is dropped for now —
@@ -865,9 +898,12 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     SDL_RenderSetScale(renderer, Cfloat(base_x * sx), Cfloat(base_y * sy))
     # Set the clip *after* the scale change, expressed in the new logical units
     # (old-logical ÷ scale), so it lands on the same device rectangle as the
-    # viewport box regardless of the content scale.
-    clip = Ref(SDL_Rect(Int32(round(vx / sx)), Int32(round(vy / sy)),
-                        Int32(round(vw / sx)), Int32(round(vh / sy))))
+    # viewport box regardless of the content scale. The intersection is taken in
+    # the OLD units, where the enclosing clip is expressed, and converted after.
+    box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
+    box = prev === nothing ? box : _clip_intersect(box, prev)
+    clip = Ref(SDL_Rect(Int32(round(box.x / sx)), Int32(round(box.y / sy)),
+                        Int32(round(box.w / sx)), Int32(round(box.h / sy))))
     SDL_RenderSetClipRect(renderer, clip)
     # A content-local element coord `l` must land at viewport-space `t + s*(c+l)`;
     # under the scaled renderer the passed origin is therefore `(v+t)/s + c`.
@@ -876,8 +912,8 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     clip_r = round(Int, (vx + vw) / sx)
     clip_b = round(Int, (vy + vh) / sy)
     _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b)
-    SDL_RenderSetClipRect(renderer, C_NULL)
     SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
+    _clip_restore!(renderer, prev)
 end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
