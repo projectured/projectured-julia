@@ -53,7 +53,7 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, graphics_size
+import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, graphics_size
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
@@ -3398,12 +3398,12 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # appended content (a streaming chat) stays in view as the content grows.
         content_h_cell = inner_canvas.h
         inner_y = ComputedCell(() -> begin
-            if follow_cell[]
-                Int32(-max(0, Int(content_h_cell[]) - Int(vh_cell[])))
-            else
-                sp = scroll_cell[]::Point2D
-                Int32(-Int(sp.y[]))
-            end
+            room = max(0, Int(content_h_cell[]) - Int(vh_cell[]))
+            follow_cell[] && return Int32(-room)
+            # A stored offset is clamped as it is read too: the content can shrink
+            # under a position that was valid when it was written.
+            sp = scroll_cell[]::Point2D
+            Int32(-clamp(Int(sp.y[]), 0, room))
         end)
         push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
                                       vw_cell, vh_cell,
@@ -3445,19 +3445,74 @@ end
 # A scroll-wheel turn advances `scroll_position` by a delta. Expressed as a write
 # of the new (old+delta) value — the old value is read from the pane at read time,
 # which equals its value at evaluate time (no intervening mutation in the loop).
-_scroll_by(sp, dx, dy) = let old = sp.scroll_position
-    ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(old.x[] + dx, old.y[] + dy))
+# How far a pane can scroll on each axis: the content's extent past the viewport,
+# and `0` on an axis where the content fits. `nothing` when there is no content to
+# measure, which leaves the scroll unbounded as it was.
+function _scroll_room(iomap)
+    out = iomap.output
+    cim = iomap.content_iomap
+    (out isa GraphicsCanvas && cim !== nothing) || return nothing
+    content = cim.output
+    content isa GraphicsDocument || return nothing
+    tx, ty = _inset_total(iomap.input)
+    view_w = max(0, Int(out.w[]) - tx)
+    view_h = max(0, Int(out.h[]) - ty)
+    content_w, content_h = graphics_size(content)
+    (max(0, Int(content_w) - view_w), max(0, Int(content_h) - view_h))
+end
+
+# A scroll that would move nothing is not an operation. Without the clamp a pane
+# scrolls its content clean out of its own viewport — a transcript that fits was
+# pushed 60 px above the top by one wheel notch — and answering `nothing` at the
+# end of the travel is also what lets an outer pane take over from an inner one.
+function _scroll_by(sp, dx, dy, room = nothing)
+    old = sp.scroll_position
+    x = Int(old.x[]) + dx
+    y = Int(old.y[]) + dy
+    if room !== nothing
+        x = clamp(x, 0, room[1])
+        y = clamp(y, 0, room[2])
+    end
+    (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
+    ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(x, y))
 end
 
 # Scroll this pane, if the wheel landed on it. Only reached once the content has
 # declined the event, so the innermost pane under the pointer wins.
+#
+# `follow_end` is a mode, not a lock. A pane that follows the end draws at the
+# end and ignores `scroll_position` — so a reader who scrolls back through a
+# transcript must first take the pane off the pin, and the pin goes back on when
+# they reach the end again. Without that the wheel wrote a cell nothing read, and
+# the transcript could not be scrolled at all.
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
     _, scroll_step = p.measure("M", p.font)
-    evt.dx != 0 && evt.dy == 0 ?
-        _scroll_by(iomap.input, -evt.dx * scroll_step, 0) :
-        _scroll_by(iomap.input, 0, -evt.dy * scroll_step)
+    dx, dy = (evt.dx != 0 && evt.dy == 0) ? (-evt.dx * scroll_step, 0) :
+                                            (0, -evt.dy * scroll_step)
+    w = iomap.input
+    room = _scroll_room(iomap)
+    following = getfield(w, :follow_end)[] === true
+    if following
+        room === nothing && return nothing          # nothing measurable to leave the end for
+        dy >= 0 && return nothing                   # already at the end, and asked to go further
+        # Release the pin, and start from where the reader is actually looking,
+        # which is the end — not from whatever the unread cell happens to hold.
+        x = clamp(Int(w.scroll_position.x[]) + dx, 0, room[1])
+        y = clamp(room[2] + dy, 0, room[2])
+        return CompoundOperation(Any[
+            ReplaceReferencedValueOperation(w, "follow_end", false),
+            ReplaceReferencedValueOperation(w, "scroll_position", Point2D(x, y))])
+    end
+    op = _scroll_by(w, dx, dy, room)
+    # Back at the end: follow again, so new turns stay in view.
+    if op !== nothing && room !== nothing && room[2] > 0 &&
+       Int(op.value.y[]) == room[2] && getfield(w, :follow_end)[] === false
+        return CompoundOperation(Any[op,
+            ReplaceReferencedValueOperation(w, "follow_end", true)])
+    end
+    op
 end
 
 function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
