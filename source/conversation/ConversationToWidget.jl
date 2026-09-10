@@ -9,13 +9,16 @@ bubbles:
                                label], content = VerticalLayout of part widgets.
                                The user's band is tinted and the model's is
                                plain — neither draws a border.
-    ConversationPart         → WidgetCard: title = [avatar(kind) + kind label],
-                               content = the part's `content` document (recursed)
+    ConversationPart         → the part's `content` document (recursed), bare.
+                               Code, a thinking block and an evaluation each keep
+                               a quiet tinted panel with a one-line tag; every
+                               other kind draws no chrome at all.
 
-Both the turn and the part are independently collapsible: when `collapsed` is
+A turn is collapsible, and so is a part that kept a panel: when `collapsed` is
 set, the body is wrapped in a `WidgetScrollPane` clipped to a few lines (a
-graphics-viewport clip). The richer first-line collapse (`TextFirstLine`) is a
-later refinement.
+graphics-viewport clip). A part with no panel has no header to click, so it does
+not fold — prose is what a person reads, and folding it hides the message.
+The richer first-line collapse (`TextFirstLine`) is a later refinement.
 
 The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
 part updates the layout without re-running `print_document` (streaming). The
@@ -33,7 +36,7 @@ import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 # answers; this file names no domain.
 import ..NaturalNotationModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
-                       WidgetScrollPane, Point2D, Inset, inset_default
+                       WidgetScrollPane, WidgetSeparator, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
@@ -91,28 +94,28 @@ const _KIND_STYLE = StyleText(_TITLE_FONT, color_slate_600)
 _role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
 
 """
-    FORMAT_GLYPHS, FORMAT_LABELS
+    FORMAT_GLYPHS, FORMAT_LABELS, CODE_FORMATS
 
-The badge a part carries, keyed by the format its document is written in. A
-domain's insertion is a subtype of that domain's root, so one entry covers a kind
-while it is typed and after it is committed.
+The decoration a part can carry, keyed by the format its document is written in.
+A domain's insertion is a subtype of that domain's root, so one entry covers a
+kind while it is typed and after it is committed.
 
 `FORMAT_LABELS` holds the two formats whose key is an abbreviation of the
-language's name; every other label is the key itself. The decoration belongs to
-this package; the kinds do not, and a format with no entry draws the generic
-badge.
+language's name; every other label is the key itself. `FORMAT_GLYPHS` is the
+composer's, which marks the part it is editing.
+
+`CODE_FORMATS` is the set of formats that read as code. A part in one of them
+gets a panel, because code between two paragraphs of prose must be told from
+them; a part in any other format gets none. The decoration and this judgement
+belong to this package; the kinds do not, and a format that names itself in
+neither table is prose as far as this file is concerned.
 """
 const FORMAT_GLYPHS = Dict(:jl => "λ", :json => "{}", :xml => "<>", :md => "¶")
 const FORMAT_LABELS = Dict(:jl => "julia", :md => "markdown")
+const CODE_FORMATS  = Set([:jl, :json, :xml])
 
-function _kind_glyph(content)
-    content isa EvaluatorForm      && return "="
-    content isa ConversationThinking && return "∴"
-    content isa TextBlock           && return "¶"
-    key = get_natural_format(typeof(content))
-    key === nothing && return "?"
-    get(FORMAT_GLYPHS, key, "{}")
-end
+_is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
+
 function _kind_label(content)
     content isa EvaluatorForm      && return eval_kind_label(content)
     content isa ConversationThinking && return "thinking"
@@ -181,28 +184,72 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     ChildrenIoMap(projection, t, card, ioms)
 end
 
-# ── print_document: part → card with kind header + recursed content ─────────
+# ── print_document: part → the content, and a chrome only where it is earned ─
+#
+# A part used to be a card with a kind heading, whatever it held. Two things
+# were wrong with that. A frame does not say WHAT a part is — it only separates,
+# and the content already says what it is: prose looks like prose and code looks
+# like code. And a heading that names the kind repeats what the reader can see:
+# `¶ text` over the words `hi there` tells nobody anything.
+#
+# So the default is no chrome at all. Three kinds keep one, because each has
+# something a frame does that whitespace cannot:
+#
+# - code, which must be told apart from the prose it sits between;
+# - a thinking block, which is secondary and folds away;
+# - an evaluation, which is two documents (a form and its result) and needs to
+#   say where one ends.
 
 function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
-    rec, ref = recursion, ctx.reference
     content = part.content
-    body = content isa EvaluatorForm      ? _eval_body(content) :
-           content isa ConversationThinking ? _thinking_body(content) :
-           content
-    card = WidgetCard(Point2D(0, 0);
-                      title = _header(_kind_glyph(content), _kind_label(content), _KIND_STYLE),
-                      content = _maybe_clip(body, part.collapsed === true))
-    SimpleIoMap(projection, part, card)
+    collapsed = part.collapsed === true
+    output = content isa EvaluatorForm        ? _eval_card(content, collapsed)     :
+             content isa ConversationThinking ? _thinking_card(content, collapsed) :
+             _is_code(content)                ? _code_card(content, collapsed)     :
+             content
+    SimpleIoMap(projection, part, output)
 end
 
-# An EvaluatorForm renders as its code over its result. The form (a
-# JuliaDocument) and result (a TextBlock) are embedded directly as layout
-# children so each is recursed through its own projection chain and **sizes to
-# its content** — wrapping them in a fixed-height scroll pane would clip them to
-# one row even when the part is expanded.
+# A part's panel is MUTED and a turn's band is TINTED, because a part sits inside
+# a turn: a code block in a user message would draw nothing if the two shared a
+# color.
+#
+# A quiet tag: the one line a chromed part draws to name itself. No avatar — a
+# glyph beside a word says the word twice.
+_tag(label::AbstractString) =
+    WidgetLabel(Point2D(0, 0), String(label); text_style = _KIND_STYLE)
+
+# Code is separated from the prose around it, and its language named, because a
+# panel cannot say which language it holds.
+_code_card(content, collapsed::Bool) =
+    WidgetCard(Point2D(0, 0);
+               title = _tag(_kind_label(content)),
+               content = _maybe_clip(content, collapsed),
+               variant = :muted)
+
+# Reasoning is secondary, so it folds. It keeps its glyph, because "thinking" is
+# a claim about the text and not a description of it.
+_thinking_card(t::ConversationThinking, collapsed::Bool) =
+    WidgetCard(Point2D(0, 0);
+               title = _header("∴", "thinking", _KIND_STYLE),
+               content = _maybe_clip(_thinking_body(t), collapsed),
+               variant = :muted)
+
+_eval_card(ef::EvaluatorForm, collapsed::Bool) =
+    WidgetCard(Point2D(0, 0);
+               title = _tag(eval_kind_label(ef)),
+               content = _maybe_clip(_eval_body(ef), collapsed),
+               variant = :muted)
+
+# An EvaluatorForm renders as its code over its result, with a rule between them
+# to say where the form ends. The form (a JuliaDocument) and result (a TextBlock)
+# are embedded directly as layout children so each is recursed through its own
+# projection chain and **sizes to its content** — wrapping them in a fixed-height
+# scroll pane would clip them to one row even when the part is expanded. The rule
+# takes the width it is offered, so it spans whatever the card gives it.
 _eval_body(ef::EvaluatorForm) =
-    VerticalLayout(Any[ef.form, ef.result]; gap = _GAP)
+    VerticalLayout(Any[ef.form, WidgetSeparator(Point2D(0, 0)), ef.result]; gap = _GAP)
 
 # A thinking part's body is its reasoning text, recursed like any other text
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)

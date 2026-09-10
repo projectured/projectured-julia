@@ -34,7 +34,7 @@ import ..ColorModule: StyleColor,
                       color_slate_900, color_slate_950,
                       color_indigo_100, color_indigo_200, color_indigo_400, color_indigo_500,
                       color_indigo_600, color_indigo_700, color_indigo_950,
-                      color_destructive, color_destructive_fg
+                      color_destructive, color_destructive_fg, color_interpolate
 import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
                        WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
@@ -4015,6 +4015,7 @@ end
     footer_text::ImmutableCell{StyleText}
     surface_color::StyleColor      # card fill, in the :card variant
     tint_color::StyleColor         # card fill, in the :tinted variant
+    muted_color::StyleColor        # card fill, in the :muted variant
     border::StyleStroke
     corner_radius::Int
     padding::Int                   # uniform card padding
@@ -4109,8 +4110,9 @@ function _card_build(p, w, ctx, tim, cim)
     surface = Any[]
     variant = w.variant
     if variant !== :plain
-        fill = variant === :tinted ? p.tint_color : p.surface_color
-        border = variant === :tinted ? nothing : p.border.color
+        fill = variant === :tinted ? p.tint_color :
+               variant === :muted  ? p.muted_color : p.surface_color
+        border = variant === :card ? p.border.color : nothing
         _push_panel!(surface, 0, 0, card_width, card_height; fill=fill, border=border,
                      border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
     end
@@ -6664,7 +6666,12 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
-            theme.card, theme.accent, StyleStroke(theme.border, theme.border_width), theme.radius,
+            # The tint is the accent pulled most of the way to the card surface. A
+            # tinted band can hold a muted panel, so the two must not meet in the
+            # middle: the raw accent and `muted` differ by 15 units of blue and
+            # nothing else, which drew one shape where the transcript needs two.
+            theme.card, color_interpolate(theme.accent, theme.card, 0.55), theme.muted,
+            StyleStroke(theme.border, theme.border_width), theme.radius,
             16, 4, 10),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,

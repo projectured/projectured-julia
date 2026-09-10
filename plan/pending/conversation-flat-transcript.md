@@ -121,7 +121,8 @@ three values:
 | variant | fill | border | use |
 | --- | --- | --- | --- |
 | `:card` | `theme.card` | `theme.border` | the default; every card today |
-| `:tinted` | `theme.accent` | none | the user turn |
+| `:tinted` | `theme.accent`, pulled toward `theme.card` | none | the user turn |
+| `:muted` | `theme.muted` | none | a part panel inside a turn |
 | `:plain` | none | none | the assistant turn |
 
 **Decision: the tint is `theme.accent`, and not a new theme field.** The plan
@@ -181,31 +182,81 @@ change `print_document(::ConversationTurnToWidgetComposite, …)`:
 two tinted panels with no border and no panel at all for the assistant turn.
 The part cards still draw their own fill and border; Stage 3 removes them.
 
-## Stage 3 — the part becomes a flow ⬜
+## Stage 3 — the part becomes a flow ✅ DONE
 
 Change `print_document(::ConversationPartToWidget, …)` to return the body, and
 not a card. Dispatch the chrome on the content:
 
 - prose, markdown, and any other self-evident content — return the recursed
   content directly.
-- code — wrap it in a `WidgetCard` of variant `:tinted` with no title, and put
-  the language name in a small muted label in the corner. `FORMAT_LABELS` stays
-  and feeds that label.
+- code — wrap it in a `WidgetCard` of variant `:muted`, and put the language
+  name in a small muted label in the card's title slot. `FORMAT_LABELS` stays
+  and feeds that label. A new `CODE_FORMATS` set (`:jl`, `:json`, `:xml`) says
+  which formats read as code; every other format is prose to this file.
+
+**Decision: the tag goes in the title slot, not the corner.** The plan said a
+corner. A card has no top-right slot, and a right-aligned element inside the
+title would have to know the card's width, which the title does not. The tag is
+one small muted label with no avatar, which is already far quieter than the bold
+22 px heading with an avatar that it replaces.
 - an `EvaluatorForm` — keep `_eval_body`, and add a hairline between the form
   and the result.
-- a `ConversationThinking` — one disclosure line that expands.
-  `WidgetAccordionItem` exists already
-  ([`WidgetDocument.jl:1764`](../../source/widget/WidgetDocument.jl#L1764)).
+- a `ConversationThinking` — a `:muted` card whose title is the `∴ thinking`
+  header, and whose body keeps the existing `_maybe_clip` fold. An accordion was
+  the first idea, and it was dropped: `_maybe_clip` is already driven by the
+  domain `collapsed` flag that the toggle reader writes, and a header over one
+  clipped row IS the disclosure line. Changing the fold mechanism in the same
+  commit as the chrome would have mixed two changes.
 
-`FORMAT_GLYPHS` loses its only reader if no part draws a glyph. Delete it only
-after Stage 4, because the composer reads it too.
+`FORMAT_GLYPHS` stays: the composer imports it to mark the part it is editing.
+`_kind_glyph` in this file loses its only reader and is deleted.
 
 **A part with no card cannot fold.** The part collapse rides on the card header
 click today. Only a code part, a thinking part, and an evaluation keep a chrome,
 and each of those keeps its own affordance. A prose part can no longer
 fold, which is the right trade.
 
-**Test:** `test_printer(assistant_example)` and `test_conversation()`.
+`_mvp_test_collapse_click` in
+[`AssistantMvpTest.jl`](../../test/workbench/editor/AssistantMvpTest.jl) clicked
+the header of a prose part, so it had to change with the design. It now clicks
+the Julia part (`turns[2].parts[3]`), and asserts that no click anywhere yields
+a toggle for the prose part (`turns[2].parts[2]`).
+
+### This stage fixed a broken assertion ✅
+
+`@test_broken _canvas_maxw(out_default) == _canvas_maxw(out_expanded)` in the
+same file now passes, and it is promoted to `@test`. Its comment called it
+"pre-existing drift". It was the part card: a collapsed prose part built a
+clipped viewport sized against the wrong width, which widened the card and every
+container above it. A prose part builds no card and no viewport now, so the
+default render and the all-expanded render measure the same.
+
+### Decision: two quiet variants, not one ✅
+
+The first render of this stage showed a defect the plan did not predict. A part
+panel and a turn band are both quiet surfaces, and a part sits INSIDE a turn —
+so a code block in a user message drew nothing at all, because both used
+`theme.accent`.
+
+Two changes fixed it, both in Stage 1's widget:
+
+1. `WidgetCard` gained a fourth variant, `:muted`, filled from `theme.muted`.
+   The part panels use it; the turn band keeps `:tinted`.
+2. The tint is no longer the raw accent. It is
+   `color_interpolate(theme.accent, theme.card, 0.55)` — the accent pulled most
+   of the way to the card surface. The raw accent (indigo-100, `224,231,255`)
+   and `theme.muted` (slate-200, `226,232,240`) differ by 15 units of blue and
+   nothing else, which is not a difference a person sees.
+
+The rendered result: a band at `237,241,253` holding a panel at `226,232,240`.
+The panel is a clear step darker in all three channels, so it reads inside a
+band and on the plain background alike.
+
+**Test:** `test_conversation()` passes, 44 of 44. `test_object_to_widget()` and
+`test_widget_button_behavior()` pass. A render of the conversation example draws
+a band for each user turn, no band for the assistant turn, a muted panel for the
+thinking part and for the Julia part, and no panel at all for the two prose
+parts. The transcript draws no border anywhere.
 
 ## Stage 4 — the composer matches the transcript ⬜
 

@@ -1379,6 +1379,7 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 """
     WidgetCard(position; title, description, content, footer, width=0, collapsed=false, variant=:card)
 
+
 A surface with an optional title / description header, a content body and an
 optional footer, stacked vertically.
 
@@ -1394,13 +1395,19 @@ and its header in every variant — only the panel behind them changes:
 | variant | fill | border |
 | --- | --- | --- |
 | `:card` | the theme's card color | the theme's border |
-| `:tinted` | the theme's tint | none |
+| `:tinted` | the theme's accent | none |
+| `:muted` | the theme's muted color | none |
 | `:plain` | none | none |
 
 A quiet variant is for a surface that groups without announcing itself — one
 band of a transcript, where a border around every message would be noise. It is
 still a card, so it still folds from its header, and the collapse reader does
 not care which variant drew it.
+
+`:tinted` and `:muted` differ so that one can sit INSIDE the other and still be
+seen. A transcript nests them: the band that says who spoke is tinted, and the
+panel around a block of code inside that band is muted. Two quiet surfaces that
+shared a color would draw one shape.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D

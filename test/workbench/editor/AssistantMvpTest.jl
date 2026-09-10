@@ -331,8 +331,7 @@ function _mvp_test_collapse_containment()
         out_default  = _render_conversation_widget(
             ProjecturedConversationExample.make_conversation_document_example(), PrinterContext())
         out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
-        # @broken: pre-existing drift; canvas maxw differs between default/expanded conversation renders
-        @test_broken _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
+        @test _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
 
         # Stage 3 — every card's right edge is within the conversation width, on
         # the fallback path and at allocated panel widths (collapsed + expanded).
@@ -410,10 +409,13 @@ function _mvp_test_collapse_click()
         # Resolve both header clicks from the *same* fresh projection (a toggle
         # mutates `collapsed`, which re-projects and shifts later positions).
         op_turn = _find_toggle(proj, io, t -> t === doc.turns[1])
-        # parts[1] of the assistant turn is now the collapsed-by-default thinking
-        # part; target parts[2] (the "Sure!…" prose part) which starts expanded.
-        op_part  = _find_toggle(proj, io, t -> t === doc.turns[2].parts[2])
+        # parts[1] of the assistant turn is the collapsed-by-default thinking
+        # part; parts[3] is the Julia part. Both keep a panel, so both have a
+        # header to click. parts[2] and parts[4] are prose, which draws no
+        # chrome and therefore does not fold.
+        op_part  = _find_toggle(proj, io, t -> t === doc.turns[2].parts[3])
         op_think = _find_toggle(proj, io, t -> t === doc.turns[2].parts[1])
+        op_prose = _find_toggle(proj, io, t -> t === doc.turns[2].parts[2])
 
         # Thinking part header → toggles the thinking part's domain node. It is
         # collapsed by default, so the click expands it.
@@ -431,9 +433,14 @@ function _mvp_test_collapse_click()
 
         # Part header → toggles the part's domain node.
         @test op_part isa ToggleCollapseOperation
-        @test doc.turns[2].parts[2].collapsed == false
+        @test doc.turns[2].parts[3].collapsed == false
         evaluate_operation((document = doc,), op_part)
-        @test doc.turns[2].parts[2].collapsed == true
+        @test doc.turns[2].parts[3].collapsed == true
+
+        # A prose part draws no panel, so there is no header anywhere on it to
+        # click and no click yields a toggle for it. Prose is what a person
+        # reads, and a fold over it hides the message.
+        @test op_prose === nothing
     end
 end
 
