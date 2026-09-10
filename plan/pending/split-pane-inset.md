@@ -62,7 +62,38 @@ pixels past the bottom. It must start at 8 and run 284.
       `WidgetSplitPane`. Keep it on the `WidgetTabbedPane`. Say in the comment
       on `_PANE_BORDER` that it is the tabbed pane's chrome and that a split
       pane takes none.
-- [ ] **Step 3 — run the pane suites and the widget suites**, and compare the
+- [x] **Step 3 — run the pane suites and the widget suites**, and compare the
       split-pane drag baseline (24 pass, 3 fail, 2 error) against clean main.
+      DONE. Every pane suite passes: surgery 79, geometry 35, PaneToWidget 42,
+      reader 29, gestures 42, drag 251, rename 19, construct 45. The widget
+      suites pass: split pane reflow 22, tab strip 18, transform pane 26, scroll
+      pane hover 4, workbench content pane 6. `test_split_pane_drag` reports 24
+      pass, 3 fail, 2 error, which is its baseline on clean main.
 
 ## Decisions taken while implementing
+
+**The two faults were fixed in the order B then A.** Fixing A alone would have
+hidden B rather than removed it: with no caller setting a box-model field on a
+split, the wrong arithmetic simply never runs. Fixing B first meant the test for
+A could be written against a split that is otherwise correct, so its failure
+reports the gap in pixels — the nested splitter starts at 209 rather than 201
+and stops at 384 rather than 400 — instead of an arithmetic error further down.
+
+**`inset_default` is `Inset(0, 0, 0, 0)`,** so every other split pane in the
+repository has an empty box model. Both new branches in `_split_build` are
+guarded on `inset_x == 0` / `inset_y == 0` and hand back the same cells, so the
+change is a no-op for every caller but a future one.
+
+**`_split_measured_sizes` now takes the content extent, not the canvas.** Its old
+form, `outer_main - pos(n) - pos(1)`, happened to be right for a symmetric inset
+once the canvas reported the inset, and wrong for an asymmetric one. The drag
+reader subtracts the inset itself and passes the content extent, which is right
+for either.
+
+## A gap this plan does not close
+
+A split pane reserves the space its `margin`, `border` and `padding` ask for and
+never paints them: `_split_build` does not call `_push_box_rects!`, so a caller
+that set `border_color` would get the gap and no line. No caller sets one, and
+painting the box model is a different piece of work from dividing the space, so
+it is left alone.
