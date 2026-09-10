@@ -36,19 +36,27 @@ size nobody chose, in a place nobody looks. A **default** on the document
 constructor is the same constant wearing a keyword: it wins over every offer and
 nobody wrote it, so a widget that can measure its content has none. A widget that
 cannot — a progress bar, a slider, a skeleton, a highlight, an avatar — keeps its
-number, because there the number **is** the content.
+number, and that number is what it **authored**: see the note on style parameters
+below for why it is not its content.
 
 **A style parameter is not a constant.** A checkbox's 18-pixel box, a switch's
 44×24 track, a progress bar's 8-pixel thickness and a slider's 24-pixel height are
 arguments to those projections, set at the `WidgetToGraphics(…)` factory beside
-the theme's colours, and a caller building the projection may pass others. They
-are the widget's **content** on that axis, which §1 allows. The test is not
-whether a number appears, but whether anyone can choose it:
+the theme's colours, and a caller building the projection may pass others. The
+test is not whether a number appears, but whether anyone can choose it:
 
 | | |
 | --- | --- |
 | a size constant in a printer body | nobody chose it, nobody can reach it — forbidden |
-| a style parameter on a projection | chosen at the factory, replaceable by a caller — it is content |
+| a style parameter on a projection | chosen at the factory, replaceable by a caller — allowed |
+
+**Such a number is `Fixed`, not content.** It reads like content — it is what the
+widget has instead of something to measure — but the two behave differently under
+an offer, and only one of them is right. Content loses to an offer, so a progress
+bar handed a 700-pixel slot would draw a 700-pixel bar. The number is what the
+widget **authored**, so it wins, and a caller who wants a thicker bar passes one
+to the projection. Measured: routed as content, the bar drew `260×700`; authored,
+it draws `260×8`.
 
 ## 2. Where a policy lives
 

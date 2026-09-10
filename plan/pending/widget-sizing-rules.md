@@ -230,12 +230,47 @@ Each step keeps the images green before the next begins.
      an authored `120x60` under an offer of `900x700` now draws `120x60`, and
      drew `900x700` before. That is what lets a card set its panes' size and keep
      it.
-   - **5b — the height half — four widgets DONE.** `WidgetStatusBar`,
+   - **5b — the height half — DONE, in two passes.** `WidgetStatusBar`,
      `WidgetAlert`, `WidgetCard` and `WidgetTextarea` resolve height through
      `_resolve_height`: the offer if there is one, else the authored value, never
      under the content. **All 39 images unchanged.** Measured where they do not
      reach: a card that drew `200x86` with no offer draws `900x700` under one, and
-     filled the width only before. The remaining pattern-B widgets follow.
+     filled the width only before.
+
+     **The other seven followed later**, when steps 14 to 17 had made the offer
+     reach places it never had: Select, Option, SpinBox, List, Accordion, Progress
+     and Slider each computed a height by hand. **All 42 images unchanged**, and
+     that is the point — no example offers those widgets a height, so the pictures
+     cannot judge this and the measurement is the check:
+
+     | | no offer | offered 900×700 |
+     | --- | --- | --- |
+     | select | 220×38 | 220×**700** |
+     | option | 95×38 | 900×**700** |
+     | spin box | 77×38 | 900×**700** |
+     | list | 200×114 | 200×**700** |
+     | accordion | 412×108 | 900×**700** |
+     | progress | 260×8 | 260×**8** |
+     | slider | 260×24 | 260×**24** |
+
+     **The last two rows are a correction to the rules, and the measurement is
+     what forced it.** Step 8 called a style parameter the widget's *content* on
+     that axis. Routed as content, the progress bar drew `260×700` — content loses
+     to an offer, and a 700-pixel progress bar is not a progress bar. Such a
+     number is what the widget **authored**: it is `Fixed`, it wins over the
+     offer, and a caller who wants a thicker bar passes one to the projection.
+     `documentation/rule/layout-rules.md` §1 says so now, and `WidgetSkeleton`
+     had already been written that way.
+
+     **One widget resolves neither axis, and it is left alone on purpose.**
+     `WidgetToggleGroup` sums its segment widths and adds its padding to a text
+     height, and 5c's sweep of pattern A did not reach it. Its width is not a
+     one-line change: `iomap.segment_widths` is what its reader hit-tests a press
+     against, so a group that filled an offer would have segments that no longer
+     tile it and a press near the right edge would miss. It needs the segments to
+     divide the allocation, which is `allocate_axis` on a control rather than a
+     container — a step of its own, and nothing offers a toggle group a width
+     today.
 
      **What this exposed about the safety net.** Every example draws its widget
      standalone, inside a composite or a vertical stack — and both of those offer
@@ -312,7 +347,8 @@ Each step keeps the images green before the next begins.
      canvas from a column geometry, which has to fill before the canvas can. None
      of the three is a deviation from the rule — each is a container whose
      children have to share what it fills.
-6. **Delete the five constants — BLOCKED, and the block is the finding.**
+6. **Delete the five constants — DONE, and the block it started as is the
+   finding.**
    Tried, reverted. `widget_offered` changed by 26.7 % and the change was a
    regression: **the scroll pane with no authored size vanished.**
 
@@ -707,7 +743,7 @@ Each step keeps the images green before the next begins.
 
     `column_stretch` is gone. `FormLayout` says `column_policies=[Content, Fill]`
     now, which is the same sentence in the one vocabulary.
-16. **`WidgetTable` takes them.** The same two defaults and the same two vectors,
+16. **`WidgetTable` takes them — DONE.** The same two defaults and the same two vectors,
     and a table's own default is `Content` on both axes — a table that says
     nothing draws as it does today.
 

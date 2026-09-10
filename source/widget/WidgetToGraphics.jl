@@ -4492,7 +4492,12 @@ function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetP
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         value = clamp(Float64(w.value), 0.0, 1.0)
         bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
-        bar_height = _sc(p.bar_height)
+        # The thickness is `Fixed` and NOT the content, which is the one place
+        # step 8's word does not survive the rule: a number passed as content
+        # loses to an offer, and a progress bar 700 pixels thick is not a
+        # progress bar. A widget that cannot measure its own extent has authored
+        # the number it draws.
+        bar_height = _resolve_height(ctx, _sc(p.bar_height))
         elements = Any[]
         push!(elements, GraphicsRect(0, 0, bar_width, bar_height, p.track_color, bar_height ÷ 2))
         filled_width = round(Int, value * bar_width)
@@ -4528,7 +4533,7 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         enabled = !(w.enabled === false)
         value = clamp(Float64(w.value), 0.0, 1.0)
         slider_width  = track_width
-        slider_height = _sc(p.height)
+        slider_height = _resolve_height(ctx, _sc(p.height))
         center_y = slider_height ÷ 2
         track_thickness = _sc(p.track_thickness)
         filled_width = round(Int, value * slider_width)
@@ -5158,7 +5163,7 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         # Fit the value text, a gap, the trailing chevron and both paddings.
         content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
         control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-        control_height = text_height + 2padding_y
+        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
         box_fill   = enabled ? p.background_color : p.disabled_color
         text_color = enabled ? p.text.color : p.disabled_foreground
         chevron_color = enabled ? p.chevron.color : p.disabled_foreground
@@ -5236,7 +5241,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
         padding_y = _sc(Int(p.padding.top[]))
         text_width, text_height = _text_size(p.measure, p.text.font, label)
         row_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + 2padding_x)
-        row_height = text_height + 2padding_y
+        row_height = _resolve_height(ctx, 0, text_height + 2padding_y)
         elements = Any[]
         _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
         push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, p.text.color))
@@ -5301,7 +5306,7 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         text = string(w.value)
         pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
         tw, th = _text_size(p.measure, p.text.font, text)
-        control_height = th + 2pad_y
+        control_height = _resolve_height(ctx, 0, th + 2pad_y)
         stepper_w = control_height
         content_min = 2pad_x + tw + stepper_w
         control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
@@ -5385,7 +5390,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
             intrinsic = max(intrinsic, tw + 2pad_x)
         end
         control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
-        control_height = max(row_height, n * row_height)
+        control_height = _resolve_height(ctx, 0, max(row_height, n * row_height))
         sel = widget_list_selected(w)
         hov = w.enabled === false ? 0 : w.hovered
         elements = Any[]
@@ -5539,7 +5544,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         end
         push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width, y, elements))
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width,
+                                   _resolve_height(ctx, 0, y), elements))
 end
 @_printer_only WidgetAccordionToGraphicsCanvas
 
