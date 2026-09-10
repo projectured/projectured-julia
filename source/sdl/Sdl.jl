@@ -502,7 +502,7 @@ function _drop_pathological_vsync!(renderer)
         elapsed <= _VSYNC_PRESENT_LIMIT && continue
         took = round(elapsed * 1000; digits = 1)
         if SDL_RenderSetVSync(renderer, Cint(0)) == 0
-            @info "[sdl] vsync off — a present took $(took) ms, which is a timeout " *
+            @warn "[sdl] vsync off — a present took $(took) ms, which is a timeout " *
                   "and not a refresh (this display has no vertical blank)"
         else
             # Older SDL has no runtime toggle. Say so rather than leave a person

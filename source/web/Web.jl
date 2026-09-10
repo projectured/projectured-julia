@@ -722,7 +722,11 @@ function BackendModule.initialize_backend!(backend::WebBackend)
             _serve_static(backend, http)
         end
     end
-    @info "Web backend listening on http://$(backend.host):$(backend.port)"
+    # PROGRAM OUTPUT, and not a log: it is the only way to learn where to point a
+    # browser, and a binary that logs from `warn` and up would swallow a `@info`.
+    # A raw write is safe here and not in the editor loop — `initialize_backend!`
+    # runs once, before the assistant has a task that redirects `stdout`.
+    println(stdout, "Web backend listening on http://$(backend.host):$(backend.port)")
     return nothing
 end
 
