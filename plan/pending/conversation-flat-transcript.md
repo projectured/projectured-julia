@@ -163,7 +163,7 @@ A direct render of the three variants gives one rect with a fill and a border fo
 `:card`, one rect with a fill and no border for `:tinted`, and no rect at all for
 `:plain`.
 
-## Stage 2 — the turn becomes a quiet card ⬜
+## Stage 2 — the turn becomes a quiet card ✅ DONE
 
 In [`ConversationToWidget.jl`](../../source/conversation/ConversationToWidget.jl),
 change `print_document(::ConversationTurnToWidgetComposite, …)`:
@@ -176,8 +176,10 @@ change `print_document(::ConversationTurnToWidgetComposite, …)`:
    `print_document(::ConversationConversationToWidgetComposite, …)`. Keep the
    gap inside a turn at `_GAP`.
 
-**Test:** `test_printer(assistant_example)`, then look at the window with
-`run_example(assistant_example)`.
+**Test:** `test_conversation()` passes, 44 of 44. A render of
+`make_conversation_document_example()` (roles `[:user, :assistant, :user]`) draws
+two tinted panels with no border and no panel at all for the assistant turn.
+The part cards still draw their own fill and border; Stage 3 removes them.
 
 ## Stage 3 — the part becomes a flow ⬜
 

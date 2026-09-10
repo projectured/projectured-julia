@@ -4,9 +4,11 @@
 ConversationDocument → WidgetDocument projection — a vertical list of chat
 bubbles:
 
-    ConversationConversation → VerticalLayout of turn cards
-    ConversationTurn         → WidgetCard: title = [avatar(role) + role label],
-                               content = VerticalLayout of part widgets
+    ConversationConversation → VerticalLayout of turn bands
+    ConversationTurn         → WidgetCard, quiet: title = [avatar(role) + role
+                               label], content = VerticalLayout of part widgets.
+                               The user's band is tinted and the model's is
+                               plain — neither draws a border.
     ConversationPart         → WidgetCard: title = [avatar(kind) + kind label],
                                content = the part's `content` document (recursed)
 
@@ -35,7 +37,7 @@ import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
 import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_bold_22
+import ..FontModule: font_ubuntu_bold_14
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: EmptyReference
@@ -62,19 +64,25 @@ struct ConversationPartToWidget                  <: Projection end
 # No card width. A turn card and a part card take the width they are offered —
 # the transcript says `child_width = Fill` and the card resolves it — so a
 # conversation is as wide as the pane holding it.
-const _AVATAR_SIZE   = 22
+const _AVATAR_SIZE   = 16
 const _COLLAPSED_H   = 30   # clipped viewport height (≈ one row) when collapsed
-const _GAP           = 6
+const _GAP           = 8    # between the parts of one turn
+# Between turns. A transcript is read by turn, so the eye needs the boundary to
+# be louder than the one inside a turn. A gap says it; a border would say it
+# again.
+const _TURN_GAP      = 28
 # Mirrors the WidgetCard padding configured in the WidgetToGraphics theme builder
 # (the source of truth). Used to size a collapsed body's clip to the card's
 # *interior* width so the clipped viewport never widens the card past its
 # authored width.
 const _CARD_PADDING  = 16
 
-# Card titles render bigger and bolder than the body, in a distinct accent, so a
-# turn's role and a part's kind read as headings rather than body text. Roles are
-# color-coded (user vs assistant); every part kind shares one muted heading color.
-const _TITLE_FONT = font_ubuntu_bold_22
+# The role line is metadata, and the message is the content, so the role line
+# renders SMALLER than the body it introduces. It was bold 22 — bigger than the
+# words it labelled, which put the label above the message in the reading order
+# and made a transcript read as a stack of headings. The role keeps its color,
+# because color is what tells a person who spoke.
+const _TITLE_FONT = font_ubuntu_bold_14
 _role_style(role::Symbol) =
     StyleText(_TITLE_FONT, role === :user      ? color_indigo_600 :
                            role === :assistant ? color_solarized_cyan : color_slate_600)
@@ -143,7 +151,7 @@ function print_document(projection::ConversationConversationToWidgetComposite,
     ])
     # Every turn fills the width it is given and grows with what it holds.
     layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
-                            Cell(:left), Cell(_GAP),
+                            Cell(:left), Cell(_TURN_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
     ChildrenIoMap(projection, c, layout, ioms)
 end
@@ -161,9 +169,15 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     body = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
                           Cell(:left), Cell(_GAP),
                           Cell(Fill), Cell(Content), Cell(nothing))
+    # A turn is a band and not a box. The user's band is tinted and the model's
+    # is plain, which is what tells the two apart — the same job a border did,
+    # done by a channel the content does not already use. It stays a card, so
+    # the header click still folds it and the collapse reader below still finds
+    # the turn that a produced card came from.
     card = WidgetCard(Point2D(0, 0);
                       title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
-                      content = _maybe_clip(body, t.collapsed === true))
+                      content = _maybe_clip(body, t.collapsed === true),
+                      variant = t.role === :user ? :tinted : :plain)
     ChildrenIoMap(projection, t, card, ioms)
 end
 
