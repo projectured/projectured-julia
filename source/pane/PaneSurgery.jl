@@ -618,11 +618,20 @@ other leaves behind. Four shapes, and each names its paths accordingly:
     then the sibling takes the parent's slot;
   * the source's parent holds three or more — the split is written first, then
     the source is spliced out with its weight.
+
+`source` and `target` can be the same group, which is a tab that takes half of
+its own pane. That is the first shape above, because a group that splits itself
+must keep a tab behind; the drop answers `nothing` when the tab is its last.
 """
 function pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
                                    target::PaneGroup, orientation::Symbol, side::Symbol)
     (1 <= source_index <= length(source.tabs)) || return nothing
-    source === target && return nothing
+    # A group that drops its only tab on its own edge changes nothing: the tab
+    # would take the new pane and leave the old half empty. With another tab
+    # behind it the drop is real, and the surgery below needs no special case —
+    # the new split takes the group's own slot, and the tab moves between two
+    # different vectors.
+    (source === target && length(source.tabs) == 1) && return nothing
     tab = source.tabs[source_index]
     new_group = PaneGroup(PaneTab[])
     before = side === :left || side === :above

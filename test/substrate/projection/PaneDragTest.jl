@@ -221,6 +221,45 @@ end
     @test inner.elements[2] === right           # dropped on the left, so it is second
 end
 
+@testset "a drop on its own edge band splits the group it came from" begin
+    tree, left, right, editor = _two_groups()
+    moved = left.tabs[1]
+    proj, iomap = _grab!(editor, tree, left, 1)
+
+    x, y = _point(tree, left, 0.95, 0.5)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    @test tree.drag.target === left
+    @test tree.drag.zone === :right
+    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys()))
+
+    @test tree.drag === nothing
+    inner = tree.root.elements[1]
+    @test inner isa PaneSplit
+    @test inner.orientation === :vertical
+    @test inner.elements[1] === left            # the group it came from is reused
+    new_group = inner.elements[2]
+    @test new_group.tabs[1] === moved
+    @test length(left.tabs) == 1                # the tab it kept
+    @test tree.root.elements[2] === right       # the other group did not move
+    @test pane_focus(tree) == (new_group, 1)
+end
+
+@testset "a group with one tab can not split itself" begin
+    left = PaneGroup(PaneTab[_tab("only")])
+    right = PaneGroup(PaneTab[_tab("c")])
+    tree = PaneTree(PaneSplit(:vertical, [left, right]))
+    editor = _PaneDragMockEditor(tree)
+    proj, iomap = _grab!(editor, tree, left, 1)
+
+    x, y = _point(tree, left, 0.95, 0.5)
+    _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
+    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys()))
+
+    @test tree.drag === nothing
+    @test tree.root.elements[1] === left        # nothing was written
+    @test length(left.tabs) == 1
+end
+
 @testset "every drop lands, whatever the layout and whatever it empties" begin
     # The four shapes a split-drop meets, crossed with a source that survives the
     # drop and one that is emptied by it. Each must move the tab and leave a tree
