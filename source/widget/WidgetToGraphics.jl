@@ -6666,11 +6666,17 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
-            # The tint is the accent pulled most of the way to the card surface. A
-            # tinted band can hold a muted panel, so the two must not meet in the
-            # middle: the raw accent and `muted` differ by 15 units of blue and
-            # nothing else, which drew one shape where the transcript needs two.
-            theme.card, color_interpolate(theme.accent, theme.card, 0.55), theme.muted,
+            # The tint is NEUTRAL, and it is a step of depth rather than a change
+            # of hue. Two quiet surfaces nest — a band holds a panel — so they have
+            # to be ordered, and a ladder only reads as one if every rung moves the
+            # same way. The accent-derived tint moved toward BLUE while `muted`
+            # moved toward grey, so against any other color on the page the band
+            # read as a cast on the background rather than as a surface, and beside
+            # a panel the two pulled apart instead of stacking.
+            #
+            # Neutral leaves the role to be said by the thing that says it well: the
+            # colored mark and word on the role line.
+            theme.card, color_interpolate(theme.muted, theme.background, 0.5), theme.muted,
             StyleStroke(theme.border, theme.border_width), theme.radius,
             16, 4, 10),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(

@@ -35,12 +35,13 @@ import ..EvaluatorModule: EvaluatorForm, eval_kind_label
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
 import ..NaturalNotationModule: get_natural_format
-import ..WidgetModule: WidgetDocument, WidgetCard, WidgetAvatar, WidgetLabel,
+import ..WidgetModule: WidgetDocument, WidgetCard, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
 import ..TextModule: TextBlock, TextString
 import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_bold_14
+import ..FontModule: font_ubuntu_bold_14, font_ubuntu_bold_18,
+                     font_dejavu_monospace_bold_20
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
@@ -70,7 +71,6 @@ struct ConversationPartToWidget                  <: Projection end
 # No card width. A turn card and a part card take the width they are offered —
 # the transcript says `child_width = Fill` and the card resolves it — so a
 # conversation is as wide as the pane holding it.
-const _AVATAR_SIZE   = 16
 const _COLLAPSED_H   = 30   # clipped viewport height (≈ one row) when collapsed
 const _GAP           = 8    # between the parts of one turn
 # Between turns. A transcript is read by turn, so the eye needs the boundary to
@@ -83,18 +83,44 @@ const _TURN_GAP      = 28
 # authored width.
 const _CARD_PADDING  = 16
 
-# The role line is metadata, and the message is the content, so the role line
-# renders SMALLER than the body it introduces. It was bold 22 — bigger than the
-# words it labelled, which put the label above the message in the reading order
-# and made a transcript read as a stack of headings. The role keeps its color,
-# because color is what tells a person who spoke.
-const _TITLE_FONT = font_ubuntu_bold_14
-_role_style(role::Symbol) =
-    StyleText(_TITLE_FONT, role === :user      ? color_indigo_600 :
-                           role === :assistant ? color_solarized_cyan : color_slate_600)
-const _KIND_STYLE = StyleText(_TITLE_FONT, color_slate_600)
+# The role line is metadata, and the message is the content, so it renders
+# smaller than the body it introduces — but it is still read, so it is not the
+# size of a footnote. It was bold 22, bigger than the words it labelled, which
+# made a transcript read as a stack of headings; 14 answered that and went too
+# far the other way. The role keeps its color, because color is what tells a
+# person who spoke.
+const _ROLE_FONT = font_ubuntu_bold_18
+_role_color(role::Symbol) = role === :user      ? color_indigo_600 :
+                            role === :assistant ? color_solarized_cyan : color_slate_600
+_role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
 
-_role_glyph(role::Symbol) = role === :user ? "U" : role === :assistant ? "A" : "?"
+# A part's tag names a kind, which is a smaller thing to say than who spoke, so
+# it stays smaller and stays neutral.
+const _KIND_STYLE = StyleText(font_ubuntu_bold_14, color_slate_600)
+
+# The mark beside a role. It is drawn as text and not as a `WidgetAvatar`,
+# because an avatar is a disc with initials: at this size the disc is a pale ring
+# behind a letter that overflows it, and a letter is not an icon. The glyph
+# stands on its own, in the role's own color.
+#
+# Both glyphs come from DejaVu, which the chrome font does not cover. Each was
+# checked by rendering it at the size it is drawn at, twice over: the font has no
+# fallback, so a glyph it lacks draws as an empty box — which is how `∴` was found
+# and dropped from the thinking tag — and a glyph it draws as a thin OUTLINE
+# disappears beside a bold word. `👤` and `✦` are both in the font and both are
+# outlines; at 18 px they read as smudges. The pair below is solid at this size.
+#
+# Bold, because the word beside it is bold and a regular mark reads as a mistake.
+const _ICON_FONT = font_dejavu_monospace_bold_20
+_icon_style(role::Symbol) = StyleText(_ICON_FONT, _role_color(role))
+
+# A face and a spark. Neither is a letter, and neither needs a legend.
+#
+# The spark is ONE mark and not the three of `✨`: a cluster's ink runs wider than
+# the box the font advances by, so it ate the gap after it and sat against the
+# word. A mark that fits its own advance keeps the row spaced the way the layout
+# says.
+_role_glyph(role::Symbol) = role === :user ? "☻" : role === :assistant ? "✱" : "●"
 
 """
     FORMAT_LABELS, CODE_FORMATS
@@ -128,12 +154,12 @@ end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-# A header row: a small avatar glyph followed by a styled title label.
-_header(glyph::AbstractString, label::AbstractString, style::StyleText) =
+# A header row: a role mark followed by the role, both in the role's color.
+_role_header(role::Symbol) =
     HorizontalLayout(Any[
-        WidgetAvatar(Point2D(0, 0), String(glyph); size = _AVATAR_SIZE),
-        WidgetLabel(Point2D(0, 0), String(label); text_style = style),
-    ]; vertical_align = :center, gap = 8)
+        WidgetLabel(Point2D(0, 0), _role_glyph(role); text_style = _icon_style(role)),
+        WidgetLabel(Point2D(0, 0), String(role); text_style = _role_style(role)),
+    ]; vertical_align = :center, gap = 10)
 
 # A collapsed card shows one row of its body. Saying so is a constraint on the
 # body's height; the card builds the viewport, because the card is what knows its
@@ -179,7 +205,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # the header click still folds it and the collapse reader below still finds
     # the turn that a produced card came from.
     card = WidgetCard(Point2D(0, 0);
-                      title = _header(_role_glyph(t.role), String(t.role), _role_style(t.role)),
+                      title = _role_header(t.role),
                       content = _maybe_clip(body, t.collapsed === true),
                       variant = t.role === :user ? :tinted : :plain)
     ChildrenIoMap(projection, t, card, ioms)

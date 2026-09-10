@@ -404,6 +404,50 @@ tracks the pointer for widgets that have one.
 **Test when it is done:** a render with a part selected differs from one without,
 at the part's own rectangle and nowhere else.
 
+## Stage 7 — what the window showed ✅ DONE
+
+A run of the campaign window (`omnet-julia`) found four things the test renders
+did not. Three are fixed here; the fourth is not reproducible.
+
+**The role line was too small.** 22 was too big and 14 was too small. It is 18
+now — under the 20 px body, so it still reads as metadata, but read. A part's tag
+stays at 14, because naming a kind is a smaller thing to say than naming who
+spoke, so `_ROLE_FONT` and `_KIND_STYLE` are two constants now and not one.
+
+**`U` and `A` were letters, not icons.** They came from a `WidgetAvatar`, which
+draws a disc with initials — and at 16 px the disc was a pale ring behind a 20 px
+letter that overflowed it, so what showed was the letter alone. The avatar is
+gone: the mark is drawn as text, in the role's own color, beside the role.
+
+The glyph was chosen by rendering candidates at the size they are drawn at, twice
+over, because DejaVu fails in two different ways:
+
+| Glyph | What the font does |
+| --- | --- |
+| `∴` | not in the font — draws as an empty box |
+| `👤` `✦` `⬥` | thin OUTLINE — disappears beside a bold word |
+| `✨` | ink wider than its advance — eats the gap and sits against the word |
+| `☻` `●` `◆` `★` `✱` | solid at 20 px bold |
+
+So: `☻` for the user, `✱` for the model, bold 20, gap 10.
+
+**The band tint fought every other color on the page.** Measured against the pane
+background of `241,245,249`: the band was `237,241,253` — 4 units toward BLUE —
+and a part panel was `226,232,240`, 15 units toward GREY. Two quiet surfaces that
+nest have to be ordered, and a ladder only reads as one if every rung moves the
+same way. The band moved sideways, so it read as a cast on the background rather
+than as a surface, and beside a panel the two pulled apart.
+
+The tint is neutral now, `color_interpolate(theme.muted, theme.background, 0.5)`.
+The ladder is `241,245,249` → band → panel `226,232,240`, all one hue. The role
+is said by the colored mark and word, which is where color means something.
+
+**"The initial message looks different in background color" — not reproduced.**
+A render of a greeting turn, a user turn and a reply measures the same
+`241,245,249` behind the first assistant turn and behind the last. Both are
+`:plain`, and the campaign greeting is a plain `ConversationPart(String)` like any
+other prose. Open question for the user.
+
 ## Where this stands
 
 | Stage | State |
