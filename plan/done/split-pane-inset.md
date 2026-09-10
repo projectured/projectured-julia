@@ -54,10 +54,16 @@ pixels past the bottom. It must start at 8 and run 284.
 
 ## The work
 
-- [x] **Step 1 — fix B, the widget.** DONE. Subtract `_inset_total(w)` from the offered
-      main and cross extents before the split divides them, and add it back to
-      the reported outer size. Add a test that a bordered split keeps its
-      children and its splitter inside the size it reports.
+- [x] **Step 1 — fix B, the widget.** DONE, and half of it was done twice.
+      Another session landed the same fix on main while this branch was open
+      (`47c41a22`, "A pane reports the box it was offered, not the box plus its
+      inset"): it subtracts `_inset_total(w)` from the offer before the split
+      divides it and adds it back to the reported size, and it does the same for
+      the tabbed pane. The rebase kept main's version. What was left of this step
+      is `_split_measured_sizes`, which main did not touch: it read the whole box
+      and subtracted the leading inset once, so it counted the far inset as slot
+      and was only right for a symmetric box model. It takes the content extent
+      now. The two tests stayed.
 - [x] **Step 2 — fix A, the pane layer.** DONE. Drop the `border` argument on the
       `WidgetSplitPane`. Keep it on the `WidgetTabbedPane`. Say in the comment
       on `_PANE_BORDER` that it is the tabbed pane's chrome and that a split
@@ -79,10 +85,14 @@ A could be written against a split that is otherwise correct, so its failure
 reports the gap in pixels — the nested splitter starts at 209 rather than 201
 and stops at 384 rather than 400 — instead of an arithmetic error further down.
 
+**Fault B was found and fixed on main at the same time, from the other end.**
+That session came at it from a pane tree that drew 1908x1208 in a 1900x1200
+window; this one came at it from a splitter that ran past its own edge. Same
+line, same fix. The rebase took main's, which also bounds the tabbed pane.
+
 **`inset_default` is `Inset(0, 0, 0, 0)`,** so every other split pane in the
-repository has an empty box model. Both new branches in `_split_build` are
-guarded on `inset_x == 0` / `inset_y == 0` and hand back the same cells, so the
-change is a no-op for every caller but a future one.
+repository has an empty box model, and the arithmetic gives them the same
+numbers it gave before.
 
 **`_split_measured_sizes` now takes the content extent, not the canvas.** Its old
 form, `outer_main - pos(n) - pos(1)`, happened to be right for a symmetric inset
