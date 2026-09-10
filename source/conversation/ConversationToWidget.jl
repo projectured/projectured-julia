@@ -43,8 +43,11 @@ import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_bold_14
 import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: EmptyReference
-import ..OperationModule: ToggleCollapseOperation, Operation, ReplaceSelectionOperation
+import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
+                          FieldReferenceStep, RangeReferenceStep, get_reference_steps
+import ..OperationModule: ToggleCollapseOperation, Operation, ReplaceSelectionOperation,
+                          ReplaceReferencedValueOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..EventModule: MousePress
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -277,30 +280,128 @@ function _text_is_empty(t::TextBlock)
 end
 
 # ── Reference mapping / reader ───────────────────────────────────────────────
-
-# Forward: nothing. A caret inside a transcript is not a thing yet — a turn is a
-# record, and the one place a reader writes is the composer.
 #
-# Backward: the element itself. A click lands SOMEWHERE in a bubble, and what a
-# bubble can honestly say is "in me". Answering `nothing` instead said "not
-# mine", which is what left a conversation embedded in a document inert: the
-# click found no owner, so the caret stayed wherever it was and every key went
-# there. Whichever surround holds the conversation then re-roots this the way it
-# re-roots any other selection.
+# A transcript is READ, not written, and a person reading one still has to be
+# able to point at a message and take a copy of it. So a click names the PART it
+# landed in — `turns[i].parts[j]` — and the reader below declines every operation
+# that would change what a turn says.
+#
+# Naming the part is a translation, and each level does its own step of it. The
+# widget layer hands up a path in ITS domain,
+# `children[i].content.children[j].content.…`, because a turn prints as a card in
+# a layout and a part prints inside that card. Each level strips the steps it
+# printed and delegates the rest to the child that printed them (School A: talk
+# to the child IoMap, never re-walk the tree by type).
+#
+# It used to answer `EmptyReference()` at every level, which said "somewhere in
+# me" and could not say where. Worse, an operation from below passed through
+# untranslated, so a click in a text part put a WIDGET path — `children[2].
+# content.children[1].content⌶{3}` — on a conversation document, where no such
+# field exists.
+
+# The child IoMaps a composite kept, in print order.
+_children(iomap) = getfield(iomap, :child_iomaps)[]::Vector
+
+# Split `[Field(name), Range(i-1, i), rest...]` into `(i, rest)`, or nothing when
+# the path does not start that way.
+function _indexed(steps, name::AbstractString)
+    length(steps) >= 2 || return nothing
+    h = steps[1]
+    (h isa FieldReferenceStep && h.name == name) || return nothing
+    r = steps[2]
+    r isa RangeReferenceStep || return nothing
+    (r.stop, steps[3:end])
+end
+
+_steps(reference) = reference isa Reference ? get_reference_steps(reference) : nothing
+
+# Rebuild a reference from a step list, innermost last, ending in `tail`.
+_from_steps(steps, tail = EmptyReference()) =
+    foldr((step, rest) -> ConcreteReference(step, rest), steps; init = tail)
+
+# One level of the walk down: strip this level's steps, ask the child that
+# printed the rest what the rest means, and put this level's own step back on.
+function _backward_level(iomap, reference, out_name::AbstractString,
+                         in_name::AbstractString, skip::Int)
+    steps = _steps(reference)
+    steps === nothing && return EmptyReference()
+    length(steps) >= skip || return EmptyReference()
+    found = _indexed(steps[(skip + 1):end], out_name)
+    found === nothing && return EmptyReference()
+    (i, rest) = found
+    children = _children(iomap)
+    (1 <= i <= length(children)) || return EmptyReference()
+    child = children[i]
+    inner = map_reference_backward(child.projection, child, _from_steps(rest))
+    inner === nothing && (inner = EmptyReference())
+    ConcreteReference(FieldReferenceStep(in_name),
+        ConcreteReference(RangeReferenceStep(i - 1, i), inner))
+end
+
+# And one level of the walk up: strip this level's own step, ask the child to
+# place the rest, and put back the widget steps this level printed.
+function _forward_level(iomap, reference, in_name::AbstractString,
+                        prefix::Vector, out_name::AbstractString)
+    steps = _steps(reference)
+    steps === nothing && return nothing
+    found = _indexed(steps, in_name)
+    found === nothing && return nothing
+    (i, rest) = found
+    children = _children(iomap)
+    (1 <= i <= length(children)) || return nothing
+    child = children[i]
+    inner = isempty(rest) ? EmptyReference() :
+            map_reference_forward(child.projection, child, _from_steps(rest))
+    inner === nothing && return nothing
+    _from_steps(vcat(prefix, Any[FieldReferenceStep(out_name),
+                                 RangeReferenceStep(i - 1, i)]), inner)
+end
+
+# `turns[i].<rest>` ↔ `children[i].<rest>`
+map_reference_backward(::ConversationConversationToWidgetComposite, iomap, reference) =
+    _backward_level(iomap, reference, "children", "turns", 0)
+map_reference_forward(::ConversationConversationToWidgetComposite, iomap, reference) =
+    _forward_level(iomap, reference, "turns", Any[], "children")
+
+# `parts[j].<rest>` ↔ `content.children[j].<rest>`. The card's body sits behind
+# its `content` slot, which is the one step this level prints above the layout.
+map_reference_backward(::ConversationTurnToWidgetComposite, iomap, reference) =
+    _backward_level(iomap, reference, "children", "parts", 1)
+map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference) =
+    _forward_level(iomap, reference, "parts",
+                   Any[FieldReferenceStep("content")], "children")
+
+# A part is the floor. Whatever was clicked inside it, what the selection names
+# is the part — a transcript is read as messages, not as characters.
+map_reference_backward(::ConversationPartToWidget, iomap, reference) = EmptyReference()
+# And the floor going up: the part itself, wherever the caret is said to be
+# inside it. A part with no chrome prints its content directly, so there is no
+# step of this level's own to add.
+map_reference_forward(::ConversationPartToWidget, iomap, reference) = EmptyReference()
+
 for P in (ConversationConversationToWidgetComposite,
           ConversationTurnToWidgetComposite,
           ConversationPartToWidget)
-    @eval map_reference_forward(::$P, iomap, ref)  = nothing
-    @eval map_reference_backward(::$P, iomap, ref) = EmptyReference()
-    # A click in a bubble puts the caret on the conversation, the way a click in
-    # the composer puts it on the draft: a transcript takes the keyboard as a
-    # whole, and whichever surround holds it decides what a key then means.
+    # A click that named nothing still landed here, and this node is what it can
+    # honestly claim.
     @eval read_intent(::$P, iomap, ::MousePress) =
         ReplaceSelectionOperation(EmptyReference())
-    # An operation from below passes; a raw gesture does not. Answering an event
-    # would claim a gesture as if it were an intent, and the level above cannot
-    # tell the two apart.
+    # A click that DID name something: say which part it named. The widget path
+    # comes up from below and goes down the walk above.
+    @eval function read_intent(p::$P, iomap, op::ReplaceSelectionOperation)
+        inner = map_reference_backward(p, iomap, op.path)
+        ReplaceSelectionOperation(inner === nothing ? EmptyReference() : inner)
+    end
+    # A transcript is READ. An edit that reaches it is declined by its exact
+    # type, so an operation this file does not know about still travels.
+    for O in (:ReplaceReferencedValueOperation, :ReplaceStringRangeOperation,
+              :ReplaceNumberRangeOperation)
+        @eval read_intent(::$P, iomap, op::$O) = nothing
+    end
+    # Anything else an operation says, it says onward.
     @eval read_intent(::$P, iomap, op::Operation) = op
+    # A raw gesture is not an intent. Answering one would claim it, and the level
+    # above could not tell the two apart.
     @eval read_intent(::$P, iomap, op) = nothing
 end
 

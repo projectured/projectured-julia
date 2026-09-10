@@ -68,6 +68,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/conversation/projection/ConversationEditorTest.jl")
+include("../../../test/conversation/projection/ConversationTranscriptTest.jl")
 
 include("../../../test/conversation/ConversationSuite.jl")
 

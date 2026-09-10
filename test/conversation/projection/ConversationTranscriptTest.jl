@@ -1,0 +1,89 @@
+# The transcript is READ, not written. This file holds the two halves of that:
+# a click names the PART it landed in, and an edit that reaches the transcript is
+# declined.
+#
+# Naming the part is what makes a copy possible. The clipboard copies what the
+# selection names, so a selection that could only say "somewhere in this
+# conversation" could only ever copy the whole conversation.
+
+_transcript_measure(text, _font) = (length(text) * 10, 20)
+
+function _transcript_render()
+    doc = ProjecturedConversationExample.make_conversation_document_example()
+    proj = ProjecturedConversationExample.make_conversation_widget_projection_example(
+        measure = _transcript_measure)
+    (doc, proj, print_document(proj, proj, doc, PrinterContext()))
+end
+
+# `turns[i].parts[j]`, the shape a click on a part must produce.
+_part_path(i::Int, j::Int) =
+    ConcreteReference(FieldReferenceStep("turns"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("parts"),
+                ConcreteReference(RangeReferenceStep(j - 1, j), EmptyReference()))))
+
+# Every distinct selection a vertical scan of the left edge produces.
+function _scan_selections(proj, io)
+    found = Any[]
+    for y in 2:2:600
+        op = try
+            read_intent(proj, io, MousePress(:left, 60, y))
+        catch
+            nothing
+        end
+        op isa ReplaceSelectionOperation || continue
+        p = op.path
+        # A click in the padding between two parts names the conversation
+        # itself. That is honest, and it is not a part, so the scan skips it.
+        # `EmptyReference` is not a singleton, so this is a type test and not an
+        # identity one.
+        p isa EmptyReference && continue
+        any(q -> string(q) == string(p), found) || push!(found, p)
+    end
+    found
+end
+
+function test_conversation_transcript()
+    @testset "a click names the part it landed in" begin
+        (doc, proj, io) = _transcript_render()
+        found = _scan_selections(proj, io)
+        # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
+        # Every one of the six is reachable, and each is named exactly.
+        wanted = [_part_path(1, 1), _part_path(2, 1), _part_path(2, 2),
+                  _part_path(2, 3), _part_path(2, 4), _part_path(3, 1)]
+        for w in wanted
+            @test any(f -> string(f) == string(w), found)
+        end
+        # And nothing else. A click that lands in the padding between parts says
+        # `EmptyReference` (the conversation itself), which the scan skips.
+        @test length(found) == length(wanted)
+    end
+
+    @testset "a selection round-trips through both maps" begin
+        doc = ProjecturedConversationExample.make_conversation_document_example()
+        proj = RecursiveProjection(ConversationToWidget())
+        io = print_document(proj, proj, doc, PrinterContext())
+        for (i, j) in ((1, 1), (2, 1), (2, 4), (3, 1))
+            path = _part_path(i, j)
+            forward = map_reference_forward(io.projection, io, path)
+            @test forward !== nothing
+            back = map_reference_backward(io.projection, io, forward)
+            @test string(back) == string(path)
+        end
+    end
+
+    @testset "the transcript declines an edit" begin
+        (doc, proj, io) = _transcript_render()
+        # Each of the three edit operations, aimed at a part that exists. A
+        # transcript records what was said; nothing here rewrites it.
+        path = _part_path(2, 2)
+        for op in (ReplaceReferencedValueOperation(nothing, path, "x"),
+                   ReplaceStringRangeOperation(path, "x"),
+                   ReplaceNumberRangeOperation(path, "1"))
+            @test read_intent(proj, io, op) === nothing
+        end
+        # A selection is not an edit, and it passes.
+        @test read_intent(proj, io, ReplaceSelectionOperation(EmptyReference())) isa
+              ReplaceSelectionOperation
+    end
+end

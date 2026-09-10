@@ -301,20 +301,42 @@ avatar goes with them; only the role line keeps one.
 78 of 78. A render of the composer example draws one line of placeholder text
 with a caret, and no box.
 
-## Stage 5 — selection and node copy ⬜
+## Stage 5 — selection and node copy 🟡 5a DONE, 5b OPEN
 
 The transcript is read-only, but a person must be able to select a part and copy
 it out.
 
-1. **Name the part.** Today every transcript projection answers
-   `map_reference_backward` with `EmptyReference()` and turns a `MousePress`
-   into `ReplaceSelectionOperation(EmptyReference())`, so a click cannot name a
-   part. Change the backward map to name the part that was clicked, and change
-   the forward map to carry that selection down so the part draws its outline.
-2. **Deny the mutations.** The assistant reader declines the operations that
-   would change a turn. Decline by exact operation type, and pass
-   `ReplaceSelectionOperation` and the clipboard operations through.
-3. **Copy through the clipboard that exists.** Wrap the transcript in
+1. ✅ **Name the part.** Both maps are written, at all three levels, each level
+   stripping the steps it printed and delegating the rest to the child that
+   printed them (School A). A click now yields `turns[i].parts[j]`.
+2. ✅ **Deny the mutations.** `ReplaceReferencedValueOperation`,
+   `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation` are declined
+   by exact type. Every other operation travels.
+
+### What the probe found ✅
+
+The widget layer was ALREADY handing up a full structured path —
+`children[i].content.children[j].content.…` — and the transcript's
+`read_intent(::P, iomap, op::Operation) = op` passed it through untranslated. So a
+click in a text part put a WIDGET path on a conversation document, naming fields
+that do not exist there. That was a live defect, not just a missing feature.
+
+The shape made the maps straightforward: a turn prints as a card in a layout
+(`children[i]`), and its parts print inside that card (`content.children[j]`).
+
+**No regression in key routing.** The risk was that a selection inside the
+transcript would stop the composer receiving keys. It does not: the panel's
+`KeyPress`/`KeyDown` handlers route to `a.draft` unconditionally
+([`AssistantTurn.jl:936`](../../source/assistant/AssistantTurn.jl#L936)), and a
+probe confirms a `KeyPress` still becomes a `ComposerInputOperation` with the
+selection on `conversation.turns[1].parts[1]`.
+
+**Test:** a new [`ConversationTranscriptTest.jl`](../../test/conversation/projection/ConversationTranscriptTest.jl)
+with three testsets — every part of the example is reachable by a click and
+named exactly, a selection round-trips through both maps, and each of the three
+edit operations is declined. `test_conversation()` passes, 63 of 63.
+`test_assistant_mvp()` passes, 78 of 78.
+3. ⬜ **Copy through the clipboard that exists.** Wrap the transcript in
    `ClipboardSliceToAnyProjection`
    ([`ClipboardToAny.jl:94-101`](../../source/clipboard/ClipboardToAny.jl#L94-L101))
    with a `to_text` converter and `text = false`. It already delegates
@@ -322,8 +344,8 @@ it out.
    mirrors a copy out to the OS clipboard through `OsClipboardModule`. Nothing
    new is built here; the two compose.
 
-**Test:** a new test that selects a part, sends `Ctrl+C`, and asserts the slice
-holds the part's text.
+**Test for 5b:** a test that selects a part, sends `Ctrl+C`, and asserts the
+slice holds the part's text.
 
 ## Stage 6 — hover ⬜
 

@@ -24,8 +24,9 @@ function test_conversation()
     @testset "ProjecturedConversation" begin
         test_conversation_layering()
         test_conversation_editor()
+        test_conversation_transcript()
     end
 end
 
 export test_conversation, test_conversation_layering
-export test_conversation_editor
+export test_conversation_editor, test_conversation_transcript
