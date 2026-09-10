@@ -2371,8 +2371,16 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     n = length(valid_elems)
     n == 0 && return (canvas = _make_canvas(0, 0, Any[]), child_iomaps = Any[])
 
-    avail_w = ctx.available_width
-    avail_h = ctx.available_height
+    # The offer covers the pane's whole box, and the slots live inside its inset.
+    # Allocating the full offer and then placing the first child at `cox` made the
+    # pane overhang its own offer by exactly the inset, on both axes.
+    inset_x, inset_y = _inset_total(w)
+    outer_avail_w = ctx.available_width
+    outer_avail_h = ctx.available_height
+    avail_w = outer_avail_w === nothing ? nothing :
+              ComputedCell(() -> Int32(max(0, Int(outer_avail_w[]) - inset_x)))
+    avail_h = outer_avail_h === nothing ? nothing :
+              ComputedCell(() -> Int32(max(0, Int(outer_avail_h[]) - inset_y)))
     avail_main = main_axis === :x ? avail_w : avail_h
     avail_cross = main_axis === :x ? avail_h : avail_w
 
@@ -2534,8 +2542,11 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             end) :
             ComputedCell(() -> Int32(avail_w[]))
     end
-    outer_w_cell = main_axis === :x ? outer_main : outer_cross
-    outer_h_cell = main_axis === :x ? outer_cross : outer_main
+    # Report the whole box: the slots plus the inset they sit inside.
+    inner_w_cell = main_axis === :x ? outer_main : outer_cross
+    inner_h_cell = main_axis === :x ? outer_cross : outer_main
+    outer_w_cell = ComputedCell(() -> Int32(Int(inner_w_cell[]) + inset_x))
+    outer_h_cell = ComputedCell(() -> Int32(Int(inner_h_cell[]) + inset_y))
 
     # Build the outer canvas elements as a CellVector so splitter positions
     # and child wrappers re-flow reactively when slot sizes change. The
@@ -3031,10 +3042,18 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         Cell(affine_identity),
         Cell(nothing))
 
-    canvas = _make_canvas(0, 0, Any[
+    # A tabbed pane offered an extent reports that extent, not what its strip and
+    # its page happen to reach: it bounded them, so its box is its own (§3b).
+    inner = _make_canvas(0, 0, Any[
         selector_viewport,
         GraphicsCanvas(content_cv,  layout_none, true),
     ])
+    canvas = (avail_w === nothing && avail_h === nothing) ? inner :
+        GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                       avail_w === nothing ? inner.w : ComputedCell(() -> Int32(max(0, Int(avail_w[])))),
+                       avail_h === nothing ? inner.h : ComputedCell(() -> Int32(max(0, Int(avail_h[])))),
+                       CellVector(Cell[Cell(inner)]),
+                       layout_none, true, Cell(nothing))
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = ComputedCell(() -> Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
     ChildrenIoMap(p, w, canvas, child_iomaps)
