@@ -104,3 +104,74 @@ end
 
 end # @testset
 end # function
+
+# A table's header strips stay put while its body scrolls.
+#
+# The pane freezes and the content declares: `frozen_extent` answers the extent of
+# the strips, and the pane draws four regions instead of one. A pane over any
+# other content answers `nothing` and stays the single viewport it has always
+# been.
+function test_frozen_table_headers()
+@testset "a table's header strips do not scroll" begin
+
+_det = (t, f) -> (length(t) * 8, 16)
+_w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
+_rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
+
+# Both strips: three columns named, and an ordinal beside each of six rows.
+_table() = WidgetTable(Point2D(0, 0),
+                       Any["ID", "Name", "Role"], Any["1", "2", "3", "4", "5", "6"],
+                       Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6], 3)
+
+# Every viewport of a printed pane, with its box.
+function _viewports(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int,Int}[])
+    if node isa GraphicsCanvas
+        for e in node.elements
+            _viewports(e, ox + Int(node.x), oy + Int(node.y), found)
+        end
+    elseif node isa GraphicsViewport
+        push!(found, (ox + Int(node.x), oy + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    found
+end
+
+@testset "a content with no prefix is one viewport, as it always was" begin
+    pane = WidgetScrollPane(WidgetLabel(Point2D(0, 0), "plain"); size = Point2D(120, 60))
+    @test length(_viewports(print_document(_rec, pane).output)) == 1
+end
+
+@testset "a table is four regions, and they tile the viewport" begin
+    pane = WidgetScrollPane(_table(); size = Point2D(200, 100))
+    boxes = _viewports(print_document(_rec, pane).output)
+    @test length(boxes) == 4
+    # The corner is the only one at the pane's own origin, and both strips share
+    # one of its edges: that is what tiling means here.
+    corner = boxes[end]
+    @test corner[3] > 0 && corner[4] > 0
+    body = boxes[1]
+    @test body[1] == corner[1] + corner[3]
+    @test body[2] == corner[2] + corner[4]
+    # Nothing reaches past the pane.
+    for b in boxes
+        @test b[1] + b[3] <= 200 + 1
+        @test b[2] + b[4] <= 100 + 1
+    end
+end
+
+@testset "the column names stay put while the body travels" begin
+    held = _table()
+    scrolled = WidgetScrollPane(held; size = Point2D(200, 100),
+                                scroll_position = Point2D(0, 40))
+    boxes = _viewports(print_document(_rec, scrolled).output)
+    # The corner and the column-header strip are at the pane's top whatever the
+    # scroll is: a held axis does not travel.
+    @test boxes[end][2] == 0          # the corner
+    @test boxes[2][2] == 0            # the column headers, beside it
+    @test boxes[2][1] == boxes[end][3]
+    # The body is offset by the scroll, and the row headers travel with it.
+    @test boxes[1][2] == boxes[end][4]
+    @test boxes[3][1] == 0            # the row headers, under the corner
+end
+
+end # @testset
+end # function

@@ -32,7 +32,8 @@ const WIDGET_EXAMPLES = [
     "widget_switch", "widget_progress", "widget_slider", "widget_radio_group",
     "widget_avatar", "widget_alert", "widget_skeleton", "widget_toggle",
     "widget_toggle_group", "widget_select", "widget_textarea", "widget_accordion",
-    "widget_table", "widget_table_offered", "widget_tree", "widget_disabled", "widget_focus",
+    "widget_table", "widget_table_offered", "widget_table_frozen",
+    "widget_tree", "widget_disabled", "widget_focus",
     "conversation_widget",
 ]
 

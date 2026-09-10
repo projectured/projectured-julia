@@ -22,7 +22,7 @@ const examples = [
     widget_avatar_example, widget_alert_example, widget_skeleton_example,
     widget_toggle_example, widget_toggle_group_example, widget_select_example,
     widget_textarea_example, widget_accordion_example, widget_table_example,
-    widget_table_offered_example, widget_tree_example,
+    widget_table_offered_example, widget_table_frozen_example, widget_tree_example,
     widget_disabled_example, widget_focus_example,
     layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, filesystem_widget_example, navigator_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example,

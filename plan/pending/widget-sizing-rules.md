@@ -736,7 +736,7 @@ Each step keeps the images green before the next begins.
 
     A width a person can drag is not here. A policy is where a drag would write,
     which is what makes it possible later.
-17. **A header strip stays put while the body scrolls.**
+17. **A header strip stays put while the body scrolls — DONE.**
 
     **What a table is today.** `WidgetTable` carries both strips, and both are
     optional: `column_headers` is the top strip — a header **row** — and
@@ -768,11 +768,27 @@ Each step keeps the images green before the next begins.
       `col_x[col_offset + 1]` by `row_y[row_offset + 1]`, and zero on an axis with
       no strip.
 
-    A content that declares none freezes nothing, which is every content today.
+    A content that declares none freezes nothing, which is every content today —
+    and that is not only a default, it is the whole cost. **A pane whose content
+    answers `nothing` is the one viewport it has always been**, so nothing pays
+    for a feature it does not use; only a table's pane walks its content four
+    times.
 
-    **Check.** The runner's table scrolled to the bottom still shows the five
-    column names and the ordinals beside the rows, and the corner does not move.
-    A pane over any other content scrolls as it does today.
+    **Checked, and measured rather than looked at.** `widget_table_frozen` is a
+    new example: a table with both strips in a 320×150 pane, scrolled 40 across
+    and 60 down. Its four regions come out as
+
+    | region | box | what is in it |
+    | --- | --- | --- |
+    | body | (28, 37) 292×113 | the cells, travelled on both axes |
+    | column headers | (28, 0) 292×37 | `Status`, `Method`, `Amount` — travelled on x only |
+    | row headers | (0, 37) 28×113 | `3`, `4`, `5` — travelled on y only |
+    | corner | (0, 0) 28×37 | the empty corner cell, and it has not moved |
+
+    `test_frozen_table_headers` asserts the shape: 18 assertions that a plain
+    content is one viewport, that a table's four regions tile the pane and reach
+    nothing past it, and that both strips sit at the pane's edge whatever the
+    scroll is.
 
 ## The safety net: every widget, before and after
 

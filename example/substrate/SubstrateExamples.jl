@@ -59,6 +59,7 @@ const widget_textarea_example    = Example("widget_textarea",    make_widget_tex
 const widget_accordion_example   = Example("widget_accordion",   make_widget_accordion_document_example,   make_widget_projection_example)
 const widget_table_example       = Example("widget_table",       make_widget_table_document_example,       make_widget_projection_example)
 const widget_table_offered_example = Example("widget_table_offered", make_widget_table_offered_document_example, make_widget_projection_example)
+const widget_table_frozen_example = Example("widget_table_frozen", make_widget_table_frozen_document_example, make_widget_projection_example)
 const widget_tree_example        = Example("widget_tree",        make_widget_tree_document_example,        make_widget_projection_example)
 const widget_disabled_example    = Example("widget_disabled",    make_widget_disabled_document_example,    make_widget_projection_example)
 const widget_focus_example       = Example("widget_focus",       make_widget_focus_document_example,       make_widget_projection_example)
@@ -128,6 +129,7 @@ const substrate_examples = Example[
     widget_accordion_example,
     widget_table_example,
     widget_table_offered_example,
+    widget_table_frozen_example,
     widget_tree_example,
     widget_disabled_example,
     widget_focus_example,

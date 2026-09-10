@@ -91,7 +91,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetHighlightToGraphicsCanvas,
-       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
+       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, frozen_extent,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
@@ -3359,6 +3359,50 @@ end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
+"""
+    frozen_extent(iomap) -> Cell of `(fx, fy)`, or `nothing`
+
+How many pixels of a printed content do **not** scroll: a prefix on each axis
+that an enclosing `WidgetScrollPane` holds still while the rest travels.
+
+A content with no such prefix answers `nothing`, and that is every content but a
+table today — those panes keep exactly the one viewport they have always had.
+`WidgetTable` answers the extent of its header strips, which it already computes.
+
+**The pane freezes and the content declares**, rather than the other way round.
+A content that scrolled itself would need its own `size` and `scroll_position`,
+and a pane around it would scroll a thing that scrolls; every wheel and drag
+already reaches the pane. And a prefix is not about tables: a sequence chart, a
+spreadsheet and a log with a fixed first line all want one.
+"""
+frozen_extent(::Any) = nothing
+
+# One region of a pane that holds a prefix of its content still.
+#
+# Four of them tile the viewport: the corner holds both axes, the two strips hold
+# one each, and the body holds neither. A **held** axis draws the content's own
+# prefix at the viewport edge and does not travel. A **free** axis is offset by
+# the scroll and by the prefix, so the first thing it shows is what lies just
+# past the strip.
+#
+# A region whose extent is zero — the strips of a table with only one of them —
+# draws nothing and claims no click, because a viewport clips to its own box.
+function _pane_frozen_region(cox::Int, coy::Int, vw, vh, frozen,
+                             inner_x, inner_y, elements, hold_x::Bool, hold_y::Bool)
+    fx() = max(0, Int(frozen[][1]))
+    fy() = max(0, Int(frozen[][2]))
+    x = ComputedCell(() -> Int32(cox + (hold_x ? 0 : fx())))
+    y = ComputedCell(() -> Int32(coy + (hold_y ? 0 : fy())))
+    vpw = ComputedCell(() -> Int32(hold_x ? min(fx(), Int(vw[])) : max(0, Int(vw[]) - fx())))
+    vph = ComputedCell(() -> Int32(hold_y ? min(fy(), Int(vh[])) : max(0, Int(vh[]) - fy())))
+    cx = ComputedCell(() -> Int32(hold_x ? 0 : Int(inner_x[]) - fx()))
+    cy = ComputedCell(() -> Int32(hold_y ? 0 : Int(inner_y[]) - fy()))
+    GraphicsViewport(x, y, vpw, vph,
+                     Cell(GraphicsCanvas(cx, cy, Int32(0), Int32(0), elements,
+                                         layout_none, true, Cell(nothing))),
+                     Cell(affine_identity), Cell(nothing))
+end
+
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
     w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
@@ -3431,13 +3475,27 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
             sp = scroll_cell[]::Point2D
             Int32(-clamp(Int(sp.y[]), 0, room))
         end)
-        push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                      vw_cell, vh_cell,
-                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                          inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)]),
-                                                          layout_none, true, Cell(nothing))),
-                                      Cell(affine_identity),
-                                      Cell(nothing)))
+        held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
+        # A content that holds a prefix of itself still is drawn in four regions;
+        # every other content is the one viewport it has always been, and pays
+        # nothing for a feature it does not use.
+        frozen = frozen_extent(content_iomap)
+        if frozen === nothing
+            push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
+                                          vw_cell, vh_cell,
+                                          Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
+                                                              held,
+                                                              layout_none, true, Cell(nothing))),
+                                          Cell(affine_identity),
+                                          Cell(nothing)))
+        else
+            # The body first and the corner last, so a rounded edge never leaves
+            # the body drawn over a strip.
+            for (hold_x, hold_y) in ((false, false), (false, true), (true, false), (true, true))
+                push!(elems, _pane_frozen_region(cox, coy, vw_cell, vh_cell, frozen,
+                                                 inner_x, inner_y, held, hold_x, hold_y))
+            end
+        end
     end
     # Report the pane's own box as the outer canvas extent (viewport + insets)
     # rather than 0×0. A scroll pane occupies a fixed viewport, so a parent that
@@ -5553,6 +5611,18 @@ end
     grid_iomap::Cell         # the GridLayoutIoMap
     geometry::Cell
 end
+
+# What a table holds still: the extent of its header strips, and zero on an axis
+# with no strip. `col_x` and `row_y` are the cumulative edges the geometry
+# already computes, in the table's own outer coordinates — which is the space a
+# pane places its content in — so `col_x[2]` IS the width of the row-header strip.
+frozen_extent(iomap::WidgetTableToGraphicsCanvasIoMap) =
+    ComputedCell(function ()
+        g = iomap.geometry
+        fx = (g.has_row_headers && length(g.col_x) >= 2) ? g.col_x[2] : 0
+        fy = (g.has_col_headers && length(g.row_y) >= 2) ? g.row_y[2] : 0
+        (fx, fy)
+    end)
 
 # A header strip is a column, or a row, of the same grid, and it is always
 # `Content`: as wide, or as tall, as the labels in it. So the table's own

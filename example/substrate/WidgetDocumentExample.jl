@@ -556,6 +556,22 @@ make_widget_table_offered_document_example() =
         size = Point2D(300, 140),
         content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
 
+# A table whose header strips stay put while its body scrolls.
+#
+# Scrolled 60 down and 40 across, so the picture shows what a frozen prefix is
+# for: the column names are still at the top, the ordinals are still at the left,
+# the corner has not moved, and the body has travelled away from all three.
+make_widget_table_frozen_document_example() =
+    WidgetScrollPane(
+        WidgetTable(Point2D(0, 0),
+                    Any["Invoice", "Status", "Method", "Amount"],
+                    Any["1", "2", "3", "4", "5", "6"],
+                    Any[Any["INV00$(i)", "Paid", "Credit Card", "\$$(i)50.00"] for i in 1:6],
+                    4);
+        size = Point2D(320, 150),
+        scroll_position = Point2D(40, 60),
+        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+
 # WidgetTree — a nested outline with expand chevrons.
 make_widget_tree_document_example() =
     WidgetTree(Point2D(40, 40), Any[
