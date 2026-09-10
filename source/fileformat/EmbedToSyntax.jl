@@ -248,7 +248,7 @@ function _embed_card(p, value, title::AbstractString)
     end)
     card = WidgetCard(Cell(Point2D(0, 0)), Cell(nothing), Cell(nothing), Cell(value),
                       Cell(nothing), Cell(Int(p.card_width)), Cell(0),
-                      Cell(true), Cell(false), selection)
+                      Cell(true), Cell(false), Cell(:card), selection)
     card.title = HorizontalLayout(ComputedCellVector(() -> Any[
         WidgetLabel(Point2D(0, 0),
                     (card.collapsed ? _CARD_COLLAPSED : _CARD_EXPANDED) * " " * title;

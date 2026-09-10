@@ -1377,16 +1377,30 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
-    WidgetCard(position; title, description, content, footer, width=0, collapsed=false)
+    WidgetCard(position; title, description, content, footer, width=0, collapsed=false, variant=:card)
 
-A rounded, bordered surface with an optional title / description header, a
-content body and an optional footer, stacked vertically.
+A surface with an optional title / description header, a content body and an
+optional footer, stacked vertically.
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 header click emits `ToggleCollapseOperation(card)`, whose default handler flips
 this cell. Producers that want a collapsible card read `card.collapsed` from the
 reactive `title`/`content` they build (chevron glyph, empty body when collapsed).
 Cards left at the default `collapsed=false` render exactly as before.
+
+`variant` says how loud the surface is. The card keeps its shape, its padding
+and its header in every variant — only the panel behind them changes:
+
+| variant | fill | border |
+| --- | --- | --- |
+| `:card` | the theme's card color | the theme's border |
+| `:tinted` | the theme's tint | none |
+| `:plain` | none | none |
+
+A quiet variant is for a surface that groups without announcing itself — one
+band of a transcript, where a border around every message would be noise. It is
+still a card, so it still folds from its header, and the collapse reader does
+not care which variant drew it.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D
@@ -1398,6 +1412,7 @@ Cards left at the default `collapsed=false` render exactly as before.
     height::Int
     visible::Bool
     collapsed::Bool
+    variant::Symbol
 end
 
 """
@@ -1415,10 +1430,10 @@ tall content simply extends past the card.
 """
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
-           visible::Bool=true, collapsed::Bool=false) =
+           visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
-               Cell(visible), Cell(collapsed), Cell(nothing))
+               Cell(visible), Cell(collapsed), Cell(variant), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 

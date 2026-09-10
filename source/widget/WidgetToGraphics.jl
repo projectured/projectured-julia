@@ -4013,7 +4013,8 @@ end
     description_text::ImmutableCell{StyleText}
     content_text::ImmutableCell{StyleText}
     footer_text::ImmutableCell{StyleText}
-    surface_color::StyleColor      # card fill
+    surface_color::StyleColor      # card fill, in the :card variant
+    tint_color::StyleColor         # card fill, in the :tinted variant
     border::StyleStroke
     corner_radius::Int
     padding::Int                   # uniform card padding
@@ -4100,10 +4101,19 @@ function _card_build(p, w, ctx, tim, cim)
     fixed_height = _sc(Int(w.height))
     card_height = fixed_height > 0 ? fixed_height :
                   _resolve_height(ctx, 0, y + padding)
-    # Card surface drawn first (behind content).
+    # Card surface drawn first (behind content). The variant says how loud that
+    # surface is; the card keeps its shape and its padding in all three, so only
+    # the panel changes. `:plain` draws no panel at all — a fill with zero alpha
+    # would still cost a rect, and a card that announces nothing should cost
+    # nothing.
     surface = Any[]
-    _push_panel!(surface, 0, 0, card_width, card_height; fill=p.surface_color, border=p.border.color,
-                 border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    variant = w.variant
+    if variant !== :plain
+        fill = variant === :tinted ? p.tint_color : p.surface_color
+        border = variant === :tinted ? nothing : p.border.color
+        _push_panel!(surface, 0, 0, card_width, card_height; fill=fill, border=border,
+                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+    end
     append!(surface, elements)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
 end
@@ -6654,7 +6664,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
-            theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
+            theme.card, theme.accent, StyleStroke(theme.border, theme.border_width), theme.radius,
             16, 4, 10),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,

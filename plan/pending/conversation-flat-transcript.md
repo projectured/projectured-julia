@@ -112,7 +112,7 @@ and "copy this code block".
 - A `+` affordance at the bottom left, and one hint line:
   `Enter to send · Shift+Enter for a new line`.
 
-## Stage 1 — a variant on `WidgetCard` ⬜
+## Stage 1 — a variant on `WidgetCard` ✅ DONE
 
 Add `variant::Symbol` to `WidgetCard` in
 [`WidgetDocument.jl:1391`](../../source/widget/WidgetDocument.jl#L1391), with
@@ -121,8 +121,20 @@ three values:
 | variant | fill | border | use |
 | --- | --- | --- | --- |
 | `:card` | `theme.card` | `theme.border` | the default; every card today |
-| `:tinted` | a faint tint | none | the user turn |
+| `:tinted` | `theme.accent` | none | the user turn |
 | `:plain` | none | none | the assistant turn |
+
+**Decision: the tint is `theme.accent`, and not a new theme field.** The plan
+first said to add a tint color to `WidgetTheme`. Every preset already carries
+`accent`, which is exactly this role — a quiet tinted surface — and each preset
+already picked a value that reads correctly on its own background
+(`color_indigo_100` light, `color_indigo_950` dark, `color_zinc_100` and
+`color_zinc_800` in the neutral pair). A new field would have needed the same
+four values under a second name. The projection still takes it as its own
+`tint_color`, so the renderer names no theme role.
+
+There is no collision with the hover highlight that also uses `theme.accent`,
+because Stage 6 draws hover as an outline and not as a fill.
 
 `WidgetCardToGraphicsCanvas` reads `w.variant` in `_card_build` and picks the
 fill and the border before it calls `_push_panel!`. For `:plain` it pushes no
@@ -146,9 +158,10 @@ not: it passes ten cells positionally, and the last is the `selection` cell.
 Insert `Cell(:card)` after `Cell(false)` there, in the same commit that adds the
 field. A new default is not a compatible change for a positional constructor.
 
-**Test:** `test_object_to_widget()` and `test_widget_button_behavior()`, then
-`test_substrate()`. Every existing card must render as it did, because every one
-of them defaults to `:card`.
+**Test:** `test_object_to_widget()` and `test_widget_button_behavior()` pass.
+A direct render of the three variants gives one rect with a fill and a border for
+`:card`, one rect with a fill and no border for `:tinted`, and no rect at all for
+`:plain`.
 
 ## Stage 2 — the turn becomes a quiet card ⬜
 
