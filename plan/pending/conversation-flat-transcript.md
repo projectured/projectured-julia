@@ -431,14 +431,26 @@ Both wide suites still report failures. Each was re-run at the base commit
 (`ecd6623b`, whose only change is this plan file) in its own worktree, and the
 counts say the failures are not this work's.
 
+Run the baseline at the BASE COMMIT, not at `main`. `main` moved on while this
+branch was built, so a run there has testsets this branch does not, and the
+comparison stops being one.
+
 | Suite | Base commit | This branch |
 | --- | --- | --- |
 | `test_substrate()` | 55959 pass, 4 fail, 3 error, 1 broken | 56059 pass, 4 fail, 3 error, 1 broken |
 | `test_workbench()` | 104 pass, 1 fail, 3 error | 106 pass, 1 fail, 2 error |
 
-- **Substrate:** the same 4 failures and 3 errors, all in the split-pane and
-  tabbed-pane drag tests. The 100 extra passes are the cell-count assertions
-  that track a document's field count, and `WidgetCard` gained two fields.
+- **Substrate:** the same 4 failures and 3 errors, at the same seven sites, one
+  occurrence each and byte-identical between the two runs:
+
+  | Site | Count |
+  | --- | --- |
+  | `test/substrate/projection/SplitPaneDragTest.jl` lines 76, 78, 111, 128, 129 | 5 |
+  | `test/kernel/layering/CheckLayering.jl:707` (the `ProjecturedDragging` guard) | 1 |
+  | `test/substrate/serialization/MarkerLanguageTest.jl:31` | 1 |
+
+  The 100 extra passes are the cell-count assertions that track a document's
+  field count, and `WidgetCard` gained two fields.
 - **Workbench:** the same 1 failure, `scrolling the tab strip reveals overflow
   tabs` in `WorkbenchTabClickTest.jl:151`. One fewer error, because the stale
   broken marker above is now a plain passing test. One more test, the prose-part
