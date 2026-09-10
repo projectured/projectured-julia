@@ -80,5 +80,64 @@ end
     @test objectid(standing) == before
 end
 
+# Every rectangle a print produced. The splitter is the only one a split of two
+# labels draws, so this reads it back.
+function _rects(node, acc = Tuple{Int,Int,Int,Int}[])
+    if node isa GraphicsRect
+        push!(acc, (Int(node.x[]), Int(node.y[]), Int(node.w[]), Int(node.h[])))
+    elseif node isa GraphicsCanvas
+        for e in node.elements; _rects(e, acc); end
+    elseif node isa GraphicsViewport
+        _rects(node.content, acc)
+    end
+    acc
+end
+
+# Print into a stated offer, which is the extent a split has to divide.
+function _offered(pane, width, height)
+    ctx = PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}())
+    print_document(_proj(), nothing, pane, ctx)
+end
+
+_pair() = Any[_label("one"), _label("two")]
+_INSET = Inset(8, 8, 8, 8)
+
+@testset "a bordered split stays inside the size it reports" begin
+    # A split divides the space inside its own box model. It used to lay its
+    # children out from the content offset and still divide the whole offer, so
+    # the last slot and the splitter ran past the far edge by the inset, and the
+    # canvas claimed a size smaller than it drew.
+    plain = _offered(WidgetSplitPane(:horizontal, _pair()), 400, 300)
+    inset = _offered(WidgetSplitPane(:horizontal, _pair(); border = _INSET), 400, 300)
+
+    px, py, pw, ph = only(_rects(plain.output))
+    ix, iy, iw, ih = only(_rects(inset.output))
+    @test (px, py) == (0, 0)
+    @test ph == 300                          # the whole offer, with nothing taken
+    @test (ix, iy) == (8, 8)                 # the splitter starts inside the inset
+    @test ih == ph - 16                      # and it ends inside it
+    @test iw == pw
+
+    # The size the parent sees is the content plus the box model, so the cross
+    # axis still fills the offer.
+    @test Int(inset.output.w[]) == Int(plain.output.w[]) + 16
+    @test Int(inset.output.h[]) == Int(plain.output.h[])
+end
+
+@testset "a stacked bordered split does the same on its own axis" begin
+    plain = _offered(WidgetSplitPane(:vertical, _pair()), 400, 300)
+    inset = _offered(WidgetSplitPane(:vertical, _pair(); border = _INSET), 400, 300)
+
+    px, py, pw, ph = only(_rects(plain.output))
+    ix, iy, iw, ih = only(_rects(inset.output))
+    @test (px, py) == (0, 0)
+    @test pw == 400
+    @test (ix, iy) == (8, 8)
+    @test iw == pw - 16
+    @test ih == ph
+    @test Int(inset.output.h[]) == Int(plain.output.h[]) + 16
+    @test Int(inset.output.w[]) == Int(plain.output.w[])
+end
+
 end # testset
 end # function

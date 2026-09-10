@@ -54,7 +54,7 @@ pixels past the bottom. It must start at 8 and run 284.
 
 ## The work
 
-- [ ] **Step 1 — fix B, the widget.** Subtract `_inset_total(w)` from the offered
+- [x] **Step 1 — fix B, the widget.** DONE. Subtract `_inset_total(w)` from the offered
       main and cross extents before the split divides them, and add it back to
       the reported outer size. Add a test that a bordered split keeps its
       children and its splitter inside the size it reports.

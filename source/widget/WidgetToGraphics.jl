@@ -2643,20 +2643,25 @@ function _splitter_band_hit(orientation::Symbol, child_iomaps::Vector,
 end
 
 # Currently measured main-axis extent of every slot. Inner slots are the
-# distance between consecutive child positions minus the splitter; the last
-# slot fills to the far edge of the pane (the outer canvas's main extent minus
-# the last child's start and the near inset, assumed symmetric) — the child
-# canvas itself can't be trusted as it may not expand to fill its slot. Used to
-# seed `sizes` on the first drag so it starts from the on-screen layout.
+# distance between consecutive child positions minus the splitter; the last slot
+# fills to the far edge — the child canvas itself can't be trusted, as it may not
+# expand to fill its slot. Used to seed `sizes` on the first drag so it starts
+# from the on-screen layout.
+#
+# `content_main` is the extent the split divided: its canvas less its own box
+# model on that axis. The first child sits at the leading inset, so the last slot
+# is what is left of the content past that child's offset. Reading the canvas
+# itself here instead took the far inset for a slot, and an asymmetric box model
+# for a symmetric one.
 function _split_measured_sizes(child_iomaps::Vector, orientation::Symbol,
-                               thickness::Int, outer_main::Int)
+                               thickness::Int, content_main::Int)
     n = length(child_iomaps)
     sizes = Vector{Int}(undef, n)
     pos(i) = _split_child_main_pos(child_iomaps[i], orientation)
     for i in 1:(n - 1)
         sizes[i] = pos(i + 1) - pos(i) - thickness
     end
-    sizes[n] = max(0, outer_main - pos(n) - pos(1))
+    sizes[n] = max(0, content_main - (pos(n) - pos(1)))
     sizes
 end
 
@@ -2680,7 +2685,9 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         outer = iomap.output
         outer_main = outer isa GraphicsCanvas ?
                      (orientation === :horizontal ? Int(outer.w[]) : Int(outer.h[])) : 0
-        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, outer_main)
+        inset_x, inset_y = _inset_total(w)
+        content_main = max(0, outer_main - (orientation === :horizontal ? inset_x : inset_y))
+        slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main)
         coord = orientation === :horizontal ? evt.x : evt.y
         return StartSplitterDragOperation(w, k, coord, slot_sizes)
     elseif evt isa MouseMove && active != 0
