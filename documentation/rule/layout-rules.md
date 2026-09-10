@@ -115,6 +115,41 @@ its text.
 The two directions cannot form a cycle. A clipped axis offers a cell that the
 content reads. An unclipped axis reads a cell that the content produces.
 
+## 3b. Who clips
+
+```
+A container that hands a child a bounded extent on an axis
+MUST clip that axis to the extent it handed out.
+```
+
+An offer is a promise about space, not a constraint on the child. Nothing makes a
+widget fit: `_resolve_size` returns an authored size whatever is offered, and
+otherwise `max(offer, content)` — so the content is a floor **above** the offer, and
+a widget never draws smaller than what it holds. That is deliberate. A widget that
+clamped itself to the offer would report the offer as its extent, and a stack could
+no longer tell a child that is too big from one that fits, which is the measurement
+`Content` and `allocate_axis` both run on.
+
+So the promise is kept by the party that made it. The container emits a
+`GraphicsViewport` at the slot, sized to the slot, holding the child's canvas — the
+element `WidgetScrollPane` has always emitted — and reports **its own box** rather
+than what the child reached.
+
+**Per bounded axis, not per widget.** An axis a container withholds — because its own
+extent comes from the child — has nothing to clip against, and clipping to an extent
+derived from the content is the cycle §3 describes. So a tab page clips both axes, a
+split clips its main axis always and its cross axis when it was offered one, and a
+card clips its width but not its height.
+
+**Clipping is not scrolling.** A viewport bounds; a scroll pane bounds *and* holds an
+offset that moves the content inside. Content that must scroll brings a
+`WidgetScrollPane` of its own. A container must never wrap a child in one to get the
+clipping: that hands the child's scroll to the wrong widget, and a child that manages
+its own panes — a transcript above a composer — then scrolls as one block.
+
+A scroll pane inside a clipped slot means two viewports over the same rectangle. That
+is a scissor rect, not a surface, and the alternative is a type test in the printer.
+
 ## 4. When a stack distributes instead of summing
 
 A stack sums its children on its main axis and offers them none of it. It

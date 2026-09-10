@@ -513,6 +513,78 @@ Each step keeps the images green before the next begins.
     branch is also on `main`, and five of main's are fixed here. The pictures were
     necessary and not sufficient: a size that nothing draws still has to be right.
 
+12. **Whoever hands out a slot clips it — DONE.** The campaign window found
+    this, and it is the last thing between the rules and a working conversation
+    pane. Three symptoms, one cause.
+
+    A tab's content is drawn over the tab strip, the transcript and the composer
+    scroll as one block, and the wheel only answers at the left edge of the pane.
+    The cause is [PaneToWidget.jl:364](../../source/pane/PaneToWidget.jl): every
+    tab's content is wrapped in a `WidgetScrollPane`, and its own comment says
+    why — "the scroll pane is what keeps a tab inside its own pane". It is there
+    to **clip**, because `WidgetTabbedPane` does not clip its page, and a scroll
+    pane was the nearest widget that owns a `GraphicsViewport`. Scrolling came
+    along as a side effect, and that outer pane holds the transcript *and* the
+    composer.
+
+    Measured, at a window of 900x700, through the campaign's own projection:
+
+    ```
+    GraphicsViewport y=4    892x28                        the tab strip
+    GraphicsCanvas   y=32   888x660  reaches (892, 692)   the page - NOT a viewport
+      GraphicsCanvas y=32   892x664                       the pane scroll pane
+        GraphicsViewport y=36 884x656                     its viewport
+          the assistant, reaching (884, 651)
+    ```
+
+    The page declares `888x660` and reaches `892x692`. The assistant itself is
+    right: offered `800x600` it draws `800x595` at 0 turns and at 9.
+
+    Only three printers clip anything today — `WidgetScrollPane`,
+    `WidgetTransformPane`, and the tab **strip** of `WidgetTabbedPane`. Not a
+    split's slots, not a card's body, not a tab's page.
+
+    The rule is §3b of [layout-rules.md](../../documentation/rule/layout-rules.md),
+    written down first because it is the reasoning that is expensive to rebuild.
+
+    - **12a — the tab page is a viewport — DONE.** The page was
+      `_make_canvas(cox, coy + sel_h, [content])`, a plain positioned canvas. It
+      is a `GraphicsViewport` of the slot the content was offered, per bounded
+      axis. One picture moved by two pixels: `widget` is `1024x768` rather than
+      `1026x768`, the page no longer overhanging its own inset.
+    - **12b — the pane domain stops wrapping — DONE.** `PaneToWidget` hands the
+      tab its content directly, and the campaign's chain is one viewport of
+      `884x656` holding an assistant that reaches `884x651`. Two nested viewports
+      became one, and the only scrollers left are the assistant's own.
+
+      Three things travelled with the wrapper, and one of them was a finding.
+      The reference paths named `::WidgetScrollPane`; the node under
+      `selector_element_pairs[i]` is the tab's own content now, whose type differs
+      per tab, so the checkpoint is read with `get_reference_node_type`.
+      `_PANE_PADDING` was 4 pixels on top of the tabbed pane's own 4, and the pane
+      border carries the whole 8.
+
+      **`_after_content_step` was dead code.** It looked for a `content` step —
+      the scroll pane's field — but `selector_element_pairs[i]` names a `Pair` and
+      every deeper path starts with that pair's `element`, so it never matched and
+      the backward map always answered with the tab. Removing the wrapper is what
+      made that visible. The code says so now, and says that a selection inside a
+      tab's content travels by `_forward_selection!` instead.
+    - **12c — a split clips its slots — DONE.** Main axis always, cross axis when
+      it was offered one. It reports its slots now rather than what its children
+      reached: `widget_split_pane` goes `433x54` to `601x54`, and `601` is what
+      the example asked for — `sizes=[300, 300]` plus the splitter. The old `433`
+      was the two labels, and the authored sizes were ignored. `SplitPaneDragTest`
+      read a child's position off the `GraphicsCanvas` elements of the output; a
+      slot is a `GraphicsViewport` now, and the test says so.
+    - **12d — a card clips its body's width — DONE**, and not its height, which
+      comes from the content. All 40 images unchanged.
+
+    **What is left open.** A tab holding a raw document scrolled only because the
+    clipper happened to be a scroll pane. Clipping and scrolling are separate
+    needs: such a tab must bring a `WidgetScrollPane`, or `PaneTab` must carry a
+    parameter saying its content scrolls. That is a decision, not a refactor.
+
 ## The safety net: every widget, before and after
 
 39 examples — 37 widget ones plus `widget_disabled`, `widget_focus` and
