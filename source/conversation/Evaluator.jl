@@ -32,10 +32,20 @@ abstract type EvaluatorDocument <: Document end
 # ── EvaluatorForm ────────────────────────────────────────────────────────────
 
 """
-    EvaluatorForm(form; result, is_error, tool_use_id)
+    EvaluatorForm(form; source, result, is_error, tool_use_id, tool_name)
 
 A code form paired with its evaluation result. `form` is the code document
 (a `JuliaDocument`); `result` is the result document (`TextBlock` for now).
+
+`source` is the text the call was made with, **kept as it arrived**. The form is
+the *projection* of that text, and a projection is not reversible in general: a
+snippet that does not parse is held as a `PrimitiveString`, whose stringification
+is its constructor repr, and a snippet that does parse becomes an AST whose
+printing is the printer's idea of the code rather than the caller's. Either way a
+caller that needs the original — a conversation replayed into a model's history —
+must not re-derive it from the document. It reads `source`.
+
+Empty `source` means the caller kept none, and a reader falls back to the form.
 """
 @document struct EvaluatorForm <: EvaluatorDocument
     form::Document
@@ -43,15 +53,18 @@ A code form paired with its evaluation result. `form` is the code document
     is_error::Bool
     tool_use_id::String
     tool_name::String
+    source::String
 end
 
 EvaluatorForm(form::Document;
               result::Document = TextBlock(),
               is_error::Bool = false,
               tool_use_id::AbstractString = "",
-              tool_name::AbstractString = "execute_julia_code") =
+              tool_name::AbstractString = "execute_julia_code",
+              source::AbstractString = "") =
     EvaluatorForm(Cell(form), Cell(result), Cell(is_error),
-                  Cell(String(tool_use_id)), Cell(String(tool_name)), Cell(nothing))
+                  Cell(String(tool_use_id)), Cell(String(tool_name)),
+                  Cell(String(source)), Cell(nothing))
 
 """
     eval_kind_label(name::AbstractString) -> "eval" | "resource" | "tool"

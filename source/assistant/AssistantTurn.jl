@@ -198,7 +198,16 @@ _fence_extension(language::AbstractString) =
 # Part / turn helpers for the uniform turn/part model.
 _part_content(p::ConversationPart) = p.content
 _part_text(p::ConversationPart) = _content_to_string(p.content)
-_eval_code(ef::EvaluatorForm)   = _doc_source(ef.form)
+# The text the call was made with, as it arrived. Re-deriving it from `ef.form`
+# put the display document into the model's history as source: an unparsable
+# snippet came back as `PrimitiveString("…")`, a fenced one as `Core.@cmd "…"`,
+# and a comment-only one as nothing at all. The model then copied what it was
+# shown and called `PrimitiveString(…)`, which no scratch module resolves.
+#
+# A form kept without a source — one a person typed into the conversation, or one
+# an older transcript holds — still answers from the document.
+_eval_code(ef::EvaluatorForm) =
+    isempty(ef.source) ? _doc_source(ef.form) : String(ef.source)
 _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 
 function _set_input!(a::Assistant, s::AbstractString)
@@ -244,7 +253,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
               EvaluatorForm(_eval_form_doc(code);
-                            result = result, is_error = is_error))]))
+                            source = code, result = result, is_error = is_error))]))
 
     _set_input!(a, "")
     nothing
@@ -721,6 +730,7 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     result = val isa Document ? val : result_text(ev.output)
     push!(turn.parts, Cell(ConversationPart(
         EvaluatorForm(_eval_form_doc(String(code));
+                      source      = String(code),
                       result      = result,
                       is_error    = ev.is_error,
                       tool_use_id = call.id,

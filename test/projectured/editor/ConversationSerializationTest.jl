@@ -5,6 +5,9 @@
 
 import ProjecturedKernel.LlmModule: LlmMessage, LlmText, LlmThinking,
                                     LlmRedactedThinking, LlmToolUse, LlmToolResult
+# The form a call's text becomes, so a replay test can build one the way the
+# agent loop does.
+import ProjecturedAssistant.AssistantTurnModule: _eval_form_doc
 
 function test_conversation_serialization()
     @testset "Conversation serialization (Stage 4)" begin
@@ -55,6 +58,43 @@ function test_conversation_serialization()
             @test tool_use isa LlmToolUse && tool_use.id == "tu_1"
             tool_result = msgs[3].content[1]
             @test tool_result isa LlmToolResult && tool_result.tool_use_id == "tu_1"
+        end
+
+        @testset "a call replays as the text it was made with" begin
+            # The form is a *projection* of the code, and a projection is not
+            # reversible: an unparsable snippet is held as a PrimitiveString whose
+            # stringification is its constructor repr, a fenced one parses as a
+            # command macro, and a comment-only one parses to nothing. Re-deriving
+            # source from the form put all three into the model's history as the
+            # code it apparently wrote — and it copied what it was shown, calling
+            # `PrimitiveString(…)`, which no scratch module resolves.
+            replayed(sent) = begin
+                convo = ConversationConversation([
+                    ConversationTurn(:user, [ConversationPart("run it")]),
+                    ConversationTurn(:assistant, [ConversationPart(
+                        EvaluatorForm(_eval_form_doc(sent);
+                                      source = sent, result = result_text("ok"),
+                                      tool_use_id = "tu_1"))])])
+                only([c for m in build_messages(convo) for c in m.content
+                      if c isa LlmToolUse]).input["code"]
+            end
+            for sent in ["run_simulations(editor",              # does not parse
+                         "```julia\nrun_simulations(editor)\n```",  # fenced
+                         "# just a comment",                    # comment only
+                         "run_simulations(editor)"]             # parses cleanly
+                @test replayed(sent) == sent
+            end
+
+            # A form kept without a source — an older transcript, or one a person
+            # typed — still answers from the document.
+            convo = ConversationConversation([
+                ConversationTurn(:user, [ConversationPart("run it")]),
+                ConversationTurn(:assistant, [ConversationPart(
+                    EvaluatorForm(JuliaIdentifier("2+2");
+                                  result = result_text("4"), tool_use_id = "tu_1"))])])
+            kept = only([c for m in build_messages(convo) for c in m.content
+                         if c isa LlmToolUse])
+            @test kept.input["code"] == "2+2"
         end
 
         @testset "thinking + tool_use round-trip: ordering + signature" begin
