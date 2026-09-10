@@ -3984,9 +3984,24 @@ function _card_build(p, w, ctx, tim, cim)
         nothing                        # the header is the whole card
     elseif cim !== nothing
         push!(child_iomaps, (padding, y, cim))
-        push!(elements, _make_canvas(padding, y, Any[cim.output]))
         inner = cim.output
-        inner isa GraphicsCanvas && (max_content_width = max(max_content_width, Int(inner.w[])))
+        # The card offered its body an inner width, so the card clips that width
+        # (§3b of layout-rules.md) and a body wider than the card no longer draws
+        # past its border. Height is not clipped: the card withholds that axis and
+        # takes its own height from what the body drew.
+        avail_w = ctx === nothing ? nothing : ctx.available_width
+        if inner isa GraphicsCanvas && avail_w !== nothing
+            clip_w = max(0, Int(avail_w[]) - 2padding)
+            push!(elements, GraphicsViewport(Cell(Int32(padding)), Cell(Int32(y)),
+                                             Cell(Int32(clip_w)), Cell(Int32(Int(inner.h[]))),
+                                             Cell(_make_canvas(0, 0, Any[inner])),
+                                             Cell(affine_identity),
+                                             Cell(nothing)))
+            max_content_width = max(max_content_width, min(Int(inner.w[]), clip_w))
+        else
+            push!(elements, _make_canvas(padding, y, Any[inner]))
+            inner isa GraphicsCanvas && (max_content_width = max(max_content_width, Int(inner.w[])))
+        end
         y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(p.section_gap) : _sc(p.section_gap)
     elseif content isa AbstractString
         content_width, content_height = _text_size(p.measure, p.content_text.font, content)
