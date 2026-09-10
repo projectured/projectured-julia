@@ -5031,8 +5031,25 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         padding_y = _sc(Int(p.padding.top[]))
         labels = [string(o) for o in w.options]
         _, text_height = _text_size(p.measure, p.font, "M")
-        segment_widths = [(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
-        control_height = text_height + 2padding_y
+        # The segments divide what the control was given, and the control IS its
+        # segments.
+        #
+        # Their labels are the floor — a segment never shrinks under its own text
+        # — and every segment carries the same weight, so an offer is shared
+        # equally. That is what makes filling safe here: the reader hit-tests a
+        # press against these very widths, so segments that did not tile the
+        # control would put the picture and the press in different places.
+        #
+        # With no offer the sum is the content and `allocate_axis` has nothing to
+        # share, which is why every picture is unchanged.
+        label_widths = Int[(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
+        segment_count = length(label_widths)
+        offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0))
+        segment_widths = segment_count == 0 ? label_widths :
+            allocate_axis(offered_width, copy(label_widths),
+                          fill(typemax(Int), segment_count), copy(label_widths),
+                          fill(1.0, segment_count), 0, segment_count)
+        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
         control_width  = sum(segment_widths; init=0)
         corner_radius = _sc(p.corner_radius)
         segment_inset = _sc(p.segment_inset)

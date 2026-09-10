@@ -485,4 +485,56 @@ end
     @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys())) isa InvokeActionOperation
 end
 
+# A segmented control that fills an offer must still answer a press with the
+# segment the picture drew there.
+#
+# Its segments divide what the control was given, and its reader hit-tests a
+# press against those very widths. Content-wide segments inside a filled control
+# would leave the picture and the press in different places — the last segment
+# would end early and a press near the right edge would answer nothing.
+@testset "a filled toggle group answers a press with the segment under it" begin
+    # No `target`, so a pick writes the group's own `selected` — the segment
+     # index, which is what this test reads back.
+    group = WidgetToggleGroup(Point2D(0, 0), Any["one", "two", "three"])
+    proj = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(_font; measure=_stub).dispatch)))
+    offered = with_available_size(PrinterContext(); width = Cell(Int32(900)),
+                                  height = Cell(Int32(60)))
+    iomap = print_document(proj, nothing, group, offered)
+
+    @testset "it fills what it was offered" begin
+        @test Int(iomap.output.w[]) == 900
+        @test Int(iomap.output.h[]) == 60
+        # The control IS its segments: three of them, summing to its width.
+        widths = getfield(iomap, :segment_widths)[]
+        @test length(widths) == 3
+        @test sum(widths) == 900
+        # Each is at least its own label and they grew together.
+        @test all(w -> w > 0, widths)
+        @test maximum(widths) - minimum(widths) <= _stub("three", _font)[1] + 2
+    end
+
+    @testset "a press lands where the picture drew the segment" begin
+        widths = getfield(iomap, :segment_widths)[]
+        left = 0
+        for (i, width) in enumerate(widths)
+            centre = left + width ÷ 2
+            answer = read_intent(proj, iomap, MousePress(:left, centre, 30, ModifierKeys()))
+            # Segment 1 is already selected, and pressing the one that is on is
+            # not a change — the reader says so by answering nothing.
+            if i == 1
+                @test answer === nothing
+            else
+                @test answer isa ReplaceReferencedValueOperation
+                @test answer.value == i
+            end
+            left += width
+        end
+        # And the far right edge is inside the last segment, not past every one.
+        answer = read_intent(proj, iomap, MousePress(:left, 895, 30, ModifierKeys()))
+        @test answer isa ReplaceReferencedValueOperation && answer.value == 3
+    end
+end
+
 end # test_widget_button_behavior

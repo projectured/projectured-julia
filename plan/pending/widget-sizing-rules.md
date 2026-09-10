@@ -262,15 +262,26 @@ Each step keeps the images green before the next begins.
      `documentation/rule/layout-rules.md` §1 says so now, and `WidgetSkeleton`
      had already been written that way.
 
-     **One widget resolves neither axis, and it is left alone on purpose.**
-     `WidgetToggleGroup` sums its segment widths and adds its padding to a text
-     height, and 5c's sweep of pattern A did not reach it. Its width is not a
-     one-line change: `iomap.segment_widths` is what its reader hit-tests a press
-     against, so a group that filled an offer would have segments that no longer
-     tile it and a press near the right edge would miss. It needs the segments to
-     divide the allocation, which is `allocate_axis` on a control rather than a
-     container — a step of its own, and nothing offers a toggle group a width
-     today.
+     **And the last widget that resolved neither axis — `WidgetToggleGroup`,
+     DONE.** It summed its segment widths and added its padding to a text height,
+     and 5c's sweep of pattern A did not reach it. Its width was not a one-line
+     change: `iomap.segment_widths` is what its reader hit-tests a press against,
+     so a group that filled an offer would have had segments that no longer tile
+     it, and a press near the right edge would have answered nothing.
+
+     **So the segments divide the allocation, and the control IS its segments.**
+     `allocate_axis` — the allocator the stacks, the split and now the grid share
+     — with each label as that segment's floor and an equal weight on each, so an
+     offer is shared equally and no segment shrinks under its own text. The
+     control's width is then the sum of what it allocated, which is the invariant
+     the reader depends on.
+
+     `232×38` with no offer, `900×60` under one, and the three segments sum to
+     exactly `900`. **All 42 images unchanged**, because with no offer there is no
+     slack to share. Twelve assertions in `test_widget_button_behavior` press the
+     centre of every segment of a filled group and the far right edge: each
+     answers the segment the picture drew there, and the edge answers the last
+     one rather than nothing.
 
      **What this exposed about the safety net.** Every example draws its widget
      standalone, inside a composite or a vertical stack — and both of those offer
@@ -857,8 +868,8 @@ and not a description.
 
 ## What "done" means
 
-- One `_resolve_size`, both axes, called by every widget.
-- `grep -c FALLBACK source/widget/WidgetToGraphics.jl` answers `0`.
+- One `_resolve_size`, both axes, called by every widget. ✅
+- `grep -c FALLBACK source/widget/WidgetToGraphics.jl` answers `0`. ✅
 - No widget reports `0 × 0`.
 - No widget document carries a layout field; no printer strips an axis by hand.
 - The 39 images differ from the base only where a step said they would.
