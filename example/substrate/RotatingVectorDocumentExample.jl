@@ -62,6 +62,13 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # static cell. So the reactive fields are derivations passed in place — no
     # `set_cell_function!` — and they re-evaluate each frame because they read
     # `get_reactive_clock_time(clock)`.
+    #
+    # Positional means EVERY field in order, `dash` included. Both polylines used
+    # to skip it and pass seven arguments where the type has eight, so each one
+    # after `width` landed a place early: `arrow_size` took the `nothing` meant
+    # for `selection`, and the SDL renderer threw `Int64(::Nothing)` on the first
+    # frame it drew. The keyword constructor cannot be used here — it builds the
+    # point vector eagerly, and these points are a thunk.
 
     # the rotating dot — its centre (cx, cy) SUBSCRIBES to time.
     dot = GraphicsCircle(
@@ -84,6 +91,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
         end),
         color_solarized_blue,       # color (blue)
         2,                          # width
+        nothing,                    # dash — solid
         false, false, 8,            # start_arrow, end_arrow, arrow_size
         nothing)                    # selection
 
@@ -97,6 +105,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
         end),
         color_solarized_green,      # color (green)
         2,                          # width
+        nothing,                    # dash — solid
         false, false, 8,            # start_arrow, end_arrow, arrow_size
         nothing)                    # selection
 
