@@ -720,11 +720,19 @@ Each step keeps the images green before the next begins.
     `configuration` `Content`, `run` `Fixed`, `iteration parameters` `Fill`,
     `INI file` `Content`, `directory` `Fill`.
 
-    **Check.** The columns fill the pane's width and the two `Fill` ones share
-    what is left. **`SimulationFilterToWidget` in `omnet-julia` drops its
-    `VerticalLayout` wrapper**, and its `test_filter_run_table_bounded` still
-    passes — that test asserts the rows are 37 apart at a bounded height, so it is
-    what says the fix landed at the grid rather than being moved around.
+    **Checked, in `omnet-julia`.** The runner's five columns say what they are
+    for — `iteration parameters` and `directory` `Fill`, the other three
+    `Content` — and **the `VerticalLayout` wrapper is gone**: the table sits in
+    its scroll pane directly. `test_filter_run_table_bounded` still passes, which
+    is what says the fix landed at the grid rather than being moved around, and
+    every other filter test with it.
+
+    **A stack offers its cross axis only to a child that asked for it.** The pane
+    needed `width = Fill` beside its `height = Fill`, or it was as wide as the
+    table, the table was as wide as its text, and the two `Fill` columns had
+    nothing to divide. Measured: a 900-wide offer draws a 900-wide table and a
+    1400-wide offer a 1400-wide one, the two `Fill` columns splitting the slack
+    evenly, and the rows 37 apart in both.
 
     A width a person can drag is not here. A policy is where a drag would write,
     which is what makes it possible later.
