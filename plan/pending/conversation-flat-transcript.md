@@ -352,15 +352,77 @@ edit operations is declined. `test_conversation()` passes, 63 of 63.
 
 
 
-## Stage 6 — hover ⬜
+## Stage 6 — show the selection, and hover ⬜ NOT DONE
 
-Draw a 1 px outline on the part under the pointer, and on the selected part,
-inside the padding so nothing reflows. Add a `copy` affordance on the turn and
-on a code panel, which does what `Ctrl+C` does.
-[`WidgetHoverTracking.jl`](../../source/widget/WidgetHoverTracking.jl) already
-tracks the pointer.
+A click names a part and `Ctrl+C` copies it, but **nothing on screen changes when
+a part is selected**. A person who selects a message sees no answer. This stage
+closes that, and it is not the polish the plan first called it. Here is what a
+probe found and what the work actually costs.
 
-**Test:** `test_repl(assistant_example)`.
+**A sub-document does not see the root selection.** Set the conversation's
+selection to `turns[2].parts[2]`, and `getfield(part, :selection)[]` is still
+`nothing`. Nothing propagates it. A render with a part selected draws the same
+107 elements and the same 12 rectangles as a render with no selection at all.
+
+So the selection has to be carried to the printed widget by the printer, which
+is the `set_cell_function!` chain the composer uses on its body
+([`ConversationEditor.jl`](../../source/conversation/ConversationEditor.jl)) and
+`AssistantToWidgetCard` uses on its four containers with hand-counted depths
+(`suffix(2)`, `suffix(3)`).
+
+**And a prose part has no widget to mark.** After Stage 3 a prose part prints its
+content bare, so there is no surface to ring, tint or outline. Giving it one
+again brings back the 32 px of card padding per part that Stage 3 removed.
+
+### What it needs
+
+1. `WidgetCard` gains a `padding` field, where a negative value means "the
+   theme's". A `:plain` card with `padding = 0` draws nothing and occupies
+   nothing, so a part can be a card again without costing a paragraph of space.
+   This breaks the positional call site at
+   [`EmbedToSyntax.jl:249`](../../source/fileformat/EmbedToSyntax.jl#L249) a
+   second time.
+2. A fifth variant, `:selected`, filled from the raw `theme.accent`. Nothing
+   uses that token now — the turn band uses the interpolated tint — so it
+   collides with nothing.
+3. Every part becomes a card again: prose gets `:plain` with `padding = 0`.
+4. The `variant` becomes a reactive cell reading the card's own `selection`.
+   `_card_build` already reads `w.variant` inside its `build` cell, so a
+   reactive variant re-renders on its own.
+5. The transcript printer installs the selection down the chain, one
+   `set_cell_function!` per container, each with its own prefix already spent.
+
+Steps 1 to 4 are small. Step 5 is the delicate one: it is the same seam Stage 5
+changed, and getting a suffix count wrong silently stops a container carrying
+the caret.
+
+**Hover** is a second piece on top, and it needs a `hovered` cell on the card
+that does not exist yet. [`WidgetHoverTracking.jl`](../../source/widget/WidgetHoverTracking.jl)
+tracks the pointer for widgets that have one.
+
+**Test when it is done:** a render with a part selected differs from one without,
+at the part's own rectangle and nowhere else.
+
+## Where this stands
+
+| Stage | State |
+| --- | --- |
+| 1 — a variant on `WidgetCard` | ✅ done |
+| 2 — the turn becomes a quiet card | ✅ done |
+| 3 — the part becomes a flow | ✅ done |
+| 4 — the composer matches the transcript | 🟡 the draft and its parts are done; the input frame and the hint line are not |
+| 5 — selection and node copy | ✅ done |
+| 6 — show the selection, and hover | ⬜ not done |
+
+**What works.** The transcript reads as a document: a faint band for a user turn,
+nothing for the model's, a muted panel only around code, a thinking block and an
+evaluation, and no border anywhere. A click names the part it landed in, an edit
+that reaches the transcript is declined, and `Ctrl+C` on a selected part copies
+that part.
+
+**What does not.** A selected part looks exactly like an unselected one
+(Stage 6). The composer has no frame saying a person can type in it, and no hint
+line (Stage 4, items 3 and 4).
 
 ## How to test the whole thing
 
