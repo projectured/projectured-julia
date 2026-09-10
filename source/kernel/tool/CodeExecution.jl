@@ -116,10 +116,23 @@ repr of the last value together with anything the code printed.
 
 Never throws: an error comes back as its formatted message, because the caller is
 usually an agent that must be able to read the failure and try again.
+
+**A call with no code answers that, rather than answering nothing.** Empty source
+evaluates to nothing and printed nothing, so the tool used to return an empty
+string — which a model reads as a broken tool rather than as its own mistake, and
+then it stops writing code at all. Measured against a local model asked to run a
+set of simulations: it wrote an empty call, got a blank back, said "the tool seems
+to not be returning the output", and spent every remaining round searching instead
+of running anything. The one line back is what lets it correct itself.
 """
 function execute_julia_code(set::ToolSet, target, code)
     @info "[tool] execute_julia_code call" code
     set.last_value = nothing
+    if code === nothing || isempty(strip(String(code)))
+        answer = "No code was given. Put the Julia source in the `code` argument."
+        @info "[tool] execute_julia_code result" answer
+        return answer
+    end
     output = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it

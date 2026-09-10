@@ -38,6 +38,34 @@ function test_declared_api()
         @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
     end
 
+    @testset "a call with no code answers that, rather than answering nothing" begin
+        # Empty source evaluates to nothing and prints nothing, so the tool used to
+        # answer an empty string — which a model reads as a broken tool rather than
+        # as its own mistake, and then it stops writing code at all.
+        set = ToolSet()
+        for blank in ("", "\n", "   \n  ")
+            answer = execute_julia_code(set, nothing, blank)
+            @test occursin("No code was given", answer)
+            @test occursin("`code`", answer)
+        end
+        # And a real call still runs.
+        @test strip(execute_julia_code(set, nothing, "1 + 1")) == "2"
+    end
+
+    @testset "a function's documentation is reachable as a tool" begin
+        # `search_api` answers a `read_function_documentation(…)` call for every
+        # function it finds, and a module or a type has a resource:// URI. A
+        # function has none, so without this tool the only way to a docstring is
+        # to write Julia — and a model told to "call read_function_documentation"
+        # looks for a tool of that name, finds none, and sends an empty call.
+        set = ToolSet(; api = Module[ToyApi])
+        register_default_tools!(set)
+        tool = only([t for t in set.tools if t.name == "read_function_documentation"])
+        answer = tool.handler(nothing, Dict("module_name" => "ToyApi",
+                                            "function_name" => "toy_verb"))
+        @test occursin("Answer the word this verb is named after", answer)
+    end
+
     @testset "a declared module is what resolves" begin
         set = ToolSet(; api = Module[ToyApi])
         @test execute_julia_code(set, nothing, "toy_verb()") |> strip == "\"toy\""

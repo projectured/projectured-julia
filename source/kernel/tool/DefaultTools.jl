@@ -36,8 +36,8 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "- Call the `search_api` tool to find the right module, struct, or function " *
     "(it ranks by name and docstring and returns how to read full docs).\n" *
     "- Call the `search_documentation` tool to find the relevant guide section.\n" *
-    "- Read full text with the `read_resource` tool; read a function's full docs with " *
-    "read_function_documentation(\"Module\", \"name\") (callable directly here).\n\n" *
+    "- Read full text with the `read_resource` tool, and a function's full docs " *
+    "with the `read_function_documentation` tool.\n\n" *
     "NEVER guess names or signatures — search for them.\n" *
     "NEVER call print(). NEVER include code comments."
 
@@ -54,11 +54,10 @@ function _execute_julia_code_description(set::ToolSet)
     "The variable `editor` is bound to the running editor.\n\n" *
     "The functions of " * named * " are in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
-    "FIND THEM BEFORE YOU WRITE ANY CODE. Both of these are callable here, in " *
-    "the code you send:\n" *
-    "- `search_api(\"word\")` lists them, with one line of description each.\n" *
-    "- `read_function_documentation(\"Module\", \"name\")` reads one in full and says " *
-    "what its arguments are.\n\n" *
+    "FIND THEM BEFORE YOU WRITE ANY CODE, with the two tools that answer that:\n" *
+    "- `search_api` lists them, with one line of description each.\n" *
+    "- `read_function_documentation` reads one in full and says what its " *
+    "arguments are.\n\n" *
     "Returns the repr of the last expression's value (if any), followed by any " *
     "captured stdout/stderr. There is no need to call print().\n\n" *
     "NEVER guess a name — search for it. NEVER call print(). NEVER write comments."
@@ -135,6 +134,37 @@ function register_default_tools!(set::ToolSet)
                        limit   = _arg_int(get(args, "limit", 8), 8),
                        modules = set.api)
         end,
+    ))
+
+    # A function's docstring is reachable *as a tool*, and it is the one piece of
+    # documentation no other tool reaches. A module or a type has a resource:// URI,
+    # so `read_resource` reads it; a function has none, and `search_api` answers a
+    # `read_function_documentation(…)` call instead. That call is Julia, and a model
+    # sent to it looked for a tool of that name, found none, and called
+    # `execute_julia_code` with an empty body — then read the blank answer as a
+    # broken tool and stopped writing code at all. Named here, the asymmetry is
+    # gone: every hit `search_api` returns is one tool call away from its full text.
+    register_tool!(set, Tool(
+        "read_function_documentation",
+        "Read the full documentation of a function. `search_api` names the module " *
+        "and the function of every hit; this reads the whole docstring of one, " *
+        "which says what its keywords do. Call it before you write a call you are " *
+        "not sure of, and NEVER guess a signature.",
+        NamedTuple[
+            (name = "module_name", type = "string",
+             description = "Module holding the function, as `search_api` printed it",
+             required = true),
+            (name = "function_name", type = "string",
+             description = "Function to read, without its argument list", required = true),
+            (name = "type_name", type = "string",
+             description = "Optional type, when the function is documented per type",
+             required = false),
+        ],
+        (target, args) -> read_function_documentation(
+            get(args, "module_name", ""),
+            get(args, "function_name", ""),
+            get(args, "type_name", nothing);
+            modules = set.api),
     ))
 
     # The resource list is reachable *as a tool*, not only as a protocol concept:
