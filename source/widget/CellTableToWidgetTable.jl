@@ -20,6 +20,7 @@ module CellTableToWidgetTableModule
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector, CellTable
 import ..WidgetModule: WidgetTable, Point2D
+import ..LayoutModule: Content
 import ..PrimitiveModule: PrimitiveBool, PrimitiveNumber, PrimitiveString
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -66,6 +67,8 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         rows,
                         Cell(nc),
                         Cell(8), Cell(1),    # padding, border_width
+                        Cell(Content), Cell(Content),      # every column and row is its content
+                        Cell(Any[]), Cell(Any[]),          # and none of them differs
                         Cell(true), Cell(nothing))   # visible, hovered (selection defaults)
     SimpleIoMap(p, ct, table)
 end

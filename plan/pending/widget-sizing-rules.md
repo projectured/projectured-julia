@@ -663,8 +663,9 @@ Each step keeps the images green before the next begins.
     **Checked.** 41 images: **40 unchanged, and `widget_table_offered` changed**
     — from one cell over the whole pane to three columns and four rows, each the
     height of its text. That is the only picture this step is about.
-15. **A column and a row take a policy, and the default is implicit.** This is
-    step 4 for the grid, and it is the case step 4 said it was waiting for.
+15. **A column and a row take a policy, and the default is implicit — DONE.**
+    This is step 4 for the grid, and it is the case step 4 said it was waiting
+    for.
 
     | policy | a column | a row |
     | --- | --- | --- |
@@ -684,19 +685,36 @@ Each step keeps the images green before the next begins.
     vector for the ones that differ. **Both default to `Content`**, which is what
     a grid has always meant, so no caller changes.
 
-    **A grid must not offer a stretched column its total.** That total is content
-    plus share, so a cell's size would depend on its own content width through the
-    offer, and the cell would close a cycle. §4's rule applies per column: only a
-    weighted column is offered a slot, and every other keeps the withheld axis, so
-    its extent is safe to read while the allocation is computed. The same per row,
-    on `:y`.
+    **A grid must not offer an item its total when that total came from the
+    item.** §4's rule applies per column: a weighted column is offered a slot, and
+    every other keeps the withheld axis, so its extent is safe to read while the
+    allocation is computed. The same per row, on `:y`.
 
-    **Check.** Three columns, the middle one `Fill`, in a 600-wide offer: the
-    outer two are content wide and the middle takes the rest. A grid that says
-    nothing is unchanged, and the images say so.
+    **And the rule is wider than "weighted", which a stack overflow proved.**
+    The first cut read a column's content whenever its weight was zero — so a
+    `Fixed(40)` column was told 40, handed 40 to its cells, and then had its
+    cells read to decide its width. That is a closed cycle, and Julia answered
+    with `detected a stack overflow` twenty times over. **The cells of any item
+    that is offered its extent are never read**, weighted or not; `_gl_offers` is
+    that one question, asked in both places.
+
+    **Checked.** 22 assertions in `test_layout_closeout`, up from 16: a grid that
+    says nothing is `Content` on both axes; a `Fill` row takes what a `Content`
+    row leaves of a seeded 400 and a plain grid stays under 100; a `Fixed(40)`
+    column is 40 and asks for no share of the 600 it was offered. All 41 images
+    are **identical to step 14** — every default is `Content`, which is what a
+    grid always did.
+
+    `column_stretch` is gone. `FormLayout` says `column_policies=[Content, Fill]`
+    now, which is the same sentence in the one vocabulary.
 16. **`WidgetTable` takes them.** The same two defaults and the same two vectors,
     and a table's own default is `Content` on both axes — a table that says
     nothing draws as it does today.
+
+    **A table's policies are its BODY's.** A header strip is a column, or a row,
+    of the same grid, and it is always `Content`: as wide, or as tall, as the
+    labels in it. So the table shifts its own vectors over the strip when there is
+    one, and `_wt_shift` is that one line.
 
     The campaign runner's five columns then say what they are for:
     `configuration` `Content`, `run` `Fixed`, `iteration parameters` `Fill`,

@@ -75,7 +75,7 @@ import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationRerootingModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
-import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, allocate_axis, layout_min, layout_max,
+import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
 import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
 import ..EventModule: KeyDown
@@ -5554,6 +5554,12 @@ end
     geometry::Cell
 end
 
+# A header strip is a column, or a row, of the same grid, and it is always
+# `Content`: as wide, or as tall, as the labels in it. So the table's own
+# policies — which are the BODY's — move over by one when a strip is there.
+_wt_shift(policies, offset::Int) =
+    offset == 1 ? Any[Content; collect(Any, policies)...] : collect(Any, policies)
+
 # A WidgetTable carries `rows`, `column_headers`, `row_headers`. The grid is laid
 # out row-major over `grid_rows × grid_cols` cells where the (optional) header
 # strips occupy grid row/column 1. The corner and any short cells are filled with
@@ -5746,9 +5752,13 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     grid_iomap = ComputedCell(() -> begin
         info = layout_info[]
         children, grid_rows, grid_cols = info[1], info[2], info[3]
+        row_offset, col_offset = info[4], info[5]
         gap = 2 * pad + bw
         grid = GridLayout(children, grid_cols;
-                          horizontal_gap=gap, vertical_gap=gap)
+                          horizontal_gap=gap, vertical_gap=gap,
+                          column_policy = w.column_policy, row_policy = w.row_policy,
+                          column_policies = _wt_shift(w.column_policies, col_offset),
+                          row_policies = _wt_shift(w.row_policies, row_offset))
         # The grid is positioned at grid_off inside the outer canvas; extend the
         # context reference to the table's grid so child contexts are rooted here.
         print_child(recursion, grid, ctx)

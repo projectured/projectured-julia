@@ -9,7 +9,7 @@ carries reactive Cell fields for all mutable properties.
 module WidgetModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..LayoutModule: HorizontalLayout
+import ..LayoutModule: HorizontalLayout, SizePolicy, Content
 import ..DocumentApiModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -1849,6 +1849,10 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     column_count::Int
     padding::Int
     border_width::Int
+    column_policy::Any           # SizePolicy — what every body column is
+    row_policy::Any              # SizePolicy — what every body row is
+    column_policies::Any         # Vector{SizePolicy} — the body columns that differ
+    row_policies::Any            # Vector{SizePolicy} — the body rows that differ
     visible::Bool
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
@@ -1875,20 +1879,34 @@ _table_cell_doc(v)           = WidgetLabel(Point2D(0, 0), string(v))
 _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
 
 """
-    WidgetTable(position, column_headers, row_headers, rows, column_count; padding=8, border_width=1, visible=true)
+    WidgetTable(position, column_headers, row_headers, rows, column_count;
+                padding=8, border_width=1, visible=true,
+                column_policy=Content, row_policy=Content,
+                column_policies=Any[], row_policies=Any[])
 
 Document-cell constructor. `column_headers` / `row_headers` are `Vector`s of
 `Document`/`nothing` (pass `[]` for none); `rows` is a `Vector` of rows, each a
 `Vector` of `Document`/value cells.
+
+**A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
+do: `column_policy` / `row_policy` say what every one is and the two vectors name
+the ones that differ. Both default to `Content`, which is what a table has always
+been. A header strip is always `Content` — it is as wide, or as tall, as the
+labels in it — so the policies below are the BODY's and the table shifts them
+over the strip itself.
 """
 function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vector,
                      rows::Vector, column_count::Integer;
-                     padding::Integer=8, border_width::Integer=1, visible::Bool=true)
+                     padding::Integer=8, border_width::Integer=1, visible::Bool=true,
+                     column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
+                     column_policies=Any[], row_policies=Any[])
     WidgetTable(Cell(position),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 CellVector(Cell[Cell(_table_row(r)) for r in rows]),
                 Cell(Int(column_count)), Cell(Int(padding)), Cell(Int(border_width)),
+                Cell(column_policy), Cell(row_policy),
+                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(visible), Cell(nothing))
 end
 
@@ -1896,11 +1914,15 @@ end
 # body, columns inferred from the header count (or the widest row). Strings are
 # wrapped in WidgetLabels via `_table_cell_doc`.
 function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
-                     padding::Integer=8, border_width::Integer=1, visible::Bool=true)
+                     padding::Integer=8, border_width::Integer=1, visible::Bool=true,
+                     column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
+                     column_policies=Any[], row_policies=Any[])
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
     WidgetTable(position, collect(Any, headers), Any[], collect(Any, rows), column_count;
-                padding=padding, border_width=border_width, visible=visible)
+                padding=padding, border_width=border_width, visible=visible,
+                column_policy=column_policy, row_policy=row_policy,
+                column_policies=column_policies, row_policies=row_policies)
 end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────

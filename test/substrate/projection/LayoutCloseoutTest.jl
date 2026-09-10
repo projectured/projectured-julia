@@ -1,4 +1,4 @@
-# Layout closeout (Qt-gap Parts A+B): GridLayout per-column align/stretch +
+# Layout closeout (Qt-gap Parts A+B): GridLayout per-column align and policy +
 # FormLayout sugar, and StackLayout's `active` page container.
 
 const _LC_Cell = CellModule.Cell
@@ -14,14 +14,19 @@ proj = make_layout_projection_example()
     @test f isa GridLayout
     @test f.columns == 2
     @test f.column_align == [:right, :left]
-    @test f.column_stretch == [0, 1]
+    @test f.column_policies == Any[Content, Fill]
     @test length(f.children) == 4
 end
 
-@testset "GridLayout per-column fields default to empty" begin
+@testset "GridLayout per-column fields default to empty, and every column is Content" begin
     g = GridLayout(Any[WidgetLabel(Point2D(0, 0), "a"), WidgetLabel(Point2D(0, 0), "b")], 2)
     @test isempty(g.column_align)
-    @test isempty(g.column_stretch)
+    @test isempty(g.column_policies)
+    @test isempty(g.row_policies)
+    # `Content` is what a grid has always meant, so a grid that says nothing
+    # draws what it drew before.
+    @test g.column_policy === Content
+    @test g.row_policy === Content
     # Renders as before (two cells side by side, no stretch).
     io = print_document(proj, g)
     @test io.output isa GraphicsCanvas
@@ -33,13 +38,40 @@ end
     # so the outer width grows to fill (vs. the un-stretched, content-only width).
     cells = Any[WidgetLabel(Point2D(0, 0), "Name:"), WidgetText(Point2D(0, 0), "x")]
     plain  = GridLayout(copy(cells), 2)
-    filled = GridLayout(copy(cells), 2; column_stretch=[0, 1], horizontal_gap=8)
+    filled = GridLayout(copy(cells), 2; column_policies=Any[Content, Fill], horizontal_gap=8)
     ctx = with_available_size(PrinterContext(EmptyReference());
                               width=_LC_Cell(600), height=_LC_Cell(400))
     pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
     fw = Int(print_document(proj, nothing, filled, ctx).output.w[])
     @test fw > pw          # the stretched grid filled the available width
     @test fw >= 600 - 8    # ~the full seeded width (minus a gap rounding)
+end
+
+@testset "a row takes a policy too, and Content is what a grid always meant" begin
+    # Two rows of one column. The second fills, so it takes what the first
+    # leaves of a seeded height; with no policy both are their content.
+    cells() = Any[WidgetLabel(Point2D(0, 0), "top"), WidgetLabel(Point2D(0, 0), "rest")]
+    ctx = with_available_size(PrinterContext(EmptyReference());
+                              width=_LC_Cell(600), height=_LC_Cell(400))
+    plain  = GridLayout(cells(), 1)
+    filled = GridLayout(cells(), 1; row_policies=Any[Content, Fill])
+    ph = Int(print_document(proj, nothing, plain,  ctx).output.h[])
+    fh = Int(print_document(proj, nothing, filled, ctx).output.h[])
+    # A grid that says nothing is its content, whatever it is offered. That is
+    # the rule a table's rows depend on: a cell must not fill an offered height.
+    @test ph < 100
+    @test fh >= 400 - 1
+end
+
+@testset "a Fixed column is exactly what it was told" begin
+    cells = Any[WidgetLabel(Point2D(0, 0), "a-very-long-label"), WidgetLabel(Point2D(0, 0), "b")]
+    g = GridLayout(cells, 2; column_policies=Any[Fixed(40), Content])
+    io = print_document(proj, nothing, g,
+                        with_available_size(PrinterContext(EmptyReference());
+                                            width=_LC_Cell(600), height=_LC_Cell(400)))
+    # 40 for the first column plus whatever "b" measures — far under the 600 it
+    # was offered, because neither column asked for a share of it.
+    @test Int(io.output.w[]) < 120
 end
 
 @testset "StackLayout active shows exactly one page" begin

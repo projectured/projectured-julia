@@ -24,7 +24,7 @@ import ..DocumentApiModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
                        LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
                        AnchoredLayout, AnchoredEntry, compute_anchored_positions,
-                       allocate_axis,
+                       allocate_axis, SizePolicy,
                        layout_min, layout_max, layout_preferred, layout_weight
 import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
                                  ConstraintSolver, FallbackConstraintSolver
@@ -874,36 +874,78 @@ function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, vgap::Cell)
     end)
 end
 
-# Per-column stretch weight / alignment (Stage 6 grid generalization). Empty
-# vectors fall back to today's behaviour (no stretch, the single `horizontal_align`).
-_col_stretch(v, col::Int) = (v isa AbstractVector && 1 <= col <= length(v)) ? Int(v[col]) : 0
+# Per-column alignment. An empty vector falls back to the single
+# `horizontal_align`.
 _col_align(v, col::Int, default::Symbol) =
     (v isa AbstractVector && 1 <= col <= length(v)) ? Symbol(v[col]) : default
 
-# A column's laid-out width: its content max, plus — when the parent seeded an
-# `available_width` and this column has a positive stretch weight — its share of
-# the leftover space (`available − Σcontent − gaps`) by weight.
-function _gl_stretched_col_w_cell(col::Int, content_col_w::Vector{Cell}, cols_cell::Cell,
-                                  hgap::Cell, stretch_cell::Cell, avail_w)
+# The policy of one column or one row: the vector's entry when it has one, and
+# the grid's own default when it does not.
+_gl_policy_at(v, i::Int, default) =
+    (v isa AbstractVector && 1 <= i <= length(v) && v[i] isa SizePolicy) ? v[i] : default
+
+# The four allocator inputs of one column or one row.
+#
+# `content` is what its cells measured, and it is passed as `0` for a weighted
+# one — see `_gl_extents_cell` for why that item's cells are never read here.
+function _gl_axis_inputs(p::SizePolicy, content::Int)
+    weight = p.weight === nothing ? 0.0 : Float64(p.weight)
+    pref   = p.preferred === nothing ? content : Int(p.preferred)
+    lo     = p.min === nothing ? (weight > 0 ? 0 : content) : Int(p.min)
+    hi     = p.max === nothing ? typemax(Int) : Int(p.max)
+    (lo, hi, pref, weight)
+end
+
+# Whether a column or a row may hand its extent to its cells.
+#
+# A weighted one is given a slot and a `Fixed` one was told a number, so neither
+# extent comes from the cells and both are safe to offer. A `Content` one IS its
+# cells, so §3 says it offers nothing.
+_gl_offers(p::SizePolicy) =
+    (p.weight !== nothing && p.weight > 0) || p.preferred !== nothing
+
+# The laid-out extent of every column, or of every row, allocated in one pass.
+#
+# An item that is NOT offered its extent keeps what its cells measured, and that
+# is read here because it does not depend on the allocation.
+#
+# **The cells of an item that IS offered are never read.** That is every item
+# `_gl_offers` answers true for, and it is not only the weighted ones: a
+# `Fixed(n)` column is told `n` and hands `n` to its cells, so reading those
+# cells here would make its width depend on itself. A stack overflow is what a
+# closed cycle looks like, and `Fixed` is what produced one.
+#
+# `allocate_axis` is the same allocator the stacks and the split use.
+function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
+                          gap::Cell, avail)
     ComputedCell(function ()
-        base = content_col_w[col][]
-        avail_w === nothing && return base
-        c = cols_cell[]
-        (col > c) && return base
-        sv = stretch_cell[]
-        sc = _col_stretch(sv, col)
-        sc == 0 && return base
-        total_stretch = 0; total_content = 0
-        for cc in 1:c
-            total_stretch += _col_stretch(sv, cc)
-            total_content += content_col_w[cc][]
+        c = count_cell[]
+        c <= 0 && return Int[]
+        c = min(c, length(content))
+        mins = Vector{Int}(undef, c); maxs = Vector{Int}(undef, c)
+        prefs = Vector{Int}(undef, c); wts = Vector{Float64}(undef, c)
+        weighted = false
+        for k in 1:c
+            policy = policy_of(k)
+            w = policy.weight === nothing ? 0.0 : Float64(policy.weight)
+            w > 0 && (weighted = true)
+            (mins[k], maxs[k], prefs[k], wts[k]) =
+                _gl_axis_inputs(policy, _gl_offers(policy) ? 0 : content[k][])
         end
-        total_stretch == 0 && return base
-        gaps = max(0, c - 1) * hgap[]
-        leftover = max(0, Int(avail_w[]) - total_content - gaps)
-        base + (leftover * sc) ÷ total_stretch
+        (avail === nothing || !weighted) && return prefs
+        allocate_axis(Int(avail[]), mins, maxs, prefs, wts, gap[], c)
     end)
 end
+
+# An offer is carried as an `Int32` cell, the way every other seeded extent is.
+_gl_int32_cell(extent::Cell) = ComputedCell(() -> Int32(max(0, extent[])))
+
+# One entry of what `_gl_extents_cell` allocated.
+_gl_extent_cell(extents, k::Int) =
+    ComputedCell(function ()
+        e = extents[]
+        k <= length(e) ? e[k] : 0
+    end)
 
 function _gl_child_x(i::Int, child_iomaps::Vector,
                     cols_cell::Cell, col_w::Vector{Cell}, col_x::Vector{Cell},
@@ -948,49 +990,65 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                                Cell(Int32(0)), Cell(Int32(0)))
     end
 
-    # A grid derives BOTH extents from its children — a column's width is its
-    # widest cell and a row's height is its tallest — so it offers neither back.
-    # That is §3 of the layout rules, written once as `withhold_offer`.
-    #
-    # Handed the offer, a cell that authored nothing filled it, and the column or
-    # row became as large as everything the grid was given. Both halves were
-    # visible in one picture: a table in a 300×140 viewport drew ONE header cell
-    # over the whole pane, and with `:y` alone withheld it drew one 300-wide
-    # column and pushed the other two out of the clip.
-    #
-    # Step 15 of the sizing plan is where a column or a row says that it
-    # stretches, and a weighted one is offered its slot then. Until it can say
-    # so, nothing may be offered: a cell that fills what its column will not get
-    # is a size nobody chose.
-    child_ctx = ctx === nothing ? ctx : withhold_offer(withhold_offer(ctx, :y), :x)
-    child_iomaps = Any[]
-    for i in 1:n
-        cim = _recurse_child(recursion, doc.children[i],
-                             make_child_context(child_ctx, doc, (@reference_step children), (@reference_step [i])))
-        push!(child_iomaps, cim)
-    end
-
     cols_cell = getfield(doc, :columns)
     hgap      = getfield(doc, :horizontal_gap)
     vgap      = getfield(doc, :vertical_gap)
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
-    column_align_cell   = getfield(doc, :column_align)
-    column_stretch_cell = getfield(doc, :column_stretch)
+    column_align_cell = getfield(doc, :column_align)
     avail_w = ctx === nothing ? nothing : ctx.available_width
+    avail_h = ctx === nothing ? nothing : ctx.available_height
 
-    # Pre-allocate up to n column / row extents — at most n columns
-    # (one child per column, n rows of 1) or n rows (one column). `col_w` adds a
-    # per-column stretch share over the content max (Stage 6 generalization).
+    # A column's and a row's policy, read once. What a policy IS, a caller says
+    # when it builds the grid; nothing changes one while the grid is on screen,
+    # so this is a plain read and not a dependency.
+    column_policy = doc.column_policy
+    row_policy    = doc.row_policy
+    column_policies = doc.column_policies
+    row_policies    = doc.row_policies
+    policy_of_column(k::Int) = _gl_policy_at(column_policies, k, column_policy)
+    policy_of_row(k::Int)    = _gl_policy_at(row_policies, k, row_policy)
+
+    # Up to n columns and n rows — one child per column, or one column of n.
+    #
+    # The extents are built BEFORE the children, because a weighted column or row
+    # offers its slot to the cells in it. They read `child_iomaps` lazily, and the
+    # loop below fills that vector; nothing forces an extent while it runs.
+    child_iomaps = Any[]
+    row_count_cell = ComputedCell(function ()
+        c = cols_cell[]
+        c <= 0 ? 0 : div(n + c - 1, c)
+    end)
     content_col_w = Cell[]
-    col_w = Cell[]
-    row_h = Cell[]
+    content_row_h = Cell[]
     for k in 1:n
         push!(content_col_w, _gl_col_w_cell(k, n, child_iomaps, cols_cell))
-        push!(row_h, _gl_row_h_cell(k, n, child_iomaps, cols_cell))
+        push!(content_row_h, _gl_row_h_cell(k, n, child_iomaps, cols_cell))
     end
-    for k in 1:n
-        push!(col_w, _gl_stretched_col_w_cell(k, content_col_w, cols_cell, hgap, column_stretch_cell, avail_w))
+    col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w)
+    row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h)
+    col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
+    row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
+
+    # What each cell is offered. A column or a row that may hand out its extent
+    # does; every other one keeps that axis withheld — §3, and §4's rule that
+    # only a weighted item is offered a slot.
+    for i in 1:n
+        c = cols_cell[]
+        col = c > 0 ? _grid_col(i, c) : 1
+        row = c > 0 ? _grid_row(i, c) : 1
+        cctx = ctx
+        if cctx !== nothing
+            cctx = _gl_offers(policy_of_column(col)) ?
+                with_available_size(cctx; width = _gl_int32_cell(col_w[col])) :
+                withhold_offer(cctx, :x)
+            cctx = _gl_offers(policy_of_row(row)) ?
+                with_available_size(cctx; height = _gl_int32_cell(row_h[row])) :
+                withhold_offer(cctx, :y)
+        end
+        cim = _recurse_child(recursion, doc.children[i],
+                             make_child_context(cctx, doc, (@reference_step children), (@reference_step [i])))
+        push!(child_iomaps, cim)
     end
 
     col_x = Cell[]
@@ -1044,10 +1102,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
 
-    row_count = ComputedCell(function ()
-        c = cols_cell[]
-        c <= 0 ? 0 : div(n + c - 1, c)
-    end)
+    row_count = row_count_cell
 
     GridLayoutIoMap(p, doc, outer, Cell(entries),
                     col_x, row_y, col_w, row_h,

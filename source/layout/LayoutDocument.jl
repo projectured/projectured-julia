@@ -157,12 +157,30 @@ end
 
 """
     GridLayout(children, columns; horizontal_align, vertical_align,
-               horizontal_gap, vertical_gap)
+               horizontal_gap, vertical_gap, column_align,
+               column_policy, row_policy, column_policies, row_policies)
 
-A grid of children in row-major order. Column widths are the max
-of `w` across children in that column; row heights are the max of
-`h` across children in that row. Cells with no child are empty.
-`horizontal_align` / `vertical_align` apply within each cell.
+A grid of children in row-major order. `horizontal_align` / `vertical_align`
+apply within each cell.
+
+**A column and a row take the same `SizePolicy` a stack's children take.**
+`column_policy` and `row_policy` say what every column and every row is, and
+`column_policies` / `row_policies` name the ones that differ — the grid's shape
+of the default constraint the stacks carry as `child_width` / `child_height`.
+An entry past the end of a vector, or `nothing` in one, means the default.
+
+| policy | a column | a row |
+| --- | --- | --- |
+| `Content` | as wide as its widest cell | as tall as its tallest cell |
+| `Fixed(n)` | exactly `n` | exactly `n` |
+| `Relative(w)` | a share of what is left, by weight | a share of what is left |
+| `Fill` | `Relative(1.0)` | `Relative(1.0)` |
+
+**Both default to `Content`**, which is what a grid has always meant.
+
+A weighted column or row is given its share of what the parent offered, and its
+cells are offered that share. A `Content` one keeps the axis withheld, because
+its extent comes from those cells and offering it back would close a cycle.
 """
 @document struct GridLayout <: LayoutDocument
     children::CellVector
@@ -172,7 +190,10 @@ of `w` across children in that column; row heights are the max of
     horizontal_gap::Int
     vertical_gap::Int
     column_align::Any        # Vector{Symbol}; empty ⇒ use horizontal_align for every column
-    column_stretch::Any      # Vector{Int} weights; empty/all-zero ⇒ content-sized columns
+    column_policy::Any       # SizePolicy — what every column is
+    row_policy::Any          # SizePolicy — what every row is
+    column_policies::Any     # Vector{SizePolicy} — the columns that differ
+    row_policies::Any        # Vector{SizePolicy} — the rows that differ
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -181,13 +202,18 @@ function GridLayout(children::Vector, columns::Integer;
                     horizontal_gap::Integer=0,
                     vertical_gap::Integer=0,
                     column_align=Symbol[],
-                    column_stretch=Int[])
+                    column_policy::SizePolicy=Content,
+                    row_policy::SizePolicy=Content,
+                    column_policies=Any[],
+                    row_policies=Any[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
                Cell(horizontal_align), Cell(vertical_align),
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
-               Cell(collect(column_align)), Cell(Int[Int(s) for s in column_stretch]),
+               Cell(collect(column_align)),
+               Cell(column_policy), Cell(row_policy),
+               Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                Cell(nothing))
 end
 
@@ -198,7 +224,7 @@ A two-column form (Qt's `QFormLayout`): each `row` is a `(label, field)` pair of
 **documents** (wrap text labels in `WidgetLabel`). The label column hugs (its
 width = the widest label) and is `label_align`-aligned; the field column fills the
 available width. Sugar over `GridLayout(2; column_align=[label_align, :left],
-column_stretch=[0, 1])` — see the column-stretch generalization there.
+column_policies=[Content, Fill])` — see the column policies there.
 """
 function FormLayout(rows::Vector;
                     label_align::Symbol=:right,
@@ -212,7 +238,7 @@ function FormLayout(rows::Vector;
     end
     GridLayout(children, 2;
                horizontal_gap=horizontal_gap, vertical_gap=vertical_gap,
-               column_align=[label_align, :left], column_stretch=[0, 1])
+               column_align=[label_align, :left], column_policies=Any[Content, Fill])
 end
 
 # ── FlowLayout ──────────────────────────────────────────────────────────────
