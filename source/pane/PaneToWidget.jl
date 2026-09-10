@@ -490,11 +490,13 @@ read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
 # `sizes` be written, so they still hold what was measured at the first grab. A
 # second drag would anchor on those, and the splitter would jump back to where the
 # first one started. Clearing them makes the widget re-measure what is on screen.
-read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+read_intent(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
             operation::StartSplitterDragOperation) =
-    CompoundOperation(Any[
-        ReplaceReferencedValueOperation(operation.split, "sizes", CellVector()),
-        operation])
+    _pane_node_for(iomap, operation.split) isa PaneSplit ?
+        CompoundOperation(Any[
+            ReplaceReferencedValueOperation(operation.split, "sizes", CellVector()),
+            operation]) :
+        operation      # a split a tab's content built: it keeps its own sizes
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
 
@@ -599,7 +601,11 @@ end
 function _read_resize(tree::PaneTree, iomap::PaneTreeToWidgetIoMap,
                       operation::ResizeSplitPaneOperation)
     split = _pane_node_for(iomap, operation.split)
-    split isa PaneSplit || return nothing
+    # Not one of the tree's own splits: it is a split a tab's content built, and
+    # the widget layer answers it itself. Pass it on unchanged. Dropping it here
+    # killed every drag of a splitter inside a pane — the grab started and the
+    # first motion went nowhere.
+    split isa PaneSplit || return operation
     widget = operation.split
     k = operation.splitter_index
     n = length(split.elements)

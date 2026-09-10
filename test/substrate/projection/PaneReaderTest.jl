@@ -235,13 +235,21 @@ end
     @test pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
 end
 
-@testset "a drag on a split pane this tree did not print is declined" begin
+@testset "a drag on a split pane this tree did not print passes through" begin
     tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
     stage = RecursiveProjection(PaneToWidget())
     iomap = print_document(stage, tree)
     stranger = WidgetSplitPane(:horizontal, Any[])
-    @test read_intent(stage, iomap,
-                      ResizeSplitPaneOperation(stranger, 1, 10, 10)) === nothing
+    op = ResizeSplitPaneOperation(stranger, 1, 10, 10)
+    # The tree has nothing to add: it does not turn a foreign split's resize into
+    # a pane weight, and the operation carries its own document, so applying it is
+    # the widget layer's business.
+    #
+    # It must not swallow it either. A split a tab's content built is exactly this
+    # case — the assistant's transcript above its composer — and answering
+    # `nothing` killed the drag: the grab started and the first motion went
+    # nowhere.
+    @test read_intent(stage, iomap, op) === op
 end
 
 end # testset
