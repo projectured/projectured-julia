@@ -2303,11 +2303,20 @@ _split_inner(elem) = elem isa LayoutConstraint ? elem.child : elem
 # Wrap a child canvas at the (x, y) given by two cells — same shape used
 # by the layout projections; local copy here to avoid a circular import
 # from LayoutToGraphics into this module.
-function _wrap_child_canvas(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell)
-    GraphicsCanvas(x_cell, y_cell,
-                   Cell(Int32(0)), Cell(Int32(0)),
-                   CellVector(Cell[Cell(child)]),
-                   layout_none, true, Cell(nothing))
+# A split's slot. The split hands the child a main-axis extent it computed, so it
+# clips that axis to what it handed out (§3b of layout-rules.md) — otherwise a
+# child too big for its slot draws across its neighbour and past the splitter.
+# The cross axis is clipped only when the split was offered one; an axis it
+# withholds has nothing to clip against.
+function _wrap_child_canvas(child::GraphicsCanvas, x_cell::Cell, y_cell::Cell,
+                            w::Int, h::Int)
+    GraphicsViewport(x_cell, y_cell, Cell(Int32(max(0, w))), Cell(Int32(max(0, h))),
+                     Cell(GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+                                         Cell(Int32(0)), Cell(Int32(0)),
+                                         CellVector(Cell[Cell(child)]),
+                                         layout_none, true, Cell(nothing))),
+                     Cell(affine_identity),
+                     Cell(nothing))
 end
 
 """
@@ -2365,6 +2374,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     avail_w = ctx.available_width
     avail_h = ctx.available_height
     avail_main = main_axis === :x ? avail_w : avail_h
+    avail_cross = main_axis === :x ? avail_h : avail_w
 
     # Per-slot main-axis size (Cell). When the parent gave us an allocation
     # on the main axis, the slot is the per-child share of that allocation;
@@ -2533,12 +2543,19 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # the pane's cross dimension instead of overflowing on a fixed length.
     outer_elements = ComputedCellVector(function ()
         result = Any[]
+        cross_extent = Int(outer_cross[])
         for i in 1:n
             cim = inner_iomaps[i]
             cim.output isa GraphicsCanvas || continue
-            push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i]))
+            slot = Int(slot_main[i][])
+            reach_w, reach_h = graphics_size(cim.output)
+            cross = avail_cross === nothing ?
+                    Int(main_axis === :x ? reach_h : reach_w) : cross_extent
+            clip_w = main_axis === :x ? slot : cross
+            clip_h = main_axis === :x ? cross : slot
+            push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i],
+                                             clip_w, clip_h))
         end
-        cross_extent = Int(outer_cross[])
         if main_axis === :x
             cursor = cox
             for i in 1:(n-1)
