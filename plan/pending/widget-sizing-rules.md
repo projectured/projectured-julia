@@ -205,7 +205,11 @@ Each step keeps the images green before the next begins.
 
    `GridLayout`, `FlowLayout` and `StackLayout` do not carry a default yet: they
    allocate differently and none of them is in the conversation's path. They
-   follow when a case needs them.
+   follow when a case needs them. **`GridLayout`'s case arrived** — the run table
+   of the campaign runner — and it is
+   [table-columns-rows-and-frozen-headers.md](table-columns-rows-and-frozen-headers.md),
+   which also completes step 3 for the grid: it offers its cells an extent it
+   will not give them.
 
    **The instrument earned its place here.** Two new fields changed the
    all-positional arity of both stacks from four to six, and four call sites
