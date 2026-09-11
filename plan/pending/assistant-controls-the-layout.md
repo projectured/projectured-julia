@@ -2,21 +2,26 @@
 
 **Status:** pending. Written 2026-09-12. No step is implemented.
 
-**Goal:** a language model reads the window, says what arrangement it wants, and
-the window takes it. The model says it in one call, and it never names a document
-type or a tree path.
+**Goal:** a language model reads the window as a Julia program, and changes it by
+naming a reference and a new value. It writes the document types, because the
+document types are what a layout is.
 
-**Asked for by:** the user, 2026-09-12:
+**Asked for by:** the user, 2026-09-12. First the question:
 
 > Let's figure out how could we allow the AI to freely and effectively control
 > the layout of the user interface? It should be capable of understanding what's
 > displayed, at least to some degree. For example, pane groups, panes, runners,
 > running simulations, assistants, result tables, plots. […] The AI should be
-> able to use layouts in panes to control positioning and size. For example, one
-> API to query the window contents to known where large user interface
-> components sit, then another to rearrange them using their references. This
-> latter one may be a simple replace operation. The former I don't know. Why
-> other idea, how to allow the AI to control layout and nesting?
+> able to use layouts in panes to control positioning and size.
+
+Then the shape of the answer:
+
+> I would rather print the tree as a Julia construction and let the agent to
+> apply a change by specifying changes by reference. If the user moves something
+> while the agent acts, the operation may fail, but that's ok for now. Replace
+> range by reference, can also use new constructors for layouts.
+
+> The reference macro should be used.
 
 Result tables and plots come from
 [result-frames-browsed-and-plotted.md](../../../omnet-julia/plan/pending/result-frames-browsed-and-plotted.md).
@@ -24,132 +29,191 @@ This plan places them; it does not build them.
 
 ## 1. What exists now
 
-Most of the machinery is built. The model can not reach any of it.
+Almost all of it. The model can not reach any of it.
 
 | part | where | state |
 | --- | --- | --- |
-| the layout itself, as a document | [PaneDocument.jl](../../source/pane/PaneDocument.jl) | **done**. `PaneTree` → `PaneSplit` / `PaneGroup` / `PaneTab`, with an orientation and one weight per child. |
-| every layout edit, as an operation | [PaneSurgery.jl](../../source/pane/PaneSurgery.jl) | **done**. Open, close, split, move a tab, drop a tab into a split, resize, focus. |
-| a walk over the groups | `pane_groups`, `pane_parent`, [PaneDocument.jl](../../source/pane/PaneDocument.jl) | **done**. |
-| a layout inside one pane | [LayoutDocument.jl](../../source/layout/LayoutDocument.jl) | **done**. `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout`, `StackLayout`, `ConstraintLayout`. Each holds a `CellVector` of **arbitrary documents**. |
-| a size policy per cell | `SizePolicy`, `Fixed`, `Content`, `Relative`, `Fill` | **done**. Landed with the widget sizing rules. |
-| a layout drawn | [LayoutToGraphics.jl](../../source/layout/LayoutToGraphics.jl), [WidgetToGraphics.jl:6749](../../source/widget/WidgetToGraphics.jl#L6749) | **done**, and each one reads gestures back. |
-| a tab opened by a verb | `open_simulation_pane!`, [SimulationWindow.jl:99](../../../omnet-julia/source/legacy/simulator/presentation/SimulationWindow.jl#L99) | **done**. It takes any document, and it makes the title unique. |
-| the assistant's verbs | [CampaignAgent.jl](../../../omnet-julia/source/ide/CampaignAgent.jl) | six verbs. One, `list_panes`, answers a flat list of titles and nothing about where they sit. |
-| a verb that reads the arrangement | — | **missing**. |
-| a verb that writes the arrangement | — | **missing**. |
+| the layout, as a document | [PaneDocument.jl](../../source/pane/PaneDocument.jl) | **done**. `PaneTree` → `PaneSplit` / `PaneGroup` / `PaneTab`, with an orientation and one weight per child. |
+| a layout inside one pane | [LayoutDocument.jl](../../source/layout/LayoutDocument.jl) | **done**. `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout`, `StackLayout`, `ConstraintLayout`, each over a `CellVector` of **arbitrary documents**. |
+| a size policy per cell | `SizePolicy`, `Fixed`, `Content`, `Relative`, `Fill` | **done**. It landed with the widget sizing rules. |
+| a layout drawn, and read back | [LayoutToGraphics.jl](../../source/layout/LayoutToGraphics.jl), [WidgetToGraphics.jl:6749](../../source/widget/WidgetToGraphics.jl#L6749) | **done**. Every layout has a `print_document` and a `read_intent`. |
+| **a replace by reference** | `ReplaceReferencedValueOperation`, [Operations.jl:220](../../source/kernel/operation/Operations.jl#L220) | **done**. |
+| **a replace of a range by reference** | the same operation, with a `RangeReferenceStep` terminal | **done**. It is the kernel's own primitive: `insert_elements` is a zero-width range, and `delete_elements` is a range replaced by an empty vector ([Operations.jl:296](../../source/kernel/operation/Operations.jl#L296)). |
+| **the reference macro** | `@reference`, [ReferenceBuilder.jl](../../source/kernel/reference/ReferenceBuilder.jl) | **done**, and `ReferenceModule` exports it ([ReferenceModule.jl:106](../../source/kernel/reference/ReferenceModule.jl#L106)). |
+| a macro in the model's namespace | [CodeExecution.jl:77](../../source/kernel/tool/CodeExecution.jl#L77) | **done**. The declared-api branch does `using M: <every exported name>`, and an exported macro is one of them. |
+| a pane edit applied | `apply_pane_operation!`, [SimulationWindow.jl:76](../../../omnet-julia/source/legacy/simulator/presentation/SimulationWindow.jl#L76) | **done**. It evaluates the operation against a host whose `document` is the tree. |
+| a verb that prints the tree | — | **missing**. |
+| a verb that reads one node | — | **missing**. |
+| a verb that writes by reference | — | **missing**. |
 
-Two facts from that table decide the shape of the work.
+So the work is three verbs, one module that exports the right names, and a way
+for a content to say what it is.
 
-**A title is already an address.** `open_simulation_pane!` makes each title unique
-in the window, so a title names one pane. The model already holds titles, because
-`run_simulations` answers one.
+## 2. The three levels of a layout, and the one verb
 
-**A pane holds any document, and a layout is a document.** So a pane can already
-hold four plots in a grid. Nothing new is needed for that but a verb that says so.
+The word "layout" names three things here.
 
-## 2. The three levels of a layout
+| level | the document | what it gives |
+| --- | --- | --- |
+| the screen | `ScreenDocument`, [source/screen/](../../source/screen/) | more than one window. Out of scope, see §8. |
+| the window | `PaneTree`, `PaneSplit`, `PaneGroup` | a splitter the person can drag, and a tab strip per group |
+| inside a pane | `GridLayout` and the other layout documents | a grid of contents, with no tab strip and no drag |
 
-The word "layout" names three different things here, and a verb must say which.
+The two lower levels are both needed, and they are not the same act. Four sets of
+runs belong in four tabs of one group, because a person watches one at a time.
+Four plots of one study belong in one pane, in a grid, because a person compares
+them and all four must be on screen at once.
 
-| level | the document | what it gives | what it costs |
-| --- | --- | --- | --- |
-| the screen | `ScreenDocument`, [source/screen/](../../source/screen/) | more than one window | out of scope, see §8 |
-| the window | `PaneTree`, `PaneSplit`, `PaneGroup` | a splitter the person can drag, and a tab strip per group | a tab strip per leaf |
-| inside a pane | `GridLayout` and the other layout documents | a grid of contents, no tab strips | the person can not drag it apart |
-
-The two lower levels are both needed, and they are not the same act:
-
-- **Four sets of runs** belong in four tabs of one group. A person watches one at
-  a time, and the tab strip is how they switch.
-- **Four plots of one study** belong in one pane, in a two-by-two grid. A person
-  compares them, so all four must be on screen at once, and one tab strip over
-  the four is right where four strips are noise.
-
-So the model must be able to say both. §4.6 says how it says them with the same
-words.
+**One verb reaches all three.** A replace at `root` rearranges the window; a
+replace at `root.elements[1].tabs[1].content` puts a `GridLayout` inside a pane.
+The level is the reference, not the verb.
 
 ## 3. The shape of the answer
 
-Five verbs and three combinators, in a new `PaneAgentModule`. The assembly adds
-the module to the `api` list that `declare_api!` takes.
-
 ```julia
-show_layout(editor)                             -> String   # the picture
-arrange(editor, description)                    -> String   # the picture, after
-move_pane(editor; pane, next_to, side)          -> String   # the picture, after
-focus_pane(editor; pane)                        -> String
-close_pane(editor; pane)                        -> String   # the picture, after
-
-beside(children...)    # side by side, left to right
-above(children...)     # one over the other, top down
-tabbed(panes...)       # tabs of one group
+show_layout(editor)                  -> String    # the window, as a Julia program
+node_at(editor, reference)           -> Document  # the node the reference names
+replace_at(editor, reference, value) -> String    # the write; answers the new program
 ```
 
-A child of a combinator is a title, another combinator, or a `title => fraction`
-pair that states the share of the axis. That is the whole grammar.
+The model writes `@reference(…)` for the reference and a constructor for the
+value. It needs nothing else.
 
 ## 4. Decisions
 
-### 4.1 The model names a pane, and nothing else
+### 4.1 The read is a program that rebuilds the window
 
-A pane is the only thing that has a name. A group, a split and a weight have
-none — a combinator makes them.
+`show_layout` prints the tree as Julia. Each pane gets a name, and the comment on
+its line says what it holds. The last statement is the `replace_at` call that
+produces the window as it stands.
 
-This is the decision that keeps the surface small. The alternatives each add an
-address space the model must keep straight:
+```julia
+runner      = node_at(editor, @reference(root.elements[1].tabs[1]))              # Runner — the run form
+assistant   = node_at(editor, @reference(root.elements[2].elements[1].tabs[1]))  # Assistant — this conversation (focused)
+tandem_runs = node_at(editor, @reference(root.elements[2].elements[2].tabs[1]))  # Tandem runs — 18 runs: 12 done, 6 running
+delay_table = node_at(editor, @reference(root.elements[2].elements[2].tabs[2]))  # delay table — a result table, 4200 rows
 
-| address | why not |
-| --- | --- |
-| a path, `root.elements[2].tabs[3]` | It is the tree's own vocabulary and it is exact. It goes stale at the first edit, and a stale path names a **different** pane rather than no pane, so a wrong move is silent. |
-| a number minted per query | The same staleness, and it needs a table that outlives the call. |
-| a word for a place, "the left group" | Two groups can both be on the left. |
-
-A title goes stale only when a person renames the tab, and then it names nothing
-rather than the wrong thing. A verb that finds no such title answers the list of
-titles, so the next round is right.
-
-**Two panes can carry one title** when a person renames one by hand. A verb that
-matches two refuses and says so.
-
-### 4.2 The picture ends with the call that reproduces it
-
-`show_layout` answers a picture, and the last line of the picture is the
-`arrange` call that makes that same layout. For example:
-
-```
-The window shows 4 panes. A star marks the one that has the focus.
-
-side by side
-  30%   Runner                          the run form
-  70%   one above the other
-          60%   tab   Assistant *       this conversation
-          40%   tab   Tandem runs       18 runs: 12 done, 6 running
-                tab   delay table       a result table, 4200 rows
-
-This layout is:
-  arrange(editor, beside("Runner" => 0.3,
-                         above(tabbed("Assistant") => 0.6,
-                               tabbed("Tandem runs", "delay table") => 0.4)))
+replace_at(editor, @reference(root),
+    PaneSplit(:vertical, [
+        PaneGroup([runner]),
+        PaneSplit(:horizontal, [
+            PaneGroup([assistant]),
+            PaneGroup([tandem_runs, delay_table])], weights = [0.6, 0.4])],
+        weights = [0.3, 0.7]))
 ```
 
-**This is the main lever of the design.** A model does not learn the grammar from
-a docstring and then write it blind. It reads the current window written in the
-grammar, and it edits that text. To move the table beside the plot, it moves one
-word. The grammar is taught by an example that is true right now.
+Three properties make this the whole of the design.
 
-Two rules follow from it:
+**It runs.** Paste it back unchanged and the window does not move. So a model
+that wants a change edits the text it was given: it swaps two names, changes a
+weight, or wraps two panes in one `PaneGroup`. It does not compose a program from
+a docstring.
 
-1. **Every verb that changes the window answers the new picture.** A model that
-   acts therefore perceives, in the same round, at no extra call.
-2. **The printer and the parser must agree exactly.** A round trip test asserts
-   it: print the picture, run the call it names, print again, and the two
-   pictures are equal. §6 stage A.
+**It teaches the grammar by an example that is true right now.** The model never
+learns `@reference` or `PaneSplit` in the abstract. It reads them written about
+the window in front of it.
 
-### 4.3 A content says what it is, through a method table
+**It keeps identity.** Each name binds the *existing* `PaneTab` object, so the
+tree that is written holds the same tabs. The iomap under each content survives
+and no content re-prints. A fresh `PaneGroup` or `PaneSplit` is cheap; a fresh
+content is not.
 
-The picture's right-hand column says what each pane holds. The pane package can
-not know a `SimulationBatchDocument` or an `Assistant`, so it asks:
+The preamble binds tabs, not groups, because a tab is what a person moves. A
+model that wants to keep a whole group writes `node_at` for it in the same form.
+
+**A name comes from the title**, cut down to a Julia identifier and made unique.
+A title is the person's word for the pane, so the program reads as the person
+thinks. The name carries no meaning to the verb: the reference does.
+
+### 4.2 The address is a reference, written with `@reference`
+
+The model writes `@reference(root.elements[2].tabs[1])`. This is the kernel's own
+path grammar, parsed by
+[ReferenceSyntax.jl](../../source/kernel/reference/ReferenceSyntax.jl) and lowered
+by [ReferenceBuilder.jl](../../source/kernel/reference/ReferenceBuilder.jl).
+
+**Nothing new is built for this.** The macro exists, it is exported, and the
+scratch namespace imports exported macros. A string address with a runtime parser
+was considered and is not needed: it would be a second spelling of a grammar that
+already has one, and one meaning per word is the rule.
+
+The reference is rooted at the **pane tree**, not at `editor.document`. A live
+editor holds a `ScreenDocument` and a headless caller holds the tree, so an
+address that started at the editor would differ between the two. Both verbs
+resolve against the tree, the way `apply_pane_operation!` already does with its
+`PaneHost`. `root` is therefore the tree's own field, in both cases.
+
+### 4.3 The write is `ReplaceReferencedValueOperation`, and a range is a terminal step
+
+`replace_at(editor, reference, value)` builds one
+`ReplaceReferencedValueOperation` and evaluates it against the tree. That is the
+whole verb.
+
+A reference whose last step is a range splices, which is the user's "replace
+range by reference". The kernel already writes every collection edit that way:
+
+| intent | reference | value |
+| --- | --- | --- |
+| replace one node | `root.elements[2]` | the new node |
+| replace a run of tabs | `root.elements[1].tabs[1, 3]` | a vector of tabs |
+| insert before tab 2 | `root.elements[1].tabs[1, 1]` | a vector of tabs |
+| delete tabs 2 and 3 | `root.elements[1].tabs[1, 3]` | `[]` |
+| put a layout in a pane | `root.elements[1].tabs[1].content` | `GridLayout([…], 2)` |
+
+**A range is 0-based and half-open; an index is 1-based.** `tabs[2]` is the
+second tab, and `tabs[1, 2]` is the same tab as a range of one. This is what
+`RangeReferenceStep` means to `insert_elements` and `delete_elements`, and the
+macro lowers the two spellings without changing either. It is the sharpest edge
+in this surface. §7 says how it is guarded.
+
+**A whole-node replace is the normal path, and it needs no index arithmetic.** To
+drop a tab, the model writes the group again without it. The range form is there
+for the case a whole-node replace is wasteful — one insert into a long list.
+
+**An operation means undo.** The person presses undo once and the layout is back.
+That is the whole safety story for a model that rearranges a window, and it comes
+free from the write being an operation rather than a field assignment.
+
+### 4.4 A stale reference fails, and it fails loudly
+
+The user settled this: *"If the user moves something while the agent acts, the
+operation may fail, but that's ok for now."*
+
+So no locking, no version check, and no repair. But a failure must be a failure,
+not a wrong write. Three cheap guards make it one:
+
+1. `node_at` throws when the path resolves to nothing, naming the path.
+2. `replace_at` refuses a range whose bounds fall outside the collection, and
+   says how long the collection is.
+3. `replace_at` refuses a value whose type can not sit in that slot — a
+   `PaneTab` where an element of a split belongs.
+
+A model that reads a fresh `show_layout` in the same round is almost never stale,
+because the program it edits was printed for it in that round.
+
+### 4.5 The focus, and the tab each group shows
+
+Focus is the selection, and the selection is a path into the tree the write
+replaced. Two rules follow, and they are the two traps of this plan. Both are
+stated in [PaneDocument.jl](../../source/pane/PaneDocument.jl), under "Focus is
+the selection" and "Dormant selections".
+
+1. **`replace_at` repairs the focus.** It finds the focused `PaneTab` object
+   before the write, looks for that same object in the tree after it, and writes
+   a selection naming it where it now sits. When the object is gone, the focus
+   goes to the first tab.
+2. **A new group shows the tab it should show.** A fresh `PaneGroup` carries no
+   selection, so it shows its first tab. A group whose tabs the model listed in a
+   new order would therefore jump. `replace_at` gives each new group the
+   selection of the tab that group's tabs were shown under, when exactly one of
+   them was shown.
+
+Both are a service of the verb. The model is never told about them.
+
+### 4.6 A content says what it is, through a method table
+
+The comments of §4.1 need one line per content, and the pane package can not know
+a `SimulationBatchDocument` or an `Assistant`. So it asks:
 
 ```julia
 pane_content_description(content) -> String
@@ -164,179 +228,93 @@ pane_content_description(::Assistant) = "this conversation"
 pane_content_description(b::SimulationBatchDocument) = _live_sentence(b)
 ```
 
-This is a method table, not a registry. Nothing registers itself and nothing is
-mutable: a package that is loaded has its methods, and a package that is not
-loaded has no document to describe. A `nothing` content answers "empty".
+This is a method table, not a registry. Nothing registers itself: a package that
+is loaded has its methods, and a package that is not loaded has no document to
+describe.
 
-**A description is one short line and it says what changes.** "18 runs: 12 done,
+**A description is one short line, and it says what changes.** "18 runs: 12 done,
 6 running" tells the model the set is not finished, which is the fact it needs
 next. "a SimulationBatchDocument" tells it nothing.
 
-### 4.4 A write is a reconcile, and it ends in one replace
+### 4.7 One module exports exactly what the model may write
 
-`arrange` does not edit the tree step by step. It builds the tree the description
-names and writes it at `tree.root`, with one `ReplaceReferencedValueOperation`.
-The user said the write "may be a simple replace operation". It is.
+`declare_api!` takes modules, and the scratch namespace imports **a declared
+module's own exported names, and not the names of the submodules it reaches**
+([CodeExecution.jl:71](../../source/kernel/tool/CodeExecution.jl#L71)). So the
+surface is a decision a person writes down, which is what that comment says.
 
-Three rules make the replace safe:
+A new `PaneAgentModule` is that decision. It exports:
 
-1. **Every `PaneTab` object is carried over by identity.** The tree that is
-   written holds the *same* tab objects, so the iomap under each content
-   survives and no content re-prints. This is the rule
-   [PaneSurgery.jl](../../source/pane/PaneSurgery.jl) already states about
-   itself. A fresh `PaneGroup` or `PaneSplit` is cheap; a fresh content is not.
-2. **The focus is written in the same operation.** Focus is the selection, and
-   the selection is a path into the tree that is replaced. So the operation is a
-   `CompoundOperation`: the root write, and a `ReplaceSelectionOperation` that
-   names the focused tab where it now sits. Leave this out and the focus lands
-   on whatever the old path now reaches.
-3. **Each new group is given the selection of the tab it must show.** A group
-   shows the tab its own selection names, and a fresh group has none, so it
-   would show its first tab. Every group whose shown tab is still in it must
-   keep showing that tab.
+- the three verbs, `show_layout`, `node_at`, `replace_at`;
+- `@reference`, re-exported from `ReferenceModule`;
+- the constructors the model writes: `PaneSplit`, `PaneGroup`, `PaneTab`, and
+  `HorizontalLayout`, `VerticalLayout`, `GridLayout`, `FlowLayout`,
+  `StackLayout`, with `SizePolicy`, `Fixed`, `Content`, `Relative` and `Fill`.
 
-Rules 2 and 3 are the two traps of this plan. Both are stated in
-[PaneDocument.jl](../../source/pane/PaneDocument.jl) under "Focus is the
-selection" and "Dormant selections", and both are easy to miss.
+**`LayoutModule` exports none of its layout types today.** Its export list names
+`LayoutDocument`, `FormLayout`, `SizePolicy`, `Fixed`, `Content`, `Relative`,
+`Fill` and the anchored kinds, and reaches `GridLayout` only as
+`LayoutModule.GridLayout` ([LayoutDocument.jl:22](../../source/layout/LayoutDocument.jl#L22)).
+`PaneAgentModule` re-exports them. Whether `LayoutModule` should export them too
+is a separate question and not this plan's.
 
-**An operation means undo.** The person presses undo once and the old layout is
-back. This is the whole safety story for a model that rearranges the window, and
-it comes free from the write being an operation rather than a field assignment.
+### 4.8 What is rejected, and why
 
-**A group that is unchanged can be reused** — same tabs, same order. That saves
-the tab strip a re-print. It is a refinement, not a requirement: do it in stage B
-only if the strip re-print is visible. Measure first.
+**A layout grammar of its own** — `beside(a, b)`, `above(a, b)`, `tabbed(a, b)`,
+with a pane named by its title. It reads well and it is short. It is rejected
+because it is a second vocabulary for a thing the repository already has a
+vocabulary for: `PaneSplit(:vertical, …)` says `beside` exactly, to the document
+that means it. A title is also a weaker address than a reference — a person
+renames a tab, and two panes can carry one title.
 
-### 4.5 `arrange` never closes a pane
+**A picture in prose**, with a number per node. A number is minted per query, so
+it goes stale the same way a path does, and it needs a table that outlives the
+call. A path needs nothing and is already the system's word.
 
-A description that leaves a pane out is **refused**, and the refusal names the
-panes it left out.
-
-The alternatives are both worse:
-
-- **Close the panes that are not named.** A model that forgets the Runner
-  destroys it. The damage is silent and the person's work is gone.
-- **Keep them somewhere.** Then `arrange` does not say what the layout is, and
-  the model must guess where the extras went.
-
-A refusal costs one round and the message says exactly what to add, so the retry
-is right. To close a pane, the model calls `close_pane`, which is a different
-word for a different intent.
-
-`arrange` also refuses a description that names one pane twice, or a name no pane
-carries.
-
-### 4.6 Inside a pane: the same words, a different document
-
-The combinators build a description, not a tree. So the same description reaches
-two destinations:
-
-| destination | a combinator becomes | a leaf is |
-| --- | --- | --- |
-| the window | `PaneSplit` / `PaneGroup` | a pane, by title |
-| one pane | `HorizontalLayout` / `VerticalLayout` / `GridLayout` | a content document |
-
-```julia
-# the window
-arrange(editor, beside("Runner" => 0.3, "Assistant" => 0.7))
-
-# one pane, holding four plots in two rows of two
-open_pane(editor; title = "delay study",
-          content = above(beside(p1, p2), beside(p3, p4)))
-```
-
-A fraction becomes a split weight in the window, and a `Relative(w)` policy
-inside a pane. `Fill` and `Content` are what a leaf takes when no fraction is
-given, which is what the widget sizing rules already say.
-
-**`open_pane` is not in the first stages.** It needs contents worth placing, and
-those are plots and result tables from the other plan. Stage D adds it after that
-plan lands. The combinators are built in stage A either way, because the window
-needs them.
-
-### 4.7 What is rejected, and why
-
-**The model writes the document itself.** `execute_julia_code` can already
-evaluate `editor.document.root = PaneSplit(...)`. It needs no new API at all, and
-it is the most free of every option. It is rejected for four reasons: it is not
-an operation, so there is no undo; it rebuilds subtrees, so every tab re-prints
-and the iomaps drop; it leaves the selection pointing into a tree that is gone;
-and it makes the model name document types, which
-[CampaignAgent.jl](../../../omnet-julia/source/ide/CampaignAgent.jl) already
-found to be the thing a model gets wrong. Freedom that costs correctness is not
-control.
-
-**A layout string, `"[Runner | [Assistant / runs]]"`.** It is compact and it
-needs a grammar, a parser and error messages of its own. The combinators are
-Julia, which the model already writes, and they need none of the three.
-
-**Incremental verbs only** — split this group, move that tab, resize this
-splitter. This is what `PaneSurgery` gives, and it is the most faithful to what a
-person does with a mouse. A model driving it needs one round per step and must
-hold the shape of the tree in its head between rounds. `move_pane` keeps the one
-case where a single step is the whole intent.
-
-**A gesture replay** — the model emits the drags a person would. It is exact and
-it is unaimable.
+**A field assignment**, `editor.document.root = PaneSplit(…)`. It is what the
+model could do today inside `execute_julia_code`. It is not an operation, so
+there is no undo, the selection is left pointing into a tree that is gone, and
+nothing checks the write. `replace_at` is the same freedom with those three
+fixed.
 
 **A screenshot.** The window renders to an image already, so a vision model could
 read the screen literally, and that is the only way to know how a thing *looks*.
-It is not the way to know *where things sit*: the picture of §4.2 says that in 80
-tokens, exactly, and a local model with no vision can read it. Keep the
-screenshot for a later question — "does this chart read well?" — which is a
-different question from this plan's.
+It is not the way to know where things sit: the program of §4.1 says that
+exactly, and a local model with no vision can read it. Keep the screenshot for a
+later question — "does this chart read well?" — which is a different question.
 
-## 5. The verbs
-
-Each one takes the editor first and everything else as a keyword of a plain type,
-which is the rule
-[CampaignAgent.jl](../../../omnet-julia/source/ide/CampaignAgent.jl) states.
-
-| verb | what it does |
-| --- | --- |
-| `show_layout(editor)` | Answer the picture of §4.2. |
-| `arrange(editor, description)` | Make the window match `description`. Answer the new picture. Refuse a description that omits, repeats or invents a pane. |
-| `move_pane(editor; pane, next_to, side)` | Move one pane. `side` is `"left"`, `"right"`, `"above"`, `"below"` or `"tab"`. Answer the new picture. |
-| `focus_pane(editor; pane)` | Show that pane and give it the focus. |
-| `close_pane(editor; pane)` | Close one pane. Answer the new picture. |
-
-`move_pane` exists because `arrange` restates the whole window, and a window of
-ten panes is ten names the model must repeat to move one. It is
-`pane_move_tab_operation` and `pane_drop_split_operation`, which already exist,
-behind one name.
-
-## 6. Stages
+## 5. Stages
 
 ### Stage A — the model reads the window
 
 1. `pane_content_description` and its default method, in
    [PaneDocument.jl](../../source/pane/PaneDocument.jl).
-2. The picture printer, in a new `source/pane/PaneAgent.jl`.
-3. `beside`, `above`, `tabbed`, and the `PaneArrangement` struct they build. It
-   holds a kind, a list of children and a list of fractions. It holds no
-   document.
-4. The parser is Julia: the model's own `arrange(editor, beside(…))` call.
-5. `show_layout`.
+2. `PaneAgentModule`, in a new `source/pane/PaneAgent.jl`, with the exports of
+   §4.7.
+3. `node_at`, over `evaluate_reference` against the tree.
+4. The printer for §4.1: the preamble, the construction, and the comments.
 
-**Test.** Build a known tree by hand, print it, and assert the string. Then the
-round trip: run the call the last line names, print again, assert the two
-pictures are equal. No model is needed for either.
+**Test.** Build a known tree by hand and assert the printed program, string for
+string. Then the round trip, which is the property that matters: evaluate the
+program it printed, print the new tree, and assert the two programs are equal.
+Neither test needs a model.
 
 ### Stage B — the model writes the window
 
-1. `arrange`, as §4.4 says: resolve the titles, carry the tab objects over by
-   identity, build the new root, write it with the focus and the per-group
-   selections in one `CompoundOperation`.
-2. The three refusals of §4.5.
-3. `move_pane`, `focus_pane`, `close_pane` over the existing surgery.
+1. `replace_at`: build the operation, evaluate it against the tree, answer the
+   new program.
+2. The three refusals of §4.4.
+3. The focus repair and the shown-tab repair of §4.5.
 
-**Test.** Each of these is model-free, and each is one assertion:
+**Test.** Each is model-free and each is one assertion:
 
-- `arrange` moves a pane, and every `PaneTab` in the new tree is `===` the object
-  that was in the old one.
+- A whole-root replace that reorders two panes keeps every `PaneTab` object
+  `===` the object that was in the old tree.
 - The focused pane still has the focus, in its new place.
 - A group that showed its second tab still shows that tab.
-- A description that omits a pane is refused, and the message names it.
+- A range replace deletes the tab the range names, and only that tab.
+- A range whose bounds are outside the collection is refused, and the message
+  says how long the collection is.
 - One undo restores the layout that was there before.
 
 ### Stage C — the assistant reaches the verbs
@@ -344,64 +322,78 @@ pictures are equal. No model is needed for either.
 1. `OmnetCampaignUi` adds `PaneAgentModule` to the `api` list it hands to
    `run_campaign_window`. That list is the decision §5.3 of the result-frames
    plan already made.
-2. `CAMPAIGN_SYSTEM` gains one sentence: the window's layout is the model's to
-   change, and `show_layout` says what it is now.
+2. `CAMPAIGN_SYSTEM` gains two sentences: the window's layout is the model's to
+   change, and `show_layout` prints it as a program to edit.
 3. `list_panes` is dropped. `show_layout` answers what it answered and more.
 
-**Test.** The headless two-turn run the campaign agent tests already use: a
-person types "put the runs next to the runner", and the layout after it is the
-asserted one.
+**Test.** The headless two-turn run the campaign agent tests already use. A
+person types "put the runs next to the runner", and the tree after the turn is
+the asserted one.
 
 ### Stage D — a layout inside a pane
 
-Needs the result-frames plan, because it needs contents worth placing.
+This needs the result-frames plan, because it needs contents worth placing.
 
 1. Check first that a pane whose content is a `GridLayout` draws and reads. The
    row is registered at
    [WidgetToGraphics.jl:6749](../../source/widget/WidgetToGraphics.jl#L6749) and
    every layout has a `read_intent`, so this is a check, not a claim.
-2. `open_pane(editor; title, content)`, where `content` is a document or a
-   description of documents.
-3. The description compiles to `HorizontalLayout`, `VerticalLayout` or
-   `GridLayout`, and a fraction becomes `Relative(w)`.
+2. The printer prints a content that is a layout as a construction too, one level
+   deep, so the model can edit a grid the same way it edits the window.
+3. Nothing else. `replace_at` at `….content` already writes it.
 
 ### Stage E — refinements, each behind a measurement
 
-1. Reuse a group whose tabs and order did not change, so its strip does not
-   re-print. Measure the re-print first.
-2. The picture says which panes are large and which are small, in pixels, when
-   the geometry is known. [PaneGeometry.jl](../../source/pane/PaneGeometry.jl)
-   already computes it for the drag.
+1. The program says how large each pane is, in pixels.
+   [PaneGeometry.jl](../../source/pane/PaneGeometry.jl) already computes it for
+   the drag.
+2. A type checkpoint in each printed reference — `root.elements[1]::PaneGroup` —
+   so a stale path fails on the type rather than on the slot. The grammar takes
+   it today. Measure whether it earns its length first.
+
+## 6. Five verbs that are not built
+
+`move_pane`, `close_pane`, `focus_pane`, `split_pane` and `resize_pane` are each
+one line of `replace_at`, and [PaneSurgery.jl](../../source/pane/PaneSurgery.jl)
+already builds the operation behind each. They are not in this plan. Add one only
+when a measured round count says the model spends a round it should not have to.
+The surface stays at three names until then.
 
 ## 7. What can go wrong
 
 | trap | why | where it is caught |
 | --- | --- | --- |
-| The focus lands on the wrong pane. | The selection is a path into the tree that `arrange` replaced. | §4.4 rule 2; stage B test. |
-| A group shows its first tab, not the one it showed. | A fresh group has no dormant selection. | §4.4 rule 3; stage B test. |
-| Every tab re-prints and the window blinks. | A rebuilt subtree drops the iomaps under it. | §4.4 rule 1; the identity test. |
-| The model rearranges the window on every turn. | Nothing stops it. | The write is one operation, so one undo takes it back. Say so in the system prompt. |
-| A pane vanishes. | A description that omits it. | §4.5. The verb refuses. |
-| Two panes carry one title. | A person renamed one. | The verb refuses and says which. |
+| A range is read as 1-based and the wrong tab goes. | `tabs[2]` is 1-based and `tabs[1, 2]` is 0-based half-open. | §4.3. The docstring states it with both examples, and §4.4 refuses an out-of-range one. A whole-node replace is the recommended path. |
+| The focus lands on the wrong pane. | The selection is a path into the tree the write replaced. | §4.5 rule 1; the stage B test. |
+| A group shows its first tab, not the one it showed. | A fresh group has no dormant selection. | §4.5 rule 2; the stage B test. |
+| Every tab re-prints and the window blinks. | A rebuilt subtree drops the iomaps under it. | §4.1. The preamble binds the existing tab objects; the identity test asserts it. |
+| The model can not write `GridLayout`. | `LayoutModule` does not export it. | §4.7. `PaneAgentModule` re-exports it. |
+| A `ReplaceSelectionOperation` has no selection to write. | The host `apply_pane_operation!` builds carries a document and nothing else. | Stage B. Check it before the focus repair is written. |
+| The model rearranges the window every turn. | Nothing stops it. | The write is one operation, so one undo takes it back. Say so in the system prompt. |
 
 ## 8. Out of scope
 
 **More than one window.** `ScreenDocument` holds a list of windows, and the same
-two verbs extend to them: the picture gains a window per block, and `move_pane`
-gains a `window` keyword. Nothing in this plan blocks it. It waits until a person
-asks for a second window.
+three verbs extend to them: the program gains a statement per window, and the
+references gain a `windows[k].content` head. Nothing here blocks it. It waits
+until a person asks for a second window.
 
-**The size of a widget inside a content.** The widget sizing rules own that, and
-the model does not reach it. A `GridLayout` in a pane is where the model's
-control stops.
+**The size of a widget inside a content.** The widget sizing rules own that. A
+`GridLayout` in a pane is where the model's control stops.
+
+**A runtime parser for a reference string.** `@reference` is the spelling, and
+one spelling is enough. [document-locator.md](document-locator.md) is where a
+second addressing mode belongs, if one is ever wanted.
 
 ## 9. Open questions
 
 1. Does `PaneAgentModule` live in `ProjecturedPane`, where every application with
    a pane tree reaches it, or in `OmnetCampaignUi` beside `CampaignAgentModule`?
-   This plan assumes `ProjecturedPane`. Nothing in the verbs is about
+   This plan assumes `ProjecturedPane`. Nothing in the three verbs is about
    simulations.
-2. §4.5 refuses a description that omits a pane. Is that right, or must the
-   omitted panes go somewhere?
+2. §4.3 keeps the kernel's 0-based half-open range and states it. The other
+   choice is for `replace_at` to read a range as 1-based and inclusive, and
+   convert. That would make the verb's grammar differ from the macro's, which is
+   the drift this plan otherwise avoids. Keep the kernel's reading?
 3. Is stage D in this plan, or does it wait for the result-frames plan to land
    and become a stage of that one?
