@@ -105,9 +105,9 @@ CamelCase. Three suite names took the folder spelling instead.
 
 | name | file | rule broken | proposed name | confidence |
 | --- | --- | --- | --- | --- |
-| `DbcatalogSuite.jl` | [test/dbcatalog/DbcatalogSuite.jl](../../test/dbcatalog/DbcatalogSuite.jl) | "A file is named for what it defines" — `<Slice>Suite.jl` takes the CamelCase of `ProjecturedDbCatalog`. | `DbCatalogSuite.jl` | certain |
-| `FilesystemSuite.jl` | [test/filesystem/FilesystemSuite.jl](../../test/filesystem/FilesystemSuite.jl) | Same rule — the package is `ProjecturedFileSystem`. | `FileSystemSuite.jl` | certain |
-| `SequencechartSuite.jl` | [test/sequencechart/SequencechartSuite.jl](../../test/sequencechart/SequencechartSuite.jl) | Same rule — the package is `ProjecturedSequenceChart`. | `SequenceChartSuite.jl` | certain |
+| `DbcatalogSuite.jl` | [test/dbcatalog/DbCatalogSuite.jl](../../test/dbcatalog/DbCatalogSuite.jl) | "A file is named for what it defines" — `<Slice>Suite.jl` takes the CamelCase of `ProjecturedDbCatalog`. | `DbCatalogSuite.jl` | certain |
+| `FilesystemSuite.jl` | [test/filesystem/FileSystemSuite.jl](../../test/filesystem/FileSystemSuite.jl) | Same rule — the package is `ProjecturedFileSystem`. | `FileSystemSuite.jl` | certain |
+| `SequencechartSuite.jl` | [test/sequencechart/SequenceChartSuite.jl](../../test/sequencechart/SequenceChartSuite.jl) | Same rule — the package is `ProjecturedSequenceChart`. | `SequenceChartSuite.jl` | certain |
 
 Two more file names are findings that need a judgement:
 
@@ -1030,9 +1030,9 @@ These are independent of §13.3.
 
 | old path | new path | why |
 | --- | --- | --- |
-| [test/dbcatalog/DbcatalogSuite.jl](../../test/dbcatalog/DbcatalogSuite.jl) | `test/dbcatalog/DbCatalogSuite.jl` | §3.2 |
-| [test/filesystem/FilesystemSuite.jl](../../test/filesystem/FilesystemSuite.jl) | `test/filesystem/FileSystemSuite.jl` | §3.2 |
-| [test/sequencechart/SequencechartSuite.jl](../../test/sequencechart/SequencechartSuite.jl) | `test/sequencechart/SequenceChartSuite.jl` | §3.2 |
+| [test/dbcatalog/DbCatalogSuite.jl](../../test/dbcatalog/DbCatalogSuite.jl) | `test/dbcatalog/DbCatalogSuite.jl` | §3.2 |
+| [test/filesystem/FileSystemSuite.jl](../../test/filesystem/FileSystemSuite.jl) | `test/filesystem/FileSystemSuite.jl` | §3.2 |
+| [test/sequencechart/SequenceChartSuite.jl](../../test/sequencechart/SequenceChartSuite.jl) | `test/sequencechart/SequenceChartSuite.jl` | §3.2 |
 | [source/graph/omnetpp/Geometry.jl](../../source/graph/omnetpp/Geometry.jl) | `source/graph/omnetpp/LayoutGeometry.jl` | §4.2, also ends a duplicate basename |
 | [source/text/LineNumbering.jl](../../source/text/LineNumbering.jl) | `source/text/TextLineNumbering.jl` | §4.2 |
 | [source/gesturelog/GestureLogRecorder.jl](../../source/gesturelog/GestureLogRecorder.jl) | `source/gesturelog/GestureLogRecording.jl` | §7.1, the other three names already say `Recording` |

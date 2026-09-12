@@ -67,6 +67,6 @@ end
 
 include("../../../test/dbcatalog/external/DbCatalogSqlTest.jl")
 
-include("../../../test/dbcatalog/DbcatalogSuite.jl")
+include("../../../test/dbcatalog/DbCatalogSuite.jl")
 
 end # module ProjecturedDbCatalogTest

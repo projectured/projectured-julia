@@ -67,6 +67,6 @@ end
 include("../../../test/sequencechart/projection/SequenceChartGeometryTest.jl")
 include("../../../test/sequencechart/projection/SequenceChartProjectionTest.jl")
 
-include("../../../test/sequencechart/SequencechartSuite.jl")
+include("../../../test/sequencechart/SequenceChartSuite.jl")
 
 end # module ProjecturedSequenceChartTest
