@@ -701,33 +701,33 @@ end
 # Rank: exact name match > name substring > qualified-name substring; doc hits add
 # a little. The exact-name tier only applies to string keywords; a Regex still
 # scores via its name / qualified-name / doc matches.
-# **A stem may not earn a name match.** A term scores against the NAME exactly as
-# the person wrote it, and against the documentation in any of its forms. The two
-# halves want opposite things: recall in the prose, where an extra hit is cheap,
-# and precision in the name, where it is not. Measured 2026-09-13, when a stem
-# could claim a name: "stop runs" answered `run_simulations_in_conversation`
-# first and `stop_simulations` second, because `run` is a substring of almost
-# every verb there.
+# **A hit is ranked on two numbers, not one.** The name score decides first and
+# the prose score only separates entries the name could not. One number let each
+# spoil the other: with them added, a long docstring outranked the verb the person
+# named, and with the prose capped to stop that, a query matching no name at all
+# collapsed into ties that the tie-break then settled by length — "scalars delay
+# table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
 #
-# **And frequency may not outrank a name.** The documentation score is capped, so
-# a long docstring that says a word ten times cannot beat a verb that is called
-# by that word.
-const _DOC_SCORE_CAP = 5
-
+# **A stem may not earn a name match.** A term scores against the NAME exactly as
+# the person wrote it, and against the prose in any of its forms. The two halves
+# want opposite things: recall in the prose, where an extra hit is cheap, and
+# precision in the name, where it is not. Measured the same day: with a stem
+# allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
+# `stop_simulations`, because `run` is inside almost every verb of that module.
 function _api_score(groups, e::_ApiEntry, fold)
     name = fold(last(split(e.qualname, '.')))
     qualified = fold(e.qualname)
     doc  = fold(e.text)
-    s = 0
+    named = 0
+    prose = 0
     for forms in groups
         written = first(forms)
-        s += (written isa AbstractString && name == written) ? 100 :
-             occursin(written, name) ? 20 :
-             occursin(written, qualified) ? 10 : 0
-        # Any form, for the prose, counted once and bounded.
-        s += min(_DOC_SCORE_CAP, maximum(length(findall(t, doc)) for t in forms))
+        named += (written isa AbstractString && name == written) ? 100 :
+                 occursin(written, name) ? 20 :
+                 occursin(written, qualified) ? 10 : 0
+        prose += maximum(length(findall(t, doc)) for t in forms)
     end
-    s
+    (named, prose)
 end
 
 """
@@ -752,11 +752,11 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
                     api = ApiEntry[])
     patterns, fold = _matchers(query)
     isempty(patterns) && return "Provide a search query (two or more characters)."
-    scored = Tuple{Int,_ApiEntry}[]
+    scored = Tuple{Tuple{Int,Int},_ApiEntry}[]
     for e in _api_index(api)
         (kind === nothing || e.kind == kind) || continue
         s = _api_score(patterns, e, fold)
-        s > 0 && push!(scored, (s, e))
+        (s[1] > 0 || s[2] > 0) && push!(scored, (s, e))
     end
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
@@ -773,7 +773,7 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
     # `run_simulations_in_conversation` both hold every word of "run simulation",
     # and the first is what the words say; the second says them and more. Length
     # is the whole of that difference, so it is the tie-break.
-    sort!(scored; by = x -> (-x[1], length(x[2].qualname)))
+    sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
 
     # **One clear answer is answered in full.** A hit shows its signature and a
     # locator, and a model that wanted the verb then spends a whole round calling
@@ -782,8 +782,8 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
     # that round is not spent. Measured 2026-09-13: half of a turn's tool calls
     # were this lookup pair.
     best = scored[1]
-    alone = length(scored) == 1 ||
-            (best[1] >= 100 && (length(scored) == 1 || scored[2][1] < 100))
+    # One hit, or one whose NAME is exactly what was asked while no other's is.
+    alone = length(scored) == 1 || (best[1][1] >= 100 && scored[2][1][1] < 100)
     if alone && !isempty(best[2].full)
         io = IOBuffer()
         println(io, "# `$(best[2].qualname)` — the one API match for $(repr(query))\n")
