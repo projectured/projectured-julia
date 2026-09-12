@@ -63,9 +63,9 @@ decide whether this work is 178 renames or over 600.
 
 Put the cheap and wide changes first, and the ones that need a decision last.
 
-1. **The three big rulings** (§13). Answered for the getters; open for the
-   `Projection` suffix and the document modules. Nothing else settles the size
-   of the work.
+1. **The three big rulings** (§13). All three are answered. The getters take a
+   verb, the `<A>To<B>` converters stay bare, and a module is one unit of
+   architecture rather than one file, which cancels §4.1.
 2. **The naming guard** (§10), with the assertions that already pass turned on.
 3. **Module renames** (§4.1, §4.2). No `include` line changes and no `git mv`.
    717 references in code and 8 in documentation.
@@ -173,7 +173,13 @@ fixture data for a sample project under `example/filesystem/fixture/`.
 
 No two files declare the same module name. That check came back empty.
 
-### 4.1 Class A — a document file whose module drops `Document` (30 files)
+### 4.1 Class A — a document file whose module drops `Document` (30 files) — CANCELLED
+
+**The user decided on 2026-09-12 that a module is one unit of architecture, not
+one file. See [one-module-per-slice.md](one-module-per-slice.md).** Under that
+rule `JsonModule` in `JsonDocument.jl` is correct, so none of these 30 is a
+violation and none is renamed. The 717 references stay as they are. The table
+below records what the old rule would have demanded, and nothing more.
 
 The file is `<Slice>Document.jl` and the module is `<Slice>Module`. The file
 name is right, because the file declares the slice's documents, so the module
@@ -212,8 +218,8 @@ name is the one to change.
 | [source/clipboard/ClipboardDocument.jl](../../source/clipboard/ClipboardDocument.jl) | `ClipboardModule` | `ClipboardDocumentModule` | 3 |
 | [source/component/ComponentDocument.jl](../../source/component/ComponentDocument.jl) | `ComponentModule` | `ComponentDocumentModule` | 2 |
 
-§13.3 shows what the change looks like at every kind of call site, which is what
-the decision needs.
+This class is closed. [one-module-per-slice.md](one-module-per-slice.md) holds
+the decision and the reasoning.
 
 ### 4.2 Class B — the module carries a word the file name does not (13 files)
 
@@ -996,10 +1002,11 @@ them. Nothing in it is applied yet.
 Status: the 383 rows of §13.1 are still being named, one definition at a time.
 Every other table below is complete.
 
-### 14.1 Module renames — DEFERRED
+### 14.1 Module renames — CANCELLED
 
-30 module renames of §4.1 wait on the decision of §13.3. If a slice collapses to
-one module, this table disappears. Do not start it.
+The 30 module renames of §4.1 do not happen. A module is one unit of
+architecture, so `JsonModule` in `JsonDocument.jl` is the correct name. See
+[one-module-per-slice.md](one-module-per-slice.md).
 
 ### 14.2 Module renames that do not wait
 
