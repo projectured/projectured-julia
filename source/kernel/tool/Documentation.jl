@@ -701,22 +701,31 @@ end
 # Rank: exact name match > name substring > qualified-name substring; doc hits add
 # a little. The exact-name tier only applies to string keywords; a Regex still
 # scores via its name / qualified-name / doc matches.
+# **A stem may not earn a name match.** A term scores against the NAME exactly as
+# the person wrote it, and against the documentation in any of its forms. The two
+# halves want opposite things: recall in the prose, where an extra hit is cheap,
+# and precision in the name, where it is not. Measured 2026-09-13, when a stem
+# could claim a name: "stop runs" answered `run_simulations_in_conversation`
+# first and `stop_simulations` second, because `run` is a substring of almost
+# every verb there.
+#
+# **And frequency may not outrank a name.** The documentation score is capped, so
+# a long docstring that says a word ten times cannot beat a verb that is called
+# by that word.
+const _DOC_SCORE_CAP = 5
+
 function _api_score(groups, e::_ApiEntry, fold)
     name = fold(last(split(e.qualname, '.')))
     qualified = fold(e.qualname)
     doc  = fold(e.text)
     s = 0
     for forms in groups
-        # The best form of one term, counted once: "vectors" and "vector" are the
-        # same question and must not score twice.
-        best = 0
-        for t in forms
-            tier = (t isa AbstractString && name == t) ? 100 :
-                   occursin(t, name) ? 20 :
-                   occursin(t, qualified) ? 10 : 0
-            best = max(best, tier + length(findall(t, doc)))
-        end
-        s += best
+        written = first(forms)
+        s += (written isa AbstractString && name == written) ? 100 :
+             occursin(written, name) ? 20 :
+             occursin(written, qualified) ? 10 : 0
+        # Any form, for the prose, counted once and bounded.
+        s += min(_DOC_SCORE_CAP, maximum(length(findall(t, doc)) for t in forms))
     end
     s
 end
@@ -760,7 +769,11 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
         return "No API matches $(repr(query))$suffix." *
                (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names)
     end
-    sort!(scored; by = x -> -x[1])
+    # **A tie goes to the shorter name.** `run_simulations` and
+    # `run_simulations_in_conversation` both hold every word of "run simulation",
+    # and the first is what the words say; the second says them and more. Length
+    # is the whole of that difference, so it is the tie-break.
+    sort!(scored; by = x -> (-x[1], length(x[2].qualname)))
 
     # **One clear answer is answered in full.** A hit shows its signature and a
     # locator, and a model that wanted the verb then spends a whole round calling

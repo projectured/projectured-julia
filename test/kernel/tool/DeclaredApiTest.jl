@@ -131,6 +131,23 @@ function test_declared_api()
         @test occursin("toy_arrange", ask("pane"))
         @test occursin("toy_arrange", ask("panes"))
 
+        # **A stem may not claim a name.** A query scores against a NAME exactly
+        # as it was written, and against the prose in any of its forms. Let a
+        # stem claim a name and every verb holding the stem as a substring
+        # arrives first: measured, "stop runs" answered
+        # `run_simulations_in_conversation` before `stop_simulations`, because
+        # `run` is inside almost every verb of that module.
+        both = ToolSet(; api = Any[ToyApi, ToyShaped])
+        register_default_tools!(both)
+        wider = only([t for t in both.tools if t.name == "search_api"])
+        ask_both(query) = wider.handler(nothing, Dict("query" => query))
+
+        # `toy_count` is the one named for counting, whatever the prose says.
+        counted = ask_both("count toy")
+        @test occursin("toy_count", first(l for l in split(counted, "\n")
+                                          if occursin("`ToyApi.", l) ||
+                                             occursin("`ToyShaped.", l)))
+
         # A miss says what there IS, in the round that asked.
         missed = ask("xyzzy")
         @test occursin("No API matches", missed)
