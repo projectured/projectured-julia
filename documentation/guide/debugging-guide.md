@@ -92,10 +92,11 @@ Two things stay outside the panel:
 
 The panel is not interactive. A click goes through it to the content below.
 
-The slice is [domain/main/gesturelog/](../../package/ProjecturedGestureLog):
-`GestureLog.jl` (the buffer and the rendering of a gesture and an operation),
-`GestureLogToSyntax.jl` (one line per entry), `GestureLogRecording.jl` (the
-decorator that records) and `GestureLogOverlay.jl` (the decorator that draws).
+The slice is [source/gesturelog/](../../source/gesturelog):
+`GestureLogDocument.jl` (the buffer and the rendering of a gesture and an
+operation), `GestureLogToSyntax.jl` (one line per entry),
+`GestureLogRecording.jl` (the decorator that records) and
+`GestureLogOverlay.jl` (the decorator that draws).
 Wrap your own pipeline the same way the gallery does:
 
 ```julia

@@ -1,7 +1,7 @@
 """
     GestureLogOverlayProjectionModule
 
-A decorator that draws the [`GestureLog`](GestureLog.jl) as a panel over the
+A decorator that draws the [`GestureLog`](GestureLogDocument.jl) as a panel over the
 content of a window.
 
 **Printer** — it projects the wrapped `inner`, projects the log through the

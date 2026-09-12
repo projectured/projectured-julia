@@ -1,7 +1,7 @@
 """
     GestureLogToSyntaxModule
 
-Projects a [`GestureLog`](GestureLog.jl) onto a `SyntaxNode` for display: one
+Projects a [`GestureLog`](GestureLogDocument.jl) onto a `SyntaxNode` for display: one
 line per entry, newest line first, so the newest line always sits at the same
 place and the panel does not move under the eye of the user.
 

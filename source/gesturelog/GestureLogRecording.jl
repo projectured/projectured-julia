@@ -7,7 +7,7 @@ A transparent decorator that records what the reader chain below it decides.
 unchanged, so the display is exactly the display without the decorator.
 
 **Reader** — it calls the inner reader, records the pair (gesture, operation) in
-the [`GestureLog`](GestureLog.jl) when the filter accepts the pair, and returns
+the [`GestureLog`](GestureLogDocument.jl) when the filter accepts the pair, and returns
 the inner result without a change. The decorator never makes an operation of its
 own and never consumes a gesture.
 
