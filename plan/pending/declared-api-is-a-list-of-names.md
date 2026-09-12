@@ -1,8 +1,7 @@
 # The declared API is a list of names
 
-**Status:** pending. Written 2026-09-12. **Stages A to D are done, and half of
-F.** Stage E waits for a verb that hands a model a data frame. The other half of
-F is blocked by a package dependency and is §4's last paragraph.
+**Status:** pending. Written 2026-09-12. **Every stage is done but E**, which
+waits for a verb that hands a model a data frame.
 
 **Goal:** a person says which **names** a language model may write, not which
 modules. A module stays the shorthand for "all of its exports", because that is
@@ -270,7 +269,7 @@ expect a model to use them. Nothing in this plan blocks it, and nothing in this
 plan builds it: the list is worth writing when a verb hands a model a frame and
 says "work on it".
 
-### Stage F — the agent modules dissolve — **half done**
+### Stage F — the agent modules dissolve — **DONE**
 
 Last, and only last: done before the whitelist lands it would move the flood
 rather than end it.
@@ -292,10 +291,21 @@ simulations. The same holds for the result verbs by construction. **Both sets
 stay in the package that already names everything they touch**, which is the
 assembly, and that is right rather than a compromise.
 
-So what is left of stage F is not a move but a **rename**: `CampaignAgentModule`
-and `ResultAgentModule` are named for their reader rather than for what they do,
-and that is the fault §3.7 identified. The verbs have nowhere better to live; the
-modules have a better name to take. It needs one, and the owner names it.
+So the rest of stage F was not a move but a **rename**, which is the fault §3.7
+identified: the two modules were named for their reader rather than for what they
+hold. They are `CampaignVerbsModule` and `ResultVerbsModule` now, in
+`CampaignVerbs.jl` and `ResultVerbs.jl`, with `CampaignVerbsTest.jl` and
+`ResultVerbsTest.jl` beside them.
+
+**"Verb" is the repository's own word for these**, not a coined one:
+`test_result_verbs` was already an exported test name, and both modules' own
+docstrings used it throughout.
+
+The docstrings changed with the names, which is where a rename earns anything.
+They said "what an assistant may do"; they say what the verbs are — "one word for
+one act on the campaign window" — and why the reader is not the subject: a verb
+useful to a model is usually useful to a script, and a name that says who reads
+it sends the other reader away.
 
 Then:
 
