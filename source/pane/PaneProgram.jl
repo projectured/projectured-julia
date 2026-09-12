@@ -66,7 +66,7 @@ strip over them rather than four.
 
 # Adding a description
 
-[`describe_pane_content`](@ref) is the one line the program's comment carries
+[`describe_document`](@ref) is the one line the program's comment carries
 for a pane. Write a method for each document this window can show, beside the
 ones below.
 """
@@ -76,7 +76,7 @@ import ..ReferenceModule
 import ..ReferenceModule:
     Reference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
     evaluate_reference, strip_reference_types, get_reference_steps,
-    is_fully_typed_reference, var"@reference"
+    is_fully_typed_reference, annotate_reference_types, var"@reference"
 import ..OperationModule: ReplaceReferencedValueOperation
 import ..SelectionModule: replace_selection!
 import ..PaneModule
@@ -91,11 +91,11 @@ import ..LayoutModule: LayoutDocument
 import ..PaneSurgeryModule:
     apply_pane_operation!, pane_focus, pane_focus_operation, pane_shown_tab_index,
     pane_close_tab_operation, pane_move_tab_operation, pane_drop_split_operation,
-    pane_resize_operation
+    pane_resize_operation, pane_open_tab_operation, pane_focused_group
 
 export show_layout, get_referenced_value, replace_referenced_value!,
-       focus_pane, close_pane, move_pane, resize_pane,
-       get_window_tree, describe_pane_content, pane_api
+       open_pane!, focus_pane, close_pane, move_pane, resize_pane,
+       get_window_tree, describe_document, pane_group_to_avoid, pane_api
 
 """
     pane_api() -> Vector
@@ -140,10 +140,13 @@ end
 # ── What a pane holds ───────────────────────────────────────────────────────
 
 """
-    describe_pane_content(content) -> String
+    describe_document(document) -> String
 
-One short line saying what a pane holds, for the comment `show_layout` writes
-beside it.
+One short line saying what a document is.
+
+It is the comment `show_layout` writes beside each pane, and it is the sentence a
+caller asks for about a value it holds: `describe_document(batch)` says how far a
+set of runs has got, whether that set is in a pane or in a hand.
 
 **Say what changes.** "18 runs: 12 done, 6 running" tells a reader the set is not
 finished, which is the fact they need next; "a SimulationBatchDocument" tells
@@ -154,26 +157,137 @@ still says something. **Each application writes the methods for the documents it
 holds**, beside those documents — this package can only describe what it knows,
 which is a layout and an empty pane.
 """
-describe_pane_content(content) = String(nameof(typeof(content)))
-describe_pane_content(::Nothing) = "empty"
+describe_document(content) = String(nameof(typeof(content)))
+describe_document(::Nothing) = "empty"
 
 # A pane that holds a layout holds several documents at once, and how many is the
 # fact a reader needs first.
-describe_pane_content(layout::LayoutDocument) =
+describe_document(layout::LayoutDocument) =
     "a layout of " * string(length(layout.children))
-describe_pane_content(row::LayoutModule.HorizontalLayout) =
+describe_document(row::LayoutModule.HorizontalLayout) =
     "a row of " * string(length(row.children))
-describe_pane_content(column::LayoutModule.VerticalLayout) =
+describe_document(column::LayoutModule.VerticalLayout) =
     "a column of " * string(length(column.children))
-describe_pane_content(flow::LayoutModule.FlowLayout) =
+describe_document(flow::LayoutModule.FlowLayout) =
     "a wrapped row of " * string(length(flow.children))
-describe_pane_content(stack::LayoutModule.StackLayout) =
+describe_document(stack::LayoutModule.StackLayout) =
     "a stack of " * string(length(stack.children))
-function describe_pane_content(grid::LayoutModule.GridLayout)
+function describe_document(grid::LayoutModule.GridLayout)
     columns = Int(grid.columns)
     "a grid of " * string(length(grid.children)) * " in " * string(columns) *
         (columns == 1 ? " column" : " columns")
 end
+# ── Opening a pane ──────────────────────────────────────────────────────────
+
+"""
+    pane_group_to_avoid(tree) -> PaneGroup or nothing
+
+The group [`open_pane!`](@ref) should not open in. `nothing` by default.
+
+**An answer must not cover the question.** A window whose conversation sits in a
+group of its own wants a new pane anywhere else, or the thing the person asked
+for replaces the asking. Which group that is belongs to the application, so the
+application writes the method — this package holds no idea of a conversation.
+"""
+pane_group_to_avoid(tree::PaneTree) = nothing
+
+"""
+    open_pane!(editor, document; title = nothing) -> Reference
+
+Put `document` in a new tab, and answer a reference to the tab it made.
+
+**This is the one placement verb.** Everything else a layout can be asked for —
+move a pane, resize a split, close a tab, change what a pane holds — is
+[`replace_referenced_value!`](@ref) at a reference, and the program
+[`show_layout`](@ref) prints is the text to edit. What a replace cannot say
+without naming a group by hand is *where a new pane goes*, and that policy is
+this verb: the focused group, and never the one
+[`pane_group_to_avoid`](@ref) names.
+
+**It answers a reference, not a title.** A reference names any part of any
+document and a title names a tab, so the reference is what the next call takes:
+
+```julia
+where = open_pane!(editor, chart)
+focus_pane(editor; pane = where)
+replace_referenced_value!(editor, where, PaneTab(other, "something else"))
+```
+
+`title` is what the tab is called. A title already taken gets a number, so two
+panes are never one name, and the name is for a person to read rather than for a
+caller to address the pane by.
+"""
+function open_pane!(editor, document; title = nothing)
+    tree = get_window_tree(editor)
+    groups = pane_groups(tree)
+    isempty(groups) && error("The window has no group to open a pane in.")
+    avoid = pane_group_to_avoid(tree)
+    elsewhere = avoid === nothing ? groups : [g for g in groups if g !== avoid]
+    isempty(elsewhere) && (elsewhere = groups)
+    group = pane_focused_group(tree)
+    (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
+
+    name = _unique_pane_title(tree, title === nothing ? describe_document(document) :
+                                                        String(title))
+    tab = PaneTab(name, document)
+    operation = pane_open_tab_operation(tree, group, tab)
+    operation === nothing && error("The window has no group to open a pane in.")
+    apply_pane_operation!(tree, operation)
+    reference = _reference_of_tab(tree, tab)
+    reference === nothing &&
+        error("The pane was opened and then could not be found again.")
+    reference
+end
+
+# A title no other tab carries. A person reads a title, so two panes reading the
+# same is a window nobody can talk about.
+function _unique_pane_title(tree::PaneTree, wanted::AbstractString)
+    taken = Set(pane_tab_title_string(tab)
+                for group in pane_groups(tree) for tab in group.tabs)
+    String(wanted) in taken || return String(wanted)
+    index = 2
+    while String(wanted) * " (" * string(index) * ")" in taken
+        index += 1
+    end
+    String(wanted) * " (" * string(index) * ")"
+end
+
+"""
+    _reference_of_tab(tree, tab) -> Reference or nothing
+
+Where `tab` sits, as a reference the model can write.
+
+Built by identity and then annotated against the tree, which is what
+`@reference(window, path)` does at its call site: every node records the type of
+what it stands on, and a bare path is refused by [`get_referenced_value`](@ref).
+"""
+function _reference_of_tab(tree::PaneTree, tab)
+    steps = _tab_steps(tree.root, tab, Any[FieldReferenceStep("root")])
+    steps === nothing && return nothing
+    annotate_reference_types(tree, Reference(steps...))
+end
+
+# The steps from `node` down to `tab`, or nothing when it is not under `node`.
+# `[i]` counts elements from 1 and `RangeReferenceStep` counts gaps from 0, so
+# the element `i` is the range `i-1` to `i`.
+function _tab_steps(node, tab, prefix::Vector{Any})
+    if node isa PaneGroup
+        for index in 1:length(node.tabs)
+            node.tabs[index] === tab || continue
+            return vcat(prefix, Any[FieldReferenceStep("tabs"),
+                                    RangeReferenceStep(index - 1, index)])
+        end
+    elseif node isa PaneSplit
+        for index in 1:length(node.elements)
+            found = _tab_steps(node.elements[index], tab,
+                               vcat(prefix, Any[FieldReferenceStep("elements"),
+                                                RangeReferenceStep(index - 1, index)]))
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
 # ── Reading one node ────────────────────────────────────────────────────────
 
 """
@@ -534,7 +648,7 @@ function _collect_panes!(panes::Vector{_Pane}, node, path::String, shares)
             tab_path = path * ".tabs[" * string(i) * "]"
             title = pane_tab_title_string(tab)
             push!(panes, _Pane(tab_path, title,
-                               describe_pane_content(tab.content), share, tab, ""))
+                               describe_document(tab.content), share, tab, ""))
             _collect_cells!(panes, tab.content, tab_path, title)
         end
     elseif node isa PaneSplit
@@ -561,7 +675,7 @@ function _collect_cells!(panes::Vector{_Pane}, content, tab_path::String, title:
     for k in 1:length(content.children)
         push!(panes, _Pane(tab_path * ".content.children[" * string(k) * "]",
                            title * " cell " * string(k),
-                           describe_pane_content(content.children[k]), "", nothing, ""))
+                           describe_document(content.children[k]), "", nothing, ""))
     end
     panes
 end
