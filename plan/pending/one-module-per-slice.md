@@ -92,10 +92,17 @@ them into more slices before or instead of collapsing them.
    [Projection.jl](../../source/kernel/projection/Projection.jl) already
    declares for the kernel's projection layer. The user decided on 2026-09-12:
    **the kernel keeps `ProjectionModule`, and the concrete projections take a
-   different module name.** The slice holds the reusable concrete projections —
-   `Copying`, `Filtering`, `Focusing`, `Reversing`, `Searching`, `Sorting`,
-   `Chaining`, `Nesting`, `Switching`, `TypeDispatching` and the rest — so
-   `ConcreteProjectionModule` says what it holds and does not collide.
+   different module name.** The slice holds eighteen domain-free projections —
+   eight generic, eight higher-order and two compound — so it takes
+   **`ProjectionAlgebraModule`**, which collides with nothing.
+
+   The name is the package's own. The docstring of
+   [ProjecturedProjection.jl](../../package/ProjecturedProjection/src/ProjecturedProjection.jl)
+   already reads "the domain-free projection *algebra*: the generic and
+   higher-order combinators, the compound aggregates … None of these owns a
+   document." `Concrete` was the wrong axis, because `Identity` and `Constant`
+   are as abstract as a projection gets, and `Generic` was unusable because it
+   already names one of the three categories inside the slice.
 
    This is the one place where the module name is not the slice name. State it
    in the rules as a named exception with its reason, so a reader who derives
@@ -108,7 +115,7 @@ them into more slices before or instead of collapsing them.
    names from one stem, and one is `<Stem>ProjectionModule`. A projection no
    longer has a module of its own: it belongs to its slice's module, so
    `JsonToSyntax` lives in `JsonModule` and `Copying` in
-   `ConcreteProjectionModule`. Drop the module row and say the projection
+   `ProjectionAlgebraModule`. Drop the module row and say the projection
    belongs to its slice. The remaining three names — file, type and IO map —
    still come from one stem.
 3. **What replaces the intra-slice guard.** Either accept the loss, or assert
