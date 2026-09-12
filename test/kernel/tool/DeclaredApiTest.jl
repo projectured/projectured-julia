@@ -102,6 +102,42 @@ function test_declared_api()
                        search.handler(nothing, Dict("query" => "toy_arrange")))
     end
 
+    # Half of a turn was a lookup pair: a search for the name, then a read for
+    # its documentation. These three cut the pair to one call, and they cut the
+    # round a miss used to cost.
+    @testset "a search answers in one round what took two" begin
+        set = ToolSet(; api = Module[ToyShaped])
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+        ask(query) = search.handler(nothing, Dict("query" => query))
+
+        # One clear hit answers the WHOLE documentation, not the signature and a
+        # locator to call next round.
+        answer = ask("toy_arrange")
+        @test occursin("the one API match", answer)
+        @test occursin("toy_arrange(window) -> String", answer)
+        # A sentence that lives below the signature, which the old answer cut.
+        @test occursin("person", answer)
+        # And it does not ask for another round.
+        @test !occursin("→ read full", answer)
+
+        # A query that matches several still lists them, one line each.
+        many = ask("toy")
+        @test occursin("API matches for", many)
+        @test occursin("→ read full", many)
+
+        # A plural is the same question as its singular. The verb is named
+        # `toy_arrange` and the docstring says "panes"; both spellings find it.
+        @test occursin("toy_arrange", ask("pane"))
+        @test occursin("toy_arrange", ask("panes"))
+
+        # A miss says what there IS, in the round that asked.
+        missed = ask("xyzzy")
+        @test occursin("No API matches", missed)
+        @test occursin("What you may write", missed)
+        @test occursin("toy_arrange", missed)
+    end
+
     @testset "a declared module is what resolves" begin
         set = ToolSet(; api = Module[ToyApi])
         @test execute_julia_code(set, nothing, "toy_verb()") |> strip == "\"toy\""

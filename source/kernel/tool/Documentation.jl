@@ -442,16 +442,28 @@ _query_terms(q::AbstractString) =
 # mode — a String searches keywords case-insensitively, a Regex matches
 # original-case text (use the `i` flag for case-insensitivity). `findall` /
 # `occursin` / `findfirst` accept both, so the scoring below is shared.
-_matchers(q::AbstractString) = (_query_terms(q), lowercase)
-_matchers(q::Regex)          = (Any[q], identity)
+# Each term becomes the forms it could be written in, and a score counts the best
+# of them once. A person asks to "plot the vectors" and the verb is called
+# `plot_vector`; a person asks about "a result" and the column is `results`. The
+# fold is one `s` either way, which is the whole of the difference that was
+# costing a round.
+function _term_forms(term::AbstractString)
+    forms = String[String(term)]
+    length(term) > 3 && endswith(term, "s") && push!(forms, String(term[1:end-1]))
+    length(term) > 2 && !endswith(term, "s") && push!(forms, String(term) * "s")
+    forms
+end
+
+_matchers(q::AbstractString) = ([_term_forms(t) for t in _query_terms(q)], lowercase)
+_matchers(q::Regex)          = (Any[Any[q]], identity)
 
 # Count occurrences of every pattern in `text` (after `fold`), scaled by `weight`.
-function _term_score(patterns, text::AbstractString, weight::Int, fold)
+function _term_score(groups, text::AbstractString, weight::Int, fold)
     isempty(text) && return 0
     ft = fold(text)
     s = 0
-    for t in patterns
-        s += weight * length(findall(t, ft))
+    for forms in groups
+        s += weight * maximum(length(findall(t, ft)) for t in forms)
     end
     s
 end
@@ -461,7 +473,7 @@ function _excerpt(body::AbstractString, patterns, fold; width::Int = 240)
     isempty(body) && return ""
     fb = fold(body)
     pos = nothing
-    for t in patterns
+    for forms in patterns, t in forms
         r = findfirst(t, fb)
         r === nothing && continue
         (pos === nothing || first(r) < pos) && (pos = first(r))
@@ -508,6 +520,7 @@ struct _ApiEntry
     qualname::String  # "Mod" or "Mod.Name"
     doc::String       # what a hit SHOWS: the first paragraph, which is the signature
     text::String      # what a hit is SCORED on: the signature and the description
+    full::String      # the whole documentation, for a search that answers one thing
     locator::String   # how to read the full docs
 end
 
@@ -515,26 +528,24 @@ end
 # mirrors what the scratch module holds, name for name, because a model that finds
 # a function it cannot call wastes a round and learns to distrust the answer.
 """
-    describe_api(api) -> String
+    describe_api(api; signatures = true) -> String
 
-Every name a declaration gives, one signature line each, grouped by module.
+Every name a declaration gives, grouped by module: one signature line each, or
+just the names when `signatures` is false.
 
-**It is the two rounds a turn spends finding out what it may call.** Measured on
-the OMNeT++ interface with a local model, 2026-09-13: of 36 tool calls over eight
-one-sentence tasks, **18 were lookups** — a `search_api` for a name, then a
-`read_function_documentation` for its signature — and 18 were the work. A model
-that has the signature lines already writes code in its first round.
+**It is what a search answers when it matched nothing.** A search that says only
+"no match" costs a round and teaches nothing, and the round after it is a guess.
+The names are short, and they are the answer to "then what may I write?".
 
-**It is the signature line and nothing else**, which is what a search hit shows
-anyway (`_first_paragraph`) and what a model calls a verb off. The prose stays
-where it is, one `read_function_documentation` away, for the times a signature
-is not enough.
+**It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
+and it grows with the application; a menu in every round is a cost that never
+stops. The lookup it would save is bought instead by `search_api` answering one
+clear hit in full — one round, paid only by the turn that asks.
 
-**It is generated from the declaration**, so a prompt that carries it cannot
-drift from the list: a name added to the declaration is in the next prompt, and a
-name dropped leaves it.
+**It is generated from the declaration**, so what it says cannot drift from what
+a model may write.
 """
-function describe_api(api)
+function describe_api(api; signatures::Bool = true)
     entries = _api_entries(api)
     lines = String[]
     for entry in entries
@@ -543,8 +554,12 @@ function describe_api(api)
         for (source, name) in api_entry_bindings(entry)
             name === nameof(mod) && continue
             isdefined(mod, source) || continue
-            signature = _first_paragraph(_binding_doc(mod, source))
             text = String(name)
+            if !signatures
+                push!(own, text)
+                continue
+            end
+            signature = _first_paragraph(_binding_doc(mod, source))
             # A name whose documentation opens with its own signature says it
             # once; anything else is named with what it is.
             push!(own, isempty(signature) ? text :
@@ -552,8 +567,12 @@ function describe_api(api)
                        text * " — " * strip(signature))
         end
         isempty(own) && continue
-        push!(lines, String(nameof(mod)))
-        append!(lines, ("  " * one for one in own))
+        if signatures
+            push!(lines, String(nameof(mod)))
+            append!(lines, ("  " * one for one in own))
+        else
+            push!(lines, String(nameof(mod)) * ": " * join(own, ", "))
+        end
     end
     isempty(lines) ? "" : join(lines, "\n")
 end
@@ -565,7 +584,7 @@ function _index_declared(api)
         mn = String(nameof(mod))
         raw = _doc_string(mod)
         push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
-                                 "resource://module/$mn"))
+                                 raw, "resource://module/$mn"))
         # The names the declaration gives, and no others. A name a model finds
         # here is a name it can write, which is the whole point of the list.
         # Indexed under the name the MODEL writes, and read from the module by
@@ -580,10 +599,10 @@ function _index_declared(api)
             doc = _first_paragraph(raw)
             text = _search_text(raw)
             if value isa Type
-                push!(entries, _ApiEntry("type", "$mn.$nn", doc, text,
+                push!(entries, _ApiEntry("type", "$mn.$nn", doc, text, raw,
                                          "resource://type/$mn/$nn"))
             elseif value isa Function
-                push!(entries, _ApiEntry("function", "$mn.$nn", doc, text,
+                push!(entries, _ApiEntry("function", "$mn.$nn", doc, text, raw,
                                          "read_function_documentation(\"$mn\", \"$nn\")"))
             end
         end
@@ -598,12 +617,12 @@ function _index_api()
         mn = String(mod_sym)
         raw = _binding_doc(proj, mod_sym)
         push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
-                                 "resource://module/$mn"))
+                                 raw, "resource://module/$mn"))
         for (cls_sym, _) in _struct_types(mod)
             cn = String(cls_sym)
             raw = _binding_doc(mod, cls_sym)
             push!(entries, _ApiEntry("type", "$mn.$cn", _first_paragraph(raw), _search_text(raw),
-                                     "resource://type/$mn/$cn"))
+                                     raw, "resource://type/$mn/$cn"))
         end
         for (fn_sym, _) in _module_functions(mod)
             fnn = String(fn_sym)
@@ -611,7 +630,7 @@ function _index_api()
             # hundreds); full docs are read on demand via this call instead.
             raw = _binding_doc(mod, fn_sym)
             push!(entries, _ApiEntry("function", "$mn.$fnn",
-                                     _first_paragraph(raw), _search_text(raw),
+                                     _first_paragraph(raw), _search_text(raw), raw,
                                      "read_function_documentation(\"$mn\", \"$fnn\")"))
         end
     end
@@ -682,20 +701,22 @@ end
 # Rank: exact name match > name substring > qualified-name substring; doc hits add
 # a little. The exact-name tier only applies to string keywords; a Regex still
 # scores via its name / qualified-name / doc matches.
-function _api_score(patterns, e::_ApiEntry, fold)
+function _api_score(groups, e::_ApiEntry, fold)
     name = fold(last(split(e.qualname, '.')))
-    full = fold(e.qualname)
+    qualified = fold(e.qualname)
     doc  = fold(e.text)
     s = 0
-    for t in patterns
-        if t isa AbstractString && name == t
-            s += 100
-        elseif occursin(t, name)
-            s += 20
-        elseif occursin(t, full)
-            s += 10
+    for forms in groups
+        # The best form of one term, counted once: "vectors" and "vector" are the
+        # same question and must not score twice.
+        best = 0
+        for t in forms
+            tier = (t isa AbstractString && name == t) ? 100 :
+                   occursin(t, name) ? 20 :
+                   occursin(t, qualified) ? 10 : 0
+            best = max(best, tier + length(findall(t, doc)))
         end
-        s += length(findall(t, doc))
+        s += best
     end
     s
 end
@@ -728,11 +749,38 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
         s = _api_score(patterns, e, fold)
         s > 0 && push!(scored, (s, e))
     end
+    # **A miss answers what there IS.** A search that says only "no match" costs a
+    # round and teaches nothing, and the round after it is a guess. The names of
+    # the declaration are short, and they are the answer to "then what may I
+    # write?" — so they are said here, where the question was asked, rather than
+    # carried in every prompt.
     if isempty(scored)
         suffix = kind === nothing ? "" : " (kind=$kind)"
-        return "No API matches $(repr(query))$suffix."
+        names = isempty(api) ? "" : describe_api(api; signatures = false)
+        return "No API matches $(repr(query))$suffix." *
+               (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names)
     end
     sort!(scored; by = x -> -x[1])
+
+    # **One clear answer is answered in full.** A hit shows its signature and a
+    # locator, and a model that wanted the verb then spends a whole round calling
+    # that locator. When the search has already decided — one hit, or one hit
+    # whose name is what was asked — the documentation comes back with it and
+    # that round is not spent. Measured 2026-09-13: half of a turn's tool calls
+    # were this lookup pair.
+    best = scored[1]
+    alone = length(scored) == 1 ||
+            (best[1] >= 100 && (length(scored) == 1 || scored[2][1] < 100))
+    if alone && !isempty(best[2].full)
+        io = IOBuffer()
+        println(io, "# `$(best[2].qualname)` — the one API match for $(repr(query))\n")
+        println(io, best[2].full)
+        rest = [e.qualname for (_, e) in scored[2:min(limit, length(scored))]]
+        isempty(rest) ||
+            println(io, "\nAlso matched, by name: " * join(rest, ", ") * ".")
+        return String(take!(io))
+    end
+
     io = IOBuffer()
     println(io, "# API matches for $(repr(query))\n")
     for (_, e) in first(scored, min(limit, length(scored)))
