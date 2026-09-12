@@ -838,6 +838,37 @@ that one drops its subject and becomes `get_mass`.
 
 The complete list of 383, one row per name, is §14.
 
+### 13.1.1 How to choose the verb
+
+The user decided these on 2026-09-12. They settle the 62 rows where two
+independent passes disagreed, and they apply to every future name.
+
+1. **The verb follows the nature of the work.**
+   - `find_` when it is a search that may return nothing.
+   - `get_` when the value sits at a known place, with at most a trivial
+     computation applied before it is returned.
+   - `compute_` when a non-trivial computation is involved.
+   - Another verb when it fits better: `format_` for text, `render_` for an
+     output representation, `build_` for assembly, `collect_` for gathering,
+     `convert_` for a conversion, `measure_` for measuring.
+2. **`make_` means the intention is to create a new something.** A function does
+   not take `make_` merely because it returns a fresh `NamedTuple` or `Vector`.
+   The question is what the caller wants: a new object, or a value derived from
+   state that already exists.
+3. **A qualifier keeps subject-first order**, because it reads more like
+   English: `get_base_plane_length`, not `get_length_base_plane`. This overrides
+   the "qualifiers are suffixes" line of the rules for this shape, and
+   [naming-rules.md](../../documentation/rule/naming-rules.md) needs the
+   correction.
+4. **A trailing `of` or `for` is dropped.** `chart_view_of` becomes
+   `get_chart_view`; `dsn_for` becomes `get_dsn`.
+5. **An external side effect takes `!`.** `os_clipboard_write` becomes
+   `write_os_clipboard!`. A pure read of external state takes none, so
+   `os_clipboard_read` becomes `read_os_clipboard`. This closes §9.31.
+6. **`julia_main` is exempt** and keeps its name. It is the entry point
+   PackageCompiler requires, and a rename breaks the compiled binary. Record the
+   exemption in the rules.
+
 ### 13.2 The `Projection` suffix — the third option, and `<Stem>IoMap`
 
 **Decision: keep the 85 `<A>To<B>` converters bare, write the exception into the

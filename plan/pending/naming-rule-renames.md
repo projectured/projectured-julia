@@ -99,7 +99,7 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `eval_kind_label` | `get_eval_kind_label` | agreed |
+| `eval_kind_label` | `get_evaluation_kind_label` | agreed |
 | `result_text` | `make_result_text` | agreed |
 
 **source/database/DatabaseAdapters.jl**
@@ -751,7 +751,7 @@ Nothing here is applied yet.
 | `text_flat_length` | `get_text_flat_length` | agreed |
 | `text_flat_offsets` | `get_text_flat_offsets` | agreed |
 | `text_flat_to_elem` | `get_text_flat_to_elem` | agreed |
-| `text_insert_op` | `make_text_insert_op` | agreed |
+| `text_insert_op` | `make_text_insert_operation` | agreed |
 | `text_selection_flat` | `get_text_selection_flat` | agreed |
 | `text_selection_substring` | `get_text_selection_substring` | agreed |
 
@@ -823,7 +823,7 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `catalog_coverage_gap` | `get_catalog_coverage_gap` | agreed |
-| `nav_broken` | `get_nav_broken` | agreed |
+| `nav_broken` | `get_navigation_broken` | agreed |
 | `printer_locality_report` | explore_printer_locality  **or**  make_printer_locality_report | contested |
 
 ## 14.10 The questions that settle the 62 contested rows
