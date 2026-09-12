@@ -3,15 +3,23 @@
 
 **The window's layout, as something a language model can read and change.**
 
-Three verbs. [`show_layout`](@ref) prints the pane tree as a Julia program,
-[`get_referenced_value`](@ref) answers the node a reference names, and [`replace_referenced_value!`](@ref)
-writes a new value at a reference.
+Three verbs read and write it. [`show_layout`](@ref) prints the pane tree as a
+Julia program, [`get_referenced_value`](@ref) answers the node a reference names,
+and [`replace_referenced_value!`](@ref) writes a new value at a reference. Two
+more do what a write cannot say: [`open_pane!`](@ref) puts a document in a new
+tab and answers a reference to it, and [`focus_pane!`](@ref) moves the focus,
+which is the selection and not a value in the tree.
 
 **The level is the reference, not the verb.** A replace at `root` rearranges the
 whole window; a replace at `root.elements[1]` moves one side of a split; a
-replace at `root.elements[1].tabs[1].content` changes what one pane holds. One
-verb reaches all three, because a layout is a document and a reference names any
-part of one.
+replace at `root.elements[1].tabs[1].content` changes what one pane holds; a
+replace at `root.weights` resizes a split. One verb reaches all of them, because
+a layout is a document and a reference names any part of one — which is why
+moving, resizing and closing a pane have no words of their own.
+
+**A pane is named by reference, never by title.** A reference names any part of
+any document; a title names a tab, and two tabs can carry one title. So every
+verb here takes a reference, and the verbs that place something answer one.
 
 # What the model reads
 
@@ -90,11 +98,10 @@ import ..LayoutModule
 import ..LayoutModule: LayoutDocument
 import ..PaneSurgeryModule:
     apply_pane_operation!, pane_focus, pane_focus_operation, pane_shown_tab_index,
-    pane_close_tab_operation, pane_move_tab_operation, pane_drop_split_operation,
-    pane_resize_operation, pane_open_tab_operation, pane_focused_group
+    pane_open_tab_operation, pane_focused_group
 
 export show_layout, get_referenced_value, replace_referenced_value!,
-       open_pane!, focus_pane, close_pane, move_pane, resize_pane,
+       open_pane!, focus_pane!,
        get_window_tree, describe_document, pane_group_to_avoid, pane_api
 
 """
@@ -209,7 +216,7 @@ document and a title names a tab, so the reference is what the next call takes:
 
 ```julia
 where = open_pane!(editor, chart)
-focus_pane(editor; pane = where)
+focus_pane!(editor, where)
 replace_referenced_value!(editor, where, PaneTab(other, "something else"))
 ```
 
@@ -445,130 +452,55 @@ function _restore_focus!(tree::PaneTree, focused)
     end
 end
 
-# ── One pane, one act ───────────────────────────────────────────────────────
+# ── The focus ───────────────────────────────────────────────────────────────
 #
-# Each of these is one `PaneSurgery` operation behind one word. A model can do
-# all of them by editing the program `show_layout` prints, and for a window of
-# ten panes that is ten names restated to move one — so the whole-window rewrite
-# and the single act are both here, and a model picks by which one is smaller.
-#
-# **They name a pane by its title**, because that is the word the person used.
-# `CampaignAgentModule` addresses its panes the same way, and a title is unique
-# in a window the runner opened. Two panes a person renamed to one thing are
-# refused, with the count.
+# The one act that is not a value written at a reference. Moving a pane, resizing
+# a split and closing a tab all are, and `replace_referenced_value!` says them
+# from the program `show_layout` prints — one verb for every level, which is what
+# keeps a new kind of change from needing a new word.
 
 """
-    focus_pane(editor; pane) -> Text
+    focus_pane!(editor, reference::Reference) -> Text
 
-Show `pane` and give it the focus, and answer the window's new program.
+Show the pane `reference` names and give it the focus, and answer the window's
+new program.
+
+**Focus is the one thing a replace cannot say.** Every other change to a layout
+is a value written at a reference — a pane moved, a split resized, a tab closed,
+what a pane holds — and [`replace_referenced_value!`](@ref) is that verb. Focus
+is not a value in the tree; it is the selection, which is why it keeps a word of
+its own.
+
+The reference is what [`open_pane!`](@ref) answered, or one the program
+[`show_layout`](@ref) printed.
 """
-function focus_pane(editor; pane)
+function focus_pane!(editor, reference::Reference)
     tree = get_window_tree(editor)
-    group, index = _pane_named(tree, pane)
-    _apply(editor, tree, pane_focus_operation(tree, group, index), "focus", pane)
-end
-
-"""
-    close_pane(editor; pane) -> Text
-
-Close `pane`, and answer the window's new program.
-
-The group goes too when this was its last tab, and the split goes when that
-leaves it with one child. Closing is its own word because it destroys something:
-a rearrangement never does, and this always does.
-"""
-function close_pane(editor; pane)
-    tree = get_window_tree(editor)
-    group, index = _pane_named(tree, pane)
-    _apply(editor, tree, pane_close_tab_operation(tree, group, index), "close", pane)
-end
-
-"""
-    move_pane(editor; pane, next_to, side = "tab") -> Text
-
-Move `pane` to `next_to`, and answer the window's new program.
-
-`side` says where it lands: `"left"`, `"right"`, `"above"` or `"below"` splits
-the pane it lands on, and `"tab"` — the default — makes it another tab of the
-same group.
-"""
-function move_pane(editor; pane, next_to, side = "tab")
-    tree = get_window_tree(editor)
-    source, index = _pane_named(tree, pane)
-    target, _ = _pane_named(tree, next_to)
-    word = lowercase(String(side))
-    operation = if word == "tab"
-        pane_move_tab_operation(tree, source, index, target, length(target.tabs) + 1)
-    else
-        orientation, edge = _split_side(word)
-        pane_drop_split_operation(tree, source, index, target, orientation, edge)
-    end
-    _apply(editor, tree, operation, "move", pane)
-end
-
-_SIDES = (left = :vertical, right = :vertical, above = :horizontal, below = :horizontal)
-
-function _split_side(word::AbstractString)
-    edge = Symbol(word)
-    haskey(_SIDES, edge) ||
-        throw(ArgumentError("There is no side called " * repr(word) *
-                            ". They are: left, right, above, below, tab."))
-    (getfield(_SIDES, edge), edge)
-end
-
-"""
-    resize_pane(editor; pane, fraction) -> Text
-
-Give `pane` that share of the space its split divides, and answer the window's
-new program. `fraction` is between 0 and 1, and what the other children of that
-split had is scaled to fit the rest.
-"""
-function resize_pane(editor; pane, fraction)
-    tree = get_window_tree(editor)
-    group, _ = _pane_named(tree, pane)
-    parent = pane_parent(tree, group)
-    (parent !== nothing && parent[1] isa PaneSplit) ||
-        throw(ArgumentError("The pane " * repr(String(pane)) *
-                            " is not inside a split, so it already has the whole window."))
-    split, slot = parent
-    share = Float64(fraction)
-    (0 < share < 1) ||
-        throw(ArgumentError("A share is between 0 and 1, and " * string(share) * " is not."))
-    weights = pane_normalized_weights(pane_weights(split))
-    rest = 1.0 - weights[slot]
-    scale = rest <= 0 ? 0.0 : (1.0 - share) / rest
-    resized = Float64[i == slot ? share : weights[i] * scale for i in 1:length(weights)]
-    _apply(editor, tree, pane_resize_operation(tree, split, resized), "resize", pane)
-end
-
-# The pane a title names, or a refusal that says what the window does hold.
-function _pane_named(tree::PaneTree, title)
-    wanted = String(title)
-    found = Tuple{PaneGroup,Int}[]
-    for group in pane_groups(tree), i in 1:length(group.tabs)
-        pane_tab_title_string(group.tabs[i]) == wanted && push!(found, (group, i))
-    end
-    isempty(found) &&
-        throw(ArgumentError("No pane is called " * repr(wanted) * ". The panes are: " *
-                            join(_pane_titles(tree), ", ") * "."))
-    length(found) == 1 ||
-        throw(ArgumentError(string(length(found)) * " panes are called " * repr(wanted) *
-                            ". Rename one, or write the change with replace_referenced_value!."))
-    found[1]
-end
-
-_pane_titles(tree::PaneTree) =
-    [pane_tab_title_string(tab) for group in pane_groups(tree) for tab in group.tabs]
-
-# `PaneSurgery` answers `nothing` for an edit that does not apply, and a verb
-# that answered the unchanged window would look as though it had worked.
-function _apply(editor, tree::PaneTree, operation, act::AbstractString, pane)
+    _refuse_stale(reference)
+    group, index = _pane_referenced(tree, reference)
+    operation = pane_focus_operation(tree, group, index)
     operation === nothing &&
-        throw(ArgumentError("Nothing to " * act * ": the window can not " * act * " " *
-                            repr(String(pane)) * " that way."))
+        throw(ArgumentError("The window can not focus that pane."))
     apply_pane_operation!(tree, operation)
     show_layout(editor)
 end
+
+# Which group holds the tab a reference names, and where in it. By identity: a
+# reference resolves to the tab object, and the tab object is in exactly one
+# group however the tree was rearranged since.
+function _pane_referenced(tree::PaneTree, reference::Reference)
+    tab = evaluate_reference(tree, reference)
+    tab isa PaneTab ||
+        throw(ArgumentError("That reference names " *
+                            (tab === nothing ? "nothing" :
+                             "a " * String(nameof(typeof(tab)))) *
+                            " and not a pane."))
+    for group in pane_groups(tree), index in 1:length(group.tabs)
+        group.tabs[index] === tab && return (group, index)
+    end
+    throw(ArgumentError("That pane is no longer in the window."))
+end
+
 
 # ── The program ─────────────────────────────────────────────────────────────
 
