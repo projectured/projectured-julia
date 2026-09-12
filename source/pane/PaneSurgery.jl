@@ -29,7 +29,8 @@ import ..CellModule: Cell
 import ..CollectionModule: CellVector
 import ..DocumentApiModule: Document
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
-                          ReplaceSelectionOperation, insert_elements, delete_elements
+                          ReplaceSelectionOperation, insert_elements, delete_elements,
+                          evaluate_operation
 import ..DraggingProjectionModule: MoveRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
@@ -46,7 +47,8 @@ export pane_path, pane_collection_path,
        pane_tab_reference, pane_focus_operation,
        pane_title_path, pane_title_caret_operation, pane_retarget_title_operation,
        pane_open_tab_operation, pane_close_tab_operation, pane_split_operation,
-       pane_move_tab_operation, pane_drop_split_operation, pane_resize_operation
+       pane_move_tab_operation, pane_drop_split_operation, pane_resize_operation,
+       apply_pane_operation!
 
 # ── Path construction ──────────────────────────────────────────────────────
 
@@ -168,6 +170,24 @@ function _focus_into!(node, pairs)
         return _focus_into!(node.elements[1], pairs)
     end
     node
+end
+
+# What a pane edit is evaluated against: the tree itself. `evaluate_operation`
+# resolves a document-rooted reference against this `document` field, and a pane
+# path only means anything inside the tree.
+mutable struct PaneHost
+    document::Any
+end
+
+"""
+    apply_pane_operation!(tree, operation) -> tree
+
+Apply a pane edit to the tree. A `nothing` operation is a no-op, which is what
+`PaneSurgery` answers when the edit does not apply.
+"""
+function apply_pane_operation!(tree::PaneTree, operation)
+    operation === nothing || evaluate_operation(PaneHost(tree), operation)
+    tree
 end
 
 # ── The focus ──────────────────────────────────────────────────────────────
