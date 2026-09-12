@@ -59,9 +59,9 @@ end
 
 # ── WorkspaceWorkspaceToSyntax (projects children via recursion) ─────────────
 
-struct WorkspaceWorkspaceProjection <: Projection end
+struct WorkspaceToFileSystemDirectory <: Projection end
 
-function print_document(p::WorkspaceWorkspaceProjection,
+function print_document(p::WorkspaceToFileSystemDirectory,
                            recursion, w::Workspace, ctx)
     # Reconcile folders by identity, and forward the single-root output reactively
     # so a structural edit propagates through the held iomap (PAR-STABLE-IOMAP-IDENTITY).
@@ -75,18 +75,18 @@ function print_document(p::WorkspaceWorkspaceProjection,
     ChildrenIoMap(p, w, output, child_iomaps)
 end
 
-function map_reference_forward(::WorkspaceWorkspaceProjection, iomap, reference)
+function map_reference_forward(::WorkspaceToFileSystemDirectory, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::WorkspaceWorkspaceProjection, iomap, reference)
+function map_reference_backward(::WorkspaceToFileSystemDirectory, iomap, reference)
     return nothing
 end
 
 # Identity on references (see WorkspaceFolderToFileSystemDirectory above): pass
 # operations through unchanged, but decline raw gestures so the sequential
 # reader's input-domain "first say" does not short-circuit with a bare event.
-function read_intent(::WorkspaceWorkspaceProjection, iomap, op)
+function read_intent(::WorkspaceToFileSystemDirectory, iomap, op)
     op isa Operation ? op : nothing
 end
 
@@ -95,7 +95,7 @@ end
 
 function WorkspaceToFileSystem()
     TypeDispatchingProjection(
-        Workspace       => WorkspaceWorkspaceProjection(),
+        Workspace       => WorkspaceToFileSystemDirectory(),
         WorkspaceFolder => WorkspaceFolderToFileSystemDirectory(),
     )
 end

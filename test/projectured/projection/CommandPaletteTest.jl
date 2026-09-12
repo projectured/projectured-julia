@@ -146,7 +146,7 @@ mutable struct _PaletteEditor
 end
 
 function test_command_palette_decorator()
-@testset "CommandPaletteProjection" begin
+@testset "CommandPaletteDecoratorProjection" begin
     none    = ModifierKeys()
     summon  = KeyDown(:p, ModifierKeys(ctrl=true, shift=true))
     enter   = KeyDown(:return, none)
@@ -154,7 +154,7 @@ function test_command_palette_decorator()
 
     # The real JSON pipeline, down to graphics — the decorator draws over graphics.
     mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
-    mkpalette(state) = CommandPaletteProjection(inner = make_json_projection_example(),
+    mkpalette(state) = CommandPaletteDecoratorProjection(inner = make_json_projection_example(),
                                                 measure = truetype_measure_text, state = state)
 
     @testset "the summoning gesture opens the palette and toggles it shut" begin
@@ -366,7 +366,7 @@ function test_command_palette_decorator()
         inner_json = doc.content
         set_selection!(doc, EmptyReference())
         set_selection!(inner_json, EmptyReference())
-        p = CommandPaletteProjection(inner = make_clipboard_projection(make_json_projection_example()),
+        p = CommandPaletteDecoratorProjection(inner = make_clipboard_projection(make_json_projection_example()),
                                      measure = truetype_measure_text)
         iomap = print_document(p, doc)
         read_intent(p, iomap, summon)

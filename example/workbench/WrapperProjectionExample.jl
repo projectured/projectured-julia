@@ -41,7 +41,7 @@ end
 # windows; the palette is drawn INTO its window, so a shared flag would draw it
 # over every window at once.
 make_command_palette_projection(projection; measure=truetype_measure_text) =
-    CommandPaletteProjection(inner = projection, measure = measure)
+    CommandPaletteDecoratorProjection(inner = projection, measure = measure)
 
 function make_introspection_projection(projection; measure=truetype_measure_text)
     font = font_ubuntu_monospace_regular_20

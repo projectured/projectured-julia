@@ -20,7 +20,7 @@ module ForceDirectedParametersBaseModule
 import ..LayoutGeometryModule: Pt, Rs, pt_zero, pt_length, is_fully_specified
 
 export ForceDirectedParameters, Variable, PointConstrainedVariable,
-       IBody, IForceProvider,
+       AbstractBody, AbstractForceProvider,
        reinitialize!, apply_forces!, potential_energy, class_name, set_embedding!,
        get_position, assign_position!, get_velocity, assign_velocity!,
        get_acceleration, kinetic_energy, reset_force!, get_mass, set_mass!,
@@ -142,20 +142,20 @@ reinitialize!(::Variable) = nothing
 # ── The two interfaces ───────────────────────────────────────────────────────
 
 """
-    IBody
+    AbstractBody
 
 Something with a position, a size, a mass and a charge. Its position is its
 **centre**, and `body_left` and friends read the corners off that.
 """
-abstract type IBody end
+abstract type AbstractBody end
 
 """
-    IForceProvider
+    AbstractForceProvider
 
 Something that pushes variables around: a spring, a repulsion, a drag. The
 embedding asks every one of them for its forces at every probe of every cycle.
 """
-abstract type IForceProvider end
+abstract type AbstractForceProvider end
 
 "Attach `embedding`, so the body or provider can read its parameters and state."
 function set_embedding! end
@@ -180,10 +180,10 @@ function body_mass end
 function body_charge end
 function body_variable end
 
-body_left(body::IBody) = body_position(body).x - body_size(body).width / 2
-body_right(body::IBody) = body_position(body).x + body_size(body).width / 2
-body_top(body::IBody) = body_position(body).y - body_size(body).height / 2
-body_bottom(body::IBody) = body_position(body).y + body_size(body).height / 2
-body_left_top(body::IBody) = Pt(body_left(body), body_top(body), body_position(body).z)
+body_left(body::AbstractBody) = body_position(body).x - body_size(body).width / 2
+body_right(body::AbstractBody) = body_position(body).x + body_size(body).width / 2
+body_top(body::AbstractBody) = body_position(body).y - body_size(body).height / 2
+body_bottom(body::AbstractBody) = body_position(body).y + body_size(body).height / 2
+body_left_top(body::AbstractBody) = Pt(body_left(body), body_top(body), body_position(body).z)
 
 end # module

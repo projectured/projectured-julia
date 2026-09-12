@@ -74,7 +74,7 @@ function test_gallery_wrappers()
 
     @testset "the command type-in overlay leaves the render unchanged while closed" begin
         projection = make_command_palette_projection(make_json_projection_example())
-        @test projection isa CommandPaletteProjection
+        @test projection isa CommandPaletteDecoratorProjection
         # The palette draws nothing until its gesture opens it, so the content
         # renders exactly as it does without the wrapper.
         @test _gw_count_texts(_gw_render(projection, make_json_document_example())) == bare

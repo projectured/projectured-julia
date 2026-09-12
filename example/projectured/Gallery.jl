@@ -102,7 +102,7 @@ only to the child under the pointer, so the tracker is what synthesises the
 flag. Pass it for an example whose own projection does not already track hover.
 
 When `gesture_help=true`, each example's projection is wrapped in a
-`GestureHelpProjection`, so `F1` in the focused window opens a help window
+`GestureHelpDecoratorProjection`, so `F1` in the focused window opens a help window
 (id `:gesture_help`) listing the gestures collected from that content's own
 pipeline. One shared state backs every window, so `F1` toggles one window.
 
@@ -274,7 +274,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         end
         if gesture_help
             # One shared state for every window, so F1 toggles one help window.
-            projection = GestureHelpProjection(inner = projection, state = help_state)
+            projection = GestureHelpDecoratorProjection(inner = projection, state = help_state)
         end
         if command_palette
             projection = make_command_palette_projection(projection)

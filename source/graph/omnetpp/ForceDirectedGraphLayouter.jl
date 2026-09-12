@@ -43,7 +43,7 @@ import ..GraphComponentModule: GraphComponent, LayoutVertex, LayoutEdge,
                                edge_count, bounding_rectangle,
                                calculate_spanning_tree!,
                                calculate_connected_sub_components!
-import ..ForceDirectedParametersBaseModule: Variable, PointConstrainedVariable, IBody,
+import ..ForceDirectedParametersBaseModule: Variable, PointConstrainedVariable, AbstractBody,
                                             get_position, assign_position!,
                                             body_position, body_size, body_top,
                                             body_bottom, body_left, body_right,
@@ -148,7 +148,7 @@ mutable struct ForceDirectedState
     right_border::Union{Nothing,WallBody}
 
     anchor_variables::Dict{Any,Variable}
-    node_bodies::Dict{Int,IBody}
+    node_bodies::Dict{Int,AbstractBody}
     # `GraphComponent::findVertex` is a linear scan, and the repulsion loop asks
     # it twice per pair of bodies, which is cubic. The answer never changes once
     # a vertex is added, so it is remembered here instead.
@@ -162,7 +162,7 @@ ForceDirectedState(engine::ForceDirectedLayout) =
                        0.0, 0.0, false, true,
                        -1.0, -1.0, -1.0, false, true,
                        nothing, nothing, nothing, nothing,
-                       Dict{Any,Variable}(), Dict{Int,IBody}(),
+                       Dict{Any,Variable}(), Dict{Int,AbstractBody}(),
                        IdDict{Variable,LayoutVertex}())
 
 # Add a vertex to the working graph and remember which variable it stands for.
@@ -190,7 +190,7 @@ function set_size!(state::ForceDirectedState, width::Real, height::Real, border:
     nothing
 end
 
-add_node_body!(state::ForceDirectedState, node_id::Int, body::IBody) =
+add_node_body!(state::ForceDirectedState, node_id::Int, body::AbstractBody) =
     (add_body!(state.embedding, body); state.node_bodies[node_id] = body; nothing)
 
 find_node_body(state::ForceDirectedState, node_id::Int) = get(state.node_bodies, node_id, nothing)

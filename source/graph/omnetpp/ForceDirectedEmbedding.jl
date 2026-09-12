@@ -33,7 +33,7 @@ module ForceDirectedEmbeddingModule
 import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_length, pt_distance,
                                pt_normalize
 import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
-                                            IBody, IForceProvider,
+                                            AbstractBody, AbstractForceProvider,
                                             reinitialize!, apply_forces!, potential_energy,
                                             set_embedding!, get_position, assign_position!,
                                             get_velocity, assign_velocity!,
@@ -86,8 +86,8 @@ mutable struct ForceDirectedEmbedding
     tvn::Vector{Pt}
 
     variables::Vector{Variable}
-    force_providers::Vector{IForceProvider}
-    bodies::Vector{IBody}
+    force_providers::Vector{AbstractForceProvider}
+    bodies::Vector{AbstractBody}
 end
 
 ForceDirectedEmbedding() =
@@ -95,7 +95,7 @@ ForceDirectedEmbedding() =
                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                            Pt[], Pt[], Pt[], Pt[], Pt[], Pt[], Pt[],
                            Pt[], Pt[], Pt[], Pt[],
-                           Variable[], IForceProvider[], IBody[])
+                           Variable[], AbstractForceProvider[], AbstractBody[])
 
 """
     default_force_directed_parameters(seed = 1) -> ForceDirectedParameters
@@ -142,7 +142,7 @@ end
 Add a body, and its variable if that variable is new. Several bodies may share
 one variable; the variable is added once and carries the sum of their masses.
 """
-function add_body!(embedding::ForceDirectedEmbedding, body::IBody)
+function add_body!(embedding::ForceDirectedEmbedding, body::AbstractBody)
     push!(embedding.bodies, body)
     set_embedding!(body, embedding)
     variable = body_variable(body)
@@ -152,7 +152,7 @@ function add_body!(embedding::ForceDirectedEmbedding, body::IBody)
     nothing
 end
 
-function add_force_provider!(embedding::ForceDirectedEmbedding, provider::IForceProvider)
+function add_force_provider!(embedding::ForceDirectedEmbedding, provider::AbstractForceProvider)
     push!(embedding.force_providers, provider)
     set_embedding!(provider, embedding)
     nothing

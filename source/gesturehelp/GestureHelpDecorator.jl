@@ -30,7 +30,7 @@ import ..OperationModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureMapModule: gesture_map
 
-export GestureHelpProjection, GestureHelpState, GestureHelpIoMap,
+export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
        HELP_GESTURE, is_help_gesture
 
 """
@@ -57,7 +57,7 @@ is_help_gesture(event) = matches_event_pattern(HELP_GESTURE, event)
     GestureHelpState(open=false)
 
 Mutable open/closed flag for the gesture-help window, shared across the
-(per-dispatch, transient) `GestureHelpProjection` instances that wrap each
+(per-dispatch, transient) `GestureHelpDecoratorProjection` instances that wrap each
 content window, so F1 toggles the same window.
 """
 mutable struct GestureHelpState
@@ -66,14 +66,14 @@ end
 GestureHelpState() = GestureHelpState(false)
 
 """
-    GestureHelpProjection(; inner, state=GestureHelpState(), id=:gesture_help,
+    GestureHelpDecoratorProjection(; inner, state=GestureHelpState(), id=:gesture_help,
                             title="Gestures", x=100, y=100, width=1000, height=1400)
 
 Decorator over `inner` (a content pipeline). On the help gesture it opens/closes a
 window of id `id` carrying the collected `GestureMap`. Pass a shared `state` to
 keep the toggle stable when the decorator is rebuilt each frame.
 """
-struct GestureHelpProjection <: Projection
+struct GestureHelpDecoratorProjection <: Projection
     inner::Any
     state::GestureHelpState
     id::Symbol
@@ -84,15 +84,15 @@ struct GestureHelpProjection <: Projection
     height::Int
 end
 
-GestureHelpProjection(; inner, state::GestureHelpState = GestureHelpState(),
+GestureHelpDecoratorProjection(; inner, state::GestureHelpState = GestureHelpState(),
                         id::Symbol = :gesture_help, title::AbstractString = "Gestures",
                         x::Integer = 100, y::Integer = 100,
                         width::Integer = 1000, height::Integer = 1400) =
-    GestureHelpProjection(inner, state, id, String(title), Int(x), Int(y), Int(width), Int(height))
+    GestureHelpDecoratorProjection(inner, state, id, String(title), Int(x), Int(y), Int(width), Int(height))
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct GestureHelpIoMap
+@iomap struct GestureHelpDecoratorIoMap
     projection::Any
     input::Any
     output::Any
@@ -101,14 +101,14 @@ end
 
 # ── Printer (transparent) ──────────────────────────────────────────────────
 
-function print_document(p::GestureHelpProjection, recursion, input, ctx)
+function print_document(p::GestureHelpDecoratorProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    GestureHelpIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
+    GestureHelpDecoratorIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
-function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap::GestureHelpIoMap)
+function read_intent(p::GestureHelpDecoratorProjection, recursion, change::Intent, iomap::GestureHelpDecoratorIoMap)
     # The wrapped editor has priority: if it produced an operation, that wins and
     # the help gesture (if any) is reconsidered next event.
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
@@ -133,15 +133,15 @@ function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap:
     return child
 end
 
-read_intent(p::GestureHelpProjection, iomap::GestureHelpIoMap, payload) =
+read_intent(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (transparent — output is the inner's output) ──────────
 
-map_reference_forward(p::GestureHelpProjection, iomap::GestureHelpIoMap, reference) =
+map_reference_forward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
-map_reference_backward(p::GestureHelpProjection, iomap::GestureHelpIoMap, reference) =
+map_reference_backward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

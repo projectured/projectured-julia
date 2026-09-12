@@ -32,7 +32,7 @@ module ForceDirectedParametersModule
 import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, base_plane_length,
                                nan_to_zero, rc_from_center_size, rc_base_plane_distance,
                                is_nil, rs_nil
-import ..ForceDirectedParametersBaseModule: Variable, IBody, IForceProvider,
+import ..ForceDirectedParametersBaseModule: Variable, AbstractBody, AbstractForceProvider,
                                             reinitialize!, apply_forces!, potential_energy,
                                             class_name, set_embedding!,
                                             get_position, assign_position!,
@@ -58,7 +58,7 @@ signum(value::Real) = value < 0 ? -1.0 : value == 0 ? 0.0 : 1.0
 A freely positioned body. `-1` for mass or charge, and a nil size, mean "take
 the default from the embedding's parameters at reinitialize time".
 """
-mutable struct Body <: IBody
+mutable struct Body <: AbstractBody
     variable::Union{Nothing,Variable}
     mass::Float64
     charge::Float64
@@ -78,7 +78,7 @@ A body that sits `relative_position` away from its variable. Every body sharing
 one variable keeps its own offset, so the group holds its shape and the variable
 is the one thing the forces move. This is how a module vector is laid out.
 """
-mutable struct RelativelyPositionedBody <: IBody
+mutable struct RelativelyPositionedBody <: AbstractBody
     variable::Variable
     relative_position::Pt
     mass::Float64
@@ -100,7 +100,7 @@ the top or the bottom edge and constrains y; a vertical one constrains x. Its
 variable arrives later, because whether it is free or pinned depends on what
 else the layout has.
 """
-mutable struct WallBody <: IBody
+mutable struct WallBody <: AbstractBody
     variable::Union{Nothing,Variable}
     horizontal::Bool
     mass::Float64
@@ -196,12 +196,12 @@ Three ways to measure, and the choice changes the whole picture:
 - slippery: the shortest distance between the two rectangles, which lets a body
   slide along another's edge instead of being pushed through its corner.
 """
-function distance_and_vector(config::ForceProviderConfig, body1::IBody, body2::IBody)
+function distance_and_vector(config::ForceProviderConfig, body1::AbstractBody, body2::AbstractBody)
     config.slippery != 0 ? slippery_distance_and_vector(config, body1, body2) :
                            standard_distance_and_vector(config, body1, body2)
 end
 
-function standard_distance_and_vector(config::ForceProviderConfig, body1::IBody, body2::IBody)
+function standard_distance_and_vector(config::ForceProviderConfig, body1::AbstractBody, body2::AbstractBody)
     pt1 = body_position(body1)
     pt2 = body_position(body2)
     vector = pt1 - pt2
@@ -223,7 +223,7 @@ function standard_distance_and_vector(config::ForceProviderConfig, body1::IBody,
 end
 
 function standard_horizontal_distance_and_vector(config::ForceProviderConfig,
-                                                 body1::IBody, body2::IBody)
+                                                 body1::AbstractBody, body2::AbstractBody)
     distance = body_position(body1).x - body_position(body2).x
     vector = Pt(signum(distance), 0, 0)
     distance = abs(distance)
@@ -234,7 +234,7 @@ function standard_horizontal_distance_and_vector(config::ForceProviderConfig,
 end
 
 function standard_vertical_distance_and_vector(config::ForceProviderConfig,
-                                               body1::IBody, body2::IBody)
+                                               body1::AbstractBody, body2::AbstractBody)
     distance = body_position(body1).y - body_position(body2).y
     vector = Pt(0, signum(distance), 0)
     distance = abs(distance)
@@ -244,7 +244,7 @@ function standard_vertical_distance_and_vector(config::ForceProviderConfig,
     (vector, distance)
 end
 
-function slippery_distance_and_vector(::ForceProviderConfig, body1::IBody, body2::IBody)
+function slippery_distance_and_vector(::ForceProviderConfig, body1::AbstractBody, body2::AbstractBody)
     rc1 = rc_from_center_size(body_position(body1), body_size(body1))
     rc2 = rc_from_center_size(body_position(body2), body_size(body2))
     segment, distance = rc_base_plane_distance(rc1, rc2)
@@ -262,14 +262,14 @@ A push apart that falls off with the square of the distance. Beyond
 `max_distance`, which is how the layouter stops two unconnected parts of a graph
 from pushing each other to infinity.
 """
-abstract type AbstractElectricRepulsion <: IForceProvider end
+abstract type AbstractElectricRepulsion <: AbstractForceProvider end
 
 for T in (:ElectricRepulsion, :VerticalElectricRepulsion, :HorizontalElectricRepulsion)
     @eval begin
         mutable struct $T <: AbstractElectricRepulsion
             config::ForceProviderConfig
-            charge1::IBody
-            charge2::IBody
+            charge1::AbstractBody
+            charge2::AbstractBody
             linearity_distance::Float64
             max_distance::Float64
         end
@@ -277,15 +277,15 @@ for T in (:ElectricRepulsion, :VerticalElectricRepulsion, :HorizontalElectricRep
     end
 end
 
-ElectricRepulsion(charge1::IBody, charge2::IBody,
+ElectricRepulsion(charge1::AbstractBody, charge2::AbstractBody,
                   linearity_distance::Real = -1, max_distance::Real = -1) =
     ElectricRepulsion(ForceProviderConfig(), charge1, charge2,
                       Float64(linearity_distance), Float64(max_distance))
 
-VerticalElectricRepulsion(charge1::IBody, charge2::IBody) =
+VerticalElectricRepulsion(charge1::AbstractBody, charge2::AbstractBody) =
     VerticalElectricRepulsion(ForceProviderConfig(), charge1, charge2, -1.0, -1.0)
 
-HorizontalElectricRepulsion(charge1::IBody, charge2::IBody) =
+HorizontalElectricRepulsion(charge1::AbstractBody, charge2::AbstractBody) =
     HorizontalElectricRepulsion(ForceProviderConfig(), charge1, charge2, -1.0, -1.0)
 
 set_embedding!(provider::AbstractElectricRepulsion, embedding) =
@@ -346,14 +346,14 @@ end
 A pull towards a repose length, linear in how far the current distance is from
 it. Push when too close, pull when too far.
 """
-abstract type AbstractSpring <: IForceProvider end
+abstract type AbstractSpring <: AbstractForceProvider end
 
 for T in (:Spring, :VerticalSpring, :HorizontalSpring, :BasePlaneSpring)
     @eval begin
         mutable struct $T <: AbstractSpring
             config::ForceProviderConfig
-            body1::Union{Nothing,IBody}
-            body2::Union{Nothing,IBody}
+            body1::Union{Nothing,AbstractBody}
+            body2::Union{Nothing,AbstractBody}
             spring_coefficient::Float64
             repose_length::Float64
         end
@@ -438,7 +438,7 @@ Several springs, of which only the least stretched one pulls. An edge to the
 enclosing module's border is four springs, one per wall, and this makes the node
 answer to the nearest wall rather than to all four at once.
 """
-mutable struct LeastExpandedSpring <: IForceProvider
+mutable struct LeastExpandedSpring <: AbstractForceProvider
     config::ForceProviderConfig
     springs::Vector{AbstractSpring}
 end
@@ -490,7 +490,7 @@ potential_energy(provider::LeastExpandedSpring) =
 Takes kinetic energy out of every variable, against its velocity and in
 proportion to its speed. Without it the simulation never settles.
 """
-mutable struct Drag <: IForceProvider
+mutable struct Drag <: AbstractForceProvider
     config::ForceProviderConfig
 end
 

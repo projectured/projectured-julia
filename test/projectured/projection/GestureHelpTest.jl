@@ -1,11 +1,11 @@
-# Tests for GestureHelpProjection — the content-level decorator that opens the
+# Tests for GestureHelpDecoratorProjection — the content-level decorator that opens the
 # gesture-help window on F1. Proves the mechanism without the full screen
 # pipeline: the help gesture asks the reader what is available over the decorator's
 # own inner iomap and emits an OpenWindowOperation carrying that GestureMap; a second F1 closes
 # it (toggle); every other gesture passes straight through to the wrapped editor.
 
 function test_gesture_help()
-@testset "GestureHelpProjection" begin
+@testset "GestureHelpDecoratorProjection" begin
     none = ModifierKeys()
     f1   = KeyDown(:f1, none)
 
@@ -16,7 +16,7 @@ function test_gesture_help()
     @testset "F1 opens a window carrying the collected GestureMap" begin
         arr = mkarr()
         state = GestureHelpState()
-        help = GestureHelpProjection(inner = inner, state = state)
+        help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
         # What the window must show == what the reader answers over the same iomap.
@@ -36,7 +36,7 @@ function test_gesture_help()
     @testset "second F1 closes the window (toggle)" begin
         arr = mkarr()
         state = GestureHelpState()
-        help = GestureHelpProjection(inner = inner, state = state)
+        help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
         @test read_intent(help, iomap, f1) isa OpenWindowOperation
@@ -49,7 +49,7 @@ function test_gesture_help()
     @testset "non-help gestures pass through; help is not triggered" begin
         arr = mkarr()
         state = GestureHelpState()
-        help = GestureHelpProjection(inner = inner, state = state)
+        help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
         op = read_intent(help, iomap, KeyDown(:comma, none))  # array insert
@@ -62,7 +62,7 @@ function test_gesture_help()
 
     @testset "transparent printer: output is the inner's own output" begin
         arr = mkarr()
-        help = GestureHelpProjection(inner = inner)
+        help = GestureHelpDecoratorProjection(inner = inner)
         io = print_document(help, arr)
         @test io.output === io.inner_iomap.output
     end
@@ -80,7 +80,7 @@ function test_gesture_help()
                 ScreenDocument => WindowManagingProjection(inner = ScreenToScreen()),
                 WindowDocument => ScreenToScreen(),
                 GestureMap     => GestureMapToSyntax(),
-                JsonArray      => GestureHelpProjection(inner = RecursiveProjection(JsonToSyntax()),
+                JsonArray      => GestureHelpDecoratorProjection(inner = RecursiveProjection(JsonToSyntax()),
                                                         state = state),
                 Any            => IdentityProjection(),
             ),
@@ -115,7 +115,7 @@ function test_gesture_help()
     # composing, so this test wraps it the same way.
     @testset "F1 opens a help window through the real editor pipeline" begin
         arr = mkarr()
-        decorated = GestureHelpProjection(inner = make_json_projection_example(),
+        decorated = GestureHelpDecoratorProjection(inner = make_json_projection_example(),
                                           state = GestureHelpState())
         composed = ProjecturedExample._multi_window_projection([decorated])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])

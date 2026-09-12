@@ -2,7 +2,7 @@
     CommandPaletteDecoratorProjectionModule
 
 The decorator that opens the **command palette** over a content pipeline, modelled
-on [`GestureHelpProjection`](GestureHelpDecorator.jl).
+on [`GestureHelpDecoratorProjection`](GestureHelpDecorator.jl).
 
 **Printer** — the inner output, with the palette drawn over it. The output is
 always one wrapping `GraphicsCanvas` whose first element is the inner output, open
@@ -55,7 +55,7 @@ import ..TextToGraphicsModule: TextToGraphics
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 import ..ColorModule: color_solarized_background_lighter, color_solarized_blue
 
-export CommandPaletteProjection, CommandPaletteState, CommandPaletteIoMap,
+export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
        command_palette_projection
 
@@ -101,7 +101,7 @@ end
 CommandPaletteState() = CommandPaletteState(CommandPalette(), Cell(false))
 
 """
-    CommandPaletteProjection(; inner, measure, state=CommandPaletteState(), x=60, y=60)
+    CommandPaletteDecoratorProjection(; inner, measure, state=CommandPaletteState(), x=60, y=60)
 
 Decorator over `inner`, a content pipeline that prints down to graphics. The
 palette gesture opens a type-in field at `(x, y)` listing the commands available
@@ -111,7 +111,7 @@ rendering chain needs, the same one the content pipeline uses.
 Pass a shared `state` to keep one palette across the rebuilt decorators an example
 pipeline creates per dispatch.
 """
-struct CommandPaletteProjection <: Projection
+struct CommandPaletteDecoratorProjection <: Projection
     inner::Any
     state::CommandPaletteState
     projection::Any
@@ -131,13 +131,13 @@ command_palette_projection(measure::Function) =
                        WordWrapping(measure=measure),
                        TextToGraphics(measure=measure))
 
-CommandPaletteProjection(; inner, measure::Function,
+CommandPaletteDecoratorProjection(; inner, measure::Function,
                            state::CommandPaletteState = CommandPaletteState(),
                            projection = command_palette_projection(measure),
                            x::Integer = 60, y::Integer = 60) =
-    CommandPaletteProjection(inner, state, projection, Int(x), Int(y))
+    CommandPaletteDecoratorProjection(inner, state, projection, Int(x), Int(y))
 
-@iomap struct CommandPaletteIoMap
+@iomap struct CommandPaletteDecoratorIoMap
     projection::Any
     input::Any
     output::Any
@@ -147,7 +147,7 @@ end
 
 # ── Printer ────────────────────────────────────────────────────────────────
 
-function print_document(p::CommandPaletteProjection, recursion, input, ctx)
+function print_document(p::CommandPaletteDecoratorProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
     palette_iomap = print_document(p.projection, nothing, p.state.palette, ctx)
     # One wrapping canvas, built once. Its element list is the reactive part: the
@@ -160,7 +160,7 @@ function print_document(p::CommandPaletteProjection, recursion, input, ctx)
             Any[inner_iomap.output, _placed_palette(p, palette_iomap)] :
             Any[inner_iomap.output])
     output = GraphicsCanvas(elements, layout_none)
-    CommandPaletteIoMap(p, input, Cell(output), inner_iomap, palette_iomap)
+    CommandPaletteDecoratorIoMap(p, input, Cell(output), inner_iomap, palette_iomap)
 end
 
 # The palette on its own panel, at (p.x, p.y). Without the panel the type-in lines
@@ -170,7 +170,7 @@ end
 # the list. Reading `w`/`h` here makes the enclosing thunk re-run per keystroke,
 # which is what keeps the panel around the text rather than behind where the text
 # used to be.
-function _placed_palette(p::CommandPaletteProjection, palette_iomap)
+function _placed_palette(p::CommandPaletteDecoratorProjection, palette_iomap)
     content = palette_iomap.output
     pad = PALETTE_PADDING
     panel = GraphicsRect(0, 0, content.w + 2 * pad, content.h + 2 * pad,
@@ -182,8 +182,8 @@ end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
-function read_intent(p::CommandPaletteProjection, recursion, change::Intent,
-                     iomap::CommandPaletteIoMap)
+function read_intent(p::CommandPaletteDecoratorProjection, recursion, change::Intent,
+                     iomap::CommandPaletteDecoratorIoMap)
     if p.state.open[]
         # The palette owns every event while it is open. Nothing reaches the content,
         # so its selection stays where the user left it.
@@ -198,7 +198,7 @@ function read_intent(p::CommandPaletteProjection, recursion, change::Intent,
     return child
 end
 
-read_intent(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, payload) =
+read_intent(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Fill the palette from the context the user is in, and open it.
@@ -207,7 +207,7 @@ read_intent(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, payload) =
 # in them was built by the binding that owns it and rooted by every stage on the
 # way back, so it applies at this decorator's input whatever wraps the content and
 # however deep the binding lives.
-function _open!(p::CommandPaletteProjection, recursion, iomap::CommandPaletteIoMap)
+function _open!(p::CommandPaletteDecoratorProjection, recursion, iomap::CommandPaletteDecoratorIoMap)
     answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
     palette = p.state.palette
     palette.rows = gesture_rows(answer isa Intent ? answer.operation : answer)
@@ -216,12 +216,12 @@ function _open!(p::CommandPaletteProjection, recursion, iomap::CommandPaletteIoM
     p.state.open[] = true
 end
 
-_close!(p::CommandPaletteProjection) = (p.state.open[] = false)
+_close!(p::CommandPaletteDecoratorProjection) = (p.state.open[] = false)
 
 # Every event while the palette is open. An event the palette has no use for is
 # still swallowed: the palette is a modal type-in, and a stray key must not edit the
 # document behind it.
-function _read_open(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, event)
+function _read_open(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, event)
     palette = p.state.palette
     # The summoning gesture dismisses it too, so the key toggles the palette the way
     # F1 toggles the help window.
@@ -259,7 +259,7 @@ end
 # There is nothing to look up here. Returning the operation is the whole of running
 # it, because the reader already rooted it where this decorator's own result is
 # expected.
-function _run(p::CommandPaletteProjection)
+function _run(p::CommandPaletteDecoratorProjection)
     row = command_palette_row(p.state.palette)
     (row === nothing || row.operation === nothing) && return DoNothingOperation()
     _close!(p)
@@ -270,14 +270,14 @@ end
 # The output is the inner output inside one wrapping canvas, so a forward-mapped
 # reference gains `elements[1]` and a backward-mapped one gives it up.
 
-function map_reference_forward(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, reference)
+function map_reference_forward(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, reference)
     inner = map_reference_forward(p.inner, iomap.inner_iomap, reference)
     inner === nothing && return nothing
     ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(ElementReferenceStep(1), inner))
 end
 
-function map_reference_backward(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, reference)
+function map_reference_backward(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, reference)
     inner = _strip_wrapper(reference)
     inner === nothing && return nothing
     map_reference_backward(p.inner, iomap.inner_iomap, inner)
