@@ -77,6 +77,11 @@ Every document starts with one block-quote line under its title:
 > **Kind:** decision · **Status:** current · **Stands on:** [accepted-requirements.md](requirement/accepted-requirements.md)
 ```
 
+**A slide deck is exempt.** A file under `presentation/` that Marp renders is a
+rendered artifact, not a reference page: its first lines are YAML front matter,
+and a block-quote placed after them appears as text on the first slide. The
+folder's own `README.md` carries the header and says what each deck is.
+
 **Kind** is one of:
 
 | Kind | The document answers |
