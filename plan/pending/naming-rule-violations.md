@@ -63,7 +63,8 @@ decide whether this work is 178 renames or over 600.
 
 Put the cheap and wide changes first, and the ones that need a decision last.
 
-1. **The three big rulings** (§9.1, §9.18, §9.27). Nothing else settles the size
+1. **The three big rulings** (§13). Answered for the getters; open for the
+   `Projection` suffix and the document modules. Nothing else settles the size
    of the work.
 2. **The naming guard** (§10), with the assertions that already pass turned on.
 3. **Module renames** (§4.1, §4.2). No `include` line changes and no `git mv`.
@@ -211,8 +212,8 @@ name is the one to change.
 | [source/clipboard/ClipboardDocument.jl](../../source/clipboard/ClipboardDocument.jl) | `ClipboardModule` | `ClipboardDocumentModule` | 3 |
 | [source/component/ComponentDocument.jl](../../source/component/ComponentDocument.jl) | `ComponentModule` | `ComponentDocumentModule` | 2 |
 
-§9.1 asks the one question this class raises: change the 30 module names, or
-change the rule.
+§13.3 shows what the change looks like at every kind of call site, which is what
+the decision needs.
 
 ### 4.2 Class B — the module carries a word the file name does not (13 files)
 
@@ -654,15 +655,9 @@ These rows need a decision before the fix. Each one is a class, not one name.
     noun phrases and correct as documents, yet they wear the suffix the rule
     gives to the pipeline rung. Should the rule reserve the suffix, so a
     document node must read `MathBinaryOperator` or similar?
-18. **85 domain converters carry no `Projection` suffix.** A grep for a bare
-    `struct … <: Projection` finds 57, and 85 including the macro-declared ones —
-    for example `ObjectToWidget`, `TextToGraphics`, `FsmDiagramToGraph`. 37 types
-    do carry the suffix, and every `<Stem>ProjectionIoMap` does match a real
-    `<Stem>Projection`. The projections table says the type is
-    `<Stem>Projection`, but the section's own text discusses only `generic/` and
-    `higherorder/`. Does the table bind a domain `<A>To<B>` converter, which the
-    file rule sanctions with no suffix? This is the same question as §9.14, seen
-    from the type side, and it is the largest open class in the collection.
+18. **85 domain converters carry no `Projection` suffix.** **UNDER DISCUSSION —
+    see §13.2 for the case on each side.** This is the same question as §9.14,
+    seen from the type side.
 19. **The `Llm`/`Agent` event vocabulary.** 14 types under `LlmEvent` and
     `AgentEvent` do not subtype the pipeline `Event` and are not
     `<Source><Action>`: they read `LlmTextStart`, `LlmThinkingDelta`,
@@ -714,20 +709,8 @@ These rows need a decision before the fix. Each one is a class, not one name.
     `WorkbenchWorkbench`, `ConversationConversation` and `GraphGraph`, each the
     root document of its domain. No listed rule forbids it, and both halves are
     nouns, but the doubling reads oddly. Worth a decision, not a violation.
-27. **452 getters read `<subject>_<property>`, not `get_<stem>`.** This is the
-    largest class in the whole collection. Examples: `body_mass(body)`,
-    `pane_title_path(tree, group, index)`, `font_ascent(font)`,
-    `db_query(adapter, sql)`. It spans nearly every domain: `pane_*` 34,
-    `cell_*` 13, `widget_*` 13, `arrow_*` 12, `body_*` 11, `chart_*` 10,
-    `font_*` 10, `math_*` 10, `event_*` 9, and dozens of smaller families. The
-    sharpest case is `body_mass` next to its own sibling mutator `set_mass!` —
-    the getter and the setter of one concept use two different shapes. 452 names
-    are too many and too consistent to be oversights, so either the written rule
-    "Getters are `get_<stem>`" has a backlog of 452, or the bare
-    `<subject>_<property>` form is the real and undocumented convention for a
-    pure accessor, with `get_<stem>` reserved for something narrower. This needs
-    a ruling before anyone proposes 452 renames, and it is the one question that
-    most changes the size of the work.
+27. **460 getters read `<subject>_<property>`, not `get_<stem>`.** **ANSWERED —
+    see §13.1. The rule wins: use verbs.**
 28. **246 constants are lower case, not `SCREAMING_SNAKE_CASE`.** Two deliberate
     families dominate: 142 `font_*` constants in
     [Font.jl](../../source/style/Font.jl) and 99 `color_*` constants in
@@ -813,3 +796,174 @@ needed for them: `reference/ReferenceStep.jl`, `reference/ReferenceSyntax.jl`,
 `PAR-NAMING-LAW` is part of the audit that a file passes before it is sealed, so
 `SelectionMismatch` means the audit of that file missed the rule. Re-audit the
 file after the fix and keep the `🔒` mark, as CLAUDE.md directs.
+
+## 13. The three rulings
+
+The user answered the three questions of §2 on 2026-09-12: use verbs for the
+getters, discuss the `Projection` suffix, and show examples for the document
+modules.
+
+### 13.1 Getters — the rule wins, use verbs
+
+**Decision: rename the getters to a verb-first name.** The written rule stands,
+and `<subject>_<property>` is a backlog, not a second convention.
+
+I recount the class: **460 candidate getters**, after I remove three families
+that are a different question — the 142 `font_*` and 99 `color_*` palette
+constants (§9.28), the eight `<domain>parse*` names (§6.2, already a violation of
+their own), and the C++ port vocabulary `pt_*`, `rs_*`, `rc_*`, `ln_*`, `cc_*`
+(§9.23). An independent parse of the export lists put the class at 452, so the
+two counts agree.
+
+The rules say the subject travels by dispatch, not in the name: "Every function
+name starts with a verb. The subject is carried by dispatch, not by the name."
+So `body_mass(body)` becomes `get_mass(body)` and pairs with the `set_mass!`
+that already exists. I tested what happens if the subject word is dropped from
+all 460:
+
+| outcome | names | what to do |
+| --- | --- | --- |
+| the target name is free | 382 | drop the subject, prefix `get_` |
+| the target name collides, and the concept is one | most of 78 | one generic, one owning module, a method per type |
+| the target name collides, and the concepts differ | the rest of 78 | keep the subject word inside the name |
+| the leading word is a qualifier, not a subject | see below | keep the word, prefix `get_` |
+
+83 % of the class renames with no judgement. The 31 collisions cover 78 names.
+The largest are `get_count` (from `arrow_count`, `edge_count`, `event_count`,
+`vertex_count`), `get_reference` (from `arrow_reference`, `axis_reference`,
+`band_reference`, `event_reference`, `introduced_reference`), `get_row`,
+`get_hit`, `get_section`, `get_size`, `get_document` and `get_text`.
+
+A collision is not automatically a problem. The rules already say what to do:
+"For a generic function, the owning module defines and exports the generic;
+other modules may import it and add methods." `get_count` over an arrow, an edge
+and a vertex is one question — how many — so it is one generic with three
+methods, and it makes the API smaller, not larger. Only where the concepts truly
+differ does the subject word stay.
+
+Watch for a leading word that is a qualifier and not a subject.
+`first_focusable_path` and `last_focusable_path` both strip to
+`get_focusable_path`, but `first` and `last` are qualifiers. The rules put a
+qualifier at the end, so these become `get_focusable_path_first` and
+`get_focusable_path_last`, or they keep one generic with an argument.
+
+**How to do it.** Take one family at a time, smallest first, and commit each
+family on its own. `pane_*` (34) is the largest single family and should go
+last. For each family: rename, then run the narrowest test that covers the
+slice, then load the package. Do not rename across families in one commit — a
+collision only shows up when the second family arrives.
+
+### 13.2 The `Projection` suffix on a domain converter — the case on each side
+
+**Not decided. This section states the case on each side.**
+
+The facts. 85 converter types read `<A>To<B>` with no suffix (`JsonToSyntax`,
+`TextToGraphics`, `ObjectToWidget`, `FsmDiagramToGraph`). 37 types carry the
+suffix (`FocusingProjection`, `ChainingProjection`, `TooltipDecoratorProjection`).
+The split is not random: every suffixed type sits in `projection/generic/`,
+`projection/higherorder/`, or is a decorator, and the file rule sanctions
+`<A>To<B>.jl` for a projection file with no mention of a type suffix.
+
+**The case for adding the suffix to all 85.**
+
+- The projections table states one shape and gives no exception. A reader who
+  learns the table and then meets `ObjectToWidget` can not tell it is a
+  projection from the name.
+- The law is bidirectional. Today the name `TextToGraphics` could be a function,
+  a converter object, or a module. The suffix answers it.
+- The IO map already carries the word. Every `<Stem>ProjectionIoMap` in the
+  repository matches a real `<Stem>Projection`, so the suffixed half of the
+  quad is already consistent. The type is the odd one out.
+- One rule beats two. A second sanctioned shape is a second thing to remember,
+  and §9 already collects 30 other places where the rules read two ways.
+
+**The case for keeping the 85 bare.**
+
+- `<A>To<B>` already says what the thing is. `JsonToSyntax` is unambiguous in a
+  way `Focusing` is not: a gerund alone could be anything, so it needs the
+  suffix, and a `To` name does not.
+- The call site is a chain, and the chain is where these names live:
+  `ChainingProjection([JsonToSyntax(), SyntaxToText(), TextToGraphics()])`.
+  With the suffix that reads `ChainingProjection([JsonToSyntaxProjection(),
+  SyntaxToTextProjection(), TextToGraphicsProjection()])` — the word `Projection`
+  four times in one expression, which hides the pipeline that the line is about.
+- 85 renames reach every domain package and every example, and the names appear
+  in documentation and in plan files.
+- The file rule already made this choice. `source/json/JsonToSyntax.jl` is the
+  sanctioned file name for a projection, and it carries no `Projection` either.
+  Changing the type but not the file would break the quad the other way.
+
+**A third option.** Keep the 85 bare and write the exception into the rule: a
+projection whose name is `<A>To<B>` takes no suffix, because the `To` already
+marks it; every other projection takes `<Stem>Projection`. That costs one
+sentence and no renames, and it makes the rule describe the code as it is.
+
+**My recommendation: the third option.** The `To` really does carry the
+information the suffix would add, the chain call site is the common case and it
+reads worse with the suffix, and the file rule already committed to the bare
+form. But the suffix side has the stronger principle, so this is the user's
+call, not mine.
+
+### 13.3 The document modules — what the change looks like
+
+The class: 30 files named `<Slice>Document.jl` declare `<Slice>Module`. Here is
+[source/json/JsonDocument.jl](../../source/json/JsonDocument.jl), which is the
+smallest of the large families at 18 references.
+
+**The declaration**, [JsonDocument.jl:2,11](../../source/json/JsonDocument.jl#L2):
+
+    # before
+        JsonModule
+    module JsonModule
+
+    # after
+        JsonDocumentModule
+    module JsonDocumentModule
+
+**An import inside the slice**,
+[JsonToSyntax.jl:14](../../source/json/JsonToSyntax.jl#L14):
+
+    # before
+    import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool
+
+    # after
+    import ..JsonDocumentModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool
+
+**A use from a test**,
+[JsonFileTest.jl:12](../../test/json/serializer/JsonFileTest.jl#L12):
+
+    # before
+    using ProjecturedJson.JsonModule
+
+    # after
+    using ProjecturedJson.JsonDocumentModule
+
+**A module alias in a package root.** A root that re-exports the module under
+its own name gains the same four letters:
+
+    # before
+    const JsonModule = ProjecturedJson.JsonModule
+
+    # after
+    const JsonDocumentModule = ProjecturedJson.JsonDocumentModule
+
+**What it costs.** 717 references across the 30 families, and 8 in
+documentation. No `include` line changes, because the file name does not change,
+and no `git mv`. The three largest families carry more than half the total:
+`CollectionModule` 157, `TextModule` 107, `PrimitiveModule` 64.
+
+**What it reads like at its worst.** The longest name in the class becomes
+`SequenceChartDocumentModule`, and an import line reads:
+
+    import ..SequenceChartDocumentModule: SequenceChart, SequenceChartAxis
+
+**The alternative, for comparison.** Keep the 30 module names and add one
+sentence to the rule: the module of a slice's primary document file drops the
+word `Document`, because the slice name already carries it. That costs no
+renames. It also makes `JsonDocument.jl` the one file kind whose module can not
+be guessed from its name, which is the property the law exists to protect.
+
+**My recommendation: rename the 30 modules.** The rule is stated twice, in
+naming-rules.md and in `PAR-NAMING-LAW`, and both say the module is the file
+name plus `Module` with no per-folder exceptions. The rename is mechanical, it
+changes no `include` line, and a guard (§10) can hold it in place afterwards.
