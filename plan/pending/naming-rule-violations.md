@@ -1063,7 +1063,7 @@ Each row also rewrites the `include("…")` line that names the file.
 | --- | --- | --- |
 | [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
-| [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | §7.1, the file holds two stems |
+| [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **moved to [one-module-per-slice.md](one-module-per-slice.md) §4.1.** The split needs the slice to be one module first. |
 
 ### 14.5 Module aliases to delete
 

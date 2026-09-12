@@ -85,6 +85,29 @@ file modules.** `graph` carries 39 internal edges across 17 modules and `text`
 25 across 14. Read that as those two slices doing too much. Consider dividing
 them into more slices before or instead of collapsing them.
 
+### 4.1 One file split waits for this plan
+
+[ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) holds two
+projection stems, `ClipboardSliceToAnyProjection` and
+`ClipboardCollectionToAnyProjection`, under one module named for neither.
+[naming-rule-violations.md](naming-rule-violations.md) §7.1 asks for two files.
+
+The split waits for this plan, because today it would also split the module, and
+the file does not divide:
+
+- the two projection types and their two IO maps sit together, and
+  `print_document`, `map_reference_forward` and `map_reference_backward`
+  alternate between the stems through all 631 lines;
+- **16 private helpers serve both stems** — `_clipboard_copy`, `_clipboard_cut`,
+  `_clipboard_paste`, `_os_paste_document`, `_prefix_op`, `_prepend` and more;
+- `WriteOsClipboardOperation` belongs to neither stem.
+
+Splitting the module today means duplicating those 16 helpers or inventing a
+third module to hold them. Once the clipboard slice is one module, the two stems
+become two fragment files that share the helpers, and the split costs nothing.
+
+Do it as part of the clipboard slice's step.
+
 ## 5. Open questions this plan must answer
 
 1. **A slice whose name is also a kernel layer — ANSWERED.**
