@@ -26,12 +26,14 @@ namespace was built would otherwise be a declaration that did nothing.
 
 Declaring nothing restores the whole surface.
 
-**Two entries that give one name are refused.** `using A: x` beside `using B: x`
-is an ambiguity Julia reports only when the model writes `x`, and the declaration
-is where a person can fix it, so it is caught here with both sources named.
+**A name its module does not have is refused**, and so is **a name two entries
+both give**. The first fails when the namespace is built, and the second is an
+ambiguity Julia reports only when the model writes the name — both far from the
+line a person can fix. The declaration is that line.
 """
 function declare_api!(set::ToolSet, declaration)
     entries = _api_entries(declaration)
+    _refuse_missing_names(entries)
     _refuse_declared_twice(entries)
     set.api = entries
     # The namespace is built from the declaration, so a new declaration needs a
@@ -52,6 +54,21 @@ function register_tool!(set::ToolSet, t::Tool)
     i = findfirst(x -> x.name == t.name, set.tools)
     i === nothing ? push!(set.tools, t) : (set.tools[i] = t)
     t
+end
+
+# A pair names what it wants, and a typo in one is a name nothing answers to.
+# `using M: x` would fail on it when the namespace is built, which is a round the
+# model spends on a fault the declaration already had.
+function _refuse_missing_names(entries::Vector{ApiEntry})
+    for entry in entries
+        entry.names === nothing && continue
+        for name in entry.names
+            isdefined(entry.module_, name) && continue
+            error("The module " * String(nameof(entry.module_)) * " has no name " *
+                  repr(name) * " to give.")
+        end
+    end
+    entries
 end
 
 function _refuse_declared_twice(entries::Vector{ApiEntry})

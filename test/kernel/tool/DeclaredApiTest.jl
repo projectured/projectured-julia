@@ -135,6 +135,19 @@ function test_declared_api()
         @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
     end
 
+    @testset "a name its module does not have is refused" begin
+        set = ToolSet()
+        message = try
+            declare_api!(set, [ToyApi => (:toy_verb, :toy_missing)])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("ToyApi", message)
+        @test occursin("toy_missing", message)
+        @test isempty(set.api)
+    end
+
     @testset "two entries that give one name are refused" begin
         set = ToolSet()
         message = try
