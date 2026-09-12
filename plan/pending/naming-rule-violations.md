@@ -797,173 +797,170 @@ needed for them: `reference/ReferenceStep.jl`, `reference/ReferenceSyntax.jl`,
 `SelectionMismatch` means the audit of that file missed the rule. Re-audit the
 file after the fix and keep the `🔒` mark, as CLAUDE.md directs.
 
+
 ## 13. The three rulings
 
-The user answered the three questions of §2 on 2026-09-12: use verbs for the
-getters, discuss the `Projection` suffix, and show examples for the document
-modules.
+The user answered on 2026-09-12. Two are settled. The third needs my pushback,
+which §13.3 gives.
 
-### 13.1 Getters — the rule wins, use verbs
+### 13.1 Getters — use verbs, and never reuse a name
 
-**Decision: rename the getters to a verb-first name.** The written rule stands,
-and `<subject>_<property>` is a backlog, not a second convention.
+**Decision: every exported function takes a verb, and a rename must never
+collapse two unrelated concepts onto one name.**
 
-I recount the class: **460 candidate getters**, after I remove three families
-that are a different question — the 142 `font_*` and 99 `color_*` palette
-constants (§9.28), the eight `<domain>parse*` names (§6.2, already a violation of
-their own), and the C++ port vocabulary `pt_*`, `rs_*`, `rc_*`, `ln_*`, `cc_*`
-(§9.23). An independent parse of the export lists put the class at 452, so the
-two counts agree.
+I recount the class honestly. My first two counts, 452 and 460, were both too
+high: the verb list behind them missed many verbs, so names like
+`unwrap_selection`, `adjust_user_zoom!` and `reconcile_children` were counted as
+noun-first when they are not. With a complete verb list the class is **383
+exported functions that do not start with a verb**.
 
-The rules say the subject travels by dispatch, not in the name: "Every function
-name starts with a verb. The subject is carried by dispatch, not by the name."
-So `body_mass(body)` becomes `get_mass(body)` and pairs with the `set_mass!`
-that already exists. I tested what happens if the subject word is dropped from
-all 460:
+The class is not one kind. Reading the definitions shows at least six:
 
-| outcome | names | what to do |
+| kind | fix |
+| --- | --- |
+| getter | `get_<stem>` |
+| predicate returning `Bool` | `is_<condition>` or `has_<possession>` |
+| factory | `make_<thing>` |
+| derived copy | `with_<stem>` |
+| mutator | `<verb>_<noun>!` |
+| a constant or an enum value, not a function | no change; it belongs to §9.28 |
+
+So `get_` is not the answer for all 383. Each name needs its definition read.
+
+**The user's rule and what it costs.** The rules say the subject travels by
+dispatch, which would turn `pane_drop_zone` into `get_drop_zone`. The user
+overruled that: never reuse a name and let dispatch separate two unrelated
+concepts. So the subject word stays unless the two names are provably one
+concept. I tested the conservative form — keep the whole name, add the verb —
+across the class: **zero collisions**. Only one name in the whole class has a
+proven twin, `body_mass` beside the `set_mass!` that already exists, so only
+that one drops its subject and becomes `get_mass`.
+
+The complete list of 383, one row per name, is §14.
+
+### 13.2 The `Projection` suffix — the third option, and `<Stem>IoMap`
+
+**Decision: keep the 85 `<A>To<B>` converters bare, write the exception into the
+rule, and drop `Projection` from the IO map name.**
+
+Two changes to [naming-rules.md](../../documentation/rule/naming-rules.md).
+
+**First, the projections table loses `Projection` from the IO map row:**
+
+| artifact | was | is |
 | --- | --- | --- |
-| the target name is free | 382 | drop the subject, prefix `get_` |
-| the target name collides, and the concept is one | most of 78 | one generic, one owning module, a method per type |
-| the target name collides, and the concepts differ | the rest of 78 | keep the subject word inside the name |
-| the leading word is a qualifier, not a subject | see below | keep the word, prefix `get_` |
+| file | `<Stem>.jl` | `<Stem>.jl` |
+| type | `<Stem>Projection` | `<Stem>Projection` |
+| module | `<Stem>ProjectionModule` | `<Stem>ProjectionModule` |
+| iomap | `<Stem>ProjectionIoMap` | **`<Stem>IoMap`** |
 
-83 % of the class renames with no judgement. The 31 collisions cover 78 names.
-The largest are `get_count` (from `arrow_count`, `edge_count`, `event_count`,
-`vertex_count`), `get_reference` (from `arrow_reference`, `axis_reference`,
-`band_reference`, `event_reference`, `introduced_reference`), `get_row`,
-`get_hit`, `get_section`, `get_size`, `get_document` and `get_text`.
+**Second, a sentence that states the exception**, to be added under
+"Projections":
 
-A collision is not automatically a problem. The rules already say what to do:
-"For a generic function, the owning module defines and exports the generic;
-other modules may import it and add methods." `get_count` over an arrow, an edge
-and a vertex is one question — how many — so it is one generic with three
-methods, and it makes the API smaller, not larger. Only where the concepts truly
-differ does the subject word stay.
+> A projection named `<A>To<B>` takes no suffix. The `To` already says the name
+> is a projection, and the chain that these names live in reads better without
+> the word repeated: `ChainingProjection([JsonToSyntax(), SyntaxToText(),
+> TextToGraphics()])`. Every other projection takes `<Stem>Projection`.
 
-Watch for a leading word that is a qualifier and not a subject.
-`first_focusable_path` and `last_focusable_path` both strip to
-`get_focusable_path`, but `first` and `last` are qualifiers. The rules put a
-qualifier at the end, so these become `get_focusable_path_first` and
-`get_focusable_path_last`, or they keep one generic with an argument.
+**The 23 IO map renames.** 189 references. No target name is taken, which I
+checked.
 
-**How to do it.** Take one family at a time, smallest first, and commit each
-family on its own. `pane_*` (34) is the largest single family and should go
-last. For each family: rename, then run the narrowest test that covers the
-slice, then load the package. Do not rename across families in one commit — a
-collision only shows up when the second family arrives.
+| old | new | refs |
+| --- | --- | --- |
+| `CopyingProjectionIoMap` | `CopyingIoMap` | 21 |
+| `ChainingProjectionIoMap` | `ChainingIoMap` | 11 |
+| `DraggingProjectionIoMap` | `DraggingIoMap` | 10 |
+| `CommandPaletteProjectionIoMap` | `CommandPaletteIoMap` | 9 |
+| `VersioningToAnyProjectionIoMap` | `VersioningToAnyIoMap` | 9 |
+| `WindowManagingProjectionIoMap` | `WindowManagingIoMap` | 9 |
+| `ClipboardSliceToAnyProjectionIoMap` | `ClipboardSliceToAnyIoMap` | 8 |
+| `HoverProbeProjectionIoMap` | `HoverProbeIoMap` | 8 |
+| `NestingProjectionIoMap` | `NestingIoMap` | 8 |
+| `ClipboardCollectionToAnyProjectionIoMap` | `ClipboardCollectionToAnyIoMap` | 7 |
+| `FilteringProjectionIoMap` | `FilteringIoMap` | 7 |
+| `GestureHelpProjectionIoMap` | `GestureHelpIoMap` | 7 |
+| `GestureLogOverlayProjectionIoMap` | `GestureLogOverlayIoMap` | 7 |
+| `GestureLogRecordingProjectionIoMap` | `GestureLogRecordingIoMap` | 7 |
+| `ProjectionConfiguringProjectionIoMap` | `ProjectionConfiguringIoMap` | 7 |
+| `ReferenceDispatchingProjectionIoMap` | `ReferenceDispatchingIoMap` | 7 |
+| `SortingProjectionIoMap` | `SortingIoMap` | 7 |
+| `SwitchingProjectionIoMap` | `SwitchingIoMap` | 7 |
+| `TooltipDecoratorProjectionIoMap` | `TooltipDecoratorIoMap` | 7 |
+| `WidgetHoverTrackingProjectionIoMap` | `WidgetHoverTrackingIoMap` | 7 |
+| `WidgetPopupResolverProjectionIoMap` | `WidgetPopupResolverIoMap` | 7 |
+| `WindowInputUnwrappingProjectionIoMap` | `WindowInputUnwrappingIoMap` | 7 |
+| `SearchingProjectionIoMap` | `SearchingIoMap` | 5 |
 
-### 13.2 The `Projection` suffix on a domain converter — the case on each side
+The two decorator rows of §7.1 still hold. `CommandPaletteProjection` becomes
+`CommandPaletteDecoratorProjection` and its IO map becomes
+`CommandPaletteDecoratorIoMap`, because the file and the module already say
+`Decorator` and the sibling `TooltipDecoratorProjection` keeps the word.
 
-**Not decided. This section states the case on each side.**
+**What this decision cancels.** §9.18 and §9.14 are closed. The 85 converters
+keep their names, and no rename follows from them.
 
-The facts. 85 converter types read `<A>To<B>` with no suffix (`JsonToSyntax`,
-`TextToGraphics`, `ObjectToWidget`, `FsmDiagramToGraph`). 37 types carry the
-suffix (`FocusingProjection`, `ChainingProjection`, `TooltipDecoratorProjection`).
-The split is not random: every suffixed type sits in `projection/generic/`,
-`projection/higherorder/`, or is a decorator, and the file rule sanctions
-`<A>To<B>.jl` for a projection file with no mention of a type suffix.
+### 13.3 One module per slice — the pushback the user asked for
 
-**The case for adding the suffix to all 85.**
+The user asks: why so many modules? Why not one `JsonModule` for the whole
+slice, since a document, a projection and a parser will not clash inside one
+slice?
 
-- The projections table states one shape and gives no exception. A reader who
-  learns the table and then meets `ObjectToWidget` can not tell it is a
-  projection from the name.
-- The law is bidirectional. Today the name `TextToGraphics` could be a function,
-  a converter object, or a module. The suffix answers it.
-- The IO map already carries the word. Every `<Stem>ProjectionIoMap` in the
-  repository matches a real `<Stem>Projection`, so the suffixed half of the
-  quad is already consistent. The type is the odd one out.
-- One rule beats two. A second sanctioned shape is a second thing to remember,
-  and §9 already collects 30 other places where the rules read two ways.
+**The premise is right, and it is not the reason for the boundary.** Clashes are
+not what the per-file module buys. Two other things are.
 
-**The case for keeping the 85 bare.**
+**The first is real and the measurement is smaller than I expected.** The
+layering guard [CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
+reads the real `import ..XModule` headers and asserts that the include order is
+a valid topological order over them. Collapse a slice and the edges inside it
+stop existing, so the guard has nothing to sort there. But I counted them:
 
-- `<A>To<B>` already says what the thing is. `JsonToSyntax` is unambiguous in a
-  way `Focusing` is not: a gerund alone could be anything, so it needs the
-  suffix, and a `To` name does not.
-- The call site is a chain, and the chain is where these names live:
-  `ChainingProjection([JsonToSyntax(), SyntaxToText(), TextToGraphics()])`.
-  With the suffix that reads `ChainingProjection([JsonToSyntaxProjection(),
-  SyntaxToTextProjection(), TextToGraphicsProjection()])` — the word `Projection`
-  four times in one expression, which hides the pipeline that the line is about.
-- 85 renames reach every domain package and every example, and the names appear
-  in documentation and in plan files.
-- The file rule already made this choice. `source/json/JsonToSyntax.jl` is the
-  sanctioned file name for a projection, and it carries no `Projection` either.
-  Changing the type but not the file would break the quad the other way.
+| edge kind | count |
+| --- | --- |
+| `import ..XModule` lines outside the kernel | 1880 |
+| of those, **cross-slice** — unaffected, they just target `JsonModule` instead | **1626** |
+| of those, **intra-slice** — these disappear | **254** |
 
-**A third option.** Keep the 85 bare and write the exception into the rule: a
-projection whose name is `<A>To<B>` takes no suffix, because the `To` already
-marks it; every other projection takes `<Stem>Projection`. That costs one
-sentence and no renames, and it makes the rule describe the code as it is.
+**20 non-kernel slices already have zero intra-slice edges.** For those the
+collapse loses nothing whatsoever. The 254 concentrate in a few: `graph` 39,
+`text` 25, `process` 15, `syntax` 13, `pane` 12.
 
-**My recommendation: the third option.** The `To` really does carry the
-information the suffix would add, the chain call site is the common case and it
-reads worse with the suffix, and the file rule already committed to the bare
-form. But the suffix side has the stronger principle, so this is the user's
-call, not mine.
+**The second cost is the one I would not give up lightly.** Today a name can be
+exported from `JsonParserModule` and imported only by `JsonFileModule`, so it is
+shared between two files and still invisible outside the slice.
+`PAR-MODULE-BOUNDARY-IS-API` says the module boundary is the API boundary, and
+that is the boundary doing the work. Collapse the slice and there is no place
+left to put a name that two files share but no consumer should see. I counted
+them: **346 exported symbols are used only inside their own slice.** All 346
+become public, with no way to mark them internal.
 
-### 13.3 The document modules — what the change looks like
+**Where the user is right, and it is most of the way.**
 
-The class: 30 files named `<Slice>Document.jl` declare `<Slice>Module`. Here is
-[source/json/JsonDocument.jl](../../source/json/JsonDocument.jl), which is the
-smallest of the large families at 18 references.
+- The kernel already does exactly what the user proposes. A layer is
+  `DocumentModule.jl` owning `DocumentInterface.jl`, `DocumentCopy.jl` and the
+  rest as fragments with no module of their own, and the guard errors if a
+  fragment tries a relative import. So "one module, many fragment files" is not
+  a new idea here; it is the kernel's own pattern, and 450 files across the
+  repository are already fragments.
+- The ceremony is real. `source/projection/` is 19 modules for 19 files, `text`
+  14 for 14, `graph` 17 for 16.
+- It deletes §9.1 outright. `JsonModule` in `JsonDocument.jl` becomes correct
+  rather than wrong, and the 717 references stay as they are.
 
-**The declaration**, [JsonDocument.jl:2,11](../../source/json/JsonDocument.jl#L2):
+**My recommendation: do not decide it inside this plan.** It is an architecture
+change, not a naming fix — it moves an API boundary, it drops 254 checked edges
+and it makes 346 names public. It deserves its own plan, its own before and
+after, and its own guard change. If it goes ahead, §4.1 and §9.1 vanish with it,
+so **defer §4.1 until this is settled** and do the rest of the plan meanwhile.
 
-    # before
-        JsonModule
-    module JsonModule
+If the user wants it now, the cheapest honest version is: collapse only the 20
+slices that already have zero intra-slice edges. It costs no checked edge, it
+proves the pattern, and it leaves `graph`, `text`, `syntax`, `process` and
+`pane` — where the edges actually are — for a later look.
 
-    # after
-        JsonDocumentModule
-    module JsonDocumentModule
+## 14. Every rename
 
-**An import inside the slice**,
-[JsonToSyntax.jl:14](../../source/json/JsonToSyntax.jl#L14):
+The user asked to see every rename before any of it happens. This section lists
+them. Nothing in it is applied yet.
 
-    # before
-    import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool
-
-    # after
-    import ..JsonDocumentModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool
-
-**A use from a test**,
-[JsonFileTest.jl:12](../../test/json/serializer/JsonFileTest.jl#L12):
-
-    # before
-    using ProjecturedJson.JsonModule
-
-    # after
-    using ProjecturedJson.JsonDocumentModule
-
-**A module alias in a package root.** A root that re-exports the module under
-its own name gains the same four letters:
-
-    # before
-    const JsonModule = ProjecturedJson.JsonModule
-
-    # after
-    const JsonDocumentModule = ProjecturedJson.JsonDocumentModule
-
-**What it costs.** 717 references across the 30 families, and 8 in
-documentation. No `include` line changes, because the file name does not change,
-and no `git mv`. The three largest families carry more than half the total:
-`CollectionModule` 157, `TextModule` 107, `PrimitiveModule` 64.
-
-**What it reads like at its worst.** The longest name in the class becomes
-`SequenceChartDocumentModule`, and an import line reads:
-
-    import ..SequenceChartDocumentModule: SequenceChart, SequenceChartAxis
-
-**The alternative, for comparison.** Keep the 30 module names and add one
-sentence to the rule: the module of a slice's primary document file drops the
-word `Document`, because the slice name already carries it. That costs no
-renames. It also makes `JsonDocument.jl` the one file kind whose module can not
-be guessed from its name, which is the property the law exists to protect.
-
-**My recommendation: rename the 30 modules.** The rule is stated twice, in
-naming-rules.md and in `PAR-NAMING-LAW`, and both say the module is the file
-name plus `Module` with no per-folder exceptions. The rename is mechanical, it
-changes no `include` line, and a guard (§10) can hold it in place afterwards.
+Status: the 383 rows of §13.1 are still being named, one definition at a time.
+Every other table below is complete.
