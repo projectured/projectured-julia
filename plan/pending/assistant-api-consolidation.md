@@ -433,6 +433,65 @@ working exactly as it was built to: the model read what `show_layout` printed an
 edited it. That is the evidence behind §8c, now measured on a case nobody wrote
 by hand.
 
+### 8h. The reference, and two mistakes in how it was measured
+
+**Every number before 2026-09-13 evening was one sample of a random process.**
+The Ollama adapter sent no seed, so the server sampled with its own default and
+two runs of one question were two answers. A "36 calls, then 44, then 34"
+sequence was read as signal when part of it was noise. `OllamaLlm` takes a
+`seed` now, and the guard fixes one.
+
+**A seed, and not a temperature.** Setting the temperature to zero was the second
+mistake: a seed fixes which sample is drawn and changes nothing else, while
+temperature zero makes the model greedy, which is a different model inside an
+agent loop and not the one a person runs. Measured: at zero, five of the eight
+cases failed, against three with the server's own sampling.
+
+**The reference, seeded, with the search of §8i:**
+
+| case | tool calls | reached |
+| --- | ---: | --- |
+| count | 4 | yes |
+| **run** | 3 | **no** |
+| table | 5 | yes |
+| **plot** | 6 | **no** |
+| **add_series** | 7 | **no** |
+| layout | 2 | yes |
+| stop | 2 | yes |
+| columns | 2 | yes |
+| **total** | **31** | 5 of 8 |
+
+This is the first number a later run may honestly be compared with.
+
+### 8i. What the search learned, and what it cannot do
+
+Three changes, and one repair of two of them.
+
+- **One clear hit answers in full.** A hit showed a signature and a locator, and
+  the model spent the next round calling that locator. Confirmed in a transcript:
+  it now searches and calls the verb in one round.
+- **A term matches the prose in any of its forms, and a name only as written.**
+  Letting a stem claim a name was a regression: `run` is inside almost every verb
+  of `CampaignVerbsModule`, so "stop runs" answered
+  `run_simulations_in_conversation` first.
+- **A hit is ranked on two numbers.** The name score decides and the prose score
+  separates what the name could not. One number let each spoil the other: added,
+  a long docstring outranked the verb the person named; capped, a query matching
+  no name collapsed into ties that length then settled, and "scalars delay table"
+  answered `DataFrames.nrow`.
+- **A miss says what there is**, in the round that asked, rather than a list
+  carried in every prompt of every conversation.
+
+**And here is what tuning cannot reach.** "scalars delay table" still answers
+`nrow`, because `DataFrames` repeats the word "table" in its prose and **no verb
+has "table" in its name**. A search cannot invent vocabulary the names do not
+have. After §4 one verb does: `make_result_table`. The same holds for the `kind`
+failure of §8g — `get_results(editor; kind = "scalars"|"vectors"|…)` puts the
+value where the model reads it.
+
+**So the remaining gains are in the naming, not in the ranker**, which is the
+plan this file already describes.
+
 ## 9. Stages
 
 Each stage is a commit, and each leaves the assistant working.
