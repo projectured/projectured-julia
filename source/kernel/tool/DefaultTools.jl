@@ -45,14 +45,39 @@ const _WHOLE_SURFACE_DESCRIPTION =
 # submodule of the project when it declared none.
 _api_modules(set::ToolSet) =
     isempty(set.api) ? _submodules(_projectured()) :
-                       [(nameof(m), m) for m in set.api]
+                       [(nameof(e.module_), e.module_) for e in set.api]
+
+# The types of one module a model may name. An empty declaration is the whole
+# surface, where every type of the module is one.
+function _api_types(set::ToolSet, mod::Module)
+    all = _struct_types(mod)
+    isempty(set.api) && return all
+    for entry in set.api
+        entry.module_ === mod || continue
+        given = api_entry_names(entry)
+        return [pair for pair in all if first(pair) in given]
+    end
+    empty(all)
+end
+
+# What a declaration can be said in one sentence. A module that gave every name
+# it exports is named; a module that gave a few is not, because "the functions of
+# DataFrames" would be false of eight of its eighty-six. The few are counted
+# instead, and `search_api` is what finds them — a tool description is sent with
+# every request, and a list of names does not belong in one.
+function _declared_sentence(set::ToolSet)
+    whole = [String(nameof(e.module_)) for e in set.api if e.names === nothing]
+    chosen = sum(length(e.names) for e in set.api if e.names !== nothing; init = 0)
+    isempty(whole) && return "The " * string(chosen) * " names this editor declares are "
+    "The functions of " * join(whole, ", ") *
+        (chosen == 0 ? "" : ", and " * string(chosen) * " more names, are ")
+end
 
 function _execute_julia_code_description(set::ToolSet)
     isempty(set.api) && return _WHOLE_SURFACE_DESCRIPTION
-    named = join((String(nameof(m)) for m in set.api), ", ")
     "Execute Julia code in the editor process. " *
     "The variable `editor` is bound to the running editor.\n\n" *
-    "The functions of " * named * " are in scope, and they are the whole of what " *
+    _declared_sentence(set) * "in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
     "FIND THEM BEFORE YOU WRITE ANY CODE, with the two tools that answer that:\n" *
     "- `search_api` lists them, with one line of description each.\n" *
@@ -132,7 +157,7 @@ function register_default_tools!(set::ToolSet)
             search_api(q;
                        kind    = _arg_kind(get(args, "kind", nothing)),
                        limit   = _arg_int(get(args, "limit", 8), 8),
-                       modules = set.api)
+                       api = set.api)
         end,
     ))
 
@@ -164,7 +189,7 @@ function register_default_tools!(set::ToolSet)
             get(args, "module_name", ""),
             get(args, "function_name", ""),
             get(args, "type_name", nothing);
-            modules = set.api),
+            api = set.api),
     ))
 
     # The resource list is reachable *as a tool*, not only as a protocol concept:
@@ -225,7 +250,7 @@ function register_default_tools!(set::ToolSet)
             "Modules",
             "List the modules you may call, with one-paragraph documentation for each " *
             "and a list of its types.",
-            () -> list_modules(; modules = declared),
+            () -> list_modules(; api = declared),
         ))
     end
 
@@ -235,16 +260,16 @@ function register_default_tools!(set::ToolSet)
                 "resource://module/$mn",
                 "Module: $mn",
                 "Full documentation for the $mn module.",
-                () -> read_module_documentation(mn; modules = set.api),
+                () -> read_module_documentation(mn; api = set.api),
             ))
         end
-        for (cls_sym, _) in _struct_types(mod)
+        for (cls_sym, _) in _api_types(set, mod)
             let mn = String(mod_sym), cn = String(cls_sym)
                 register_resource!(set, Resource(
                     "resource://type/$mn/$cn",
                     "Type: $mn.$cn",
                     "Full documentation for the $cn type in module $mn.",
-                    () -> read_type_documentation(mn, cn; modules = set.api),
+                    () -> read_type_documentation(mn, cn; api = set.api),
                 ))
             end
         end

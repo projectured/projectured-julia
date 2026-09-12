@@ -3,19 +3,37 @@
 # ambient registry to fall back on.
 
 """
-    declare_api!(set, modules) -> set
+    declare_api!(set, declaration) -> set
 
-Say what a model may write on this `ToolSet`: the modules whose exported names
-`execute_julia_code` can resolve, and the modules the documentation tools search.
+Say what a model may write on this `ToolSet`: the names `execute_julia_code` can
+resolve, and the names the documentation tools search and read.
+
+An entry of `declaration` is a **module**, which gives every name it exports, or
+a **`module => names` pair**, which gives those names and no others:
+
+```julia
+declare_api!(set, [PaneAgentModule,
+                   PaneModule => (:PaneSplit, :PaneGroup, :PaneTab),
+                   ReferenceModule => (Symbol("@reference"),)])
+```
+
+A name a pair gives arrives unqualified, exactly as an exported one does, and no
+module re-exports it — see [`ApiEntry`](@ref).
 
 Call it before the first evaluation. The namespace the code runs in is built on
 first use and then kept, so this drops it — a declaration that arrived after the
 namespace was built would otherwise be a declaration that did nothing.
 
-Naming no module restores the whole surface.
+Declaring nothing restores the whole surface.
+
+**Two entries that give one name are refused.** `using A: x` beside `using B: x`
+is an ambiguity Julia reports only when the model writes `x`, and the declaration
+is where a person can fix it, so it is caught here with both sources named.
 """
-function declare_api!(set::ToolSet, modules)
-    set.api = collect(Module, modules)
+function declare_api!(set::ToolSet, declaration)
+    entries = _api_entries(declaration)
+    _refuse_declared_twice(entries)
+    set.api = entries
     # The namespace is built from the declaration, so a new declaration needs a
     # new namespace. What the model had assigned in it goes with it, which is
     # right: those bindings were made against names that may no longer resolve.
@@ -34,6 +52,18 @@ function register_tool!(set::ToolSet, t::Tool)
     i = findfirst(x -> x.name == t.name, set.tools)
     i === nothing ? push!(set.tools, t) : (set.tools[i] = t)
     t
+end
+
+function _refuse_declared_twice(entries::Vector{ApiEntry})
+    source = Dict{Symbol,Module}()
+    for entry in entries, name in api_entry_names(entry)
+        first_one = get(source, name, nothing)
+        first_one === nothing && (source[name] = entry.module_; continue)
+        error("Two modules give the name " * repr(name) * " to one model: " *
+              String(nameof(first_one)) * " and " * String(nameof(entry.module_)) *
+              ". Declare the name from one of them.")
+    end
+    entries
 end
 
 register_tools!(set::ToolSet, ts) = (foreach(t -> register_tool!(set, t), ts); set.tools)

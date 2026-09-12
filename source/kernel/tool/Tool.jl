@@ -41,7 +41,59 @@ Resource(uri, name, description, provider; mime_type::AbstractString = "text/mar
     Resource(String(uri), String(name), String(description), String(mime_type), provider)
 
 """
-    ToolSet(; api = Module[])
+    ApiEntry(module, names)
+
+One line of a declaration: a module, and which of its names a model may write.
+`names` is `nothing` for every name the module exports, which is what a bare
+module in a declaration means.
+
+**A name here is not an export.** A module goes on exporting exactly what it
+owns; this says which of those names *this* model is given, and a name listed
+here arrives in the model's namespace unqualified. That is what lets a
+declaration hand out `PaneSplit` without any module re-exporting a name it does
+not own.
+"""
+struct ApiEntry
+    module_::Module
+    names::Union{Nothing,Vector{Symbol}}
+end
+
+# A declaration is a cache key — one search index per declared list — so two
+# entries that say the same thing must be the same key.
+Base.:(==)(a::ApiEntry, b::ApiEntry) = a.module_ === b.module_ && a.names == b.names
+Base.hash(entry::ApiEntry, h::UInt) = hash(entry.names, hash(objectid(entry.module_), h))
+
+"""
+    api_entry_names(entry) -> Vector{Symbol}
+
+The names one entry gives, whether it named them or took the module's exports.
+"""
+api_entry_names(entry::ApiEntry) =
+    entry.names === nothing ?
+        [n for n in names(entry.module_)
+           if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
+        entry.names
+
+# A declaration is written as modules and `module => names` pairs, and stored as
+# entries. Every other reader sees one shape.
+_api_entries(declaration) = ApiEntry[_api_entry(one) for one in declaration]
+
+_api_entry(entry::ApiEntry) = entry
+_api_entry(mod::Module) = ApiEntry(mod, nothing)
+_api_entry(pair::Pair{Module}) = ApiEntry(first(pair), collect(Symbol, last(pair)))
+_api_entry(other) = error("A declared API is a module or a `module => names` pair, and " *
+                          repr(other) * " is neither.")
+
+"""
+    api_modules(set) -> Vector{Module}
+
+The modules a declaration names, for a reader that wants those rather than the
+names.
+"""
+api_modules(set) = Module[entry.module_ for entry in set.api]
+
+"""
+    ToolSet(; api = ApiEntry[])
 
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
@@ -53,10 +105,11 @@ which lets a caller embed a returned `Document` live instead of stringifying it.
 Two editors in one process each get their own, so neither can see the other's
 tools or evaluate into the other's namespace.
 
-`api` is **the whole of what a model may write**: the modules whose exported names
-`execute_julia_code` can resolve, and the modules the documentation tools search.
-The two are one list on purpose — a model that finds a function it cannot call
-wastes a round and learns to distrust the answer.
+`api` is **the whole of what a model may write**: the names
+`execute_julia_code` can resolve, and the names the documentation tools search
+and read. The two are one list on purpose — a model that finds a function it
+cannot call wastes a round and learns to distrust the answer. Each line of it is
+an [`ApiEntry`](@ref), and [`declare_api!`](@ref) is how one is written.
 
 Empty, the default, means the editor's whole surface: every loaded `Projectured`
 package, which is what the workbench and the MCP server want. A caller that names
@@ -78,11 +131,14 @@ mutable struct ToolSet
     scratch::Union{Module,Nothing}
     last_value::Any
     observers::Vector{Any}
-    api::Vector{Module}
+    # What a model may write, name by name. Each entry is a module and the names
+    # of it a model may use, or `nothing` for every name it exports. An empty
+    # `api` is the whole surface — see `declare_api!`.
+    api::Vector{ApiEntry}
 end
 
-ToolSet(; api::AbstractVector{Module} = Module[]) =
-    ToolSet(Tool[], Resource[], nothing, nothing, Any[], collect(Module, api))
+ToolSet(; api = ApiEntry[]) =
+    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api))
 
 """
     observe_evaluations!(f, set) -> f

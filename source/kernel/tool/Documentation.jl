@@ -118,13 +118,27 @@ end
 
 _projectured() = parentmodule(@__MODULE__)
 
-function _find_module(name::String, modules = Module[])
+# Is this name one the declaration gives? An empty declaration is the whole
+# surface, where every name of a reachable module is.
+#
+# A model that reads the documentation of a name it cannot write spends a round
+# learning that it cannot, which is the same waste `_index_declared` avoids by
+# indexing only what is declared.
+function _is_declared(api, mod::Module, name::Symbol)
+    isempty(api) && return true
+    for entry in api
+        entry.module_ === mod && return name in api_entry_names(entry)
+    end
+    false
+end
+
+function _find_module(name::String, api = ApiEntry[])
     # A declared module is not a submodule of the umbrella, so the declared ones
     # are looked in first — and, when there are any, only there.
-    for mod in modules
-        String(nameof(mod)) == name && return mod
+    for entry in api
+        String(nameof(entry.module_)) == name && return entry.module_
     end
-    isempty(modules) || return nothing
+    isempty(api) || return nothing
     proj = _projectured()
     name == string(nameof(proj)) && return proj
     sym = Symbol(name)
@@ -297,10 +311,10 @@ end
 List all modules with one-paragraph documentation for each and a list of its
 top-level types.
 """
-function list_modules(; modules = Module[])
+function list_modules(; api = ApiEntry[])
     modules_info = String[]
-    for (name, mod) in (isempty(modules) ? _submodules(_projectured()) :
-                        [(nameof(m), m) for m in modules])
+    for (name, mod) in (isempty(api) ? _submodules(_projectured()) :
+                        [(nameof(e.module_), e.module_) for e in api])
         doc = _doc_string(mod)
         summary = isempty(doc) ? "No documentation available." : _first_paragraph(doc)
         structs = [String(n) for (n, _) in _struct_types(mod)]
@@ -357,8 +371,8 @@ end
 
 Read the full documentation for a module.
 """
-function read_module_documentation(module_name; modules = Module[])
-    mod = _find_module(String(module_name), modules)
+function read_module_documentation(module_name; api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
     doc = _doc_string(mod)
     isempty(doc) && return "Module $module_name — no documentation available."
@@ -371,10 +385,12 @@ end
 Read the full documentation for a type within a module. A type with no docstring
 falls back to a listing of its fields, which is more use than nothing.
 """
-function read_type_documentation(module_name, type_name; modules = Module[])
-    mod = _find_module(String(module_name), modules)
+function read_type_documentation(module_name, type_name; api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
     sym = Symbol(type_name)
+    _is_declared(api, mod, sym) ||
+        return "Type '$type_name' is not one of the names you may write."
     (isdefined(mod, sym) && getfield(mod, sym) isa Type) ||
         return "Type '$type_name' not found in module '$module_name'."
     T = getfield(mod, sym)
@@ -394,11 +410,13 @@ end
 Read the full documentation for a function within a module.
 """
 function read_function_documentation(module_name, function_signature, type_name = nothing;
-                                    modules = Module[])
-    mod = _find_module(String(module_name), modules)
+                                    api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
     func_name = replace(function_signature, r"\(.*" => "")
     sym = Symbol(func_name)
+    _is_declared(api, mod, sym) ||
+        return "Function '$func_name' is not one of the names you may write."
     isdefined(mod, sym) ||
         return "Function '$function_signature' not found in module '$module_name'."
     doc = _doc_string(getfield(mod, sym))
@@ -494,14 +512,17 @@ end
 # The index of a declared API: each named module, and the names it exports. It
 # mirrors what the scratch module holds, name for name, because a model that finds
 # a function it cannot call wastes a round and learns to distrust the answer.
-function _index_declared(modules)
+function _index_declared(api)
     entries = _ApiEntry[]
-    for mod in modules
+    for declared in api
+        mod = declared.module_
         mn = String(nameof(mod))
         raw = _doc_string(mod)
         push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
                                  "resource://module/$mn"))
-        for sym in names(mod)
+        # The names the declaration gives, and no others. A name a model finds
+        # here is a name it can write, which is the whole point of the list.
+        for sym in api_entry_names(declared)
             sym === nameof(mod) && continue
             isdefined(mod, sym) || continue
             value = getfield(mod, sym)
@@ -559,14 +580,14 @@ const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 # (PAR-PER-EDITOR-STATE); the key is what keeps them apart while the carve-out
 # above still holds — every entry is read-only and identical for every editor that
 # declares that list.
-const _DECLARED_INDEX = Dict{Vector{Module},Vector{_ApiEntry}}()
+const _DECLARED_INDEX = Dict{Vector{ApiEntry},Vector{_ApiEntry}}()
 
 _guide_index() =
     (_GUIDE_INDEX[] === nothing && (_GUIDE_INDEX[] = _index_guide_sections()); _GUIDE_INDEX[])
 
-function _api_index(modules = Module[])
-    isempty(modules) || return get!(() -> _index_declared(modules),
-                                    _DECLARED_INDEX, collect(Module, modules))
+function _api_index(api = ApiEntry[])
+    isempty(api) || return get!(() -> _index_declared(api),
+                                _DECLARED_INDEX, collect(ApiEntry, api))
     _API_INDEX[] === nothing && (_API_INDEX[] = _index_api())
     _API_INDEX[]
 end
@@ -649,11 +670,11 @@ The **query type selects the mode**, exactly as in `search_documentation` — a
 to a regex; ranking is by where it matches).
 """
 function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::Integer = 8,
-                    modules = Module[])
+                    api = ApiEntry[])
     patterns, fold = _matchers(query)
     isempty(patterns) && return "Provide a search query (two or more characters)."
     scored = Tuple{Int,_ApiEntry}[]
-    for e in _api_index(modules)
+    for e in _api_index(api)
         (kind === nothing || e.kind == kind) || continue
         s = _api_score(patterns, e, fold)
         s > 0 && push!(scored, (s, e))

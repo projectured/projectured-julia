@@ -9,15 +9,16 @@
 # run time rather than written down, because the packages below the umbrella
 # are many and each test environment loads a different subset.
 function _scratch_sources(set::ToolSet)
-    # A declared API is the whole of it. The modules a `ToolSet` names are the
-    # modules a model may write, and nothing else arrives — not the umbrella, and
+    # A declared API is the whole of it. The names a `ToolSet` declares are the
+    # names a model may write, and nothing else arrives — not the umbrella, and
     # not a package that happens to be loaded.
     isempty(set.api) || return copy(set.api)
+    whole(mods) = ApiEntry[ApiEntry(mod, nothing) for mod in mods]
     loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
-    haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
+    haskey(loaded, "Projectured") && return whole([loaded["Projectured"]])
     packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
-    isempty(packages) && return Module[parentmodule(@__MODULE__)]
-    Module[loaded[n] for n in packages]
+    isempty(packages) && return whole([parentmodule(@__MODULE__)])
+    whole([loaded[n] for n in packages])
 end
 
 function _flat_reexport!(m::Module, source::Module, sources)
@@ -54,27 +55,33 @@ function _scratch_module(set::ToolSet)
     set.scratch === nothing || return set.scratch
     m = Module(:ToolScratch)
     srcs = _scratch_sources(set)
+    mods = Module[entry.module_ for entry in srcs]
     # Bind each source under its own name, so qualified access still works.
-    for src in srcs
-        Core.eval(m, :(const $(nameof(src)) = $src))
+    for mod in mods
+        Core.eval(m, :(const $(nameof(mod)) = $mod))
     end
     if isempty(set.api)
-        for src in srcs
-            _flat_reexport!(m, src, srcs)
+        for mod in mods
+            _flat_reexport!(m, mod, mods)
         end
         # `Projectured` names the umbrella when it is loaded, and the scratch module
         # itself otherwise: after the re-export the scratch module holds the same
         # flat namespace, so `Projectured.CellVector` resolves either way.
-        Core.eval(m, :(const Projectured = $(nameof(srcs[1]) === :Projectured ? srcs[1] : m)))
+        Core.eval(m, :(const Projectured = $(nameof(mods[1]) === :Projectured ? mods[1] : m)))
     else
-        # A declared module is taken as it stands: its own exported names, and not
-        # the names of the submodules it reaches. A module that means to offer more
+        # Each entry gives the names it declared, or every name its module
+        # exports — and a declared name arrives **unqualified**, exactly as an
+        # exported one does. That is what lets a declaration hand out `PaneSplit`
+        # while `PaneSplit` goes on having one owning module.
+        #
+        # A declared module is taken as it stands: its own names, and not the
+        # names of the submodules it reaches. A module that means to offer more
         # exports more — which is what makes the list a decision a person writes
         # down, rather than a consequence of what it happens to import.
-        for src in srcs
-            syms = [n for n in names(src) if n !== nameof(src) && isdefined(src, n)]
+        for entry in srcs
+            syms = api_entry_names(entry)
             isempty(syms) && continue
-            Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(src)),
+            Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(entry.module_)),
                                            (Expr(:., n) for n in syms)...)))
         end
         # **How to look is always in scope.** The declaration says what a model may
@@ -89,9 +96,9 @@ function _scratch_module(set::ToolSet)
         declared = copy(srcs)
         Core.eval(m, :(const read_function_documentation =
             (mod, name, type_name = nothing) ->
-                $(read_function_documentation)(mod, name, type_name; modules = $declared)))
+                $(read_function_documentation)(mod, name, type_name; api = $declared)))
         Core.eval(m, :(const search_api =
-            (query; kwargs...) -> $(search_api)(query; modules = $declared, kwargs...)))
+            (query; kwargs...) -> $(search_api)(query; api = $declared, kwargs...)))
     end
     set.scratch = m
 end

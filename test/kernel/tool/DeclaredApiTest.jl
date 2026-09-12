@@ -108,6 +108,81 @@ function test_declared_api()
         @test strip(execute_julia_code(set, nothing, "toy_count([1, 2, 3])")) == "3"
     end
 
+    # ── A declaration of names ───────────────────────────────────────────────
+    #
+    # A module is the shorthand for all of its exports. A `module => names` pair
+    # is what a surface wants when a module has eighty-six exported names and a
+    # verb wants eight of them, and it is what lets a name arrive unqualified
+    # with no module re-exporting a name it does not own.
+    @testset "a pair gives the names it lists, and no others" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb,)])
+        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+
+        # `toy_count` is exported by the same module, and the declaration left it
+        # out, so it is not a name this model may write.
+        answer = execute_julia_code(set, nothing, "toy_count([1, 2])")
+        @test occursin("UndefVarError", answer)
+        @test occursin("toy_count", answer)
+    end
+
+    # The module's own name stays bound, and that is deliberate. The harm a wide
+    # declaration does is to DISCOVERY — a search that answers thirty generated
+    # schema variants instead of the verb — and narrowing the index is what fixes
+    # that. Reachability is not the measure: a declaration is a focus mechanism
+    # and not a security boundary, which is what `ToolSet` already says of itself.
+    @testset "a narrowed module keeps its own name" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb,)])
+        @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
+    end
+
+    @testset "two entries that give one name are refused" begin
+        set = ToolSet()
+        message = try
+            declare_api!(set, [ToyApi, ToyApi => (:toy_verb,)])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("toy_verb", message)
+        @test occursin("ToyApi", message)
+        # Nothing was declared by the refusal.
+        @test isempty(set.api)
+    end
+
+    # What is discoverable is what is callable, and a pair narrows both halves.
+    @testset "a name the declaration left out is not discoverable either" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb,)])
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+        read = only([t for t in set.tools if t.name == "read_function_documentation"])
+
+        found = search.handler(nothing, Dict("query" => "toy"))
+        @test occursin("toy_verb", found)
+        @test !occursin("toy_count", found)
+
+        @test occursin("Count what it is given",
+                       read.handler(nothing, Dict("module_name" => "ToyApi",
+                                                  "function_name" => "toy_verb"))) == false
+        refused = read.handler(nothing, Dict("module_name" => "ToyApi",
+                                             "function_name" => "toy_count"))
+        @test occursin("not one of the names you may write", refused)
+    end
+
+    # "The functions of ToyApi" is false of a declaration that took one of them,
+    # so the description counts the names instead of naming their module.
+    @testset "the description does not claim a whole module it did not take" begin
+        whole = ToolSet(; api = Module[ToyApi])
+        register_default_tools!(whole)
+        @test occursin("The functions of ToyApi",
+                       only([t for t in whole.tools if t.name == "execute_julia_code"]).description)
+
+        narrow = ToolSet(; api = [ToyApi => (:toy_verb,)])
+        register_default_tools!(narrow)
+        text = only([t for t in narrow.tools if t.name == "execute_julia_code"]).description
+        @test !occursin("The functions of ToyApi", text)
+        @test occursin("1 names this editor declares", text)
+    end
+
     @testset "a name outside the declaration fails in the round that used it" begin
         set = ToolSet(; api = Module[ToyApi])
         answer = execute_julia_code(set, nothing, "Cell(1)")
@@ -150,12 +225,12 @@ function test_declared_api()
     # nothing else does.
     @testset "what is discoverable is what is callable" begin
         set = ToolSet(; api = Module[ToyApi])
-        found = search_api("toy"; modules = set.api)
+        found = search_api("toy"; api = set.api)
         @test occursin("toy_verb", found)
         @test occursin("toy_count", found)
         # A name of the wider surface is not offered. The answer echoes the query,
         # so the assertion is that nothing was found, not that the word is absent.
-        @test occursin("No API matches", search_api("CellVector"; modules = set.api))
+        @test occursin("No API matches", search_api("CellVector"; api = set.api))
         # And every name that IS offered resolves in the scratch module.
         for verb in ("toy_verb", "toy_count")
             @test !occursin("UndefVarError",
@@ -220,7 +295,7 @@ function test_declared_api()
 
     @testset "a docstring is the interface, and it is readable" begin
         set = ToolSet(; api = Module[ToyApi])
-        doc = read_function_documentation("ToyApi", "toy_verb"; modules = set.api)
+        doc = read_function_documentation("ToyApi", "toy_verb"; api = set.api)
         @test occursin("Answer the word", doc)
     end
 

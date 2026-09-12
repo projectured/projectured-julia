@@ -77,11 +77,24 @@ declaration is not an export: `PaneSplit` still has exactly one owning module,
 and the person who wrote the declaration said which names this model may use.
 The layout plan's §4.8 calls its qualifier a stopgap; this is what ends it.
 
-### 3.2 A narrowed module does not bind its own name
+### 3.2 A narrowed module keeps its own name
 
-A whole-module entry keeps its alias, as today — `PaneModule.anything` resolves.
-A narrowed entry binds no alias, because an alias is a door to every name in the
-module and would make the list decorative.
+Every declared module stays bound under its own name, as today, whether it gave
+all of its exports or four of them — so `PaneModule.anything` resolves either
+way.
+
+**This reverses what this section first said**, and the reason is what the harm
+turned out to be. The measured damage of a wide declaration is to *discovery*: a
+search for "what panes are open" answered `ACPaneSplit`, `APaneSplit`,
+`DCPaneSplit` — generated schema variants with no documentation — instead of
+`show_layout`. Narrowing the **index** fixes that completely, and the module
+binding has nothing to do with it. Withholding the binding would buy only
+reachability, and `ToolSet` already says of itself that a declaration "is a focus
+mechanism and **not a security boundary**".
+
+It would also cost something real: the `using M: …` the namespace is built from
+needs `M` bound in it, so withholding the name means binding it under a mangled
+one. A mangled binding is a door with a sign on it, which is worse than a door.
 
 ### 3.3 A name two entries both give is refused, at declaration time
 
