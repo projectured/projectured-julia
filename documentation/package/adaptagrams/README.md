@@ -1,5 +1,7 @@
 # ProjecturedAdaptagrams
 
+> **Kind:** reference · **Status:** current · **Stands on:** [graph-layout.md](../graph/graph-layout.md), [package-rules.md](../../rule/package-rules.md)
+
 The native graph-layout engine for ProjecturEd. Provides `AdaptagramsLayout`, a
 `GraphLayoutEngine` (see `ProjecturedGraph`) that places vertices with
 **libcola** and routes edges with **libavoid** from the

@@ -1,5 +1,7 @@
 # Projectured native executable
 
+> **Kind:** reference · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md)
+
 This directory builds a **standalone native binary** of a Projectured editor with
 PackageCompiler.jl. The build is *configurable*: a `BuildSpec` chooses which kind
 of editor gets baked in (which document domain, with or without the workbench,
