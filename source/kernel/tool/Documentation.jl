@@ -176,6 +176,39 @@ function _doc_string(obj)
     ""
 end
 
+"""
+What a search scores an entry on: the signature and the sentence under it.
+
+**The first paragraph is the signature**, not the description. Julia strips a
+docstring's common indentation before it is stored, so the indented signature
+block arrives flush left and `_first_paragraph`'s guard against it never fires.
+That is right for what a hit *shows* — the prompt promises a one-line signature,
+and a model calls a verb off it without reading more — and wrong for what a hit
+is *found* by: scored on the signature alone, no word of the description is
+searchable, and a verb is reachable only through its name. `show_layout`'s
+docstring says "Which panes are open"; a search for "panes" answered nothing.
+
+Two paragraphs, not the whole text: the sentence under the signature is where a
+docstring says what the thing does, and the rest is detail that would only blur
+the ranking.
+"""
+function _search_text(doc::AbstractString)
+    isempty(doc) && return ""
+    paragraphs = String[]
+    current = String[]
+    for line in split(doc, '\n')
+        stripped = strip(line)
+        if isempty(stripped)
+            isempty(current) || (push!(paragraphs, join(current, " ")); current = String[])
+            length(paragraphs) == 2 && break
+        else
+            push!(current, String(stripped))
+        end
+    end
+    (isempty(current) || length(paragraphs) == 2) || push!(paragraphs, join(current, " "))
+    join(paragraphs, " ")
+end
+
 function _first_paragraph(doc::AbstractString)
     isempty(doc) && return ""
     para = String[]
@@ -453,7 +486,8 @@ end
 struct _ApiEntry
     kind::String      # "module" | "type" | "function"
     qualname::String  # "Mod" or "Mod.Name"
-    doc::String       # first-paragraph documentation
+    doc::String       # what a hit SHOWS: the first paragraph, which is the signature
+    text::String      # what a hit is SCORED on: the signature and the description
     locator::String   # how to read the full docs
 end
 
@@ -464,19 +498,22 @@ function _index_declared(modules)
     entries = _ApiEntry[]
     for mod in modules
         mn = String(nameof(mod))
-        push!(entries, _ApiEntry("module", mn, _first_paragraph(_doc_string(mod)),
+        raw = _doc_string(mod)
+        push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
                                  "resource://module/$mn"))
         for sym in names(mod)
             sym === nameof(mod) && continue
             isdefined(mod, sym) || continue
             value = getfield(mod, sym)
             nn = String(sym)
-            doc = _first_paragraph(_binding_doc(mod, sym))
+            raw = _binding_doc(mod, sym)
+            doc = _first_paragraph(raw)
+            text = _search_text(raw)
             if value isa Type
-                push!(entries, _ApiEntry("type", "$mn.$nn", doc,
+                push!(entries, _ApiEntry("type", "$mn.$nn", doc, text,
                                          "resource://type/$mn/$nn"))
             elseif value isa Function
-                push!(entries, _ApiEntry("function", "$mn.$nn", doc,
+                push!(entries, _ApiEntry("function", "$mn.$nn", doc, text,
                                          "read_function_documentation(\"$mn\", \"$nn\")"))
             end
         end
@@ -489,21 +526,22 @@ function _index_api()
     entries = _ApiEntry[]
     for (mod_sym, mod) in _submodules(proj)
         mn = String(mod_sym)
-        push!(entries, _ApiEntry("module", mn,
-                                 _first_paragraph(_binding_doc(proj, mod_sym)),
+        raw = _binding_doc(proj, mod_sym)
+        push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
                                  "resource://module/$mn"))
         for (cls_sym, _) in _struct_types(mod)
             cn = String(cls_sym)
-            push!(entries, _ApiEntry("type", "$mn.$cn",
-                                     _first_paragraph(_binding_doc(mod, cls_sym)),
+            raw = _binding_doc(mod, cls_sym)
+            push!(entries, _ApiEntry("type", "$mn.$cn", _first_paragraph(raw), _search_text(raw),
                                      "resource://type/$mn/$cn"))
         end
         for (fn_sym, _) in _module_functions(mod)
             fnn = String(fn_sym)
             # Per-function resources are not pre-registered (that would fan out to
             # hundreds); full docs are read on demand via this call instead.
+            raw = _binding_doc(mod, fn_sym)
             push!(entries, _ApiEntry("function", "$mn.$fnn",
-                                     _first_paragraph(_binding_doc(mod, fn_sym)),
+                                     _first_paragraph(raw), _search_text(raw),
                                      "read_function_documentation(\"$mn\", \"$fnn\")"))
         end
     end
@@ -577,7 +615,7 @@ end
 function _api_score(patterns, e::_ApiEntry, fold)
     name = fold(last(split(e.qualname, '.')))
     full = fold(e.qualname)
-    doc  = fold(e.doc)
+    doc  = fold(e.text)
     s = 0
     for t in patterns
         if t isa AbstractString && name == t

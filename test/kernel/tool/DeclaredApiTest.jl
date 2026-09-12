@@ -21,6 +21,21 @@ toy_verb() = "toy"
 toy_count(xs) = length(xs)
 end
 
+# A docstring shaped the way this repository writes one: an indented signature
+# block, a blank line, then the sentence that says what the thing does. Julia
+# strips a docstring's common indentation before storing it, so that block
+# arrives flush left — which is what made every entry index its signature and
+# nothing else.
+module ToyShaped
+export toy_arrange
+"""
+    toy_arrange(window) -> String
+
+Put every pane where the person asked for it.
+"""
+toy_arrange(window) = "arranged"
+end
+
 # A second one, to prove that two declared modules both arrive.
 module ToyExtra
 export toy_extra
@@ -64,6 +79,27 @@ function test_declared_api()
         answer = tool.handler(nothing, Dict("module_name" => "ToyApi",
                                             "function_name" => "toy_verb"))
         @test occursin("Answer the word this verb is named after", answer)
+    end
+
+    # A model looks for a verb by what it does, and the words for that are in the
+    # description. Scored on the signature alone, `search_api` could answer a name
+    # and never a sentence: `show_layout`'s docstring said "Which panes are open"
+    # and a search for "panes" answered nothing at all.
+    @testset "a verb is found by its description, not only by its name" begin
+        set = ToolSet(; api = Module[ToyShaped])
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+
+        # Each of these words is in the description and nowhere else — not in the
+        # verb's name, not in its module's, not in its signature.
+        for word in ("pane", "person", "asked")
+            @test occursin("toy_arrange", search.handler(nothing, Dict("query" => word)))
+        end
+
+        # What a hit SHOWS is still the signature. The prompt promises one, and a
+        # model calls a verb off it without reading the documentation.
+        @test occursin("toy_arrange(window) -> String",
+                       search.handler(nothing, Dict("query" => "toy_arrange")))
     end
 
     @testset "a declared module is what resolves" begin
