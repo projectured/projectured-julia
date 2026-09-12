@@ -23,8 +23,8 @@ import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, PositionReferenceStep, Reference, Position
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..GestureBindingModule: var"@gestures"
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection

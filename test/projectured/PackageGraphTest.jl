@@ -229,18 +229,6 @@ function _build_module_owner()
             end
         end
     end
-    # The second, deprecated name of a kernel module resolves to the same owner.
-    for (alias, real) in ["DocumentApiModule" => "DocumentModule",
-                          "ReferenceApiModule" => "ReferenceModule",
-                          "ReferenceCaseModule" => "ReferenceModule",
-                          "ReferenceBuilderModule" => "ReferenceModule",
-                          "SelectionApiModule" => "SelectionModule",
-                          "OperationApiModule" => "OperationModule",
-                          "OperationRerootingModule" => "OperationModule",
-                          "BackendApiModule" => "BackendModule",
-                          "ProjectionReferenceStepApiModule" => "ProjectionReferenceStepModule"]
-        haskey(_MODULE_OWNER, real) && (_MODULE_OWNER[alias] = _MODULE_OWNER[real])
-    end
 end
 
 """

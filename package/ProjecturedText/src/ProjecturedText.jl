@@ -21,7 +21,6 @@ using ProjecturedStyle
 const CellModule = ProjecturedKernel.CellModule
 const CellStructModule = ProjecturedKernel.CellStructModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const DomainModule = ProjecturedDomain.DomainModule
 const SelectionModule = ProjecturedKernel.SelectionModule
@@ -37,15 +36,12 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ImageModule = ProjecturedStyle.ImageModule
 const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
-const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
-const OperationApiModule = ProjecturedKernel.OperationModule
 const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
 
 include("../../../source/text/TextSpanReferenceStep.jl")

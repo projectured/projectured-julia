@@ -24,9 +24,9 @@ import ..IoMapModule: IoMap, var"@iomap"
 import ..PrinterContextModule: PrinterContext
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
-import ..OperationApiModule: Operation
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: read_gesture

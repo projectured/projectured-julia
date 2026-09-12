@@ -42,12 +42,12 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
                        merge_collected_intents
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
                           insert_elements, delete_elements, CompoundOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
 import ..CellModule: Cell, ComputedCell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!

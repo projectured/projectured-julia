@@ -20,7 +20,7 @@ module LayoutToGraphicsModule
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
                        LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
                        AnchoredLayout, AnchoredEntry, compute_anchored_positions,
@@ -34,8 +34,8 @@ import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
 import ..IoMapModule: IoMap
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..EventPatternModule: var"@event_case"
-import ..OperationApiModule: Operation
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: Operation
+import ..OperationModule: reroot_operation
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
     RangeReferenceStep, evaluate_reference, annotate_reference_types
 import ..PointReferenceStepModule: PointReferenceStep
@@ -46,7 +46,7 @@ import ..EventModule: KeyDown
 # Tab traversal with the widget readers without importing the widget domain.
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,

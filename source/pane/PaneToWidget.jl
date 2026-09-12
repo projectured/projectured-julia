@@ -59,8 +59,8 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           get_reference_node_type
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,

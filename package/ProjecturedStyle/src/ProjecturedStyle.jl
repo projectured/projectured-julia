@@ -12,7 +12,6 @@ module ProjecturedStyle
 
 using ProjecturedKernel
 
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CellModule = ProjecturedKernel.CellModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule

@@ -7,7 +7,7 @@ file path and a point size.
 module FontModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 
 export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,

@@ -37,7 +37,7 @@ module ConsoleBackendModule
 
 # The alias is how visual reaches the kernel's backend contract; a bare
 # `using` binds the module's *real* name, so extensions qualify BackendModule.
-using ..BackendApiModule
+using ..BackendModule
 using ..TextModule
 using ..ColorModule
 using ..FontModule

@@ -13,14 +13,13 @@ using ProjecturedKernel
 using ProjecturedScreen
 
 const CellModule = ProjecturedKernel.CellModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
-const OperationApiModule = ProjecturedKernel.OperationModule
+const OperationModule = ProjecturedKernel.OperationModule
 
 include("../../../source/tooltip/TooltipDocument.jl")
 include("../../../source/tooltip/TooltipDecorator.jl")

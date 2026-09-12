@@ -20,7 +20,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: make_child_context
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
 export TextLineNumbering, LineNumbering

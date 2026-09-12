@@ -27,7 +27,7 @@ Each span has reactive styling fields:
 module TextModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..DomainModule
 import ..DomainModule: @domain, @insertion
@@ -321,7 +321,7 @@ const SpanPath = Vector{Int}
 # ── splice_value! methods for the text representations ──────────────
 #
 # These are the two non-string representations of `splice_value!` (declared in
-# OperationApiModule). They fire when a replace reference resolves to a field
+# OperationModule). They fire when a replace reference resolves to a field
 # whose *value* is a styled span or a flat span sequence — e.g. a SyntaxLeaf's
 # `open`/`value`/`close` (each a TextString) or a BookParagraph's TextBlock
 # content. When the target is itself a TextString edited by its `content` field,

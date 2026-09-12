@@ -24,7 +24,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
 import ..IntentModule: Intent
 import ..ProjectionModule: var"@projection"
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..ColorModule: StyleColor,
                       color_white, color_zinc_50, color_zinc_100, color_zinc_200,
                       color_zinc_300, color_zinc_400, color_zinc_500, color_zinc_600,
@@ -68,14 +68,14 @@ import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
 import ..SelectionModule: get_stored_selection
 import ..EventPatternModule: var"@event_case"
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, EmptyReference, is_element_reference_step
 import ..PointReferenceStepModule: PointReferenceStep
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: reroot_operation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
@@ -911,7 +911,7 @@ function _retarget_op(p, iomap, op)
     end
 end
 
-# Reference/operation re-rooting lives in `OperationRerootingModule`
+# Reference/operation re-rooting lives in `OperationModule`
 # (`reroot_operation` / `reroot_reference`) — shared with the layout
 # container readers so the prepend logic is defined once.
 

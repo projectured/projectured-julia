@@ -7,7 +7,7 @@ a `ClipboardCollection` (content + sequence of elements).
 module ClipboardModule
 
 import ..CellModule: Cell, ComputedCell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference

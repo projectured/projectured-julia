@@ -23,8 +23,6 @@ const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const OperationModule = ProjecturedKernel.OperationModule
-const OperationApiModule = ProjecturedKernel.OperationModule
-const OperationRerootingModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
 include("../../../source/dragging/DraggingDocument.jl")

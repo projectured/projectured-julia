@@ -15,7 +15,6 @@ using ProjecturedStyle
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule

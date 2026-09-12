@@ -39,8 +39,8 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           head, tail
 import ..DraggingDocumentModule: DraggingState
 import ..OperationModule: ReplaceSelectionOperation
-import ..OperationApiModule: Operation, evaluate_operation
-import ..OperationRerootingModule: reroot_operation
+import ..OperationModule: Operation, evaluate_operation
+import ..OperationModule: reroot_operation
 import ..EventModule: MouseDown, MouseUp, MouseMove, MousePress
 import ..EventModule: ModifierKeys
 

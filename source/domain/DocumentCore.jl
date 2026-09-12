@@ -60,7 +60,7 @@ suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
 
 # A DocumentInsertion's `value` (the editable insertion text) is a plain string,
 # so text-replace edits are handled generically by `splice_value!` (see
-# OperationApiModule). No per-type method is needed.
+# OperationModule). No per-type method is needed.
 
 # ── DocumentReference ─────────────────────────────────────────────────────────
 

@@ -25,7 +25,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
 import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
-import ..OperationApiModule: Operation
+import ..OperationModule: Operation
 
 export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
 

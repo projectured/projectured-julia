@@ -28,7 +28,7 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 module SyntaxModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextModule: TextString
@@ -36,7 +36,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, Reference,
                           get_reference_node_type
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"

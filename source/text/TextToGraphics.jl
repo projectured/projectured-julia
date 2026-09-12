@@ -31,8 +31,8 @@ import ..ColorModule: StyleColor, color_black
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..PointReferenceStepModule: PointReferenceStep
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: read_gesture

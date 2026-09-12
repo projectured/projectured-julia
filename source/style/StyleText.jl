@@ -12,7 +12,7 @@ module StyleTextModule
 
 import ..FontModule: StyleFont
 import ..ColorModule: StyleColor
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 
 export StyleText, make_style_text

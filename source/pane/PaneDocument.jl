@@ -29,7 +29,7 @@ slice declares no operation of its own.
 module PaneModule
 
 import ..CellModule: Cell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference

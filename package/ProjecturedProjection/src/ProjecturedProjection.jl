@@ -31,7 +31,6 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
-const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 
 include("../../../source/projection/generic/Identity.jl")
 include("../../../source/projection/generic/Reversing.jl")

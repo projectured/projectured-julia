@@ -17,7 +17,6 @@ using ProjecturedKernel
 using ProjecturedProjection
 
 const CellModule = ProjecturedKernel.CellModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
@@ -26,13 +25,10 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
-const OperationApiModule = ProjecturedKernel.OperationModule
-const OperationRerootingModule = ProjecturedKernel.OperationModule
 const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
 const OperationModule = ProjecturedKernel.OperationModule
 const FocusModule = ProjecturedFocus.FocusModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 

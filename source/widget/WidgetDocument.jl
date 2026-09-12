@@ -10,10 +10,10 @@ module WidgetModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..LayoutModule: HorizontalLayout, SizePolicy, Content
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationApiModule: Operation, evaluate_operation
+import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule
 import ..SelectionModule: replace_selection!, keeps_dormant_selection
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern

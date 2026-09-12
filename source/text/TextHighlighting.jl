@@ -26,8 +26,8 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceBuilderModule: var"@reference"
-import ..OperationApiModule: Operation
+import ..ReferenceModule: var"@reference"
+import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 export TextHighlighting, TextHighlightingIoMap, HighlightSeg

@@ -6,7 +6,7 @@ import ..CopyingProjectionModule: CopyingProjection
 import ..IdentityProjectionModule: IdentityProjection
 import ..NestingProjectionModule: NestingProjection
 import ..ReferenceModule: Reference
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference_case"
 
 export ApplyAtProjection
 

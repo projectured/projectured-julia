@@ -27,7 +27,7 @@ module PaneSurgeryModule
 
 import ..CellModule: Cell
 import ..CollectionModule: CellVector
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
                           ReplaceSelectionOperation, insert_elements, delete_elements,
                           evaluate_operation
@@ -35,7 +35,7 @@ import ..DraggingProjectionModule: MoveRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
                           get_reference_node_type, concat_references, Position
-import ..ReferenceBuilderModule: var"@reference"
+import ..ReferenceModule: var"@reference"
 import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
 import ..SelectionModule: get_selection, get_stored_selection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,

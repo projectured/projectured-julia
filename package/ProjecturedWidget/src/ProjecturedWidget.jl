@@ -22,10 +22,8 @@ using ProjecturedStyle
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
-const OperationApiModule = ProjecturedKernel.OperationModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
@@ -49,7 +47,6 @@ const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const ObjectFieldModule = ProjecturedPrimitive.ObjectFieldModule
 const PointReferenceStepModule = ProjecturedGraphics.PointReferenceStepModule
-const OperationRerootingModule = ProjecturedKernel.OperationModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const LayoutModule = ProjecturedLayout.LayoutModule

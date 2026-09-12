@@ -20,7 +20,6 @@ using ProjecturedProjection
 using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
-const DocumentApiModule = ProjecturedKernel.DocumentModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
@@ -29,7 +28,6 @@ const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const DraggingProjectionModule = ProjecturedDragging.DraggingProjectionModule
-const ReferenceBuilderModule = ProjecturedKernel.ReferenceModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventModule = ProjecturedKernel.EventModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
@@ -38,7 +36,6 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
-const ReferenceCaseModule = ProjecturedKernel.ReferenceModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 
 include("../../../source/pane/PaneDocument.jl")

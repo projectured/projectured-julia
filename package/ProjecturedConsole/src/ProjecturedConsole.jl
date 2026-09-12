@@ -15,7 +15,7 @@ using ProjecturedKernel
 using ProjecturedStyle
 using ProjecturedText
 
-const BackendApiModule = ProjecturedKernel.BackendModule
+const BackendModule = ProjecturedKernel.BackendModule
 const EventModule = ProjecturedKernel.EventModule
 const ColorModule = ProjecturedStyle.ColorModule
 const FontModule = ProjecturedStyle.FontModule

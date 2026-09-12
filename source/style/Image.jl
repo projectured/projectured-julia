@@ -7,7 +7,7 @@ documents. Both subtypes share the abstract `ImageDocument` base.
 module ImageModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 export ImageDocument, set_cell_function!

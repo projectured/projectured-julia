@@ -3,8 +3,8 @@
 
 Provides default implementations for projection reference mapping.
 This module re-exports core projection types and operations from
-`ProjectionApiModule`, `OperationModule`, `ReferenceCaseModule`, and
-`ReferenceBuilderModule`, and provides sensible default implementations
+`ProjectionApiModule`, `OperationModule`, `ReferenceModule`, and
+`ReferenceModule`, and provides sensible default implementations
 for reference mapping functions.
 
 The module provides:

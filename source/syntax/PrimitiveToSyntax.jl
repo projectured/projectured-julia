@@ -20,8 +20,8 @@ import ..StyleTextModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position
-import ..ReferenceBuilderModule: var"@reference"
-import ..ReferenceCaseModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..ReferenceModule: var"@reference_case"
 import ..OperationModule: ReplaceSelectionOperation
 export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
        PrimitiveToSyntax

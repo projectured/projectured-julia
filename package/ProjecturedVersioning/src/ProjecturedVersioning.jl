@@ -21,7 +21,6 @@ const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IntentModule = ProjecturedKernel.IntentModule
-const OperationApiModule = ProjecturedKernel.OperationModule
 const OperationModule = ProjecturedKernel.OperationModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule

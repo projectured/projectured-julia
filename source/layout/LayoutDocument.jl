@@ -15,7 +15,7 @@ the layout produces.
 module LayoutModule
 
 import ..CellModule: Cell, ComputedCell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference

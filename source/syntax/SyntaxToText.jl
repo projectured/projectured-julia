@@ -33,8 +33,8 @@ import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionRefer
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap, var"@iomap"
 import ..IoMapModule: IoMap
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation

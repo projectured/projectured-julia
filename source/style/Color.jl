@@ -6,7 +6,7 @@ normalized Float64 components in [0, 1].
 """
 module ColorModule
 
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 
 export StyleColor, make_style_color,

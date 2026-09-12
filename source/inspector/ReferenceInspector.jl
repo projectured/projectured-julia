@@ -8,7 +8,7 @@ forms (compact + human narrative).
 module ReferenceInspectorDocumentModule
 
 import ..CellModule: Cell, ComputedCell
-import ..DocumentApiModule: Document
+import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 
