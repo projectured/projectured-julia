@@ -571,6 +571,19 @@ its Status and what it Stands on. 57 of 60 do.
 | [documentation/package/executable/README.md](../../documentation/package/executable/README.md) | add the header under the title | certain |
 | [documentation/presentation/projectured-overview.md](../../documentation/presentation/projectured-overview.md) | add the header after the Marp front matter | certain |
 
+### 8.3 A stale block in the module inventory — NOT IN THIS PLAN
+
+[system-anatomy.md:165-173](../../documentation/design/system-anatomy.md#L165)
+holds a block-quote that exists to correct stale per-file paths, and the
+correction is itself stale. It says the code "now lives across the four
+packages" and maps files to `base/main/`, `visual/main/` and `domain/main/`.
+None of those three trees exists, and the repository holds 119 packages under
+`source/<slice>/`, not four.
+
+The block sits directly above the module inventory, so a fix means auditing that
+inventory too. That is documentation rot, not a naming violation, and it needs
+its own scope. Recorded here so it is not lost.
+
 ### 8.2 One rule sentence is stale
 
 The section "Files and modules" says: "**`Api` is a layer marker carried in the
