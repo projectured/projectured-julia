@@ -478,7 +478,7 @@ repository as its own counter-example.
 
 | name | file:line | proposed name | confidence |
 | --- | --- | --- | --- |
-| `focus_pane`, `close_pane`, `move_pane`, `resize_pane` | [PaneProgram.jl:346,357,372,405](../../source/pane/PaneProgram.jl#L346) | add the `!`. Each one calls `_apply(editor, …)`, which mutates its `editor` argument. | likely |
+| ~~`focus_pane`, `close_pane`, `move_pane`, `resize_pane`~~ | [PaneProgram.jl](../../source/pane/PaneProgram.jl) | **done 2026-09-13.** `focus_pane!` has the `!` and takes a reference; the other three went, because each is a value written at a reference. See [assistant-api-consolidation.md](assistant-api-consolidation.md). | done |
 
 ### 6.7 One row I discarded
 
