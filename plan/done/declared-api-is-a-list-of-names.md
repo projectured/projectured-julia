@@ -1,7 +1,7 @@
 # The declared API is a list of names
 
-**Status:** pending. Written 2026-09-12. **Every stage is done but E**, which
-waits for a verb that hands a model a data frame.
+**Status:** done. Written and finished 2026-09-12. Every stage is built and
+tested, and each says what it did and what was measured.
 
 **Goal:** a person says which **names** a language model may write, not which
 modules. A module stays the shorthand for "all of its exports", because that is
@@ -262,12 +262,33 @@ One test changed shape rather than value. `get_assistant_api()` was asserted by
 module of its own. It asserts what its own comment always meant: that the list
 and the two texts say the same thing.
 
-### Stage E — a data frame, when a verb needs one
+### Stage E — a data frame, when a verb needs one — **DONE**
 
-`OmnetIde` writes the list of frame-transforming names beside the verbs that
-expect a model to use them. Nothing in this plan blocks it, and nothing in this
-plan builds it: the list is worth writing when a verb hands a model a frame and
-says "work on it".
+`result_api()` in `ResultVerbsModule` declares its three verbs and **ten of
+`DataFrames`' eighty-six names**: `DataFrame`, `select`, `transform`, `combine`,
+`groupby`, `subset`, `ByRow`, `Not`, `nrow`, `describe`. `get_results` answers a
+frame, and those ten are what a result session does to one.
+
+`DataFrames` is named in `OmnetIde`'s `[deps]` only so the declaration can name
+it. It was already in the closure through `OmnetLegacyResult`, and
+`test_ide_closure()` is 12/12 — the count did not move.
+
+**`Statistics` is not declared, and is not missed.** It is in no package's
+closure, so declaring it would push the interface past its cap of 29. It is not
+wanted either: `get_statistics` answers a frame that already carries `mean`,
+`stddev`, `min` and `max`, computed by the simulator. Reading a number beats
+recomputing it from the samples.
+
+**Base needs no line.** A bare `Module` has `Base` in scope, so `filter`, `sort`,
+`first`, `sum` and `length` already work on a frame.
+
+**Tested as the two halves of the claim**, in
+[ResultVerbsTest.jl](../../../omnet-julia/test/ide/ResultVerbsTest.jl): a model
+selects columns, subsets rows and groups a real frame through
+`execute_julia_code` — and `innerjoin`, which `DataFrames` exports and this list
+does not, answers *"`innerjoin` not defined … Also exported by DataFrames (loaded
+but not imported)"*. The module is loaded; the name is not given. That is the
+whole thesis in one assertion.
 
 ### Stage F — the agent modules dissolve — **DONE**
 
@@ -355,6 +376,7 @@ half is worth less than leaving it whole where it runs.
 | A model finds a name it cannot call. | The index reads `names(M)` and the namespace reads the list. | §3.4, stage C. |
 | The list becomes unreadable. | 86 names inline in a declaration. | §3.6. The long list is a `const` beside what it is for, and the tool description does not inline it. |
 | A macro will not import. | `using M: @reference` needs the symbol spelled `Symbol("@reference")`. | It is how the scratch namespace already imports macros; stage B test. |
+| A declaration names something that is not there. | A typo in a pair fails when the namespace is built, a round away from the line that has the fault. | `declare_api!` refuses it, naming the module and the name. |
 | The verbs lose their shape once they are apart. | Proximity is what enforces "editor first, plain keywords, a sentence back" today. | §3.7. The rule moves to a written home before the modules go. |
 | What a model may do becomes hard to review. | Three entries become nineteen names. | §3.7. One list, one place, a comment per group — not a name declared beside each function. |
 
