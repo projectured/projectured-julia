@@ -34,6 +34,9 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, Shortcut, action_shortcut_matches,
        InvokeActionOperation, as_action,
+       WidgetLazyTable, get_lazy_table_cell, get_lazy_table_column_names,
+       get_lazy_table_column_widths, widget_lazy_table_row_selection,
+       widget_lazy_table_selected_row,
        numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
        inset_bottom_right, set_cell_function!, widget_pager, widget_filter_bar, widget_column_chooser,
@@ -1856,6 +1859,93 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     visible::Bool
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
 end
+
+# ── WidgetLazyTable ────────────────────────────────────────────────────────
+
+"""
+    WidgetLazyTable(position, columns, row_count, row_height, cell; header, visible)
+
+A table of a great many rows, which draws only the rows a viewport shows.
+
+[`WidgetTable`](@ref) measures every cell it holds, because that is how a column
+gets a width that fits the widest cell in it. Column alignment by measurement is
+eager by construction, so a table of 22,731 rows measures 22,731 rows. **This one
+is told its widths instead**, and then the row at `y` is arithmetic: the renderer
+walks a lazy list of row canvases and stops at the bottom of the viewport, and
+the cost is the rows a person can see.
+
+The OMNeT++ analysis tool reached the same design from the other direction: it
+hand-wrote a table because a virtual one degraded near 100,000 rows, and it asks
+its row renderer for one cell at paint time.
+
+- `columns` is a `Vector` of `(name, width)`. **The caller states the widths**,
+  because nothing can measure what it does not draw — §1 of
+  `documentation/rule/layout-rules.md` forbids a size a printer invents and
+  allows one a caller chooses.
+- `cell` answers the text of one cell: `cell(row, column)`, both 1-based. It is
+  held in a `Ref`, because a bare function in a cell field becomes a thunk the
+  cell would call.
+- `row_height` is fixed, and it must be: the walk stops by reading the `y` of a
+  row, so the `y` of row *n* has to be known before row *n* is built.
+- `header` draws the column names as a first row. An enclosing
+  `WidgetScrollPane` holds it still, because this table declares it as the
+  prefix that does not scroll.
+"""
+@document struct WidgetLazyTable <: WidgetDocument
+    position::Point2D
+    columns::Any        # Vector of (name, width)
+    row_count::Int
+    row_height::Int
+    cell::Any           # Ref holding (row, column) -> text
+    header::Bool
+    visible::Bool
+end
+
+function WidgetLazyTable(position::Point2D, columns, row_count::Integer,
+                         row_height::Integer, cell;
+                         header::Bool = true, visible::Bool = true)
+    # The trailing cell is the selection every widget document carries; the
+    # macro adds the field, so no widget declares one of its own.
+    WidgetLazyTable(Cell(position), Cell(collect(Any, columns)),
+                    Cell(Int(row_count)), Cell(Int(row_height)),
+                    Cell(Ref{Any}(cell)), Cell(header), Cell(visible),
+                    Cell(nothing))
+end
+
+"""
+    get_lazy_table_cell(w, row, column) -> String
+
+The text of one cell. A table whose `cell` is nothing draws every cell empty,
+which is what a table of no rows would draw anyway.
+"""
+function get_lazy_table_cell(w::WidgetLazyTable, row::Integer, column::Integer)
+    answer = getfield(w, :cell)[][]
+    answer === nothing && return ""
+    string(answer(Int(row), Int(column)))
+end
+
+"""
+    get_lazy_table_column_names(w) -> Vector{String}
+    get_lazy_table_column_widths(w) -> Vector{Int}
+
+The two halves of what a caller stated, each on its own.
+"""
+get_lazy_table_column_names(w::WidgetLazyTable) =
+    String[String(first(column)) for column in w.columns]
+get_lazy_table_column_widths(w::WidgetLazyTable) =
+    Int[Int(last(column)) for column in w.columns]
+
+"""
+    widget_lazy_table_row_selection(i) -> Reference
+    widget_lazy_table_selected_row(table) -> Int
+
+The whole-row selection a lazy table's reader emits, and its inverse. It is
+`WidgetTable`'s own shape — `rows[i-1:i]`, 1-based — so a projection that reads
+one table's row selection reads the other's unchanged.
+"""
+widget_lazy_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
+widget_lazy_table_selected_row(w::WidgetLazyTable) =
+    _widget_element_selected(w.selection, "rows")
 
 """
     widget_table_row_selection(i) -> Reference

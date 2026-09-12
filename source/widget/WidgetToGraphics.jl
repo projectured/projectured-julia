@@ -18,7 +18,7 @@ to give that content a different recursion table than the surrounding tree.
 """
 module WidgetToGraphicsModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..ClockModule: get_clock_time, get_reactive_clock_time, get_wall_clock
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                                map_reference_forward, map_reference_backward, Projection
@@ -45,15 +45,18 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
                        resolve_toggle_group_write, resolve_slider_write,
                        WidgetTable, WidgetTree, WidgetTreeNode,
+                       WidgetLazyTable, get_lazy_table_cell,
+                       get_lazy_table_column_names, get_lazy_table_column_widths,
+                       widget_lazy_table_row_selection,
                        Inset, Point2D, inset_default,
                        SelectTabOperation, CloseTabRequestOperation,
                        NewTabRequestOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
                        Action, InvokeActionOperation, action_shortcut_matches
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
-import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument
+import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, graphics_size
+import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, graphics_size
 import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
                          affine_apply, affine_inverse, affine_is_axis_aligned
 import ..FontModule: StyleFont,
@@ -92,6 +95,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetHighlightToGraphicsCanvas,
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, frozen_extent,
+       WidgetLazyTableToGraphicsCanvas, WidgetLazyTableToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
        WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
@@ -3356,6 +3360,142 @@ function _pane_extent(offer, content_cell)
     content_cell === nothing && return Cell(Int32(0))
     ComputedCell(() -> Int32(max(0, Int(content_cell[]))))
 end
+
+# ── WidgetLazyTable ────────────────────────────────────────────────────────
+#
+# A table whose cost is the rows a person can see.
+#
+# The body is a `ListNode` of row canvases, each at a `y` the row index decides.
+# Everything below already walks such a list and stops early: the SDL renderer
+# at the bottom of the viewport, `hit_element_at` at the click, and
+# `is_infinite_canvas` keeps it out of the image cache. The one thing a lazy walk
+# needs is the `y` of a row before the row is built, which is why the height is a
+# field and the widths are the caller's.
+#
+# The header is the FIRST node of that same list, not a sibling element — a
+# canvas holds a vector or a list, never both. `frozen_extent` then names its
+# height, and an enclosing `WidgetScrollPane` holds exactly that prefix still.
+
+@projection struct WidgetLazyTableToGraphicsCanvas
+    measure::Function
+    text::ImmutableCell{StyleText}          # a body cell
+    header_text::ImmutableCell{StyleText}   # a column name
+    header_color::StyleColor                # the strip behind the names
+    grid::StyleStroke                       # the line under the header, and between rows
+    padding::Int                            # inside a cell, left and right
+end
+
+@iomap struct WidgetLazyTableToGraphicsCanvasIoMap
+    projection::Any
+    input::WidgetLazyTable
+    output::GraphicsCanvas
+end
+
+# What this table holds still: the header, and nothing on the other axis. The
+# pane freezes and the content declares — see `frozen_extent`.
+frozen_extent(iomap::WidgetLazyTableToGraphicsCanvasIoMap) =
+    ComputedCell(function ()
+        w = iomap.input
+        (0, w.header ? Int(w.row_height) : 0)
+    end)
+
+# The x of each column edge, cumulative, so a cell's box is two lookups.
+function _lazy_column_edges(w::WidgetLazyTable)
+    edges = Int[0]
+    for width in get_lazy_table_column_widths(w)
+        push!(edges, last(edges) + width)
+    end
+    edges
+end
+
+_lazy_table_width(w::WidgetLazyTable) = last(_lazy_column_edges(w))
+
+# One row, as a canvas of its own at the `y` its index decides. `row == 0` is the
+# header, which draws the column names on the header surface.
+function _lazy_row_canvas(p::WidgetLazyTableToGraphicsCanvas, w::WidgetLazyTable,
+                          row::Int)
+    height = Int(w.row_height)
+    y = row * height
+    edges = _lazy_column_edges(w)
+    width = last(edges)
+    elements = Any[]
+    header = row == 0
+    if header
+        _push_panel!(elements, 0, 0, width, height; fill = p.header_color)
+    end
+    names = header ? get_lazy_table_column_names(w) : String[]
+    style = header ? p.header_text : p.text
+    for column in 1:(length(edges) - 1)
+        text = header ? (column <= length(names) ? names[column] : "") :
+                        get_lazy_table_cell(w, row, column)
+        isempty(text) && continue
+        _, text_height = _text_size(p.measure, style.font, text)
+        _push_text!(elements, style.font, text,
+                    edges[column] + _sc(p.padding), (height - text_height) ÷ 2,
+                    style.color)
+    end
+    # The line under a row, which is what makes a table read as rows.
+    push!(elements, GraphicsRect(0, height - max(1, _sc(p.grid.width)), width,
+                                 max(1, _sc(p.grid.width)), p.grid.color))
+    GraphicsCanvas(Cell(Int32(0)), Cell(Int32(y)), Cell(Int32(width)),
+                   Cell(Int32(height)), Cell(elements), layout_none, false,
+                   Cell(nothing))
+end
+
+# The list the renderer walks. Node 1 is the header when there is one, and node
+# `i + 1` is row `i`; `next` and `prev` build their neighbour and nothing else.
+function _lazy_row_node(p::WidgetLazyTableToGraphicsCanvas, w::WidgetLazyTable,
+                        row::Int)
+    node = ListNode(_lazy_row_canvas(p, w, row))
+    last_row = Int(w.row_count)
+    first_row = w.header ? 0 : 1
+    set_cell_function!(getfield(node, :next), function ()
+        row >= last_row && return nothing
+        following = _lazy_row_node(p, w, row + 1)
+        set_cell_value!(getfield(following, :prev), node)
+        following
+    end)
+    set_cell_function!(getfield(node, :prev), function ()
+        row <= first_row && return nothing
+        preceding = _lazy_row_node(p, w, row - 1)
+        set_cell_value!(getfield(preceding, :next), node)
+        preceding
+    end)
+    node
+end
+
+function print_document(p::WidgetLazyTableToGraphicsCanvas, recursion,
+                        w::WidgetLazyTable, ctx)
+    w.visible == false && return WidgetLazyTableToGraphicsCanvasIoMap(p, w, _empty_canvas())
+    x, y = _origin(w.position::Point2D)
+    height = Int(w.row_height)
+    rows = Int(w.row_count) + (w.header ? 1 : 0)
+    head = _lazy_row_node(p, w, w.header ? 0 : 1)
+    canvas = GraphicsCanvas(Cell(Int32(x)), Cell(Int32(y)),
+                            Cell(Int32(_lazy_table_width(w))),
+                            Cell(Int32(rows * height)),
+                            head, layout_vertical, false, Cell(nothing))
+    WidgetLazyTableToGraphicsCanvasIoMap(p, w, canvas)
+end
+
+# A click picks a row, and the row is arithmetic: the header is band 0 and row
+# `i` is band `i`. It answers `WidgetTable`'s own row selection, so a projection
+# that reads one table's rows reads this one's unchanged.
+function read_intent(p::WidgetLazyTableToGraphicsCanvas,
+                     iomap::WidgetLazyTableToGraphicsCanvasIoMap, event::MousePress)
+    event.button === :left || return nothing
+    w = iomap.input
+    height = Int(w.row_height)
+    height <= 0 && return nothing
+    (0 <= event.x < _lazy_table_width(w)) || return nothing
+    band = event.y ÷ height
+    row = w.header ? band : band + 1
+    (1 <= row <= Int(w.row_count)) || return nothing
+    ReplaceSelectionOperation(widget_lazy_table_row_selection(row))
+end
+
+map_reference_forward(::WidgetLazyTableToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetLazyTableToGraphicsCanvas, iomap, reference) = nothing
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
@@ -6766,6 +6906,9 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             theme.destructive, theme.destructive_foreground,
             theme.background, theme.foreground, theme.border),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
+        WidgetLazyTable  => WidgetLazyTableToGraphicsCanvas(measurer,
+            theme.body_text, StyleText(theme.font_bold, theme.foreground),
+            theme.muted, StyleStroke(theme.border, theme.border_width), theme.pad_x),
         WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
