@@ -964,3 +964,132 @@ them. Nothing in it is applied yet.
 
 Status: the 383 rows of §13.1 are still being named, one definition at a time.
 Every other table below is complete.
+
+### 14.1 Module renames — DEFERRED
+
+30 module renames of §4.1 wait on the decision of §13.3. If a slice collapses to
+one module, this table disappears. Do not start it.
+
+### 14.2 Module renames that do not wait
+
+These are independent of §13.3.
+
+| file | old module | new module | confidence |
+| --- | --- | --- | --- |
+| [source/inspector/ReferenceInspector.jl](../../source/inspector/ReferenceInspector.jl) | `ReferenceInspectorDocumentModule` | `ReferenceInspectorModule` | likely |
+| [source/database/DatabaseInstance.jl](../../source/database/DatabaseInstance.jl) | `DatabaseInstanceDocumentModule` | `DatabaseInstanceModule` | likely |
+| [source/syntax/InsertionToSyntax.jl](../../source/syntax/InsertionToSyntax.jl) | `DocumentInsertionToSyntaxModule` | `InsertionToSyntaxModule` | likely |
+| [source/database/DatabaseAdapters.jl](../../source/database/DatabaseAdapters.jl) | `DatabaseModule` | `DatabaseAdaptersModule` | likely |
+| [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | `GestureBindingsModule` | unsure, see §9.11 |
+
+### 14.3 File renames
+
+| old path | new path | why |
+| --- | --- | --- |
+| [test/dbcatalog/DbcatalogSuite.jl](../../test/dbcatalog/DbcatalogSuite.jl) | `test/dbcatalog/DbCatalogSuite.jl` | §3.2 |
+| [test/filesystem/FilesystemSuite.jl](../../test/filesystem/FilesystemSuite.jl) | `test/filesystem/FileSystemSuite.jl` | §3.2 |
+| [test/sequencechart/SequencechartSuite.jl](../../test/sequencechart/SequencechartSuite.jl) | `test/sequencechart/SequenceChartSuite.jl` | §3.2 |
+| [source/graph/omnetpp/Geometry.jl](../../source/graph/omnetpp/Geometry.jl) | `source/graph/omnetpp/LayoutGeometry.jl` | §4.2, also ends a duplicate basename |
+| [source/text/LineNumbering.jl](../../source/text/LineNumbering.jl) | `source/text/TextLineNumbering.jl` | §4.2 |
+| [source/gesturelog/GestureLogRecorder.jl](../../source/gesturelog/GestureLogRecorder.jl) | `source/gesturelog/GestureLogRecording.jl` | §7.1, the other three names already say `Recording` |
+| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `source/dragging/Dragging.jl` | §7.1, a stem file never bakes in `Projection` |
+| [source/projection/Copying.jl](../../source/projection/Copying.jl) | `source/projection/generic/Copying.jl` | §7.2 |
+| [source/projection/Filtering.jl](../../source/projection/Filtering.jl) | `source/projection/generic/Filtering.jl` | §7.2 |
+| [source/projection/Searching.jl](../../source/projection/Searching.jl) | `source/projection/generic/Searching.jl` | §7.2 |
+| [source/projection/Sorting.jl](../../source/projection/Sorting.jl) | `source/projection/generic/Sorting.jl` | §7.2 |
+
+Each row also rewrites the `include("…")` line that names the file.
+
+### 14.4 File splits
+
+| file | becomes | why |
+| --- | --- | --- |
+| [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
+| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
+| [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | §7.1, the file holds two stems |
+
+### 14.5 Module aliases to delete
+
+29 alias lines in the package roots, six distinct names. Replace each use with
+the real module name.
+
+| alias | real module | lines |
+| --- | --- | --- |
+| `DocumentApiModule` | `DocumentModule` | 10 |
+| `OperationApiModule` | `OperationModule` | 7 |
+| `ReferenceCaseModule` | `ReferenceModule` | 4 |
+| `ReferenceBuilderModule` | `ReferenceModule` | 4 |
+| `OperationRerootingModule` | `OperationModule` | 3 |
+| `BackendApiModule` | `BackendModule` | 1 |
+
+Also delete three rows from the table at
+[PackageGraphTest.jl:233](../../test/projectured/PackageGraphTest.jl#L233) that
+name aliases no file uses any more: `SelectionApiModule`, `ReferenceApiModule`
+and `ProjectionReferenceStepApiModule`.
+
+### 14.6 Type renames
+
+| old | new | why |
+| --- | --- | --- |
+| `ProcessStopped` | `ProcessStoppedException` | §5.1 |
+| `ReferenceTypeMismatch` | `ReferenceTypeMismatchException` | §5.1 |
+| `SelectionMismatch` | `SelectionMismatchException` | §5.1, sealed file |
+| `DatabaseUpdateOperation` | `UpdateDatabaseCellOperation` | §5.2 |
+| `DatabaseInsertOperation` | `InsertDatabaseRowOperation` | §5.2 |
+| `NewTabRequestOperation` | `OpenTabOperation` | §5.2 and §7.3 |
+| `CloseTabRequestOperation` | `CloseTabOperation` | §7.3 |
+| `ToyPathOp` | `ToyPathOperation` | §5.2 |
+| `FrameDrainOperation` | `DrainFrameOperation` | §5.2 |
+| `FrameDrainSwapOperation` | `DrainFrameSwapOperation` | §5.2 |
+| `InboxProbeOperation` | `ProbeInboxOperation` | §5.2 |
+| `ToggleClipboardSliceDisplayOperation` | `ToggleClipboardSliceOperation` | §5.3 |
+| `ToggleClipboardCollectionDisplayOperation` | `ToggleClipboardCollectionOperation` | §5.3 |
+| `IBody` | `AbstractBody` | §5.4 |
+| `IForceProvider` | `AbstractForceProvider` | §5.4 |
+| `WorkspaceWorkspaceProjection` | `WorkspaceToFileSystemDirectory` | §7.1 |
+| `CommandPaletteProjection` | `CommandPaletteDecoratorProjection` | §7.1 |
+| `GestureHelpProjection` | `GestureHelpDecoratorProjection` | §7.1 |
+| `RefStep` | `ReferenceSyntaxStep` | §5.5 |
+| `RefField` | `ReferenceSyntaxField` | §5.5 |
+| `RefFieldExpr` | `ReferenceSyntaxFieldExpression` | §5.5 |
+| `RefIndex` | `ReferenceSyntaxIndex` | §5.5 |
+| `RefPosition` | `ReferenceSyntaxPosition` | §5.5 |
+| `RefRange` | `ReferenceSyntaxRange` | §5.5 |
+| `RefType` | `ReferenceSyntaxType` | §5.5 |
+| `RefSplice` | `ReferenceSyntaxSplice` | §5.5 |
+| `RefTailBind` | `ReferenceSyntaxTailBind` | §5.5 |
+| `RefArgValue` | `ReferenceSyntaxArgumentValue` | §5.5 |
+| `RefArgSubPath` | `ReferenceSyntaxArgumentSubPath` | §5.5 |
+| `RefExtension` | `ReferenceSyntaxExtension` | §5.5 |
+| `JuliaBinaryOp` | `JuliaBinaryOperation` | §5.5 |
+| `JuliaUnaryOp` | `JuliaUnaryOperation` | §5.5 |
+| `JuliaBinaryOpToSyntaxNode` | `JuliaBinaryOperationToSyntaxNode` | §5.5 |
+| `JuliaUnaryOpToSyntaxNode` | `JuliaUnaryOperationToSyntaxNode` | §5.5 |
+| `JuliaModuleDef` | `JuliaModuleDefinition` | §5.5 |
+| `JuliaModuleDefToSyntaxNode` | `JuliaModuleDefinitionToSyntaxNode` | §5.5 |
+| `PageCtx` | `PageContext` | §5.5 |
+| `FontReg` | `FontRegistration` | §5.5 |
+| `WebConn` | `WebConnection` | §5.5 |
+| `SelSeg` | `SelectionSegment` | §5.5 |
+| `WrapSeg` | `WrapSegment` | §5.5 |
+| `HighlightSeg` | `HighlightSegment` | §5.5 |
+| `SegCoord` | `SegmentCoordinate` | §5.5 |
+| `RCV` | `ReactiveCellVector` | §5.5 |
+| `EvalChild` | `EvaluationChild` | §5.5 |
+| `EvalDoc` | `EvaluationDocument` | §5.5 |
+| `EvalLeaf` | `EvaluationLeaf` | §5.5 |
+| `EvalBranch` | `EvaluationBranch` | §5.5 |
+| `_Cur` (json and xml) | `_Cursor` | §5.5 |
+| `IC` (alias) | delete it, write `ImmutableCell` | §5.4 |
+
+### 14.7 IO map renames
+
+The 23 rows of §13.2, unchanged.
+
+### 14.8 Function and constant renames already filed
+
+The 64 rows of §6.1 to §6.6, unchanged. They are separate from the 383 of §14.9.
+
+### 14.9 The 383 functions that do not start with a verb
+
+Being named, one definition at a time. Not yet in this file.
