@@ -1,11 +1,11 @@
 function setup_persons_table(adapter)
-    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
-    db_execute_raw(adapter, "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
-    db_insert!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
+    execute_db_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
+    execute_db_raw(adapter, "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
+    insert_into_db!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
 end
 
 function teardown_persons_table(adapter)
-    db_execute_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
+    execute_db_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
 include("external/DatabaseResultTest.jl")

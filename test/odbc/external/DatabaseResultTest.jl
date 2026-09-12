@@ -65,15 +65,15 @@ end
 _make_test_pool() = OdbcConnectionPool(rowid_column="ctid")
 
 function _setup_persons_table(adapter)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "DROP TABLE IF EXISTS persons", RawDatabaseResult)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
-    db_insert!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
+    insert_into_db!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
 end
 
 function _teardown_persons_table(adapter)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
@@ -81,27 +81,27 @@ end
 
 function test_connect_close(adapter)
     @testset "T1 — connect / close" begin
-        db_connect!(adapter)
-        @test db_alive(adapter) == true
-        db_close!(adapter)
-        @test db_alive(adapter) == false
-        db_connect!(adapter)   # reconnect for subsequent tests
+        connect_db!(adapter)
+        @test is_db_alive(adapter) == true
+        close_db!(adapter)
+        @test is_db_alive(adapter) == false
+        connect_db!(adapter)   # reconnect for subsequent tests
     end
 end
 
 function test_insert(adapter)
     @testset "T2 — insert" begin
-        count_before = db_query(adapter, "persons", RawDatabaseResult).rows |> length
-        n = db_insert!(adapter, "persons", Dict("name" => "Bob", "age" => 25))
+        count_before = query_db(adapter, "persons", RawDatabaseResult).rows |> length
+        n = insert_into_db!(adapter, "persons", Dict("name" => "Bob", "age" => 25))
         @test n == 1
-        count_after = db_query(adapter, "persons", RawDatabaseResult).rows |> length
+        count_after = query_db(adapter, "persons", RawDatabaseResult).rows |> length
         @test count_after == count_before + 1
     end
 end
 
 function test_query_to_raw(adapter)
-    @testset "T3 — db_query into RawDatabaseResult" begin
-        r = db_query(adapter, "persons", RawDatabaseResult)
+    @testset "T3 — query_db into RawDatabaseResult" begin
+        r = query_db(adapter, "persons", RawDatabaseResult)
         @test r isa RawDatabaseResult
         @test r.columns == ["name", "age"]
         @test length(r.rows) >= 1
@@ -110,31 +110,31 @@ function test_query_to_raw(adapter)
 end
 
 function test_update(adapter)
-    @testset "T4 — update via db_update!" begin
-        db_insert!(adapter, "persons", Dict("name" => "UpdateMe", "age" => 1))
-        n = db_update!(adapter, "persons",
+    @testset "T4 — update via update_db!" begin
+        insert_into_db!(adapter, "persons", Dict("name" => "UpdateMe", "age" => 1))
+        n = update_db!(adapter, "persons",
                        Dict("age" => 99),
                        "name = 'UpdateMe'")
         @test n == 1
-        r = db_query(adapter, "persons", RawDatabaseResult; where="name = 'UpdateMe'")
+        r = query_db(adapter, "persons", RawDatabaseResult; where="name = 'UpdateMe'")
         @test length(r.rows) == 1
         @test string(r.rows[1][2]) == "99"
     end
 end
 
 function test_delete(adapter)
-    @testset "T5 — delete via db_delete!" begin
-        db_insert!(adapter, "persons", Dict("name" => "DeleteMe", "age" => 0))
-        n = db_delete!(adapter, "persons", "name = 'DeleteMe'")
+    @testset "T5 — delete via delete_from_db!" begin
+        insert_into_db!(adapter, "persons", Dict("name" => "DeleteMe", "age" => 0))
+        n = delete_from_db!(adapter, "persons", "name = 'DeleteMe'")
         @test n == 1
-        r = db_query(adapter, "persons", RawDatabaseResult; where="name = 'DeleteMe'")
+        r = query_db(adapter, "persons", RawDatabaseResult; where="name = 'DeleteMe'")
         @test isempty(r.rows)
     end
 end
 
 function test_execute_raw(adapter)
-    @testset "T6 — db_execute_raw into RawDatabaseResult" begin
-        r = db_execute_raw(adapter,
+    @testset "T6 — execute_db_raw into RawDatabaseResult" begin
+        r = execute_db_raw(adapter,
                            "SELECT count(*) FROM persons",
                            RawDatabaseResult)
         @test r isa RawDatabaseResult
@@ -177,19 +177,19 @@ function test_create_ddl_in_test_schema(adapter)
         @test length(table_stmt.columns) == 3
 
         # Clean slate (reverse order) in case a previous run left artifacts behind.
-        db_execute_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
-        db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+        execute_db_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
+        execute_db_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
 
         try
             # 1. CREATE SCHEMA test
-            db_execute_raw(adapter, _ddl_to_sql(schema_stmt), RawDatabaseResult)
-            @test length(db_execute_raw(adapter,
+            execute_db_raw(adapter, _ddl_to_sql(schema_stmt), RawDatabaseResult)
+            @test length(execute_db_raw(adapter,
                 "SELECT schema_name FROM information_schema.schemata " *
                 "WHERE schema_name = 'test'", RawDatabaseResult).rows) == 1
 
             # 2. CREATE TABLE test.ddl_roundtrip (…)
-            db_execute_raw(adapter, _ddl_to_sql(table_stmt), RawDatabaseResult)
-            cols = db_execute_raw(adapter,
+            execute_db_raw(adapter, _ddl_to_sql(table_stmt), RawDatabaseResult)
+            cols = execute_db_raw(adapter,
                 "SELECT column_name, data_type FROM information_schema.columns " *
                 "WHERE table_schema = 'test' AND table_name = 'ddl_roundtrip' " *
                 "ORDER BY ordinal_position",
@@ -198,21 +198,21 @@ function test_create_ddl_in_test_schema(adapter)
             @test [string(r[2]) for r in cols.rows] == ["integer", "text", "numeric"]
 
             # 3. DROP TABLE test.ddl_roundtrip
-            db_execute_raw(adapter, "DROP TABLE test.ddl_roundtrip", RawDatabaseResult)
-            @test isempty(db_execute_raw(adapter,
+            execute_db_raw(adapter, "DROP TABLE test.ddl_roundtrip", RawDatabaseResult)
+            @test isempty(execute_db_raw(adapter,
                 "SELECT 1 FROM information_schema.tables " *
                 "WHERE table_schema = 'test' AND table_name = 'ddl_roundtrip'",
                 RawDatabaseResult).rows)
 
             # 4. DROP SCHEMA test
-            db_execute_raw(adapter, "DROP SCHEMA test", RawDatabaseResult)
-            @test isempty(db_execute_raw(adapter,
+            execute_db_raw(adapter, "DROP SCHEMA test", RawDatabaseResult)
+            @test isempty(execute_db_raw(adapter,
                 "SELECT 1 FROM information_schema.schemata WHERE schema_name = 'test'",
                 RawDatabaseResult).rows)
         finally
             # Safety net (reverse order) if an assertion above failed mid-lifecycle.
-            db_execute_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
-            db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+            execute_db_raw(adapter, "DROP TABLE IF EXISTS test.ddl_roundtrip", RawDatabaseResult)
+            execute_db_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
         end
     end
 end
@@ -238,15 +238,15 @@ function test_db_catalog_to_sql_live(adapter)
         @test occursin("CREATE SCHEMA test", script)
         @test occursin("CREATE TABLE test.film", script)
 
-        db_execute_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
-        db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+        execute_db_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
+        execute_db_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
         try
             for stmt in split(script, "\n\n")
                 s = strip(stmt)
                 isempty(s) && continue
-                db_execute_raw(adapter, String(s), RawDatabaseResult)
+                execute_db_raw(adapter, String(s), RawDatabaseResult)
             end
-            cols = db_execute_raw(adapter,
+            cols = execute_db_raw(adapter,
                 "SELECT column_name, data_type FROM information_schema.columns " *
                 "WHERE table_schema = 'test' AND table_name = 'film' " *
                 "ORDER BY ordinal_position",
@@ -254,8 +254,8 @@ function test_db_catalog_to_sql_live(adapter)
             @test [string(r[1]) for r in cols.rows] == ["title", "length"]
             @test [string(r[2]) for r in cols.rows] == ["text", "integer"]
         finally
-            db_execute_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
-            db_execute_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
+            execute_db_raw(adapter, "DROP TABLE IF EXISTS test.film", RawDatabaseResult)
+            execute_db_raw(adapter, "DROP SCHEMA IF EXISTS test", RawDatabaseResult)
         end
     end
 end
@@ -265,10 +265,10 @@ end
 function test_database_connection()
     adapter = _make_test_adapter()
     @testset "Database connection" begin
-        @test_nowarn db_connect!(adapter)
-        @test db_alive(adapter) == true
-        @test_nowarn db_close!(adapter)
-        @test db_alive(adapter) == false
+        @test_nowarn connect_db!(adapter)
+        @test is_db_alive(adapter) == true
+        @test_nowarn close_db!(adapter)
+        @test is_db_alive(adapter) == false
     end
 end
 
@@ -282,7 +282,7 @@ end
 function test_database(; skip_if_no_db=true)
     adapter = _make_test_adapter()
     can_connect = try
-        db_connect!(adapter)
+        connect_db!(adapter)
         true
     catch e
         skip_if_no_db && @info "Skipping live-DB tests (ODBC DSN unavailable): $e"
@@ -306,10 +306,10 @@ function test_database(; skip_if_no_db=true)
             test_db_catalog_to_sql_live(adapter)
         catch e
             # @broken: pre-existing drift; live-DB path throws (schema perms /
-            # setup drift) even when db_connect! succeeded — needs a real DB env
+            # setup drift) even when connect_db! succeeded — needs a real DB env
             @test_broken (@warn "live-DB test threw: $e"; false)
         finally
-            db_close!(adapter)
+            close_db!(adapter)
         end
     end
 end

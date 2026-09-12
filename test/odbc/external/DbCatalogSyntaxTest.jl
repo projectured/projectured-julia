@@ -457,7 +457,7 @@ end
 function test_db_catalog_syntax(; show_detail=false, skip_if_no_db=true)
     adapter = _make_test_adapter()
     can_connect = try
-        db_connect!(adapter)
+        connect_db!(adapter)
         true
     catch e
         skip_if_no_db && @info "Skipping DbCatalogSyntax tests (ODBC DSN unavailable): $e"
@@ -466,7 +466,7 @@ function test_db_catalog_syntax(; show_detail=false, skip_if_no_db=true)
     if can_connect
         try
             setup_persons_table(adapter)
-            db_close!(adapter)
+            close_db!(adapter)
         catch e
             @warn "DbCatalogSyntax setup/teardown threw: $e"
         end

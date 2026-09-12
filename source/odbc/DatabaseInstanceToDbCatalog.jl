@@ -4,8 +4,8 @@ import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 import ProjecturedDbCatalog.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
-import ProjecturedDatabase.DatabaseModule: db_catalog_databases, db_catalog_schemas,
-                         db_catalog_tables, db_catalog_columns
+import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_catalog_schemas,
+                         get_db_catalog_tables, get_db_catalog_columns
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
@@ -24,7 +24,7 @@ export DatabaseInstanceToDbCatalog
 function _build_columns(pool, inst, schema_name::String, table_name::String)
     ComputedCellVector(() -> begin
         cols = with_connection(pool, inst) do adapter
-            db_catalog_columns(adapter, schema_name, table_name)
+            get_db_catalog_columns(adapter, schema_name, table_name)
         end
         DbCatalogColumn[DbCatalogColumn(c.name, c.data_type) for c in cols]
     end)
@@ -33,7 +33,7 @@ end
 function _build_tables(pool, inst, schema_name::String)
     ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
-            db_catalog_tables(adapter, schema_name)
+            get_db_catalog_tables(adapter, schema_name)
         end
         DbCatalogTable[DbCatalogTable(n, _build_columns(pool, inst, schema_name, n))
                        for n in names]
@@ -43,7 +43,7 @@ end
 function _build_schemas(pool, inst, database_name::String)
     ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
-            db_catalog_schemas(adapter, database_name)
+            get_db_catalog_schemas(adapter, database_name)
         end
         DbCatalogSchema[DbCatalogSchema(n, _build_tables(pool, inst, n))
                         for n in names]
@@ -53,7 +53,7 @@ end
 function _build_databases(pool, inst)
     ComputedCellVector(() -> begin
         names = with_connection(pool, inst) do adapter
-            db_catalog_databases(adapter)
+            get_db_catalog_databases(adapter)
         end
         DbCatalogDatabase[DbCatalogDatabase(n, _build_schemas(pool, inst, n))
                           for n in names]

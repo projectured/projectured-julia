@@ -5,12 +5,12 @@ import DBInterface
 import Tables
 
 import ProjecturedDatabase.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
-                         db_connect!, db_close!, db_alive, db_rowid_column,
-                         db_query, db_execute_raw,
-                         db_insert!, db_update!, db_delete!,
-                         db_catalog_databases, db_catalog_schemas,
-                         db_catalog_tables, db_catalog_columns,
-                         db_catalog_foreign_keys,
+                         connect_db!, close_db!, is_db_alive, get_db_rowid_column,
+                         query_db, execute_db_raw,
+                         insert_into_db!, update_db!, delete_from_db!,
+                         get_db_catalog_databases, get_db_catalog_schemas,
+                         get_db_catalog_tables, get_db_catalog_columns,
+                         get_db_catalog_foreign_keys,
                          make_database_adapter
 
 export OdbcDatabaseAdapter
@@ -88,12 +88,12 @@ OdbcDatabaseAdapter(; dsn::AbstractString,
 # concrete type. `make_database_adapter(:odbc; dsn=…, rowid_column=…)`.
 make_database_adapter(::Val{:odbc}; kwargs...) = OdbcDatabaseAdapter(; kwargs...)
 
-function db_connect!(adapter::OdbcDatabaseAdapter)
+function connect_db!(adapter::OdbcDatabaseAdapter)
     adapter._conn = ODBC.Connection(adapter.dsn)
     return adapter
 end
 
-function db_close!(adapter::OdbcDatabaseAdapter)
+function close_db!(adapter::OdbcDatabaseAdapter)
     if adapter._conn !== nothing
         DBInterface.close!(adapter._conn)
         adapter._conn = nothing
@@ -101,7 +101,7 @@ function db_close!(adapter::OdbcDatabaseAdapter)
     return adapter
 end
 
-function db_alive(adapter::OdbcDatabaseAdapter)::Bool
+function is_db_alive(adapter::OdbcDatabaseAdapter)::Bool
     adapter._conn === nothing && return false
     try
         DBInterface.execute(adapter._conn, "SELECT 1")
@@ -111,11 +111,11 @@ function db_alive(adapter::OdbcDatabaseAdapter)::Bool
     end
 end
 
-db_rowid_column(adapter::OdbcDatabaseAdapter) = adapter.rowid_column
+get_db_rowid_column(adapter::OdbcDatabaseAdapter) = adapter.rowid_column
 
 # ── OdbcDatabaseAdapter — RawDatabaseResult target ───────────────────────────
 
-function db_query(adapter::OdbcDatabaseAdapter, table::String,
+function query_db(adapter::OdbcDatabaseAdapter, table::String,
                   ::Type{RawDatabaseResult};
                   columns=nothing, where=nothing, limit=nothing)::RawDatabaseResult
     sql, _ = _build_select(table, columns, where, limit)
@@ -124,7 +124,7 @@ function db_query(adapter::OdbcDatabaseAdapter, table::String,
     RawDatabaseResult(col_names, rows)
 end
 
-function db_execute_raw(adapter::OdbcDatabaseAdapter, sql::String,
+function execute_db_raw(adapter::OdbcDatabaseAdapter, sql::String,
                         ::Type{RawDatabaseResult};
                         params=())::RawDatabaseResult
     cursor = DBInterface.execute(adapter._conn, sql, collect(params))
@@ -134,7 +134,7 @@ end
 
 # ── OdbcDatabaseAdapter — mutations ───────────────────────────────────────────
 
-function db_insert!(adapter::OdbcDatabaseAdapter,
+function insert_into_db!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
@@ -145,7 +145,7 @@ function db_insert!(adapter::OdbcDatabaseAdapter,
     cursor.rows
 end
 
-function db_update!(adapter::OdbcDatabaseAdapter,
+function update_db!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict, where::String)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
@@ -155,7 +155,7 @@ function db_update!(adapter::OdbcDatabaseAdapter,
     cursor.rows
 end
 
-function db_delete!(adapter::OdbcDatabaseAdapter,
+function delete_from_db!(adapter::OdbcDatabaseAdapter,
                     table::String, where::String)::Int
     sql = "DELETE FROM \"$(table)\" WHERE $(where)"
     cursor = DBInterface.execute(adapter._conn, sql)
@@ -164,9 +164,9 @@ end
 
 # ── OdbcDatabaseAdapter — catalog queries ────────────────────────────────────
 
-function db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
-    if adapter._conn === nothing || !db_alive(adapter)
-        db_connect!(adapter)
+function get_db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
+    if adapter._conn === nothing || !is_db_alive(adapter)
+        connect_db!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT DISTINCT table_catalog FROM information_schema.tables " *
@@ -175,9 +175,9 @@ function db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
     String[String(row[1]) for row in rows]
 end
 
-function db_catalog_schemas(adapter::OdbcDatabaseAdapter, database::String)::Vector{String}
-    if adapter._conn === nothing || !db_alive(adapter)
-        db_connect!(adapter)
+function get_db_catalog_schemas(adapter::OdbcDatabaseAdapter, database::String)::Vector{String}
+    if adapter._conn === nothing || !is_db_alive(adapter)
+        connect_db!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT schema_name FROM information_schema.schemata " *
@@ -187,9 +187,9 @@ function db_catalog_schemas(adapter::OdbcDatabaseAdapter, database::String)::Vec
     String[String(row[1]) for row in rows]
 end
 
-function db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Vector{String}
-    if adapter._conn === nothing || !db_alive(adapter)
-        db_connect!(adapter)
+function get_db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Vector{String}
+    if adapter._conn === nothing || !is_db_alive(adapter)
+        connect_db!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT table_name FROM information_schema.tables " *
@@ -199,10 +199,10 @@ function db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Vector
     String[String(row[1]) for row in rows]
 end
 
-function db_catalog_columns(adapter::OdbcDatabaseAdapter,
+function get_db_catalog_columns(adapter::OdbcDatabaseAdapter,
                              schema::String, table::String)
-    if adapter._conn === nothing || !db_alive(adapter)
-        db_connect!(adapter)
+    if adapter._conn === nothing || !is_db_alive(adapter)
+        connect_db!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT column_name, data_type FROM information_schema.columns " *
@@ -222,9 +222,9 @@ end
 # regardless of ownership. `unnest(... WITH ORDINALITY)` pairs each
 # `conkey[i]` (referencing column) with the matching `confkey[i]` (referenced
 # column), yielding one row per FK column — multi-column FKs span multiple rows.
-function db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::String)
-    if adapter._conn === nothing || !db_alive(adapter)
-        db_connect!(adapter)
+function get_db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::String)
+    if adapter._conn === nothing || !is_db_alive(adapter)
+        connect_db!(adapter)
     end
     cursor = DBInterface.execute(adapter._conn,
         "SELECT rel.relname  AS from_table, " *

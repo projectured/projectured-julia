@@ -12,8 +12,8 @@ using Projectured
 # ── Catalog API tests (low-level, on a bare adapter) ────────────────────────────
 
 function test_db_catalog_databases(adapter)
-    @testset "T1 — db_catalog_databases" begin
-        dbs = db_catalog_databases(adapter)
+    @testset "T1 — get_db_catalog_databases" begin
+        dbs = get_db_catalog_databases(adapter)
         @test dbs isa Vector{String}
         @test "projectured_test" in dbs
         @info "Databases: $dbs"
@@ -21,8 +21,8 @@ function test_db_catalog_databases(adapter)
 end
 
 function test_db_catalog_schemas(adapter)
-    @testset "T2 — db_catalog_schemas" begin
-        schemas = db_catalog_schemas(adapter, "projectured_test")
+    @testset "T2 — get_db_catalog_schemas" begin
+        schemas = get_db_catalog_schemas(adapter, "projectured_test")
         @test schemas isa Vector{String}
         @test "public" in schemas
         @info "Schemas: $schemas"
@@ -30,8 +30,8 @@ function test_db_catalog_schemas(adapter)
 end
 
 function test_db_catalog_tables(adapter)
-    @testset "T3 — db_catalog_tables" begin
-        tables = db_catalog_tables(adapter, "public")
+    @testset "T3 — get_db_catalog_tables" begin
+        tables = get_db_catalog_tables(adapter, "public")
         @test tables isa Vector{String}
         @test "persons" in tables
         @info "Tables in public: $tables"
@@ -39,8 +39,8 @@ function test_db_catalog_tables(adapter)
 end
 
 function test_db_catalog_columns(adapter)
-    @testset "T4 — db_catalog_columns" begin
-        cols = db_catalog_columns(adapter, "public", "persons")
+    @testset "T4 — get_db_catalog_columns" begin
+        cols = get_db_catalog_columns(adapter, "public", "persons")
         @test cols isa Vector
         col_pairs = [(c.name, c.data_type) for c in cols]
         @test ("name", "text") in col_pairs
@@ -138,7 +138,7 @@ function test_db_catalog(; skip_if_no_db=true)
     instance = _make_test_instance()
     pool     = _make_test_pool()
     can_connect = try
-        db_connect!(adapter)
+        connect_db!(adapter)
         true
     catch e
         skip_if_no_db && @info "Skipping DbCatalog tests (ODBC DSN unavailable): $e"
@@ -161,10 +161,10 @@ function test_db_catalog(; skip_if_no_db=true)
             test_db_catalog_projection_full(instance, pool)
         catch e
             # @broken: pre-existing drift; live-DB path throws (setup / query
-            # drift) even when db_connect! succeeded — needs a real DB env
+            # drift) even when connect_db! succeeded — needs a real DB env
             @test_broken (@warn "live-DB DbCatalog test threw: $e"; false)
         finally
-            try; db_close!(adapter); catch e; @warn "db_close! threw: $e"; end
+            try; close_db!(adapter); catch e; @warn "close_db! threw: $e"; end
             try; close_pool!(pool); catch e; @warn "close_pool! threw: $e"; end
         end
     end

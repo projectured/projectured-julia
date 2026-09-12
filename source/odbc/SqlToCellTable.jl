@@ -11,7 +11,7 @@ import ProjecturedText.TextToStringModule: TextToString
 import ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 import ProjecturedProjection.ChainingProjectionModule: ChainingProjection
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
-import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, db_execute_raw
+import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, execute_db_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 
@@ -30,7 +30,7 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
             RecursiveProjection(TextToString()))
         sql = print_document(pipe, stmt).output
         with_connection(p.pool, p.instance) do adapter
-            db_execute_raw(adapter, sql, RawDatabaseResult)
+            execute_db_raw(adapter, sql, RawDatabaseResult)
         end
     end)
     rows = ComputedCellVector(() -> begin

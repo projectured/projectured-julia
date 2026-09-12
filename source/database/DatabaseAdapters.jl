@@ -11,7 +11,7 @@ optional package extension.
 
 ## Query API
 
-`db_query(adapter, table, ::Type{T}; ...)::T` pipelines rows directly into
+`query_db(adapter, table, ::Type{T}; ...)::T` pipelines rows directly into
 the caller-specified target type with no intermediate allocation. Each target
 type is a separate dispatch method; concrete adapters (e.g. the ODBC adapter)
 implement the methods (e.g. the `RawDatabaseResult` target).
@@ -21,12 +21,12 @@ module DatabaseModule
 export DatabaseAdapter,
        RawDatabaseResult,
        make_database_adapter,
-       db_connect!, db_close!, db_alive,
-       db_rowid_column,
-       db_query, db_execute_raw,
-       db_insert!, db_update!, db_delete!,
-       db_catalog_databases, db_catalog_schemas, db_catalog_tables, db_catalog_columns,
-       db_catalog_foreign_keys
+       connect_db!, close_db!, is_db_alive,
+       get_db_rowid_column,
+       query_db, execute_db_raw,
+       insert_into_db!, update_db!, delete_from_db!,
+       get_db_catalog_databases, get_db_catalog_schemas, get_db_catalog_tables, get_db_catalog_columns,
+       get_db_catalog_foreign_keys
 
 # ── Abstract adapter ──────────────────────────────────────────────────────────
 
@@ -34,8 +34,8 @@ export DatabaseAdapter,
     DatabaseAdapter
 
 Abstract supertype for all database connection adapters. Concrete subtypes
-implement `db_connect!`, `db_close!`, `db_alive`, `db_rowid_column`, and the
-target-type dispatch methods for `db_query` / `db_execute_raw`.
+implement `connect_db!`, `close_db!`, `is_db_alive`, `get_db_rowid_column`, and the
+target-type dispatch methods for `query_db` / `execute_db_raw`.
 """
 abstract type DatabaseAdapter end
 
@@ -53,84 +53,84 @@ make_database_adapter(::Val{K}; kwargs...) where {K} = error(
     "No database adapter registered for :$(K). Is the package/extension that " *
     "provides it loaded?")
 
-function db_connect!(adapter::DatabaseAdapter)
-    error("db_connect! not implemented for $(typeof(adapter))")
+function connect_db!(adapter::DatabaseAdapter)
+    error("connect_db! not implemented for $(typeof(adapter))")
 end
 
-function db_close!(adapter::DatabaseAdapter)
-    error("db_close! not implemented for $(typeof(adapter))")
+function close_db!(adapter::DatabaseAdapter)
+    error("close_db! not implemented for $(typeof(adapter))")
 end
 
-function db_alive(adapter::DatabaseAdapter)::Bool
-    error("db_alive not implemented for $(typeof(adapter))")
+function is_db_alive(adapter::DatabaseAdapter)::Bool
+    error("is_db_alive not implemented for $(typeof(adapter))")
 end
 
 """
-    db_rowid_column(adapter)::String
+    get_db_rowid_column(adapter)::String
 
 The technical row-identity column for this adapter's database. Set via a
 constructor parameter on the concrete adapter (e.g. `"ctid"` for PostgreSQL,
 `"rowid"` for SQLite).
 """
-function db_rowid_column(adapter::DatabaseAdapter)::String
-    error("db_rowid_column not implemented for $(typeof(adapter))")
+function get_db_rowid_column(adapter::DatabaseAdapter)::String
+    error("get_db_rowid_column not implemented for $(typeof(adapter))")
 end
 
-function db_query(adapter::DatabaseAdapter, table::String, ::Type{T};
+function query_db(adapter::DatabaseAdapter, table::String, ::Type{T};
                   columns=nothing, where=nothing, limit=nothing) where {T}
-    error("db_query(::$(typeof(adapter)), ::String, ::Type{$(T)}) not implemented")
+    error("query_db(::$(typeof(adapter)), ::String, ::Type{$(T)}) not implemented")
 end
 
-function db_execute_raw(adapter::DatabaseAdapter, sql::String, ::Type{T};
+function execute_db_raw(adapter::DatabaseAdapter, sql::String, ::Type{T};
                         params=()) where {T}
-    error("db_execute_raw(::$(typeof(adapter)), ::String, ::Type{$(T)}) not implemented")
+    error("execute_db_raw(::$(typeof(adapter)), ::String, ::Type{$(T)}) not implemented")
 end
 
-function db_insert!(adapter::DatabaseAdapter, table::String, row::AbstractDict)::Int
-    error("db_insert! not implemented for $(typeof(adapter))")
+function insert_into_db!(adapter::DatabaseAdapter, table::String, row::AbstractDict)::Int
+    error("insert_into_db! not implemented for $(typeof(adapter))")
 end
 
-function db_update!(adapter::DatabaseAdapter, table::String,
+function update_db!(adapter::DatabaseAdapter, table::String,
                     row::AbstractDict, where::String)::Int
-    error("db_update! not implemented for $(typeof(adapter))")
+    error("update_db! not implemented for $(typeof(adapter))")
 end
 
-function db_delete!(adapter::DatabaseAdapter, table::String, where::String)::Int
-    error("db_delete! not implemented for $(typeof(adapter))")
+function delete_from_db!(adapter::DatabaseAdapter, table::String, where::String)::Int
+    error("delete_from_db! not implemented for $(typeof(adapter))")
 end
 
-function db_catalog_databases(adapter::DatabaseAdapter)::Vector{String}
-    error("db_catalog_databases not implemented for $(typeof(adapter))")
+function get_db_catalog_databases(adapter::DatabaseAdapter)::Vector{String}
+    error("get_db_catalog_databases not implemented for $(typeof(adapter))")
 end
 
-function db_catalog_schemas(adapter::DatabaseAdapter, database::String)::Vector{String}
-    error("db_catalog_schemas not implemented for $(typeof(adapter))")
+function get_db_catalog_schemas(adapter::DatabaseAdapter, database::String)::Vector{String}
+    error("get_db_catalog_schemas not implemented for $(typeof(adapter))")
 end
 
-function db_catalog_tables(adapter::DatabaseAdapter, schema::String)::Vector{String}
-    error("db_catalog_tables not implemented for $(typeof(adapter))")
+function get_db_catalog_tables(adapter::DatabaseAdapter, schema::String)::Vector{String}
+    error("get_db_catalog_tables not implemented for $(typeof(adapter))")
 end
 
 """
-    db_catalog_columns(adapter, schema, table)
+    get_db_catalog_columns(adapter, schema, table)
 
 Return a vector of `(name, data_type)` named tuples for each column of
 `schema.table`, ordered by `ordinal_position`.
 """
-function db_catalog_columns(adapter::DatabaseAdapter, schema::String, table::String)
-    error("db_catalog_columns not implemented for $(typeof(adapter))")
+function get_db_catalog_columns(adapter::DatabaseAdapter, schema::String, table::String)
+    error("get_db_catalog_columns not implemented for $(typeof(adapter))")
 end
 
 """
-    db_catalog_foreign_keys(adapter, schema)
+    get_db_catalog_foreign_keys(adapter, schema)
 
 Return a vector of `(from_table, from_column, to_table, to_column)` named tuples,
 one per foreign-key column in `schema`, where `from_table.from_column` references
 `to_table.to_column`. Multi-column foreign keys yield one tuple per column.
 Used to draw entity-relationship edges from the live database constraints.
 """
-function db_catalog_foreign_keys(adapter::DatabaseAdapter, schema::String)
-    error("db_catalog_foreign_keys not implemented for $(typeof(adapter))")
+function get_db_catalog_foreign_keys(adapter::DatabaseAdapter, schema::String)
+    error("get_db_catalog_foreign_keys not implemented for $(typeof(adapter))")
 end
 
 # ── RawDatabaseResult ─────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ end
 
 Explicit raw materialization of a query result. Allocate only when you need
 to inspect, cache, or serialise the data outside the projection pipeline.
-Use `db_query(adapter, table, RawDatabaseResult)` to produce one.
+Use `query_db(adapter, table, RawDatabaseResult)` to produce one.
 """
 struct RawDatabaseResult
     columns::Vector{String}

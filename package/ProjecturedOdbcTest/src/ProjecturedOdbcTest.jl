@@ -21,7 +21,7 @@ using ProjecturedOdbc
 using ProjecturedKernelTest
 
 # Live-DB fixture helpers shared by the two suites (moved down with them from the
-# umbrella). `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from
+# umbrella). `execute_db_raw` / `insert_into_db!` / `RawDatabaseResult` come from
 # `using ProjecturedOdbc`.
 include("../../../test/odbc/OdbcSuite.jl")
 

@@ -85,10 +85,10 @@ function test_database_documents()
         # Every operation is a seam method that a concrete adapter must fill in.
         # A subtype that implements none must fail on use, not silently no-op.
         a = UnimplementedAdapter()
-        @test_throws ErrorException db_connect!(a)
-        @test_throws ErrorException db_close!(a)
-        @test_throws ErrorException db_alive(a)
-        @test_throws ErrorException db_rowid_column(a)
+        @test_throws ErrorException connect_db!(a)
+        @test_throws ErrorException close_db!(a)
+        @test_throws ErrorException is_db_alive(a)
+        @test_throws ErrorException get_db_rowid_column(a)
     end
 
 end # @testset

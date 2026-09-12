@@ -1,6 +1,6 @@
 module ConnectionPoolModule
 
-import ProjecturedDatabase.DatabaseModule: db_connect!, db_close!, db_alive
+import ProjecturedDatabase.DatabaseModule: connect_db!, close_db!, is_db_alive
 import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 
@@ -44,12 +44,12 @@ function _checkout(pool::OdbcConnectionPool, dsn::String)::OdbcDatabaseAdapter
         if bucket !== nothing
             while !isempty(bucket)
                 a = pop!(bucket)
-                db_alive(a) && return a
-                try; db_close!(a); catch; end   # stale: drop it and try the next
+                is_db_alive(a) && return a
+                try; close_db!(a); catch; end   # stale: drop it and try the next
             end
         end
         a = OdbcDatabaseAdapter(dsn=dsn, rowid_column=pool.rowid_column)
-        db_connect!(a)
+        connect_db!(a)
         return a
     end
 end
@@ -57,10 +57,10 @@ end
 function _checkin(pool::OdbcConnectionPool, dsn::String, a::OdbcDatabaseAdapter)
     lock(pool.lock) do
         bucket = get!(pool.idle, dsn, OdbcDatabaseAdapter[])
-        if length(bucket) < pool.max_size && db_alive(a)
+        if length(bucket) < pool.max_size && is_db_alive(a)
             push!(bucket, a)
         else
-            try; db_close!(a); catch; end
+            try; close_db!(a); catch; end
         end
     end
     nothing
@@ -85,7 +85,7 @@ function with_connection(f, pool::OdbcConnectionPool, inst::DatabaseInstance)
         if ok
             _checkin(pool, dsn, a)
         else
-            try; db_close!(a); catch; end
+            try; close_db!(a); catch; end
         end
     end
 end
@@ -100,7 +100,7 @@ function close_pool!(pool::OdbcConnectionPool)
     lock(pool.lock) do
         for (_, bucket) in pool.idle
             for a in bucket
-                try; db_close!(a); catch; end
+                try; close_db!(a); catch; end
             end
             empty!(bucket)
         end
