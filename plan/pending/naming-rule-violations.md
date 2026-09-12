@@ -223,6 +223,12 @@ the decision and the reasoning.
 
 ### 4.2 Class B — the module carries a word the file name does not (13 files)
 
+**Most of this class dissolves.** A slice becomes one module, so a module name
+that only exists because a file needed one disappears with it. Only the rows
+that rename a **file** survive, and they survive for their own reasons — a
+duplicate basename, or a projection stem that does not agree with itself. The
+`module` column below records what is there today, not what must change.
+
 Here either name can change, so each row states which one I propose and why.
 
 | file | has | proposed fix | confidence |
@@ -236,7 +242,7 @@ Here either name can change, so each row states which one I propose and why.
 | [source/database/DatabaseAdapters.jl](../../source/database/DatabaseAdapters.jl) | `DatabaseModule` | rename the module to `DatabaseAdaptersModule`. The sibling `DatabaseDocument.jl` already declares `DatabaseDocumentModule`, so the bare name was free only by accident. | likely |
 | [source/console/Console.jl](../../source/console/Console.jl) | `ConsoleBackendModule` | rename the file to `ConsoleBackend.jl`, or sanction `Backend` as a qualifier. See §9.10. | unsure |
 | [source/pdf/Pdf.jl](../../source/pdf/Pdf.jl) | `PdfBackendModule` | rename the file to `PdfBackend.jl`, or sanction `Backend`. See §9.10. | unsure |
-| [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | the prefix avoids a near-collision with `GestureBindingModule` (singular) in the `binding` layer. Rename the module to `GestureBindingsModule`, or state a collision-prefix rule. See §9.11. | unsure |
+| [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | **no change.** The user decided on 2026-09-12 that the kernel keeps its modules as they are. See [one-module-per-slice.md](one-module-per-slice.md). | closed |
 | [source/repl/Repl.jl](../../source/repl/Repl.jl#L88) | `StatementScope` | a one-line `module StatementScope end` with no `Module` suffix. Its docstring says it exists only as a namespace for dynamic bindings and is never exported. Leave it and state the exemption, or rename it. See §9.12. | unsure |
 | [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardToAnyProjectionModule` | see §7 — the file holds two projection stems. | likely |
 | [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `DraggingProjectionModule` | the module matches the file, but the file name bakes in `Projection`. See §7. | certain |
@@ -621,21 +627,21 @@ These rows need a decision before the fix. Each one is a class, not one name.
    modules, because Julia allows `module` only at the top level. Only 3 of 226
    module-eligible test files declare a module at all. Does the file-name law
    reach `test/`, and is a module that no other file imports exempt?
-10. **Is `Backend` a sanctioned qualifier?** [Pdf.jl](../../source/pdf/Pdf.jl)
-    declares `PdfBackendModule` and [Console.jl](../../source/console/Console.jl)
-    declares `ConsoleBackendModule`. `Sdl.jl` and `Web.jl` did the same until
-    they moved into single-file opt-in packages, where the package root now
-    supplies the module. Sanction `Backend` the way `Api` is sanctioned, or
-    rename the two files?
-11. **A collision prefix.** Two modules carry a prefix that exists only to avoid
-    a collision: `LayoutGeometryModule` against `source/style/Geometry.jl`, and
-    `ProjectionGestureBindingsModule` against the `binding` layer's
-    `GestureBindingModule`. Should the rule state a collision-prefix rule
-    instead of leaving each case to judgement?
+10. **Is `Backend` a sanctioned qualifier? — MOOT.**
+    [Pdf.jl](../../source/pdf/Pdf.jl) declares `PdfBackendModule` and
+    [Console.jl](../../source/console/Console.jl) declares
+    `ConsoleBackendModule`. Both modules disappear when their slice becomes one
+    module, so the question does not arise. Neither file needs a rename.
+11. **A collision prefix — ANSWERED.** `ProjectionGestureBindingsModule` stays:
+    the kernel keeps its modules. `LayoutGeometryModule` in
+    `source/graph/omnetpp/` disappears when the `graph` slice becomes one
+    module, so only the file rename to `LayoutGeometry.jl` survives, and that
+    one is worth doing on its own because it ends a duplicate basename.
 12. **`StatementScope`.** [Repl.jl:88](../../source/repl/Repl.jl#L88) declares
     `module StatementScope end` with no `Module` suffix. It is a namespace for
-    dynamic bindings and is never exported. Exempt it in the rule, or rename it
-    to `StatementScopeModule`?
+    dynamic bindings and is never exported, so it is not a unit of architecture
+    at all. Keep it, and say in the rules that a namespace object of this kind
+    is not a module in the architectural sense.
 13. **The `source/projection/` folders.** The rule names `generic/` and
     `higherorder/` only. The tree also has `compound/` with two files, and
     [ReaderDefaults.jl](../../source/projection/ReaderDefaults.jl) sits directly

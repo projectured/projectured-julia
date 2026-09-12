@@ -27,12 +27,12 @@ wrong. Under this rule all 30 are right, and 717 references stay as they are.
   file name, so a split means a new module, a new name, and an edit at every
   importer. That is a tax on the refactor you most want to be cheap, and it is
   paid silently: files stay too big because a split costs too much.
-- **Most of the kernel already works this way.** `DocumentModule` owns nine
+- **Part of the kernel already works this way.** `DocumentModule` owns nine
   fragments, and 11 of the 17 layers have exactly one module. Six do not:
   `projection` has 7, `cell` has 3, and `agent`, `editor`, `event` and
-  `operation` have 2 each. So the kernel is evidence for the pattern, not proof
-  of it, and its own `projection` layer is the sharpest counter-example in the
-  repository.
+  `operation` have 2 each. The kernel is evidence for the pattern, not proof of
+  it. **The user decided on 2026-09-12 that the kernel keeps its modules exactly
+  as they are today.** This plan changes slices only.
 - **The encapsulation it removes is soft.** Julia has no package-private. The
   346 symbols that only their own slice imports are internal by politeness, and
   any file can write `JsonParserModule.anything` today. The change gives up a
@@ -75,11 +75,10 @@ meets a hard case.
 3. **The 16 slices with 4 to 9.**
 4. **The 11 slices with 10 or more**, hardest last: `graph` 39, `text` 25,
    `process` 15, `syntax` 13, `pane` 12, `projection` 10.
-5. **The kernel is a separate step, and it is not free.** 11 of its 17 layers
-   already hold one module and need nothing. Six hold more: `projection` 7,
-   `cell` 3, and `agent`, `editor`, `event` and `operation` 2 each. Decide each
-   of those six on its own. The `projection` layer is the hard one, and §5.1
-   ties it to the slice of the same name.
+5. **The kernel does not change at all.** Its 31 modules across 17 layers stay
+   as they are, including the seven of the `projection` layer. This is the
+   user's decision, not a deferral, so nothing in the kernel is on this plan's
+   list.
 
 **Treat a high edge count as a list of slices to divide, not as a reason to keep
 file modules.** `graph` carries 39 internal edges across 17 modules and `text`
@@ -88,18 +87,30 @@ them into more slices before or instead of collapsing them.
 
 ## 5. Open questions this plan must answer
 
-1. **A slice whose name is also a kernel layer.** `source/projection/` would
-   want `ProjectionModule`, and
+1. **A slice whose name is also a kernel layer — ANSWERED.**
+   `source/projection/` would want `ProjectionModule`, which
    [Projection.jl](../../source/kernel/projection/Projection.jl) already
-   declares that name for the kernel's projection layer. Two units of
-   architecture want one word. Pick the rule for this case before step 4, and
-   note that the kernel's projection layer is also the one layer with seven
-   modules, so both halves of this collision are unsettled.
-2. **The projections table loses a row.**
+   declares for the kernel's projection layer. The user decided on 2026-09-12:
+   **the kernel keeps `ProjectionModule`, and the concrete projections take a
+   different module name.** The slice holds the reusable concrete projections —
+   `Copying`, `Filtering`, `Focusing`, `Reversing`, `Searching`, `Sorting`,
+   `Chaining`, `Nesting`, `Switching`, `TypeDispatching` and the rest — so
+   `ConcreteProjectionModule` says what it holds and does not collide.
+
+   This is the one place where the module name is not the slice name. State it
+   in the rules as a named exception with its reason, so a reader who derives
+   `ProjectionModule` from the folder finds the exception rather than a
+   contradiction. The alternative, a rename of the slice and its package to
+   `projections` and `ProjecturedProjections`, costs more and buys the same
+   thing.
+2. **The projections table loses a row — FOLLOWS FROM THE DECISION.**
    [naming-rules.md](../../documentation/rule/naming-rules.md) derives four
-   names from one stem, and one of them is `<Stem>ProjectionModule`. A
-   projection stops having a module of its own under this rule. Decide what the
-   table says instead.
+   names from one stem, and one is `<Stem>ProjectionModule`. A projection no
+   longer has a module of its own: it belongs to its slice's module, so
+   `JsonToSyntax` lives in `JsonModule` and `Copying` in
+   `ConcreteProjectionModule`. Drop the module row and say the projection
+   belongs to its slice. The remaining three names — file, type and IO map —
+   still come from one stem.
 3. **What replaces the intra-slice guard.** Either accept the loss, or assert
    something cheaper, such as that the slice module's `include` order is a valid
    order for the code that runs at load time.
