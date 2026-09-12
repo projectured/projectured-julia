@@ -27,5 +27,6 @@ const EventModule = ProjecturedKernel.EventModule
 
 include("../../../source/dragging/DraggingDocument.jl")
 include("../../../source/dragging/Dragging.jl")
+include("../../../source/dragging/DraggingWrapper.jl")
 
 end # module ProjecturedDragging
