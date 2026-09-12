@@ -14,7 +14,7 @@ as the operation runs, so a live operation renders differently one second later.
 A string is a record of the moment.
 
 [`GestureLogToSyntax`](GestureLogToSyntax.jl) projects the log onto the
-Syntax → Text → Graphics path. [`GestureLogRecordingProjection`](GestureLogRecorder.jl)
+Syntax → Text → Graphics path. [`GestureLogRecordingProjection`](GestureLogRecording.jl)
 fills it and [`GestureLogOverlayProjection`](GestureLogOverlay.jl) shows it.
 """
 module GestureLogModule

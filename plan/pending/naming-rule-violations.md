@@ -233,19 +233,19 @@ Here either name can change, so each row states which one I propose and why.
 
 | file | has | proposed fix | confidence |
 | --- | --- | --- | --- |
-| [source/graph/omnetpp/Geometry.jl](../../source/graph/omnetpp/Geometry.jl) | `LayoutGeometryModule` | rename the file to `LayoutGeometry.jl`. [source/style/Geometry.jl](../../source/style/Geometry.jl) already owns `GeometryModule`, so this file can not take the base name. The rename also removes a duplicate basename. | certain |
+| [source/graph/omnetpp/LayoutGeometry.jl](../../source/graph/omnetpp/LayoutGeometry.jl) | `LayoutGeometryModule` | rename the file to `LayoutGeometry.jl`. [source/style/Geometry.jl](../../source/style/Geometry.jl) already owns `GeometryModule`, so this file can not take the base name. The rename also removes a duplicate basename. | certain |
 | [source/inspector/ReferenceInspector.jl](../../source/inspector/ReferenceInspector.jl) | `ReferenceInspectorDocumentModule` | rename the module to `ReferenceInspectorModule`. No sibling claims that name. | likely |
 | [source/database/DatabaseInstance.jl](../../source/database/DatabaseInstance.jl) | `DatabaseInstanceDocumentModule` | rename the module to `DatabaseInstanceModule`. No sibling claims that name. | likely |
 | [source/syntax/InsertionToSyntax.jl](../../source/syntax/InsertionToSyntax.jl) | `DocumentInsertionToSyntaxModule` | rename the module to `InsertionToSyntaxModule`. The sibling [source/julia/JuliaInsertionToSyntax.jl](../../source/julia/JuliaInsertionToSyntax.jl) follows the base rule exactly. | likely |
-| [source/text/LineNumbering.jl](../../source/text/LineNumbering.jl) | `TextLineNumberingModule` | rename the file to `TextLineNumbering.jl`. Every other projection file in `source/text/` carries `Text` in the file name. | likely |
-| [source/gesturelog/GestureLogRecorder.jl](../../source/gesturelog/GestureLogRecorder.jl) | `GestureLogRecordingProjectionModule` | rename the file to `GestureLogRecording.jl`. The module, the type `GestureLogRecordingProjection` and the IO map already agree on the stem `GestureLogRecording`; only the file disagrees. | certain |
+| [source/text/TextLineNumbering.jl](../../source/text/TextLineNumbering.jl) | `TextLineNumberingModule` | rename the file to `TextLineNumbering.jl`. Every other projection file in `source/text/` carries `Text` in the file name. | likely |
+| [source/gesturelog/GestureLogRecording.jl](../../source/gesturelog/GestureLogRecording.jl) | `GestureLogRecordingProjectionModule` | rename the file to `GestureLogRecording.jl`. The module, the type `GestureLogRecordingProjection` and the IO map already agree on the stem `GestureLogRecording`; only the file disagrees. | certain |
 | [source/database/DatabaseAdapters.jl](../../source/database/DatabaseAdapters.jl) | `DatabaseModule` | rename the module to `DatabaseAdaptersModule`. The sibling `DatabaseDocument.jl` already declares `DatabaseDocumentModule`, so the bare name was free only by accident. | likely |
 | [source/console/Console.jl](../../source/console/Console.jl) | `ConsoleBackendModule` | rename the file to `ConsoleBackend.jl`, or sanction `Backend` as a qualifier. See §9.10. | unsure |
 | [source/pdf/Pdf.jl](../../source/pdf/Pdf.jl) | `PdfBackendModule` | rename the file to `PdfBackend.jl`, or sanction `Backend`. See §9.10. | unsure |
 | [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | **no change.** The user decided on 2026-09-12 that the kernel keeps its modules as they are. See [one-module-per-slice.md](one-module-per-slice.md). | closed |
 | [source/repl/Repl.jl](../../source/repl/Repl.jl#L88) | `StatementScope` | a one-line `module StatementScope end` with no `Module` suffix. Its docstring says it exists only as a namespace for dynamic bindings and is never exported. Leave it and state the exemption, or rename it. See §9.12. | unsure |
 | [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardToAnyProjectionModule` | see §7 — the file holds two projection stems. | likely |
-| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `DraggingProjectionModule` | the module matches the file, but the file name bakes in `Projection`. See §7. | certain |
+| [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `DraggingProjectionModule` | the module matches the file, but the file name bakes in `Projection`. See §7. | certain |
 
 ### 4.3 A second, undeclared name for a module — 29 alias lines
 
@@ -275,7 +275,7 @@ The law gives a file one module. Two files in `source/` break it.
 | file | declares | fix | confidence |
 | --- | --- | --- | --- |
 | [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapterModule` (line 1), `ConnectionPoolModule` (251), `SqlToCellTableModule` (365), `DatabaseInstanceToDbCatalogModule` (415) | split into four files, each named for its module. Every module name is already correct, so only the split is needed. | certain |
-| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `DraggingProjectionModule` (29), `DraggingWrapperModule` (307) | move the second module to `DraggingWrapper.jl` | certain |
+| [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `DraggingProjectionModule` (29), `DraggingWrapperModule` (307) | move the second module to `DraggingWrapper.jl` | certain |
 
 Three files under `test/` declare six fixture modules:
 [test/kernel/tool/DeclaredApiTest.jl](../../test/kernel/tool/DeclaredApiTest.jl)
@@ -522,8 +522,8 @@ single-stem domain projections (`HoverProbe`, `TooltipDecorator`,
 | `WorkspaceWorkspaceProjection` | [WorkspaceToFileSystem.jl:62](../../source/workbench/WorkspaceToFileSystem.jl#L62) | The type repeats `Workspace` and matches the file, the module and even its own comment on line 60 (`WorkspaceWorkspaceToSyntax`) none. | `WorkspaceToFileSystemDirectory`, parallel to the sibling `WorkspaceFolderToFileSystemDirectory` | certain |
 | `CommandPaletteProjection`, `CommandPaletteProjectionIoMap` | [CommandPaletteDecorator.jl:114,140](../../source/gesturehelp/CommandPaletteDecorator.jl#L114) | The file and the module carry the stem `CommandPaletteDecorator`; the type and the IO map drop `Decorator`. | `CommandPaletteDecoratorProjection`, `CommandPaletteDecoratorProjectionIoMap` | certain |
 | `GestureHelpProjection`, `GestureHelpProjectionIoMap` | [GestureHelpDecorator.jl:76,95](../../source/gesturehelp/GestureHelpDecorator.jl#L76) | Same rule, same shape. | `GestureHelpDecoratorProjection`, `GestureHelpDecoratorProjectionIoMap` | certain |
-| `GestureLogRecordingProjection` | [GestureLogRecorder.jl:43](../../source/gesturelog/GestureLogRecorder.jl#L43) | The type, the module and the IO map agree on `GestureLogRecording`; the file says `Recorder`. | rename the file to `GestureLogRecording.jl` | certain |
-| `DraggingProjection` | [DraggingProjection.jl:77](../../source/dragging/DraggingProjection.jl#L77) | The file must be `<Stem>.jl`. This is the only stem file in the repository that bakes `Projection` into its own name. | rename the file to `Dragging.jl` | certain |
+| `GestureLogRecordingProjection` | [GestureLogRecording.jl:43](../../source/gesturelog/GestureLogRecording.jl#L43) | The type, the module and the IO map agree on `GestureLogRecording`; the file says `Recorder`. | rename the file to `GestureLogRecording.jl` | certain |
+| `DraggingProjection` | [Dragging.jl:77](../../source/dragging/Dragging.jl#L77) | The file must be `<Stem>.jl`. This is the only stem file in the repository that bakes `Projection` into its own name. | rename the file to `Dragging.jl` | certain |
 | `ClipboardSliceToAnyProjection`, `ClipboardCollectionToAnyProjection` | [ClipboardToAny.jl:94,110](../../source/clipboard/ClipboardToAny.jl#L94) | The file and the module say `ClipboardToAny`, which is neither type's stem. | split into `ClipboardSliceToAny.jl` and `ClipboardCollectionToAny.jl`, one module each | likely |
 
 Both decorators keep `Decorator` in all four names rather than dropping it,
@@ -698,7 +698,7 @@ These rows need a decision before the fix. Each one is a class, not one name.
     [CellStructTest.jl](../../test/kernel/cell/CellStructTest.jl) (four). Are
     test-local abbreviations exempt, the way a local variable is?
 23. **A documented vocabulary port from C++.**
-    [source/graph/omnetpp/Geometry.jl](../../source/graph/omnetpp/Geometry.jl)
+    [source/graph/omnetpp/LayoutGeometry.jl](../../source/graph/omnetpp/LayoutGeometry.jl)
     declares `Pt`, `Rs`, `Rc`, `Ln` and `Cc`, and its docstring names the
     mapping to OMNeT++'s `src/layout/geometry.h` outright and gives the reason.
     `IBody` and `IForceProvider` in §5.4 come from the same port. This is not a
@@ -1033,10 +1033,10 @@ These are independent of §13.3.
 | [test/dbcatalog/DbCatalogSuite.jl](../../test/dbcatalog/DbCatalogSuite.jl) | `test/dbcatalog/DbCatalogSuite.jl` | §3.2 |
 | [test/filesystem/FileSystemSuite.jl](../../test/filesystem/FileSystemSuite.jl) | `test/filesystem/FileSystemSuite.jl` | §3.2 |
 | [test/sequencechart/SequenceChartSuite.jl](../../test/sequencechart/SequenceChartSuite.jl) | `test/sequencechart/SequenceChartSuite.jl` | §3.2 |
-| [source/graph/omnetpp/Geometry.jl](../../source/graph/omnetpp/Geometry.jl) | `source/graph/omnetpp/LayoutGeometry.jl` | §4.2, also ends a duplicate basename |
-| [source/text/LineNumbering.jl](../../source/text/LineNumbering.jl) | `source/text/TextLineNumbering.jl` | §4.2 |
-| [source/gesturelog/GestureLogRecorder.jl](../../source/gesturelog/GestureLogRecorder.jl) | `source/gesturelog/GestureLogRecording.jl` | §7.1, the other three names already say `Recording` |
-| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `source/dragging/Dragging.jl` | §7.1, a stem file never bakes in `Projection` |
+| [source/graph/omnetpp/LayoutGeometry.jl](../../source/graph/omnetpp/LayoutGeometry.jl) | `source/graph/omnetpp/LayoutGeometry.jl` | §4.2, also ends a duplicate basename |
+| [source/text/TextLineNumbering.jl](../../source/text/TextLineNumbering.jl) | `source/text/TextLineNumbering.jl` | §4.2 |
+| [source/gesturelog/GestureLogRecording.jl](../../source/gesturelog/GestureLogRecording.jl) | `source/gesturelog/GestureLogRecording.jl` | §7.1, the other three names already say `Recording` |
+| [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `source/dragging/Dragging.jl` | §7.1, a stem file never bakes in `Projection` |
 | [source/projection/generic/Copying.jl](../../source/projection/generic/Copying.jl) | `source/projection/generic/Copying.jl` | §7.2 |
 | [source/projection/generic/Filtering.jl](../../source/projection/generic/Filtering.jl) | `source/projection/generic/Filtering.jl` | §7.2 |
 | [source/projection/generic/Searching.jl](../../source/projection/generic/Searching.jl) | `source/projection/generic/Searching.jl` | §7.2 |
@@ -1049,7 +1049,7 @@ Each row also rewrites the `include("…")` line that names the file.
 | file | becomes | why |
 | --- | --- | --- |
 | [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
-| [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
+| [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
 | [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | §7.1, the file holds two stems |
 
 ### 14.5 Module aliases to delete

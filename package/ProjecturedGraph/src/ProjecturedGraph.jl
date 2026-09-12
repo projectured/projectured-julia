@@ -43,7 +43,7 @@ include("../../../source/graph/GraphLayoutEngine.jl")
 # `omnet-cpp/src/layout/`. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.
 include("../../../source/graph/omnetpp/LcgRandom.jl")
-include("../../../source/graph/omnetpp/Geometry.jl")
+include("../../../source/graph/omnetpp/LayoutGeometry.jl")
 include("../../../source/graph/omnetpp/GraphComponent.jl")
 include("../../../source/graph/omnetpp/BasicSpringEmbedderLayout.jl")
 include("../../../source/graph/omnetpp/ForceDirectedParametersBase.jl")
