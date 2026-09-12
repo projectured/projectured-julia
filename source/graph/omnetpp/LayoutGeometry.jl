@@ -17,7 +17,7 @@ a missed copy there is an aliasing bug that a port would inherit silently. An
 immutable value cannot have that bug, so it is worth the deviation.
 
 `NaN` means "not assigned yet" throughout, as it does in the original: a
-coordinate is nil until something assigns it, and `nan_to_zero` is what turns an
+coordinate is nil until something assigns it, and `convert_nan_to_zero` is what turns an
 unassigned coordinate into a usable one.
 """
 module LayoutGeometryModule
@@ -25,10 +25,10 @@ module LayoutGeometryModule
 export Pt, Rs, Rc, Ln,
        pt_nil, pt_zero, pt_radial, is_nil, is_zero, is_fully_specified,
        pt_length, pt_length_square, pt_distance, pt_normalize, pt_multiply,
-       pt_reverse, nan_to_zero, base_plane_projection, base_plane_length,
-       base_plane_length_square, base_plane_distance, base_plane_angle,
-       base_plane_rotate, base_plane_transpose, with_x, with_y, with_z,
-       rs_nil, diagonal_length, area,
+       pt_reverse, convert_nan_to_zero, with_base_plane_projection, get_base_plane_length,
+       get_base_plane_length_square, get_base_plane_distance, get_base_plane_angle,
+       rotate_base_plane, transpose_base_plane, with_x, with_y, with_z,
+       rs_nil, get_diagonal_length, area,
        rc_nil, rc_from_center_size, rc_left, rc_right, rc_top, rc_bottom,
        rc_center, rc_left_top, rc_right_top, rc_left_bottom, rc_right_bottom,
        rc_center_top, rc_center_bottom, rc_left_center, rc_right_center,
@@ -91,27 +91,27 @@ pt_distance(a::Pt, b::Pt) = pt_length(a - b)
 pt_normalize(pt::Pt) = pt / pt_length(pt)
 
 "Every unassigned coordinate becomes zero, and the rest keep their value."
-nan_to_zero(pt::Pt) = Pt(isnan(pt.x) ? 0.0 : pt.x,
+convert_nan_to_zero(pt::Pt) = Pt(isnan(pt.x) ? 0.0 : pt.x,
                          isnan(pt.y) ? 0.0 : pt.y,
                          isnan(pt.z) ? 0.0 : pt.z)
 
-base_plane_projection(pt::Pt) = Pt(pt.x, pt.y, 0.0)
-base_plane_length(pt::Pt) = sqrt(pt.x^2 + pt.y^2)
-base_plane_length_square(pt::Pt) = pt.x^2 + pt.y^2
-base_plane_distance(a::Pt, b::Pt) = base_plane_length(a - b)
-base_plane_angle(pt::Pt) = atan(pt.y, pt.x)
+with_base_plane_projection(pt::Pt) = Pt(pt.x, pt.y, 0.0)
+get_base_plane_length(pt::Pt) = sqrt(pt.x^2 + pt.y^2)
+get_base_plane_length_square(pt::Pt) = pt.x^2 + pt.y^2
+get_base_plane_distance(a::Pt, b::Pt) = get_base_plane_length(a - b)
+get_base_plane_angle(pt::Pt) = atan(pt.y, pt.x)
 
 "`pt` turned by `angle` radians about the z axis. An unassigned point does not turn."
-function base_plane_rotate(pt::Pt, angle::Real)
-    current = base_plane_angle(pt)
+function rotate_base_plane(pt::Pt, angle::Real)
+    current = get_base_plane_angle(pt)
     isnan(current) && return pt
-    length = base_plane_length(pt)
+    length = get_base_plane_length(pt)
     turned = current + angle
     Pt(cos(turned) * length, sin(turned) * length, pt.z)
 end
 
 "`pt` turned a quarter turn in the base plane."
-base_plane_transpose(pt::Pt) = Pt(pt.y, -pt.x, pt.z)
+transpose_base_plane(pt::Pt) = Pt(pt.y, -pt.x, pt.z)
 
 with_x(pt::Pt, x::Real) = Pt(x, pt.y, pt.z)
 with_y(pt::Pt, y::Real) = Pt(pt.x, y, pt.z)
@@ -134,7 +134,7 @@ Rs(width::Real, height::Real) = Rs(Float64(width), Float64(height))
 rs_nil() = Rs(NaN, NaN)
 is_nil(rs::Rs) = isnan(rs.width) && isnan(rs.height)
 is_fully_specified(rs::Rs) = !isnan(rs.width) && !isnan(rs.height)
-diagonal_length(rs::Rs) = sqrt(rs.width^2 + rs.height^2)
+get_diagonal_length(rs::Rs) = sqrt(rs.width^2 + rs.height^2)
 area(rs::Rs) = rs.width * rs.height
 
 # ── Rc ───────────────────────────────────────────────────────────────────────
@@ -230,7 +230,7 @@ cross or share an origin.
 function cc_intersect(cc::Cc, other::Cc)
     big = cc.radius^2
     small = other.radius^2
-    d = base_plane_distance(cc.origin, other.origin)
+    d = get_base_plane_distance(cc.origin, other.origin)
     d2 = d * d
     d2 == 0 && return Pt[]
     a = d2 - small + big
@@ -238,9 +238,9 @@ function cc_intersect(cc::Cc, other::Cc)
     y2 < 0 && return Pt[]
     y = sqrt(y2)
     x = a / (2 * d)
-    angle = base_plane_angle(other.origin - cc.origin)
-    Pt[base_plane_rotate(Pt(x, y, 0), angle) + cc.origin,
-       base_plane_rotate(Pt(x, -y, 0), angle) + cc.origin]
+    angle = get_base_plane_angle(other.origin - cc.origin)
+    Pt[rotate_base_plane(Pt(x, y, 0), angle) + cc.origin,
+       rotate_base_plane(Pt(x, -y, 0), angle) + cc.origin]
 end
 
 """
@@ -255,8 +255,8 @@ function cc_enclosing(a::Cc, b::Cc)
     distance = pt_distance(a.origin, b.origin)
     d = distance + max(a.radius, b.radius - distance) + max(b.radius, a.radius - distance)
     pt = Pt(d/2 - max(a.radius, b.radius - distance), 0, 0)
-    angle = base_plane_angle(b.origin - a.origin)
-    Cc(base_plane_rotate(pt, angle) + a.origin, d/2)
+    angle = get_base_plane_angle(b.origin - a.origin)
+    Cc(rotate_base_plane(pt, angle) + a.origin, d/2)
 end
 
 function cc_enclosing(circles)
@@ -329,11 +329,11 @@ function rc_base_plane_distance(rc::Rc, other::Rc)
 
     b = by * 3 + bx
     if b == 0
-        (Ln(x2, y2, z, x3, y3, z_other), base_plane_distance(Pt(x2, y2, 0), Pt(x3, y3, 0)))
+        (Ln(x2, y2, z, x3, y3, z_other), get_base_plane_distance(Pt(x2, y2, 0), Pt(x3, y3, 0)))
     elseif b == 1
         (Ln(NaN, y2, z, NaN, y3, z_other), y3 - y2)
     elseif b == 2
-        (Ln(x1, y2, z, x4, y3, z_other), base_plane_distance(Pt(x1, y2, 0), Pt(x4, y3, 0)))
+        (Ln(x1, y2, z, x4, y3, z_other), get_base_plane_distance(Pt(x1, y2, 0), Pt(x4, y3, 0)))
     elseif b == 3
         (Ln(x2, NaN, z, x3, NaN, z_other), x3 - x2)
     elseif b == 4
@@ -341,11 +341,11 @@ function rc_base_plane_distance(rc::Rc, other::Rc)
     elseif b == 5
         (Ln(x1, NaN, z, x4, NaN, z_other), x1 - x4)
     elseif b == 6
-        (Ln(x2, y1, z, x3, y4, z_other), base_plane_distance(Pt(x2, y1, 0), Pt(x3, y4, 0)))
+        (Ln(x2, y1, z, x3, y4, z_other), get_base_plane_distance(Pt(x2, y1, 0), Pt(x3, y4, 0)))
     elseif b == 7
         (Ln(NaN, y1, z, NaN, y4, z_other), y1 - y4)
     else
-        (Ln(x1, y1, z, x4, y4, z_other), base_plane_distance(Pt(x1, y1, 0), Pt(x4, y4, 0)))
+        (Ln(x1, y1, z, x4, y4, z_other), get_base_plane_distance(Pt(x1, y1, 0), Pt(x4, y4, 0)))
     end
 end
 

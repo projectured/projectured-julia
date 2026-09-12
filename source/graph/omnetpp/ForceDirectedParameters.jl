@@ -29,8 +29,8 @@ part of the picture.
 """
 module ForceDirectedParametersModule
 
-import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, base_plane_length,
-                               nan_to_zero, rc_from_center_size, rc_base_plane_distance,
+import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, get_base_plane_length,
+                               convert_nan_to_zero, rc_from_center_size, rc_base_plane_distance,
                                is_nil, rs_nil
 import ..ForceDirectedParametersBaseModule: Variable, AbstractBody, AbstractForceProvider,
                                             reinitialize!, apply_forces!, potential_energy,
@@ -40,12 +40,12 @@ import ..ForceDirectedParametersBaseModule: Variable, AbstractBody, AbstractForc
                                             body_position, body_size, body_mass,
                                             body_charge, body_variable
 
-export Body, RelativelyPositionedBody, WallBody, wall_set_position!, wall_set_variable!,
+export Body, RelativelyPositionedBody, WallBody, set_wall_position!, set_wall_variable!,
        ForceProviderConfig, AbstractElectricRepulsion, ElectricRepulsion,
        VerticalElectricRepulsion, HorizontalElectricRepulsion,
        AbstractSpring, Spring, VerticalSpring, HorizontalSpring,
        LeastExpandedSpring, BasePlaneSpring, Drag,
-       spring_repose_length, spring_distance_and_vector
+       get_spring_repose_length, get_spring_distance_and_vector
 
 signum(value::Real) = value < 0 ? -1.0 : value == 0 ? 0.0 : 1.0
 
@@ -114,12 +114,12 @@ WallBody(horizontal::Bool) =
              horizontal ? Rs(Inf, 0.0) : Rs(0.0, Inf), nothing)
 
 "Put the wall at `position` on the axis it constrains."
-wall_set_position!(wall::WallBody, position::Real) =
+set_wall_position!(wall::WallBody, position::Real) =
     assign_position!(wall.variable,
                      Pt(wall.horizontal ? NaN : position,
                         wall.horizontal ? position : NaN, NaN))
 
-function wall_set_variable!(wall::WallBody, variable::Variable)
+function set_wall_variable!(wall::WallBody, variable::Variable)
     wall.variable === nothing || throw(ArgumentError("WallBody: the variable is already set."))
     wall.variable = variable
     nothing
@@ -213,7 +213,7 @@ function standard_distance_and_vector(config::ForceProviderConfig, body1::Abstra
         rs2 = body_size(body2)
         dx = abs(pt1.x - pt2.x)
         dy = abs(pt1.y - pt2.y)
-        half = base_plane_length(vector) / 2
+        half = get_base_plane_length(vector) / 2
         d1 = half * min(rs1.width / dx, rs1.height / dy)
         d2 = half * min(rs2.width / dx, rs2.height / dy)
         distance = max(0.0, distance - d1 - d2)
@@ -248,7 +248,7 @@ function slippery_distance_and_vector(::ForceProviderConfig, body1::AbstractBody
     rc1 = rc_from_center_size(body_position(body1), body_size(body1))
     rc2 = rc_from_center_size(body_position(body2), body_size(body2))
     segment, distance = rc_base_plane_distance(rc1, rc2)
-    vector = pt_normalize(nan_to_zero(segment.begin_pt - segment.end_pt))
+    vector = pt_normalize(convert_nan_to_zero(segment.begin_pt - segment.end_pt))
     (vector, distance)
 end
 
@@ -397,25 +397,25 @@ function reinitialize!(provider::AbstractSpring)
     nothing
 end
 
-spring_repose_length(provider::AbstractSpring) = provider.repose_length
+get_spring_repose_length(provider::AbstractSpring) = provider.repose_length
 
 spring_coefficient(provider::AbstractSpring) = provider.spring_coefficient
 spring_coefficient(provider::BasePlaneSpring) =
     provider.spring_coefficient * provider.config.embedding.relax_factor
 
-spring_distance_and_vector(provider::Spring) =
+get_spring_distance_and_vector(provider::Spring) =
     distance_and_vector(provider.config, provider.body1, provider.body2)
-spring_distance_and_vector(provider::VerticalSpring) =
+get_spring_distance_and_vector(provider::VerticalSpring) =
     standard_vertical_distance_and_vector(provider.config, provider.body1, provider.body2)
-spring_distance_and_vector(provider::HorizontalSpring) =
+get_spring_distance_and_vector(provider::HorizontalSpring) =
     standard_horizontal_distance_and_vector(provider.config, provider.body1, provider.body2)
-function spring_distance_and_vector(provider::BasePlaneSpring)
+function get_spring_distance_and_vector(provider::BasePlaneSpring)
     vector = Pt(0, 0, body_position(provider.body1).z)
     (vector, abs(vector.z))
 end
 
 function apply_forces!(provider::AbstractSpring)
-    vector, distance = spring_distance_and_vector(provider)
+    vector, distance = get_spring_distance_and_vector(provider)
     expansion = distance - provider.repose_length
     power = valid_signed_force(provider.config, spring_coefficient(provider) * expansion)
     force = vector * power
@@ -426,7 +426,7 @@ function apply_forces!(provider::AbstractSpring)
 end
 
 function potential_energy(provider::AbstractSpring)
-    _, distance = spring_distance_and_vector(provider)
+    _, distance = get_spring_distance_and_vector(provider)
     expansion = distance - provider.repose_length
     spring_coefficient(provider) * expansion * expansion / 2
 end
@@ -468,8 +468,8 @@ function least_expanded_spring(provider::LeastExpandedSpring)
     best = provider.springs[1]
     least = Inf
     for spring in provider.springs
-        _, distance = spring_distance_and_vector(spring)
-        expansion = abs(distance - spring_repose_length(spring))
+        _, distance = get_spring_distance_and_vector(spring)
+        expansion = abs(distance - get_spring_repose_length(spring))
         if expansion < least
             least = expansion
             best = spring

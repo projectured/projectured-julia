@@ -28,7 +28,7 @@ import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstraint
 import ..GraphLayoutEngineModule: GraphLayoutEngine, GridEmbedding, layout_graph,
                                   layout_engine_name
-import ..GraphLayoutChoiceModule: resolved_layout_engine
+import ..GraphLayoutChoiceModule: resolve_layout_engine
 import ..GraphicsModule: GraphicsCanvas
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapModule: IoMap, var"@iomap"
@@ -123,7 +123,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
                                          extent = p.extent, border = p.border)
         # Which engine really ran is decided inside this cell, because an engine
         # that defers its choice reads the vertex count to make it.
-        name = layout_engine_name(resolved_layout_engine(p.engine, length(sizes)))
+        name = layout_engine_name(resolve_layout_engine(p.engine, length(sizes)))
         (positions, routes, name)
     end)
 

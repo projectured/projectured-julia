@@ -147,7 +147,7 @@ Arrows come from the standard structured-control-flow construction:
 
 ### Which engine draws it
 
-The flowchart asks for `deferred_layout_engine(orthogonal = true)` rather than
+The flowchart asks for `make_deferred_layout_engine(orthogonal = true)` rather than
 naming an engine. Two things follow.
 
 It gets **right-angled routes** where the engine can provide them, because a

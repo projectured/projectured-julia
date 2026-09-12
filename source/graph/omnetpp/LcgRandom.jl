@@ -16,7 +16,7 @@ mod (2^31 - 1)`, evaluated by Schrage's method so that it never overflows.
 """
 module LcgRandomModule
 
-export LcgRandom, next01!, uniform!, draw!, set_seed!, lcg_self_test
+export LcgRandom, draw_uniform01!, draw_uniform!, draw!, set_seed!, run_lcg_self_test
 
 "The largest seed the generator accepts: `2^31 - 2`."
 const GLRAND_MAX = Int32(0x7ffffffe)
@@ -49,16 +49,16 @@ function set_seed!(random::LcgRandom, seed::Integer)
     (1 <= seed <= GLRAND_MAX) || throw(ArgumentError(
         "LcgRandom: invalid seed $seed, expected 1:$(GLRAND_MAX)."))
     random.seed = Int32(seed)
-    next01!(random); next01!(random); next01!(random)
+    draw_uniform01!(random); draw_uniform01!(random); draw_uniform01!(random)
     random
 end
 
 """
-    next01!(random) -> Float64
+    draw_uniform01!(random) -> Float64
 
 The next value, in `[0, 1)`.
 """
-function next01!(random::LcgRandom)
+function draw_uniform01!(random::LcgRandom)
     a = 16807; q = 127773; r = 2836
     seed = Int64(random.seed)
     seed = a * (seed % q) - r * div(seed, q)
@@ -68,32 +68,32 @@ function next01!(random::LcgRandom)
 end
 
 """
-    uniform!(random, a, b) -> Float64
+    draw_uniform!(random, a, b) -> Float64
 
 The next value, mapped onto `[a, b)`.
 """
-uniform!(random::LcgRandom, a::Real, b::Real) = a + next01!(random) * (b - a)
+draw_uniform!(random::LcgRandom, a::Real, b::Real) = a + draw_uniform01!(random) * (b - a)
 
 """
     draw!(random, range) -> Int
 
 The next value, mapped onto `0:range-1`.
 """
-draw!(random::LcgRandom, range::Integer) = floor(Int, range * next01!(random))
+draw!(random::LcgRandom, range::Integer) = floor(Int, range * draw_uniform01!(random))
 
 """
-    lcg_self_test() -> Int32
+    run_lcg_self_test() -> Int32
 
 Ten thousand draws from seed 1, and the seed they leave behind. OMNeT++ runs
 this the first time the generator is used and expects 1043618065; a port that
 answers anything else is not the same generator, and every ported layout would
 be a different picture. A test asserts it rather than a constructor.
 """
-function lcg_self_test()
+function run_lcg_self_test()
     random = LcgRandom(1)
     random.seed = Int32(1)          # the self test starts raw, with nothing consumed
     for _ in 1:10000
-        next01!(random)
+        draw_uniform01!(random)
     end
     random.seed
 end

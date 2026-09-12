@@ -45,9 +45,9 @@ import ..GraphLayoutModule: GraphConstraint
 
 export GraphLayoutEngine, GridEmbedding, layout_graph, layout_engine_name,
        supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
-       constraint_pins, constraint_fixed_sizes, constraint_clusters,
-       layout_vertices, vertex_sizes,
-       straight_routes, extent_transform, fit_into_extent!
+       get_constraint_pins, get_constraint_fixed_sizes, get_constraint_clusters,
+       layout_vertices, get_vertex_sizes,
+       get_straight_routes, get_extent_transform, fit_into_extent!
 
 abstract type GraphLayoutEngine end
 
@@ -117,13 +117,13 @@ function check_constraints(engine::GraphLayoutEngine, constraints)
 end
 
 """
-    constraint_pins(constraints) -> Dict{UInt,Tuple{Float64,Float64}}
+    get_constraint_pins(constraints) -> Dict{UInt,Tuple{Float64,Float64}}
 
 The `:pin` constraints as `objectid(vertex) => (x, y)`, where `(x, y)` is the
 **top-left** corner the vertex is pinned to — the same corner `positions`
 reports. Two pins on one vertex: the last one wins.
 """
-function constraint_pins(constraints)
+function get_constraint_pins(constraints)
     pins = Dict{UInt,Tuple{Float64,Float64}}()
     for constraint in constraints
         constraint.kind === :pin || continue
@@ -136,7 +136,7 @@ function constraint_pins(constraints)
 end
 
 """
-    constraint_clusters(constraints) -> Dict{UInt,Tuple{Any,Float64,Float64}}
+    get_constraint_clusters(constraints) -> Dict{UInt,Tuple{Any,Float64,Float64}}
 
 The `:cluster` constraints as `objectid(vertex) => (group, offx, offy)`. Every
 vertex naming the same `group` belongs to one family that moves as one body,
@@ -150,7 +150,7 @@ the ring or the row keeps its shape while the whole family finds its place.
 Groups are compared with `isequal`, so a `Symbol`, a `String` or a number all
 name a family.
 """
-function constraint_clusters(constraints)
+function get_constraint_clusters(constraints)
     clusters = Dict{UInt,Tuple{Any,Float64,Float64}}()
     for constraint in constraints
         constraint.kind === :cluster || continue
@@ -172,14 +172,14 @@ function constraint_clusters(constraints)
 end
 
 """
-    constraint_fixed_sizes(constraints) -> Dict{UInt,Tuple{Float64,Float64}}
+    get_constraint_fixed_sizes(constraints) -> Dict{UInt,Tuple{Float64,Float64}}
 
 The `:fixed_size` constraints as `objectid(vertex) => (w, h)`. A payload of
 `nothing` names the vertex without overriding its measured size, which is the
 useful form: no engine here ever resizes a vertex, so `:fixed_size` states what
 is already true and a caller may state it.
 """
-function constraint_fixed_sizes(constraints)
+function get_constraint_fixed_sizes(constraints)
     fixed = Dict{UInt,Tuple{Float64,Float64}}()
     for constraint in constraints
         constraint.kind === :fixed_size || continue
@@ -207,14 +207,14 @@ layout_vertices(graph::GraphGraph) =
                 if graph.vertices[i] isa GraphVertex]
 
 """
-    vertex_sizes(vertices, sizes, constraints) -> (widths, heights)
+    get_vertex_sizes(vertices, sizes, constraints) -> (widths, heights)
 
 The width and height to place each vertex at, as two `Float64` vectors indexed
 like `vertices`. A `:fixed_size` payload overrides the measured size; a vertex
 with no entry in `sizes` gets 60 by 30.
 """
-function vertex_sizes(vertices, sizes::Dict, constraints)
-    fixed = constraint_fixed_sizes(constraints)
+function get_vertex_sizes(vertices, sizes::Dict, constraints)
+    fixed = get_constraint_fixed_sizes(constraints)
     n = length(vertices)
     widths = Vector{Float64}(undef, n)
     heights = Vector{Float64}(undef, n)
@@ -242,14 +242,14 @@ function _border_point(box, tx::Float64, ty::Float64)
 end
 
 """
-    straight_routes(graph, positions) -> Dict{UInt,Vector{Tuple{Int,Int}}}
+    get_straight_routes(graph, positions) -> Dict{UInt,Vector{Tuple{Int,Int}}}
 
 Route every edge as a straight two-point polyline, from the source box's border
 to the target box's border, anchored on the side facing the other box. Every
 pure-Julia engine in this package routes this way; obstacle-avoiding routes are
 libavoid's job and arrive with `AdaptagramsLayout`.
 """
-function straight_routes(graph::GraphGraph, positions::Dict)
+function get_straight_routes(graph::GraphGraph, positions::Dict)
     routes = Dict{UInt,Vector{Tuple{Int,Int}}}()
     for i in 1:length(graph.edges)
         edge = graph.edges[i]
@@ -268,7 +268,7 @@ function straight_routes(graph::GraphGraph, positions::Dict)
 end
 
 """
-    extent_transform(cx, cy, widths, heights, indices, extent, border)
+    get_extent_transform(cx, cy, widths, heights, indices, extent, border)
         -> (fx, fy, x1, y1, ox, oy) or nothing
 
 The affine that maps the placement of `indices` onto `extent` inset by `border`:
@@ -283,7 +283,7 @@ here without any engine doing anything about it.
 The two axes scale apart, so a graph asked to fill a wide box becomes wide. That
 is also OMNeT++'s behaviour: it computes `xfact` and `yfact` separately.
 """
-function extent_transform(cx, cy, widths, heights, indices, extent, border::Real)
+function get_extent_transform(cx, cy, widths, heights, indices, extent, border::Real)
     isempty(indices) && return nothing
     available_w = Float64(extent[1]) - 2*border
     available_h = Float64(extent[2]) - 2*border
@@ -304,12 +304,12 @@ end
 """
     fit_into_extent!(cx, cy, widths, heights, indices, extent, border) -> transform
 
-Apply [`extent_transform`](@ref) to the centres in place, and return it so a
+Apply [`get_extent_transform`](@ref) to the centres in place, and return it so a
 caller can apply the same map to whatever else lives in those coordinates — a
 routed edge, for one.
 """
 function fit_into_extent!(cx, cy, widths, heights, indices, extent, border::Real)
-    transform = extent_transform(cx, cy, widths, heights, indices, extent, border)
+    transform = get_extent_transform(cx, cy, widths, heights, indices, extent, border)
     transform === nothing && return nothing
     fx, fy, x1, y1, ox, oy = transform
     for i in indices
@@ -446,8 +446,8 @@ function layout_graph(engine::GridEmbedding, graph::GraphGraph, sizes::Dict,
     positions = Dict{UInt,NTuple{4,Int}}()
     n == 0 && return (positions, Dict{UInt,Vector{Tuple{Int,Int}}}())
 
-    widths, heights = vertex_sizes(vertices, sizes, constraints)
-    pins = constraint_pins(constraints)
+    widths, heights = get_vertex_sizes(vertices, sizes, constraints)
+    pins = get_constraint_pins(constraints)
     cx = zeros(Float64, n); cy = zeros(Float64, n)
     free = [i for i in 1:n if !haskey(pins, objectid(vertices[i]))]
 
@@ -476,7 +476,7 @@ function layout_graph(engine::GridEmbedding, graph::GraphGraph, sizes::Dict,
              round(Int, widths[i]), round(Int, heights[i]))
     end
 
-    (positions, straight_routes(graph, positions))
+    (positions, get_straight_routes(graph, positions))
 end
 
 # ── AdaptagramsLayout lives in the ProjecturedAdaptagrams package ─────────────

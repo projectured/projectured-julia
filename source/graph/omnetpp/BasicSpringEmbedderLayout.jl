@@ -32,9 +32,9 @@ module BasicSpringEmbedderLayoutModule
 import ..GraphModule: GraphGraph, GraphEdge
 import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
                                   supported_constraint_kinds, check_constraints,
-                                  constraint_pins, constraint_clusters,
-                                  layout_vertices, vertex_sizes, straight_routes
-import ..LcgRandomModule: LcgRandom, next01!
+                                  get_constraint_pins, get_constraint_clusters,
+                                  layout_vertices, get_vertex_sizes, get_straight_routes
+import ..LcgRandomModule: LcgRandom, draw_uniform01!
 
 export SpringEmbedderLayout
 
@@ -142,7 +142,7 @@ SpringEmbedderState(engine::SpringEmbedderLayout) =
                         Dict{Int,Node}(), 0.0, 0.0, 0.0, false, false, true,
                         0.0, 0.0, 0.0, 0.0)
 
-_rand01(state::SpringEmbedderState) = next01!(state.random)
+_rand01(state::SpringEmbedderState) = draw_uniform01!(state.random)
 
 function set_size!(state::SpringEmbedderState, width::Real, height::Real, border::Real)
     if (width != 0 && width < 2*border) || (height != 0 && height < 2*border)
@@ -591,9 +591,9 @@ function layout_graph(engine::SpringEmbedderLayout, graph::GraphGraph, sizes::Di
     positions = Dict{UInt,NTuple{4,Int}}()
     n == 0 && return (positions, Dict{UInt,Vector{Tuple{Int,Int}}}())
 
-    widths, heights = vertex_sizes(vertices, sizes, constraints)
-    pins = constraint_pins(constraints)
-    clusters = constraint_clusters(constraints)
+    widths, heights = get_vertex_sizes(vertices, sizes, constraints)
+    pins = get_constraint_pins(constraints)
+    clusters = get_constraint_clusters(constraints)
 
     state = SpringEmbedderState(engine)
     set_size!(state, extent === nothing ? 0 : extent[1],
@@ -634,7 +634,7 @@ function layout_graph(engine::SpringEmbedderLayout, graph::GraphGraph, sizes::Di
              round(Int, widths[i]), round(Int, heights[i]))
     end
 
-    (positions, straight_routes(graph, positions))
+    (positions, get_straight_routes(graph, positions))
 end
 
 end # module

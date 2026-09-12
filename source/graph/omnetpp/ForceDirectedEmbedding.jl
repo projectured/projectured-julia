@@ -40,12 +40,12 @@ import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
                                             get_acceleration, kinetic_energy, reset_force!,
                                             set_mass!,
                                             body_variable, body_mass,
-                                            body_left, body_right, body_top, body_bottom
+                                            get_body_left, get_body_right, get_body_top, get_body_bottom
 import ..ForceDirectedParametersModule: WallBody
-import ..LcgRandomModule: LcgRandom, next01!
+import ..LcgRandomModule: LcgRandom, draw_uniform01!
 
 export ForceDirectedEmbedding, default_force_directed_parameters,
-       add_body!, add_force_provider!, embed!, embedding_bounding_rectangle,
+       add_body!, add_force_provider!, embed!, get_embedding_bounding_rectangle,
        total_kinetic_energy, total_potential_energy
 
 """
@@ -114,12 +114,12 @@ function default_force_directed_parameters(seed::Integer = 1)
         Rs(10, 10),                          # default_body_size
         10.0,                                # default_body_mass
         1.0,                                 # default_body_charge
-        0.1 + 0.9 * next01!(random),         # default_spring_coefficient
+        0.1 + 0.9 * draw_uniform01!(random),         # default_spring_coefficient
         50.0,                                # default_spring_repose_length
-        10000 + 90000 * next01!(random),     # electric_repulsion_coefficient
+        10000 + 90000 * draw_uniform01!(random),     # electric_repulsion_coefficient
         -1.0,                                # default_electric_repulsion_linearity_distance
         -1.0,                                # default_electric_repulsion_max_distance
-        1 + 4 * next01!(random),             # friction_coefficient
+        1 + 4 * draw_uniform01!(random),             # friction_coefficient
         false,                               # default_slippery
         false,                               # default_point_like_distance
         1.0,                                 # time_step
@@ -394,7 +394,7 @@ function embed!(embedding::ForceDirectedEmbedding)
 end
 
 """
-    embedding_bounding_rectangle(embedding) -> Rc
+    get_embedding_bounding_rectangle(embedding) -> Rc
 
 The box covering every body that is not a wall.
 
@@ -402,15 +402,15 @@ The seeds are OMNeT++'s `DBL_MAX` and `DBL_MIN`, and `DBL_MIN` is the smallest
 positive double rather than the most negative one. Reproduced rather than
 corrected, for the reason `GraphComponent`'s own bounding rectangle gives.
 """
-function embedding_bounding_rectangle(embedding::ForceDirectedEmbedding)
+function get_embedding_bounding_rectangle(embedding::ForceDirectedEmbedding)
     top = floatmax(Float64); bottom = floatmin(Float64)
     left = floatmax(Float64); right = floatmin(Float64)
     for body in embedding.bodies
         body isa WallBody && continue
-        top = min(top, body_top(body))
-        bottom = max(bottom, body_bottom(body))
-        left = min(left, body_left(body))
-        right = max(right, body_right(body))
+        top = min(top, get_body_top(body))
+        bottom = max(bottom, get_body_bottom(body))
+        left = min(left, get_body_left(body))
+        right = max(right, get_body_right(body))
     end
     Rc(left, top, 0.0, right - left, bottom - top)
 end

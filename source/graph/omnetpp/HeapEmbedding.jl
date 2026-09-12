@@ -22,7 +22,7 @@ import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_nil, is_nil, pt_distance,
                                rc_base_plane_contains, rc_base_plane_intersects
 import ..GraphComponentModule: GraphComponent
 
-export HeapEmbedding, heap_embed!
+export HeapEmbedding, embed_heap!
 
 """
     HeapEmbedding(component, vertex_spacing)
@@ -71,11 +71,11 @@ function _push_unless_covered!(points::Vector{Pt}, rectangles::Vector{Rc}, pt::P
 end
 
 """
-    heap_embed!(embedding)
+    embed_heap!(embedding)
 
 Place every vertex of the component, writing into each vertex's `rc.pt`.
 """
-function heap_embed!(embedding::HeapEmbedding)
+function embed_heap!(embedding::HeapEmbedding)
     component = embedding.component
     spacing = embedding.vertex_spacing
     rectangles = Rc[]                   # what has been placed

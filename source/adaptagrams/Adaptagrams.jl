@@ -112,14 +112,14 @@ name a layout reports is always the engine that really placed it.
 function effective_engine(engine::AdaptagramsLayout, vertex_count::Integer)
     isavailable() && return engine
     _warn_unavailable_once()
-    pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
+    make_pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
 end
 
 # Asking what this engine resolves to is asking what will really place the
 # graph, so an unbuilt shim resolves to the engine that will. Both the name a
 # layout records and the answer a caller gets go through here, and they agree
 # because they ask the same question with the same vertex count.
-resolved_layout_engine(engine::AdaptagramsLayout, vertex_count::Integer = 0) =
+resolve_layout_engine(engine::AdaptagramsLayout, vertex_count::Integer = 0) =
     effective_engine(engine, vertex_count)
 
 layout_engine_name(engine::AdaptagramsLayout) =
@@ -151,7 +151,7 @@ function layout_graph(engine::AdaptagramsLayout, graph::GraphGraph, sizes::Dict,
     n = length(nodes)
     n == 0 && return (positions, routes)
 
-    widths, heights = vertex_sizes(nodes, sizes, constraints)
+    widths, heights = get_vertex_sizes(nodes, sizes, constraints)
     in_w = Vector{Cdouble}(undef, n)
     in_h = Vector{Cdouble}(undef, n)
     for i in 1:n
@@ -249,7 +249,7 @@ function _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
             x, y, w, h = positions[objectid(nodes[i])]
             cx[i] = x + w/2; cy[i] = y + h/2
         end
-        transform = extent_transform(cx, cy, widths, heights, 1:n, extent, border)
+        transform = get_extent_transform(cx, cy, widths, heights, 1:n, extent, border)
         if transform !== nothing
             fx, fy, x1, y1, ox, oy = transform
             map_x(x) = ox + (x - x1) * fx
@@ -266,7 +266,7 @@ function _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
         end
     end
 
-    pins = constraint_pins(constraints)
+    pins = get_constraint_pins(constraints)
     isempty(pins) && return nothing
     for i in 1:n
         pin = get(pins, objectid(nodes[i]), nothing)
@@ -280,7 +280,7 @@ end
 # ── The default engine, once this package is loaded ──────────────────────────
 #
 # Registering is the whole opt-in: anything that asks for
-# `deferred_layout_engine()` — an example, a workbench page, a live diagram —
+# `make_deferred_layout_engine()` — an example, a workbench page, a live diagram —
 # gets native placement and routing from the moment this package is in the
 # session, with nothing else rewired. Done from `__init__` so the mutation
 # survives precompilation; defining a second method instead would be a

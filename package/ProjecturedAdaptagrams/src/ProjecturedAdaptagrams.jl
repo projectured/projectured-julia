@@ -34,12 +34,12 @@ module ProjecturedAdaptagrams
 
 import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
                                                   supported_constraint_kinds,
-                                                  check_constraints, constraint_pins,
-                                                  vertex_sizes, extent_transform,
+                                                  check_constraints, get_constraint_pins,
+                                                  get_vertex_sizes, get_extent_transform,
                                                   layout_engine_name, layout_vertices
 import ProjecturedGraph.GraphLayoutChoiceModule: register_layout_engine!,
-                                                 pure_julia_layout_engine,
-                                                 resolved_layout_engine
+                                                 make_pure_julia_layout_engine,
+                                                 resolve_layout_engine
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 

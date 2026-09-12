@@ -23,9 +23,9 @@ module GraphComponentModule
 import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, rc_left, rc_right, rc_top, rc_bottom
 
 export LayoutVertex, LayoutEdge, GraphComponent,
-       add_vertex!, add_edge!, index_of_vertex, find_vertex, bounding_rectangle,
+       add_vertex!, add_edge!, index_of_vertex, find_vertex, get_bounding_rectangle,
        calculate_spanning_tree!, calculate_connected_sub_components!,
-       vertex_count, edge_count
+       vertex_count, get_edge_count
 
 """
     LayoutVertex(pt, rs, identity = nothing)
@@ -91,7 +91,7 @@ GraphComponent() =
     GraphComponent(LayoutVertex[], LayoutEdge[], nothing, LayoutVertex[], GraphComponent[])
 
 vertex_count(component::GraphComponent) = length(component.vertices)
-edge_count(component::GraphComponent) = length(component.edges)
+get_edge_count(component::GraphComponent) = length(component.edges)
 Base.isempty(component::GraphComponent) = isempty(component.vertices)
 
 """
@@ -136,7 +136,7 @@ function find_vertex(component::GraphComponent, identity)
 end
 
 """
-    bounding_rectangle(component) -> Rc
+    get_bounding_rectangle(component) -> Rc
 
 The rectangle covering every vertex.
 
@@ -147,7 +147,7 @@ is reproduced rather than corrected, because this box seeds a pre-embedding that
 is scaled and translated afterwards, and a port that "fixes" it draws a
 different picture from the one it is a port of.
 """
-function bounding_rectangle(component::GraphComponent)
+function get_bounding_rectangle(component::GraphComponent)
     top = floatmax(Float64); bottom = floatmin(Float64)
     left = floatmax(Float64); right = floatmin(Float64)
     for vertex in component.vertices

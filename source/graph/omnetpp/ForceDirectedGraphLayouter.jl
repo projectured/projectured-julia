@@ -33,23 +33,23 @@ module ForceDirectedGraphLayouterModule
 import ..GraphModule: GraphGraph, GraphEdge
 import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
                                   supported_constraint_kinds, check_constraints,
-                                  constraint_pins, constraint_clusters,
-                                  layout_vertices, vertex_sizes, straight_routes
-import ..LcgRandomModule: LcgRandom, next01!, uniform!
+                                  get_constraint_pins, get_constraint_clusters,
+                                  layout_vertices, get_vertex_sizes, get_straight_routes
+import ..LcgRandomModule: LcgRandom, draw_uniform01!, draw_uniform!
 import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, pt_multiply,
-                               diagonal_length, area, rc_center
+                               get_diagonal_length, area, rc_center
 import ..GraphComponentModule: GraphComponent, LayoutVertex, LayoutEdge,
                                add_vertex!, add_edge!, vertex_count,
-                               edge_count, bounding_rectangle,
+                               get_edge_count, get_bounding_rectangle,
                                calculate_spanning_tree!,
                                calculate_connected_sub_components!
 import ..ForceDirectedParametersBaseModule: Variable, PointConstrainedVariable, AbstractBody,
                                             get_position, assign_position!,
-                                            body_position, body_size, body_top,
-                                            body_bottom, body_left, body_right,
+                                            body_position, body_size, get_body_top,
+                                            get_body_bottom, get_body_left, get_body_right,
                                             body_variable
 import ..ForceDirectedParametersModule: Body, RelativelyPositionedBody, WallBody,
-                                        wall_set_position!, wall_set_variable!,
+                                        set_wall_position!, set_wall_variable!,
                                         ElectricRepulsion, VerticalElectricRepulsion,
                                         HorizontalElectricRepulsion, Spring,
                                         VerticalSpring, HorizontalSpring,
@@ -57,9 +57,9 @@ import ..ForceDirectedParametersModule: Body, RelativelyPositionedBody, WallBody
 import ..ForceDirectedEmbeddingModule: ForceDirectedEmbedding,
                                        default_force_directed_parameters,
                                        add_body!, add_force_provider!, embed!,
-                                       embedding_bounding_rectangle
-import ..StarTreeEmbeddingModule: StarTreeEmbedding, star_tree_embed!
-import ..HeapEmbeddingModule: HeapEmbedding, heap_embed!
+                                       get_embedding_bounding_rectangle
+import ..StarTreeEmbeddingModule: StarTreeEmbedding, embed_star_tree!
+import ..HeapEmbeddingModule: HeapEmbedding, embed_heap!
 
 export ForceDirectedLayout
 
@@ -175,8 +175,8 @@ end
 vertex_for(state::ForceDirectedState, variable) =
     variable isa Variable ? get(state.variable_vertices, variable, nothing) : nothing
 
-_rand01(state::ForceDirectedState) = next01!(state.random)
-_uniform(state::ForceDirectedState, a::Real, b::Real) = uniform!(state.random, a, b)
+_rand01(state::ForceDirectedState) = draw_uniform01!(state.random)
+_uniform(state::ForceDirectedState, a::Real, b::Real) = draw_uniform!(state.random, a, b)
 
 function set_size!(state::ForceDirectedState, width::Real, height::Real, border::Real)
     if (width != 0 && width < 2*border) || (height != 0 && height < 2*border)
@@ -266,7 +266,7 @@ function calculate_expected_measures!(state::ForceDirectedState)
 
     for body in bodies
         body isa WallBody && continue
-        length = diagonal_length(body_size(body))
+        length = get_diagonal_length(body_size(body))
         count += 1
         max_body_length = max(max_body_length, length)
         average_body_length += length
@@ -372,10 +372,10 @@ function add_border_force_providers!(state::ForceDirectedState)
     end
 
     if state.top_border !== nothing
-        wall_set_variable!(state.top_border,
+        set_wall_variable!(state.top_border,
             state.has_fixed_node || state.height != 0 ?
                 PointConstrainedVariable(Pt(NaN, 0, NaN)) : Variable(pt_nil()))
-        wall_set_variable!(state.bottom_border,
+        set_wall_variable!(state.bottom_border,
             state.height != 0 ? PointConstrainedVariable(Pt(NaN, state.height, NaN)) :
                                 Variable(pt_nil()))
         add_body!(state.embedding, state.top_border)
@@ -385,10 +385,10 @@ function add_border_force_providers!(state::ForceDirectedState)
                            state.expected_embedding_height))
     end
     if state.left_border !== nothing
-        wall_set_variable!(state.left_border,
+        set_wall_variable!(state.left_border,
             state.has_fixed_node || state.width != 0 ?
                 PointConstrainedVariable(Pt(0, NaN, NaN)) : Variable(pt_nil()))
-        wall_set_variable!(state.right_border,
+        set_wall_variable!(state.right_border,
             state.width != 0 ? PointConstrainedVariable(Pt(state.width, NaN, NaN)) :
                                Variable(pt_nil()))
         add_body!(state.embedding, state.left_border)
@@ -409,26 +409,26 @@ function set_border_positions!(state::ForceDirectedState)
         for body in state.embedding.bodies
             body isa WallBody && continue
             if state.height == 0
-                top = min(top, body_top(body))
-                bottom = max(bottom, body_bottom(body))
+                top = min(top, get_body_top(body))
+                bottom = max(bottom, get_body_bottom(body))
             end
             if state.width == 0
-                left = min(left, body_left(body))
-                right = max(right, body_right(body))
+                left = min(left, get_body_left(body))
+                right = max(right, get_body_right(body))
             end
         end
     end
 
     if state.top_border !== nothing
-        wall_set_position!(state.top_border,
+        set_wall_position!(state.top_border,
                            state.has_fixed_node || state.height != 0 ? 0.0 : top - distance)
-        wall_set_position!(state.bottom_border,
+        set_wall_position!(state.bottom_border,
                            state.height != 0 ? state.height : bottom + distance)
     end
     if state.left_border !== nothing
-        wall_set_position!(state.left_border,
+        set_wall_position!(state.left_border,
                            state.has_fixed_node || state.width != 0 ? 0.0 : left - distance)
-        wall_set_position!(state.right_border,
+        set_wall_position!(state.right_border,
                            state.width != 0 ? state.width : right + distance)
     end
     nothing
@@ -490,20 +490,20 @@ function execute_pre_embedding!(state::ForceDirectedState)
     for child in state.graph_component.connected_sub_components
         calculate_spanning_tree!(child)
 
-        if vertex_count(child) == edge_count(child) + 1 || _rand01(state) < 0.5
-            star_tree_embed!(StarTreeEmbedding(child, state.expected_edge_length))
+        if vertex_count(child) == get_edge_count(child) + 1 || _rand01(state) < 0.5
+            embed_star_tree!(StarTreeEmbedding(child, state.expected_edge_length))
         else
-            heap_embed!(HeapEmbedding(child, state.expected_edge_length))
+            embed_heap!(HeapEmbedding(child, state.expected_edge_length))
         end
 
-        child_vertex = LayoutVertex(pt_nil(), bounding_rectangle(child).rs, nothing)
+        child_vertex = LayoutVertex(pt_nil(), get_bounding_rectangle(child).rs, nothing)
         star_root === nothing && (star_root = child_vertex)
         add_vertex!(children_star, child_vertex)
         add_edge!(children_star, LayoutEdge(star_root, child_vertex))
     end
 
     calculate_spanning_tree!(children_star)
-    heap_embed!(HeapEmbedding(children_star, state.expected_edge_length))
+    embed_heap!(HeapEmbedding(children_star, state.expected_edge_length))
 
     for i in 1:length(state.graph_component.connected_sub_components)
         child_vertex = children_star.vertices[i]
@@ -523,8 +523,8 @@ function execute_pre_embedding!(state::ForceDirectedState)
     scaley = state.height / rc.rs.height
     for body in state.embedding.bodies
         body isa WallBody && continue
-        scalex = min(scalex, (state.width - state.border - body_size(body).width) / body_left(body))
-        scaley = min(scaley, (state.height - state.border - body_size(body).height) / body_top(body))
+        scalex = min(scalex, (state.width - state.border - body_size(body).width) / get_body_left(body))
+        scaley = min(scaley, (state.height - state.border - body_size(body).height) / get_body_top(body))
     end
 
     scale_embedding!(state, Pt(state.width > 0 && scalex > 0 ? scalex : 1,
@@ -535,7 +535,7 @@ function execute_pre_embedding!(state::ForceDirectedState)
     nothing
 end
 
-get_bounding_box(state::ForceDirectedState) = embedding_bounding_rectangle(state.embedding)
+get_bounding_box(state::ForceDirectedState) = get_embedding_bounding_rectangle(state.embedding)
 
 function execute!(state::ForceDirectedState)
     (state.has_movable_node || state.has_anchored_node) || return nothing
@@ -593,9 +593,9 @@ function layout_graph(engine::ForceDirectedLayout, graph::GraphGraph, sizes::Dic
     positions = Dict{UInt,NTuple{4,Int}}()
     n == 0 && return (positions, Dict{UInt,Vector{Tuple{Int,Int}}}())
 
-    widths, heights = vertex_sizes(vertices, sizes, constraints)
-    pins = constraint_pins(constraints)
-    clusters = constraint_clusters(constraints)
+    widths, heights = get_vertex_sizes(vertices, sizes, constraints)
+    pins = get_constraint_pins(constraints)
+    clusters = get_constraint_clusters(constraints)
 
     state = ForceDirectedState(engine)
     set_size!(state, extent === nothing ? 0 : extent[1],
@@ -637,7 +637,7 @@ function layout_graph(engine::ForceDirectedLayout, graph::GraphGraph, sizes::Dic
              round(Int, widths[i]), round(Int, heights[i]))
     end
 
-    (positions, straight_routes(graph, positions))
+    (positions, get_straight_routes(graph, positions))
 end
 
 end # module

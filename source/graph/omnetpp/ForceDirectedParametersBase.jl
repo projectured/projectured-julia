@@ -26,7 +26,7 @@ export ForceDirectedParameters, Variable, PointConstrainedVariable,
        get_acceleration, kinetic_energy, reset_force!, get_mass, set_mass!,
        get_force, add_force!, subtract_force!,
        body_position, body_size, body_mass, body_charge, body_variable,
-       body_left, body_right, body_top, body_bottom, body_left_top
+       get_body_left, get_body_right, get_body_top, get_body_bottom, get_body_left_top
 
 """
     ForceDirectedParameters
@@ -145,7 +145,7 @@ reinitialize!(::Variable) = nothing
     AbstractBody
 
 Something with a position, a size, a mass and a charge. Its position is its
-**centre**, and `body_left` and friends read the corners off that.
+**centre**, and `get_body_left` and friends read the corners off that.
 """
 abstract type AbstractBody end
 
@@ -180,10 +180,10 @@ function body_mass end
 function body_charge end
 function body_variable end
 
-body_left(body::AbstractBody) = body_position(body).x - body_size(body).width / 2
-body_right(body::AbstractBody) = body_position(body).x + body_size(body).width / 2
-body_top(body::AbstractBody) = body_position(body).y - body_size(body).height / 2
-body_bottom(body::AbstractBody) = body_position(body).y + body_size(body).height / 2
-body_left_top(body::AbstractBody) = Pt(body_left(body), body_top(body), body_position(body).z)
+get_body_left(body::AbstractBody) = body_position(body).x - body_size(body).width / 2
+get_body_right(body::AbstractBody) = body_position(body).x + body_size(body).width / 2
+get_body_top(body::AbstractBody) = body_position(body).y - body_size(body).height / 2
+get_body_bottom(body::AbstractBody) = body_position(body).y + body_size(body).height / 2
+get_body_left_top(body::AbstractBody) = Pt(get_body_left(body), get_body_top(body), body_position(body).z)
 
 end # module

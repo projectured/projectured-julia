@@ -7,23 +7,23 @@ function test_graph_projection()
     # A ported layouter draws the picture OMNeT++ draws only if it draws the same
     # random numbers. This is OMNeT++'s own self test, from LCGRandom::selfTest:
     # ten thousand draws from seed 1 must leave the seed at this exact value.
-    @test lcg_self_test() == 1043618065
+    @test run_lcg_self_test() == 1043618065
 
     # A seed is a picture: the same seed answers the same sequence, and a
     # different one does not.
-    first = [next01!(LcgRandom(7)) for _ in 1:1]
-    @test first == [next01!(LcgRandom(7))]
-    @test first != [next01!(LcgRandom(8))]
+    first = [draw_uniform01!(LcgRandom(7)) for _ in 1:1]
+    @test first == [draw_uniform01!(LcgRandom(7))]
+    @test first != [draw_uniform01!(LcgRandom(8))]
 
     # The range is [0, 1), and a seed outside 1:2^31-2 is refused rather than
     # silently repaired — seed 0 is a fixed point of this generator.
     random = LcgRandom(12345)
-    values = [next01!(random) for _ in 1:1000]
+    values = [draw_uniform01!(random) for _ in 1:1000]
     @test all(0.0 .<= values .< 1.0)
     @test_throws ArgumentError LcgRandom(0)
     @test_throws ArgumentError LcgRandom(-3)
     @test all(0 .<= [draw!(random, 5) for _ in 1:100] .< 5)
-    @test all(2.0 .<= [uniform!(random, 2, 3) for _ in 1:100] .< 3.0)
+    @test all(2.0 .<= [draw_uniform!(random, 2, 3) for _ in 1:100] .< 3.0)
 end
 
 @testset "the ported geometry" begin
@@ -31,12 +31,12 @@ end
     @test !is_fully_specified(Pt(1, NaN, 0))
     @test pt_length(Pt(3, 4, 0)) == 5
     @test pt_distance(Pt(0, 0, 0), Pt(0, 3, 4)) == 5
-    @test base_plane_length(Pt(3, 4, 100)) == 5
-    @test nan_to_zero(Pt(NaN, 2, NaN)) == Pt(0, 2, 0)
+    @test get_base_plane_length(Pt(3, 4, 100)) == 5
+    @test convert_nan_to_zero(Pt(NaN, 2, NaN)) == Pt(0, 2, 0)
     @test Pt(1, 2, 3) + Pt(1, 1, 1) == Pt(2, 3, 4)
     @test Pt(1, 2, 3) * 2 == Pt(2, 4, 6)
     @test pt_multiply(Pt(2, 3, 4), Pt(10, 100, 1000)) == Pt(20, 300, 4000)
-    @test diagonal_length(Rs(3, 4)) == 5
+    @test get_diagonal_length(Rs(3, 4)) == 5
     @test area(Rs(3, 4)) == 12
     @test rc_center(Rc(10, 20, 0, 40, 60)) == Pt(30, 50, 0)
     @test rc_right(Rc(10, 20, 0, 40, 60)) == 50
@@ -68,13 +68,13 @@ end
         add_edge!(component, LayoutEdge(made[a], made[b]))
     end
     @test vertex_count(component) == 6
-    @test edge_count(component) == 6
+    @test get_edge_count(component) == 6
     @test find_vertex(component, 3) === made[3]
     @test index_of_vertex(component, made[4]) == 4
 
     calculate_connected_sub_components!(component)
     @test length(component.connected_sub_components) == 2
-    @test all(part -> vertex_count(part) == 3 && edge_count(part) == 3,
+    @test all(part -> vertex_count(part) == 3 && get_edge_count(part) == 3,
               component.connected_sub_components)
     @test made[1].connected_sub_component !== made[4].connected_sub_component
 
@@ -108,10 +108,10 @@ end
     # same number for the same reason — the advanced one is already slow at
     # thirty or forty modules.
     @test QTENV_ADVANCED_LIMIT == 20
-    @test resolved_layout_engine(DeferredLayout(), 19) isa ForceDirectedLayout
-    @test resolved_layout_engine(DeferredLayout(), 20) isa SpringEmbedderLayout
-    @test resolved_layout_engine(DeferredLayout(), 500) isa SpringEmbedderLayout
-    @test resolved_layout_engine(GridEmbedding(), 500) isa GridEmbedding
+    @test resolve_layout_engine(DeferredLayout(), 19) isa ForceDirectedLayout
+    @test resolve_layout_engine(DeferredLayout(), 20) isa SpringEmbedderLayout
+    @test resolve_layout_engine(DeferredLayout(), 500) isa SpringEmbedderLayout
+    @test resolve_layout_engine(GridEmbedding(), 500) isa GridEmbedding
 
     @test layout_engine_name(GridEmbedding()) === :grid
     @test layout_engine_name(SpringEmbedderLayout()) === :spring_embedder

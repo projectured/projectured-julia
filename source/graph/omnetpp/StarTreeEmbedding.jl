@@ -20,13 +20,13 @@ it over `HeapEmbedding` whenever the component really is a tree.
 module StarTreeEmbeddingModule
 
 import ..LayoutGeometryModule: Pt, Rc, Cc, pt_zero, pt_distance,
-                               diagonal_length, area, base_plane_angle,
-                               base_plane_rotate, cc_intersect, cc_enclosing,
+                               get_diagonal_length, area, get_base_plane_angle,
+                               rotate_base_plane, cc_intersect, cc_enclosing,
                                cc_center_top, cc_center_bottom, cc_left_center,
                                cc_right_center
 import ..GraphComponentModule: GraphComponent, LayoutVertex
 
-export StarTreeEmbedding, star_tree_embed!
+export StarTreeEmbedding, embed_star_tree!
 
 """
     StarTreeEmbedding(component, vertex_spacing)
@@ -43,11 +43,11 @@ StarTreeEmbedding(component::GraphComponent, vertex_spacing::Real) =
     StarTreeEmbedding(component, Float64(vertex_spacing))
 
 """
-    star_tree_embed!(embedding)
+    embed_star_tree!(embedding)
 
 Place every vertex of the component, writing into each vertex's `rc.pt`.
 """
-function star_tree_embed!(embedding::StarTreeEmbedding)
+function embed_star_tree!(embedding::StarTreeEmbedding)
     root = embedding.component.spanning_tree_root
     root === nothing && return nothing
     _calculate_center!(embedding, root)
@@ -63,7 +63,7 @@ function _calculate_center!(embedding::StarTreeEmbedding, vertex::LayoutVertex)
     spacing = embedding.vertex_spacing
 
     if isempty(vertex.spanning_tree_children)
-        vertex.star_tree_radius = diagonal_length(vertex.rc.rs) / 2
+        vertex.star_tree_radius = get_diagonal_length(vertex.rc.rs) / 2
         vertex.star_tree_center = pt_zero()
         vertex.star_tree_circle_center = pt_zero()
         return nothing
@@ -76,7 +76,7 @@ function _calculate_center!(embedding::StarTreeEmbedding, vertex::LayoutVertex)
 
     for child in vertex.spanning_tree_children
         circles = Cc[Cc(pt_zero(),
-                        diagonal_length(vertex.rc.rs) / 2 + spacing + child.star_tree_radius)]
+                        get_diagonal_length(vertex.rc.rs) / 2 + spacing + child.star_tree_radius)]
         for placed in vertex.spanning_tree_children
             placed === child && break
             push!(circles, Cc(placed.star_tree_center + placed.star_tree_circle_center,
@@ -113,7 +113,7 @@ function _calculate_center!(embedding::StarTreeEmbedding, vertex::LayoutVertex)
 
     # Wrap the parent and all its children in one circle, which is what this
     # subtree looks like to its own parent.
-    circles = Cc[Cc(pt_zero(), diagonal_length(vertex.rc.rs) / 2)]
+    circles = Cc[Cc(pt_zero(), get_diagonal_length(vertex.rc.rs) / 2)]
     for child in vertex.spanning_tree_children
         push!(circles, Cc(child.star_tree_center + child.star_tree_circle_center,
                           child.star_tree_radius))
@@ -131,7 +131,7 @@ function _rotate_center!(vertex::LayoutVertex)
     isempty(vertex.spanning_tree_children) && return nothing
 
     if vertex.spanning_tree_parent !== nothing
-        angle = base_plane_angle(vertex.star_tree_center + vertex.star_tree_circle_center)
+        angle = get_base_plane_angle(vertex.star_tree_center + vertex.star_tree_circle_center)
 
         weight_point = pt_zero()
         total_area = 0.0
@@ -142,17 +142,17 @@ function _rotate_center!(vertex::LayoutVertex)
                 (child.star_tree_center + vertex.star_tree_circle_center) * child_area
         end
         weight_point = weight_point / total_area
-        rotate_by = angle - base_plane_angle(weight_point)
+        rotate_by = angle - get_base_plane_angle(weight_point)
 
         if !isnan(rotate_by)
             for child in vertex.spanning_tree_children
                 pt = child.star_tree_center + child.star_tree_circle_center +
                      vertex.star_tree_circle_center
                 child.star_tree_center =
-                    base_plane_rotate(pt, rotate_by) - child.star_tree_circle_center
+                    rotate_base_plane(pt, rotate_by) - child.star_tree_circle_center
             end
 
-            pt = base_plane_rotate(-vertex.star_tree_circle_center, rotate_by)
+            pt = rotate_base_plane(-vertex.star_tree_circle_center, rotate_by)
             vertex.star_tree_center =
                 vertex.star_tree_center + vertex.star_tree_circle_center + pt
             vertex.star_tree_circle_center = -pt

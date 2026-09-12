@@ -22,8 +22,8 @@ import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
 import ..BasicSpringEmbedderLayoutModule: SpringEmbedderLayout
 import ..ForceDirectedGraphLayouterModule: ForceDirectedLayout
 
-export DeferredLayout, deferred_layout_engine, register_layout_engine!,
-       resolved_layout_engine, pure_julia_layout_engine, QTENV_ADVANCED_LIMIT
+export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
+       resolve_layout_engine, make_pure_julia_layout_engine, QTENV_ADVANCED_LIMIT
 
 """
 The vertex count at which the choice turns from the advanced layouter to the
@@ -33,7 +33,7 @@ layouter is already very slow.
 """
 const QTENV_ADVANCED_LIMIT = 20
 
-# The engine `deferred_layout_engine` hands out. A package with a better one
+# The engine `make_deferred_layout_engine` hands out. A package with a better one
 # registers a factory here from its `__init__` — a mutation, not a second
 # method: replacing a method during precompilation is fatal, and this seam
 # exists precisely so an optional package can take over without one.
@@ -43,7 +43,7 @@ const _PREFERRED_ENGINE = Ref{Any}(nothing)
 """
     register_layout_engine!(factory)
 
-Make `factory(; orthogonal)` the engine [`deferred_layout_engine`](@ref) returns.
+Make `factory(; orthogonal)` the engine [`make_deferred_layout_engine`](@ref) returns.
 `ProjecturedAdaptagrams` calls this from its `__init__`, so a native layout
 costs a `using` and no rewiring. `nothing` restores the pure-Julia choice.
 """
@@ -72,14 +72,14 @@ end
 DeferredLayout(; orthogonal::Bool = false) = DeferredLayout(orthogonal)
 
 """
-    deferred_layout_engine(; orthogonal = false) -> DeferredLayout
+    make_deferred_layout_engine(; orthogonal = false) -> DeferredLayout
 
 The engine a caller names when it has no reason to name a specific one.
 """
-deferred_layout_engine(; orthogonal::Bool = false) = DeferredLayout(orthogonal)
+make_deferred_layout_engine(; orthogonal::Bool = false) = DeferredLayout(orthogonal)
 
 """
-    pure_julia_layout_engine(vertex_count; orthogonal = false) -> GraphLayoutEngine
+    make_pure_julia_layout_engine(vertex_count; orthogonal = false) -> GraphLayoutEngine
 
 The engine to use for a graph of this size when nothing is installed: Qtenv's
 own rule, `SpringEmbedderLayout` from [`QTENV_ADVANCED_LIMIT`](@ref) vertices up
@@ -87,11 +87,11 @@ and `ForceDirectedLayout` below it.
 
 `orthogonal` is accepted and ignored, because neither of these routes edges.
 """
-pure_julia_layout_engine(vertex_count::Integer; orthogonal::Bool = false) =
+make_pure_julia_layout_engine(vertex_count::Integer; orthogonal::Bool = false) =
     vertex_count >= QTENV_ADVANCED_LIMIT ? SpringEmbedderLayout() : ForceDirectedLayout()
 
 """
-    resolved_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine
+    resolve_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine
 
 What a `DeferredLayout` is right now: the registered engine, or the pure-Julia
 choice for a graph of `vertex_count` vertices. Any other engine is already
@@ -100,20 +100,20 @@ itself.
 Without a count it answers the choice for an empty graph, which is what a caller
 asking "what would I get?" outside a layout means.
 """
-resolved_layout_engine(engine::GraphLayoutEngine, ::Integer = 0) = engine
+resolve_layout_engine(engine::GraphLayoutEngine, ::Integer = 0) = engine
 
-function resolved_layout_engine(engine::DeferredLayout, vertex_count::Integer = 0)
+function resolve_layout_engine(engine::DeferredLayout, vertex_count::Integer = 0)
     factory = _PREFERRED_ENGINE[]
     factory === nothing ?
-        pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal) :
+        make_pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal) :
         factory(; orthogonal = engine.orthogonal)
 end
 
 supported_constraint_kinds(engine::DeferredLayout) =
-    supported_constraint_kinds(resolved_layout_engine(engine))
+    supported_constraint_kinds(resolve_layout_engine(engine))
 
 layout_engine_name(engine::DeferredLayout) =
-    layout_engine_name(resolved_layout_engine(engine))
+    layout_engine_name(resolve_layout_engine(engine))
 
 # Resolution happens per layout call, and reads the vertex count, so one
 # projection draws a small graph with the advanced layouter and a large one with
@@ -125,7 +125,7 @@ layout_engine_name(engine::DeferredLayout) =
 # concern, not a live-editing one.
 layout_graph(engine::DeferredLayout, graph::GraphGraph, sizes::Dict,
              constraints::Vector; extent = nothing, border::Real = 0) =
-    layout_graph(resolved_layout_engine(engine, length(layout_vertices(graph))),
+    layout_graph(resolve_layout_engine(engine, length(layout_vertices(graph))),
                  graph, sizes, constraints; extent = extent, border = border)
 
 end # module
