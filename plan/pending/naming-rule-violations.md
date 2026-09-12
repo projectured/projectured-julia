@@ -1090,6 +1090,58 @@ The 23 rows of §13.2, unchanged.
 
 The 64 rows of §6.1 to §6.6, unchanged. They are separate from the 383 of §14.9.
 
-### 14.9 The 383 functions that do not start with a verb
+### 14.9 The functions that do not start with a verb
 
-Being named, one definition at a time. Not yet in this file.
+**374 real names. 353 renames, 21 no change, and no two rows propose the same
+name** — which is what the rule of §13.1 asks for.
+
+Nine of the 383 candidates are not names at all, and I removed them:
+
+- `the` — my export reader joined a comment line into a wrapped `export`
+  statement at [ReferenceModule.jl:84](../../source/kernel/reference/ReferenceModule.jl#L84)
+  and read an English word as an identifier.
+- eight `fsm_*` names — they sit inside the triple-quoted string
+  `_PROBE_RUNTIME_SOURCE` at
+  [FsmToJuliaCodeTest.jl:199](../../test/fsm/projection/FsmToJuliaCodeTest.jl#L199),
+  which the test feeds to `Base.include_string`. They are the call targets that
+  [FsmToJuliaCode.jl](../../source/fsm/FsmToJuliaCode.jl) emits, not exports of
+  this repository.
+
+Each of the 374 was classified by reading its definition, not its name:
+
+| kind | count | shape |
+| --- | --- | --- |
+| getter | 213 | `get_<stem>` |
+| factory | 57 | `make_<thing>` |
+| other verb | 53 | the right verb, usually already in the name but at the end |
+| mutator | 15 | `<verb>_<noun>!` |
+| predicate | 12 | `is_<condition>` |
+| derived copy | 1 | `with_<stem>` |
+| false positive — already verb-first | 7 | no change |
+| already filed in §6 | 7 | no change |
+| test fixture | 6 | no change |
+| not a function | 1 | no change; `affine_identity` is a `const` |
+
+**Three rows need a decision rather than a rename.**
+
+1. `julia_main` in [Executable.jl](../../source/executable/Executable.jl) is the
+   entry-point symbol PackageCompiler requires. A rename breaks the compiled
+   binary. Leave it, and say so in the rules.
+2. `bound`, `collection`, `sections` and `tokens` in
+   [ProjectionTemplate.jl](../../source/kernel/projection/ProjectionTemplate.jl)
+   may be DSL words of `@projection_template`, like `when` and `prefix` in
+   `@reference_case`, which the rules exempt. If they are, they keep their
+   names.
+3. `insertrow` and `deleterow` in
+   [CollectionDocument.jl](../../source/collection/CollectionDocument.jl) turned
+   out to mutate, so they need a `!`. The proposal that came back was
+   `insertrow!` and `deleterow!`, still glued. The targets must be `insert_row!`
+   and `delete_row!`, which is the rule's own example and matches §6.2.
+
+**The qualifier-prefix shape is settled.** `pure_print`, `pure_print_child` and
+`pure_print_document` become `print_pure`, `print_child_pure` and
+`print_document_pure`, so the qualifier sits at the end beside the sibling
+`print_child` and `print_document`.
+
+The full table, grouped by file, is
+[naming-rule-renames.md](naming-rule-renames.md).
