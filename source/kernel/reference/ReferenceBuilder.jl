@@ -2,7 +2,7 @@
 # compact surface syntax for building `Reference`s / `ReferenceStep`s.
 #
 # This fragment is a **lowering**, not a parser. The surface grammar is parsed once by
-# `ReferenceSyntax.jl` into the shared `RefStep` AST; everything here turns that AST into
+# `ReferenceSyntax.jl` into the shared `ReferenceSyntaxStep` AST; everything here turns that AST into
 # constructor expressions. The pattern-matching counterpart, `@reference_case` in
 # `ReferenceCase.jl`, lowers the very same AST into match branches.
 #
@@ -11,7 +11,7 @@
 # type it does not own.
 
 # ------------------------------------------------------------
-# Code generation — RefStep → constructor expression
+# Code generation — ReferenceSyntaxStep → constructor expression
 # ------------------------------------------------------------
 
 # `_` and `__` are wildcards in the *matching* reading of the shared grammar, and reach
@@ -19,7 +19,7 @@
 # built has to say which step it means — so they are rejected here rather than silently
 # lowered to a field with a peculiar name, which is what a builder would otherwise emit
 # for `@reference(a.__.b)`.
-function _gen_build_step(step::RefField)
+function _gen_build_step(step::ReferenceSyntaxField)
     step.name in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME) &&
         error("`$(step.name)` (any run of steps) is only valid inside @reference_case / " *
               "@reference_rules, not @reference/@reference_step — a path being built names its steps")
@@ -29,38 +29,38 @@ function _gen_build_step(step::RefField)
     :(ReferenceModule.FieldReferenceStep(String($(QuoteNode(step.name)))))
 end
 
-_gen_build_step(step::RefFieldExpr) =
+_gen_build_step(step::ReferenceSyntaxFieldExpression) =
     :(ReferenceModule.FieldReferenceStep(String($(esc(step.expr)))))
 
-_gen_build_step(step::RefIndex) =
+_gen_build_step(step::ReferenceSyntaxIndex) =
     :(ReferenceModule.ElementReferenceStep(Int($(esc(step.expr)))))
 
-_gen_build_step(step::RefPosition) =
+_gen_build_step(step::ReferenceSyntaxPosition) =
     :(ReferenceModule.PositionReferenceStep(Int($(esc(step.expr)))))
 
 # A step counts gaps between elements, from 0, so only the `[i, j]` spelling has
 # a conversion to make — the same one `ElementReferenceStep` makes for `xs[i]`.
-function _gen_build_step(step::RefRange)
+function _gen_build_step(step::ReferenceSyntaxRange)
     start = :(Int($(esc(step.startexpr))))
     step.numbering === :element && (start = :($start - 1))
     :(ReferenceModule.RangeReferenceStep($start, Int($(esc(step.stopexpr)))))
 end
 
-_gen_build_step(step::RefSplice) = esc(step.expr)
+_gen_build_step(step::ReferenceSyntaxSplice) = esc(step.expr)
 
-_gen_build_step(step::RefType) =
+_gen_build_step(step::ReferenceSyntaxType) =
     :(ReferenceModule.TypeReferenceStep($(esc(step.expr))))
 
 # `name...` binds a path's remaining tail — a *matching* concept. There is nothing to
 # construct from it, so the shared grammar's tail-bind node is rejected here rather than
 # silently lowered to something else.
-_gen_build_step(step::RefTailBind) =
+_gen_build_step(step::ReferenceSyntaxTailBind) =
     error("`$(step.name)...` (tail binding) is only valid inside @reference_case, not @reference/@reference_step")
 
 # The bound spellings `__(name)` / `__ʔ(name)` reach here as extension steps, and are
 # refused for the same reason as the bare ones rather than being reported as an
 # unregistered step type.
-function _gen_build_step(step::RefExtension)
+function _gen_build_step(step::ReferenceSyntaxExtension)
     String(step.name) in (REFERENCE_GAP_NAME, REFERENCE_LAZY_GAP_NAME) &&
         error("`$(step.name)(name)` (binding a run of steps) is only valid inside " *
               "@reference_case / @reference_rules, not @reference/@reference_step")
@@ -76,8 +76,8 @@ end
 # `get_reference_step_subpath_args`) is parsed with the *construction* subpath rule and lowered to
 # its path expression; every other argument is an escaped Julia expression. So no step
 # type is named here.
-function _gen_build_extension_step(step::RefExtension)
-    args = Any[a isa RefArgSubPath ? _gen_build_path(_build_subpath(a.expr)) : esc(a.expr)
+function _gen_build_extension_step(step::ReferenceSyntaxExtension)
+    args = Any[a isa ReferenceSyntaxArgumentSubPath ? _gen_build_path(_build_subpath(a.expr)) : esc(a.expr)
                for a in step.args]
     return build_reference_step(Val(step.name), args...)
 end
@@ -94,7 +94,7 @@ build_reference_step(::Val{n}, args...) where {n} =
 function _build_subpath(ex)
     if ex isa Expr && ex.head == :call && ex.args[1] == :(^)
         length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-        return RefStep[RefSplice(ex.args[2])]
+        return ReferenceSyntaxStep[ReferenceSyntaxSplice(ex.args[2])]
     end
     return parse_reference_path(ex)
 end
@@ -115,15 +115,15 @@ const _concat = ReferenceModule.concat_references
 # the skeleton is annotated against a document), so the common case allocates
 # nothing extra.
 _maybe_fold(expr, steps) =
-    any(s -> s isa RefType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
+    any(s -> s isa ReferenceSyntaxType, steps) ? :(ReferenceModule.fold_reference_types($expr)) : expr
 
-function _gen_build_path(steps::Vector{RefStep})
+function _gen_build_path(steps::Vector{ReferenceSyntaxStep})
     if isempty(steps)
         return :(ReferenceModule.EmptyReference())
     end
 
     # Fast path: no splices at all.
-    if !any(s -> s isa RefSplice, steps)
+    if !any(s -> s isa ReferenceSyntaxSplice, steps)
         stepexprs = [_gen_build_step(s) for s in steps]
         return _maybe_fold(:(ReferenceModule.Reference($(stepexprs...))), steps)
     end
@@ -135,11 +135,11 @@ function _gen_build_path(steps::Vector{RefStep})
     return _maybe_fold(_gen_concat_chain(steps), steps)
 end
 
-function _gen_concat_chain(steps::Vector{RefStep})
+function _gen_concat_chain(steps::Vector{ReferenceSyntaxStep})
     if isempty(steps)
         return :(ReferenceModule.EmptyReference())
     end
-    if steps[1] isa RefSplice
+    if steps[1] isa ReferenceSyntaxSplice
         head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
         # _concat needs an EmptyReference base case to short-circuit when
@@ -147,7 +147,7 @@ function _gen_concat_chain(steps::Vector{RefStep})
         return :(ReferenceModule._concat($head, $tail))
     end
     # Gather a run of non-splice steps into a single literal Reference.
-    i = findfirst(s -> s isa RefSplice, steps)
+    i = findfirst(s -> s isa ReferenceSyntaxSplice, steps)
     cutoff = i === nothing ? length(steps) + 1 : i
     prefix = steps[1:cutoff-1]
     prefix_expr = :(ReferenceModule.Reference($([_gen_build_step(s) for s in prefix]...)))
@@ -190,7 +190,7 @@ in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
 """
 macro reference()
-    return _gen_build_path(RefStep[])
+    return _gen_build_path(ReferenceSyntaxStep[])
 end
 
 macro reference(ex)

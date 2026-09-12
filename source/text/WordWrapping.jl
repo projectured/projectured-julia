@@ -31,7 +31,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyDown, KeyPress
-export WordWrapping, WordWrappingIoMap, WrapSeg
+export WordWrapping, WordWrappingIoMap, WrapSegment
 
 # ── Projection struct ───────────────────────────────────────────────────────
 
@@ -54,15 +54,15 @@ WordWrapping(; max_width::Int = 800, measure::Function) =
 # ── Mapping table ───────────────────────────────────────────────────────────
 
 """
-    WrapSeg(out_index, in_span, in_char_start, length)
+    WrapSegment(out_index, in_span, in_char_start, length)
 
 One entry per emitted output `TextString` sub-span. `out_index` is the 1-based
 position of the sub-span in `output.elements`. `in_span` is the 1-based index
 of the originating input span. `in_char_start` is the 0-based character offset
 of this sub-span within the input span; `length` is its character count.
-Inserted soft `TextNewline`s have no `WrapSeg`.
+Inserted soft `TextNewline`s have no `WrapSegment`.
 """
-struct WrapSeg
+struct WrapSegment
     out_index::Int
     in_span::Int
     in_char_start::Int
@@ -73,7 +73,7 @@ end
     projection::Any
     input::TextBlock
     output::TextBlock
-    segs::Cell  # Cell{Vector{WrapSeg}}
+    segs::Cell  # Cell{Vector{WrapSegment}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
@@ -101,10 +101,10 @@ function _wrap_width_cell(p::WordWrapping, ctx)
     Cell(p.max_width)
 end
 
-# Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSeg}).
+# Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSegment}).
 function _wrap(text::TextBlock, wrap_w::Int, measure_fn::Function)
     result = TextDocument[]
-    segs = WrapSeg[]
+    segs = WrapSegment[]
     cx = 0
     for (in_span, elem) in enumerate(text.elements)
         if elem isa TextString
@@ -122,9 +122,9 @@ function _wrap(text::TextBlock, wrap_w::Int, measure_fn::Function)
 end
 
 # Wraps one input TextString span, appending output sub-spans (and soft
-# newlines) to `result` and the corresponding `WrapSeg` entries to `segs`.
+# newlines) to `result` and the corresponding `WrapSegment` entries to `segs`.
 # Returns the updated column offset.
-function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                        original::TextString, in_span::Int,
                        cx::Int, wrap_w::Int, measure_fn::Function)
     content = original.content::AbstractString
@@ -181,10 +181,10 @@ end
 # Place a TextGraphics image as a single unbreakable token. If it would
 # overflow the current visual line, insert a soft TextNewline before it so the
 # image drops whole onto the next line (it is never split). The image keeps its
-# single atomic cursor range [0, 1), recorded as a zero-based WrapSeg so
+# single atomic cursor range [0, 1), recorded as a zero-based WrapSegment so
 # selection mapping can locate it in the wrapped output. Returns the updated
 # column offset.
-function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                          image::TextGraphics, in_span::Int, cx::Int, wrap_w::Int)
     img_w = Int(image.width::Int32)
     if cx > 0 && wrap_w > 0 && cx + img_w > wrap_w
@@ -192,7 +192,7 @@ function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
         cx = 0
     end
     push!(result, image)
-    push!(segs, WrapSeg(length(result), in_span, 0, 1))
+    push!(segs, WrapSegment(length(result), in_span, 0, 1))
     return cx + img_w
 end
 
@@ -204,12 +204,12 @@ function _make_image_newline(image::TextGraphics)
                 padding=image.padding)
 end
 
-function _flush!(result::Vector{TextDocument}, segs::Vector{WrapSeg},
+function _flush!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                  original::TextString, in_span::Int, sub_start::Int, buf::IOBuffer)
     s = String(take!(buf))
     isempty(s) && return
     push!(result, _make_span(original, s))
-    push!(segs, WrapSeg(length(result), in_span, sub_start, length(s)))
+    push!(segs, WrapSegment(length(result), in_span, sub_start, length(s)))
 end
 
 function _make_span(original::TextString, content::String)
@@ -263,7 +263,7 @@ function _forward_map(segs, in_block, out_block, sel)
     loc = text_flat_to_elem(in_block, flat)
     # A caret inside a `TextLine` has no flat top-level span mapping — `_wrap` passes
     # `TextLine` elements through unchanged (it reflows only top-level spans), so they
-    # carry no `WrapSeg`. The line is identical in the output, so such a caret maps to
+    # carry no `WrapSegment`. The line is identical in the output, so such a caret maps to
     # itself; returning `sel` keeps the cursor visible over a line-structured block.
     loc === nothing && return sel
     in_span, in_char = loc
@@ -289,7 +289,7 @@ function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, refer
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
     loc = text_flat_to_elem(iomap.output, flat)
-    # A caret over a `TextLine` (passed through unchanged, so no `WrapSeg` and no
+    # A caret over a `TextLine` (passed through unchanged, so no `WrapSegment` and no
     # flat top-level span) maps backward to itself — the mirror of the forward map.
     loc === nothing && return reference
     out_span, out_char = loc

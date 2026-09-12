@@ -99,7 +99,7 @@ end
 """
 A binary operation. `operator` is one of `:+`, `:-`, `:*`, `:/`, `:(==)`, etc.
 """
-@document struct JuliaBinaryOp <: JuliaDocument
+@document struct JuliaBinaryOperation <: JuliaDocument
     operator::Symbol
     left::Document
     right::Document
@@ -108,7 +108,7 @@ end
 """
 A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 """
-@document struct JuliaUnaryOp <: JuliaDocument
+@document struct JuliaUnaryOperation <: JuliaDocument
     operator::Symbol
     operand::Document
 end
@@ -311,14 +311,14 @@ A module definition `module Name … end`; `bare` distinguishes `baremodule`.
 A module is the unit a `.jl` file *is*, which is why it is modeled: a document
 that projects to a complete, loadable file has to be able to say `module`.
 """
-@document struct JuliaModuleDef <: JuliaDocument
+@document struct JuliaModuleDefinition <: JuliaDocument
     name::String
     body::Document
     bare::Bool = false
 end
 
 """
-A subtype expression `lhs <: rhs`. Distinct from `JuliaBinaryOp`
+A subtype expression `lhs <: rhs`. Distinct from `JuliaBinaryOperation`
 because `<:` is not a runtime operator — the parser emits it as
 `Expr(:<:, lhs, rhs)` and it appears in type headers, not in
 arithmetic. Keeping a dedicated document type lets the printer style
@@ -417,7 +417,7 @@ end
 """
 A splatted argument — `f(xs...)`, `(a, b...)`. `value` is what is
 splatted; the `...` is postfix, which is why this is a node of its own
-rather than a `JuliaUnaryOp`.
+rather than a `JuliaUnaryOperation`.
 """
 @document struct JuliaSplat <: JuliaDocument
     value::Document

@@ -59,12 +59,12 @@ import ..FsmModule: FsmComponent, FsmMachine, FsmState, FsmTransition,
                     FsmVariable, FsmTimer, FsmEvent,
                     machine_states, machine_transitions
 import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
-                      JuliaString, JuliaNothing, JuliaCall, JuliaBinaryOp,
+                      JuliaString, JuliaNothing, JuliaCall, JuliaBinaryOperation,
                       JuliaAssignment, JuliaBlock, JuliaIf, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaConst, JuliaUsing,
                       JuliaStruct, JuliaSubtype, JuliaFunction, JuliaTuple,
-                      JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDef,
-                      JuliaUnaryOp
+                      JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDefinition,
+                      JuliaUnaryOperation
 import ..NaturalNotationModule: print_natural_text
 
 export generate_component, generate_component_text, export_component,
@@ -235,16 +235,16 @@ function _transition_condition(machine::FsmMachine, transition::FsmTransition,
     trigger = transition.trigger
     guard = transition.guard
     trigger_test = if trigger isa FsmEvent
-        JuliaBinaryOp(:(==), _id("event"), _id(event_constant_name(trigger)))
+        JuliaBinaryOperation(:(==), _id("event"), _id(event_constant_name(trigger)))
     elseif trigger isa FsmTimer
-        JuliaBinaryOp(:(==), _id("event"), _id("T_" * _upper(trigger.name)))
+        JuliaBinaryOperation(:(==), _id("event"), _id("T_" * _upper(trigger.name)))
     else
         nothing
     end
     trigger_test === nothing && guard === nothing && return JuliaBool(true)
     trigger_test === nothing && return guard
     guard === nothing && return trigger_test
-    JuliaBinaryOp(:&&, trigger_test, guard)
+    JuliaBinaryOperation(:&&, trigger_test, guard)
 end
 
 # What one transition does when it fires. Order is the contract: the action
@@ -285,7 +285,7 @@ function _state_branch(component::FsmComponent, machine::FsmMachine, state::FsmS
         condition = _transition_condition(machine, transition, component)
         # An event transition cannot fire on a re-evaluation pass.
         if transition.trigger !== nothing
-            condition = JuliaBinaryOp(:&&, _id("_is_event"), condition)
+            condition = JuliaBinaryOperation(:&&, _id("_is_event"), condition)
         end
         body = _transition_body(machine, state, transition, get(flat_index, transition, 0))
         branch = JuliaIf(condition, body, branch === nothing ? JuliaBlock(JuliaDocument[]) : _block(branch))
@@ -311,7 +311,7 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
     # The state dispatch inside the cascade loop.
     state_branch = nothing
     for state in reverse(machine_states(machine))
-        condition = JuliaBinaryOp(:(==), _call("fsm_state", fsm),
+        condition = JuliaBinaryOperation(:(==), _call("fsm_state", fsm),
                                   _id(state_constant_name(machine, state)))
         body = _state_branch(component, machine, state, flat_index)
         state_branch = JuliaIf(condition, _block(body),
@@ -323,7 +323,7 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
         JuliaAssignment(_id("_from"), _call("fsm_state", fsm)),
         state_branch === nothing ? JuliaBlock(JuliaDocument[]) : state_branch,
         # Nothing fired: the machine has settled.
-        JuliaIf(JuliaUnaryOp(:!, _id("_fired")),
+        JuliaIf(JuliaUnaryOperation(:!, _id("_fired")),
                 JuliaBlock(JuliaDocument[JuliaBreak()]), JuliaBlock(JuliaDocument[])),
         # Something fired, so the event (if any) is now spent: from here on
         # only condition transitions are candidates, and they go round again —
@@ -331,16 +331,16 @@ function dispatch_function(component::FsmComponent, machine::FsmMachine)
         # enable one on this state.
         JuliaAssignment(_id("_consumed"), JuliaBool(true)),
         JuliaAssignment(_id("_is_event"), JuliaBool(false)),
-        JuliaAssignment(_id("_steps"), JuliaBinaryOp(:+, _id("_steps"), JuliaInteger(1))),
-        JuliaIf(JuliaBinaryOp(:(>), _id("_steps"), _id("FSM_CASCADE_LIMIT")),
+        JuliaAssignment(_id("_steps"), JuliaBinaryOperation(:+, _id("_steps"), JuliaInteger(1))),
+        JuliaIf(JuliaBinaryOperation(:(>), _id("_steps"), _id("FSM_CASCADE_LIMIT")),
                 JuliaBlock(JuliaDocument[_call("fsm_cascade_error", fsm)]),
                 JuliaBlock(JuliaDocument[])),
     ])
 
     statements = JuliaDocument[
         _call("fsm_enter!", fsm),
-        JuliaAssignment(_id("_is_event"), JuliaBinaryOp(:(!=), _id("event"), _int32(0))),
-        JuliaAssignment(_id("_consumed"), JuliaUnaryOp(:!, _id("_is_event"))),
+        JuliaAssignment(_id("_is_event"), JuliaBinaryOperation(:(!=), _id("event"), _int32(0))),
+        JuliaAssignment(_id("_consumed"), JuliaUnaryOperation(:!, _id("_is_event"))),
         JuliaAssignment(_id("_steps"), JuliaInteger(0)),
         JuliaWhile(JuliaBool(true), loop_body),
         _call("fsm_leave!", fsm),
@@ -450,7 +450,7 @@ function generate_component(component::FsmComponent; wrap_module::Bool = true)
         push!(statements, helper)
     end
     body = JuliaBlock(statements)
-    wrap_module ? JuliaModuleDef(module_name(component), body) : body
+    wrap_module ? JuliaModuleDefinition(module_name(component), body) : body
 end
 
 """

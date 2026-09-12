@@ -11,11 +11,11 @@ function make_formula_document_example()
     # identity) rather than plain identifiers, so renaming A1/B1 updates the
     # rendered body and so evaluation binds the live values.
     a2 = FormulaFormula("A2",
-        JuliaBinaryOp(:+, FormulaReference(a1), FormulaReference(b1));
+        JuliaBinaryOperation(:+, FormulaReference(a1), FormulaReference(b1));
         display_mode=:both)
 
     tax = FormulaFormula("tax",
-        JuliaBinaryOp(:*, FormulaReference(a2), JuliaInteger(2));
+        JuliaBinaryOperation(:*, FormulaReference(a2), JuliaInteger(2));
         display_mode=:both)
 
     env = FormulaEnvironment([a1, b1, a2, tax])

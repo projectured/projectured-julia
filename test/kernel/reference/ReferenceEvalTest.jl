@@ -11,13 +11,13 @@ using ProjecturedKernel.DocumentModule: @document, Document
 # tests below need the untyped nodes it produces, not a hand-built stand-in.
 using ProjecturedKernel.OperationModule: reroot_reference
 
-@document struct EvalLeaf
+@document struct EvaluationLeaf
     value::Int
 end
 
-@document struct EvalBranch
-    left::EvalLeaf
-    right::EvalLeaf
+@document struct EvaluationBranch
+    left::EvaluationLeaf
+    right::EvaluationLeaf
 end
 
 struct EA end
@@ -27,7 +27,7 @@ struct EC end
 function test_reference_eval()
 @testset "ReferenceEval" begin
 
-    root = EvalBranch(EvalLeaf(10, nothing), EvalLeaf(20, nothing), nothing)
+    root = EvaluationBranch(EvaluationLeaf(10, nothing), EvaluationLeaf(20, nothing), nothing)
 
     @testset "evaluate_reference walks fields" begin
         # empty path resolves to the root document
@@ -61,10 +61,10 @@ function test_reference_eval()
         # and once knowing what it stands on.
         skeleton  = strip_reference_types(@reference ::EA.left::EB.value::EC)
         annotated = annotate_reference_types(root, skeleton)
-        @test annotated.type === EvalBranch
+        @test annotated.type === EvaluationBranch
 
         right(p) = @reference_case p begin
-            ::EvalBranch.left.value => :hit
+            ::EvaluationBranch.left.value => :hit
             __                      => :miss
         end
         wrong(p) = @reference_case p begin
@@ -78,7 +78,7 @@ function test_reference_eval()
         # A narrowed-away arm must not swallow the input: the next arm gets its say.
         two_arms(p) = @reference_case p begin
             ::EA.left.value         => :wrong_arm
-            ::EvalBranch.left.value => :right_arm
+            ::EvaluationBranch.left.value => :right_arm
             __                      => :miss
         end
 
@@ -93,7 +93,7 @@ function test_reference_eval()
         # has to be longer than the path.
         short     = annotate_reference_types(root, strip_reference_types(@reference ::EA.left::EB))
         above_right(p) = @reference_case p begin
-            above(::EvalBranch.left.value) => :hit
+            above(::EvaluationBranch.left.value) => :hit
             __                             => :miss
         end
         above_wrong(p) = @reference_case p begin
@@ -106,7 +106,7 @@ function test_reference_eval()
         end
         above_two_arms(p) = @reference_case p begin
             above(::EA.left.value)         => :wrong_arm
-            above(::EvalBranch.left.value) => :right_arm
+            above(::EvaluationBranch.left.value) => :right_arm
             __                             => :miss
         end
 
@@ -144,7 +144,7 @@ function test_reference_eval()
             __                        => :miss
         end
         mid_right(p) = @reference_case p begin
-            ::EA.outer::EvalBranch.left.value => :hit
+            ::EA.outer::EvaluationBranch.left.value => :hit
             __                                => :miss
         end
         @test mid_wrong(rerooted) === :miss
@@ -153,10 +153,10 @@ function test_reference_eval()
 
     @testset "∅::T narrows a whole-element selection" begin
         typed = annotate_reference_types(root, EmptyReference())
-        @test typed.type === EvalBranch
+        @test typed.type === EvaluationBranch
 
         m(p) = @reference_case p begin
-            ∅::EvalBranch => :branch
+            ∅::EvaluationBranch => :branch
             ∅::EA         => :ea
             ∅             => :untyped
             __            => :miss
@@ -215,7 +215,7 @@ function test_reference_eval()
         # `Document` takes either layout. The node under test here is the root.
         native = MEvalBranch(root.left, root.right, nothing)
         @test get_reference_node_type(native) === get_reference_node_type(root)
-        @test get_reference_node_type(native) === EvalBranch
+        @test get_reference_node_type(native) === EvaluationBranch
 
         skeleton = strip_reference_types(@reference ::EA.left::EB)
         @test annotate_reference_types(native, skeleton) ==
@@ -224,7 +224,7 @@ function test_reference_eval()
         # The token is still the bare name a pattern is written with, so a path
         # annotated on the native tree matches and evaluates on the cell tree.
         annotated = annotate_reference_types(native, skeleton)
-        @test annotated.type === EvalBranch
+        @test annotated.type === EvaluationBranch
         @test evaluate_reference(root, strip_reference_types(annotated)) === root.left
     end
 

@@ -20,7 +20,7 @@ import ..ProjectionModule: var"@projection"
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
                       JuliaNothing, JuliaSymbol, JuliaChar,
-                      JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaMacroCall, JuliaTernary,
+                      JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaTernary,
                       JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
                       JuliaTypeAnnotation,
                       JuliaAssignment, JuliaConst, JuliaDocstring,
@@ -28,7 +28,7 @@ import ..JuliaModule: JuliaDocument,
                       JuliaAnonymousTypeAnnotation, JuliaEmpty,
                       JuliaFor, JuliaForIterator, JuliaWhile,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef,
+                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition,
                       JuliaInsertion,
                       JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
                       JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
@@ -49,7 +49,7 @@ import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marke
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
-       JuliaBinaryOpToSyntaxNode, JuliaUnaryOpToSyntaxNode, JuliaCallToSyntaxNode,
+       JuliaBinaryOperationToSyntaxNode, JuliaUnaryOperationToSyntaxNode, JuliaCallToSyntaxNode,
        JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode, JuliaDocstringToSyntaxNode,
        JuliaAbstractTypeToSyntaxNode, JuliaStructToSyntaxNode,
        JuliaSubtypeToSyntaxNode, JuliaCurlyToSyntaxNode,
@@ -62,7 +62,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
        JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
        JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
-       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefToSyntaxNode,
+       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefinitionToSyntaxNode,
        JuliaSplatToSyntaxNode, JuliaBroadcastToSyntaxNode,
        JuliaStringInterpolationToSyntaxNode, JuliaWhereToSyntaxNode,
        JuliaComprehensionToSyntaxNode, JuliaDoToSyntaxNode, JuliaLetToSyntaxNode,
@@ -180,7 +180,7 @@ _julia_precedence(op::Symbol) =
 _julia_right_associative(op::Symbol) = op === :&& || op === :||
 
 _julia_operand_parens(operand, outer::Symbol, on_right::Bool) = begin
-    operand isa JuliaBinaryOp || return false
+    operand isa JuliaBinaryOperation || return false
     inner = _julia_precedence(operand.operator)
     outer_precedence = _julia_precedence(outer)
     tight = _julia_right_associative(outer) ? !on_right : on_right
@@ -192,13 +192,13 @@ _julia_parenthesize(marker, style) =
                open = TextString("(", style.font, color_solarized_gray),
                close = TextString(")", style.font, color_solarized_gray))
 
-# ── JuliaBinaryOpToSyntaxNode ───────────────────────────────────────────────
+# ── JuliaBinaryOperationToSyntaxNode ───────────────────────────────────────────────
 
-@projection struct JuliaBinaryOpToSyntaxNode
+@projection struct JuliaBinaryOperationToSyntaxNode
     op::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-@projection_template JuliaBinaryOpToSyntaxNode JuliaBinaryOp (p, m) ->
+@projection_template JuliaBinaryOperationToSyntaxNode JuliaBinaryOperation (p, m) ->
     SyntaxConcatenation(() -> begin
         operator = m.operator
         left  = _julia_operand_parens(m.left,  operator, false) ?
@@ -212,17 +212,17 @@ end
           right ]
     end)
 
-# ── JuliaUnaryOpToSyntaxNode ────────────────────────────────────────────────
+# ── JuliaUnaryOperationToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct JuliaUnaryOpToSyntaxNode
+@projection struct JuliaUnaryOperationToSyntaxNode
     op::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
 # A unary operator binds tighter than every binary one, so a binary operand is
 # always parenthesized.
-@projection_template JuliaUnaryOpToSyntaxNode JuliaUnaryOp (p, u) ->
+@projection_template JuliaUnaryOperationToSyntaxNode JuliaUnaryOperation (p, u) ->
     SyntaxConcatenation(() -> begin
-        operand = u.operand isa JuliaBinaryOp ?
+        operand = u.operand isa JuliaBinaryOperation ?
                   _julia_parenthesize(project(:operand), p.op) : project(:operand)
         [ SyntaxLeaf(TextString(() -> _julia_operator_string(u.operator), p.op)), operand ]
     end)
@@ -329,19 +329,19 @@ end
         SyntaxLeaf(TextString("end", p.keyword_style)),
     ])
 
-# ── JuliaModuleDefToSyntaxNode ─────────────────────────────────────────────
+# ── JuliaModuleDefinitionToSyntaxNode ─────────────────────────────────────────────
 #
 # The body is a `JuliaBlock`, so it indents and supplies its own surrounding
 # newlines — the same shape `JuliaStructToSyntaxNode` relies on, and the reason
 # neither node writes a newline before `end`.
 
-@projection struct JuliaModuleDefToSyntaxNode
+@projection struct JuliaModuleDefinitionToSyntaxNode
     keyword_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
     name_style::ImmutableCell{StyleText}    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
     sep_style::ImmutableCell{StyleText}     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-@projection_template JuliaModuleDefToSyntaxNode JuliaModuleDef (p, m) ->
+@projection_template JuliaModuleDefinitionToSyntaxNode JuliaModuleDefinition (p, m) ->
     SyntaxConcatenation([
         SyntaxLeaf(TextString(() -> m.bare ? "baremodule " : "module ", p.keyword_style)),
         SyntaxLeaf(bound(:name, String,
@@ -906,8 +906,8 @@ function JuliaToSyntax()
         JuliaNothing         => JuliaNothingToSyntaxLeaf(),
         JuliaSymbol          => JuliaSymbolToSyntaxLeaf(),
         JuliaChar            => JuliaCharToSyntaxLeaf(),
-        JuliaBinaryOp        => JuliaBinaryOpToSyntaxNode(),
-        JuliaUnaryOp         => JuliaUnaryOpToSyntaxNode(),
+        JuliaBinaryOperation        => JuliaBinaryOperationToSyntaxNode(),
+        JuliaUnaryOperation         => JuliaUnaryOperationToSyntaxNode(),
         JuliaCall            => JuliaCallToSyntaxNode(),
         JuliaSplat           => JuliaSplatToSyntaxNode(),
         JuliaBroadcast       => JuliaBroadcastToSyntaxNode(),
@@ -950,7 +950,7 @@ function JuliaToSyntax()
         JuliaFunctionDeclaration => JuliaFunctionDeclarationToSyntaxNode(),
         JuliaWhereParameters => JuliaWhereParametersToSyntaxNode(),
         JuliaUsing           => JuliaUsingToSyntaxNode(),
-        JuliaModuleDef       => JuliaModuleDefToSyntaxNode(),
+        JuliaModuleDefinition       => JuliaModuleDefinitionToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
         # A cross-file reference — either as a load-produced stub or
         # as an embedded FileDocument child — renders as a

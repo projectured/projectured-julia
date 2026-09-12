@@ -44,7 +44,7 @@ import ..IoMapModule: IoMap, var"@iomap"
 export TextToGraphics, TextToGraphicsIoMap
 
 """
-    SegCoord(span_path, char_start, char_end, x, y, font, text, width, height)
+    SegmentCoordinate(span_path, char_start, char_end, x, y, font, text, width, height)
 
 One entry per emitted text segment. `span_path` is the segment's span as an index
 path into the input `TextBlock` (a `SpanPath`): `[i]` for a top-level span, `[i, j]`
@@ -56,7 +56,7 @@ pixel box; for an inline image span (`TextGraphics` — empty `text`, range
 left/right halves, the cursor sits at `x + width`, and the clickable y-band
 covers the whole image.
 """
-struct SegCoord
+struct SegmentCoordinate
     span_path::SpanPath
     char_start::Int
     char_end::Int
@@ -71,14 +71,14 @@ end
 """
     TextToGraphicsIoMap
 
-IoMap for `TextToGraphics`. `char_to_coord` holds one `SegCoord` per emitted
+IoMap for `TextToGraphics`. `char_to_coord` holds one `SegmentCoordinate` per emitted
 text segment with character range, pixel position, font, and text.
 """
 @iomap struct TextToGraphicsIoMap
     projection::Any
     input::TextBlock
     output::GraphicsCanvas
-    char_to_coord::Cell  # Cell{Vector{SegCoord}}
+    char_to_coord::Cell  # Cell{Vector{SegmentCoordinate}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
 end
 
@@ -209,10 +209,10 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
             current_y = cur_sc.y
             target_segs = if k === :up
                 ys = [sc.y for sc in coord_map if sc.y < current_y]
-                isempty(ys) ? SegCoord[] : filter(sc -> sc.y == maximum(ys), coord_map)
+                isempty(ys) ? SegmentCoordinate[] : filter(sc -> sc.y == maximum(ys), coord_map)
             else
                 ys = [sc.y for sc in coord_map if sc.y > current_y]
-                isempty(ys) ? SegCoord[] : filter(sc -> sc.y == minimum(ys), coord_map)
+                isempty(ys) ? SegmentCoordinate[] : filter(sc -> sc.y == minimum(ys), coord_map)
             end
             isempty(target_segs) && return nothing
             best_sc   = target_segs[1]
@@ -413,13 +413,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
     # and key-navigation see exactly the same SegCoords as before.
     char_to_coord = ComputedCell(function ()
-        out = SegCoord[]
+        out = SegmentCoordinate[]
         n = length(lines_cell[])
         for L in 1:n
             lc = get_line_cells(L)
             ly = Int(lc.y[])
             for sc in lc.layout[].coord_map
-                push!(out, SegCoord(sc.span_path, sc.char_start, sc.char_end,
+                push!(out, SegmentCoordinate(sc.span_path, sc.char_start, sc.char_end,
                                     sc.x, sc.y + ly, sc.font, sc.text, sc.width, sc.height))
             end
         end
@@ -530,7 +530,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
     occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
                                # span (one TextString at several flat positions)
                                # gets a distinct stable key per occurrence.
-    coord_map = SegCoord[]
+    coord_map = SegmentCoordinate[]
     cursor = nothing
     cx = p.start_x + _indent_width(p, group, block_font)
     cy = y0
@@ -544,8 +544,8 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             # Embed the span: a raster GraphicsImage for an image document, or a
             # live nested canvas for a pre-projected GraphicsCanvas (widget etc.).
             collect_spans && push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
-            # Record a SegCoord for hit-testing: atomic position (0..1)
-            push!(coord_map, SegCoord(path, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
+            # Record a SegmentCoordinate for hit-testing: atomic position (0..1)
+            push!(coord_map, SegmentCoordinate(path, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
             line_h = max(line_h, img_h)
             if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path
                 # The caret sits before or after the image, never inside it.
@@ -600,7 +600,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
                 push!(result, tpl)
                 by_key[tpl.key] = tpl
             end
-            push!(coord_map, SegCoord(path, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
+            push!(coord_map, SegmentCoordinate(path, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
             if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path &&
                seg_char_start <= cursor_pos.char <= seg_char_start + seg_len
                 local_pos = cursor_pos.char - seg_char_start
@@ -637,7 +637,7 @@ end
 # into the block at wrap points and the box space must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
     cursor_pos = _flat_cursor_coord(styled, sel)
-    coord_map = SegCoord[]
+    coord_map = SegmentCoordinate[]
     span_flat_offsets = Dict{SpanPath,Int}()
     cursor = nothing
     y = p.start_y
@@ -788,7 +788,7 @@ function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, Cell(SegCoord[]), Cell(0))
+    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0))
 end
 
 """
@@ -966,7 +966,7 @@ end
 
 # ── Reader helpers ──────────────────────────────────────────────────────
 
-function _seg_cursor_x(sc::SegCoord, cursor_pos::Int, measure::Function)
+function _seg_cursor_x(sc::SegmentCoordinate, cursor_pos::Int, measure::Function)
     local_pos = cursor_pos - sc.char_start
     local_pos <= 0 && return sc.x
     # Image segment: char_end=1 means "after the image" → right edge at x+width.
@@ -975,7 +975,7 @@ function _seg_cursor_x(sc::SegCoord, cursor_pos::Int, measure::Function)
     sc.x + measure(prefix, sc.font)[1]
 end
 
-function _char_position_at_x(sc::SegCoord, target_x::Int, measure::Function)
+function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::Function)
     txt = sc.text
     # Image segment: binary left/right half decision about the image box.
     if isempty(txt) && sc.char_start == 0 && sc.char_end == 1
@@ -1004,7 +1004,7 @@ end
 #   ElementReferenceStep(i)   — 1-based index of the graphics element that was hit
 #   PointReferenceStep(rx,…) — pixel offset within that element
 #
-# We look up the matching SegCoord in char_to_coord, convert the pixel
+# We look up the matching SegmentCoordinate in char_to_coord, convert the pixel
 # x-offset to a character position using _char_position_at_x, and return
 # a fresh ReplaceSelectionOperation on the flat PositionReferenceStep domain.
 function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
@@ -1034,8 +1034,8 @@ end
 #   on a y-band that contains the click, pick the segment with the largest
 #   x ≤ click_x (i.e. the rightmost left-edge that still sits to the left
 #   of the click). If no band matches y, snap to the nearest line by y.
-function _hit_segment(coord_map::Vector{SegCoord}, x::Int, y::Int)
-    on_band = SegCoord[]
+function _hit_segment(coord_map::Vector{SegmentCoordinate}, x::Int, y::Int)
+    on_band = SegmentCoordinate[]
     for sc in coord_map
         fs = _seg_band_height(sc)
         if y >= sc.y && y < sc.y + fs
@@ -1093,7 +1093,7 @@ selection. Recognized shapes:
 - `ConcreteReference(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
-function _highlight_char_range(sel, coord_map::Vector{SegCoord})
+function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
     # The selection is canonical at rest: skip its non-navigating TypeReferenceStep
     # checkpoints before reading the box structure underneath.
     sel = sel
@@ -1121,7 +1121,7 @@ end
 # level. A partly-highlighted content segment keeps only its highlighted substring
 # for the whitespace test, so a content run whose *highlighted* part is blank is
 # skipped too (rare, but correct at a range boundary).
-function _hl_piece_blank(sc::SegCoord, s::Int, e::Int)
+function _hl_piece_blank(sc::SegmentCoordinate, s::Int, e::Int)
     e <= s && return true
     t = sc.text
     lo = s - sc.char_start           # 0-based char offset into sc.text
@@ -1148,7 +1148,7 @@ the last line ends at the node's last char — never the empty box a single boun
 rect painted to the right of the `{`/`}` lines. Rows are returned top-to-bottom; the
 caller paints each as a persistent highlight rect (light blue, ~25% alpha, rounded).
 """
-function _compute_span_rows(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_span_rows(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
     rows = Dict{Int,NTuple{4,Int}}()   # row y => (x_left, x_right, y_top, y_bot)
     order = Int[]                      # rows in first-seen order (deduped to sort)
     for sc in coord_map
@@ -1200,7 +1200,7 @@ the live overlay. `_layout_overlay` today paints the single `_compute_span_geo`
 bounding rect; generalising it to a per-row rect vector (the same render path a
 multi-line stream highlight needs) is the remaining wiring.
 """
-function _compute_column_geo(coord_map::Vector{SegCoord}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_column_geo(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
     # Resolve a flat offset to its (x, y_top, y_bottom) via the segment it falls in.
     function _col(off)
         for sc in coord_map
@@ -1282,21 +1282,21 @@ function _graphics_span_element(span::TextGraphics, x::Integer, y::Integer, w::I
 end
 
 """
-    _is_image_seg(sc::SegCoord) -> Bool
+    _is_image_seg(sc::SegmentCoordinate) -> Bool
 
-Returns true when the `SegCoord` represents an inline image (TextGraphics)
+Returns true when the `SegmentCoordinate` represents an inline image (TextGraphics)
 rather than a text segment. Image segments have empty text and span [0,1).
 """
-_is_image_seg(sc::SegCoord) = isempty(sc.text) && sc.char_start == 0 && sc.char_end == 1
+_is_image_seg(sc::SegmentCoordinate) = isempty(sc.text) && sc.char_start == 0 && sc.char_end == 1
 
 """
-    _seg_band_height(sc::SegCoord) -> Int
+    _seg_band_height(sc::SegmentCoordinate) -> Int
 
 Vertical extent of a segment's clickable y-band. Text segments use the
 logical font size; an inline image extends its band over the whole image
 height so a click anywhere on a tall image still lands on it.
 """
-_seg_band_height(sc::SegCoord) =
+_seg_band_height(sc::SegmentCoordinate) =
     _is_image_seg(sc) ? max(font_logical_size(sc.font), sc.height) :
                         font_logical_size(sc.font)
 

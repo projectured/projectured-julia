@@ -12,7 +12,7 @@ make_julia_nothing_document_example()    = JuliaNothing()
 make_julia_insertion_document_example()  = JuliaInsertion()
 
 # Minimal non-empty compound (node) documents — one child each, for the catalog.
-make_julia_binary_op_document_example()  = JuliaBinaryOp(:+, JuliaIdentifier("a"), JuliaIdentifier("b"))
+make_julia_binary_op_document_example()  = JuliaBinaryOperation(:+, JuliaIdentifier("a"), JuliaIdentifier("b"))
 make_julia_call_document_example()       = JuliaCall(JuliaIdentifier("f"), [JuliaIdentifier("x")])
 make_julia_assignment_document_example() = JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1))
 make_julia_block_document_example()      = JuliaBlock([JuliaInteger(1)])
@@ -31,7 +31,7 @@ make_julia_ternary_document_example()    = JuliaTernary(JuliaBool(true), JuliaIn
 make_julia_try_document_example()        = JuliaTry(JuliaBlock([JuliaInteger(1)]), nothing, JuliaBlock([JuliaInteger(2)]), nothing)
 make_julia_tuple_document_example()      = JuliaTuple([JuliaInteger(1)])
 make_julia_type_annotation_document_example() = JuliaTypeAnnotation(JuliaIdentifier("x"), JuliaIdentifier("Int"))
-make_julia_unary_op_document_example()   = JuliaUnaryOp(:-, JuliaIdentifier("x"))
+make_julia_unary_op_document_example()   = JuliaUnaryOperation(:-, JuliaIdentifier("x"))
 make_julia_using_document_example()      = JuliaUsing(:using, "Base")
 make_julia_while_document_example()      = JuliaWhile(JuliaBool(true), JuliaBlock([JuliaInteger(1)]))
 make_julia_abstract_type_document_example() = JuliaAbstractType(JuliaIdentifier("Shape"))
@@ -47,7 +47,7 @@ make_julia_function_declaration_document_example() = JuliaFunctionDeclaration(Ju
 make_julia_interpolation_document_example() = JuliaInterpolation(JuliaIdentifier("x"))
 make_julia_let_document_example()        = JuliaLet([JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1))], JuliaBlock([JuliaIdentifier("x")]))
 make_julia_macro_call_document_example() = JuliaMacroCall("@show", [JuliaIdentifier("x")])
-make_julia_module_def_document_example() = JuliaModuleDef("M", JuliaBlock([JuliaInteger(1)]))
+make_julia_module_def_document_example() = JuliaModuleDefinition("M", JuliaBlock([JuliaInteger(1)]))
 make_julia_named_tuple_document_example() = JuliaNamedTuple([JuliaAssignment(JuliaIdentifier("a"), JuliaInteger(1))])
 make_julia_splat_document_example()      = JuliaSplat(JuliaIdentifier("xs"))
 make_julia_string_chunk_document_example() = JuliaStringChunk("hello")
@@ -70,10 +70,10 @@ function make_julia_document_example()
         [JuliaIdentifier("n")],
         JuliaBlock([
             JuliaIf(
-                JuliaBinaryOp(:(==), JuliaIdentifier("n"), JuliaInteger(0)),
+                JuliaBinaryOperation(:(==), JuliaIdentifier("n"), JuliaInteger(0)),
                 JuliaBlock([JuliaInteger(1)]),
                 JuliaBlock([
-                    JuliaBinaryOp(:*, JuliaIdentifier("n"),
+                    JuliaBinaryOperation(:*, JuliaIdentifier("n"),
                         JuliaCall(JuliaIdentifier("factorial"), [
-                            JuliaBinaryOp(:-, JuliaIdentifier("n"), JuliaInteger(1))]))]))]))
+                            JuliaBinaryOperation(:-, JuliaIdentifier("n"), JuliaInteger(1))]))]))]))
 end

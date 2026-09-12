@@ -5,21 +5,21 @@ export WebBackend, web_key_to_symbol
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    WebConn
+    WebConnection
 
 The single live WebSocket connection. `outbox` is an in-order FIFO of JSON
 messages drained by the send task. Patches are order-sensitive, so the queue is
 never coalesced; when it nears capacity the backend falls back to a full resend
 (`force_full`) instead of dropping a patch.
 """
-mutable struct WebConn
+mutable struct WebConnection
     ws::Any
     outbox::Channel{String}
     cap::Int
     sendtask::Union{Task,Nothing}
 end
 
-WebConn(ws; cap::Int=512) = WebConn(ws, Channel{String}(cap), cap, nothing)
+WebConnection(ws; cap::Int=512) = WebConnection(ws, Channel{String}(cap), cap, nothing)
 
 """
     WebWindowState
@@ -49,7 +49,7 @@ mutable struct WebBackend <: Backend
     fontdir::String
     server::Any
     inbound::Channel{Any}                 # decoded EventEnvelopes from the client
-    conn::Union{WebConn,Nothing}          # the one live connection
+    conn::Union{WebConnection,Nothing}          # the one live connection
     windows::Dict{Symbol,WebWindowState}  # per-window incremental state
     last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
     force_full::Bool                      # send every window in full on the next frame
@@ -644,7 +644,7 @@ function _serve_static(backend::WebBackend, http)
 end
 
 # Drain queued messages to the socket in order until the connection closes.
-function _send_loop(conn::WebConn)
+function _send_loop(conn::WebConnection)
     for msg in conn.outbox
         try
             HTTP.WebSockets.isclosed(conn.ws) && break
@@ -660,7 +660,7 @@ end
 # first. On overflow we likewise drain and arm a forced resend next frame — the
 # imminent snapshot makes the dropped patches obsolete, so nothing is lost. A
 # normal incremental message is only appended, never dropping a queued patch.
-function _enqueue!(backend::WebBackend, conn::WebConn, msg::String, snapshot::Bool)
+function _enqueue!(backend::WebBackend, conn::WebConnection, msg::String, snapshot::Bool)
     overflow = Base.n_avail(conn.outbox) >= conn.cap - 1
     if snapshot || overflow
         while isready(conn.outbox)
@@ -687,7 +687,7 @@ function _handle_ws(backend::WebBackend, ws)
         try; HTTP.WebSockets.send(ws, JSON3.write(Dict("type" => "busy"))); catch; end
         return
     end
-    conn = WebConn(ws)
+    conn = WebConnection(ws)
     backend.conn = conn
     _reset_for_full!(backend)
     conn.sendtask = @async _send_loop(conn)

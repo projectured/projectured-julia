@@ -32,8 +32,8 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
-                      JuliaString, JuliaBlock, JuliaArray, JuliaTuple, JuliaBinaryOp,
-                      JuliaUnaryOp, JuliaIndex, JuliaFieldAccess, JuliaRange,
+                      JuliaString, JuliaBlock, JuliaArray, JuliaTuple, JuliaBinaryOperation,
+                      JuliaUnaryOperation, JuliaIndex, JuliaFieldAccess, JuliaRange,
                       JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator,
                       JuliaWhile, JuliaReturn, JuliaTry, JuliaBegin, JuliaIf,
                       JuliaFunction, JuliaLambda, JuliaTernary, JuliaConst,
@@ -132,8 +132,8 @@ end
 _substitute_markers(n::JuliaBlock, ctx::LoaderContext)          = _substitute_children!(n, ctx, (),                       (:statements,))
 _substitute_markers(n::JuliaArray, ctx::LoaderContext)          = _substitute_children!(n, ctx, (),                       (:elements,))
 _substitute_markers(n::JuliaTuple, ctx::LoaderContext)          = _substitute_children!(n, ctx, (),                       (:elements,))
-_substitute_markers(n::JuliaBinaryOp, ctx::LoaderContext)       = _substitute_children!(n, ctx, (:left, :right),          ())
-_substitute_markers(n::JuliaUnaryOp, ctx::LoaderContext)        = _substitute_children!(n, ctx, (:operand,),              ())
+_substitute_markers(n::JuliaBinaryOperation, ctx::LoaderContext)       = _substitute_children!(n, ctx, (:left, :right),          ())
+_substitute_markers(n::JuliaUnaryOperation, ctx::LoaderContext)        = _substitute_children!(n, ctx, (:operand,),              ())
 _substitute_markers(n::JuliaTernary, ctx::LoaderContext)        = _substitute_children!(n, ctx, (:condition, :then_branch, :else_branch), ())
 _substitute_markers(n::JuliaIndex, ctx::LoaderContext)          = _substitute_children!(n, ctx, (:collection,),           (:indices,))
 _substitute_markers(n::JuliaFieldAccess, ctx::LoaderContext)    = _substitute_children!(n, ctx, (:object, :field),        ())

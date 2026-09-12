@@ -354,7 +354,7 @@ end # @testset "TextToGraphics lays out TextLine blocks"
 _font = font_ubuntu_monospace_regular_20
 measure = (t, f) -> (length(t) * 10, 18)
 p = TextToGraphics(measure = measure)
-SC = TextToGraphicsModule.SegCoord
+SC = TextToGraphicsModule.SegmentCoordinate
 coord_map = [SC([1], 0, 6, 0,  0, _font, "abcdef", 60, 18),
              SC([3], 0, 6, 0, 20, _font, "ghijkl", 60, 18)]
 # Flat space: row 1 chars 0..6, an implicit break at 6, row 2 chars 7..13.
@@ -389,7 +389,7 @@ end # @testset "TextColumnReferenceStep column-box geometry"
 _font = font_ubuntu_monospace_regular_20
 measure = (t, f) -> (length(t) * 10, 18)
 p = TextToGraphics(measure = measure)
-SC = TextToGraphicsModule.SegCoord
+SC = TextToGraphicsModule.SegmentCoordinate
 fs = TextToGraphicsModule.font_logical_size(_font)
 #   row y=0 : "AB{"          flat 0..3   (node's first line, starts at x=0)
 #   break                    flat 3

@@ -12,7 +12,7 @@ layer the way `TextToGraphics` does.
 It is the structural twin of `TextHighlighting`: both split `TextString`s at
 boundaries and restyle the resulting sub-spans **without** inserting or removing
 any character, so the selection/reader mapping is a piecewise offset table
-(`SelSeg`, the same shape as `HighlightSeg`). The only differences are the
+(`SelectionSegment`, the same shape as `HighlightSegment`). The only differences are the
 *segmentation source* (the input's own selection range vs regex matches) and the
 *restyle* (swap colors vs set a fill swatch). A `nothing`/absent selection is a
 pass-through (identity).
@@ -37,7 +37,7 @@ import ..ReferenceModule: var"@reference"
 import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-export SelectionInverting, SelectionInvertingIoMap, SelSeg
+export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 
 # ── Projection struct ───────────────────────────────────────────────────────
 
@@ -75,14 +75,14 @@ SelectionInverting(; default_bg::StyleColor=color_solarized_background_dark,
 # ── Mapping table ───────────────────────────────────────────────────────────
 
 """
-    SelSeg(out_index, in_span, in_char_start, length)
+    SelectionSegment(out_index, in_span, in_char_start, length)
 
 One entry per emitted output `TextString` sub-span (identical in shape to
-`HighlightSeg`). `out_index` is its 1-based position in `output.elements`;
+`HighlightSegment`). `out_index` is its 1-based position in `output.elements`;
 `in_span` is the 1-based originating input span; `in_char_start` is the 0-based
 char offset of this sub-span within the input span; `length` is its char count.
 """
-struct SelSeg
+struct SelectionSegment
     out_index::Int
     in_span::Int
     in_char_start::Int
@@ -93,7 +93,7 @@ end
     projection::Any
     input::TextBlock
     output::TextBlock
-    segs::Cell  # Cell{Vector{SelSeg}}
+    segs::Cell  # Cell{Vector{SelectionSegment}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
@@ -107,11 +107,11 @@ function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
     SelectionInvertingIoMap(p, text, output, segs_cell)
 end
 
-# Returns (output_elements::Vector{TextDocument}, segs::Vector{SelSeg}).
+# Returns (output_elements::Vector{TextDocument}, segs::Vector{SelectionSegment}).
 # When there is no renderable selection every span is emitted unchanged
 # (identity); otherwise each span overlapping the selected flat range is split at
 # the boundaries and the in-range sub-spans are restyled to inverse video. No
-# character is inserted or removed, so `SelSeg` is a piecewise offset map.
+# character is inserted or removed, so `SelectionSegment` is a piecewise offset map.
 function _invert(p::SelectionInverting, text::TextBlock)
     sel = text_selection_flat(text)
     # Widen a zero-width caret to a one-char block so it is visible.
@@ -119,7 +119,7 @@ function _invert(p::SelectionInverting, text::TextBlock)
          (sel[3] && p.block_cursor) ? (sel[1], sel[1] + 1) : (sel[1], sel[2])
 
     result = TextDocument[]
-    segs = SelSeg[]
+    segs = SelectionSegment[]
     base = 0   # flat char offset of the current span's start
     for (in_span, elem) in enumerate(text.elements)
         if elem isa TextString
@@ -138,27 +138,27 @@ function _invert(p::SelectionInverting, text::TextBlock)
         end
         if last_span !== nothing
             push!(result, _invert_span(p, last_span, " "))
-            push!(segs, SelSeg(length(result), length(text.elements), base, 1))
+            push!(segs, SelectionSegment(length(result), length(text.elements), base, 1))
         end
     end
     (result, segs)
 end
 
 # Split one input TextString at the selection boundaries, appending output
-# sub-spans + SelSeg entries; restyle the in-range portion to inverse video.
+# sub-spans + SelectionSegment entries; restyle the in-range portion to inverse video.
 # Returns the flat offset after this span.
 function _invert_string!(p::SelectionInverting, result::Vector{TextDocument},
-                         segs::Vector{SelSeg}, original::TextString, in_span::Int,
+                         segs::Vector{SelectionSegment}, original::TextString, in_span::Int,
                          base::Int, hl)
     content = original.content::AbstractString
     L = length(content)
     emit_unchanged() = begin
         push!(result, original)
-        push!(segs, SelSeg(length(result), in_span, 0, L))
+        push!(segs, SelectionSegment(length(result), in_span, 0, L))
     end
     if L == 0
         push!(result, original)
-        push!(segs, SelSeg(length(result), in_span, 0, 0))
+        push!(segs, SelectionSegment(length(result), in_span, 0, 0))
         return base
     end
     if hl === nothing
@@ -179,7 +179,7 @@ function _invert_string!(p::SelectionInverting, result::Vector{TextDocument},
         span = inverted ? _invert_span(p, original, String(seg_chars)) :
                           _restyle_span(original, String(seg_chars))
         push!(result, span)
-        push!(segs, SelSeg(length(result), in_span, start0, len))
+        push!(segs, SelectionSegment(length(result), in_span, start0, len))
     end
     lo > 0   && emit(0, lo, false)            # leading unselected
     emit(lo, hi - lo, true)                   # selected → inverted

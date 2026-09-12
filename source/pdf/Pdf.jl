@@ -111,7 +111,7 @@ end
 # Page paint context
 # ════════════════════════════════════════════════════════════════════════
 
-mutable struct FontReg
+mutable struct FontRegistration
     resname::String                 # "F1"
     basefont::String                # sanitized name for /BaseFont
     ttf::TrueTypeFont
@@ -119,38 +119,38 @@ mutable struct FontReg
     gid_to_uni::Dict{UInt16,UInt32} # for ToUnicode
 end
 
-mutable struct PageCtx
+mutable struct PageContext
     page_height::Float64
     y0::Float64                     # global y of the current page's top (0 = single page)
     band_lo::Float64                # global y band of the current page, for culling
     band_hi::Float64
     buf::IOBuffer
-    fonts::Dict{String,FontReg}     # keyed by font filename (shared across sizes/pages)
+    fonts::Dict{String,FontRegistration}     # keyed by font filename (shared across sizes/pages)
     gstates::Dict{UInt8,String}     # alpha byte -> ExtGState resource name
     images::Vector{Any}
 end
 
-PageCtx(height) = PageCtx(Float64(height), 0.0, 0.0, Float64(height), IOBuffer(),
-                          Dict{String,FontReg}(), Dict{UInt8,String}(), Any[])
+PageContext(height) = PageContext(Float64(height), 0.0, 0.0, Float64(height), IOBuffer(),
+                          Dict{String,FontRegistration}(), Dict{UInt8,String}(), Any[])
 
 # Flip a global (top-left, y-down) y into the current page's PDF (bottom-left,
 # y-up) space, accounting for the page's vertical band offset `y0`.
-_flip(ctx::PageCtx, gy) = ctx.page_height - (gy - ctx.y0)
+_flip(ctx::PageContext, gy) = ctx.page_height - (gy - ctx.y0)
 
 # True when a primitive's global vertical extent `[top, bottom]` intersects the
 # current page's band, so off-page elements can be culled during pagination.
-_on_page(ctx::PageCtx, top, bottom) = bottom >= ctx.band_lo && top <= ctx.band_hi
+_on_page(ctx::PageContext, top, bottom) = bottom >= ctx.band_lo && top <= ctx.band_hi
 
-function register_font!(ctx::PageCtx, font::StyleFont)
+function register_font!(ctx::PageContext, font::StyleFont)
     get!(ctx.fonts, font.filename) do
         idx = length(ctx.fonts) + 1
         base = replace(splitext(basename(font.filename))[1], r"[^A-Za-z0-9]" => "")
         isempty(base) && (base = "Font$idx")
-        FontReg("F$idx", base, _load_ttf(font.filename), Set{UInt16}(), Dict{UInt16,UInt32}())
+        FontRegistration("F$idx", base, _load_ttf(font.filename), Set{UInt16}(), Dict{UInt16,UInt32}())
     end
 end
 
-gs_for!(ctx::PageCtx, a::UInt8) = get!(() -> "GS$(length(ctx.gstates) + 1)", ctx.gstates, a)
+gs_for!(ctx::PageContext, a::UInt8) = get!(() -> "GS$(length(ctx.gstates) + 1)", ctx.gstates, a)
 
 # ════════════════════════════════════════════════════════════════════════
 # Primitive painters (mirroring SdlBackend's _render_* with a y-flip)
@@ -498,7 +498,7 @@ function _utf16be_hex(cp::UInt32)
     end
 end
 
-function _tounicode_cmap(reg::FontReg)
+function _tounicode_cmap(reg::FontRegistration)
     io = IOBuffer()
     print(io, "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n")
     print(io, "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n")
@@ -563,7 +563,7 @@ end
 # single shared `ctx` so each is emitted once and referenced by every page.
 function _render_pages(canvas::GraphicsCanvas, page_w::Int, page_h::Int,
                        npages::Int, top::Int, background::NTuple{4,UInt8})
-    ctx = PageCtx(page_h)
+    ctx = PageContext(page_h)
     r, g, b, a = background
     contents = Vector{Vector{UInt8}}(undef, npages)
     for k in 0:(npages - 1)
@@ -589,7 +589,7 @@ end
 # `ctx` (fonts/gstates/images). Each page is `page_w × page_h` and references the
 # same `/Resources`.
 function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{UInt8}},
-                             ctx::PageCtx, page_w::Int, page_h::Int)
+                             ctx::PageContext, page_w::Int, page_h::Int)
     w = PdfWriter()
     content_nums = Int[new_object!(w) for _ in contents]
 

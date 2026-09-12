@@ -39,7 +39,7 @@ The module lives in eleven fragments that share this namespace:
 - [`ReferenceSearch.jl`](ReferenceSearch.jl) — the path-producing reflection
   search (`search_references`) over documents.
 - [`ReferenceSyntax.jl`](ReferenceSyntax.jl) — the **surface grammar both DSLs
-  accept**, parsed once into one step AST (`RefStep`). The two DSL fragments below
+  accept**, parsed once into one step AST (`ReferenceSyntaxStep`). The two DSL fragments below
   are *lowerings* of that AST, not parsers of their own.
 - [`ReferenceGlob.jl`](ReferenceGlob.jl) — the **glob language** (`glob_matches`):
   `*`, `?`, `{a-e}`, `{^a-e}`, `{38..47}` over a single name. It knows nothing

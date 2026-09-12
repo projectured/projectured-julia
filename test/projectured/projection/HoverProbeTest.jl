@@ -10,7 +10,7 @@
 #     *same* reference a real left-click at that pixel would select, positioned
 #     at pointer()+offset; a real MousePress still passes through to selection.
 #
-# Reuses the SegCoord/measure helpers defined in ClickRoundtripTest.jl (same
+# Reuses the SegmentCoordinate/measure helpers defined in ClickRoundtripTest.jl (same
 # ProjecturedTest module scope; included after it).
 # ═══════════════════════════════════════════════════════════════════════════
 

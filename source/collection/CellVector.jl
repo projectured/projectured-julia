@@ -80,15 +80,15 @@ ICCellVector(items::AbstractVector) = ICCellVector(collect(Any, items), nothing)
 MCCellVector(items::AbstractVector) = MCCellVector(collect(Any, items), nothing)
 
 # The protocol dispatches on the STRUCT PARAMETER (the `elements` field cell's
-# kind), not on runtime storage checks: `RCV` — a CellVector whose elements field
+# kind), not on runtime storage checks: `ReactiveCellVector` — a CellVector whose elements field
 # is reactive — keeps the pre-kind typed hot path byte-for-byte (`Vector{Cell}`
 # assert, slot-cell wrapping), measured to matter (runtime storage branches cost
 # the reactive read path ~2×). The non-reactive instantiations take the generic
 # plain-storage methods below. Convention: a reactive elements field always holds
 # `Vector{Cell}` slots; hand-built exceptions are unsupported.
-const RCV = CellVector{<:ReactiveCell}
+const ReactiveCellVector = CellVector{<:ReactiveCell}
 
-_elems(cv::RCV) = cv.elements::Vector{Cell}
+_elems(cv::ReactiveCellVector) = cv.elements::Vector{Cell}
 _plain(cv::CellVector) = cv.elements::Vector
 # Mutator entry guard for the plain-storage kinds: an immutable-kind collection
 # must not be touched at all — without this, the backing vector would mutate
@@ -105,7 +105,7 @@ Base.size(cv::CellVector)              = (length(cv),)
 # reassign `.elements` for reactivity, below.)
 @forward_protocol [Base.length, Base.isempty, Base.firstindex,
                    Base.lastindex, Base.eachindex] on CellVector to elements
-function Base.iterate(cv::RCV, s...)
+function Base.iterate(cv::ReactiveCellVector, s...)
     r = iterate(_elems(cv), s...)
     r === nothing && return nothing
     (cell, state) = r
@@ -118,12 +118,12 @@ function Base.iterate(cv::CellVector, s...)
     (unwrap_cell(x), state)
 end
 
-Base.getindex(cv::RCV, i::Integer)        = _elems(cv)[i][]      # the stored value
+Base.getindex(cv::ReactiveCellVector, i::Integer)        = _elems(cv)[i][]      # the stored value
 Base.getindex(cv::CellVector, i::Integer) = unwrap_cell(_plain(cv)[i])
 # The raw slot Cell — reactive instantiations only.
-get_cell_at(cv::RCV, i::Integer) = _elems(cv)[i]
+get_cell_at(cv::ReactiveCellVector, i::Integer) = _elems(cv)[i]
 
-function Base.setindex!(cv::RCV, val, i::Integer)
+function Base.setindex!(cv::ReactiveCellVector, val, i::Integer)
     elems = _elems(cv)
     elems[i][] = val                # value change inside the slot Cell
     return val
@@ -135,7 +135,7 @@ function Base.setindex!(cv::CellVector, val, i::Integer)
     return val
 end
 
-function Base.setindex!(cv::RCV, cell::Cell, i::Integer)
+function Base.setindex!(cv::ReactiveCellVector, cell::Cell, i::Integer)
     elems = _elems(cv)
     elems[i] = cell                 # replace the slot Cell (structural change)
     cv.elements = elems
@@ -147,7 +147,7 @@ end
 # codebase, so the single method is unambiguous.
 _wrap_cell(x) = x isa AbstractCell ? x : Cell(x)
 
-function Base.push!(cv::RCV, xs...)
+function Base.push!(cv::ReactiveCellVector, xs...)
     elems = _elems(cv)
     for x in xs; push!(elems, _wrap_cell(x)) end
     cv.elements = elems
@@ -160,7 +160,7 @@ function Base.push!(cv::CellVector, xs...)
     return cv
 end
 
-function Base.pop!(cv::RCV)
+function Base.pop!(cv::ReactiveCellVector)
     elems = _elems(cv)
     c = pop!(elems)
     cv.elements = elems
@@ -173,7 +173,7 @@ function Base.pop!(cv::CellVector)
     return x
 end
 
-function Base.insert!(cv::RCV, i::Integer, x)
+function Base.insert!(cv::ReactiveCellVector, i::Integer, x)
     elems = _elems(cv)
     insert!(elems, i, _wrap_cell(x))
     cv.elements = elems
@@ -186,7 +186,7 @@ function Base.insert!(cv::CellVector, i::Integer, x)
     return cv
 end
 
-function Base.deleteat!(cv::RCV, i)
+function Base.deleteat!(cv::ReactiveCellVector, i)
     elems = _elems(cv)
     deleteat!(elems, i)
     cv.elements = elems

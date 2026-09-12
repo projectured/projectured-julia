@@ -6,7 +6,7 @@
 #
 # For each example:
 #   - test_click_roundtrip walks every character cell in every rendered
-#     SegCoord, fires a MousePress at the centre of that cell, applies the
+#     SegmentCoordinate, fires a MousePress at the centre of that cell, applies the
 #     resulting ReplaceSelectionOperation, re-prints, and asserts that the
 #     cursor lands in either the clicked segment's band *or* the immediate
 #     neighbour band (the line-boundary case, where the cursor at end of
@@ -18,7 +18,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.ReferenceModule: head, tail
-using ProjecturedText.TextToGraphicsModule: TextToGraphicsIoMap, SegCoord
+using ProjecturedText.TextToGraphicsModule: TextToGraphicsIoMap, SegmentCoordinate
 
 # ── IoMap traversal helpers ────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ function _pipeline_measure(projection)
     nothing
 end
 
-function _seg_x_at(sc::SegCoord, k::Int, measure)
+function _seg_x_at(sc::SegmentCoordinate, k::Int, measure)
     local_pos = k - sc.char_start
     local_pos <= 0 && return sc.x
     prefix = first(sc.text, min(local_pos, length(sc.text)))

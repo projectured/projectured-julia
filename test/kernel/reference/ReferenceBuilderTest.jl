@@ -18,11 +18,11 @@ struct E end
 struct F end
 
 # Navigable toy documents for the `@reference(document, path)` annotation test.
-@document struct EvalChild
+@document struct EvaluationChild
     n::Int
 end
-@document struct EvalDoc
-    child::EvalChild
+@document struct EvaluationDocument
+    child::EvaluationChild
 end
 
 function test_reference_builder()
@@ -111,8 +111,8 @@ end
 # `@reference(document, path)` — a typeless skeleton annotated against a live
 # document, so the result carries the document's exact node types. Equivalent
 # to spelling every type inline, but the types are filled by the document.
-let doc = EvalDoc(EvalChild(7))
-    @test (@reference(doc, child.n)) == (@reference ::EvalDoc.child::EvalChild.n::Int)
+let doc = EvaluationDocument(EvaluationChild(7))
+    @test (@reference(doc, child.n)) == (@reference ::EvaluationDocument.child::EvaluationChild.n::Int)
     # …and it evaluates to the same node the plain path reaches.
     @test evaluate_reference(doc, @reference(doc, child.n)) == 7
 end

@@ -300,7 +300,7 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 # `[i]` is the i-th element of the block, `[i, j]` the j-th span of the
 # `TextLine` at element i. The cursor, word-motion and editing helpers all walk
 # these, so a block of lines and a flat block of spans are the same code — as does
-# `TextToGraphics`, which keys its coordinate table (`SegCoord.span_path`) by them.
+# `TextToGraphics`, which keys its coordinate table (`SegmentCoordinate.span_path`) by them.
 const SpanPath = Vector{Int}
 
 # The document a committed `text` insertion becomes. Without this the generic

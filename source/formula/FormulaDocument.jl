@@ -17,7 +17,7 @@ import ..TextModule: TextBlock, TextString
 import ..JuliaModule: JuliaDocument,
                       JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
                       JuliaNothing, JuliaSymbol, JuliaChar,
-                      JuliaBinaryOp, JuliaUnaryOp, JuliaCall, JuliaTernary,
+                      JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaTernary,
                       JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
                       JuliaTypeAnnotation, JuliaAssignment, JuliaForIterator, JuliaFor,
                       JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry,
@@ -285,9 +285,9 @@ function _to_expr(node)
         return QuoteNode(Symbol(node.name))
     elseif node isa JuliaIdentifier
         return Symbol(node.name)
-    elseif node isa JuliaBinaryOp
+    elseif node isa JuliaBinaryOperation
         return Expr(:call, node.operator, _to_expr(node.left), _to_expr(node.right))
-    elseif node isa JuliaUnaryOp
+    elseif node isa JuliaUnaryOperation
         return Expr(:call, node.operator, _to_expr(node.operand))
     elseif node isa JuliaCall
         return Expr(:call, _to_expr(node.callee),

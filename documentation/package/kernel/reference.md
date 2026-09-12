@@ -46,7 +46,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceSearch.jl  — the path-producing reflection search
         │                        (search_references)
         ├─ ReferenceSyntax.jl  — the surface grammar EVERY DSL accepts, parsed
-        │                        once into one step AST (RefStep). The three
+        │                        once into one step AST (ReferenceSyntaxStep). The three
         │                        fragments below are lowerings of that AST,
         │                        not parsers of their own
         ├─ ReferenceGlob.jl    — the glob language (*, ?, {a-e}, {38..47}) over

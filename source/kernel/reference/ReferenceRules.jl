@@ -4,7 +4,7 @@
 # that can be stored, compared, printed and applied later.
 #
 # The grammar and its matching vocabulary are not re-invented here: `ReferenceSyntax.jl`
-# parses the surface into the shared `RefStep` AST and `ReferenceCase.jl` lowers that AST
+# parses the surface into the shared `ReferenceSyntaxStep` AST and `ReferenceCase.jl` lowers that AST
 # into the `PatStep`/`PatValue` pattern AST. This fragment reuses that lowering and then
 # does the two things a compiled case cannot:
 #

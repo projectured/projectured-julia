@@ -19,25 +19,25 @@
 
 # ── The shared step AST ───────────────────────────────────────────────────
 
-abstract type RefStep end
+abstract type ReferenceSyntaxStep end
 
 "`a.b`, or a bare symbol in path position — a field whose name is a literal."
-struct RefField <: RefStep
+struct ReferenceSyntaxField <: ReferenceSyntaxStep
     name::String
 end
 
 "`.field(e)` — a field whose name is the runtime value of `e`."
-struct RefFieldExpr <: RefStep
+struct ReferenceSyntaxFieldExpression <: ReferenceSyntaxStep
     expr
 end
 
 "`xs[i]` — a single element (1-based)."
-struct RefIndex <: RefStep
+struct ReferenceSyntaxIndex <: ReferenceSyntaxStep
     expr
 end
 
 "`xs{k}` — a zero-width cursor position (0-based)."
-struct RefPosition <: RefStep
+struct ReferenceSyntaxPosition <: ReferenceSyntaxStep
     expr
 end
 
@@ -56,7 +56,7 @@ follows: `[…]` counts elements from 1, and `{…}` counts gaps from 0. A lower
 converts an `:element` range into the step's own numbering, the way
 `ElementReferenceStep` converts `xs[i]`.
 """
-struct RefRange <: RefStep
+struct ReferenceSyntaxRange <: ReferenceSyntaxStep
     startexpr
     stopexpr
     numbering::Symbol
@@ -69,22 +69,22 @@ Whether it *asserts* or *binds* is a lowering choice, not a parse one: `@referen
 splices `T`'s runtime type value, while `@reference_case` reads a capitalized `::T` as an
 assertion and a lowercase `::t` as a binder for the node's folded `type` field.
 """
-struct RefType <: RefStep
+struct ReferenceSyntaxType <: ReferenceSyntaxStep
     expr
 end
 
 "`^(e)` and `base.^(e)` — splice a runtime path/step into the chain."
-struct RefSplice <: RefStep
+struct ReferenceSyntaxSplice <: ReferenceSyntaxStep
     expr
 end
 
 "`name...` — bind the entire remaining tail. Pattern-only; the builder rejects it."
-struct RefTailBind <: RefStep
+struct ReferenceSyntaxTailBind <: ReferenceSyntaxStep
     name::Symbol
 end
 
 "An argument of a `.name(args...)` extension step that is an ordinary value expression."
-struct RefArgValue
+struct ReferenceSyntaxArgumentValue
     expr
 end
 
@@ -94,7 +94,7 @@ An argument of a `.name(args...)` extension step that the step declares to be a
 DSLs disagree on what a bare symbol means here — a field to the builder, a whole-path
 bind to the matcher — so each applies its own subpath rule at lowering time.
 """
-struct RefArgSubPath
+struct ReferenceSyntaxArgumentSubPath
     expr
 end
 
@@ -103,9 +103,9 @@ end
 through the `build_reference_step` / `match_reference_step` seams. The parser names no step type it
 does not own; it only asks `get_reference_step_subpath_args` which argument positions are subpaths.
 """
-struct RefExtension <: RefStep
+struct ReferenceSyntaxExtension <: ReferenceSyntaxStep
     name::Symbol
-    args::Vector{Any}   # RefArgValue | RefArgSubPath
+    args::Vector{Any}   # ReferenceSyntaxArgumentValue | ReferenceSyntaxArgumentSubPath
 end
 
 # ── The grammar ───────────────────────────────────────────────────────────
@@ -125,20 +125,20 @@ end
 # decides what they mean.
 
 """
-    parse_reference_path(ex) -> Vector{RefStep}
+    parse_reference_path(ex) -> Vector{ReferenceSyntaxStep}
 
 Parse a rootless path expression into the shared step AST (left = outermost).
 """
 function parse_reference_path(ex)
-    steps = RefStep[]
+    steps = ReferenceSyntaxStep[]
     _parse_ref_path!(steps, ex)
     return steps
 end
 
-function _parse_ref_path!(steps::Vector{RefStep}, ex)
+function _parse_ref_path!(steps::Vector{ReferenceSyntaxStep}, ex)
     if ex isa Symbol
         # Path-position symbol => literal field name.
-        push!(steps, RefField(String(ex)))
+        push!(steps, ReferenceSyntaxField(String(ex)))
         return steps
 
     elseif ex isa Expr && ex.head == :(::)
@@ -155,17 +155,17 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
     elseif ex isa Expr && ex.head == :. && ex.args[2] isa QuoteNode
         # a.b
         _parse_ref_path!(steps, ex.args[1])
-        push!(steps, RefField(String(ex.args[2].value)))
+        push!(steps, ReferenceSyntaxField(String(ex.args[2].value)))
         return steps
 
     elseif ex isa Expr && ex.head == :ref
         # base[idx] — a single element (1-based), or base[i, j] — elements i through j
         if length(ex.args) == 2
             _parse_ref_path!(steps, ex.args[1])
-            push!(steps, RefIndex(ex.args[2]))
+            push!(steps, ReferenceSyntaxIndex(ex.args[2]))
         elseif length(ex.args) == 3
             _parse_ref_path!(steps, ex.args[1])
-            push!(steps, RefRange(ex.args[2], ex.args[3], :element))
+            push!(steps, ReferenceSyntaxRange(ex.args[2], ex.args[3], :element))
         else
             error("indexing supports 1 or 2 dimensions: $ex")
         end
@@ -184,14 +184,14 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
         if f == :(^)
             # ^(expr) at path position — splice
             length(ex.args) == 2 || error("^(expr) expects exactly one argument: $ex")
-            push!(steps, RefSplice(ex.args[2]))
+            push!(steps, ReferenceSyntaxSplice(ex.args[2]))
             return steps
 
         elseif f == :.^ && length(ex.args) == 3
             # `base.^(expr)` — Julia parses this as the binary broadcast `.^`; the DSLs
             # read it as "splice at the end of the chain".
             _parse_ref_path!(steps, ex.args[2])
-            push!(steps, RefSplice(ex.args[3]))
+            push!(steps, ReferenceSyntaxSplice(ex.args[3]))
             return steps
 
         elseif f isa Symbol
@@ -205,7 +205,7 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
 
             if opname == :field
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument: $ex")
-                push!(steps, RefFieldExpr(ex.args[2]))
+                push!(steps, ReferenceSyntaxFieldExpression(ex.args[2]))
                 return steps
             else
                 # A mid-path extension step, dispatched through the seam.
@@ -219,9 +219,9 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
     elseif ex isa Expr && ex.head == :vect
         # [i] as a relative subpath — a single element (1-based), or [i, j] — elements i through j
         if length(ex.args) == 1
-            push!(steps, RefIndex(ex.args[1]))
+            push!(steps, ReferenceSyntaxIndex(ex.args[1]))
         elseif length(ex.args) == 2
-            push!(steps, RefRange(ex.args[1], ex.args[2], :element))
+            push!(steps, ReferenceSyntaxRange(ex.args[1], ex.args[2], :element))
         else
             error("subpath vector syntax supports 1 or 2 elements: $ex")
         end
@@ -241,14 +241,14 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
         _parse_ref_path!(steps, ex.args[1])
         isempty(steps) && error("... suffix requires at least one preceding step: $ex")
         last_step = pop!(steps)
-        name = if last_step isa RefField
+        name = if last_step isa ReferenceSyntaxField
             Symbol(last_step.name)
-        elseif last_step isa RefFieldExpr && last_step.expr isa Symbol
+        elseif last_step isa ReferenceSyntaxFieldExpression && last_step.expr isa Symbol
             last_step.expr
         else
             error("... suffix only supported after a named field step, got $(typeof(last_step)): $ex")
         end
-        push!(steps, RefTailBind(name))
+        push!(steps, ReferenceSyntaxTailBind(name))
         return steps
 
     else
@@ -260,9 +260,9 @@ end
 # count gaps between elements, from 0, which is what the brace bracket means.
 function _ref_braces_step(inner)
     if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
-        return RefRange(inner.args[2], inner.args[3], :gap)
+        return ReferenceSyntaxRange(inner.args[2], inner.args[3], :gap)
     end
-    return RefPosition(inner)
+    return ReferenceSyntaxPosition(inner)
 end
 
 # A `.name(args...)` / `name(args...)` extension step. Arguments the step declares as
@@ -275,15 +275,15 @@ get_reference_step_subpath_args(::Val) = ()
 
 function _ref_extension_step(name::Symbol, args)
     subpaths = get_reference_step_subpath_args(Val(name))
-    RefExtension(name, Any[(i in subpaths ? RefArgSubPath(a) : RefArgValue(a))
+    ReferenceSyntaxExtension(name, Any[(i in subpaths ? ReferenceSyntaxArgumentSubPath(a) : ReferenceSyntaxArgumentValue(a))
                            for (i, a) in enumerate(args)])
 end
 
-# Split a type-step base into its `RefType` and any trailing `.field` steps. A bare
+# Split a type-step base into its `ReferenceSyntaxType` and any trailing `.field` steps. A bare
 # `Type` yields just the type; a `Type.a.b` chain (which Julia parses as `getfield` on
 # the type value) is read as the type `Type` followed by field steps `.a`, `.b` — so a
 # mid-path `::T.field` needs no parens.
-function _ref_type_and_fields!(steps::Vector{RefStep}, base)
+function _ref_type_and_fields!(steps::Vector{ReferenceSyntaxStep}, base)
     fields = String[]
     cur = base
     while cur isa Expr && cur.head == :. && cur.args[2] isa QuoteNode
@@ -292,9 +292,9 @@ function _ref_type_and_fields!(steps::Vector{RefStep}, base)
     end
     cur isa Symbol ||
         error("type step must start with a type name: $base")
-    push!(steps, RefType(cur))
+    push!(steps, ReferenceSyntaxType(cur))
     for f in fields
-        push!(steps, RefField(f))
+        push!(steps, ReferenceSyntaxField(f))
     end
 end
 
@@ -302,16 +302,16 @@ end
 # a parametric/indexed type) is the type `T` followed by a position/range/element step
 # (`value::Leaf{s:e}` needs no parens); `T.field` is the type `T` followed by field steps
 # (`entries[i]::Entry.key`).
-function _ref_type_suffix!(steps::Vector{RefStep}, T)
+function _ref_type_suffix!(steps::Vector{ReferenceSyntaxStep}, T)
     if T isa Expr && T.head == :curly
         _ref_type_and_fields!(steps, T.args[1])
         push!(steps, _ref_braces_step(T.args[2]))
     elseif T isa Expr && T.head == :ref
         _ref_type_and_fields!(steps, T.args[1])
         if length(T.args) == 2
-            push!(steps, RefIndex(T.args[2]))
+            push!(steps, ReferenceSyntaxIndex(T.args[2]))
         elseif length(T.args) == 3
-            push!(steps, RefRange(T.args[2], T.args[3], :element))
+            push!(steps, ReferenceSyntaxRange(T.args[2], T.args[3], :element))
         else
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
@@ -323,23 +323,23 @@ end
 # Leading `::X`: a bare symbol is just the type step; a chain like `Node.value{s:e}`
 # (which Julia parses entirely under the `::`) is read as the type `Node` followed by the
 # `.value{s:e}` steps — so no parens.
-function _ref_leading_type!(steps::Vector{RefStep}, X)
+function _ref_leading_type!(steps::Vector{ReferenceSyntaxStep}, X)
     if X isa Symbol
-        push!(steps, RefType(X))
+        push!(steps, ReferenceSyntaxType(X))
     else
         n = length(steps)
         _parse_ref_path!(steps, X)
         root = steps[n + 1]
-        root isa RefField ||
+        root isa ReferenceSyntaxField ||
             error("leading ::T must start with a type name: $X")
-        steps[n + 1] = RefType(Symbol(root.name))
+        steps[n + 1] = ReferenceSyntaxType(Symbol(root.name))
     end
 end
 
 # ── The single-step grammar (`@reference_step`) ─────────────────────────────────────
 
 """
-    parse_reference_step(ex) -> RefStep
+    parse_reference_step(ex) -> ReferenceSyntaxStep
 
 Parse a one-step expression (the `@reference_step` grammar). Unlike [`parse_reference_path`](@ref),
 a leading identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) is a
@@ -347,12 +347,12 @@ a leading identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) i
 """
 function parse_reference_step(ex)
     if ex isa Symbol
-        return RefField(String(ex))
+        return ReferenceSyntaxField(String(ex))
     elseif ex isa Expr && ex.head == :ref
         if length(ex.args) == 2
-            return RefIndex(ex.args[2])
+            return ReferenceSyntaxIndex(ex.args[2])
         elseif length(ex.args) == 3
-            return RefRange(ex.args[2], ex.args[3], :element)
+            return ReferenceSyntaxRange(ex.args[2], ex.args[3], :element)
         else
             error("indexing supports 1 or 2 dimensions in @reference_step: $ex")
         end
@@ -361,9 +361,9 @@ function parse_reference_step(ex)
         return _ref_braces_step(ex.args[2])
     elseif ex isa Expr && ex.head == :vect
         if length(ex.args) == 1
-            return RefIndex(ex.args[1])
+            return ReferenceSyntaxIndex(ex.args[1])
         elseif length(ex.args) == 2
-            return RefRange(ex.args[1], ex.args[2], :element)
+            return ReferenceSyntaxRange(ex.args[1], ex.args[2], :element)
         else
             error("vector syntax supports 1 or 2 elements in @reference_step: $ex")
         end
@@ -376,7 +376,7 @@ function parse_reference_step(ex)
             opname = f.args[2].value
             if opname == :field
                 length(ex.args) == 2 || error(".field(name) expects exactly one argument in @reference_step: $ex")
-                return RefFieldExpr(ex.args[2])
+                return ReferenceSyntaxFieldExpression(ex.args[2])
             else
                 # A `.name(...)` extension step, dispatched through the seam.
                 return _ref_extension_step(opname, ex.args[2:end])

@@ -9,7 +9,7 @@ a `TextBlock` and paints a background swatch behind the regex matches by setting
 It is the structural sibling of `WordWrapping` — both split a `TextString` into
 adjacent sub-spans and stay invertible through a piecewise offset table. Here the
 split happens at match boundaries and the matched runs are restyled, but no
-character is inserted or removed, so `HighlightSeg` is `WrapSeg` and the
+character is inserted or removed, so `HighlightSegment` is `WrapSegment` and the
 selection/reader mapping is identical. Matching is per span (the same
 span-delimited simplification as `TextFiltering`); a `nothing` pattern is a
 pass-through (no highlights), so the projection can sit idle in a pipeline until
@@ -30,7 +30,7 @@ import ..ReferenceModule: var"@reference"
 import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-export TextHighlighting, TextHighlightingIoMap, HighlightSeg
+export TextHighlighting, TextHighlightingIoMap, HighlightSegment
 
 # ── Projection struct ───────────────────────────────────────────────────────
 
@@ -74,14 +74,14 @@ end
 # ── Mapping table ───────────────────────────────────────────────────────────
 
 """
-    HighlightSeg(out_index, in_span, in_char_start, length)
+    HighlightSegment(out_index, in_span, in_char_start, length)
 
 One entry per emitted output `TextString` sub-span. `out_index` is its 1-based
 position in `output.elements`; `in_span` is the 1-based originating input span;
 `in_char_start` is the 0-based char offset of this sub-span within the input
 span; `length` is its character count.
 """
-struct HighlightSeg
+struct HighlightSegment
     out_index::Int
     in_span::Int
     in_char_start::Int
@@ -92,7 +92,7 @@ end
     projection::Any
     input::TextBlock
     output::TextBlock
-    segs::Cell  # Cell{Vector{HighlightSeg}}
+    segs::Cell  # Cell{Vector{HighlightSegment}}
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
@@ -109,20 +109,20 @@ function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     TextHighlightingIoMap(p, text, output, segs_cell)
 end
 
-# Returns (output_elements::Vector{TextDocument}, segs::Vector{HighlightSeg}).
+# Returns (output_elements::Vector{TextDocument}, segs::Vector{HighlightSegment}).
 # A `nothing` pattern keeps every span unchanged (identity). Otherwise each
 # TextString is split at match boundaries into alternating unmatched / matched
 # sub-spans, matched runs carrying the highlight fill. Non-text elements pass
 # through untouched.
 function _highlight(text::TextBlock, pattern, color::StyleColor)
     result = TextDocument[]
-    segs = HighlightSeg[]
+    segs = HighlightSegment[]
     fill_cell = Cell(color)
     for (in_span, elem) in enumerate(text.elements)
         if elem isa TextString
             if pattern === nothing
                 push!(result, elem)
-                push!(segs, HighlightSeg(length(result), in_span, 0, length(elem.content::AbstractString)))
+                push!(segs, HighlightSegment(length(result), in_span, 0, length(elem.content::AbstractString)))
             else
                 _highlight_string!(result, segs, elem, in_span, pattern, fill_cell)
             end
@@ -134,15 +134,15 @@ function _highlight(text::TextBlock, pattern, color::StyleColor)
 end
 
 # Split one input TextString at the (non-empty) matches of `pattern`, appending
-# output sub-spans + HighlightSeg entries. Works in character space (via a
+# output sub-spans + HighlightSegment entries. Works in character space (via a
 # byte→char map) so multi-byte content is handled correctly. A span with no
 # match is emitted unchanged (original object reused) with one full-length seg.
-function _highlight_string!(result::Vector{TextDocument}, segs::Vector{HighlightSeg},
+function _highlight_string!(result::Vector{TextDocument}, segs::Vector{HighlightSegment},
                             original::TextString, in_span::Int, pattern::Regex, fill_cell::Cell)
     content = original.content::AbstractString
     if isempty(content)
         push!(result, original)
-        push!(segs, HighlightSeg(length(result), in_span, 0, 0))
+        push!(segs, HighlightSegment(length(result), in_span, 0, 0))
         return
     end
     total_chars = length(content)
@@ -159,7 +159,7 @@ function _highlight_string!(result::Vector{TextDocument}, segs::Vector{Highlight
     end
     if isempty(runs)
         push!(result, original)
-        push!(segs, HighlightSeg(length(result), in_span, 0, total_chars))
+        push!(segs, HighlightSegment(length(result), in_span, 0, total_chars))
         return
     end
 
@@ -167,7 +167,7 @@ function _highlight_string!(result::Vector{TextDocument}, segs::Vector{Highlight
     orig_fill = getfield(original, :fill_color)
     emit(start0, len, fill) = begin
         push!(result, _make_span(original, String(chars[start0+1 : start0+len]), fill))
-        push!(segs, HighlightSeg(length(result), in_span, start0, len))
+        push!(segs, HighlightSegment(length(result), in_span, start0, len))
     end
 
     cursor = 0

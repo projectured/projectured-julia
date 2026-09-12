@@ -24,14 +24,14 @@ clear error rather than being silently dropped.
 module JuliaParserModule
 
 import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
-    JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOp, JuliaUnaryOp, JuliaCall,
+    JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall,
     JuliaMacroCall, JuliaConst, JuliaDocstring,
     JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly,
     JuliaAnonymousTypeAnnotation, JuliaEmpty,
     JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
     JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
     JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDef, JuliaDocument,
+    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument,
     JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
     JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
     JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration,
@@ -148,9 +148,9 @@ function _convert_head(::Val{:call}, x::Expr)
     end
     if callee isa Symbol
         if length(args) == 2 && callee in BINARY_OPERATORS
-            return JuliaBinaryOp(callee, convert_expr(args[1]), convert_expr(args[2]))
+            return JuliaBinaryOperation(callee, convert_expr(args[1]), convert_expr(args[2]))
         elseif length(args) == 1 && callee in UNARY_OPERATORS
-            return JuliaUnaryOp(callee, convert_expr(args[1]))
+            return JuliaUnaryOperation(callee, convert_expr(args[1]))
         end
     end
     return JuliaCall(convert_expr(callee), JuliaDocument[convert_expr(a) for a in args])
@@ -224,7 +224,7 @@ function _convert_head(::Val{:module}, x::Expr)
     standard = x.args[1]::Bool
     name = x.args[2]
     name isa Symbol || error("unsupported module name: $(repr(name))")
-    JuliaModuleDef(String(name), convert_expr(x.args[3]), !standard)
+    JuliaModuleDefinition(String(name), convert_expr(x.args[3]), !standard)
 end
 
 # `A <: B` — outside a type header this could be a runtime test, but
@@ -241,9 +241,9 @@ _convert_head(::Val{:<:}, x::Expr) =
 # own heads rather than as `Expr(:call, :&&, …)`, so a generic binary
 # routing does not catch them. Both render as ordinary binary ops.
 _convert_head(::Val{:&&}, x::Expr) =
-    JuliaBinaryOp(:&&, convert_expr(x.args[1]), convert_expr(x.args[2]))
+    JuliaBinaryOperation(:&&, convert_expr(x.args[1]), convert_expr(x.args[2]))
 _convert_head(::Val{:||}, x::Expr) =
-    JuliaBinaryOp(:||, convert_expr(x.args[1]), convert_expr(x.args[2]))
+    JuliaBinaryOperation(:||, convert_expr(x.args[1]), convert_expr(x.args[2]))
 
 # `Foo{T, S}` — parametric type. The head is `:curly`, args are the
 # callee (a `JuliaIdentifier`) followed by the parameter expressions.
@@ -393,7 +393,7 @@ _convert_head(::Val{:...}, x::Expr) = JuliaSplat(convert_expr(x.args[1]))
 function _convert_head(::Val{:comparison}, x::Expr)
     result = convert_expr(x.args[1])
     for index in 2:2:(length(x.args) - 1)
-        result = JuliaBinaryOp(x.args[index], result, convert_expr(x.args[index + 1]))
+        result = JuliaBinaryOperation(x.args[index], result, convert_expr(x.args[index + 1]))
     end
     result
 end

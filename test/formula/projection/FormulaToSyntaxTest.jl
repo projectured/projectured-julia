@@ -63,7 +63,7 @@ end
     b1code = juliaparse("5")
     a1 = FormulaFormula("A1", a1code)
     b1 = FormulaFormula("B1", b1code)
-    a2 = FormulaFormula("A2", JuliaBinaryOp(:+, FormulaReference(a1), FormulaReference(b1)))
+    a2 = FormulaFormula("A2", JuliaBinaryOperation(:+, FormulaReference(a1), FormulaReference(b1)))
     env = FormulaEnvironment([a1, b1, a2])
 
     @test _formula_result_string(a1.result) == "10"
