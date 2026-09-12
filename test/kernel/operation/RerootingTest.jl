@@ -14,11 +14,11 @@ using ProjecturedKernel.ReferenceModule
 
 # A test-local path-bearing operation: registering a `reroot_operation` method
 # for it below is exactly the seam pressure that keeps the generic open.
-struct ToyPathOp <: Operation
+struct ToyPathOperation <: Operation
     reference::Reference
 end
-ProjecturedKernel.OperationModule.reroot_operation(op::ToyPathOp, s::Tuple) =
-    ToyPathOp(reroot_reference(op.reference, s))
+ProjecturedKernel.OperationModule.reroot_operation(op::ToyPathOperation, s::Tuple) =
+    ToyPathOperation(reroot_reference(op.reference, s))
 
 struct RL end
 struct RN end
@@ -90,9 +90,9 @@ function test_rerooting()
     end
 
     @testset "test-local Operation type adds its own reroot method" begin
-        # ToyPathOp is declared at file scope; the method registration above.
-        r = reroot_operation(ToyPathOp(strip_reference_types(@reference ::RL.leaf::RN)), steps)
-        @test r isa ToyPathOp
+        # ToyPathOperation is declared at file scope; the method registration above.
+        r = reroot_operation(ToyPathOperation(strip_reference_types(@reference ::RL.leaf::RN)), steps)
+        @test r isa ToyPathOperation
         @test r.reference == ConcreteReference(FieldReferenceStep("outer"),
                                 ConcreteReference(FieldReferenceStep("inner"),
                                     ConcreteReference(FieldReferenceStep("leaf"), EmptyReference())))

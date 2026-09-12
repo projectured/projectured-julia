@@ -2,7 +2,7 @@
     DatabaseDocumentModule
 
 Document layer for database access. `DatabaseTable` is pure query metadata
-(no result cache); `DatabaseUpdateOperation` / `DatabaseInsertOperation` are
+(no result cache); `UpdateDatabaseCellOperation` / `InsertDatabaseRowOperation` are
 the mutations the projection reader produces.
 """
 module DatabaseDocumentModule
@@ -13,7 +13,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..OperationModule: Operation
 
-export DatabaseDocument, DatabaseUpdateOperation, DatabaseInsertOperation
+export DatabaseDocument, UpdateDatabaseCellOperation, InsertDatabaseRowOperation
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ end
 """
 Updates a single cell identified by `ctid` in `table`.
 """
-struct DatabaseUpdateOperation <: Operation
+struct UpdateDatabaseCellOperation <: Operation
     adapter::Any
     table::String
     ctid::Any          # e.g. "(0,1)"
@@ -49,7 +49,7 @@ end
 """
 Inserts a new row into `table`.
 """
-struct DatabaseInsertOperation <: Operation
+struct InsertDatabaseRowOperation <: Operation
     adapter::Any
     table::String
     row::Dict{String,Any}

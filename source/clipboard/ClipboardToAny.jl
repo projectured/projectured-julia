@@ -67,7 +67,7 @@ import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
-       ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation,
+       ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,
        WriteOsClipboardOperation
 
 # ── Projections ─────────────────────────────────────────────────────────────
@@ -241,34 +241,34 @@ end
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
-    ToggleClipboardSliceDisplayOperation(projection)
+    ToggleClipboardSliceOperation(projection)
 
 Flip the `display_slice` `Cell` of a `ClipboardSliceToAnyProjection`, swapping the
 output between the wrapped content and the stored slice. This is a plain reactive
 cell write: the projection's derived `output` cell re-derives and the reactive
 `ChainingProjection` re-pulls it downstream — no `editor.iomap` drop.
 """
-struct ToggleClipboardSliceDisplayOperation <: Operation
+struct ToggleClipboardSliceOperation <: Operation
     projection::ClipboardSliceToAnyProjection
 end
 
-function evaluate_operation(editor, op::ToggleClipboardSliceDisplayOperation)
+function evaluate_operation(editor, op::ToggleClipboardSliceOperation)
     # Reactive cell write only — NO editor.iomap drop. The derived output cell
     # re-derives and the change propagates downstream through reactive Sequential.
     op.projection.display_slice[] = !op.projection.display_slice[]
 end
 
 """
-    ToggleClipboardCollectionDisplayOperation(projection)
+    ToggleClipboardCollectionOperation(projection)
 
 Flip the `display_collection` `Cell` of a `ClipboardCollectionToAnyProjection`.
-A plain reactive cell write (see `ToggleClipboardSliceDisplayOperation`).
+A plain reactive cell write (see `ToggleClipboardSliceOperation`).
 """
-struct ToggleClipboardCollectionDisplayOperation <: Operation
+struct ToggleClipboardCollectionOperation <: Operation
     projection::ClipboardCollectionToAnyProjection
 end
 
-function evaluate_operation(editor, op::ToggleClipboardCollectionDisplayOperation)
+function evaluate_operation(editor, op::ToggleClipboardCollectionOperation)
     # Reactive cell write only — NO editor.iomap drop.
     op.projection.display_collection[] = !op.projection.display_collection[]
 end
@@ -510,7 +510,7 @@ end
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
-            (doc, event) -> ToggleClipboardSliceDisplayOperation(p),
+            (doc, event) -> ToggleClipboardSliceOperation(p),
             (doc, sel) -> true, "Toggle stored slice", "clipboard", false, "Toggle stored slice"),
         GestureBinding(KeyDownPattern(:c, [:ctrl], nothing),
             (doc, event) -> _clipboard_copy(p, doc),
@@ -552,7 +552,7 @@ end
 function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
-            (doc, event) -> ToggleClipboardCollectionDisplayOperation(p),
+            (doc, event) -> ToggleClipboardCollectionOperation(p),
             (doc, sel) -> true, "Toggle collection", "clipboard", false, "Toggle collection"),
         GestureBinding(KeyDownPattern(:equals, [:ctrl], nothing),
             (doc, event) -> _clipboard_collection_add(doc),

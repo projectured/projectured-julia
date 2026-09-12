@@ -78,7 +78,7 @@ end
 
     # Toggle
     op = read_intent(p, iomap, KeyDown(:slash, ctrl))
-    @test op isa ToggleClipboardSliceDisplayOperation
+    @test op isa ToggleClipboardSliceOperation
     @test op.projection === p
 
     # Copy — writes a fresh deep copy into the slice, then restores the
@@ -181,7 +181,7 @@ end
 
     # Toggle
     op = read_intent(p, iomap, KeyDown(:asterisk, ctrl))
-    @test op isa ToggleClipboardCollectionDisplayOperation
+    @test op isa ToggleClipboardCollectionOperation
     @test op.projection === p
 
     # Add — inserts the selected object at the front of `elements`.

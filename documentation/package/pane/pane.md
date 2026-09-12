@@ -233,8 +233,8 @@ this domain, and every other consumer can use them too:
 
 | Flag | Draws | Reports |
 |---|---|---|
-| `closable` | a close button on each tab | `CloseTabRequestOperation(pane, index)` |
-| `new_tab` | a button after the last tab | `NewTabRequestOperation(pane)` |
+| `closable` | a close button on each tab | `CloseTabOperation(pane, index)` |
+| `new_tab` | a button after the last tab | `OpenTabOperation(pane)` |
 | `draggable` | nothing | `DragTabOperation(pane, index)` on a button down |
 
 None of them decides what the gesture *means* — the strip knows a button was

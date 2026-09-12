@@ -161,8 +161,8 @@ end
     pane_stage = RecursiveProjection(PaneToWidget())
     pane_iomap = print_document(pane_stage, tree)
     @test read_intent(pane_stage, pane_iomap, SelectTabOperation(stranger, 1)) === nothing
-    @test read_intent(pane_stage, pane_iomap, CloseTabRequestOperation(stranger, 1)) === nothing
-    @test read_intent(pane_stage, pane_iomap, NewTabRequestOperation(stranger)) === nothing
+    @test read_intent(pane_stage, pane_iomap, CloseTabOperation(stranger, 1)) === nothing
+    @test read_intent(pane_stage, pane_iomap, OpenTabOperation(stranger)) === nothing
 end
 
 @testset "a splitter drag runs from the pointer" begin

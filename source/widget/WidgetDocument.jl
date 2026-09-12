@@ -30,7 +30,7 @@ import ..GeometryModule: Inset, Point2D, inset_default,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
                         AffineTransform, affine_identity
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
-       WidgetTreeNode, SelectTabOperation, CloseTabRequestOperation, NewTabRequestOperation,
+       WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
        DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, Shortcut, action_shortcut_matches,
        InvokeActionOperation, as_action,
@@ -1138,7 +1138,7 @@ A tabbed container.  `selector_element_pairs` is a `Vector` of
 `closable` draws a close button on every tab, `new_tab` draws a new-tab button
 after the last one, and `draggable` makes a button down on a tab a grab. All three
 are off by default, and none of them decides what the gesture *means*: the strip
-answers with [`CloseTabRequestOperation`](@ref) / [`NewTabRequestOperation`](@ref)
+answers with [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref)
 / [`DragTabOperation`](@ref), and the projection that owns the tabs decides.
 """
 @document struct WidgetTabbedPane <: WidgetDocument
@@ -2101,25 +2101,25 @@ struct SelectTabOperation <: Operation
 end
 
 """
-    CloseTabRequestOperation(widget, tab_index)
+    CloseTabOperation(widget, tab_index)
 
 Signals that the close button of tab `tab_index` (1-based) of `widget` was
 clicked. Like [`SelectTabOperation`](@ref) this only *reports* — the strip knows
 a button was pressed and nothing about what closing means, so the projection that
 owns the tabs answers it with an edit of its own document.
 """
-struct CloseTabRequestOperation <: Operation
+struct CloseTabOperation <: Operation
     widget::WidgetTabbedPane
     tab_index::Int
 end
 
 """
-    NewTabRequestOperation(widget)
+    OpenTabOperation(widget)
 
 Signals that the new-tab button of `widget`'s strip was clicked. Reports only;
-see [`CloseTabRequestOperation`](@ref).
+see [`CloseTabOperation`](@ref).
 """
-struct NewTabRequestOperation <: Operation
+struct OpenTabOperation <: Operation
     widget::WidgetTabbedPane
 end
 
@@ -2314,7 +2314,7 @@ end
 # `Projection` drops every one of them, and a control inside a card, a pane or a
 # page is dead while it looks and draws exactly right.
 OperationModule.operation_travels_unchanged(::Union{
-    InvokeActionOperation, CloseTabRequestOperation, NewTabRequestOperation,
+    InvokeActionOperation, CloseTabOperation, OpenTabOperation,
     DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
     EndSplitterDragOperation}) = true
 
@@ -2368,8 +2368,8 @@ end
 # The three strip reports are inert when nothing claimed them. A press on a close
 # button with no projection above to say what closing means must do nothing — the
 # report reached the editor because no one answered it, which is not an error.
-evaluate_operation(editor, op::CloseTabRequestOperation) = nothing
-evaluate_operation(editor, op::NewTabRequestOperation) = nothing
+evaluate_operation(editor, op::CloseTabOperation) = nothing
+evaluate_operation(editor, op::OpenTabOperation) = nothing
 evaluate_operation(editor, op::DragTabOperation) = nothing
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)

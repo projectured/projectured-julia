@@ -21,19 +21,19 @@ using ProjecturedKernelExample
 end
 
 # Records what was applied, in order.
-struct FrameDrainOperation <: Operation
+struct DrainFrameOperation <: Operation
     log::Vector{Any}
     tag::Any
 end
 
-evaluate_operation(::Editor, op::FrameDrainOperation) = (push!(op.log, op.tag); nothing)
+evaluate_operation(::Editor, op::DrainFrameOperation) = (push!(op.log, op.tag); nothing)
 
 # Stands for a whole-root swap: it drops the editor's cached projection.
-struct FrameDrainSwapOperation <: Operation
+struct DrainFrameSwapOperation <: Operation
     log::Vector{Any}
 end
 
-evaluate_operation(editor::Editor, op::FrameDrainSwapOperation) =
+evaluate_operation(editor::Editor, op::DrainFrameSwapOperation) =
     (push!(op.log, :swap); invalidate_projection!(editor); nothing)
 
 # Turns each scripted window input into one operation, so a queue of N events is
@@ -45,8 +45,8 @@ ProjectionApiModule.print_document(::FrameDrainProjection, recursion, input, ctx
     SimpleIoMap(nothing, input, input)
 ProjectionApiModule.read_intent(p::FrameDrainProjection, recursion, change::Intent, iomap) =
     Intent(change.gesture,
-           change.gesture === :swap ? FrameDrainSwapOperation(p.log) :
-                                      FrameDrainOperation(p.log, change.gesture))
+           change.gesture === :swap ? DrainFrameSwapOperation(p.log) :
+                                      DrainFrameOperation(p.log, change.gesture))
 
 function _frame_editor(log)
     backend = HeadlessBackend()
@@ -87,7 +87,7 @@ function test_editor_frame_drain()
         push_event!(backend, :first)
         push_event!(backend, :last)
         EditorModule.run_frame!(editor)
-        @test editor.operation isa FrameDrainOperation
+        @test editor.operation isa DrainFrameOperation
         @test editor.operation.tag === :last
         EditorModule.run_frame!(editor)
         @test editor.operation === nothing               # an idle frame reports none

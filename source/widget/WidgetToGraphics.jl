@@ -49,8 +49,8 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        get_lazy_table_column_names, get_lazy_table_column_widths,
                        widget_lazy_table_row_selection,
                        Inset, Point2D, inset_default,
-                       SelectTabOperation, CloseTabRequestOperation,
-                       NewTabRequestOperation, DragTabOperation,
+                       SelectTabOperation, CloseTabOperation,
+                       OpenTabOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
                        Action, InvokeActionOperation, action_shortcut_matches
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
@@ -3146,9 +3146,9 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
             # The new-tab button first: it follows the last tab, so no tab box can
             # claim it.
             g.new_w > 0 && xx >= g.new_x && xx < g.new_x + g.new_w &&
-                return NewTabRequestOperation(w)
+                return OpenTabOperation(w)
             index, on_close = _tab_at_strip_x(g, xx)
-            index > 0 && return on_close ? CloseTabRequestOperation(w, index) :
+            index > 0 && return on_close ? CloseTabOperation(w, index) :
                                            # A tab click is a selection change, nothing
                                            # more. Emitted as this pane's own local
                                            # path, so the ordinary re-targeting carries

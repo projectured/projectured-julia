@@ -87,7 +87,7 @@ containing further versioned objects is resolved layer by layer.
 
 `SetVersionCriterionOperation` replaces `vo.criterion` and, like the clipboard
 display toggle, drops `editor.iomap` to force a rebuild on the new criterion
-(see `ToggleClipboardSliceDisplayOperation`).
+(see `ToggleClipboardSliceOperation`).
 
 ## Example & tests
 

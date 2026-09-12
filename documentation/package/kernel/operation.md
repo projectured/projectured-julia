@@ -397,7 +397,7 @@ registration invariant](#two-invariants-every-operation-must-respect) above (the
 other half is the default `read_intent`).
 
 **Testing pressure.** `test/operation/RerootingTest.jl` declares a test-local
-`ToyPathOp <: Operation` and registers its own `reroot_operation` method,
+`ToyPathOperation <: Operation` and registers its own `reroot_operation` method,
 proving the seam is genuinely open — you cannot depend on a concrete
 higher-layer type at layer 10.
 

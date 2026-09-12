@@ -22,8 +22,8 @@ function _sweep(proj, iomap, event_of)
     for y in 0:2:40, x in 0:2:400
         op = read_intent(proj, iomap, event_of(x, y))
         # A tab click is a ReplaceSelectionOperation now, so the sweep must keep one.
-        op isa Union{ReplaceSelectionOperation, CloseTabRequestOperation,
-                     NewTabRequestOperation, DragTabOperation} || continue
+        op isa Union{ReplaceSelectionOperation, CloseTabOperation,
+                     OpenTabOperation, DragTabOperation} || continue
         push!(found, (x, op))
     end
     found
@@ -55,8 +55,8 @@ _select_tab(op, index) =
     found = _sweep(proj, iomap, _press)
     @test any(op -> _select_tab(op, 1), last.(found))
     @test any(op -> _select_tab(op, 2), last.(found))
-    @test !any(op -> op isa CloseTabRequestOperation, last.(found))
-    @test !any(op -> op isa NewTabRequestOperation, last.(found))
+    @test !any(op -> op isa CloseTabOperation, last.(found))
+    @test !any(op -> op isa OpenTabOperation, last.(found))
     # No grab either, until the pane is draggable.
     @test isempty(_sweep(proj, iomap, _down))
 end
@@ -68,15 +68,15 @@ end
     found = _sweep(proj, iomap, _press)
 
     select1 = _first_x(found, op -> _select_tab(op, 1))
-    close1  = _first_x(found, op -> op isa CloseTabRequestOperation && op.tab_index == 1)
+    close1  = _first_x(found, op -> op isa CloseTabOperation && op.tab_index == 1)
     select2 = _first_x(found, op -> _select_tab(op, 2))
-    close2  = _first_x(found, op -> op isa CloseTabRequestOperation && op.tab_index == 2)
+    close2  = _first_x(found, op -> op isa CloseTabOperation && op.tab_index == 2)
     @test all(!isnothing, (select1, close1, select2, close2))
     # Each tab's close button sits at its right edge, so the four run in order.
     @test select1 < close1 < select2 < close2
     # Every close report names the pane it came from.
     @test all(op -> op.widget === pane,
-              [op for (_, op) in found if op isa CloseTabRequestOperation])
+              [op for (_, op) in found if op isa CloseTabOperation])
 end
 
 @testset "a new-tab button follows the last tab" begin
@@ -84,7 +84,7 @@ end
     proj = _proj()
     iomap = print_document(proj, pane)
     found = _sweep(proj, iomap, _press)
-    new_x = _first_x(found, op -> op isa NewTabRequestOperation)
+    new_x = _first_x(found, op -> op isa OpenTabOperation)
     last_tab = _first_x(found, op -> _select_tab(op, 2))
     @test new_x !== nothing
     @test last_tab < new_x
@@ -95,7 +95,7 @@ end
     proj = _proj()
     iomap = print_document(proj, pane)
     found = _sweep(proj, iomap, _press)
-    @test any(op -> op isa NewTabRequestOperation, last.(found))
+    @test any(op -> op isa OpenTabOperation, last.(found))
 end
 
 @testset "a draggable strip reports a grab on the tab under the button" begin
@@ -110,15 +110,15 @@ end
     grab2 = _first_x(found, op -> op isa DragTabOperation && op.tab_index == 2)
     @test grab1 < grab2
     presses = _sweep(proj, iomap, _press)
-    close1 = _first_x(presses, op -> op isa CloseTabRequestOperation && op.tab_index == 1)
+    close1 = _first_x(presses, op -> op isa CloseTabOperation && op.tab_index == 1)
     @test !any(x == close1 && op isa DragTabOperation for (x, op) in found)
 end
 
 @testset "the reports are inert when nobody claims them" begin
     pane = _pane(closable = true, new_tab = true, draggable = true)
     # An unclaimed report reaching the editor does nothing rather than failing.
-    @test evaluate_operation(nothing, CloseTabRequestOperation(pane, 1)) === nothing
-    @test evaluate_operation(nothing, NewTabRequestOperation(pane)) === nothing
+    @test evaluate_operation(nothing, CloseTabOperation(pane, 1)) === nothing
+    @test evaluate_operation(nothing, OpenTabOperation(pane)) === nothing
     @test evaluate_operation(nothing, DragTabOperation(pane, 1)) === nothing
 end
 

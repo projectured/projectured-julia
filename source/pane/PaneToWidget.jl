@@ -42,8 +42,8 @@ import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation, pane_rectang
 import ..IntentModule: Intent
 import ..EventModule: MouseMove, MouseUp, MousePress
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
-import ..WidgetModule: SelectTabOperation, CloseTabRequestOperation,
-                       NewTabRequestOperation, DragTabOperation,
+import ..WidgetModule: SelectTabOperation, CloseTabOperation,
+                       OpenTabOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation,
                        EndSplitterDragOperation
 import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
@@ -470,14 +470,14 @@ end
 # `pane_focus_operation` used to build. No method of our own is needed.
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::CloseTabRequestOperation)
+                     operation::CloseTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     pane_close_tab_operation(iomap.input, group, operation.tab_index)
 end
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::NewTabRequestOperation)
+                     operation::OpenTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     pane_open_tab_operation(iomap.input, group, p.new_tab())

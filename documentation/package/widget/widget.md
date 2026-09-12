@@ -301,7 +301,7 @@ alongside the widget types in
 | Operation | Effect |
 |---|---|
 | `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the workbench overloads it into a document-selection move |
-| `CloseTabRequestOperation` / `NewTabRequestOperation` / `DragTabOperation` | the other three event-like strip reports — see [Strip reports](#strip-reports) |
+| `CloseTabOperation` / `OpenTabOperation` / `DragTabOperation` | the other three event-like strip reports — see [Strip reports](#strip-reports) |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
 | `InvokeActionOperation(action)` | invoke a control's `Action` — its `callback` runs (with the editor if it takes one), guarded by the action's `enabled` |
 
@@ -340,8 +340,8 @@ pane, and each *reporting* rather than deciding:
 
 | Flag | Draws | Reports |
 |---|---|---|
-| `closable` | a close button on every tab | `CloseTabRequestOperation(pane, index)` |
-| `new_tab` | a `+` button after the last tab | `NewTabRequestOperation(pane)` |
+| `closable` | a close button on every tab | `CloseTabOperation(pane, index)` |
+| `new_tab` | a `+` button after the last tab | `OpenTabOperation(pane)` |
 | `draggable` | nothing | `DragTabOperation(pane, index)` on a left button down over a tab |
 
 The strip knows a button was pressed and **nothing about what it means** — what
