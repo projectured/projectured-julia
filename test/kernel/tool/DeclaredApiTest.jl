@@ -170,6 +170,24 @@ function test_declared_api()
         @test occursin("toy_missing", message)
     end
 
+    # Half of what a turn spends is finding out what it may call. The signature
+    # lines are what a search hit shows anyway, so a prompt that carries them
+    # spends no round on the lookup.
+    @testset "the declaration renders as the lines a prompt carries" begin
+        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)])
+        @test occursin("ToyApi", text)
+        # The name the MODEL writes, with its signature on one line.
+        @test occursin("say_toy", text)
+        @test !occursin("toy_verb", text)
+        @test occursin("toy_count", text)
+        # One line each, and no prose: the paragraph under the signature stays
+        # where it is, one `read_function_documentation` away.
+        @test length(split(text, "\n")) == 3
+
+        # A name the declaration left out is not in it either.
+        @test !occursin("toy_count", describe_api(Any[ToyApi => (:toy_verb,)]))
+    end
+
     @testset "a name its module does not have is refused" begin
         set = ToolSet()
         message = try

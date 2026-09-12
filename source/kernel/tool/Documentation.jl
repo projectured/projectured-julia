@@ -514,6 +514,50 @@ end
 # The index of a declared API: each named module, and the names it exports. It
 # mirrors what the scratch module holds, name for name, because a model that finds
 # a function it cannot call wastes a round and learns to distrust the answer.
+"""
+    describe_api(api) -> String
+
+Every name a declaration gives, one signature line each, grouped by module.
+
+**It is the two rounds a turn spends finding out what it may call.** Measured on
+the OMNeT++ interface with a local model, 2026-09-13: of 36 tool calls over eight
+one-sentence tasks, **18 were lookups** — a `search_api` for a name, then a
+`read_function_documentation` for its signature — and 18 were the work. A model
+that has the signature lines already writes code in its first round.
+
+**It is the signature line and nothing else**, which is what a search hit shows
+anyway (`_first_paragraph`) and what a model calls a verb off. The prose stays
+where it is, one `read_function_documentation` away, for the times a signature
+is not enough.
+
+**It is generated from the declaration**, so a prompt that carries it cannot
+drift from the list: a name added to the declaration is in the next prompt, and a
+name dropped leaves it.
+"""
+function describe_api(api)
+    entries = _api_entries(api)
+    lines = String[]
+    for entry in entries
+        mod = entry.module_
+        own = String[]
+        for (source, name) in api_entry_bindings(entry)
+            name === nameof(mod) && continue
+            isdefined(mod, source) || continue
+            signature = _first_paragraph(_binding_doc(mod, source))
+            text = String(name)
+            # A name whose documentation opens with its own signature says it
+            # once; anything else is named with what it is.
+            push!(own, isempty(signature) ? text :
+                       startswith(strip(signature), text) ? strip(signature) :
+                       text * " — " * strip(signature))
+        end
+        isempty(own) && continue
+        push!(lines, String(nameof(mod)))
+        append!(lines, ("  " * one for one in own))
+    end
+    isempty(lines) ? "" : join(lines, "\n")
+end
+
 function _index_declared(api)
     entries = _ApiEntry[]
     for declared in api
