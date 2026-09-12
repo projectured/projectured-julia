@@ -38,8 +38,13 @@ _gen_build_step(step::RefIndex) =
 _gen_build_step(step::RefPosition) =
     :(ReferenceModule.PositionReferenceStep(Int($(esc(step.expr)))))
 
-_gen_build_step(step::RefRange) =
-    :(ReferenceModule.RangeReferenceStep(Int($(esc(step.startexpr))), Int($(esc(step.stopexpr)))))
+# A step counts gaps between elements, from 0, so only the `[i, j]` spelling has
+# a conversion to make — the same one `ElementReferenceStep` makes for `xs[i]`.
+function _gen_build_step(step::RefRange)
+    start = :(Int($(esc(step.startexpr))))
+    step.numbering === :element && (start = :($start - 1))
+    :(ReferenceModule.RangeReferenceStep($start, Int($(esc(step.stopexpr)))))
+end
 
 _gen_build_step(step::RefSplice) = esc(step.expr)
 

@@ -104,9 +104,15 @@ struct PatStepPosition <: PatStep
     idxpat::PatValue    # matches a zero-width RangeReferenceStep (a cursor position); 0-based = start
 end
 
+# `numbering` is the surface bracket the pattern was written with, and it decides
+# what `startpat` is matched against: `:element` (`xs[i, j]`) reads the 1-based
+# first element, `start + 1`, and `:gap` (`xs{s:e}`) reads the step's own 0-based
+# `start`. `stoppat` reads `stop` either way, because the last element's 1-based
+# index and the gap after it are the same number.
 struct PatStepRange <: PatStep
     startpat::PatValue
     stoppat::PatValue
+    numbering::Symbol
 end
 
 # A `.name(patterns...)` DSL pattern whose match code is registered by dispatch
@@ -298,7 +304,8 @@ _to_pat(s::RefField)     = s.name == REFERENCE_GAP_NAME ? PatStepGap() :
 _to_pat(s::RefFieldExpr) = PatStepField(_parse_value(s.expr))
 _to_pat(s::RefIndex)     = PatStepIndex(_parse_value(s.expr))
 _to_pat(s::RefPosition)  = PatStepPosition(_parse_value(s.expr))
-_to_pat(s::RefRange)     = PatStepRange(_parse_value(s.startexpr), _parse_value(s.stopexpr))
+_to_pat(s::RefRange)     = PatStepRange(_parse_value(s.startexpr), _parse_value(s.stopexpr),
+                                         s.numbering)
 _to_pat(s::RefType)      = _pat_type_step(s.expr)
 _to_pat(s::RefSplice)    = PatStepPathInterp(s.expr)
 _to_pat(s::RefTailBind)  = PatStepWholePathBind(s.name)
@@ -714,7 +721,7 @@ function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::S
 end
 
 function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{Symbol})
-    startexpr = :($hex.start)
+    startexpr = step.numbering === :element ? :($hex.start + 1) : :($hex.start)
     stopexpr = :($hex.stop)
 
     inner2, bound2 = _gen_value_match(stopexpr, step.stoppat, rest_success, bound)

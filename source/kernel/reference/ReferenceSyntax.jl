@@ -41,10 +41,25 @@ struct RefPosition <: RefStep
     expr
 end
 
-"`xs[i, j]` / `xs{s:e}` — a range."
+"""
+`xs[i, j]` and `xs{s:e}` — a run of a sequence.
+
+`numbering` says which bracket wrote the step, and so how its two numbers read:
+
+  * `:element` — `xs[i, j]`, the elements `i` through `j`, 1-based and
+    inclusive. `xs[2, 2]` names what `xs[2]` names.
+  * `:gap` — `xs{s:e}`, the gaps `s` and `e` between elements, 0-based, and so
+    the run between them. `xs{1:3}` names the second and third elements.
+
+**The bracket says the numbering**, which is the one rule the whole grammar
+follows: `[…]` counts elements from 1, and `{…}` counts gaps from 0. A lowerer
+converts an `:element` range into the step's own numbering, the way
+`ElementReferenceStep` converts `xs[i]`.
+"""
 struct RefRange <: RefStep
     startexpr
     stopexpr
+    numbering::Symbol
 end
 
 """
@@ -144,13 +159,13 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
         return steps
 
     elseif ex isa Expr && ex.head == :ref
-        # base[idx] — a single element (1-based), or base[i, j] — a range
+        # base[idx] — a single element (1-based), or base[i, j] — elements i through j
         if length(ex.args) == 2
             _parse_ref_path!(steps, ex.args[1])
             push!(steps, RefIndex(ex.args[2]))
         elseif length(ex.args) == 3
             _parse_ref_path!(steps, ex.args[1])
-            push!(steps, RefRange(ex.args[2], ex.args[3]))
+            push!(steps, RefRange(ex.args[2], ex.args[3], :element))
         else
             error("indexing supports 1 or 2 dimensions: $ex")
         end
@@ -202,11 +217,11 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
         end
 
     elseif ex isa Expr && ex.head == :vect
-        # [i] as a relative subpath — a single element (1-based), or [i, j] — a range
+        # [i] as a relative subpath — a single element (1-based), or [i, j] — elements i through j
         if length(ex.args) == 1
             push!(steps, RefIndex(ex.args[1]))
         elseif length(ex.args) == 2
-            push!(steps, RefRange(ex.args[1], ex.args[2]))
+            push!(steps, RefRange(ex.args[1], ex.args[2], :element))
         else
             error("subpath vector syntax supports 1 or 2 elements: $ex")
         end
@@ -241,10 +256,11 @@ function _parse_ref_path!(steps::Vector{RefStep}, ex)
     end
 end
 
-# Lower the inner expression of a `{...}` to either a position or a range step.
+# Lower the inner expression of a `{...}` to either a position or a range step. Both
+# count gaps between elements, from 0, which is what the brace bracket means.
 function _ref_braces_step(inner)
     if inner isa Expr && inner.head == :call && length(inner.args) == 3 && inner.args[1] == :(:)
-        return RefRange(inner.args[2], inner.args[3])
+        return RefRange(inner.args[2], inner.args[3], :gap)
     end
     return RefPosition(inner)
 end
@@ -295,7 +311,7 @@ function _ref_type_suffix!(steps::Vector{RefStep}, T)
         if length(T.args) == 2
             push!(steps, RefIndex(T.args[2]))
         elseif length(T.args) == 3
-            push!(steps, RefRange(T.args[2], T.args[3]))
+            push!(steps, RefRange(T.args[2], T.args[3], :element))
         else
             error("type suffix index supports 1 or 2 dimensions: $T")
         end
@@ -336,7 +352,7 @@ function parse_reference_step(ex)
         if length(ex.args) == 2
             return RefIndex(ex.args[2])
         elseif length(ex.args) == 3
-            return RefRange(ex.args[2], ex.args[3])
+            return RefRange(ex.args[2], ex.args[3], :element)
         else
             error("indexing supports 1 or 2 dimensions in @reference_step: $ex")
         end
@@ -347,7 +363,7 @@ function parse_reference_step(ex)
         if length(ex.args) == 1
             return RefIndex(ex.args[1])
         elseif length(ex.args) == 2
-            return RefRange(ex.args[1], ex.args[2])
+            return RefRange(ex.args[1], ex.args[2], :element)
         else
             error("vector syntax supports 1 or 2 elements in @reference_step: $ex")
         end

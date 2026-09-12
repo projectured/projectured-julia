@@ -153,7 +153,18 @@ has `n` items and `n+1` boundaries between them:
 
 Both are encoded as the same underlying `RangeReferenceStep(start, stop)`: `[i]` is
 `RangeReferenceStep(i-1, i)` (one-wide), `{i}` is `RangeReferenceStep(i, i)`
-(zero-wide). A multi-item selection `{i:j}` is `RangeReferenceStep(i, j)`.
+(zero-wide).
+
+**The bracket says the numbering**, and a run of items is written either way:
+
+- `{i:j}` — the run between boundary `i` and boundary `j`, 0-based. It is
+  `RangeReferenceStep(i, j)`.
+- `[i, j]` — the items `i` through `j`, 1-based and inclusive. It is
+  `RangeReferenceStep(i-1, j)`, so `[i, i]` is `[i]`.
+
+`{1:3}` and `[2, 3]` are therefore the same step. Write whichever counts what
+you are thinking about: an insert counts boundaries, and a selection of items
+counts items.
 
 The same convention applies regardless of what the items are. In an array, `[1]`
 is the first element and `{0}` is the cursor before it. In a string, `[1]` is
@@ -410,9 +421,9 @@ The `@reference` macro turns compact source into the nested
 # Position references (0-based)
 @reference items{i}                 # → PositionReferenceStep(i)
 
-# Range references — explicit multi-element selection
-@reference items{s:e}               # → RangeReferenceStep(s, e)
-# Prefer this form over the older two-arg `items[s, e]`.
+# Range references — a run of items, in either numbering
+@reference items{s:e}               # → RangeReferenceStep(s, e)      boundaries, 0-based
+@reference items[i, j]              # → RangeReferenceStep(i-1, j)    items, 1-based inclusive
 
 # Dynamic field names
 @reference config.field(fname)      # → FieldReferenceStep(fname)
@@ -459,6 +470,7 @@ The `@reference_step` macro builds a single `ReferenceStep`, useful for passing 
 @reference_step xs[i]              # ElementReferenceStep(i)
 @reference_step xs{k}              # PositionReferenceStep(k)
 @reference_step xs{s:e}            # RangeReferenceStep(s, e)
+@reference_step xs[i, j]           # RangeReferenceStep(i-1, j)
 @reference_step c.point(x, y)      # PointReferenceStep(x, y)
 @reference_step config.field(name) # FieldReferenceStep(name)
 ```
@@ -492,9 +504,12 @@ Pattern syntax:
 - `"name"` or `0` — literal, matches a specific value
 - `i::Int` — typed binder, captures with a type check
 - `path...` — matches prefix and binds the remaining tail
-- `{s:e}` — range pattern, matches any `RangeReferenceStep` (positions are
-  `RangeReferenceStep(k, k)`, so `{s:e}` will also match a position; list more
-  specific `{k}` patterns first if both are interesting)
+- `{s:e}` — range pattern, matches any `RangeReferenceStep` and binds its two
+  boundaries (positions are `RangeReferenceStep(k, k)`, so `{s:e}` will also
+  match a position; list more specific `{k}` patterns first if both are
+  interesting)
+- `[i, j]` — the same match, binding the items instead: `i` is the 1-based first
+  item and `j` the 1-based last
 
 The `when(pattern, cond)` helper adds a guard.
 

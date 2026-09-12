@@ -20,7 +20,7 @@ The text domain bridges structural (syntax tree) and visual (graphics) domains. 
   property of the line, not a whitespace span, so no caret can land inside it.
 
   A span inside a line is addressed by an **index path** — `[i]` for a top-level span,
-  `[i, j]` for span `j` of line `i` — and the caret path gains one `elements` hop
+  `[i][j]` for span `j` of line `i` — and the caret path gains one `elements` hop
   (`.elements[i].elements[j].content{k}`). Cursor and word motion cross line boundaries; typing
   edits the line's own span.
 

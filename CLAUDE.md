@@ -82,7 +82,9 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`
   - 🔒 `reference/ReferenceSearch.jl`
-  - 🔒 `reference/ReferenceSyntax.jl`
+  - ⬜ `reference/ReferenceSyntax.jl` (unsealed 2026-09-12: `xs[i, j]` counts
+    elements, 1-based and inclusive, the user's direction — re-audit before
+    resealing)
   - ⬜ `reference/ReferenceGlob.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceRules.jl`

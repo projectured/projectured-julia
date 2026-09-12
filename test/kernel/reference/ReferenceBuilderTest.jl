@@ -64,6 +64,34 @@ let s = 4, e = 9
           ConcreteReference(RangeReferenceStep(4, 9), EmptyReference())
 end
 
+# ── [i, j] range syntax ─────────────────────────────────────────────────
+#
+# The bracket says the numbering: `[…]` counts elements from 1 and `{…}` counts
+# the gaps between them from 0. So `xs[2, 3]` is the second and third elements,
+# and the step it builds counts the gaps that bound them.
+
+@test strip_reference_types(@reference ::A.xs::B[2, 3]::C) ==
+      ConcreteReference(FieldReferenceStep("xs"),
+          ConcreteReference(RangeReferenceStep(1, 3), EmptyReference()))
+
+# a range of one element is that element
+@test strip_reference_types(@reference ::A.xs::B[2, 2]::C) ==
+      strip_reference_types(@reference ::A.xs::B[2]::C)
+
+# the two spellings name the same run
+@test strip_reference_types(@reference ::A.xs::B[2, 3]::C) ==
+      strip_reference_types(@reference ::A.xs::B{1:3}::C)
+
+let i = 3, j = 5
+    @test strip_reference_types(@reference ::A.xs::B[i, j]::C) ==
+          ConcreteReference(FieldReferenceStep("xs"),
+              ConcreteReference(RangeReferenceStep(2, 5), EmptyReference()))
+end
+
+# bare [i, j] as a relative subpath
+@test strip_reference_types(@reference ::A[2, 3]::B) ==
+      ConcreteReference(RangeReferenceStep(1, 3), EmptyReference())
+
 # ── typed steps: `::T` interleaved with `.field` / `[i]` (step 3b) ────────
 # A `.field` or `[i]` following a mid-path `::Type` is a new step, not
 # `getfield` on the type value. The types fold onto the nodes their following
@@ -137,6 +165,7 @@ end
 @test (@reference_step xs[4]) == ElementReferenceStep(4)
 @test (@reference_step xs{3}) == PositionReferenceStep(3)
 @test (@reference_step xs{1:5}) == RangeReferenceStep(1, 5)
+@test (@reference_step xs[2, 5]) == RangeReferenceStep(1, 5)
 # `@reference_step c.point(2, 3)` moved to the visual test suite alongside PointReferenceStep.
 
 # ── @reference_case range pattern ───────────────────────────────────────
@@ -146,6 +175,23 @@ let sample = strip_reference_types(@reference ::A.items::B{2:5}::C)
         items{s:e} => (s, e)
     end
     @test matched == (2, 5)
+end
+
+# an element-numbered pattern binds the 1-based first and last element
+let sample = strip_reference_types(@reference ::A.items::B[2, 5]::C)
+    matched = @reference_case sample begin
+        items[i, j] => (i, j)
+    end
+    @test matched == (2, 5)
+end
+
+# and it reads the same step the gap-numbered pattern reads
+let sample = strip_reference_types(@reference ::A.items::B[2, 5]::C)
+    matched = @reference_case sample begin
+        items{1:5} => :gap_match
+        __ => :fallback
+    end
+    @test matched == :gap_match
 end
 
 # range pattern with literal bounds

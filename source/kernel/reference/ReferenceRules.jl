@@ -260,7 +260,8 @@ _match_step(h, step::PatStepPosition, b::ReferenceRuleBindings) =
 
 function _match_step(h, step::PatStepRange, b::ReferenceRuleBindings)
     h isa RangeReferenceStep || return nothing
-    b1 = _match_value(h.start, step.startpat, b)
+    start = step.numbering === :element ? h.start + 1 : h.start
+    b1 = _match_value(start, step.startpat, b)
     b1 === nothing ? nothing : _match_value(h.stop, step.stoppat, b1)
 end
 
@@ -733,9 +734,14 @@ _show_pat_step(io::IO, step::PatStepIndex, first::Bool) =
 _show_pat_step(io::IO, step::PatStepPosition, first::Bool) =
     (print(io, "{"); _show_pat_value(io, step.idxpat); print(io, "}"))
 
+# Printed in the bracket it was written in, because the bracket is what says how
+# its two numbers read.
 _show_pat_step(io::IO, step::PatStepRange, first::Bool) =
-    (print(io, "{"); _show_pat_value(io, step.startpat); print(io, ":");
-     _show_pat_value(io, step.stoppat); print(io, "}"))
+    step.numbering === :element ?
+        (print(io, "["); _show_pat_value(io, step.startpat); print(io, ", ");
+         _show_pat_value(io, step.stoppat); print(io, "]")) :
+        (print(io, "{"); _show_pat_value(io, step.startpat); print(io, ":");
+         _show_pat_value(io, step.stoppat); print(io, "}"))
 
 _show_pat_step(io::IO, step::PatStepType, first::Bool) =
     print(io, "::", step.typeexpr isa Type ? nameof(step.typeexpr) : step.typeexpr)
@@ -807,7 +813,8 @@ _quote_pat_step(step::PatStepField) = :($PatStepField($(_quote_pat_value(step.na
 _quote_pat_step(step::PatStepIndex) = :($PatStepIndex($(_quote_pat_value(step.idxpat))))
 _quote_pat_step(step::PatStepPosition) = :($PatStepPosition($(_quote_pat_value(step.idxpat))))
 _quote_pat_step(step::PatStepRange) =
-    :($PatStepRange($(_quote_pat_value(step.startpat)), $(_quote_pat_value(step.stoppat))))
+    :($PatStepRange($(_quote_pat_value(step.startpat)), $(_quote_pat_value(step.stoppat)),
+                    $(QuoteNode(step.numbering))))
 _quote_pat_step(step::PatStepType) = :($PatStepType($(esc(step.typeexpr))))
 _quote_pat_step(step::PatStepTypeBind) = :($PatStepTypeBind($(QuoteNode(step.name))))
 _quote_pat_step(step::PatStepWholePathBind) = :($PatStepWholePathBind($(QuoteNode(step.name))))
