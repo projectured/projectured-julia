@@ -13,6 +13,7 @@ using Test
 using Projectured
 using ProjecturedExample
 using ProjecturedVideo
+using ProjecturedKernelTest
 using ProjecturedSubstrateTest    # collect_position_selections (caret seeds)
 
 include("../../../test/video/editor/VideoTest.jl")

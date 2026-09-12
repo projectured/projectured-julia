@@ -18,6 +18,7 @@ using Test
 using Projectured
 using ProjecturedExample
 using ProjecturedOdbc
+using ProjecturedKernelTest
 
 # Live-DB fixture helpers shared by the two suites (moved down with them from the
 # umbrella). `db_execute_raw` / `db_insert!` / `RawDatabaseResult` come from

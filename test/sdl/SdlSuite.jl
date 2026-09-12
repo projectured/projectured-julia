@@ -9,6 +9,23 @@ include("backend/InputCoalescingTest.jl")
 include("backend/NativeWindowTest.jl")
 include("projection/GraphicsToFileTest.jl")
 
+"""
+    test_sdl_layering()
+
+Static layered-architecture guard for `ProjecturedSdl`.
+"""
+function test_sdl_layering()
+    main = package_source_root(ProjecturedSdl)
+    check_layering(main, pathof(ProjecturedSdl);
+                   name = "sdl",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedSdl; all = true)
+                         if isdefined(ProjecturedSdl, n) &&
+                            getfield(ProjecturedSdl, n) isa Module &&
+                            getfield(ProjecturedSdl, n) !== ProjecturedSdl &&
+                            parentmodule(getfield(ProjecturedSdl, n)) !== ProjecturedSdl))
+end
+
 "Run the whole SDL backend suite."
 function test_sdl()
     @testset "ProjecturedSdl" begin
@@ -21,5 +38,5 @@ function test_sdl()
     end
 end
 
-export test_sdl, test_dirty_rect, test_sdl_keysym, test_device_config,
+export test_sdl, test_sdl_layering, test_dirty_rect, test_sdl_keysym, test_device_config,
        test_input_coalescing, test_native_window, test_write_image

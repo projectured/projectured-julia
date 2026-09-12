@@ -12,6 +12,23 @@ include("external/DatabaseResultTest.jl")
 include("external/DbCatalogQueryTest.jl")
 include("external/DbCatalogSyntaxTest.jl")
 
+"""
+    test_odbc_layering()
+
+Static layered-architecture guard for `ProjecturedOdbc`.
+"""
+function test_odbc_layering()
+    main = package_source_root(ProjecturedOdbc)
+    check_layering(main, pathof(ProjecturedOdbc);
+                   name = "odbc",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedOdbc; all = true)
+                         if isdefined(ProjecturedOdbc, n) &&
+                            getfield(ProjecturedOdbc, n) isa Module &&
+                            getfield(ProjecturedOdbc, n) !== ProjecturedOdbc &&
+                            parentmodule(getfield(ProjecturedOdbc, n)) !== ProjecturedOdbc))
+end
+
 "Run the ODBC database + catalog suite (skips when no DB is reachable)."
 function test_odbc()
     @testset "ProjecturedOdbc" begin
@@ -22,4 +39,4 @@ function test_odbc()
     end
 end
 
-export test_odbc, test_database, test_database_no_db, test_db_catalog, test_db_catalog_syntax
+export test_odbc, test_odbc_layering, test_database, test_database_no_db, test_db_catalog, test_db_catalog_syntax

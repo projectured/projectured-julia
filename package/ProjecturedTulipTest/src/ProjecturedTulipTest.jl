@@ -13,6 +13,7 @@ using Test
 using Projectured
 using ProjecturedExample
 using ProjecturedTulip
+using ProjecturedKernelTest
 
 include("../../../test/tulip/document/ConstraintSolverTest.jl")
 

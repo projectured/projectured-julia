@@ -1228,7 +1228,7 @@ uuid = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 version = "0.1.0"
 
 [[deps.ProjecturedOdbcTest]]
-deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedOdbcTest"
 uuid = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 version = "0.1.0"
@@ -1342,7 +1342,7 @@ uuid = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 version = "0.1.0"
 
 [[deps.ProjecturedSdlTest]]
-deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSdl", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSdl", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedSdlTest"
 uuid = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 version = "0.1.0"
@@ -1444,7 +1444,7 @@ uuid = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
 version = "0.1.0"
 
 [[deps.ProjecturedTulipTest]]
-deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedTulip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedTulip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedTulipTest"
 uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 version = "0.1.0"
@@ -1462,7 +1462,7 @@ uuid = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 version = "0.1.0"
 
 [[deps.ProjecturedVideoTest]]
-deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedVideo", "ProjecturedWidget", "Test"]
+deps = ["Projectured", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedVideo", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedVideoTest"
 uuid = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 version = "0.1.0"

@@ -18,6 +18,7 @@ using Test
 using Projectured
 using ProjecturedExample
 using ProjecturedSdl
+using ProjecturedKernelTest
 
 # The SDL backend must be live for the dirty-rect / write_image paths. Built in
 # __init__ (runtime, after the extension loads) rather than at precompile time.
