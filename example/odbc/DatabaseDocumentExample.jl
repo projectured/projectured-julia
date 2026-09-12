@@ -8,14 +8,14 @@ function make_database_adapter_example(;
 end
 
 function setup_persons_table(adapter)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "DROP TABLE IF EXISTS persons", RawDatabaseResult)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "CREATE TABLE persons (name TEXT, age INT)", RawDatabaseResult)
     db_insert!(adapter, "persons", Dict("name" => "Alice", "age" => 30))
 end
 
 function teardown_persons_table(adapter)
-    db_execute_raw(adapter,
+    execute_db_raw(adapter,
         "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end

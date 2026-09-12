@@ -166,7 +166,7 @@ function make_dvdrental_relationship_graph_document_example(;
     # layout), de-dup (from → to) so multi-column FKs draw one edge, and drop
     # self-references (a self-loop has no meaningful ER edge).
     fks = with_connection(pool, inst) do adapter
-        db_catalog_foreign_keys(adapter, schema)
+        get_db_catalog_foreign_keys(adapter, schema)
     end
     edges = GraphEdge[]
     seen  = Set{Tuple{String, String}}()
