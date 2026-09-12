@@ -136,7 +136,15 @@ From a single stem derive all four names:
 | file | `<Stem>.jl` |
 | type | `<Stem>Projection` |
 | module | `<Stem>ProjectionModule` |
-| iomap | `<Stem>ProjectionIoMap` |
+| iomap | `<Stem>IoMap` |
+
+The IO map carries no `Projection`, because an IO map belongs to a projection
+and to nothing else. The word says nothing the name does not already say.
+
+**A projection named `<A>To<B>` takes no suffix.** The `To` already says the
+name is a projection, and the chain these names live in reads better without
+the word repeated: `ChainingProjection([JsonToSyntax(), SyntaxToText(),
+TextToGraphics()])`. Every other projection takes `<Stem>Projection`.
 
 The stem answers a different question per folder:
 

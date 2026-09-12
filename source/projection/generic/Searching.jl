@@ -21,14 +21,14 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
                           strip_reference_types
 import ..ReferenceModule: var"@reference_case"
-export SearchingProjection, SearchingProjectionIoMap
+export SearchingProjection, SearchingIoMap
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 # `output` and `match_paths` derive from one reactive walk of the input tree, so
 # the IoMap keeps its identity while a structural edit anywhere re-collects the
 # matches (PAR-STABLE-IOMAP-IDENTITY); `iomap.match_paths` reads the current vector.
-@iomap struct SearchingProjectionIoMap
+@iomap struct SearchingIoMap
     projection::Any
     input::Any
     output::Any                          # CellVector of the matched objects
@@ -79,7 +79,7 @@ function print_document(p::SearchingProjection, recursion, input, ctx)
     end)
     output = ComputedCellVector(() -> [obj for (_, obj) in matches[]])
     match_paths = ComputedCell(() -> Reference[path for (path, _) in matches[]])
-    iomap = SearchingProjectionIoMap(p, input, output, match_paths)
+    iomap = SearchingIoMap(p, input, output, match_paths)
 
     # Forward-project the input selection so the cursor lands on the matching
     # result when it points inside one. Lazy so the not-yet-needed `iomap`
@@ -145,7 +145,7 @@ end
 
 # ── Reference mapping ─────────────────────────────────────────────────────
 
-function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
+function map_reference_forward(p::SearchingProjection, iomap::SearchingIoMap, reference)
     reference isa Reference || return nothing
     stripped = strip_reference_types(reference)   # match the plain skeleton; selections are canonical
     # Choose the longest matching prefix so a selection inside a nested match
@@ -173,7 +173,7 @@ function map_reference_forward(p::SearchingProjection, iomap::SearchingProjectio
     @invoke map_reference_forward(p::Projection, iomap, reference)
 end
 
-function map_reference_backward(p::SearchingProjection, iomap::SearchingProjectionIoMap, reference)
+function map_reference_backward(p::SearchingProjection, iomap::SearchingIoMap, reference)
     @reference_case reference begin
         [j].rest... => begin
             (j < 1 || j > length(iomap.match_paths)) && return nothing

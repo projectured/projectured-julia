@@ -82,7 +82,7 @@ function _iomap_children(iomap::IoMap)
 end
 
 # A field or a vector slot may hold the IoMap behind a Cell —
-# `ChainingProjectionIoMap.step_iomaps` is a `Vector{Cell}`. Reading the cell
+# `ChainingIoMap.step_iomaps` is a `Vector{Cell}`. Reading the cell
 # forces it, which is what the walk wants: an unforced child is not yet a node.
 _unwrap(x) = x isa Cell ? x[] : x
 

@@ -40,11 +40,11 @@ import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
 import ..EventModule: KeyDown, has_ctrl_modifier_key
 
-export ProjectionConfiguringProjection, ProjectionConfiguringProjectionIoMap
+export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
-@iomap struct ProjectionConfiguringProjectionIoMap
+@iomap struct ProjectionConfiguringIoMap
     projection::Any
     input::Any
     output::Any
@@ -84,14 +84,14 @@ function print_document(p::ProjectionConfiguringProjection, recursion, input, ct
     doc_output = inner_iomap.output
     doc_widget = doc_output isa WidgetDocument ? doc_output : WidgetScrollPane(doc_output)
     output = WidgetSplitPane(p.orientation, Any[control_widget, doc_widget])
-    ProjectionConfiguringProjectionIoMap(p, input, output,
+    ProjectionConfiguringIoMap(p, input, output,
         inner_iomap, control_iomap, control_widget)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function read_intent(p::ProjectionConfiguringProjection, recursion,
-                         change::Intent, iomap::ProjectionConfiguringProjectionIoMap)
+                         change::Intent, iomap::ProjectionConfiguringIoMap)
     op = change.operation
 
     # 1. A checkbox click (ReplaceReferencedValueOperation rooted at a control widget) →
@@ -131,7 +131,7 @@ end
 
 # 3-arg payload form (tests / hit-test recursion).
 read_intent(p::ProjectionConfiguringProjection,
-                iomap::ProjectionConfiguringProjectionIoMap, payload) =
+                iomap::ProjectionConfiguringIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Strip the control split-slot step (`elements[1]`, 0-based start 0) from a
@@ -165,7 +165,7 @@ end
 # v1: no cursor mapping through the split pane (document editing still works via
 # the reader routing above). Mirrors ConversationToWidget's minimal v1 mapping.
 
-map_reference_forward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringProjectionIoMap, reference) = nothing
-map_reference_backward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringProjectionIoMap, reference) = nothing
+map_reference_forward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
+map_reference_backward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
 
 end # module

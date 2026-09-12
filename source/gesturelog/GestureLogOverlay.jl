@@ -37,7 +37,7 @@ import ..PrinterContextModule: PrinterContext
 import ..GestureLogModule: GestureLog
 import ..GestureLogToSyntaxModule: GestureLogToSyntax
 
-export GestureLogOverlayProjection, GestureLogOverlayProjectionIoMap,
+export GestureLogOverlayProjection, GestureLogOverlayIoMap,
        make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
 
 """
@@ -96,7 +96,7 @@ function GestureLogOverlayProjection(; inner, log::GestureLog,
     GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding), background)
 end
 
-@iomap struct GestureLogOverlayProjectionIoMap
+@iomap struct GestureLogOverlayIoMap
     projection::Any
     input::Any
     output::Any
@@ -149,7 +149,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     set_cell_function!(getfield(output, :h),
                        () -> Int32(max(_height(inner_output[]), panel.y + panel_height())))
 
-    GestureLogOverlayProjectionIoMap(p, input, output, inner_iomap, log_iomap)
+    GestureLogOverlayIoMap(p, input, output, inner_iomap, log_iomap)
 end
 
 _force(value) = value isa Cell ? value[] : value
@@ -182,10 +182,10 @@ _is_bottom(anchor::Symbol) = anchor === :bottom_right || anchor === :bottom_left
 # ── Reader (pass-through) ──────────────────────────────────────────────────
 
 read_intent(p::GestureLogOverlayProjection, recursion, change::Intent,
-            iomap::GestureLogOverlayProjectionIoMap) =
+            iomap::GestureLogOverlayIoMap) =
     read_intent(p.inner, recursion, change, iomap.inner_iomap)
 
-read_intent(p::GestureLogOverlayProjection, iomap::GestureLogOverlayProjectionIoMap, payload) =
+read_intent(p::GestureLogOverlayProjection, iomap::GestureLogOverlayIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping ──────────────────────────────────────────────────────
@@ -197,11 +197,11 @@ read_intent(p::GestureLogOverlayProjection, iomap::GestureLogOverlayProjectionIo
 # no path to lengthen.
 
 map_reference_forward(p::GestureLogOverlayProjection,
-                      iomap::GestureLogOverlayProjectionIoMap, reference) =
+                      iomap::GestureLogOverlayIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
 map_reference_backward(p::GestureLogOverlayProjection,
-                       iomap::GestureLogOverlayProjectionIoMap, reference) =
+                       iomap::GestureLogOverlayIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

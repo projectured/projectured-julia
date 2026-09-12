@@ -95,7 +95,7 @@ additional mapping data the reader needs). This ensures the reader always has
 access to both contexts without any additional bookkeeping.
 
 `ChainingProjection` collects all step IO maps into
-`ChainingProjectionIoMap.step_iomaps`, enabling the reader to walk backward
+`ChainingIoMap.step_iomaps`, enabling the reader to walk backward
 through each step:
 
 ```julia

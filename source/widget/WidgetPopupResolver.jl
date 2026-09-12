@@ -28,7 +28,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: anchor_point
 
-export WidgetPopupResolverProjection, WidgetPopupResolverProjectionIoMap
+export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 
 struct WidgetPopupResolverProjection <: Projection
     inner::Projection
@@ -44,7 +44,7 @@ WidgetPopupResolverProjection(; inner::Projection) = WidgetPopupResolverProjecti
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct WidgetPopupResolverProjectionIoMap
+@iomap struct WidgetPopupResolverIoMap
     projection::Any
     input::Any
     output::Any
@@ -55,13 +55,13 @@ end
 
 function print_document(p::WidgetPopupResolverProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetPopupResolverProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
+    WidgetPopupResolverIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function read_intent(p::WidgetPopupResolverProjection, recursion, change::Intent,
-                         iomap::WidgetPopupResolverProjectionIoMap)
+                         iomap::WidgetPopupResolverIoMap)
     res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
     op = res isa Intent ? res.operation : res
     op isa OpenPopupOperation || return res isa Intent ? res : Intent(change.gesture, op)
@@ -77,14 +77,14 @@ function read_intent(p::WidgetPopupResolverProjection, recursion, change::Intent
     Intent(change.gesture, win)
 end
 
-read_intent(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, payload) =
+read_intent(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (passthrough — transparent on print) ─────────────────
 
-map_reference_forward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, reference) =
+map_reference_forward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-map_reference_backward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverProjectionIoMap, reference) =
+map_reference_backward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 
 end # module

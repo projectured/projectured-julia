@@ -55,7 +55,7 @@ import ..TextToGraphicsModule: TextToGraphics
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 import ..ColorModule: color_solarized_background_lighter, color_solarized_blue
 
-export CommandPaletteProjection, CommandPaletteState, CommandPaletteProjectionIoMap,
+export CommandPaletteProjection, CommandPaletteState, CommandPaletteIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
        command_palette_projection
 
@@ -137,7 +137,7 @@ CommandPaletteProjection(; inner, measure::Function,
                            x::Integer = 60, y::Integer = 60) =
     CommandPaletteProjection(inner, state, projection, Int(x), Int(y))
 
-@iomap struct CommandPaletteProjectionIoMap
+@iomap struct CommandPaletteIoMap
     projection::Any
     input::Any
     output::Any
@@ -160,7 +160,7 @@ function print_document(p::CommandPaletteProjection, recursion, input, ctx)
             Any[inner_iomap.output, _placed_palette(p, palette_iomap)] :
             Any[inner_iomap.output])
     output = GraphicsCanvas(elements, layout_none)
-    CommandPaletteProjectionIoMap(p, input, Cell(output), inner_iomap, palette_iomap)
+    CommandPaletteIoMap(p, input, Cell(output), inner_iomap, palette_iomap)
 end
 
 # The palette on its own panel, at (p.x, p.y). Without the panel the type-in lines
@@ -183,7 +183,7 @@ end
 # ── Reader ─────────────────────────────────────────────────────────────────
 
 function read_intent(p::CommandPaletteProjection, recursion, change::Intent,
-                     iomap::CommandPaletteProjectionIoMap)
+                     iomap::CommandPaletteIoMap)
     if p.state.open[]
         # The palette owns every event while it is open. Nothing reaches the content,
         # so its selection stays where the user left it.
@@ -198,7 +198,7 @@ function read_intent(p::CommandPaletteProjection, recursion, change::Intent,
     return child
 end
 
-read_intent(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, payload) =
+read_intent(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Fill the palette from the context the user is in, and open it.
@@ -207,7 +207,7 @@ read_intent(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, p
 # in them was built by the binding that owns it and rooted by every stage on the
 # way back, so it applies at this decorator's input whatever wraps the content and
 # however deep the binding lives.
-function _open!(p::CommandPaletteProjection, recursion, iomap::CommandPaletteProjectionIoMap)
+function _open!(p::CommandPaletteProjection, recursion, iomap::CommandPaletteIoMap)
     answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
     palette = p.state.palette
     palette.rows = gesture_rows(answer isa Intent ? answer.operation : answer)
@@ -221,7 +221,7 @@ _close!(p::CommandPaletteProjection) = (p.state.open[] = false)
 # Every event while the palette is open. An event the palette has no use for is
 # still swallowed: the palette is a modal type-in, and a stray key must not edit the
 # document behind it.
-function _read_open(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, event)
+function _read_open(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, event)
     palette = p.state.palette
     # The summoning gesture dismisses it too, so the key toggles the palette the way
     # F1 toggles the help window.
@@ -270,14 +270,14 @@ end
 # The output is the inner output inside one wrapping canvas, so a forward-mapped
 # reference gains `elements[1]` and a backward-mapped one gives it up.
 
-function map_reference_forward(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, reference)
+function map_reference_forward(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, reference)
     inner = map_reference_forward(p.inner, iomap.inner_iomap, reference)
     inner === nothing && return nothing
     ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(ElementReferenceStep(1), inner))
 end
 
-function map_reference_backward(p::CommandPaletteProjection, iomap::CommandPaletteProjectionIoMap, reference)
+function map_reference_backward(p::CommandPaletteProjection, iomap::CommandPaletteIoMap, reference)
     inner = _strip_wrapper(reference)
     inner === nothing && return nothing
     map_reference_backward(p.inner, iomap.inner_iomap, inner)

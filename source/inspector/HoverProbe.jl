@@ -44,7 +44,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..ReferenceInspectorDocumentModule: ReferenceInspector
 
-export HoverProbeProjection, HoverProbeProjectionIoMap
+export HoverProbeProjection, HoverProbeIoMap
 
 struct HoverProbeProjection <: Projection
     inner::Projection
@@ -79,7 +79,7 @@ HoverProbeProjection(; inner::Projection,
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct HoverProbeProjectionIoMap
+@iomap struct HoverProbeIoMap
     projection::Any
     input::Any
     output::Any
@@ -90,12 +90,12 @@ end
 
 function print_document(p::HoverProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    HoverProbeProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
+    HoverProbeIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::HoverProbeProjectionIoMap)
+function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::HoverProbeIoMap)
     event = change.gesture
     if event isa MouseMove
         # Reverse-project the hover position exactly as a left click would be.
@@ -110,11 +110,11 @@ function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::
     return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 end
 
-read_intent(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, payload) =
+read_intent(p::HoverProbeProjection, iomap::HoverProbeIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Decide the follower-window operation for a probed reference (or `nothing`).
-function _hover_op(p::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, ref)
+function _hover_op(p::HoverProbeProjection, iomap::HoverProbeIoMap, ref)
     if ref === nothing
         if p.open[]
             p.open[] = false
@@ -136,9 +136,9 @@ end
 
 # ── Reference mapping (passthrough — the probe is transparent on print) ────
 
-map_reference_forward(::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, reference) =
+map_reference_forward(::HoverProbeProjection, iomap::HoverProbeIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-map_reference_backward(::HoverProbeProjection, iomap::HoverProbeProjectionIoMap, reference) =
+map_reference_backward(::HoverProbeProjection, iomap::HoverProbeIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 
 end # module

@@ -136,7 +136,7 @@ push!(head, PrimitiveNumber(99))
 inner = IdentityProjection()
 iomap = print_document(CopyingProjection(), inner, head, PrinterContext())
 
-@test iomap isa CopyingProjectionIoMap
+@test iomap isa CopyingIoMap
 @test iomap.output isa ListNode
 @test iomap.output.value.value == 42
 @test iomap.output.next.value.value == 99

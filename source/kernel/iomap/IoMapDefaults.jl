@@ -39,7 +39,7 @@ end
 # property access and yield the *value* — `iomap.output` unwraps the field's `Cell`
 # (pass a `ComputedCell(() -> …)` so it re-derives reactively; `getfield` reaches
 # the raw cell). An IoMap whose derived correspondence lives under different field
-# names stores those as computed cells too (cf. `ChainingProjectionIoMap.output`).
+# names stores those as computed cells too (cf. `ChainingIoMap.output`).
 get_iomap_projection(iomap::IoMap) = iomap.projection
 get_iomap_input(iomap::IoMap) = iomap.input
 get_iomap_output(iomap::IoMap) = iomap.output

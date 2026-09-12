@@ -14,7 +14,7 @@ import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionRefer
 import ..ReferenceModule: var"@reference_case"
 import ..PrinterContextModule: make_child_context
 import ..IdentityProjectionModule: IdentityProjection
-export SortingProjection, SortingProjectionIoMap
+export SortingProjection, SortingIoMap
 
 """
     SortingProjection(; by=identity, lt=isless, rev=false)
@@ -39,7 +39,7 @@ SortingProjection(; by::Function=identity, lt::Function=isless, rev::Bool=false)
 # CellVector input, so the IoMap keeps its identity while a structural edit
 # re-sorts through it (PAR-STABLE-IOMAP-IDENTITY); `iomap.index_map` /
 # `iomap.element_iomaps` read the current value.
-@iomap struct SortingProjectionIoMap
+@iomap struct SortingIoMap
     projection::Any
     input::Any
     output::Any
@@ -62,7 +62,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         [cs[perm[j]].output for j in 1:length(perm)]
     end)
     set_cell_function!(getfield(output, :selection), () -> input.selection)
-    SortingProjectionIoMap(p, input, output, index_map, child_iomaps)
+    SortingIoMap(p, input, output, index_map, child_iomaps)
 end
 
 function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ctx)
@@ -76,7 +76,7 @@ function print_document(p::SortingProjection, recursion, input::Vector{Cell}, ct
     # Build output by arranging projected Cells in sorted order (no double-wrapping)
     output = [children[perm[j]].output for j in 1:n]
     element_iomaps = Cell(children)
-    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+    SortingIoMap(p, input, output, perm, element_iomaps)
 end
 
 function print_document(p::SortingProjection, recursion, input, ctx)
@@ -90,10 +90,10 @@ function print_document(p::SortingProjection, recursion, input, ctx)
     # Build output by arranging projected elements in sorted order
     output = [children[perm[j]].output for j in 1:n]
     element_iomaps = Cell(children)
-    SortingProjectionIoMap(p, input, output, perm, element_iomaps)
+    SortingIoMap(p, input, output, perm, element_iomaps)
 end
 
-function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoMap, reference)
+function map_reference_forward(p::SortingProjection, iomap::SortingIoMap, reference)
     @reference_case reference begin
         [i].rest... => begin
             n = length(iomap.input)
@@ -109,7 +109,7 @@ function map_reference_forward(p::SortingProjection, iomap::SortingProjectionIoM
     end
 end
 
-function map_reference_backward(p::SortingProjection, iomap::SortingProjectionIoMap, reference)
+function map_reference_backward(p::SortingProjection, iomap::SortingIoMap, reference)
     @reference_case reference begin
         [j].rest... => begin
             n = length(iomap.output)

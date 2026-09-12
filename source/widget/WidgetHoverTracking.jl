@@ -47,7 +47,7 @@ import ..EventModule: KeyDown
 # The generic focus walk, for the top-level Tab wrap-around rule.
 import ..FocusModule: first_focusable_path, last_focusable_path
 
-export WidgetHoverTrackingProjection, WidgetHoverTrackingProjectionIoMap
+export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 
 struct WidgetHoverTrackingProjection <: Projection
     inner::Projection
@@ -66,7 +66,7 @@ WidgetHoverTrackingProjection(; inner::Projection) =
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct WidgetHoverTrackingProjectionIoMap
+@iomap struct WidgetHoverTrackingIoMap
     projection::Any
     input::Any
     output::Any
@@ -77,13 +77,13 @@ end
 
 function print_document(p::WidgetHoverTrackingProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetHoverTrackingProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
+    WidgetHoverTrackingIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent,
-                         iomap::WidgetHoverTrackingProjectionIoMap)
+                         iomap::WidgetHoverTrackingIoMap)
     event = change.gesture
     # Top-level Tab wrap-around (Stage 2): the only non-local part of focus
     # traversal. Containers advance the selection locally and decline (return
@@ -142,7 +142,7 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
 end
 
 # 3-arg payload form (tests / hit-test recursion).
-read_intent(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, payload) =
+read_intent(p::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Route a synthetic event through the inner pipeline and return the bare op.
@@ -164,9 +164,9 @@ end
 
 # ── Reference mapping (passthrough — the tracker is transparent on print) ──
 
-map_reference_forward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, reference) =
+map_reference_forward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-map_reference_backward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingProjectionIoMap, reference) =
+map_reference_backward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 
 end # module

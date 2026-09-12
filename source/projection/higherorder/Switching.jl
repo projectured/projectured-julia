@@ -12,12 +12,12 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent
 import ..CellModule: Cell, ComputedCell
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
-export SwitchingProjection, SwitchingProjectionIoMap
+export SwitchingProjection, SwitchingIoMap
 
 # `inner_iomap` is reconciled by the (reactive) index and `output` forwards its
 # output through a cell, so writing `ap.index` swaps the branch through the same
 # iomap (PAR-STABLE-IOMAP-IDENTITY); `iomap.index` reads the current index.
-@iomap struct SwitchingProjectionIoMap
+@iomap struct SwitchingIoMap
     projection::Any
     input::Any
     output::Any
@@ -57,7 +57,7 @@ SwitchingProjection(projections::Vector{Any}, index::Int=1) =
     SwitchingProjection(projections, Cell(index))
 
 """
-    print_document(ap::SwitchingProjection, recursion, input, ctx) -> SwitchingProjectionIoMap
+    print_document(ap::SwitchingProjection, recursion, input, ctx) -> SwitchingIoMap
 
 Apply the projection at the current index, wrapping its IoMap so the reader
 knows which branch was active.
@@ -69,18 +69,18 @@ function print_document(ap::SwitchingProjection, recursion, input, ctx)
     inner = reconcile_child_iomap(() -> ap.index[],
                 i -> print_document(ap.projections[i], recursion, input, ctx))
     output = ComputedCell(() -> inner[].output)
-    return SwitchingProjectionIoMap(ap, input, output, ap.index, inner)
+    return SwitchingIoMap(ap, input, output, ap.index, inner)
 end
 
 """
-    read_intent(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, event)
+    read_intent(ap::SwitchingProjection, iomap::SwitchingIoMap, event)
 
 Delegate to the same branch that was active when the IoMap was produced.
 """
-read_intent(ap::SwitchingProjection, recursion, change::Intent, iomap::SwitchingProjectionIoMap) =
+read_intent(ap::SwitchingProjection, recursion, change::Intent, iomap::SwitchingIoMap) =
     read_intent(ap.projections[iomap.index], recursion, change, iomap.inner_iomap)
 
-read_intent(ap::SwitchingProjection, iomap::SwitchingProjectionIoMap, payload) =
+read_intent(ap::SwitchingProjection, iomap::SwitchingIoMap, payload) =
     read_intent(ap, nothing, Intent(payload), iomap).operation
 
 function map_reference_forward(::SwitchingProjection, iomap, reference)

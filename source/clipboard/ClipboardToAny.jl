@@ -66,7 +66,7 @@ import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_
 import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
-       ClipboardSliceToAnyProjectionIoMap, ClipboardCollectionToAnyProjectionIoMap,
+       ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
        ToggleClipboardSliceDisplayOperation, ToggleClipboardCollectionDisplayOperation,
        WriteOsClipboardOperation
 
@@ -115,7 +115,7 @@ ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
 
 # ── IoMaps ────────────────────────────────────────────────────────────────────
 
-@iomap struct ClipboardSliceToAnyProjectionIoMap
+@iomap struct ClipboardSliceToAnyIoMap
     projection::ClipboardSliceToAnyProjection
     input::Any              # ClipboardSlice
     output::Any             # content or slice child output
@@ -123,7 +123,7 @@ ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
     slice_iomap::Any        # iomap of the stored slice, or nothing
 end
 
-@iomap struct ClipboardCollectionToAnyProjectionIoMap
+@iomap struct ClipboardCollectionToAnyIoMap
     projection::ClipboardCollectionToAnyProjection
     input::Any              # ClipboardCollection
     output::Any             # content child output, or CellVector of element outputs
@@ -147,7 +147,7 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     # drop — only the downstream stages re-print.
     output = ComputedCell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
                             slice_iomap.output : content_iomap.output)
-    ClipboardSliceToAnyProjectionIoMap(p, input, output, content_iomap, slice_iomap)
+    ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap)
 end
 
 function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
@@ -164,7 +164,7 @@ function print_document(p::ClipboardCollectionToAnyProjection, recursion, input:
     output = ComputedCell(() -> p.display_collection[] ?
         CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
         content_iomap.output)
-    ClipboardCollectionToAnyProjectionIoMap(p, input, output, content_iomap, element_iomaps)
+    ClipboardCollectionToAnyIoMap(p, input, output, content_iomap, element_iomaps)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
@@ -174,12 +174,12 @@ end
 # backward delegates to the child and prepends the clipboard field step.
 
 # Active child for a slice projection: ("field-name", child-iomap).
-function _slice_active(iomap::ClipboardSliceToAnyProjectionIoMap)
+function _slice_active(iomap::ClipboardSliceToAnyIoMap)
     (iomap.projection.display_slice[] && iomap.slice_iomap !== nothing) ?
         ("slice", iomap.slice_iomap) : ("content", iomap.content_iomap)
 end
 
-function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, reference)
+function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
     name, child = _slice_active(iomap)
     h = head(reference)
@@ -187,14 +187,14 @@ function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::Clipboard
     map_reference_forward(child.projection, child, tail(reference))
 end
 
-function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, reference)
+function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, reference)
     name, child = _slice_active(iomap)
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
     ConcreteReference(FieldReferenceStep(name), mapped)
 end
 
-function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
+function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
     if iomap.projection.display_collection[]
         h = head(reference)
@@ -218,7 +218,7 @@ function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::Clip
     end
 end
 
-function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, reference)
+function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
     if iomap.projection.display_collection[]
         reference isa ConcreteReference || return reference
         e = head(reference)
@@ -531,7 +531,7 @@ function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap
 end
 
 function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent,
-                         iomap::ClipboardSliceToAnyProjectionIoMap)
+                         iomap::ClipboardSliceToAnyIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
     # Routing one gesture stops at the first answer; a collection takes both. The
     # child's is prefixed with `content`, exactly as its operations are.
@@ -564,7 +564,7 @@ function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, 
 end
 
 function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::Intent,
-                         iomap::ClipboardCollectionToAnyProjectionIoMap)
+                         iomap::ClipboardCollectionToAnyIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
     # Routing one gesture stops at the first answer; a collection takes both. The
     # child's is prefixed with `content`, exactly as its operations are.
@@ -583,9 +583,9 @@ function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::I
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).
-read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyProjectionIoMap, payload) =
+read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
-read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyProjectionIoMap, payload) =
+read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Operation re-rooting ───────────────────────────────────────────────────────

@@ -32,7 +32,7 @@ function _drag_setup(content, hit)
     proj  = DraggingProjection()
     state = DraggingState(content, 5)
     inner = _StubInner(_CoordStub(hit), nothing)
-    iomap = DraggingProjectionIoMap(proj, state, nothing, inner)
+    iomap = DraggingIoMap(proj, state, nothing, inner)
     (proj, iomap)
 end
 
@@ -105,7 +105,7 @@ function test_dragging()
         c1 = get_cell_at(content.elements, 1)
         inner = print_document(make_json_projection_example(), content)
         proj  = DraggingProjection()
-        iomap = DraggingProjectionIoMap(proj, DraggingState(content, 5),
+        iomap = DraggingIoMap(proj, DraggingState(content, 5),
                                         inner.output, inner)
 
         @test _feed(proj, iomap, MouseDown(:left, 24, 24, ModifierKeys())) === nothing   # grab element 1

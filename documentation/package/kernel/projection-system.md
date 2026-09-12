@@ -373,7 +373,7 @@ Every IoMap has a `projection`, `input`, and `output` field. Common shapes:
 | `ContentIoMap` | Wraps a single inner projection |
 | `{Name}IoMap` | Specialised — each non-trivial projection defines its own |
 
-`ChainingProjectionIoMap` stores `step_iomaps::Vector{Any}` so the reader can
+`ChainingIoMap` stores `step_iomaps::Vector{Any}` so the reader can
 walk the pipeline backward. `TextToGraphicsIoMap` carries a
 `char_to_coord::Cell` so the reader can binary-search a click position back to
 a character offset.

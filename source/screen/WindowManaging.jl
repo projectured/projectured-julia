@@ -30,7 +30,7 @@ import ..EventModule: WindowResize, WindowClose, WindowDefocus
 import ..EventModule: WindowInput
 import ..OperationModule: CompoundOperation
 
-export WindowManagingProjection, WindowManagingProjectionIoMap
+export WindowManagingProjection, WindowManagingIoMap
 
 """
     WindowManagingProjection(; inner)
@@ -45,7 +45,7 @@ end
 
 WindowManagingProjection(; inner) = WindowManagingProjection(inner)
 
-@iomap struct WindowManagingProjectionIoMap
+@iomap struct WindowManagingIoMap
     projection::WindowManagingProjection
     input::Any
     output::Any
@@ -56,12 +56,12 @@ end
 
 function print_document(p::WindowManagingProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    WindowManagingProjectionIoMap(p, input, inner_iomap.output, inner_iomap)
+    WindowManagingIoMap(p, input, inner_iomap.output, inner_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function read_intent(p::WindowManagingProjection, recursion, change::Intent, iomap::WindowManagingProjectionIoMap)
+function read_intent(p::WindowManagingProjection, recursion, change::Intent, iomap::WindowManagingIoMap)
     window_input = change.gesture
     # Modality: while a modal window is open, only it receives input. Drop any
     # window input routed to a different window — base content gets no events, with no
@@ -137,7 +137,7 @@ function _apply_window_ops(iomap, change, inner)
     end
 end
 
-read_intent(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, payload) =
+read_intent(p::WindowManagingProjection, iomap::WindowManagingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Apply Open: add a new window, or update an existing one with the same id, on the
@@ -146,7 +146,7 @@ read_intent(p::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, p
 # reflows), re-projects a window's content when it is replaced, and shares each
 # window's metadata cells — so the manager never touches the output.
 
-function _apply_open!(iomap::WindowManagingProjectionIoMap, op::OpenWindowOperation)
+function _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation)
     input = iomap.input
     input isa ScreenDocument || return
 
@@ -186,7 +186,7 @@ end
 # Apply Close: remove the matching window from the input; the inner stage's
 # window reconcile drops it from the output.
 
-function _apply_close!(iomap::WindowManagingProjectionIoMap, op::CloseWindowOperation)
+function _apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation)
     input = iomap.input
     input isa ScreenDocument || return
 
@@ -221,11 +221,11 @@ end
 
 # ── Reference mapping (passthrough) ──────────────────────────────────────
 
-function map_reference_forward(::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, reference)
+function map_reference_forward(::WindowManagingProjection, iomap::WindowManagingIoMap, reference)
     map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
 end
 
-function map_reference_backward(::WindowManagingProjection, iomap::WindowManagingProjectionIoMap, reference)
+function map_reference_backward(::WindowManagingProjection, iomap::WindowManagingIoMap, reference)
     map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
 end
 

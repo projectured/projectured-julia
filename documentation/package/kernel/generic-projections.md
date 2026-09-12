@@ -63,7 +63,7 @@ specific domain. Key behaviours:
 - For a struct, projects every field whose value is a `Document` and
   passes non-document fields through unchanged.
 - Reference mapping (`map_reference_forward` / `_backward`) delegates into
-  the child iomap stored in `CopyingProjectionIoMap.children`, so a
+  the child iomap stored in `CopyingIoMap.children`, so a
   reference into the input is faithfully translated through the copied
   spine.
 
@@ -88,7 +88,7 @@ selection mechanism unchanged.
 SortingProjection(; by = identity, lt = isless, rev = false)
 ```
 
-Sorts a collection at print time. `SortingProjectionIoMap.index_map[j]`
+Sorts a collection at print time. `SortingIoMap.index_map[j]`
 holds the input index that ended up at output position `j`, which the
 reference maps use for the round-trip:
 

@@ -31,7 +31,7 @@ import ..CellModule: Cell, ComputedCell
 import ..OperationModule: Operation
 import ..GestureLogModule: GestureLog, record_gesture!, default_gesture_log_filter
 
-export GestureLogRecordingProjection, GestureLogRecordingProjectionIoMap
+export GestureLogRecordingProjection, GestureLogRecordingIoMap
 
 """
     GestureLogRecordingProjection(; inner, log, filter = default_gesture_log_filter)
@@ -52,7 +52,7 @@ GestureLogRecordingProjection(; inner, log::GestureLog,
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives.
-@iomap struct GestureLogRecordingProjectionIoMap
+@iomap struct GestureLogRecordingIoMap
     projection::Any
     input::Any
     output::Any
@@ -63,13 +63,13 @@ end
 
 function print_document(p::GestureLogRecordingProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    GestureLogRecordingProjectionIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
+    GestureLogRecordingIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
 function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent,
-                     iomap::GestureLogRecordingProjectionIoMap)
+                     iomap::GestureLogRecordingIoMap)
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
     operation = child isa Intent ? child.operation : child
     if operation isa Operation && p.filter(change.gesture, operation)
@@ -78,17 +78,17 @@ function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent
     child
 end
 
-read_intent(p::GestureLogRecordingProjection, iomap::GestureLogRecordingProjectionIoMap, payload) =
+read_intent(p::GestureLogRecordingProjection, iomap::GestureLogRecordingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (transparent — the output is the inner output) ───────
 
 map_reference_forward(p::GestureLogRecordingProjection,
-                      iomap::GestureLogRecordingProjectionIoMap, reference) =
+                      iomap::GestureLogRecordingIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
 map_reference_backward(p::GestureLogRecordingProjection,
-                       iomap::GestureLogRecordingProjectionIoMap, reference) =
+                       iomap::GestureLogRecordingIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

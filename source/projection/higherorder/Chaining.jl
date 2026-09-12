@@ -16,7 +16,7 @@ import ..GestureBindingModule: GestureBinding
 import ..IoMapModule: SimpleIoMap
 import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, AbstractCell, unwrap_cell
-export ChainingProjection, ChainingProjectionIoMap
+export ChainingProjection, ChainingIoMap
 
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
 # upstream stage's output changes *structurally*. `output` is a computed cell over the
@@ -29,7 +29,7 @@ export ChainingProjection, ChainingProjectionIoMap
 # *between* stages unwraps a Cell-valued output to the plain value the next stage
 # prints — see `_seq_stage`.) As an `@iomap` struct, `output` is a stored computed cell
 # rather than a synthesized property, so `iomap.output` / `hasproperty` work uniformly.
-@iomap struct ChainingProjectionIoMap
+@iomap struct ChainingIoMap
     projection::Any
     input::Any
     step_iomaps::Any    # Vector{Cell}; wrapped by @iomap so `iomap.step_iomaps` reads the vector
@@ -91,7 +91,7 @@ function print_document(seq::ChainingProjection, recursion, input, ctx)
         push!(step_iomaps, iomap_cell)
     end
     foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
-    return ChainingProjectionIoMap(seq, input, step_iomaps,
+    return ChainingIoMap(seq, input, step_iomaps,
                                    ComputedCell(() -> step_iomaps[end][].output))
 end
 
@@ -119,7 +119,7 @@ function _seq_stage(p, recursion, prev::Cell, ctx)
 end
 
 """
-    read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
+    read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingIoMap)
 
 Thread one `Intent` through the chain. Search the steps from last to first until
 one produces an operation (a change whose `operation !== nothing`), then walk
@@ -138,7 +138,7 @@ the chain hands out. A structural gesture therefore never has to reconstruct wha
 the output layers would have done in order to decline — if they did anything, they
 already did it.
 """
-function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingProjectionIoMap)
+function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingIoMap)
     change.gesture isa CollectIntents &&
         return Intent(change.gesture, _collect_intents(seq, recursion, iomap))
     n = length(seq.projections)
@@ -158,7 +158,7 @@ end
 
 # 3-arg payload form: callers (tests, hit-test recursion) that pass a
 # bare event/operation get it wrapped into a Intent and the operation back.
-read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
+read_intent(seq::ChainingProjection, iomap::ChainingIoMap, payload) =
     read_intent(seq, nothing, Intent(payload), iomap).operation
 
 # Where threading one gesture stops at the first stage that answers, a collection
@@ -170,7 +170,7 @@ read_intent(seq::ChainingProjection, iomap::ChainingProjectionIoMap, payload) =
 # into this stage's input domain — the same backward threading an ordinary
 # operation gets — then put this stage's own contribution in front of it. What
 # arrives at stage 1 is expressed in the chain's input vocabulary, ready to run.
-function _collect_intents(seq::ChainingProjection, recursion, iomap::ChainingProjectionIoMap)
+function _collect_intents(seq::ChainingProjection, recursion, iomap::ChainingIoMap)
     accumulated = nothing
     for i in length(seq.projections):-1:1
         step = iomap.step_iomaps[i][]

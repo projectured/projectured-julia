@@ -18,12 +18,12 @@ import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..GestureBindingModule: GestureBinding
-export NestingProjection, NestingProjectionIoMap
+export NestingProjection, NestingIoMap
 
 # Transparent: `output` forwards the child iomap's output through a cell, so the
 # IoMap keeps its identity while the nested projection re-derives
 # (PAR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.
-@iomap struct NestingProjectionIoMap
+@iomap struct NestingIoMap
     projection::Any
     input::Any
     output::Any
@@ -56,14 +56,14 @@ function print_document(np::NestingProjection, recursion, input, ctx)
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
         child = print_document(np.elements[1], inner, input, ctx)
-        NestingProjectionIoMap(np, input, ComputedCell(() -> child.output), child)
+        NestingIoMap(np, input, ComputedCell(() -> child.output), child)
     else
         child = print_document(effective, recursion, input, ctx)
-        NestingProjectionIoMap(np, input, ComputedCell(() -> child.output), child)
+        NestingIoMap(np, input, ComputedCell(() -> child.output), child)
     end
 end
 
-function read_intent(np::NestingProjection, recursion, change::Intent, iomap::NestingProjectionIoMap)
+function read_intent(np::NestingProjection, recursion, change::Intent, iomap::NestingIoMap)
     if !isempty(np.elements)
         read_intent(np.elements[1], recursion, change, iomap.child_iomap)
     else
@@ -72,10 +72,10 @@ function read_intent(np::NestingProjection, recursion, change::Intent, iomap::Ne
     end
 end
 
-read_intent(np::NestingProjection, iomap::NestingProjectionIoMap, payload) =
+read_intent(np::NestingProjection, iomap::NestingIoMap, payload) =
     read_intent(np, nothing, Intent(payload), iomap).operation
 
-function map_reference_forward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
+function map_reference_forward(np::NestingProjection, iomap::NestingIoMap, reference)
     if !isempty(np.elements)
         map_reference_forward(np.elements[1], iomap.child_iomap, reference)
     elseif np.recursion !== nothing
@@ -85,7 +85,7 @@ function map_reference_forward(np::NestingProjection, iomap::NestingProjectionIo
     end
 end
 
-function map_reference_backward(np::NestingProjection, iomap::NestingProjectionIoMap, reference)
+function map_reference_backward(np::NestingProjection, iomap::NestingIoMap, reference)
     if !isempty(np.elements)
         map_reference_backward(np.elements[1], iomap.child_iomap, reference)
     elseif np.recursion !== nothing

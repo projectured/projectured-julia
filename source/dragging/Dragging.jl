@@ -44,7 +44,7 @@ import ..OperationModule: reroot_operation
 import ..EventModule: MouseDown, MouseUp, MouseMove, MousePress
 import ..EventModule: ModifierKeys
 
-export DraggingProjection, DraggingProjectionIoMap, MoveRangeOperation
+export DraggingProjection, DraggingIoMap, MoveRangeOperation
 
 # ── Transient gesture state ───────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ DraggingProjection(; kw...) = DraggingProjection(_DragState())
 # IoMap keeps its identity while the inner projection re-derives, and a content
 # swap rebuilds the child (PAR-STABLE-IOMAP-IDENTITY); `iomap.inner_iomap` reads
 # the current child.
-@iomap struct DraggingProjectionIoMap
+@iomap struct DraggingIoMap
     projection::Any
     input::Any          # DraggingState
     output::Any         # whatever content projects to
@@ -96,7 +96,7 @@ end
 function print_document(p::DraggingProjection, recursion, input::DraggingState, ctx)
     inner = reconcile_child_iomap(() -> input.content, c -> print_child(recursion, c, ctx))
     output = ComputedCell(() -> inner[].output)
-    DraggingProjectionIoMap(p, input, output, inner)
+    DraggingIoMap(p, input, output, inner)
 end
 
 # ── Operation ─────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::DraggingProjectionIoMap)
+function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::DraggingIoMap)
     gesture = change.gesture
     state = iomap.input::DraggingState
     content = state.content
@@ -206,7 +206,7 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
 end
 
 # 3-arg payload form (reader entry point).
-read_intent(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
+read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Hit-test a window pixel `(x, y)` by synthesising a left `MousePress` there and
@@ -216,7 +216,7 @@ read_intent(p::DraggingProjection, iomap::DraggingProjectionIoMap, payload) =
 # content-domain reference under the point. Returns the reference, or nothing
 # when the point resolves to no selectable element (or to a non-selection op,
 # e.g. a collapse-marker toggle).
-function _locate_point(p::DraggingProjection, recursion, iomap::DraggingProjectionIoMap, x::Int, y::Int, mods)
+function _locate_point(p::DraggingProjection, recursion, iomap::DraggingIoMap, x::Int, y::Int, mods)
     probe = Intent(MousePress(:left, x, y, mods), nothing)
     inner = read_intent(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
     op = inner isa Intent ? inner.operation : inner
@@ -274,7 +274,7 @@ end
 
 # ── Reference mapping (transparent, via the "content" field) ───────────────
 
-function map_reference_forward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
+function map_reference_forward(::DraggingProjection, iomap::DraggingIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before reading the `content` step.
     reference = reference
     if reference isa ConcreteReference
@@ -287,7 +287,7 @@ function map_reference_forward(::DraggingProjection, iomap::DraggingProjectionIo
     return reference
 end
 
-function map_reference_backward(::DraggingProjection, iomap::DraggingProjectionIoMap, reference)
+function map_reference_backward(::DraggingProjection, iomap::DraggingIoMap, reference)
     inner = map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
     inner === nothing && return nothing
     ConcreteReference(FieldReferenceStep("content"), inner)

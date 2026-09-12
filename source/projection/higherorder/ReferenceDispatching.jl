@@ -14,7 +14,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
-export ReferenceDispatchingProjection, ReferenceDispatchingProjectionIoMap
+export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
 
 """
     ReferenceDispatchingProjection(default, pairs...)
@@ -69,7 +69,7 @@ end
 # The dispatch key is `ctx.reference` — structural (the path to this position), so
 # fixed per print. `output` forwards the dispatched inner's output through a cell,
 # keeping the IoMap's identity while the inner re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct ReferenceDispatchingProjectionIoMap
+@iomap struct ReferenceDispatchingIoMap
     projection::Any
     input::Any
     output::Any
@@ -80,23 +80,23 @@ end
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
     inner = print_document(proj, recursion, input, ctx)
-    ReferenceDispatchingProjectionIoMap(rdp, input, ComputedCell(() -> inner.output), ctx.reference, inner)
+    ReferenceDispatchingIoMap(rdp, input, ComputedCell(() -> inner.output), ctx.reference, inner)
 end
 
-function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Intent, iomap::ReferenceDispatchingProjectionIoMap)
+function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Intent, iomap::ReferenceDispatchingIoMap)
     proj = _dispatch_proj(rdp, iomap.reference)
     return read_intent(proj, recursion, change, iomap.inner_iomap)
 end
 
-read_intent(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, payload) =
+read_intent(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, payload) =
     read_intent(rdp, nothing, Intent(payload), iomap).operation
 
-function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, reference)
+function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
     proj = _dispatch_proj(iomap.projection, iomap.reference)
     return map_reference_forward(proj, iomap.inner_iomap, reference)
 end
 
-function map_reference_backward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingProjectionIoMap, reference)
+function map_reference_backward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
     proj = _dispatch_proj(iomap.projection, iomap.reference)
     return map_reference_backward(proj, iomap.inner_iomap, reference)
 end

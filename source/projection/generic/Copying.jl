@@ -24,7 +24,7 @@ import ..OperationModule: operation_reference, retarget_operation,
                           operation_travels_unchanged, ReplaceReferencedValueOperation
 import ..SelectionModule: get_stored_selection
 
-export CopyingProjection, CopyingProjectionIoMap, make_copying_field_iomap, make_copying_element_iomap
+export CopyingProjection, CopyingIoMap, make_copying_field_iomap, make_copying_element_iomap
 
 struct CopyingProjection <: Projection end
 
@@ -34,7 +34,7 @@ struct CopyingProjection <: Projection end
 # the IoMap keeps its identity while a structural edit reconciles children and
 # re-derives output (PAR-STABLE-IOMAP-IDENTITY); the mappers read `iomap.children`
 # as the value. The other input shapes pass eager values that @iomap wraps.
-@iomap struct CopyingProjectionIoMap
+@iomap struct CopyingIoMap
     projection::Any
     input::Any
     output::Any
@@ -60,14 +60,14 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
             make_child_context(ctx, ElementReferenceStep(i))))
     output = ComputedCellVector(() -> [im.output for im in children[]])
     set_cell_function!(getfield(output, :selection), () -> input.selection)
-    CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
+    CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
 # ── ListNode path (lazy) ─────────────────────────────────────────────────
 
 function print_document(p::CopyingProjection, recursion, input::ListNode, ctx)
     output_head = _map_node(p, input, recursion, ctx, 1)
-    CopyingProjectionIoMap(p, input, output_head, nothing, nothing, recursion, ctx)
+    CopyingIoMap(p, input, output_head, nothing, nothing, recursion, ctx)
 end
 
 function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, index::Int)
@@ -109,11 +109,11 @@ function print_document(p::CopyingProjection, recursion, input::Vector{Cell}, ct
                 for (i, c) in enumerate(input)]
     out_cells = Cell[Cell(im.output) for im in children]
     output = CellVector(out_cells)
-    CopyingProjectionIoMap(p, input, output, children, nothing, nothing, nothing)
+    CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
 function print_document(p::CopyingProjection, recursion, input, ctx)
-    input isa Document || return CopyingProjectionIoMap(p, input, input, Any[], nothing, nothing, nothing)
+    input isa Document || return CopyingIoMap(p, input, input, Any[], nothing, nothing, nothing)
     T = typeof(input)
     all_names = fieldnames(T)
     children = Any[]
@@ -143,7 +143,7 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
     # constructor; the constructors live on the document's UnionAll wrapper
     # (`Foo`) and auto-wrap a plain value in a Cell.
     output = Base.typename(T).wrapper(field_vals...)
-    iomap = CopyingProjectionIoMap(p, input, output, children, names, nothing, nothing)
+    iomap = CopyingIoMap(p, input, output, children, names, nothing, nothing)
     iomap_cell[] = iomap
     return iomap
 end
@@ -153,16 +153,16 @@ end
 # parts (e.g. JsonObjectToSyntaxNode routes the object's entries through a
 # CopyingProjection) can reach the stored child IoMap to delegate its own
 # reference mapping through it — the School-A pattern. These accessors keep
-# that delegation from poking at CopyingProjectionIoMap's fields directly.
+# that delegation from poking at CopyingIoMap's fields directly.
 
 """
     make_copying_field_iomap(iomap, name) -> child_iomap_or_nothing
 
 The child IoMap for the struct field `name`, or `nothing` if `iomap` is not a
-struct-shaped `CopyingProjectionIoMap` or has no projected field of that name.
+struct-shaped `CopyingIoMap` or has no projected field of that name.
 """
 make_copying_field_iomap(::Any, ::AbstractString) = nothing
-function make_copying_field_iomap(iomap::CopyingProjectionIoMap, name::AbstractString)
+function make_copying_field_iomap(iomap::CopyingIoMap, name::AbstractString)
     iomap.field_names isa Vector || return nothing
     idx = findfirst(==(name), iomap.field_names)
     idx === nothing ? nothing : iomap.children[idx]
@@ -172,10 +172,10 @@ end
     make_copying_element_iomap(iomap, i) -> child_iomap_or_nothing
 
 The child IoMap for the 1-based element `i` of a vector-shaped
-`CopyingProjectionIoMap`, or `nothing` when out of range / not vector-shaped.
+`CopyingIoMap`, or `nothing` when out of range / not vector-shaped.
 """
 make_copying_element_iomap(::Any, ::Integer) = nothing
-function make_copying_element_iomap(iomap::CopyingProjectionIoMap, i::Integer)
+function make_copying_element_iomap(iomap::CopyingIoMap, i::Integer)
     iomap.children isa Vector || return nothing
     (1 <= i <= length(iomap.children)) ? iomap.children[i] : nothing
 end
@@ -191,7 +191,7 @@ mappers and the reader need all three:
   holds no document, or a list step that is not an element step.
 - `nothing` — the step names a child that does not exist.
 """
-function _child_iomap(iomap::CopyingProjectionIoMap, h)
+function _child_iomap(iomap::CopyingIoMap, h)
     if h isa RangeReferenceStep && iomap.field_names === nothing
         if iomap.children isa Vector
             isempty(iomap.children) && return missing   # primitive
@@ -209,7 +209,7 @@ function _child_iomap(iomap::CopyingProjectionIoMap, h)
     missing
 end
 
-function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
+function _map_ref(fn, iomap::CopyingIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before dispatching on the head's
     # navigation step (index vs. field); the child mapper re-canonicalizes.
     reference isa ConcreteReference || return reference
@@ -225,7 +225,7 @@ function _map_ref(fn, iomap::CopyingProjectionIoMap, reference)
     ConcreteReference(h isa FieldReferenceStep ? FieldReferenceStep(h.name) : h, mapped)
 end
 
-function _get_listnode_child_iomap(iomap::CopyingProjectionIoMap, index::Int)
+function _get_listnode_child_iomap(iomap::CopyingIoMap, index::Int)
     input_node = _walk_to_index(iomap.input::ListNode, index)
     input_node === nothing && return nothing
     return print_child(iomap.recursion, input_node.value,
@@ -250,11 +250,11 @@ function _walk_to_index(head_node::ListNode, index::Int)
     end
 end
 
-function map_reference_backward(::CopyingProjection, iomap::CopyingProjectionIoMap, reference)
+function map_reference_backward(::CopyingProjection, iomap::CopyingIoMap, reference)
     _map_ref(map_reference_backward, iomap, reference)
 end
 
-function map_reference_forward(::CopyingProjection, iomap::CopyingProjectionIoMap, reference)
+function map_reference_forward(::CopyingProjection, iomap::CopyingIoMap, reference)
     _map_ref(map_reference_forward, iomap, reference)
 end
 
@@ -271,7 +271,7 @@ end
 # object its field names. That conversion happens only if the operation reaches
 # that child's reader. Without the route a form of copied nodes types into the
 # rendering and never into the document behind it.
-function read_intent(p::CopyingProjection, iomap::CopyingProjectionIoMap, payload)
+function read_intent(p::CopyingProjection, iomap::CopyingIoMap, payload)
     routed = _route_to_child(iomap, payload)
     if routed !== nothing
         (child_im, inner) = routed
@@ -287,7 +287,7 @@ end
 # comes off its reference. Every other payload — a key, an operation that names
 # its own subject — is routed to the child the `selection` points at and reaches
 # it unchanged.
-function _route_to_child(iomap::CopyingProjectionIoMap, payload)
+function _route_to_child(iomap::CopyingIoMap, payload)
     reference = operation_reference(payload)
     if reference isa ConcreteReference
         child_im = _child_iomap(iomap, head(reference))
@@ -303,7 +303,7 @@ end
 _is_child(child_im) = !(child_im === missing || child_im === nothing)
 
 # The step of this node's own selection that names a child.
-function _selection_step(iomap::CopyingProjectionIoMap)
+function _selection_step(iomap::CopyingIoMap)
     input = _unwrap(iomap.input)
     input isa Document || return nothing
     selection = get_stored_selection(input)

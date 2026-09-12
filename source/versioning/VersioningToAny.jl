@@ -62,7 +62,7 @@ import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
 
-export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
+export VersioningToAnyProjection, VersioningToAnyIoMap,
        SetVersionCriterionOperation
 
 # ── Projection ────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ struct VersioningToAnyProjection <: Projection end
 # `editor.iomap` drop. `output`/`index`/`value_iomap` read it transparently via
 # `getproperty`, so the reference maps and reader see the *current* selection and the
 # reactive `ChainingProjection` re-pulls the output downstream.
-@iomap struct VersioningToAnyProjectionIoMap
+@iomap struct VersioningToAnyIoMap
     projection::Any
     input::Any                # VersionedObject
     selection_cell::Any       # Cell of (idx, value_iomap) or nothing
@@ -114,7 +114,7 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
     end)
     index = ComputedCell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[1]))
     value_iomap = ComputedCell(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[2]))
-    VersioningToAnyProjectionIoMap(p, input, selection_cell, output, index, value_iomap)
+    VersioningToAnyIoMap(p, input, selection_cell, output, index, value_iomap)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ end
 # delegates to the child and prepends those same three steps so the path is
 # rooted at the VersionedObject.
 
-function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, reference)
+function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
     child = iomap.value_iomap
     child === nothing && return nothing
@@ -143,7 +143,7 @@ function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToA
     map_reference_forward(child.projection, child, tail(rest2))
 end
 
-function map_reference_backward(::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, reference)
+function map_reference_backward(::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, reference)
     child = iomap.value_iomap
     child === nothing && return nothing
     idx = iomap.index
@@ -184,7 +184,7 @@ _field_path(name::AbstractString) =
 # push it to the front of `versions` (index 0, newest-first). A standard sequence
 # splice (insert_elements) so every ancestor projection re-roots it. Returns
 # nothing when there is no selected value to snapshot.
-function _create_version(iomap::VersioningToAnyProjectionIoMap)
+function _create_version(iomap::VersioningToAnyIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing
     saved_value = copy_document(version.value)
@@ -195,7 +195,7 @@ end
 
 # Delete the currently selected version (the active one). A standard sequence
 # splice (delete_elements, 0-based index), re-rooted by every ancestor.
-function _delete_version(iomap::VersioningToAnyProjectionIoMap)
+function _delete_version(iomap::VersioningToAnyIoMap)
     iomap.index === nothing && return nothing
     delete_elements(_field_path("versions"), iomap.index - 1)
 end
@@ -219,7 +219,7 @@ end
 # ── Reader ─────────────────────────────────────────────────────────────────────
 
 function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
-                         iomap::VersioningToAnyProjectionIoMap)
+                         iomap::VersioningToAnyIoMap)
     own = read_projection_gesture(p, iomap, change.gesture)
     vim = iomap.value_iomap
     # The steps exist only when a version is selected — `iomap.index` is `nothing`
@@ -243,7 +243,7 @@ function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).
-read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyProjectionIoMap, payload) =
+read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Operation re-rooting ───────────────────────────────────────────────────────

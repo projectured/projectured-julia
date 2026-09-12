@@ -237,9 +237,9 @@ An iomap-rooted `Reference` prints as its stages, so the path tells you which
 pipeline stage each hit is in at a glance:
 
 ```
-::ChainingProjectionIoMap.input::JsonObject.entries…::JsonString               # source document
-::ChainingProjectionIoMap.step_iomaps::Array[1]::RuleIoMap.input::JsonObject…   # a stage's input
-::ChainingProjectionIoMap.step_iomaps::Array[1]::RuleIoMap.output::SyntaxNode…  # a stage's output
+::ChainingIoMap.input::JsonObject.entries…::JsonString               # source document
+::ChainingIoMap.step_iomaps::Array[1]::RuleIoMap.input::JsonObject…   # a stage's input
+::ChainingIoMap.step_iomaps::Array[1]::RuleIoMap.output::SyntaxNode…  # a stage's output
 ::…child_iomaps::Array[4]::RuleIoMap.input::JsonObjectEntry…                      # nested projection
 ```
 

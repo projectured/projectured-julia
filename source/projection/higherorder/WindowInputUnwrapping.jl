@@ -26,11 +26,11 @@ import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..EventModule: WindowInput
-export WindowInputUnwrappingProjection, WindowInputUnwrappingProjectionIoMap
+export WindowInputUnwrappingProjection, WindowInputUnwrappingIoMap
 
 # Transparent passthrough: `output` forwards the inner output through a cell so the
 # IoMap keeps its identity while `inner` re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct WindowInputUnwrappingProjectionIoMap
+@iomap struct WindowInputUnwrappingIoMap
     projection::Any
     input::Any
     output::Any
@@ -53,10 +53,10 @@ WindowInputUnwrappingProjection(; inner) = WindowInputUnwrappingProjection(inner
 
 function print_document(p::WindowInputUnwrappingProjection, recursion, input, ctx)
     inner = print_document(p.inner, recursion, input, ctx)
-    WindowInputUnwrappingProjectionIoMap(p, input, ComputedCell(() -> inner.output), inner)
+    WindowInputUnwrappingIoMap(p, input, ComputedCell(() -> inner.output), inner)
 end
 
-function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingProjectionIoMap)
+function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingIoMap)
     window_input = change.gesture
     inner_change = window_input isa WindowInput ? Intent(window_input.event, change.operation) : change
     out = read_intent(p.inner, recursion, inner_change, iomap.inner_iomap)
@@ -65,13 +65,13 @@ function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Inte
     return Intent(change.gesture, out.operation)
 end
 
-read_intent(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingProjectionIoMap, payload) =
+read_intent(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-map_reference_forward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingProjectionIoMap, reference) =
+map_reference_forward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
-map_reference_backward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingProjectionIoMap, reference) =
+map_reference_backward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

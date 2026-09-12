@@ -27,11 +27,11 @@ import ..TooltipDocumentModule: TooltipSource
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationModule: Operation
 
-export TooltipDecoratorProjection, TooltipDecoratorProjectionIoMap
+export TooltipDecoratorProjection, TooltipDecoratorIoMap
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct TooltipDecoratorProjectionIoMap
+@iomap struct TooltipDecoratorIoMap
     projection::Any
     input::Any              # TooltipSource
     output::Any             # whatever child projects to
@@ -78,12 +78,12 @@ TooltipDecoratorProjection(; trigger::Function,
 
 function print_document(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
     child_iomap = print_child(recursion, input.child, ctx)
-    TooltipDecoratorProjectionIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
+    TooltipDecoratorIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, iomap::TooltipDecoratorProjectionIoMap)
+function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, iomap::TooltipDecoratorIoMap)
     event = change.gesture
     child_op = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap).operation
 
@@ -133,7 +133,7 @@ function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, i
     return Intent(change.gesture, child_op)
 end
 
-read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, payload) =
+read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping ────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMa
 # references go through the TooltipSource and need a `FieldReferenceStep("child")`
 # step to reach the wrapped node.
 
-function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
+function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, reference)
     # Strip a leading FieldReferenceStep("child") if present, then delegate.
     # Skip canonical TypeReferenceStep checkpoints before reading the `child` step.
     reference = reference
@@ -159,7 +159,7 @@ function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecor
     return reference
 end
 
-function map_reference_backward(::TooltipDecoratorProjection, iomap::TooltipDecoratorProjectionIoMap, reference)
+function map_reference_backward(::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, reference)
     inner = map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
     inner === nothing && return nothing
     ConcreteReference(FieldReferenceStep("child"), inner)

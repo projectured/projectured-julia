@@ -41,7 +41,7 @@ ChainingProjection(
 ```
 
 `print_document` threads the previous step's `iomap.output` as the next
-step's input and stores every step's iomap in `ChainingProjectionIoMap.step_iomaps`.
+step's input and stores every step's iomap in `ChainingIoMap.step_iomaps`.
 `read_intent` walks from the *last* step backward. If a step returns
 `nothing`, the reader keeps trying earlier steps until one accepts the event,
 then translates the result through the remaining earlier steps. This is what

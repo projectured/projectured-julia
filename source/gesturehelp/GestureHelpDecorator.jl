@@ -30,7 +30,7 @@ import ..OperationModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureMapModule: gesture_map
 
-export GestureHelpProjection, GestureHelpState, GestureHelpProjectionIoMap,
+export GestureHelpProjection, GestureHelpState, GestureHelpIoMap,
        HELP_GESTURE, is_help_gesture
 
 """
@@ -92,7 +92,7 @@ GestureHelpProjection(; inner, state::GestureHelpState = GestureHelpState(),
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct GestureHelpProjectionIoMap
+@iomap struct GestureHelpIoMap
     projection::Any
     input::Any
     output::Any
@@ -103,12 +103,12 @@ end
 
 function print_document(p::GestureHelpProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    GestureHelpProjectionIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
+    GestureHelpIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
-function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap::GestureHelpProjectionIoMap)
+function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap::GestureHelpIoMap)
     # The wrapped editor has priority: if it produced an operation, that wins and
     # the help gesture (if any) is reconsidered next event.
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
@@ -133,15 +133,15 @@ function read_intent(p::GestureHelpProjection, recursion, change::Intent, iomap:
     return child
 end
 
-read_intent(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, payload) =
+read_intent(p::GestureHelpProjection, iomap::GestureHelpIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping (transparent — output is the inner's output) ──────────
 
-map_reference_forward(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, reference) =
+map_reference_forward(p::GestureHelpProjection, iomap::GestureHelpIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 
-map_reference_backward(p::GestureHelpProjection, iomap::GestureHelpProjectionIoMap, reference) =
+map_reference_backward(p::GestureHelpProjection, iomap::GestureHelpIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
 
 end # module

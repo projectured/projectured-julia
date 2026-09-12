@@ -391,8 +391,8 @@ machinery, and with it the same three sharp edges:
 
 - Domain types (`JsonString`, `XmlElement`, `WidgetButton`, …) use
   `@document`.
-- IoMaps with reactive subfields (`SortingProjectionIoMap`,
-  `TextToGraphicsIoMap`, `NestingProjectionIoMap`, …) use a mixture of
+- IoMaps with reactive subfields (`SortingIoMap`,
+  `TextToGraphicsIoMap`, `NestingIoMap`, …) use a mixture of
   hand-rolled structs and `@iomap`.
 - Most projection structs use `@projection` (with the `<: Projection` defaulted
   in) — the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
