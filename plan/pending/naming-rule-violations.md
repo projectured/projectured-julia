@@ -569,7 +569,7 @@ its Status and what it Stands on. 57 of 60 do.
 | --- | --- | --- |
 | [documentation/package/adaptagrams/README.md](../../documentation/package/adaptagrams/README.md) | add the header under the title | certain |
 | [documentation/package/executable/README.md](../../documentation/package/executable/README.md) | add the header under the title | certain |
-| [documentation/presentation/projectured-overview.md](../../documentation/presentation/projectured-overview.md) | add the header after the Marp front matter | certain |
+| [documentation/presentation/projectured-overview.md](../../documentation/presentation/projectured-overview.md) | **no change.** The user decided on 2026-09-12 to exempt a slide deck. Marp renders the file, so a block-quote after the front matter shows as text on slide one. `documentation/README.md` now states the exemption. | closed |
 
 ### 8.2 One rule sentence is stale
 
