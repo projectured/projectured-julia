@@ -1092,8 +1092,21 @@ The 64 rows of §6.1 to §6.6, unchanged. They are separate from the 383 of §14
 
 ### 14.9 The functions that do not start with a verb
 
-**374 real names. 353 renames, 21 no change, and no two rows propose the same
-name** — which is what the rule of §13.1 asks for.
+**374 real names.** Two independent passes named every one of them, each reading
+the definition rather than the name. They agree on 287, differ on 62, and the
+rest need no change. No two rows propose the same name, which is what the rule
+of §13.1 asks for.
+
+| status | count |
+| --- | --- |
+| agreed by both passes — apply it | 287 |
+| contested — both readings shown, see §14.10 of the appendix | 62 |
+| no change — verb-first already, a fixture, or a `const` | 16 |
+| one pass only — apply the name shown | 5 |
+| one pass breaks a stated rule — the compliant name is shown | 4 |
+
+The 62 contested rows are not 62 questions. Six policy questions settle almost
+all of them, and the appendix states each one.
 
 Nine of the 383 candidates are not names at all, and I removed them:
 
