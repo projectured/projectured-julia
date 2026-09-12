@@ -39,7 +39,8 @@ import ..OperationRerootingModule: reroot_operation
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
     RangeReferenceStep, evaluate_reference, annotate_reference_types
 import ..PointReferenceStepModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
+                          CompoundOperation
 import ..EventModule: KeyDown
 # The focus walk is generic and names no widget type, so layout containers share
 # Tab traversal with the widget readers without importing the widget domain.
@@ -227,6 +228,34 @@ function _selected_layout_slot(doc, n::Int)
     1 <= slot <= n ? slot : 0
 end
 
+# Re-root a child's answer into this layout's own `children[i]`, **with the types
+# the path needs**.
+#
+# `reroot_operation` prepends bare steps, and a bare step leaves its node untyped.
+# That is invisible until a container one level up splices the answer into an
+# `@reference` literal: the literal refuses an untyped node, so a click inside a
+# layout threw *under-typed @reference* one projection away from its cause.
+# Annotating against the layout document is what fills the types in, and it is
+# right by construction because the path resolves against that document.
+_reroot_into_child(document, op, index::Integer) =
+    _annotate_operation(document,
+        reroot_operation(op, (FieldReferenceStep("children"),
+                              RangeReferenceStep(index - 1, index))))
+
+_annotate_operation(::Any, ::Nothing) = nothing
+_annotate_operation(::Any, op) = op
+_annotate_operation(document, op::ReplaceSelectionOperation) =
+    ReplaceSelectionOperation(annotate_reference_types(document, op.path))
+_annotate_operation(document, op::CompoundOperation) =
+    CompoundOperation(Any[_annotate_operation(document, o) for o in op.operations])
+function _annotate_operation(document, op::ReplaceReferencedValueOperation)
+    # A self-contained operation carries its own root, so this document says
+    # nothing about its path.
+    op.document === nothing || return op
+    ReplaceReferencedValueOperation(nothing,
+        annotate_reference_types(document, op.reference), op.value)
+end
+
 # Edit-transparent routing shared by every *LayoutToGraphicsCanvas reader:
 # mouse clicks/scrolls hit-test the laid-out children; coordless events go to
 # the selected child (or are tried against each). The child's op is re-rooted by
@@ -248,14 +277,15 @@ function _layout_tab(w, entries::Vector, evt)
     deleg = _forward_layout_event_slot(entries, evt, i)
     if deleg !== nothing
         op, slot = deleg
-        return reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(slot - 1, slot)))
+        return _reroot_into_child(w, op, slot)
     end
     j = next_focusable_index(w.children, i, reverse)
     j == 0 && return nothing
     sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
     sub === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("children"),
-        ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
+    _annotate_operation(w, ReplaceSelectionOperation(
+        ConcreteReference(FieldReferenceStep("children"),
+            ConcreteReference(RangeReferenceStep(j - 1, j), sub))))
 end
 
 function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
@@ -272,8 +302,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
             taken = _forward_layout_event_slot(entries, evt, slot)
             if taken !== nothing
                 op, i = taken
-                return reroot_operation(op,
-                    (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
+                return _reroot_into_child(iomap.input, op, i)
             end
         end
         return _layout_tab(iomap.input, entries, evt)
@@ -297,7 +326,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
+    _reroot_into_child(iomap.input, op, i)
 end
 
 """
@@ -1440,7 +1469,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     end
     res === nothing && return nothing
     op, i = res
-    reroot_operation(op, (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)))
+    _reroot_into_child(iomap.input, op, i)
 end
 
 function print_document(p::StackLayoutToGraphicsCanvas,
