@@ -417,6 +417,8 @@ function read_function_documentation(module_name, function_signature, type_name 
     sym = Symbol(func_name)
     _is_declared(api, mod, sym) ||
         return "Function '$func_name' is not one of the names you may write."
+    # A declaration may have renamed it, and the module knows it by its own name.
+    sym = api_source_name(api, mod, sym)
     isdefined(mod, sym) ||
         return "Function '$function_signature' not found in module '$module_name'."
     doc = _doc_string(getfield(mod, sym))
@@ -522,12 +524,15 @@ function _index_declared(api)
                                  "resource://module/$mn"))
         # The names the declaration gives, and no others. A name a model finds
         # here is a name it can write, which is the whole point of the list.
-        for sym in api_entry_names(declared)
+        # Indexed under the name the MODEL writes, and read from the module by
+        # the name the module knows: a renamed entry is found by the word the
+        # model would type, and its documentation is still its own.
+        for (source, sym) in api_entry_bindings(declared)
             sym === nameof(mod) && continue
-            isdefined(mod, sym) || continue
-            value = getfield(mod, sym)
+            isdefined(mod, source) || continue
+            value = getfield(mod, source)
             nn = String(sym)
-            raw = _binding_doc(mod, sym)
+            raw = _binding_doc(mod, source)
             doc = _first_paragraph(raw)
             text = _search_text(raw)
             if value isa Type

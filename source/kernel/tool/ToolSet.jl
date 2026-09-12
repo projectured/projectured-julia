@@ -62,7 +62,10 @@ end
 function _refuse_missing_names(entries::Vector{ApiEntry})
     for entry in entries
         entry.names === nothing && continue
-        for name in entry.names
+        # The name in the module, not the name the model writes: a renamed entry
+        # is given as `describe => summarize_frame`, and it is `describe` that
+        # has to be there.
+        for (name, _) in entry.names
             isdefined(entry.module_, name) && continue
             error("The module " * String(nameof(entry.module_)) * " has no name " *
                   repr(name) * " to give.")
@@ -73,6 +76,8 @@ end
 
 function _refuse_declared_twice(entries::Vector{ApiEntry})
     source = Dict{Symbol,Module}()
+    # The name the MODEL writes is what can collide. Two modules may both own a
+    # `describe`; only one of them may arrive under that word.
     for entry in entries, name in api_entry_names(entry)
         first_one = get(source, name, nothing)
         first_one === nothing && (source[name] = entry.module_; continue)

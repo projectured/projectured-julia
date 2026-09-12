@@ -135,6 +135,41 @@ function test_declared_api()
         @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
     end
 
+    # Two packages own the same common word often enough that a surface would
+    # have to drop one of them. A rename is a declaration, not a wrapper: the
+    # owning module is untouched and there is one function, not two.
+    @testset "a declared name can be given another name" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb => :say_toy, :toy_count)])
+
+        # The model writes the name it was given.
+        @test strip(execute_julia_code(set, nothing, "say_toy()")) == "\"toy\""
+        # And the one that was not renamed is itself.
+        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2])")) == "2"
+        # The module's own word is not what this model writes.
+        @test occursin("UndefVarError", execute_julia_code(set, nothing, "toy_verb()"))
+
+        # It is findable and readable under the new name, and its documentation
+        # is still its own.
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+        @test occursin("say_toy", search.handler(nothing, Dict("query" => "say_toy")))
+        reader = only([t for t in set.tools if t.name == "read_function_documentation"])
+        answer = reader.handler(nothing, Dict("module_name" => "ToyApi",
+                                              "function_name" => "say_toy"))
+        @test !occursin("not found", answer)
+        @test !occursin("not one of the names", answer)
+
+        # The refusal reads the module's own name, so a rename of a name that is
+        # not there is still refused.
+        message = try
+            declare_api!(ToolSet(), [ToyApi => (:toy_missing => :anything,)])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("toy_missing", message)
+    end
+
     @testset "a name its module does not have is refused" begin
         set = ToolSet()
         message = try

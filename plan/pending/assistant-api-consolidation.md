@@ -387,6 +387,52 @@ breaks a case here and nothing else in the suite. That is the point: the rest of
 the suite tests that the verbs work, and this tests that they can be found and
 combined.
 
+### 8g. The baseline, measured 2026-09-13
+
+`test_assistant_session()` against **today's** surface, `qwen3.8:27b`, eight
+cases. **Six reached, two not.** 11 assertions passed, 2 cases errored.
+
+| case | tool calls | reached |
+| --- | ---: | --- |
+| count | 5 | yes — it found `count_simulations` |
+| run | 4 | yes |
+| table | 6 | yes |
+| **plot** | 5 | **no — nothing was plotted** |
+| **add_series** | 9 | **no — the plot still held one series** |
+| layout | 2 | yes — the cheapest case of the eight |
+| stop | 3 | yes |
+| columns | 5 | yes |
+
+The two that fail are the two this plan is about, and the transcript says why.
+
+**The model found `plot_results` and could not call it.** It searched the name,
+read the docstring, and then spent its last three rounds hunting for one thing:
+
+> *"The kind is `vector`/`scalar`/`histogram`. For delay vectors, I want
+> `kind="vector"`."*
+
+The value is `"vectors"`. `RESULT_FRAME_KINDS` holds the set and the signature
+line does not, so a model that has done everything right guesses and fails. It
+then searched the guides, got `CellVector` and `@document`, and ran out of
+rounds.
+
+**This sharpens §8a.** "Spell the return type and the linking argument type" is
+not enough. **A keyword whose values are a closed set must show that set in the
+signature line**, because the signature line is the only line a search hit shows:
+
+    make_result_plot(frame::DataFrame...; title) -> SimulationPlotDocument
+    get_results(editor; kind = "scalars"|"vectors"|"statistics"|"histograms", …) -> DataFrame
+
+A model reading the second cannot make the mistake the first surface invited.
+The consolidation helps here for a second reason: `kind` belongs to
+`get_results`, which *makes* the frame, and not to the verb that draws it — so
+there is one place to get it right rather than three.
+
+**`layout` was the cheapest case at two calls**, which is the reference program
+working exactly as it was built to: the model read what `show_layout` printed and
+edited it. That is the evidence behind §8c, now measured on a case nobody wrote
+by hand.
+
 ## 9. Stages
 
 Each stage is a commit, and each leaves the assistant working.

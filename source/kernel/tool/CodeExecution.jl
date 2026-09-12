@@ -79,10 +79,16 @@ function _scratch_module(set::ToolSet)
         # exports more — which is what makes the list a decision a person writes
         # down, rather than a consequence of what it happens to import.
         for entry in srcs
-            syms = api_entry_names(entry)
-            isempty(syms) && continue
+            bindings = api_entry_bindings(entry)
+            isempty(bindings) && continue
+            # `using M: name` for a plain one, `using M: name as alias` for a
+            # renamed one — which is `Expr(:as, Expr(:., name), alias)`, the same
+            # shape Julia parses that line into.
+            clauses = (name === alias ? Expr(:., name) :
+                       Expr(:as, Expr(:., name), alias)
+                       for (name, alias) in bindings)
             Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(entry.module_)),
-                                           (Expr(:., n) for n in syms)...)))
+                                           clauses...)))
         end
         # **How to look is always in scope.** The declaration says what a model may
         # DO; finding out what that is, is not one of the things it does. Without
