@@ -22,6 +22,11 @@ Read out of a live `ToolSet`, not out of the source.
 | `OmnetIde.ResultVerbsModule` | 4 |
 | `DataFrames` | 10 |
 
+`describe` is declared twice over: `DataFrames.describe` gives per-column
+statistics, and the generic of §4 says one sentence about a value. The
+`DataFrames` one is declared as `summarize_frame` (§6), which is also the better
+name for what it does.
+
 ## 2. What is wrong
 
 ### 2a. One verb does three things
@@ -194,26 +199,99 @@ reference, with nothing new to learn.
 
 ## 6. Open questions
 
-- **Is a `PaneSplit`'s `weights` reachable by a reference step?** If it is,
-  `resize_pane` is `replace_referenced_value!(editor, @reference(window,
-  root.weights), [0.3, 0.7])` and the drop costs nothing. If it is not, either
-  make it reachable or keep `resize_pane` by reference. **Check before Stage 2.**
+- ~~**Is a `PaneSplit`'s `weights` reachable by a reference step?**~~
+  **Answered 2026-09-13: yes, and the write works.** Measured:
+  `@reference(window, root.weights)` is fully typed, reads the `CellVector`, and
+  `replace_referenced_value!(editor, reference, [0.3, 0.7])` lands. `weights` is
+  not one of the fields `_refuse_bad_kind` guards, so nothing refuses it.
+  `resize_pane` drops with no loss.
 - **Does `focus` belong to the reference machine at all?** Focus is the
   selection, not the tree, so it is not a replace. `focus_pane` survives for
   that reason. Whether it should be `select!(editor, reference)` — the kernel's
   own word — is a naming question for the review.
-- **`describe` is a very common word.** The scratch module does
-  `using M: <declared names>`, so a declared `describe` shadows anything else
-  called `describe` in that scope. `DataFrames.describe` is one of the ten
-  declared names. **These two collide, and one must give.** Either the generic
-  is called `describe_content`, or the `DataFrames` name goes.
+- ~~**`describe` is a very common word.**~~ **Answered 2026-09-13: rename the
+  `DataFrames` one.** Julia's `using M: name as alias` lowers to
+  `Expr(:as, Expr(:., :name), :alias)` inside the `:` expression the scratch
+  module already builds, so the rename is a declaration, not a wrapper. It needs
+  `ApiEntry` to carry `name => alias` pairs beside plain names, and one branch in
+  `_scratch_module`. `DataFrames.describe` becomes `summarize_frame`, which also
+  says what it does — it is per-column statistics, not a sentence.
 - **Does `open_pane` need a `title`?** A document that carries its own title
   makes the keyword redundant. Check which documents do.
 - **`get_window_tree` is only there so `@reference(window, …)` has a `window`.**
   If `@reference(editor, …)` accepted the editor, the name would go and the
   surface would lose one more.
 
-## 7. Stages
+## 7. How a model learns to combine
+
+A verb that is removed takes its knowledge with it. `show_results` said "read,
+make a table, open a pane" in its name; three verbs say it only if the model can
+see how they join. This is what makes that visible, and none of it is prose.
+
+### 7a. The signature line is the contract, because it is the only line a hit shows
+
+Measured in `Documentation.jl`. A search hit is **found by** two paragraphs — the
+signature line and the sentence under it — and **shown as** `_first_paragraph`,
+which is the signature line alone. A model calls a verb off that line without
+reading more.
+
+So the types in the signature are the combination documentation:
+
+```
+get_results(editor; …)            -> DataFrame
+result_table(frame::DataFrame; …) -> SimulationResultFrame
+result_plot(frame::DataFrame…; …) -> SimulationPlotDocument
+open_pane(editor, value; …)       -> Reference
+focus_pane(editor, reference::Reference)
+```
+
+Read down that column and the chain is forced: `get_results` answers what
+`result_table` takes, which answers what `open_pane` takes, which answers what
+`focus_pane` takes. Nothing has to be said in words. **Every verb must spell its
+return type and the type of the argument that links it to its neighbour**, and
+that is a rule this plan holds itself to, not a wish.
+
+### 7b. The prompt carries the shape, not the list
+
+`IDE_SYSTEM` names the modules today. A list of module names teaches nothing
+about joining. It should carry the three concerns in one sentence and one worked
+session of four lines — the §5 example. That is always in context, and it is what
+a model pattern-matches on before it searches for anything.
+
+### 7c. A model edits an example; it does not compose from a description
+
+This is measured in this repository, not assumed. `show_layout` hands back a
+runnable program, and the layout work was proven with a local model that read it,
+edited two lines and sent it back. The same note records the opposite: handed a
+`String` instead of a `Text`, the same model spent its whole five-round budget
+and acted on nothing.
+
+The lesson is that **the worked program is the teaching device**, and it is the
+one we already have. `show_layout` is the map of the window; §7b makes the prompt
+the map of the verbs.
+
+### 7d. A retired name should teach, not fail blankly
+
+`show_results(...)` after this plan is `UndefVarError`, which tells a model it was
+wrong and not what to write. The scratch module can bind each retired name to a
+function that throws the replacement:
+
+```
+show_results is retired. Write:
+    open_pane(editor, result_table(get_results(editor; config = "Tandem*")))
+```
+
+These bindings are not declared, so they cost nothing in the search and nothing
+in the prompt. They can go once a recording shows nobody reaches for them.
+
+### 7e. The claim is testable, so test it
+
+Whether three verbs cost more rounds than one is a measurement, not an opinion.
+Stage 9 runs the same three tasks against the same local model on both surfaces
+and counts the rounds each needs. If the new surface costs more, the answer is
+more worked examples in §7b, not more verbs.
+
+## 8. Stages
 
 Each stage is a commit, and each leaves the assistant working.
 
@@ -233,6 +311,9 @@ Each stage is a commit, and each leaves the assistant working.
 - [ ] **7. The prompt.** `CAMPAIGN_SYSTEM` and `IDE_SYSTEM` name the modules and
   a verb each. Rewrite them around the three concerns, and re-run the test that
   asserts the replaced sentence fires.
-- [ ] **8. Prove it with a model.** Run the three-call session of §5 against
-  `qwen3.8:27b`, the way the layout control was proven. A surface a model cannot
-  compose is not consolidated, whatever its shape.
+- [ ] **8. The signature lines.** Give every verb in §4 a signature that spells
+  its return type and its linking argument type, per §7a. Retire the dropped
+  names with the errors of §7d.
+- [ ] **9. Prove it with a model.** Run the three tasks on the old surface and
+  the new one against `qwen3.8:27b`, and count the rounds each needs (§7e). A
+  surface a model cannot compose is not consolidated, whatever its shape.
