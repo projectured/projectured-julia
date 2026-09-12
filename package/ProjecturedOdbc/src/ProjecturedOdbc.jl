@@ -28,6 +28,20 @@ using ProjecturedDatabase
 using ProjecturedDbCatalog
 using ProjecturedSql
 
-include("../../../source/odbc/Odbc.jl")
+include("../../../source/odbc/OdbcAdapter.jl")
+include("../../../source/odbc/ConnectionPool.jl")
+include("../../../source/odbc/SqlToCellTable.jl")
+include("../../../source/odbc/DatabaseInstanceToDbCatalog.jl")
+
+# Re-export and export public symbols at the package top level so consumers can
+# `using ProjecturedOdbc` and name these types directly.
+using .OdbcAdapterModule: OdbcDatabaseAdapter
+using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
+using .SqlToCellTableModule: SqlToCellTable
+using .DatabaseInstanceToDbCatalogModule: DatabaseInstanceToDbCatalog
+
+export OdbcDatabaseAdapter, OdbcConnectionPool, with_connection, dsn_for, close_pool!,
+       SqlToCellTable,
+       DatabaseInstanceToDbCatalog
 
 end # module Odbc
