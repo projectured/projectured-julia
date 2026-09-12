@@ -24,7 +24,7 @@ module ProcessDebugModule
 
 import ..ProcessModule: ProcessModel, process_nodes
 import ..ProcessDebugSessionModule: ProcessDebugSession, sync_process_debug!
-import ..ProcessRuntimeModule: ProcessTrace, ProcessStopped
+import ..ProcessRuntimeModule: ProcessTrace, ProcessStoppedException
 import ..ProcessToJuliaCodeModule: realize_process_text
 
 export start_process, realize_into, ProcessRun
@@ -70,7 +70,7 @@ begins running immediately unless `mode = :step` or a breakpoint stops it.
 - `breakpoints` — node indices to stop at.
 - `session` — stamped with `node_count` so staleness can be detected later.
 
-The task never throws `ProcessStopped` outward: a stopped process is a normal
+The task never throws `ProcessStoppedException` outward: a stopped process is a normal
 outcome of debugging, not a failure.
 """
 function start_process(model::ProcessModel, arguments...;
@@ -92,7 +92,7 @@ function start_process(model::ProcessModel, arguments...;
         try
             Base.invokelatest(f, arguments..., trace)
         catch exception
-            exception isa ProcessStopped ? nothing : rethrow()
+            exception isa ProcessStoppedException ? nothing : rethrow()
         finally
             trace.finished = true
         end

@@ -1,6 +1,6 @@
 # Fragment of `ReferenceModule` — the kernel's **step vocabulary**: the concrete
 # `ReferenceStep` subtypes (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`),
-# the `Position` value a cursor step evaluates to, the `ReferenceTypeMismatch` a
+# the `Position` value a cursor step evaluates to, the `ReferenceTypeMismatchException` a
 # failed checkpoint throws, and the cell-transparent navigation helpers the steps
 # descend with.
 #
@@ -179,20 +179,20 @@ the assertion holds exactly; recording an abstract supertype is also tolerated.
 end
 
 """
-    ReferenceTypeMismatch(expected, actual)
+    ReferenceTypeMismatchException(expected, actual)
 
 Thrown by [`evaluate_reference`](@ref) when a [`TypeReferenceStep`](@ref) checkpoint
 does not hold: the node reached is an `actual` but the checkpoint expected an
 `expected`. Callers that replay possibly-stale references catch this specifically
 to distinguish a structural mismatch from a genuine bug.
 """
-struct ReferenceTypeMismatch <: Exception
+struct ReferenceTypeMismatchException <: Exception
     expected::Any
     actual::Any
 end
 
-Base.showerror(io::IO, e::ReferenceTypeMismatch) =
-    print(io, "ReferenceTypeMismatch: expected node of type ", e.expected,
+Base.showerror(io::IO, e::ReferenceTypeMismatchException) =
+    print(io, "ReferenceTypeMismatchException: expected node of type ", e.expected,
           ", got ", e.actual)
 
 function Base.show(io::IO, s::ATypeReferenceStep)
@@ -206,7 +206,7 @@ get_reference_step_kind(::ATypeReferenceStep) = :checkpoint
 
 function evaluate_reference_step(step::ATypeReferenceStep, document)
     document isa step.type ||
-        throw(ReferenceTypeMismatch(step.type, typeof(document)))
+        throw(ReferenceTypeMismatchException(step.type, typeof(document)))
     document
 end
 

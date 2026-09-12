@@ -92,7 +92,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        EmptyReference, ConcreteReference, extend_reference, concat_references, get_reference_steps,
        evaluate_reference, try_evaluate_reference, is_valid_reference, is_element_reference_step,
        is_position_reference_step, is_reference_equal, is_reference_prefix,
-       ReferenceTypeMismatch,
+       ReferenceTypeMismatchException,
        get_valid_reference_prefix, annotate_reference_types, strip_reference_types,
        fold_reference_types, get_reference_node_type, is_fully_typed_reference,
        search_references,

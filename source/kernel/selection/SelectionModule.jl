@@ -9,7 +9,7 @@ state. Setting a selection propagates the path down the
 document hierarchy — each step navigates to a child document and stores the
 remaining tail as that child's selection — and canonicalizes the path against the
 live document, folding each node's type in (see `annotate_reference_types`). A
-path that no longer matches the live document is rejected with `SelectionMismatch`
+path that no longer matches the live document is rejected with `SelectionMismatchException`
 *before any cell is written*, so applying a selection either matches and takes
 effect or fails atomically — it is never half-applied.
 
@@ -33,7 +33,7 @@ using ..DocumentModule
 using ..ReferenceModule
 
 export get_selection, clear_selection!, set_selection!, with_selection,
-       var"@with_selection", replace_selection!, SelectionMismatch,
+       var"@with_selection", replace_selection!, SelectionMismatchException,
        keeps_dormant_selection, get_stored_selection,
        is_live_selection, map_selection_forward
 

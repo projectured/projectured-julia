@@ -37,7 +37,7 @@ becomes canonical against the live document. Annotation is idempotent on an
 unchanged document.
 
 The canonical path must also **match** `document` — every routing step still
-resolving — or a [`SelectionMismatch`](@ref) is thrown *before any cell is
+resolving — or a [`SelectionMismatchException`](@ref) is thrown *before any cell is
 written*, leaving the current selection untouched. A selection either matches and
 applies or fails; it is never half-written. (A terminal caret is accepted by
 reachability, since a text leaf exposes no length/index to replay it against.)
@@ -66,7 +66,7 @@ before; pass `nothing` to clear it.
 
 Like [`set_selection!`](@ref), `path` is **canonicalized** against `document`
 first (stripped to its navigation skeleton, then re-annotated) and required to
-**match** — a non-matching path throws [`SelectionMismatch`](@ref) before any
+**match** — a non-matching path throws [`SelectionMismatchException`](@ref) before any
 cell is written, so a failed apply never changes the selection. On a match,
 instead of clearing and rebuilding every selection cell on the path, the new path
 is written into the

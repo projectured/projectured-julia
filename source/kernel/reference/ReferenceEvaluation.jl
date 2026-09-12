@@ -25,7 +25,7 @@ Returns the sub-document reached at the end of the path.
 function evaluate_reference(document, path::EmptyReference)
     # Folded terminal checkpoint: assert the landed node's recorded type.
     path.type === nothing || document isa path.type ||
-        throw(ReferenceTypeMismatch(path.type, typeof(document)))
+        throw(ReferenceTypeMismatchException(path.type, typeof(document)))
     document
 end
 
@@ -34,7 +34,7 @@ function evaluate_reference(document, path::ConcreteReference)
     rest = path.tail
     # Folded checkpoint: this node records the type of the document it stands on.
     path.type === nothing || document isa path.type ||
-        throw(ReferenceTypeMismatch(path.type, typeof(document)))
+        throw(ReferenceTypeMismatchException(path.type, typeof(document)))
     child = evaluate_reference_step(step, document)
     evaluate_reference(child, rest)
 end

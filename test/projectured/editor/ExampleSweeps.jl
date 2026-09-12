@@ -74,10 +74,10 @@ end
 # `Broken` column; any other error stays an unmarked `Fail`.
 function repl_broken(name)
     # @broken: clicking maps to a selection that fails to re-apply on these
-    # domains (SelectionMismatch) — a whole class the introduced-token / phantom-
+    # domains (SelectionMismatchException) — a whole class the introduced-token / phantom-
     # caret work resolves. plan/pending/simplest-syntax-document.md
     name in ("conversation_widget", "filesystem", "navigator",
-             "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatch", msg)
+             "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatchException", msg)
     # @broken: caret on a projection-introduced token → under-typed
     # ProjectionReferenceStep path the graph/workbench maps cannot wrap.
     name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
@@ -134,7 +134,7 @@ end
 
 # @broken: the CollectionToSyntax examples navigate a caret onto an undelimited
 # PrimitiveString's phantom `.open` slot, and `set_selection!` then throws a
-# SelectionMismatch that escapes the walk. plan/pending/simplest-syntax-document.md
+# SelectionMismatchException that escapes the walk. plan/pending/simplest-syntax-document.md
 posnav_throws_broken(name) =
     name in ("collection", "searching") ? (m -> occursin("PrimitiveString.open", m)) : nothing
 
@@ -338,9 +338,9 @@ function click_broken(name)
     # operation (the grid cell has no text-cursor reader yet).
     name == "formula" && return ("produced no ReplaceSelectionOperation",)
     # @broken: a click on an undelimited PrimitiveString maps to a phantom
-    # `.open`/`.close` caret that fails to re-apply (SelectionMismatch).
+    # `.open`/`.close` caret that fails to re-apply (SelectionMismatchException).
     # plan/pending/simplest-syntax-document.md
-    name == "searching" && return ("SelectionMismatch",)
+    name == "searching" && return ("SelectionMismatchException",)
     nothing
 end
 
@@ -417,7 +417,7 @@ const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 # reader throws partway through. Pre-existing and unrelated to navigation
 # direction (they surface as uncaught errors before the walk can proceed).
 const NAV_WALK_THROWS = Dict(
-    # SelectionMismatch in set_selection! on a CollectionToSyntax leaf: an
+    # SelectionMismatchException in set_selection! on a CollectionToSyntax leaf: an
     # undelimited PrimitiveString still offers a phantom `.open{…}` caret; the seed
     # throws before either walk can proceed.
     "searching"         => (:walk_right, :walk_left),

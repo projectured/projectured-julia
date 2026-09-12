@@ -10,8 +10,8 @@ num = JsonNumber(1)
 hold = ConcreteReference(TypeReferenceStep(JsonString), EmptyReference())
 @test evaluate_reference(js, hold) === js
 
-# A checkpoint that fails throws ReferenceTypeMismatch.
-@test_throws ReferenceTypeMismatch evaluate_reference(num, hold)
+# A checkpoint that fails throws ReferenceTypeMismatchException.
+@test_throws ReferenceTypeMismatchException evaluate_reference(num, hold)
 
 # A checkpoint mid-path stays on the current node, then navigation continues.
 arr = JsonArray([js, num])

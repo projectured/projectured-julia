@@ -319,8 +319,8 @@ function mouse_broken(name)
     # a visible cursor yet. plan/pending/json-navigation-and-clicks.md
     name in ("natural", "filesystem_widget") && return ("no cursor found",)
     # @broken: a click on an undelimited PrimitiveString maps to a phantom caret
-    # that fails to re-apply (SelectionMismatch).
-    name == "searching" && return ("SelectionMismatch",)
+    # that fails to re-apply (SelectionMismatchException).
+    name == "searching" && return ("SelectionMismatchException",)
     nothing
 end
 

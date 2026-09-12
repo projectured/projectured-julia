@@ -236,7 +236,7 @@ domain lets an embedder substitute its own `Fsm` runtime.
    own task (`start_process`); a process realized into a simulation must run at
    `:none`, or with mode `:run` and no breakpoints, or it stops the simulation
    with it.
-5. Mode `:stop` unwinds by throwing `ProcessStopped`. The runner catches it;
+5. Mode `:stop` unwinds by throwing `ProcessStoppedException`. The runner catches it;
    nothing else should.
 
 ## Debugging in the editor

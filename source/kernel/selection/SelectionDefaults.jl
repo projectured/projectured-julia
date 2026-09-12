@@ -54,7 +54,7 @@ function clear_selection!(document)
 end
 
 """
-    SelectionMismatch(document, path)
+    SelectionMismatchException(document, path)
 
 Thrown by the selection writers ([`set_selection!`](@ref) /
 [`replace_selection!`](@ref)) when `path` does not match `document`: a routing
@@ -62,13 +62,13 @@ step names a field the node lacks, indexes past the end of a sized container, or
 lands on a node whose folded type no longer holds. The stored selection is left
 untouched — a selection either matches and applies, or fails without half-writing.
 """
-struct SelectionMismatch <: Exception
+struct SelectionMismatchException <: Exception
     document::Any
     path::Any
 end
 
-Base.showerror(io::IO, e::SelectionMismatch) =
-    print(io, "SelectionMismatch: selection path ", e.path,
+Base.showerror(io::IO, e::SelectionMismatchException) =
+    print(io, "SelectionMismatchException: selection path ", e.path,
           " does not match a document of type ", typeof(e.document))
 
 # ── Dormant selections ─────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ function _restore_selection(document, path)
 end
 
 # Canonicalize `path` against `document` (see `set_selection!`) and require it to
-# still match before any selection cell is written — throwing `SelectionMismatch`
+# still match before any selection cell is written — throwing `SelectionMismatchException`
 # without touching the stored selection when it does not. `nothing` (a clear)
 # always matches. This is the single validate-then-write gate every selection
 # writer passes through, so a stale/cross-domain path fails atomically instead of
@@ -148,7 +148,7 @@ end
 function _matched_selection(document, path)
     path === nothing && return nothing
     canonical = annotate_reference_types(document, strip_reference_types(path))
-    _selection_matches(document, canonical) || throw(SelectionMismatch(document, canonical))
+    _selection_matches(document, canonical) || throw(SelectionMismatchException(document, canonical))
     restored = _restore_selection(document, canonical)
     restored === canonical && return canonical
     # A dormant path can name a node an edit has since removed. Canonicalize and

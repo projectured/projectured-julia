@@ -295,7 +295,7 @@ A `FieldReferenceStep` does not need two checkpoints (a start and an end): a ste
 `type`. The boundary type is stored once, on the downstream node, serving both
 roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal).
 
-- `evaluate_reference(document, path)` throws `ReferenceTypeMismatch(expected,
+- `evaluate_reference(document, path)` throws `ReferenceTypeMismatchException(expected,
   actual)` when a node's recorded type no longer matches the document reached.
   (It is the document-aware validator under the hood.)
 - `get_valid_reference_prefix(document, path)` walks the path and returns the

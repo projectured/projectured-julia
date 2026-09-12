@@ -36,7 +36,7 @@ mode and no breakpoints, for exactly that reason.
 """
 module ProcessRuntimeModule
 
-export ProcessTrace, ProcessStopped, process_at!,
+export ProcessTrace, ProcessStoppedException, process_at!,
        resume_process!, pause_process!, stop_process!, set_process_breakpoints!,
        is_process_paused, is_process_finished
 
@@ -44,7 +44,7 @@ export ProcessTrace, ProcessStopped, process_at!,
 Thrown inside a realized process when the UI asks it to stop. The runner
 catches it; nothing else should.
 """
-struct ProcessStopped <: Exception end
+struct ProcessStoppedException <: Exception end
 
 """
     ProcessTrace(; mode = :run, breakpoints = Set{Int}(), on_step = nothing)
@@ -101,12 +101,12 @@ function process_at!(trace::ProcessTrace, index::Integer, locals = nothing)
     trace.locals = locals
     hook = trace.on_step
     hook === nothing || hook(trace, Int(index))
-    trace.mode === :stop && throw(ProcessStopped())
+    trace.mode === :stop && throw(ProcessStoppedException())
     if trace.mode === :step || trace.mode === :pause || Int(index) in trace.breakpoints
         trace.paused = true
         command = take!(trace.resume)          # blocks until the UI says go
         trace.paused = false
-        command === :stop && (trace.mode = :stop; throw(ProcessStopped()))
+        command === :stop && (trace.mode = :stop; throw(ProcessStoppedException()))
         trace.mode = command                   # :run continues, :step stops again
     end
     nothing

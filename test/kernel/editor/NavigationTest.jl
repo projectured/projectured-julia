@@ -136,7 +136,7 @@ end
 # `(path) -> Bool`, marks a per-state walk failure broken. `unreached_broken` —
 # `(path) -> Bool`, marks a known-unreachable enumerated selection broken.
 # `throws_broken` — `(errormessage) -> Bool`, consulted when the *walk itself*
-# throws an uncaught exception (e.g. a `set_selection!` SelectionMismatch that
+# throws an uncaught exception (e.g. a `set_selection!` SelectionMismatchException that
 # escapes `explore_selections`); a recognised throw is recorded `@test_broken`,
 # an unrecognised one re-raised (a regression). All default to `nothing` (mark
 # nothing); the umbrella supplies the registries.
