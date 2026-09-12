@@ -36,8 +36,8 @@ import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, Mo
 import ..EventPatternModule: var"@event_case"
 import ..OperationApiModule: Operation
 import ..OperationRerootingModule: reroot_operation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-    evaluate_reference
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
+    RangeReferenceStep, evaluate_reference, annotate_reference_types
 import ..PointReferenceStepModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
@@ -391,8 +391,14 @@ function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::Conten
     map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, reference.tail)
 end
 
-function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap, reference)
-    return nothing
+# The wrapper forwards the child's canvas as its own output, so a path into that
+# output is already a path into the child's — there is no step of its own to peel.
+function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
+    inner = iomap.inner_iomap
+    inner === nothing && return nothing
+    answer = map_reference_backward(inner.projection, inner, reference)
+    answer === nothing && return nothing
+    annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("child"), answer))
 end
 
 function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
@@ -441,6 +447,75 @@ forward mapping, shifting a coordinate image by the child's laid-out offset.
 """
 _children_forward(iomap::_LayoutChildrenIoMap, reference) =
     _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "children", reference)
+
+# Which child drew the `slot`-th element of the container's own canvas.
+#
+# A child whose output is not a graphics document draws nothing and takes no slot
+# there, so the two indices are not the same number. `drawn` is the test the
+# container's own build used — a stack keeps canvases where the others keep
+# documents — so the count here matches the one that filled the canvas.
+function _drawn_child_index(entries::Vector, slot::Integer, drawn)
+    seen = 0
+    for i in 1:length(entries)
+        iomap = entries[i][3]
+        iomap === nothing && continue
+        drawn(iomap.output) || continue
+        seen += 1
+        seen == slot && return i
+    end
+    0
+end
+
+"""
+The mirror of `_forward_descend`: a path into this container's own canvas, as a
+path into the document it printed.
+
+The canvas holds one wrapper per drawn child (`_wrap_child`), and a wrapper holds
+that child's canvas as its single element — so the way down is
+`elements[slot].elements[1]`, and what is left belongs to the child's own mapper.
+A path that stops at the wrapper names the child itself, which is what a click on
+a child's area but not on anything inside it should answer.
+
+**The answer is annotated against `document`**, so every node carries its type. A
+caller splices this into an `@reference` literal, and that literal refuses a path
+with an untyped node — which is how a container that answered an untyped path
+showed up: not as a wrong selection, but as a throw one projection higher.
+"""
+function _backward_descend(document, entries::Vector, field::String, reference, drawn)
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "elements") || return nothing
+    outer = reference.tail
+    outer isa ConcreteReference || return nothing
+    outer.head isa RangeReferenceStep || return nothing
+    index = _drawn_child_index(entries, outer.head.start + 1, drawn)
+    index == 0 && return nothing
+
+    inside = EmptyReference()
+    below = outer.tail
+    if below isa ConcreteReference
+        wrapper = below.head
+        (wrapper isa FieldReferenceStep && wrapper.name == "elements") || return nothing
+        element = below.tail
+        element isa ConcreteReference || return nothing
+        element.head isa RangeReferenceStep || return nothing
+        child = entries[index][3]
+        answer = map_reference_backward(child.projection, child, element.tail)
+        answer === nothing && return nothing
+        inside = answer
+    end
+    annotate_reference_types(document,
+        ConcreteReference(FieldReferenceStep(field),
+            ConcreteReference(RangeReferenceStep(index - 1, index), inside)))
+end
+
+"""
+A path into a layout's canvas, as a path into its `children`.
+"""
+_children_backward(iomap::_LayoutChildrenIoMap, reference,
+                   drawn = output -> output isa GraphicsDocument) =
+    _backward_descend(iomap.input, getfield(iomap, :child_iomaps)[]::Vector,
+                      "children", reference, drawn)
 
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
@@ -641,9 +716,8 @@ function map_reference_forward(::HorizontalLayoutToGraphicsCanvas, iomap, refere
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference)
 
 function read_intent(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -810,9 +884,8 @@ function map_reference_forward(::VerticalLayoutToGraphicsCanvas, iomap, referenc
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference)
 
 function read_intent(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1114,9 +1187,8 @@ function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap, reference)
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference)
 
 function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1288,9 +1360,8 @@ function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference)
 
 function read_intent(::FlowLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_layout_event(iomap, evt)
@@ -1455,9 +1526,9 @@ function map_reference_forward(::StackLayoutToGraphicsCanvas, iomap, reference)
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+# A stack keeps only canvases, which is the test its own build used.
+map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference, output -> output isa GraphicsCanvas)
 
 function read_intent(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_stack_event(iomap, evt)
@@ -1636,9 +1707,8 @@ function map_reference_forward(::ConstraintLayoutToGraphicsCanvas, iomap, refere
     return _children_forward(iomap, reference)
 end
 
-function map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference) =
+    _children_backward(iomap, reference)
 
 # Children can overlap (the solver places them freely), so route like a stack:
 # scan topmost-first so the last-drawn child wins a click.
