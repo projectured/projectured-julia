@@ -1037,10 +1037,10 @@ These are independent of §13.3.
 | [source/text/LineNumbering.jl](../../source/text/LineNumbering.jl) | `source/text/TextLineNumbering.jl` | §4.2 |
 | [source/gesturelog/GestureLogRecorder.jl](../../source/gesturelog/GestureLogRecorder.jl) | `source/gesturelog/GestureLogRecording.jl` | §7.1, the other three names already say `Recording` |
 | [source/dragging/DraggingProjection.jl](../../source/dragging/DraggingProjection.jl) | `source/dragging/Dragging.jl` | §7.1, a stem file never bakes in `Projection` |
-| [source/projection/Copying.jl](../../source/projection/Copying.jl) | `source/projection/generic/Copying.jl` | §7.2 |
-| [source/projection/Filtering.jl](../../source/projection/Filtering.jl) | `source/projection/generic/Filtering.jl` | §7.2 |
-| [source/projection/Searching.jl](../../source/projection/Searching.jl) | `source/projection/generic/Searching.jl` | §7.2 |
-| [source/projection/Sorting.jl](../../source/projection/Sorting.jl) | `source/projection/generic/Sorting.jl` | §7.2 |
+| [source/projection/generic/Copying.jl](../../source/projection/generic/Copying.jl) | `source/projection/generic/Copying.jl` | §7.2 |
+| [source/projection/generic/Filtering.jl](../../source/projection/generic/Filtering.jl) | `source/projection/generic/Filtering.jl` | §7.2 |
+| [source/projection/generic/Searching.jl](../../source/projection/generic/Searching.jl) | `source/projection/generic/Searching.jl` | §7.2 |
+| [source/projection/generic/Sorting.jl](../../source/projection/generic/Sorting.jl) | `source/projection/generic/Sorting.jl` | §7.2 |
 
 Each row also rewrites the `include("…")` line that names the file.
 
