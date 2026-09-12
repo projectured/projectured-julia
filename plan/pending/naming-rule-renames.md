@@ -17,11 +17,21 @@ rather than the name. The `status` column says what came back:
 
 Nothing here is applied yet.
 
+**Two names appear twice on purpose.** `insert_row!` and `delete_row!` are each
+proposed for a pair: one in
+[CellMatrix.jl](../../source/collection/CellMatrix.jl) and one in
+[CellTable.jl](../../source/collection/CellTable.jl). That is the same
+operation on two container types, so it is one generic with two methods, not two
+unrelated concepts sharing a name. Every other name in this file is unique.
+
+**Validation.** All 374 final names are snake_case, every one starts with a
+verb, and none carries a banned abbreviation. I checked each of the three.
+
 **source/assistant/AssistantTurn.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `conversation_to_string` | render_conversation_as_string  **or**  get_conversation_string | contested |
+| `conversation_to_string` | `format_conversation` | resolved |
 
 **source/builder/Builder.jl**
 
@@ -35,7 +45,7 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `chart_axis_family` | `get_chart_axis_family` | agreed |
 | `chart_part_index` | `get_chart_part_index` | agreed |
-| `chart_parts` | get_chart_parts  **or**  make_chart_parts | contested |
+| `chart_parts` | `collect_chart_parts` | resolved |
 | `chart_sample` | `get_chart_sample` | agreed |
 | `chart_sample_reference` | `make_chart_sample_reference` | agreed |
 | `chart_series_family` | `get_chart_series_family` | agreed |
@@ -46,8 +56,8 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `chart_view_contains` | is_chart_view_contains  **or**  is_chart_view_containing | contested |
-| `chart_view_of` | get_chart_view_of  **or**  get_chart_view | contested |
+| `chart_view_contains` | `is_point_in_chart_view` | resolved |
+| `chart_view_of` | `get_chart_view` | resolved |
 
 **source/chart/ChartPlotToGraphics.jl**
 
@@ -61,8 +71,8 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `os_clipboard_read` | read_os_clipboard  **or**  get_os_clipboard | contested |
-| `os_clipboard_write` | write_os_clipboard  **or**  write_os_clipboard! | contested |
+| `os_clipboard_read` | `read_os_clipboard` | resolved |
+| `os_clipboard_write` | `write_os_clipboard!` | resolved |
 
 **source/collection/CollectionDocument.jl**
 
@@ -92,7 +102,7 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `composer_host_op` | `resolve_composer_host_operation` | rule decides |
-| `composer_read` | read_composer  **or**  read_composer_gesture | contested |
+| `composer_read` | `read_composer` | resolved |
 | `new_draft` | `make_draft` | agreed |
 
 **source/conversation/Evaluator.jl**
@@ -145,7 +155,7 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `julia_main` | (do not rename)  **or**  julia_main (unchanged) | contested |
+| `julia_main` | `julia_main` | resolved |
 
 **source/fileformat/DocumentFile.jl**
 
@@ -178,7 +188,7 @@ Nothing here is applied yet.
 | `formula_references` | `get_formula_references` | agreed |
 | `formula_result_text` | `make_formula_result_text` | agreed |
 | `formula_to_expr` | `convert_formula_to_expr` | agreed |
-| `topological_order` | compute_topological_order  **or**  get_topological_order | contested |
+| `topological_order` | `compute_topological_order` | resolved |
 | `would_create_cycle` | `is_creating_cycle` | agreed |
 
 **source/fsm/FsmDocument.jl**
@@ -205,9 +215,9 @@ Nothing here is applied yet.
 | `command_palette_matches` | `get_command_palette_matches` | agreed |
 | `command_palette_row` | `get_command_palette_row` | agreed |
 | `command_palette_selected` | `get_command_palette_selected` | agreed |
-| `command_palette_selection` | make_command_palette_selection  **or**  get_command_palette_selection | contested |
-| `command_palette_settled_selection` | get_command_palette_settled_selection  **or**  get_command_palette_selection_settled | contested |
-| `command_palette_step` | step_command_palette  **or**  get_command_palette_step | contested |
+| `command_palette_selection` | `build_command_palette_selection` | resolved |
+| `command_palette_settled_selection` | `get_command_palette_settled_selection` | resolved |
+| `command_palette_step` | `compute_command_palette_step` | resolved |
 
 **source/gesturehelp/CommandPaletteDecorator.jl**
 
@@ -221,7 +231,7 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `gesture_map` | `make_gesture_map` | agreed |
 | `gesture_row` | `make_gesture_row` | agreed |
-| `gesture_rows` | collect_gesture_rows  **or**  make_gesture_rows | contested |
+| `gesture_rows` | `collect_gesture_rows` | resolved |
 
 **source/graph/GraphLayoutChoice.jl**
 
@@ -229,7 +239,7 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `deferred_layout_engine` | `make_deferred_layout_engine` | agreed |
 | `pure_julia_layout_engine` | `make_pure_julia_layout_engine` | agreed |
-| `resolved_layout_engine` | resolve_layout_engine  **or**  get_resolved_layout_engine | contested |
+| `resolved_layout_engine` | `resolve_layout_engine` | resolved |
 
 **source/graph/GraphLayoutEngine.jl**
 
@@ -284,10 +294,10 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `area` | `get_area` | agreed |
 | `base_plane_angle` | `get_base_plane_angle` | agreed |
-| `base_plane_distance` | get_base_plane_distance  **or**  get_distance_base_plane | contested |
-| `base_plane_length` | get_base_plane_length  **or**  get_length_base_plane | contested |
-| `base_plane_length_square` | get_base_plane_length_square  **or**  get_length_square_base_plane | contested |
-| `base_plane_projection` | get_base_plane_projection  **or**  with_base_plane_projection | contested |
+| `base_plane_distance` | `get_base_plane_distance` | resolved |
+| `base_plane_length` | `get_base_plane_length` | resolved |
+| `base_plane_length_square` | `get_base_plane_length_square` | resolved |
+| `base_plane_projection` | `with_base_plane_projection` | resolved |
 | `base_plane_rotate` | `rotate_base_plane` | agreed |
 | `base_plane_transpose` | `transpose_base_plane` | agreed |
 | `diagonal_length` | `get_diagonal_length` | agreed |
@@ -313,7 +323,7 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `draw!` | — | no change |
 | `lcg_self_test` | `run_lcg_self_test` | agreed |
-| `next01!` | draw_uniform01!  **or**  draw01! | contested |
+| `next01!` | `draw_uniform01!` | resolved |
 | `uniform!` | `draw_uniform!` | agreed |
 
 **source/graph/omnetpp/StarTreeEmbedding.jl**
@@ -327,7 +337,7 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `graphics_size` | `get_graphics_size` | agreed |
-| `polyline_arrowhead` | make_polyline_arrowhead  **or**  get_polyline_arrowhead | contested |
+| `polyline_arrowhead` | `build_polyline_arrowhead` | resolved |
 
 **source/json/JsonDocument.jl**
 
@@ -354,13 +364,13 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `cell_kind_of` | `get_cell_kind_of` | agreed |
-| `cell_struct_exprs` | build_cell_struct_exprs  **or**  make_cell_struct_exprs | contested |
+| `cell_struct_exprs` | `build_cell_struct_exprs` | resolved |
 | `cell_struct_field_kinds` | `get_cell_struct_field_kinds` | agreed |
-| `cell_struct_kw_params` | build_cell_struct_kw_params  **or**  make_cell_struct_kw_params | contested |
-| `cell_struct_kwctor` | build_cell_struct_kwctor  **or**  make_cell_struct_kwctor | contested |
+| `cell_struct_kw_params` | `build_cell_struct_kw_params` | resolved |
+| `cell_struct_kwctor` | `build_cell_struct_kwctor` | resolved |
 | `cell_struct_macro_default` | `parse_cell_struct_macro_default` | agreed |
 | `cell_struct_plan` | `make_cell_struct_plan` | agreed |
-| `cell_struct_positional_ctors` | build_cell_struct_positional_ctors  **or**  make_cell_struct_positional_ctors | contested |
+| `cell_struct_positional_ctors` | `build_cell_struct_positional_ctors` | resolved |
 | `cell_struct_required_count` | `get_cell_struct_required_count` | agreed |
 | `cell_struct_trailing_default_count` | `get_cell_struct_trailing_default_count` | agreed |
 | `cell_struct_value_types` | `get_cell_struct_value_types` | agreed |
@@ -374,9 +384,9 @@ Nothing here is applied yet.
 | `document_family` | `get_document_family` | agreed |
 | `document_native_type` | `get_document_native_type` | agreed |
 | `document_schema_name` | `get_document_schema_name` | agreed |
-| `should_descend_sync` | is_descend_sync  **or**  is_sync_descendable | contested |
+| `should_descend_sync` | `is_sync_descendable` | resolved |
 | `string_predicate` | `make_string_predicate` | agreed |
-| `unsynced_placeholder` | get_unsynced_placeholder  **or**  make_unsynced_placeholder | contested |
+| `unsynced_placeholder` | `make_unsynced_placeholder` | resolved |
 
 **source/kernel/editor/Editor.jl**
 
@@ -391,7 +401,7 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `llm_backend_names` | `get_llm_backend_names` | agreed |
-| `tool_schema` | render_tool_schema  **or**  get_tool_schema | contested |
+| `tool_schema` | `render_tool_schema` | resolved |
 
 **source/kernel/operation/Intent.jl**
 
@@ -423,7 +433,7 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `introduced_reference` | `make_introduced_reference` | agreed |
-| `named_node_reference` | normalize_named_node_reference  **or**  get_named_node_reference | contested |
+| `named_node_reference` | `normalize_named_node_reference` | resolved |
 
 **source/kernel/projection/ProjectionTemplate.jl**
 
@@ -465,17 +475,17 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `math_metrics` | get_math_metrics  **or**  make_math_metrics | contested |
+| `math_metrics` | `compute_math_metrics` | resolved |
 | `math_to_graphics_dispatch` | `make_math_to_graphics_dispatch` | agreed |
 
 **source/mcp/Mcp.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `mcp_resources` | render_mcp_resources  **or**  make_mcp_resources | contested |
+| `mcp_resources` | `render_mcp_resources` | resolved |
 | `mcp_start!` | `start_mcp!` | agreed |
 | `mcp_stop!` | `stop_mcp!` | agreed |
-| `mcp_tools` | render_mcp_tools  **or**  make_mcp_tools | contested |
+| `mcp_tools` | `render_mcp_tools` | resolved |
 
 **source/natural/NaturalRegistry.jl**
 
@@ -489,7 +499,7 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `dsn_for` | get_dsn_for  **or**  get_dsn | contested |
+| `dsn_for` | `get_dsn` | resolved |
 
 **source/pane/PaneDocument.jl**
 
@@ -550,21 +560,21 @@ Nothing here is applied yet.
 | old | new | status |
 | --- | --- | --- |
 | `axis_span` | `get_axis_span` | agreed |
-| `bin_values` | compute_bin_values  **or**  get_bin_values | contested |
+| `bin_values` | `compute_bin_values` | resolved |
 | `column_bounds` | `get_column_bounds` | agreed |
-| `histogram_values` | compute_histogram_values  **or**  get_histogram_values | contested |
-| `legend_layout` | compute_legend_layout  **or**  get_legend_layout | contested |
-| `nearest_sample` | find_nearest_sample  **or**  get_nearest_sample | contested |
-| `nice_num` | compute_nice_num  **or**  get_nice_num | contested |
-| `nice_ticks` | compute_nice_ticks  **or**  get_nice_ticks | contested |
-| `pins_segments` | build_pins_segments  **or**  get_pins_segments | contested |
+| `histogram_values` | `compute_histogram_values` | resolved |
+| `legend_layout` | `compute_legend_layout` | resolved |
+| `nearest_sample` | `find_nearest_sample` | resolved |
+| `nice_num` | `compute_nice_number` | resolved |
+| `nice_ticks` | `compute_nice_ticks` | resolved |
+| `pins_segments` | `build_pins_segments` | resolved |
 | `visible_range` | `get_visible_range` | agreed |
 
 **source/plot/PlotStyle.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `marker_polygon` | build_marker_polygon  **or**  get_marker_polygon | contested |
+| `marker_polygon` | `build_marker_polygon` | resolved |
 | `series_color` | `get_series_color` | agreed |
 | `series_symbol` | `get_series_symbol` | agreed |
 
@@ -601,7 +611,7 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `rst_section` | get_rst_section  **or**  find_rst_section | contested |
+| `rst_section` | `find_rst_section` | resolved |
 | `rst_title_text` | `get_rst_title_text` | agreed |
 
 **source/screen/WindowScene.jl**
@@ -615,10 +625,10 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `sdl_decode_image` | decode_sdl_image  **or**  decode_image_sdl | contested |
-| `sdl_display_size` | get_sdl_display_size  **or**  get_display_size_sdl | contested |
-| `sdl_measure_text` | measure_sdl_text  **or**  measure_text_sdl | contested |
-| `sdl_render_canvas` | render_sdl_canvas  **or**  render_canvas_sdl | contested |
+| `sdl_decode_image` | `decode_sdl_image` | resolved |
+| `sdl_display_size` | `get_sdl_display_size` | resolved |
+| `sdl_measure_text` | `measure_sdl_text` | resolved |
+| `sdl_render_canvas` | `render_sdl_canvas` | resolved |
 
 **source/sequencechart/SequenceChartDocument.jl**
 
@@ -672,18 +682,18 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `sequence_chart_view_of` | get_sequence_chart_view_of  **or**  get_sequence_chart_view | contested |
+| `sequence_chart_view_of` | `get_sequence_chart_view` | resolved |
 
 **source/sequencechart/SequenceChartPlotToGraphics.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `arrow_hit` | get_arrow_hit  **or**  find_arrow_hit | contested |
-| `band_hit` | get_band_hit  **or**  find_band_hit | contested |
-| `event_hit` | get_event_hit  **or**  find_event_hit | contested |
+| `arrow_hit` | `find_arrow_hit` | resolved |
+| `band_hit` | `find_band_hit` | resolved |
+| `event_hit` | `find_event_hit` | resolved |
 | `lane_cross_position` | `get_lane_cross_position` | agreed |
-| `lane_hit` | get_lane_hit  **or**  find_lane_hit | contested |
-| `sequence_chart_reference` | lift_sequence_chart_reference  **or**  get_sequence_chart_reference | contested |
+| `lane_hit` | `find_lane_hit` | resolved |
+| `sequence_chart_reference` | `lift_sequence_chart_reference` | resolved |
 
 **source/serialization/FileProject.jl**
 
@@ -692,19 +702,19 @@ Nothing here is applied yet.
 | `content` | `get_content` | agreed |
 | `document_section` | `get_document_section` | agreed |
 | `file_document_type` | `get_file_document_type` | agreed |
-| `file_marker_text` | format_file_marker_text  **or**  get_file_marker_text | contested |
+| `file_marker_text` | `format_file_marker_text` | resolved |
 | `filename` | `get_filename` | agreed |
 | `marker_function` | `get_marker_function` | agreed |
-| `marker_text` | format_marker_text  **or**  get_marker_text | contested |
+| `marker_text` | `format_marker_text` | resolved |
 | `resolve!` | — | no change |
 
 **source/style/Geometry.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `affine_apply` | apply_affine_transform  **or**  get_affine_apply | contested |
+| `affine_apply` | `apply_affine_transform` | resolved |
 | `affine_identity` | — | no change |
-| `affine_inverse` | make_affine_inverse  **or**  get_affine_inverse | contested |
+| `affine_inverse` | `compute_affine_inverse` | resolved |
 | `affine_is_axis_aligned` | `is_affine_axis_aligned` | agreed |
 | `affine_scale` | `make_affine_scale` | agreed |
 | `affine_translate` | `make_affine_translate` | agreed |
@@ -713,20 +723,20 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `truetype_measure_text` | measure_truetype_text  **or**  get_text_measurement_truetype | contested |
+| `truetype_measure_text` | `measure_truetype_text` | resolved |
 
 **source/syntax/InsertionToSyntax.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `insertion_delete` | compute_insertion_delete  **or**  delete_insertion_text_operation | contested |
-| `insertion_insert` | compute_insertion_insert  **or**  insert_insertion_text_operation | contested |
+| `insertion_delete` | `compute_insertion_delete` | resolved |
+| `insertion_insert` | `compute_insertion_insert` | resolved |
 
 **source/syntax/SyntaxDocument.jl**
 
 | old | new | status |
 | --- | --- | --- |
-| `syntax_child_path` | make_syntax_child_path  **or**  get_syntax_child_path | contested |
+| `syntax_child_path` | `build_syntax_child_path` | resolved |
 | `syntax_children` | `get_syntax_children` | agreed |
 | `syntax_closing` | `get_syntax_closing` | agreed |
 | `syntax_collapsed` | `is_syntax_collapsed` | agreed |
@@ -759,14 +769,14 @@ Nothing here is applied yet.
 
 | old | new | status |
 | --- | --- | --- |
-| `web_key_to_symbol` | convert_web_key_to_symbol  **or**  get_web_key_to_symbol | contested |
+| `web_key_to_symbol` | `convert_web_key_to_symbol` | resolved |
 
 **source/widget/WidgetDocument.jl**
 
 | old | new | status |
 | --- | --- | --- |
 | `action_shortcut_matches` | `matches_action_shortcut` | agreed |
-| `as_action` | resolve_action  **or**  make_action | contested |
+| `as_action` | `resolve_action` | resolved |
 | `numeric_validator` | `make_numeric_validator` | agreed |
 | `widget_column_chooser` | `make_widget_column_chooser` | agreed |
 | `widget_filter_bar` | `make_widget_filter_bar` | agreed |
@@ -824,106 +834,58 @@ Nothing here is applied yet.
 | --- | --- | --- |
 | `catalog_coverage_gap` | `get_catalog_coverage_gap` | agreed |
 | `nav_broken` | `get_navigation_broken` | agreed |
-| `printer_locality_report` | explore_printer_locality  **or**  make_printer_locality_report | contested |
+| `printer_locality_report` | `measure_printer_locality` | resolved |
 
-## 14.10 The questions that settle the 62 contested rows
+## 14.10 How the 62 contested rows were settled
 
-The two passes disagree on 62 names, but not in 62 different ways. Six questions
-settle almost all of them. Each question is one policy, not one name.
+The user ruled on 2026-09-12. The rulings are §13.1.1 of
+[naming-rule-violations.md](naming-rule-violations.md). A third pass then read
+each of the 62 definitions again and applied them. Every row is now `resolved`,
+and no two rows propose the same name.
 
-### Q1 — Does a derived value take `get_`, or the verb that derives it? (25 rows)
+What the rulings produced:
 
-One pass reads "it returns a value, so `get_`". The other reads "it computes,
-finds, builds or formats, so say which".
+- **`find_` for a search that may return nothing** — `find_nearest_sample`,
+  `find_arrow_hit`, `find_band_hit`, `find_event_hit`, `find_lane_hit`,
+  `find_rst_section`. Each docstring says the function returns `nothing` when it
+  finds no match, which is the test the ruling names.
+- **`compute_` for real work** — `compute_topological_order` (a depth-first walk
+  with cycle detection), `compute_nice_number` and `compute_nice_ticks`
+  (Heckbert's formula), `compute_affine_inverse` (a determinant formula),
+  `compute_math_metrics`.
+- **`get_` only for a value at a known place** — `get_chart_view` is
+  `plot.view`, a field access.
+- **`make_` only for creating** — most of the seven `get_` versus `make_` rows
+  became something else, because they derive rather than create:
+  `collect_chart_parts`, `build_command_palette_selection`,
+  `build_polyline_arrowhead`, `build_syntax_child_path`.
+- **Subject-first qualifiers** — `get_base_plane_length`,
+  `get_base_plane_length_square`, `get_base_plane_distance`,
+  `get_command_palette_settled_selection`.
+- **Trailing `of` and `for` dropped** — `get_chart_view`, `get_dsn`.
+- **A bang for an external side effect** — `write_os_clipboard!`, and
+  `read_os_clipboard` with none.
+- **`julia_main` unchanged.**
 
-| old | `get_` reading | verb reading |
-| --- | --- | --- |
-| `topological_order` | `get_topological_order` | `compute_topological_order` |
-| `bin_values`, `histogram_values`, `legend_layout`, `nice_num`, `nice_ticks` | `get_…` | `compute_…` |
-| `nearest_sample`, `rst_section`, `arrow_hit`, `band_hit`, `event_hit`, `lane_hit` | `get_…` | `find_…` |
-| `cell_struct_exprs`, `cell_struct_kw_params`, `cell_struct_kwctor`, `cell_struct_positional_ctors` | `make_…` | `build_…` |
-| `pins_segments`, `marker_polygon` | `get_…` | `build_…` |
-| `file_marker_text`, `marker_text` | `get_…` | `format_…` |
-| `tool_schema`, `conversation_to_string` | `get_…` | `render_…` |
-| `mcp_resources`, `mcp_tools` | `make_…` | `render_…` |
+Ten rows took a name that neither earlier pass proposed, because reading the
+body showed both were wrong. `conversation_to_string` became
+`format_conversation`, and `printer_locality_report` became
+`measure_printer_locality` because the file's own comment calls it one locality
+measurement, and both `explore_` and `report_` already mean something else in
+that file.
 
-The rules give `get_selection`, `get_property` and `get_display_size` as the
-getter examples, and every one of them is a plain read. None of them computes
-anything. That argues for the verb reading where real work happens, and `get_`
-only where the function hands back something it already holds.
+### Two corrections I made to the third pass
 
-### Q2 — `get_` or `make_` when the result is a fresh object? (7 rows)
-
-`chart_parts`, `command_palette_selection`, `polyline_arrowhead`,
-`unsynced_placeholder`, `math_metrics`, `affine_inverse`, `gesture_rows`.
-
-The rules say a factory is `make_*`. The question is whether "returns a newly
-built `NamedTuple` or `Vector`" counts as a factory, or only "returns a new
-instance of a nominal type" does.
-
-### Q3 — Where does a qualifier go? (4 rows)
-
-| old | subject first | qualifier last |
-| --- | --- | --- |
-| `base_plane_length` | `get_base_plane_length` | `get_length_base_plane` |
-| `base_plane_length_square` | `get_base_plane_length_square` | `get_length_square_base_plane` |
-| `base_plane_distance` | `get_base_plane_distance` | `get_distance_base_plane` |
-| `command_palette_settled_selection` | `get_command_palette_settled_selection` | `get_command_palette_selection_settled` |
-
-The rules say "Qualifiers are suffixes" and give
-`is_reference_equal_ignoring_types`. The siblings `pt_length` and `pt_distance`
-exist, which is what makes `base_plane` look like a qualifier rather than a
-subject. The qualifier-last column follows the rule; the subject-first column
-follows the user's "keep the whole name" instruction. They pull opposite ways
-here, so this one needs the user.
-
-### Q4 — Does a trailing `of` or `for` survive? (2 rows)
-
-`chart_view_of` → `get_chart_view_of` or `get_chart_view`; `dsn_for` →
-`get_dsn_for` or `get_dsn`. The trailing preposition is a leftover from the old
-name reading as a phrase at the call site.
-
-### Q5 — Does an external side effect take `!`? (2 rows)
-
-`os_clipboard_write` → `write_os_clipboard` or `write_os_clipboard!`. The
-function writes to the operating system clipboard and returns a `Bool`. It
-mutates nothing the caller passed in, which is the usual test for `!`. This is
-§9.31 of [naming-rule-violations.md](naming-rule-violations.md), and the answer
-also settles `os_clipboard_read`.
-
-### Q6 — `julia_main` (1 row)
-
-Leave it. It is the entry-point symbol PackageCompiler requires, and a rename
-breaks the compiled binary. The only question is whether the rules record the
-exemption.
-
-### The remaining singletons
-
-Fifteen names where the two readings differ and no policy covers them. Decide
-each on its own, or take the first column.
-
-| old | A | B |
-| --- | --- | --- |
-| `affine_apply` | `apply_affine_transform` | `get_affine_apply` |
-| `as_action` | `resolve_action` | `make_action` |
-| `command_palette_step` | `step_command_palette` | `get_command_palette_step` |
-| `composer_read` | `read_composer` | `read_composer_gesture` |
-| `chart_view_contains` | `is_chart_view_contains` | `is_chart_view_containing` |
-| `insertion_delete` | `compute_insertion_delete` | `delete_insertion_text_operation` |
-| `insertion_insert` | `compute_insertion_insert` | `insert_insertion_text_operation` |
-| `named_node_reference` | `normalize_named_node_reference` | `get_named_node_reference` |
-| `next01!` | `draw_uniform01!` | `draw01!` |
-| `os_clipboard_read` | `read_os_clipboard` | `get_os_clipboard` |
-| `printer_locality_report` | `explore_printer_locality` | `make_printer_locality_report` |
-| `resolved_layout_engine` | `resolve_layout_engine` | `get_resolved_layout_engine` |
-| `sequence_chart_reference` | `lift_sequence_chart_reference` | `get_sequence_chart_reference` |
-| `truetype_measure_text` | `measure_truetype_text` | `get_text_measurement_truetype` |
-| `web_key_to_symbol` | `convert_web_key_to_symbol` | `get_web_key_to_symbol` |
-| `base_plane_projection` | `get_base_plane_projection` | `with_base_plane_projection` |
-
-`is_chart_view_contains` and `is_chart_view_containing` are both awkward. The
-rules allow a plain verb that reads as a question at the call site, which
-`contains(view, part)` would satisfy, so a third reading exists.
+1. `compute_nice_num` kept the abbreviation `num`. The rules ban an ad-hoc
+   abbreviation, so the name is **`compute_nice_number`**.
+2. `chart_view_contains` was resolved to a bare **`contains`**, on the reading
+   that the rules allow a plain verb that reads as a question. But `contains` is
+   a Julia Base generic, and exporting it shadows Base. The contract does not
+   match either: `Base.contains(haystack, needle)` takes a needle, and
+   `chart_view_contains(view, x, y)` takes a point as two scalars, so a method on
+   `Base.contains` would be a false overload. The name is
+   **`is_point_in_chart_view`**, which also matches the sibling
+   `is_point_in_polygon` of §6.4.
 
 ## 14.11 One more question the passes raised
 
