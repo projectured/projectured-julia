@@ -1,8 +1,8 @@
 # The declared API is a list of names
 
-**Status:** pending. Written 2026-09-12. **Stages A, B, C and D are done.**
-Stage E waits for a verb that hands a model a data frame; stage F is the large
-one and is deliberately last.
+**Status:** pending. Written 2026-09-12. **Stages A to D are done, and half of
+F.** Stage E waits for a verb that hands a model a data frame. The other half of
+F is blocked by a package dependency and is §4's last paragraph.
 
 **Goal:** a person says which **names** a language model may write, not which
 modules. A module stays the shorthand for "all of its exports", because that is
@@ -270,7 +270,7 @@ expect a model to use them. Nothing in this plan blocks it, and nothing in this
 plan builds it: the list is worth writing when a verb hands a model a frame and
 says "work on it".
 
-### Stage F — the agent modules dissolve
+### Stage F — the agent modules dissolve — **half done**
 
 Last, and only last: done before the whitelist lands it would move the flood
 rather than end it.
@@ -278,12 +278,24 @@ rather than end it.
 Each verb goes to the module that owns what it acts on. Nineteen verbs, four
 homes:
 
-| verbs | where they land | why there |
+| verbs | where they land | state |
 | --- | --- | --- |
-| `show_layout`, `get_referenced_value`, `replace_referenced_value!`, `get_window_tree`, `describe_pane_content` | `ProjecturedPane` | they are about any pane tree, and name nothing of this application |
-| `focus_pane`, `close_pane`, `move_pane`, `resize_pane` | beside `open_simulation_pane!` in `SimulationWindowModule` | the title lookup and `apply_pane_operation!` are already there |
-| `run_simulations`, `run_simulations_in_conversation`, `count_simulations`, `describe_simulations`, `stop_simulations`, `list_panes` | the same module | each is the act one of the Runner's own buttons performs, and `list_panes` is `simulation_window_titles` with the window found for it |
-| `get_results`, `show_results`, `plot_results` | `OmnetIde` | they need the result packages and the window, and only the assembly names both |
+| `show_layout`, `get_referenced_value`, `replace_referenced_value!`, `get_window_tree`, `describe_pane_content`, `focus_pane`, `close_pane`, `move_pane`, `resize_pane` | `ProjecturedPane`, as `PaneProgramModule` | **done**. All nine are about any pane tree and name nothing of this application. `apply_pane_operation!` went up first, into `PaneSurgeryModule`. |
+| `run_simulations`, `run_simulations_in_conversation`, `count_simulations`, `describe_simulations`, `stop_simulations`, `list_panes` | were to go beside `open_simulation_pane!` | **blocked**, see below |
+| `get_results`, `show_results`, `plot_results` | `OmnetIde` | already there; only the assembly names both the result packages and the window |
+
+**The table above was wrong about the six, and the check found it.**
+`run_simulations` keeps the assistant's own group clear, so it names `Assistant`
+— and `OmnetLegacySimulatorPresentation` does not depend on `ProjecturedAssistant`
+and should not: that would widen the closure of a package that draws
+simulations. The same holds for the result verbs by construction. **Both sets
+stay in the package that already names everything they touch**, which is the
+assembly, and that is right rather than a compromise.
+
+So what is left of stage F is not a move but a **rename**: `CampaignAgentModule`
+and `ResultAgentModule` are named for their reader rather than for what they do,
+and that is the fault §3.7 identified. The verbs have nowhere better to live; the
+modules have a better name to take. It needs one, and the owner names it.
 
 Then:
 
@@ -299,23 +311,30 @@ the result verbs, and the closure guards. Nothing about behaviour changes here �
 the same functions answer the same things from different files — so a suite that
 moves is a suite that found a real coupling.
 
-**One function moves ahead of the verbs.** `replace_referenced_value!` applies its
+**One function moved ahead of the verbs.** `replace_referenced_value!` applies its
 operation with `apply_pane_operation!`, which is in this repository's
 `SimulationWindowModule` — below the package the verb would move to. It is
 generic: it needs `PaneTree` and `evaluate_operation`, both under
 `ProjecturedPane`, and its docstring is already written about pane trees and not
-about simulations. **It moves to `ProjecturedPane` first**, and this repository
-imports it from there.
+about simulations. **It moved to `ProjecturedPane` first**, and this repository
+imports it from there — `SimulationTools.jl` and the tests too.
 
-**What stays behind.** `describe_pane_content`'s generic and its layout methods
+**What stayed behind.** `describe_pane_content`'s generic and its layout methods
 go up with it; its methods for `SimulationFilter`, `Assistant`,
 `SimulationBatchDocument`, the result frame and the plot stay where those
 documents are. That is the method table doing what it is for, and it is why the
 generic must be the one thing that moves.
 
-**What it costs in closure.** Nothing. `ProjecturedPane` gains functions that
-name only what it already names, and no package below gains a dependency. The
-window's guard is the measure, and it stays at 22.
+**What it cost in closure.** Nothing, measured: `test_ide_closure()` is 12/12 and
+the window is still under its cap. `ProjecturedPane` gained functions naming only
+what it already named.
+
+**The test did not move with the code.**
+[PaneProgramTest.jl](../../../omnet-julia/test/campaign/PaneProgramTest.jl) stays
+in this repository, because one of its assertions clicks into a grid through the
+campaign window's own projection — the substrate chain does not route a click
+into a layout content at all. The rest of it would move; splitting it to move
+half is worth less than leaving it whole where it runs.
 
 ## 5. What can go wrong
 
