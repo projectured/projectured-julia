@@ -1,6 +1,8 @@
 # The declared API is a list of names
 
-**Status:** pending. Written 2026-09-12. No step is implemented.
+**Status:** pending. Written 2026-09-12. **Stages A, B, C and D are done.**
+Stage E waits for a verb that hands a model a data frame; stage F is the large
+one and is deliberately last.
 
 **Goal:** a person says which **names** a language model may write, not which
 modules. A module stays the shorthand for "all of its exports", because that is
@@ -194,7 +196,7 @@ every part. A whitelist is more of that decision, not less.
 
 ## 4. Stages
 
-### Stage A — the declaration takes names
+### Stage A — the declaration takes names — **DONE**
 
 1. `ToolSet.api` becomes `Vector{Pair{Module,Union{Nothing,Vector{Symbol}}}}`,
    `nothing` meaning every exported name.
@@ -211,7 +213,7 @@ every part. A whitelist is more of that decision, not less.
 declaration that lists a name twice is refused, naming both modules;
 `isempty(set.api)` still means the whole surface.
 
-### Stage B — the namespace narrows
+### Stage B — the namespace narrows — **DONE**
 
 1. `_scratch_module` emits `using M: <declared names>`.
 2. A narrowed entry binds no module alias.
@@ -221,7 +223,7 @@ the declaration left out is an `UndefVarError` in the round that used it, which
 is the assertion `DeclaredApiTest.jl` already makes for a module outside the
 list. A narrowed module's own name does not resolve.
 
-### Stage C — discovery narrows
+### Stage C — discovery narrows — **DONE**
 
 1. `_index_declared` indexes the declared names, and reads the list rather than
    `names(M)`.
@@ -232,7 +234,7 @@ list. A narrowed module's own name does not resolve.
 **Test.** `search_api` does not answer a name the declaration left out, and
 `read_function_documentation` refuses it with a message that says so.
 
-### Stage D — the callers stop qualifying
+### Stage D — the callers stop qualifying — **DONE**
 
 1. `OmnetCampaignUi` declares `PaneModule => (:PaneTree, :PaneSplit, :PaneGroup,
    :PaneTab)` and `ReferenceModule => (Symbol("@reference"),)`.
@@ -240,9 +242,26 @@ list. A narrowed module's own name does not resolve.
 3. `show_layout`'s printed program loses `PaneModule.` and `ReferenceModule.`,
    and its tests take the shorter text.
 
-**Test.** The existing round trip: the program it prints rebuilds the same
-window. It is the one that proves the namespace still resolves every name the
-program uses.
+**Tested** by the existing round trip — the program it prints rebuilds the same
+window — and the harness under it changed to prove more: `_run_program` runs the
+program through a real `ToolSet` that declares exactly what the window declares,
+rather than through a namespace the test built for itself. A declaration that
+forgets a name the program says now fails there.
+
+Each package declares its own, and they compose: `pane_api()` answers the layout
+names, `campaign_api()` adds the simulation verbs, `get_assistant_api()` adds the
+result verbs. The program lost its qualifiers:
+
+```julia
+runner = get_referenced_value(editor, @reference(window, root.elements[1].tabs[1]))
+replace_referenced_value!(editor, @reference(window, root),
+    PaneSplit(:vertical, [PaneGroup([runner]), …], weights = [0.3, 0.7]))
+```
+
+One test changed shape rather than value. `get_assistant_api()` was asserted by
+**count**, and a count is no longer the measure — a name can arrive without a
+module of its own. It asserts what its own comment always meant: that the list
+and the two texts say the same thing.
 
 ### Stage E — a data frame, when a verb needs one
 
