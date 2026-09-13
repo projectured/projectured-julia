@@ -26,8 +26,8 @@ The canonical reading order for contributors is in [README.md](README.md) under 
 5. [documentation/package/kernel/projection-system.md](documentation/package/kernel/projection-system.md) — the four interface functions and the printer/reader pair.
 6. [documentation/package/kernel/editor.md](documentation/package/kernel/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
 
-Per-package reference guides live in each package's `doc/` directory next to the
-code they document; the cross-cutting concept/architecture/tooling guides stay in
+Per-slice reference guides live in [documentation/package/](documentation/package/),
+one folder per slice; the cross-cutting concept/architecture/tooling guides stay in
 [documentation/](documentation/). When touching selection/reference handling or a
 specific domain, also consult:
 
