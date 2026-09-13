@@ -26,51 +26,30 @@ string too: the set of roles is open (a document defines its own with
 """
 module RstModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document, @forward_vector_protocol
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+import ..CellModule: set_cell_function!, set_cell_value!
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export RstDocument, set_cell_function!
-import ..CellModule: Cell
-import ..CollectionModule: CellVector
 export parse_rst, parse_rst_file
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward
-import ..ProjectionApiModule
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString, make_hinted_text, TextGraphics
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
-                     font_dejavu_monospace_regular_20, font_ubuntu_regular_20,
-                     font_ubuntu_bold_20, font_ubuntu_italic_20, font_ubuntu_bold_36,
-                     font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18
-import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_gray, color_solarized_violet,
-                      color_solarized_yellow, color_solarized_orange
-import ..StyleModule: StyleText
-import ..StyleModule: ImageFile
-import ..BackendModule: decode_image
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
-                          EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
-                       SyntaxDelimitation
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
-                            get_filename
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionAlgebraModule: CopyingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
-import ..ProjectionTemplateModule: rule_print, template_read_intent
-import ..PrinterContextModule: with_property, get_property
-import ..IntentModule: Intent
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..TextModule
+using ..StyleModule
+using ..BackendModule
+using ..IoMapModule
+using ..PrinterContextModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..SyntaxModule
+using ..SerializationModule
+import ..SerializationModule: emit_text, populate_file!, get_document_section
+using ..ProjectionAlgebraModule
+using ..ProjectionTemplateModule
+using ..IntentModule
 export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,
        RstReferenceToSyntaxNode, RstSubstitutionReferenceToSyntaxLeaf,
@@ -92,27 +71,11 @@ export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
        RstLiteralIncludeToStyledLeaf, RstEnumeratedListToStyledNode,
        RstToSyntax
-import ..NaturalModule: register_natural_syntax!
-import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: @document
-import ..NaturalModule: register_natural_domain!, print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            LoaderContext, register_file_document_type!,
-                            get_document_section, parse_marker_text, ReferenceStub
+using ..NaturalModule
 export RstFile, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
-import ..CellModule: Cell, ComputedCell
-import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
-                              read_intent, Projection
-import ..IoMapModule: SimpleIoMap
-import ..TextModule: TextBlock, TextString
-import ..WidgetModule: InvokeActionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, is_element_reference_step
+using ..LayoutModule
+using ..WidgetModule
 export RstRootToVerticalLayout, RstSectionToVerticalLayout
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..LayoutModule: VerticalLayoutToGraphicsCanvas
-import ..NaturalModule: register_natural_graphics!
 export RstRoot, RstSection, RstParagraph, RstText, RstLiteral, RstEmphasis, RstStrong, RstRole, RstReference, RstSubstitutionReference, RstFootnoteReference, RstLiteralBlock, RstLineBlock, RstListItem, RstBulletList, RstEnumeratedList, RstDefinitionItem, RstDefinitionList, RstField, RstFieldList, RstBlockQuote, RstTransition, RstComment, RstTarget, RstSubstitutionDefinition, RstFootnote, RstTableCell, RstTableRow, RstGridTable, RstDirectiveOption, RstLiteralInclude, RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstInsertion
 
 

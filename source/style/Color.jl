@@ -109,6 +109,9 @@ using ..ReferenceModule
 export ImageDocument, set_cell_function!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
+# the TrueType reader the PDF backend embeds glyphs with
+export TrueTypeFont, load_truetype_font, get_glyph_id, get_glyph_advance_1000,
+       get_ascent_pixels, measure_text_width
 
 
 

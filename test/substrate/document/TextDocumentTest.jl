@@ -78,8 +78,8 @@ block = mkblock()
 # The caret is a flat offset in the break/indentation-aware stream. `fb(path, k)`
 # is the flat offset of char `k` in the span at the structural `path` — the shape
 # the old `content{c}` cursor named; the selection is now a flat `TextRangeReferenceStep`.
-fb(path, k) = TextModule._flat_base(mkblock(), path) + k
-caret(f)    = with_selection(mkblock(), TextModule._flat_caret_ref(f))
+fb(path, k) = TextModule.get_flat_base(mkblock(), path) + k
+caret(f)    = with_selection(mkblock(), TextModule.make_flat_caret_reference(f))
 # flat offset carried by a caret op / ref
 cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.path : x);
                (r.head::TextRangeReferenceStep).start)
@@ -92,7 +92,7 @@ cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.pat
 # resolves canonically to the earlier span's end (direction-independent).
 b = caret(fb(Int[1, 2], 0))
 @test get_flat_selection(b) == (5, 5, true)
-@test TextModule._flat_cursor_coord(b) == (span = [1, 1], char = 5)
+@test TextModule.get_flat_cursor_coordinate(b) == (span = [1, 1], char = 5)
 
 # Character motion is `± 1` in the flat stream. Every offset — including the break
 # and the indentation gap between the lines — is now a valid caret rest (those
@@ -133,10 +133,10 @@ evaluate_operation((document = bb,), bop)
 flat = with_selection(TextBlock(TextString("ab"),
                                 TextNewline(font = font_ubuntu_monospace_regular_20),
                                 TextString("cd")),
-                      TextModule._flat_caret_ref(4))   # char 1 of "cd" → flat 4
+                      TextModule.make_flat_caret_reference(4))   # char 1 of "cd" → flat 4
 @test get_flat_offsets(flat) == [0, 2, 3]
 @test get_flat_selection(flat) == (4, 4, true)
-@test TextModule._flat_cursor_coord(flat) == (span = [3], char = 1)
+@test TextModule.get_flat_cursor_coordinate(flat) == (span = [3], char = 1)
 @test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys()))) == 3
 
 end # @testset "TextLine: line-structured blocks"

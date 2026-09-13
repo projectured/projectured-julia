@@ -42,6 +42,8 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
 using ..ProjectionModule
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
+# the reference walk a container over layouts delegates through
+export descend_reference_forward, shift_child_image
 
 
 

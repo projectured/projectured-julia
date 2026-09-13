@@ -21,7 +21,7 @@ import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
-                     SpanPath, _flat_cursor_coord, _flat_base, _flat_caret_ref, _is_structural_selection,
+                     SpanPath, get_flat_cursor_coordinate, get_flat_base, make_flat_caret_reference, is_structural_selection,
                      ReplaceTextRangeOperation, _lower_text_range
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
@@ -126,10 +126,10 @@ end
 # A `ReplaceSelectionOperation` selecting the flat caret at `char` in the span at
 # `span_path`, or `nothing` when the span has no flat base. The graphics layer
 # resolves clicks/line-motion to a `(span, char)` hit; this converts it to the
-# canonical flat selection (`_flat_base + char`).
+# canonical flat selection (`get_flat_base + char`).
 function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
-    base = _flat_base(text, span_path)
-    base === nothing ? nothing : ReplaceSelectionOperation(_flat_caret_ref(base + char))
+    base = get_flat_base(text, span_path)
+    base === nothing ? nothing : ReplaceSelectionOperation(make_flat_caret_reference(base + char))
 end
 
 # What a selection cell holds, past the live/dormant wrapper, and whether it is
@@ -176,7 +176,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined = @event_case evt begin
         when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
         when(KeyDown(k), k in (:up, :down, :left, :right) &&
-                         _is_structural_selection(iomap.input.selection)) => :decline
+                         is_structural_selection(iomap.input.selection)) => :decline
         KeyDown(:tab) => :decline
     end
     declined === nothing || return nothing
@@ -184,7 +184,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     styled = iomap.input
     _has_text_span(styled) || return nothing
 
-    current = _flat_cursor_coord(styled)
+    current = get_flat_cursor_coordinate(styled)
     current === nothing && return nothing
 
     @event_case evt begin
@@ -636,7 +636,7 @@ end
 # both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
 # into the block at wrap points and the box space must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
-    cursor_pos = _flat_cursor_coord(styled, sel)
+    cursor_pos = get_flat_cursor_coordinate(styled, sel)
     coord_map = SegmentCoordinate[]
     span_flat_offsets = Dict{SpanPath,Int}()
     cursor = nothing
@@ -943,7 +943,7 @@ end
 
 # ── Selection → cursor position ───────────────────────────────────────
 #
-# `_flat_cursor_coord` and `_is_structural_selection` are pure `TextBlock`-selection
+# `get_flat_cursor_coordinate` and `is_structural_selection` are pure `TextBlock`-selection
 # helpers living in `TextModule` (the document layer); they are imported above. They
 # are shared between the geometry-free `read_gesture` (in TextModule) and the
 # geometry-dependent layout / mouse / line-motion code here.

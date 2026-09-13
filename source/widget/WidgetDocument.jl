@@ -8,25 +8,21 @@ carries reactive Cell fields for all mutable properties.
 """
 module WidgetModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..LayoutModule: HorizontalLayout, SizePolicy, Content
-import ..DocumentModule: Document
-import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule
-import ..SelectionModule: replace_selection!, has_dormant_selection
-import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
-import ..FocusModule
-import ..StyleModule: StyleColor
-import ..StyleModule: StyleText
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep,
-                          EmptyReference, FieldReferenceStep, RangeReferenceStep
-import ..StyleModule: Inset, Point2D, inset_default,
-                        inset_size, inset_width, inset_height,
-                        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
-                        AffineTransform, affine_identity
+using ..CellModule
+import ..CellModule: set_cell_function!
+using ..LayoutModule
+using ..DocumentModule
+using ..CollectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..SelectionModule
+import ..SelectionModule: has_dormant_selection
+using ..EventPatternModule
+using ..GestureBindingModule
+import ..GestureBindingModule: get_instance_gesture_bindings
+using ..FocusModule
+using ..StyleModule
+using ..ReferenceModule
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
        DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
@@ -41,52 +37,18 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        make_widget_list_selection, get_widget_list_selected,
        make_widget_table_row_selection, get_widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..ClockModule: get_clock_time, get_reactive_clock_time, get_wall_clock
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                               map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..ProjectionModule: var"@projection"
-import ..StyleModule: StyleColor,
-                      color_white, color_zinc_50, color_zinc_100, color_zinc_200,
-                      color_zinc_300, color_zinc_400, color_zinc_500, color_zinc_600,
-                      color_zinc_700, color_zinc_800, color_zinc_900, color_zinc_950,
-                      color_slate_50, color_slate_100, color_slate_200, color_slate_300,
-                      color_slate_400, color_slate_500, color_slate_700, color_slate_800,
-                      color_slate_900, color_slate_950,
-                      color_indigo_100, color_indigo_200, color_indigo_400, color_indigo_500,
-                      color_indigo_600, color_indigo_700, color_indigo_950,
-                      color_destructive, color_destructive_fg, color_interpolate
-import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
-import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
-import ..StyleModule: ImageDocument
-import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, get_graphics_size
-import ..StyleModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
-                         apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-import ..StyleModule: StyleFont,
-                     font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
-import ..StyleModule: StyleStroke
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
-import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
-import ..SelectionModule: get_stored_selection
-import ..EventPatternModule: var"@event_case"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
-import ..ScreenModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReference, is_element_reference_step
-import ..GraphicsModule: PointReferenceStep
-import ..OperationModule: reroot_operation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
-import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
-                       layout_preferred, layout_weight
-import ..LayoutModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
-import ..EventModule: KeyDown
-import ..EventModule: ModifierKeys
-import ..GestureBindingModule: read_bound_gesture
+using ..ClockModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..ProjectionModule
+using ..GraphicsModule
+using ..IoMapModule
+using ..EventModule
+using ..ScreenModule
+using ..PrimitiveModule
+using ..ProjectionAlgebraModule
+using ..PrinterContextModule
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
@@ -111,41 +73,12 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetOptionToGraphicsCanvas,
        get_anchor_point,
        register_icon!, make_glyph_icon, make_image_icon
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
-import ..TextModule: TextBlock, TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          extend_reference, evaluate_reference
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
+using ..TextModule
 export ObjectToWidget, ObjectToWidgetIoMap
-import ..StyleModule: color_default
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep
-import ..PrimitiveModule: ObjectField, get_object_field_value
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector, CellTable
-import ..LayoutModule: Content
-import ..PrimitiveModule: PrimitiveBool, PrimitiveNumber, PrimitiveString
-import ..IoMapModule: SimpleIoMap
 export CellTableToWidgetTable
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..EventModule: MouseMove, MouseEnter, MouseLeave
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..FocusModule: get_first_focusable_path, get_last_focusable_path
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
-import ..EventModule: KeyDown, has_ctrl_modifier_key
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-import ..ScreenModule: OpenPopupOperation, OpenWindowOperation
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
 

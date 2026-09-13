@@ -2312,7 +2312,7 @@ end
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #
-# `_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
+# `get_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
 # `GraphicsModule` (pure geometry over a `measure` callback, no SDL), imported
 # above and shared with the PDF backend. `write_image` passes `measure_sdl_text`.
 
@@ -2377,10 +2377,10 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    # `_canvas_content_bounds` returns (minx, miny, maxx, maxy). The natural size
+    # `get_canvas_content_bounds` returns (minx, miny, maxx, maxy). The natural size
     # must span the full extent — including any content at negative coordinates —
     # so subtract a negative min rather than dropping it.
-    minx, miny, maxx, maxy = _canvas_content_bounds(canvas, measure_sdl_text)
+    minx, miny, maxx, maxy = get_canvas_content_bounds(canvas, measure_sdl_text)
     nw = maxx - min(minx, 0)
     nh = maxy - min(miny, 0)
 
@@ -2392,7 +2392,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        minx, miny, maxx, maxy = _canvas_content_bounds(canvas, measure_sdl_text)
+        minx, miny, maxx, maxy = get_canvas_content_bounds(canvas, measure_sdl_text)
         nw = maxx - min(minx, 0)
         nh = maxy - min(miny, 0)
     end

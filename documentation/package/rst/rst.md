@@ -149,7 +149,7 @@ definition's body could not sit on the line after its term.
 
 `@projection_template` builds a printer from `(prj, doc)` alone and never sees
 the context, so two macros in the file — `@rst_flat` and `@rst_indented` —
-wrap `rule_print`, the entry point the template macro itself uses, and hand
+wrap `print_template_rule`, the entry point the template macro itself uses, and hand
 the builder the ambient as well. A rule keeps its template body; only its
 signature grows.
 

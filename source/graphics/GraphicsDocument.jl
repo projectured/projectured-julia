@@ -670,7 +670,7 @@ _elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 # `(width, height)` of a text element — supplied by the caller so this stays
 # free of any backend (SDL, PDF) dependency.
 
-function _canvas_content_bounds(canvas::GraphicsCanvas, measure)
+function get_canvas_content_bounds(canvas::GraphicsCanvas, measure)
     minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
     maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
     _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)

@@ -63,8 +63,8 @@ end # @testset
     out = iomap.output
     # Flat caret at (span, char); the fixture carries newlines, so the flat offset
     # is not the raw char index.
-    fin(span, char)  = TextModule._flat_caret_ref(convert_element_to_flat_offset(input, span, char))
-    fout(span, char) = TextModule._flat_caret_ref(convert_element_to_flat_offset(out, span, char))
+    fin(span, char)  = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(input, span, char))
+    fout(span, char) = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(out, span, char))
 
     # Kept line 1 (output span 1) and line 3 (output span 3) round-trip; dropping
     # the middle line shifts line 3's flat offset back by its length.
@@ -89,9 +89,9 @@ end # @testset
     # ReplaceSelectionOperation on output span 3 → input span 5, char preserved
     # (a flat caret; the reader remaps the flat offset across the dropped line).
     sel = read_intent(proj, iomap, ReplaceSelectionOperation(
-        TextModule._flat_caret_ref(convert_element_to_flat_offset(out, 3, 2))))
+        TextModule.make_flat_caret_reference(convert_element_to_flat_offset(out, 3, 2))))
     @test sel isa ReplaceSelectionOperation
-    @test sel.path == TextModule._flat_caret_ref(convert_element_to_flat_offset(input, 5, 2))
+    @test sel.path == TextModule.make_flat_caret_reference(convert_element_to_flat_offset(input, 5, 2))
 
     # ReplaceStringRangeOperation on output span 3 → input span 5, range preserved.
     edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 1, 4), "XYZ"))

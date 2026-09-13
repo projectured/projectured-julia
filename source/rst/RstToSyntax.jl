@@ -85,7 +85,7 @@ _indent_body(text::AbstractString, prefix::AbstractString = _IND) =
 # ambient reaches every descendant without being threaded by hand.
 #
 # `@projection_template` builds the printer from `(prj, doc)` alone, so the two
-# macros below wrap `rule_print` — the same entry point the template macro uses
+# macros below wrap `print_template_rule` — the same entry point the template macro uses
 # — and hand the builder the ambient as well. A rule keeps its template body;
 # only its signature grows.
 
@@ -102,10 +102,10 @@ macro rst_flat(projname, intype, builder)
     quote
         function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             indent = $(_ambient)(ctx)
-            $(rule_print)(p, recursion, doc, ctx, (prj, d) -> $(esc(builder))(prj, d, indent))
+            $(print_template_rule)(p, recursion, doc, ctx, (prj, d) -> $(esc(builder))(prj, d, indent))
         end
         function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
-            $(template_read_intent)(p, recursion, change, iomap)
+            $(read_template_intent)(p, recursion, change, iomap)
         end
     end
 end
@@ -122,11 +122,11 @@ macro rst_indented(projname, intype, builder)
         function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             outer = $(_ambient)(ctx)
             inner = outer * $(_IND)
-            $(rule_print)(p, recursion, doc, $(with_property)(ctx, :rst_indent, inner),
+            $(print_template_rule)(p, recursion, doc, $(with_property)(ctx, :rst_indent, inner),
                           (prj, d) -> $(esc(builder))(prj, d, outer, inner))
         end
         function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
-            $(template_read_intent)(p, recursion, change, iomap)
+            $(read_template_intent)(p, recursion, change, iomap)
         end
     end
 end

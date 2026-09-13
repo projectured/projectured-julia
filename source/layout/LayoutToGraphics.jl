@@ -406,7 +406,7 @@ _off(v) = Int(v isa Cell ? v[] : v)
 # image passes through unchanged. (coordinates accumulate, paths stay paths — see
 # `map_reference_forward`'s docstring.) The child canvas sits at the entry offset
 # `(off_x, off_y)` the container wrapped it at PLUS the child canvas's own origin.
-function _shift_child_image(child, off_x, off_y, cim)
+function shift_child_image(child, off_x, off_y, cim)
     child isa PointReferenceStep || return child
     out = cim.output
     out isa GraphicsCanvas || return child
@@ -418,7 +418,7 @@ end
 # forward-map the tail through the child's own mapper, and shift a coordinate
 # result by this container's placement. Shared by every container that addresses
 # children by an indexed field (`children` for layouts, `elements` for composite).
-function _forward_descend(entries::Vector, field::String, reference)
+function descend_reference_forward(entries::Vector, field::String, reference)
     reference isa ConcreteReference || return nothing
     h = reference.head
     (h isa FieldReferenceStep && h.name == field) || return nothing
@@ -430,7 +430,7 @@ function _forward_descend(entries::Vector, field::String, reference)
     1 <= idx <= length(entries) || return nothing
     (off_x, off_y, cim) = entries[idx]
     child = map_reference_forward(cim.projection, cim, rest.tail)
-    _shift_child_image(child, off_x, off_y, cim)
+    shift_child_image(child, off_x, off_y, cim)
 end
 
 """
@@ -438,7 +438,7 @@ A reference of the form `children[i]/...` routes to the i-th child iomap's
 forward mapping, shifting a coordinate image by the child's laid-out offset.
 """
 _children_forward(iomap::_LayoutChildrenIoMap, reference) =
-    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "children", reference)
+    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "children", reference)
 
 # Which child drew the `slot`-th element of the container's own canvas.
 #
@@ -459,7 +459,7 @@ function _drawn_child_index(entries::Vector, slot::Integer, drawn)
 end
 
 """
-The mirror of `_forward_descend`: a path into this container's own canvas, as a
+The mirror of `descend_reference_forward`: a path into this container's own canvas, as a
 path into the document it printed.
 
 The canvas holds one wrapper per drawn child (`_wrap_child`), and a wrapper holds

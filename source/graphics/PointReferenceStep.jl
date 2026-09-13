@@ -28,6 +28,8 @@ using ..OperationModule
 using ..EventModule
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
+# the measured extent of what a canvas holds
+export get_canvas_content_bounds
 
 
 using ..CellModule

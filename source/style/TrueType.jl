@@ -111,7 +111,7 @@ end
 # The cache is keyed by the path the caller asked for, not by the one that was
 # found: two callers asking for the same font must share one parse, and where it
 # came from is this function's business rather than theirs.
-_load_ttf(path::AbstractString) =
+load_truetype_font(path::AbstractString) =
     get!(() -> _parse_ttf(read(font_file(path))), _TTF_CACHE, String(path))
 
 # Find a 4-char table tag in the SFNT directory; returns (offset, length) or (0, 0).
@@ -194,7 +194,7 @@ glyph header is numberOfContours, xMin, yMin, xMax, yMax — five signed shorts 
 so `yMin` sits at offset 4 and `yMax` at offset 8.
 """
 function _glyph_bounds(f::TrueTypeFont, ch::AbstractChar)
-    gid = Int(glyph_id(f, UInt32(ch)))
+    gid = Int(get_glyph_id(f, UInt32(ch)))
     (f.loca_off == 0 || f.glyf_off == 0 || gid == 0) && return (0, 0)
     b = f.bytes
     start = f.long_loca ? Int(_u32(b, f.loca_off + 4gid))     : 2 * Int(_u16(b, f.loca_off + 2gid))
@@ -266,28 +266,28 @@ function _cmap12(b, off, c::UInt32)
     UInt16(0)
 end
 
-function glyph_id(f::TrueTypeFont, c::UInt32)
+function get_glyph_id(f::TrueTypeFont, c::UInt32)
     get!(f.gid_cache, c) do
         f.cmap_kind == 12 ? _cmap12(f.bytes, f.cmap_off, c) :
         f.cmap_kind == 4  ? _cmap4(f.bytes, f.cmap_off, c)  : UInt16(0)
     end
 end
-glyph_id(f::TrueTypeFont, c::Char) = glyph_id(f, UInt32(c))
+get_glyph_id(f::TrueTypeFont, c::Char) = get_glyph_id(f, UInt32(c))
 
 _advance_units(f::TrueTypeFont, gid::UInt16) =
     (Int(gid) + 1) <= length(f.advances) ? f.advances[Int(gid) + 1] : f.advances[end]
 
-advance_1000(f::TrueTypeFont, gid::UInt16) = round(Int, _advance_units(f, gid) * 1000 / f.units_per_em)
+get_glyph_advance_1000(f::TrueTypeFont, gid::UInt16) = round(Int, _advance_units(f, gid) * 1000 / f.units_per_em)
 
-function text_width(f::TrueTypeFont, size::Real, s::AbstractString)
+function measure_text_width(f::TrueTypeFont, size::Real, s::AbstractString)
     total = 0
     for c in s
-        total += _advance_units(f, glyph_id(f, UInt32(c)))
+        total += _advance_units(f, get_glyph_id(f, UInt32(c)))
     end
     total * size / f.units_per_em
 end
 
-ascent_px(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
+get_ascent_pixels(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 
 """
     measure_truetype_text(text, font::StyleFont) -> (Int, Int)
@@ -306,7 +306,7 @@ This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
 A no-op at the default zoom (`font_logical_size == size`).
 """
 measure_truetype_text(text, font::StyleFont) =
-    (round(Int, text_width(_load_ttf(font.filename), font_logical_size(font), String(text))),
+    (round(Int, measure_text_width(load_truetype_font(font.filename), font_logical_size(font), String(text))),
      font_logical_size(font))
 
 # ════════════════════════════════════════════════════════════════════════
@@ -322,7 +322,7 @@ measure_truetype_text(text, font::StyleFont) =
 # user changes the font zoom.
 
 _font_metric(font::StyleFont, units::Integer) =
-    round(Int, units * font_logical_size(font) / _load_ttf(font.filename).units_per_em)
+    round(Int, units * font_logical_size(font) / load_truetype_font(font.filename).units_per_em)
 
 """
     font_ascent(font::StyleFont) -> Int
@@ -331,7 +331,7 @@ Distance from the top of a text box down to its baseline, in logical pixels
 (the `hhea` ascender). A `GraphicsText` draws from the top of its box, so its
 baseline sits exactly this far below its `y`.
 """
-font_ascent(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).ascent)
+font_ascent(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).ascent)
 
 """
     font_descent(font::StyleFont) -> Int
@@ -339,7 +339,7 @@ font_ascent(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).ascen
 Distance from the baseline down to the bottom of a text box, in logical pixels.
 Positive, unlike the `hhea` descender it comes from.
 """
-font_descent(font::StyleFont) = _font_metric(font, -_load_ttf(font.filename).descent)
+font_descent(font::StyleFont) = _font_metric(font, -load_truetype_font(font.filename).descent)
 
 """
     font_line_height(font::StyleFont) -> Int
@@ -354,14 +354,14 @@ font_line_height(font::StyleFont) = font_ascent(font) + font_descent(font)
 The height of a lowercase `x`, in logical pixels. Math sets the axis — the
 height a fraction bar and a large operator center on — at half of it.
 """
-font_x_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).x_height)
+font_x_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).x_height)
 
 """
     font_cap_height(font::StyleFont) -> Int
 
 The height of a capital letter, in logical pixels.
 """
-font_cap_height(font::StyleFont) = _font_metric(font, _load_ttf(font.filename).cap_height)
+font_cap_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).cap_height)
 
 """
     font_glyph_bounds(font::StyleFont, ch) -> (Int, Int)
@@ -373,7 +373,7 @@ A caller that tiles a tall delimiter out of the Unicode extension pieces needs
 this: the pieces stack by their ink, not by their text boxes.
 """
 function font_glyph_bounds(font::StyleFont, ch::AbstractChar)
-    f = _load_ttf(font.filename)
+    f = load_truetype_font(font.filename)
     ymin, ymax = _glyph_bounds(f, ch)
     scale = font_logical_size(font) / f.units_per_em
     (round(Int, ymin * scale), round(Int, ymax * scale))

@@ -38,6 +38,8 @@ export Document, copy_document, sync_document!, get_document_family,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, make_string_predicate
+# how deep `show` descends before it elides
+export DOCUMENT_SHOW_MAX_DEPTH
 
 include("DocumentInterface.jl")
 include("DocumentDefaults.jl")

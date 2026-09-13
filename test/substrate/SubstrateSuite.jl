@@ -25,6 +25,7 @@ const _QUALIFIED_FILES = Dict(
     "ProjecturedInspector"     => Set(["ReferenceInspector.jl"]),
     "ProjecturedNatural"       => Set(["NaturalNotation.jl"]),
     "ProjecturedPane"          => Set(["PaneDocument.jl"]),
+    "ProjecturedPdf"           => Set(["Pdf.jl"]),
     "ProjecturedPlot"          => Set(["PlotGeometry.jl"]),
     "ProjecturedProjection"    => Set(["generic/Identity.jl"]),
     "ProjecturedPrimitive"     => Set(["PrimitiveDocument.jl"]),
@@ -34,6 +35,7 @@ const _QUALIFIED_FILES = Dict(
     "ProjecturedStyle"         => Set(["Color.jl"]),
     "ProjecturedSyntax"        => Set(["SyntaxDocument.jl"]),
     "ProjecturedTooltip"       => Set(["TooltipDocument.jl"]),
+    "ProjecturedWidget"        => Set(["WidgetDocument.jl"]),
     "ProjecturedVersioning"    => Set(["VersioningDocument.jl"]))
 
 """

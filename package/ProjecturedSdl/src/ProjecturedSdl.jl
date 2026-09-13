@@ -37,7 +37,7 @@ using ProjecturedKernel.DeviceModule
 import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                         _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
+                         get_canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, build_polyline_arrowhead
 import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned

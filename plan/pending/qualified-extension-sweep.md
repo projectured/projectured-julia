@@ -50,47 +50,34 @@ The heaviest modules are `WidgetModule` 143, `SqlModule` 102,
 intra-slice import lines are gone and what remains is one header per module.
 That is why 1397 lines sit in only 74 files.
 
-## 2. One blocker: fourteen names reach past an export list
+## 2. The blocker is cleared — DONE 2026-09-14
 
-A bare `using` brings only what a module exports, so a file that imports a name
-its owner does not export stops compiling. There are **25**, measured against
-the loaded modules rather than the source, and counting the continuation lines
-an import can spill onto:
+A bare `using` brings only what a module exports, so a file that imported a name
+its owner did not export could not migrate. There were 25 such names across six
+modules.
 
-| name | from | reached by |
+The user's decision: **export them, and fix the name where it needs fixing.**
+Fourteen of the seventeen distinct names broke `PAR-NAMING-LAW` and were renamed
+first. Three were already right and were exported as they stood.
+
+| module | exported as it was | renamed, then exported |
 | --- | --- | --- |
-| name | from | files |
-| --- | --- | --- |
-| `head`, `tail` | `ReferenceModule` | 4 each — versioning, clipboard, screen, text |
-| `TrueTypeFont`, `_load_ttf`, `advance_1000`, `ascent_px`, `glyph_id`, `text_width` | `StyleModule` | pdf |
-| `SpanPath`, `_flat_base`, `_flat_caret_ref`, `_flat_cursor_coord`, `_is_structural_selection` | `TextModule` | widget |
-| `rule_print`, `template_read_intent` | `ProjectionTemplateModule` | rst |
-| `_forward_descend`, `_shift_child_image` | `LayoutModule` | widget |
-| `DOCUMENT_SHOW_MAX_DEPTH` | `DocumentModule` | widget |
-| `_canvas_content_bounds` | `GraphicsModule` | widget |
+| `StyleModule` | `TrueTypeFont` | `_load_ttf` → `load_truetype_font`, `glyph_id` → `get_glyph_id`, `advance_1000` → `get_glyph_advance_1000`, `ascent_px` → `get_ascent_pixels`, `text_width` → `measure_text_width` |
+| `TextModule` | `SpanPath` | `_flat_base` → `get_flat_base`, `_flat_caret_ref` → `make_flat_caret_reference`, `_flat_cursor_coord` → `get_flat_cursor_coordinate`, `_is_structural_selection` → `is_structural_selection` |
+| `ProjectionTemplateModule` | — | `rule_print` → `print_template_rule`, `template_read_intent` → `read_template_intent` |
+| `LayoutModule` | — | `_forward_descend` → `descend_reference_forward`, `_shift_child_image` → `shift_child_image` |
+| `GraphicsModule` | — | `_canvas_content_bounds` → `get_canvas_content_bounds` |
+| `DocumentModule` | `DOCUMENT_SHOW_MAX_DEPTH` | — |
 
-**`head` and `tail` — SETTLED 2026-09-14.** They are `get_reference_head` and
-`get_reference_tail` now, and `ReferenceModule` exports them, so a bare `using`
-reaches them. The user chose the rename over a plain export: the old names carry
-no verb, which PAR-NAMING-LAW requires of every function, and both were generic
-enough to invite the one collision the bare-`using` rule cannot survive.
+Each renamed name gained the verb the law asks for and lost an abbreviation the
+law bans: `px` is pixels, `ref` is a reference, `coord` is a coordinate, and
+`ttf` is a TrueType font.
 
-`source/kernel/reference/ReferencePath.jl` was unsealed for it, with the user's
-permission, and carries a note in `CLAUDE.md` to re-audit before resealing.
-
-The rename reached twelve files and then six more. The first pass renamed each
-slice's module file and missed its fragments, and the substrate suite said so:
-`UndefVarError: head not defined in ProjecturedScreen.ScreenModule`. A slice is
-one module across many files, so a rename inside one is a rename across all of
-them.
-
-Each one is either part of the owner's API, and the owner exports it, or it is
-not, and the reader stops reaching it. Three of them say which they are by their
-name: `_load_ttf`, `_forward_descend` and `_shift_child_image` are private, and
-reaching them already breaks `PAR-MODULE-BOUNDARY-IS-API`.
-
-Settle these before the module that reaches them is migrated, not before the
-sweep starts. They block six files, not seventy-four.
+`text_width` needed `--calls-only`: eleven of its references are local variables
+in `WidgetToGraphics.jl` that happen to share the name. `rule_print` and
+`template_read_intent` needed the opposite, because three references each are
+`$(rule_print)` interpolations inside a macro, which are the function and must
+move.
 
 ## 3. Order of the work
 

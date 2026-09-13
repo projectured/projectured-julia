@@ -41,7 +41,7 @@ segs = iomap.segs
 # break-aware coordinate (a flat `TextRangeReferenceStep` caret, not the structural path).
 for seg in segs
     for k in 0:seg.length
-        out_ref = TextModule._flat_caret_ref(convert_element_to_flat_offset(out, seg.out_index, k))
+        out_ref = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(out, seg.out_index, k))
         in_ref  = map_reference_backward(proj, iomap, out_ref)
         @test in_ref !== nothing
         # Inverting via forward at the same input offset lands on a valid output
@@ -121,7 +121,7 @@ iomap = print_document(proj, input)
 # its output index. The image is zero-width in the caret stream, so its flat
 # position is the "abcdef" boundary (flat 6); that offset must survive the
 # forward/backward mapping despite the index shift.
-in_ref  = TextModule._flat_caret_ref(convert_element_to_flat_offset(input, 2, 0))
+in_ref  = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(input, 2, 0))
 out_ref = map_reference_forward(proj, iomap, in_ref)
 @test out_ref !== nothing
 @test map_reference_backward(proj, iomap, out_ref) !== nothing

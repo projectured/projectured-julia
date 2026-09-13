@@ -58,6 +58,8 @@ using ..EventPatternModule
 using ..GestureBindingModule
 
 export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
+# the two entry points a hand-written template rule calls
+export print_template_rule, read_template_intent
 
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
@@ -225,7 +227,7 @@ _strip_checkpoints(x) = strip_reference_types(x)
 # ── The builder/walk printer ─────────────────────────────────────────────────
 
 """
-    rule_print(p, recursion, doc, ctx, builder)
+    print_template_rule(p, recursion, doc, ctx, builder)
 
 Build the marked output via `builder(p, doc)`, walk it to record the wiring,
 strip the markers (replacing each with its real value *through* the field's Cell),
@@ -235,9 +237,9 @@ place, reusing every other field's Cell object. No node is retargeted after
 anything else references it (prerequisite for the immutable kind-parameterized
 stem — plan/pending/cell-kind-documents.md, Phase 0).
 """
-rule_print(p, recursion, doc, ctx, builder) = _dispatch_print(p, recursion, doc, ctx, builder(p, doc))
+print_template_rule(p, recursion, doc, ctx, builder) = _dispatch_print(p, recursion, doc, ctx, builder(p, doc))
 
-# Dispatch an *already-built* output on its shape. Factored out of `rule_print` so a
+# Dispatch an *already-built* output on its shape. Factored out of `print_template_rule` so a
 # nested marker-bearing sub-node (a `SubNodeSlot`) is walked by the same rules with
 # the parent doc/ctx (F1), not just the top-level builder output.
 function _dispatch_print(p, recursion, doc, ctx, out)
@@ -1315,7 +1317,7 @@ function _read_override_gesture(iomap::RuleIoMap, evt, claimed)
 end
 
 """
-    template_read_intent(p, recursion, change::Intent, iomap) -> Intent
+    read_template_intent(p, recursion, change::Intent, iomap) -> Intent
 
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection. It
 offers this node's input domain the gesture *before* translating an operation the output
@@ -1327,7 +1329,7 @@ recursive and type-dispatching wrappers hand a leaf its own iomap
 and already carry 4-arg methods of their own, so a method keyed on the iomap would be
 ambiguous with every one of them.
 """
-function template_read_intent(p, recursion, change::Intent, iomap)
+function read_template_intent(p, recursion, change::Intent, iomap)
     if iomap isa RuleIoMap && change.operation !== nothing &&
        change.gesture isa Union{KeyPress, KeyDown}
         override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
@@ -1361,8 +1363,8 @@ end
     @projection_template ProjName InType (p, doc) -> <builder body>
 
 Emit `print_document(p::ProjName, recursion, doc::InType, ctx)` that runs the
-builder through `rule_print`, and the matching 4-arg
-[`template_read_intent`](@ref) reader — the seam an `override` gesture fires
+builder through `print_template_rule`, and the matching 4-arg
+[`read_template_intent`](@ref) reader — the seam an `override` gesture fires
 through.
 """
 macro projection_template(projname, intype, builder)
@@ -1376,14 +1378,14 @@ macro projection_template(projname, intype, builder)
         # module and, if it hadn't imported the generic, silently defined a dead
         # local one → a confusing MethodError at dispatch time.
         function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
-            $(rule_print)(p, recursion, doc, ctx, $(esc(builder)))
+            $(print_template_rule)(p, recursion, doc, ctx, $(esc(builder)))
         end
 
         # Without this the projection falls to the generic bridge, which collapses the
         # `Intent` to a single payload and so can only ever translate a claimed
         # operation — the input domain never sees the key that caused it.
         function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
-            $(template_read_intent)(p, recursion, change, iomap)
+            $(read_template_intent)(p, recursion, change, iomap)
         end
     end
 end

@@ -219,8 +219,8 @@ right = read_intent(p, iomap, click(50))
 # Left half → cursor before the image (flat 2, end of "ab"); right half → the
 # offset past it (flat 3). The image is zero-width in the caret stream, but the
 # hit-test still resolves the two halves to distinct flat offsets.
-@test is_reference_equal(left.path,  TextModule._flat_caret_ref(2))
-@test is_reference_equal(right.path, TextModule._flat_caret_ref(3))
+@test is_reference_equal(left.path,  TextModule.make_flat_caret_reference(2))
+@test is_reference_equal(right.path, TextModule.make_flat_caret_reference(3))
 
 end # @testset "TextToGraphics inline image hit-test"
 
@@ -316,18 +316,18 @@ canvas = print_document(p, mkblock()).output
 
 # The caret lands on the character it was placed against: past the indent on an
 # indented line, and on the right row for the line below. The selection is a flat
-# offset; `_flat_base` names it from the structural (line, span) coordinate.
-fb(path, k)  = TextModule._flat_base(mkblock(), path) + k
+# offset; `get_flat_base` names it from the structural (line, span) coordinate.
+fb(path, k)  = TextModule.get_flat_base(mkblock(), path) + k
 cflat(op)    = (r = strip_reference_types(op isa ReplaceSelectionOperation ? op.path : op);
                 (r.head::TextRangeReferenceStep).start)
 coord(op)    = TextModule._flat_to_span(mkblock(), cflat(op))   # (span_path, char)
 caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
-@test caret(with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
-@test caret(with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[2, 1], 3)))) == [(30, 18, 18)]
+@test caret(with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
+@test caret(with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[2, 1], 3)))) == [(30, 18, 18)]
 
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
-iomap = print_document(p, with_selection(mkblock(), TextModule._flat_caret_ref(fb(Int[1, 1], 0))))
+iomap = print_document(p, with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
 click = read_intent(p, iomap, MousePress(:left, 31, 20))
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
@@ -373,7 +373,7 @@ rects = TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 1
 # A `TextColumnReferenceStep` selection is structural — not a character cursor, so char
 # motion / flat edits decline (block editing is future work).
 sel = ConcreteReference(TextColumnReferenceStep(1, 11), EmptyReference())
-@test TextModule._is_structural_selection(sel)
+@test TextModule.is_structural_selection(sel)
 @test TextModule._text_flat_selection(
           with_selection(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
 

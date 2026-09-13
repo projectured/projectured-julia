@@ -47,6 +47,9 @@ import ..GestureBindingModule: var"@gestures"
 export set_cell_function!, get_flat_length, get_flat_offsets, get_flat_selection, make_hinted_text,
        get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation,
        convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, _lower_text_range
+# the flat-offset seam a projection over text reads
+export SpanPath, get_flat_base, make_flat_caret_reference,
+       get_flat_cursor_coordinate, is_structural_selection
 
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
@@ -457,13 +460,13 @@ function _text_flat_selection(text::TextBlock, selection)
     rng = _text_selection_range(text, selection)
     rng === nothing && return nothing
     path, a, b = rng
-    base = _flat_base(text, path)
+    base = get_flat_base(text, path)
     base === nothing ? nothing : (base + a, base + b)
 end
 
 # The selection reference for a flat caret / range, rooted at the TextBlock.
 # Emitted plain; `set_selection!` canonicalises (adds the folded checkpoints).
-_flat_caret_ref(pos::Int) =
+make_flat_caret_reference(pos::Int) =
     ConcreteReference(TextRangeReferenceStep(pos, pos), EmptyReference())
 _flat_range_ref(start::Int, stop::Int) =
     ConcreteReference(TextRangeReferenceStep(start, stop), EmptyReference())
@@ -492,16 +495,16 @@ function get_flat_caret(block::TextBlock, ref)
     rng === nothing && return nothing
     path, a, b = rng
     a == b || return nothing                       # a range has no single caret offset
-    base = _flat_base(block, path)
+    base = get_flat_base(block, path)
     base === nothing ? nothing : base + a
 end
 
 # The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
 # geometry, or `nothing` when there is no caret, the selection is a range, or the
-# caret falls in a break / indentation gap with no owning span. `_flat_base`
+# caret falls in a break / indentation gap with no owning span. `get_flat_base`
 # supplies the span's flat base, `_flat_to_span` the inverse.
-_flat_cursor_coord(text::TextBlock) = _flat_cursor_coord(text, text.selection)
-function _flat_cursor_coord(text::TextBlock, selection)
+get_flat_cursor_coordinate(text::TextBlock) = get_flat_cursor_coordinate(text, text.selection)
+function get_flat_cursor_coordinate(text::TextBlock, selection)
     sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     sel[1] == sel[2] || return nothing            # a range has no single char cursor
@@ -587,7 +590,7 @@ end
 
 # Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.
 function _text_jump(text::TextBlock, where::Symbol)
-    ReplaceSelectionOperation(_flat_caret_ref(where === :start ? 0 : _text_flat_total(text)))
+    ReplaceSelectionOperation(make_flat_caret_reference(where === :start ? 0 : _text_flat_total(text)))
 end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on
@@ -599,14 +602,14 @@ function _text_word_motion(text::TextBlock, direction::Symbol)
     newf = direction === :left ?
         _word_left_flat(chars, sel[1]) :
         _word_right_flat(chars, sel[2], length(chars))
-    ReplaceSelectionOperation(_flat_caret_ref(newf))
+    ReplaceSelectionOperation(make_flat_caret_reference(newf))
 end
 
 # Left / Right: per-character cursor motion, `± 1` clamped in the flat stream. A
 # range collapses to its near end. Declines when a whole element is selected (no
 # character cursor to move) so the syntax layer can tree-navigate.
 function _text_char_motion(text::TextBlock, direction::Symbol)
-    _is_structural_selection(text.selection) && return nothing
+    is_structural_selection(text.selection) && return nothing
     sel = _text_flat_selection(text)
     sel === nothing && return nothing
     s, e = sel
@@ -615,7 +618,7 @@ function _text_char_motion(text::TextBlock, direction::Symbol)
     else
         direction === :left ? s : e     # collapse the range to its near end
     end
-    ReplaceSelectionOperation(_flat_caret_ref(newf))
+    ReplaceSelectionOperation(make_flat_caret_reference(newf))
 end
 
 # The span at `path`'s content when it is a TextString; nothing otherwise.
@@ -734,7 +737,7 @@ end
 # `TextSpanReferenceStep` bounding box, or a `TextColumnReferenceStep` column box; all
 # three mean "structural mode" at this layer — a character cursor they are not,
 # so char motion declines and the syntax layer tree-navigates / block-edits them.
-function _is_structural_selection(sel)
+function is_structural_selection(sel)
     sel = sel
     sel isa EmptyReference ||
         (sel isa ConcreteReference &&
@@ -820,7 +823,7 @@ function get_flat_selection(text::TextBlock)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     path, a, b = rng
-    base = _flat_base(text, path)
+    base = get_flat_base(text, path)
     base === nothing && return nothing
     (base + a, base + b, a == b)
 end
@@ -848,7 +851,7 @@ function convert_flat_offset_to_element(block::TextBlock, flat::Int)
     bestd = typemax(Int)
     for (path, len) in _text_span_infos(block)
         length(path) == 1 || continue
-        base = _flat_base(block, path)
+        base = get_flat_base(block, path)
         base === nothing && continue
         d = flat < base ? base - flat : (flat > base + len ? flat - (base + len) : 0)
         if d < bestd
@@ -865,13 +868,13 @@ end
 The flat offset of `char` within the `TextString` at `element_index`.
 """
 function convert_element_to_flat_offset(block::TextBlock, elem::Int, char::Int)
-    base = _flat_base(block, Int[elem])
+    base = get_flat_base(block, Int[elem])
     base === nothing ? nothing : base + char
 end
 
 # The flat offset the span at `path` starts at, or nothing when the path does not
 # land on a span.
-function _flat_base(text::TextBlock, path::SpanPath)
+function get_flat_base(text::TextBlock, path::SpanPath)
     offsets = get_flat_offsets(text)
     i = path[1]
     (1 <= i <= length(offsets)) || return nothing
@@ -892,7 +895,7 @@ end
 # ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────
 #
 # The text-domain edit expressed in the canonical flat coordinate (the
-# `get_flat_offsets` / `_flat_base` space that counts breaks, spacing and
+# `get_flat_offsets` / `get_flat_base` space that counts breaks, spacing and
 # indentation — the same space `get_flat_selection` and the renderer use). Its
 # `reference` is rooted at the editor's document and terminates in a
 # `TextRangeReferenceStep(start, stop)`; unlike a `ReplaceStringRangeOperation` its
@@ -932,7 +935,7 @@ end
 # of range. Boundary offsets resolve to the earlier span's end.
 function _flat_to_span(text::TextBlock, flat::Int)
     for (span_path, len) in _text_span_infos(text)
-        base = _flat_base(text, span_path)
+        base = get_flat_base(text, span_path)
         base === nothing && continue
         base <= flat <= base + len && return (span_path, flat - base)
     end
@@ -984,7 +987,7 @@ reroot_operation(op::ReplaceTextRangeOperation, steps::Tuple) =
 # the value rather than straddling it. `nothing` when the offset falls in a break/gap.
 function _flat_span_range_start(block::TextBlock, flat::Int)
     for (path, len) in _text_span_infos(block)
-        base = _flat_base(block, path)
+        base = get_flat_base(block, path)
         base === nothing && continue
         base <= flat < base + len && return (path, flat - base)
     end
@@ -996,7 +999,7 @@ end
 # range ending on the value|close-delimiter seam stays inside the value. `nothing` in a gap.
 function _flat_span_range_end(block::TextBlock, flat::Int)
     for (path, len) in _text_span_infos(block)
-        base = _flat_base(block, path)
+        base = get_flat_base(block, path)
         base === nothing && continue
         base < flat <= base + len && return (path, flat - base)
     end
@@ -1013,7 +1016,7 @@ function _flat_to_span_nearest(block::TextBlock, flat::Int)
     best = nothing
     bestd = typemax(Int)
     for (path, len) in _text_span_infos(block)
-        base = _flat_base(block, path)
+        base = get_flat_base(block, path)
         base === nothing && continue
         d = flat < base ? base - flat : (flat > base + len ? flat - (base + len) : 0)
         if d < bestd

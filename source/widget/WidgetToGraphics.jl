@@ -1757,7 +1757,7 @@ end
 # menu placed it (paths pass through). Orientation-agnostic: the per-item offset is
 # stored on the entry regardless of layout direction.
 map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
+    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1798,7 +1798,7 @@ end
 # offset; forward-mapping shifts a coordinate image by that placement (paths pass
 # through). Same hop as a layout, just a different field name.
 map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    _forward_descend(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
+    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
 function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
     return nothing
@@ -2072,7 +2072,7 @@ function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoM
         (ox, oy, cim) = entry
         cim.input === target || continue
         child = map_reference_forward(cim.projection, cim, reference.tail)
-        return _shift_child_image(child, ox, oy, cim)
+        return shift_child_image(child, ox, oy, cim)
     end
     nothing
 end
@@ -4394,7 +4394,7 @@ function map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMa
         (ox, oy, cim) = entry
         cim.input === target || continue
         child = map_reference_forward(cim.projection, cim, reference.tail)
-        return _shift_child_image(child, ox, oy, cim)
+        return shift_child_image(child, ox, oy, cim)
     end
     nothing
 end

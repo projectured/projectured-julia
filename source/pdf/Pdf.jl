@@ -23,24 +23,17 @@ written.
 """
 module PdfBackendModule
 
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
-                         GraphicsViewport, GraphicsImage, GraphicsFence,
-                         _canvas_content_bounds, tessellate_spline, build_polyline_arrowhead
-import ..StyleModule: StyleColor
-import ..StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
-import ..StyleModule: StyleFont, font_logical_size
+using ..GraphicsModule
+using ..StyleModule
 # The TrueType parser + SDL-free measurer moved to StyleModule (it is used by
 # the web backend and every projection example too, not just PDF). The PDF writer
 # still needs the parser internals for glyph embedding and text sizing.
-import ..StyleModule: TrueTypeFont, _load_ttf, glyph_id, advance_1000, ascent_px,
-                         text_width, measure_truetype_text
-import ..StyleModule: ImageFile
-import ..ProjectionApiModule: print_document, Projection
-import ..IoMapModule: SimpleIoMap
-import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: EmptyReference
-import ..CellModule: Cell, ComputedCell
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document
+using ..IoMapModule
+using ..PrinterContextModule
+using ..ReferenceModule
+using ..CellModule
 
 export write_pdf, GraphicsCanvasToPdfFile
 
@@ -146,7 +139,7 @@ function register_font!(ctx::PageContext, font::StyleFont)
         idx = length(ctx.fonts) + 1
         base = replace(splitext(basename(font.filename))[1], r"[^A-Za-z0-9]" => "")
         isempty(base) && (base = "Font$idx")
-        FontRegistration("F$idx", base, _load_ttf(font.filename), Set{UInt16}(), Dict{UInt16,UInt32}())
+        FontRegistration("F$idx", base, load_truetype_font(font.filename), Set{UInt16}(), Dict{UInt16,UInt32}())
     end
 end
 
@@ -391,14 +384,14 @@ function paint_text!(ctx, t, ox, oy)
     io = IOBuffer()
     for c in t.text
         cp = UInt32(c)
-        gid = glyph_id(ttf, cp)
+        gid = get_glyph_id(ttf, cp)
         push!(reg.used, gid)
         get!(reg.gid_to_uni, gid, cp)
         print(io, string(gid, base = 16, pad = 4))
     end
     hex = String(take!(io))
     size = t.font.size
-    baseline = _flip(ctx, gy + ascent_px(ttf, size))
+    baseline = _flip(ctx, gy + get_ascent_pixels(ttf, size))
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",
           c01(tr), " ", c01(tg), " ", c01(tb), " rg BT /", reg.resname, " ",
           n2(size), " Tf 1 0 0 1 ", n2(ox + Int(t.x)), " ", n2(baseline), " Tm <", hex, "> Tj ET\n")
@@ -538,11 +531,11 @@ function _write_font!(w::PdfWriter, info)
 
     wio = IOBuffer(); print(wio, "[ ")
     for gid in sort!(collect(reg.used))
-        print(wio, Int(gid), " [", advance_1000(ttf, gid), "] ")
+        print(wio, Int(gid), " [", get_glyph_advance_1000(ttf, gid), "] ")
     end
     print(wio, "]")
     warr = String(take!(wio))
-    dw = advance_1000(ttf, UInt16(0))
+    dw = get_glyph_advance_1000(ttf, UInt16(0))
 
     write_stream!(w, info.tu, "", _tounicode_cmap(reg))
     write_object!(w, info.cid,
@@ -697,7 +690,7 @@ function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
     page_w = Int(width); page_h = Int(height)
     top = 0; npages = 1
     if paginate
-        _, miny, _, maxy = _canvas_content_bounds(canvas, measure)
+        _, miny, _, maxy = get_canvas_content_bounds(canvas, measure)
         top = min(0, miny)
         npages = max(1, cld(max(0, maxy - top), page_h))
     end
@@ -758,10 +751,10 @@ function write_pdf(document, projection, filename::AbstractString;
         page_h = height === nothing ? 792 : Int(height)
         aw = width === nothing ? nothing : Cell(Int(width))
         canvas = print_canvas(aw, nothing)
-        _, _, nw, _ = _canvas_content_bounds(canvas, measure)
+        _, _, nw, _ = get_canvas_content_bounds(canvas, measure)
         if width === nothing && nw > max_width
             canvas = print_canvas(Cell(Int(max_width)), nothing)
-            _, _, nw, _ = _canvas_content_bounds(canvas, measure)
+            _, _, nw, _ = get_canvas_content_bounds(canvas, measure)
         end
         page_w = width === nothing ? clamp(nw, 1, Int(max_width)) : Int(width)
         return write_pdf(canvas, filename; width = page_w, height = page_h,
@@ -771,7 +764,7 @@ function write_pdf(document, projection, filename::AbstractString;
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    _, _, nw, nh = _canvas_content_bounds(canvas, measure)
+    _, _, nw, nh = get_canvas_content_bounds(canvas, measure)
 
     cap_w = width  === nothing && nw > max_width
     cap_h = height === nothing && nh > max_height
@@ -779,7 +772,7 @@ function write_pdf(document, projection, filename::AbstractString;
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        _, _, nw, nh = _canvas_content_bounds(canvas, measure)
+        _, _, nw, nh = get_canvas_content_bounds(canvas, measure)
     end
 
     out_w = width  === nothing ? clamp(nw, 1, Int(max_width))  : Int(width)
