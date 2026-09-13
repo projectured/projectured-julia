@@ -115,7 +115,11 @@ layout needs, and a declared module puts every one of its exported names in the
 model's search — this module's own documentation says what that costs.
 """
 pane_api() = Any[
-    PaneProgramModule,
+    # The verbs and not the module: `pane_api` builds this very list, and
+    # `describe_document` is the extension point the program writes its comments
+    # with — neither is a name a model has any use for.
+    PaneProgramModule => (:show_layout, :get_window_tree, :get_referenced_value,
+                          :replace_referenced_value!, :open_pane!, :focus_pane!),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
@@ -195,8 +199,13 @@ The group [`open_pane!`](@ref) should not open in. `nothing` by default.
 group of its own wants a new pane anywhere else, or the thing the person asked
 for replaces the asking. Which group that is belongs to the application, so the
 application writes the method — this package holds no idea of a conversation.
+
+**The default takes an untyped argument on purpose.** An application writes
+`pane_group_to_avoid(tree::PaneTree)`, and a default of that same signature would
+be overwritten rather than added to — which Julia refuses outright while it
+precompiles.
 """
-pane_group_to_avoid(tree::PaneTree) = nothing
+pane_group_to_avoid(tree) = nothing
 
 """
     open_pane!(editor, document; title = nothing) -> Reference
