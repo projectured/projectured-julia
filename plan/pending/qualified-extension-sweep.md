@@ -7,17 +7,18 @@
 
 ## 0. The rule is decided; the sweep is not finished
 
-`PAR-QUALIFIED-EXTENSION` already states the form:
+`PAR-QUALIFIED-EXTENSION` states the form:
 
-- **`using ..XxxModule`, bare, never a symbol list.** It binds the module name
-  and brings its exports into scope, so one line serves both roles.
-- **`import ..Xxx` is banned.**
-- **Extend by qualification at the definition site:** `XxxModule.f(…) = …`.
+- **`import ..XxxModule: f, g`** — exactly the names this code extends.
+- **`using ..XxxModule`, bare** — every other module, whose names this code only
+  calls.
+- A definition may qualify instead of import: `XxxModule.f(…) = …`.
 
-The reason is the compiler, not taste. After `import`, a bare `f(…) = …`
-silently adds a method to another layer's generic. After `using`, the same line
-is an error that names the site, so the compiler tells a new function apart from
-an extension of somebody else's contract.
+**The compiler does not check it.** Measured on Julia 1.13: after a bare
+`using ..XxxModule`, a plain `f(…) = …` for a name that module exports raises no
+error and no warning. It defines a new `f`, the owner keeps its methods, and
+every call through the owner reaches the fallback. So the header is not a
+convenience: it is what makes an extension reach its generic.
 
 `relative_import_errors` enforces it over an opt-in set in
 [KernelSuite.jl](../../test/kernel/KernelSuite.jl). Five files are in that set,
@@ -101,15 +102,32 @@ them. To migrate them now is work the division redoes.
 
 ## 4. How to migrate one module
 
-1. Replace every `import ..XxxModule: a, b, c` in the module file with
-   `using ..XxxModule`. Keep one line per module and drop the symbol list.
-2. Precompile the package. The compiler names every definition that must be
-   qualified: `function XxxModule.f must be explicitly imported to be extended`.
-3. Qualify each site it names: `XxxModule.f(…) = …` at the definition.
-4. Add the module's files to `qualified_files` in the suite that guards them.
+1. **Split the import list, do not delete it.** For each
+   `import ..XxxModule: a, b, c`, keep the names the module extends and move the
+   rest to a bare `using ..XxxModule`. A name is extended when some file of the
+   module defines a method for it under that bare name.
+2. Run `shadowed_extension_violations(root)` from `test/suite/naming.jl`. It
+   reports every definition left stranded — a name the module no longer imports,
+   that a module it names exports.
+3. Run the module's suite and compare it against the run before the step.
+4. Add the module's files to `qualified_files` in the suite that guards them,
+   so `relative_import_errors` holds the header to the rule from then on.
 
-Step 2 is why this is safe to do in bulk. A site that needs qualification is a
-compile error, never a silent change of meaning.
+**Do not reverse steps 1 and 3.** A header rewritten ahead of the check compiles
+and loads and is wrong: seven module headers were rewritten this way on
+2026-09-13, six packages loaded clean, and `test_fsm()` fell from 153 passing to
+93 pass and 7 error. The suite is the check, not the loader.
+
+## 4.1 What holds the rule up
+
+Three guards, because the compiler holds up none of it:
+
+- `shadowed_extension_violations` (`test/suite/naming.jl`) — a definition that
+  reads as an extension and is a new function. Whole tree, every suite.
+- `relative_import_errors` (the layering guard) — no bare `import ..Xxx`, no
+  `using ..Xxx: a, b`, and no imported name that nothing extends. Opt-in over
+  `qualified_files`.
+- `qualified_reference_errors` — a `XxxModule.sym` names an exported symbol.
 
 ## 5. How to check a step
 

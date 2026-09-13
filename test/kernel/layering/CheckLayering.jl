@@ -474,19 +474,26 @@ end
 """
     relative_import_errors(src_root, qualified_files) -> Vector{String}
 
-PAR-QUALIFIED-EXTENSION: a file names a sibling module with **bare `using
-..Xxx`** and extends its generics by qualification (`Xxx.f(…) = …`). Two forms
-are banned:
+PAR-QUALIFIED-EXTENSION: a file imports the names it **extends** and names every
+other module with a bare `using ..Xxx`. Three forms are wrong:
 
-- `import ..Xxx` (any form) — `import` is what makes a bare `f(…) = …` silently
-  *extend* another layer's generic instead of defining a new function. After
-  `using`, the compiler rejects it outright ("function Xxx.f must be explicitly
-  imported to be extended"), which is the whole point: the new-vs-extend
-  distinction becomes machine-checked rather than a convention.
-- `using ..Xxx: a, b` — a symbol list is noise, and the export list is already
-  the module's declared API (PAR-MODULE-BOUNDARY-IS-API). Bare `using` also
-  binds the module *name*, which a symbol list does not — and that binding is
-  what qualification needs.
+- `import ..Xxx` with no symbol list — it binds the module name and nothing
+  else, which is what a bare `using` already does, and better.
+- `using ..Xxx: a, b` — a symbol list on a `using` says nothing. Either the file
+  extends those names, and the line is an `import`, or it calls them, and the
+  export list already says what it may call (PAR-MODULE-BOUNDARY-IS-API).
+- `import ..Xxx: a, b` where the module adds no method to `a` — an import list
+  is a statement of what this code implements, so a name nobody extends belongs
+  on the bare `using` instead.
+
+**The compiler does not check the form.** Measured on Julia 1.13: after a bare
+`using ..Xxx`, a plain `f(…) = …` for a name `Xxx` exports raises no error and
+no warning. It defines a new `f` in the calling module, `Xxx.f` keeps its own
+methods, and every call through `Xxx` reaches the fallback. So the import list
+is what makes an extension reach its generic, and
+`shadowed_extension_violations` in `test/suite/naming.jl` is what reports the
+definition that misses it. This checker is the tidiness half: it keeps an import
+list meaning what it says.
 
 `qualified_files` is an **opt-in** set: only files listed in it are held to the
 rule. The migration is file-by-file, and an opt-in set that grows is honest
@@ -494,14 +501,14 @@ about the remaining work in a way a shrinking exemption list covering ~1400
 import lines would not be. When the sweep is done the set covers every file and
 the parameter can go away.
 
-Parses the listed files directly rather than reusing `walk_includes`' folded
-`sym_imports`: the migration proceeds one *file* at a time (fragments included,
-whose imports fold into the module file that includes them), and `collect_edges`
-deliberately treats `import` and `using` alike, so it cannot tell the two banned
-forms apart.
+"Extended" is read over every file under `src_root`, because a slice is one
+module whose header sits in one file and whose definitions sit in the others.
+For a root that holds several modules this over-approximates, so the checker
+stays silent where it cannot be sure.
 """
 function relative_import_errors(src_root, qualified_files)
     errs = String[]
+    extended = extended_names(src_root)
     for rel in sort(collect(qualified_files))
         path = joinpath(src_root, rel)
         if !isfile(path)
@@ -514,25 +521,52 @@ function relative_import_errors(src_root, qualified_files)
                 # absolute (Base/stdlib/package) — not PAR-QUALIFIED-EXTENSION's business
                 dep === nothing && continue
                 syms = imported_symbols(arg)
-                if stmt.head === :import
+                if stmt.head === :import && isempty(syms)
                     push!(errs,
-                        "$rel uses `import ..$dep" *
-                        (isempty(syms) ? "" : ": $(join(syms, ", "))") *
-                        "` — PAR-QUALIFIED-EXTENSION wants bare `using ..$dep`, " *
-                        "extending by " *
-                        "qualification (`$dep.f(…) = …`)")
-                elseif !isempty(syms)
+                        "$rel uses a bare `import ..$dep` — PAR-QUALIFIED-EXTENSION " *
+                        "wants `using ..$dep`, which binds the name and brings the " *
+                        "exports with it")
+                elseif stmt.head === :using && !isempty(syms)
                     push!(errs,
-                        "$rel uses `using ..$dep: $(join(syms, ", "))` — " *
-                        "PAR-QUALIFIED-EXTENSION wants bare `using ..$dep`; the " *
-                        "export list is already the module's API " *
-                        "(PAR-MODULE-BOUNDARY-IS-API), and only the bare form binds " *
-                        "`$dep` for qualification")
+                        "$rel uses `using ..$dep: $(join(syms, ", "))` — a symbol " *
+                        "list on a `using` says nothing; `import` the names this " *
+                        "code extends and name the module bare for the rest")
+                elseif stmt.head === :import
+                    idle = [s for s in syms if !(String(s) in extended)]
+                    isempty(idle) ||
+                        push!(errs,
+                            "$rel imports $(join(idle, ", ")) from $dep and extends " *
+                            "$(length(idle) == 1 ? "it" : "them") nowhere — an import " *
+                            "list states what this code implements, so move " *
+                            "$(length(idle) == 1 ? "it" : "them") to `using ..$dep`")
                 end
             end
         end
     end
     errs
+end
+
+"""
+    extended_names(src_root) -> Set{String}
+
+Every name that a file under `src_root` defines a method for, unqualified. These
+are the names an import list may carry, because a method defined under a bare
+name reaches its generic only when the name was imported.
+"""
+function extended_names(src_root)
+    out = Set{String}()
+    for (dir, _dirs, files) in walkdir(src_root), file in files
+        endswith(file, ".jl") || continue
+        for e in collect_exprs(x -> x.head in (:function, :(=)), parse_file(joinpath(dir, file)))
+            call = e.args[1]
+            call isa Expr && call.head === :where && (call = call.args[1])
+            call isa Expr && call.head === :(::) && (call = call.args[1])
+            (call isa Expr && call.head === :call) || continue
+            name = call.args[1]
+            name isa Symbol && push!(out, String(name))
+        end
+    end
+    out
 end
 
 # ── interface-purity checker ───────────────────────────────────────────────
@@ -800,7 +834,7 @@ function check_layering(src_root, top_file; name = "package",
         end
 
         if !isempty(qualified_files)
-            @testset "migrated files use bare `using`, never `import`" begin
+            @testset "migrated files import what they extend" begin
                 errs = relative_import_errors(src_root, qualified_files)
                 if !isempty(errs)
                     println(stderr, "\nImport-form violations (PAR-QUALIFIED-EXTENSION):")
@@ -1131,18 +1165,27 @@ function test_layering_checkers()
             relative_import_errors(root, Set(["cell/A.jl"]))
         end
 
-        # Bare `using ..B` is the one blessed form.
+        # Bare `using ..B` and a qualified extension: nothing to import.
         @test isempty(check("using ..B\nB.f(x::Int) = 1\n"))
 
-        # `import ..B: f` — the form the rule exists to kill.
+        # `import ..B: f` where `f` is extended here — the blessed form.
+        @test isempty(check("import ..B: f\nf(x::Int) = 1\n"))
+
+        # `import ..B: f, g` where neither is extended — the list says what this
+        # code implements, and it implements nothing.
         errs = check("import ..B: f, g\n")
         @test length(errs) == 1
-        @test occursin("import ..B", errs[1]) && occursin("PAR-QUALIFIED-EXTENSION", errs[1])
+        @test occursin("f, g", errs[1]) && occursin("extends them nowhere", errs[1])
 
-        # Bare `import ..B` is banned too: bare `using` already binds the name.
-        @test occursin("import ..B", only(check("import ..B\n")))
+        # One name extended, one not: only the idle one is reported.
+        errs = check("import ..B: f, g\nf(x::Int) = 1\n")
+        @test length(errs) == 1
+        @test occursin("imports g", errs[1])
 
-        # A `using` symbol list is banned as well — noise, and it does not bind `B`.
+        # Bare `import ..B` is banned: bare `using` already binds the name.
+        @test occursin("bare `import ..B`", only(check("import ..B\n")))
+
+        # A `using` symbol list is banned as well — it says nothing either way.
         @test occursin("using ..B: f", only(check("using ..B: f\n")))
 
         # Absolute imports (Base, stdlib, external packages) are not

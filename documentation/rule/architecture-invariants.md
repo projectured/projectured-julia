@@ -148,7 +148,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-FRAMEWORKS-SINK](#par-frameworks-sink) | Frameworks sink below their users via the seam pattern; only per-domain methods stay above |
 | [PAR-PROJECTION-PLACEMENT](#par-projection-placement) | Honor the projection placement invariant |
 | [PAR-INTERFACE-DECLARES-ONLY](#par-interface-declares-only) | An interface file declares; it never implements |
-| [PAR-QUALIFIED-EXTENSION](#par-qualified-extension) | Name a module with bare `using ..Xxx`; extend its generics by qualification. `import ..Xxx` is banned |
+| [PAR-QUALIFIED-EXTENSION](#par-qualified-extension) | Import the names a file extends; name every other module with bare `using ..Xxx`. The compiler does not check it, so a guard does |
 | [PAR-PARALLEL-TRIADS](#par-parallel-triads) | Keep the main/test/example triads parallel and minimal-environment runnable |
 
 **Testing and verification**
@@ -937,33 +937,56 @@ add the methods.
 
 ### PAR-QUALIFIED-EXTENSION
 
-**Name a module with bare `using ..Xxx`; extend its generics by qualification.
-`import ..Xxx` is banned.** One import form, one extension form:
+**Import the names a file extends. Name every other module with a bare `using
+..Xxx`.** Two forms, and each says a different thing:
 
-- `using ..XxxModule` — bare, **never** a symbol list. It binds the module's
-  name *and* brings its exports into scope, so one line serves both roles. A
-  symbol list is noise, and the export list is already the module's declared API
-  (PAR-MODULE-BOUNDARY-IS-API).
-- `XxxModule.f(…) = …` at the definition site — this file **implements** part of
-  `XxxModule`'s contract.
+- `using ..XxxModule` — bare, no symbol list. This code *calls* what
+  `XxxModule` exports and adds no method to any of it. The bare form also binds
+  the module's name, which a qualified extension needs.
+- `import ..XxxModule: f, g` — exactly the names this code *extends*, and no
+  others. The list is short by construction, so a reader sees at the header
+  which contracts this code implements.
 
-The form is load-bearing, not taste. `import` makes a bare `f(…) = …` *silently
-add a method* to another layer's generic; after `using`, the same line is a
-compile error (`function XxxModule.f must be explicitly imported to be
-extended`). So the compiler — not a convention — tells a new function apart
-from an extension of another layer's contract, and PAR-FRAMEWORKS-SINK's
-*"multiple dispatch is the registration"* becomes visible at every site instead
-of being inferable only from an import header. The codebase already worked this
-way at the `Base` boundary (`function Base.show(io::IO, s::PointReferenceStep)`);
-there is not one `import Base:` anywhere. Julia is moving the same way: on 1.12
-an unqualified constructor extension already warns that the behaviour is
-deprecated.
+A definition may qualify instead of import: `XxxModule.f(…) = …`. Both reach the
+owner's generic. Qualification is the better form where the extension is rare or
+the file is long, and the only form a macro can emit, by interpolating the
+module object (`:(function $(ReferenceModule).get_reference_step_kind(…) end)`),
+which needs nothing at the call site.
+
+**The compiler does not check this, so a guard must.** Measured on Julia 1.13:
+after a bare `using ..XxxModule`, a plain `f(…) = …` for a name `XxxModule`
+exports raises no error and no warning. It defines a *new* `f` in the calling
+module. `XxxModule.f` keeps its own methods, and every call that goes through
+`XxxModule` reaches the fallback instead of the method just written. The code
+compiles, loads, and is wrong.
+
+The shape to watch for is a one-line trait method:
+`insertable(::Type{MyType}) = false` reads as an extension of
+`DomainModule.insertable` and is not one unless the name is imported or the
+definition is qualified.
+
+Three guards hold the rule up:
+
+- `shadowed_extension_violations` (`test/suite/naming.jl`) reports a definition
+  of a name that a module this one names exports, written neither imported nor
+  qualified. This is the one that catches the silent case, and it runs over the
+  whole tree on every suite.
+- `relative_import_errors` (the layering guard) keeps an import list meaning
+  what it says: no bare `import ..Xxx`, no `using ..Xxx: a, b`, and no imported
+  name that nothing extends. It runs over an opt-in `qualified_files` set that
+  grows as the sweep proceeds; when it covers every file the parameter goes.
+- `qualified_reference_errors` asserts every `XxxModule.sym` names an exported
+  symbol, because qualification bypasses the export list entirely
+  (`XxxModule._private` reaches a non-exported name with no complaint) and
+  PAR-MODULE-BOUNDARY-IS-API would otherwise hold for import headers and be
+  unenforced exactly where this rule sends the traffic.
 
 **Qualification is for cross-module extension only.** A file that is a
-*fragment of the defining module* (`reference/ReferenceStep.jl` and friends,
-which have no import header at all) defines bare — same namespace by
+*fragment of the defining module* defines bare — same namespace by
 construction, so nothing is imported and nothing is qualified. This is
-PAR-MODULE-BOUNDARY-IS-API's "fragments of one module" carve-out.
+PAR-MODULE-BOUNDARY-IS-API's "fragments of one module" carve-out, and after the
+slice collapse it covers most files: a slice's header sits in its module file
+and its definitions sit in the fragments.
 
 **A module is qualified by its real name.** A bare `using` of an alias binds
 the module the alias points at, under *that* module's name — `using
@@ -972,18 +995,7 @@ binds `BackendModule`, not `BackendApiModule`. So every backend in the repo,
 whichever alias path its package uses, registers under the same canonical
 `BackendModule.initialize_backend!`.
 
-Two guards back this, and both are needed. `qualified_reference_errors` asserts
-every `XxxModule.sym` names an exported symbol — qualification bypasses the
-export list entirely (`XxxModule._private` reaches a non-exported name with no
-complaint), so without it PAR-MODULE-BOUNDARY-IS-API would hold for import
-headers and be unenforced exactly where this rule sends the traffic. It has no
-same-layer exemption, unlike `private_import_errors`: qualification is new
-syntax, so there is no legacy to grandfather. `relative_import_errors` enforces
-the import form itself over an opt-in `qualified_files` set that grows as the
-sweep proceeds — an honest ledger of what is migrated, where a shrinking
-exemption list over ~1400 import lines would not be.
-
-Bare `using` also means every export of every used module lands in scope, so
+A bare `using` also means every export of every used module lands in scope, so
 the rule needs one precondition: **no two modules may export the same name with
 different bindings.** A *re-export* — the same binding object reached through
 several module names — is not a collision and Julia resolves it silently;
@@ -994,16 +1006,11 @@ the `nothing` leaf in visual and the `*Nothing` insertion placeholder in
 domain; the more specific concept took the qualifier
 (`InsertionNothingToSyntaxLeaf`).
 
-Migrated so far: the reference-step seam (`get_reference_step_kind`, `evaluate_reference_step`,
-`build_reference_step`, `match_reference_step`, `get_reference_step_subpath_args`) and the
-backend/device seam (`initialize_backend!`, `quit_backend!`, `measure_text`,
-`write_image`, `read_from_devices`, `write_to_devices`, …). Known remaining:
-the four projection generics (`print_document`, `read_intent`,
-`map_reference_forward`, `map_reference_backward`, ~793 sites) and
-`evaluate_operation` (46), which are entangled with `@projection`/`@iomap`
-codegen and get their own sweep. A macro can emit a qualified extension by
-interpolating the *module object* (`:(function $(ReferenceModule).get_reference_step_kind(…)
-end)`), which needs no import at the call site at all.
+The sweep that brings every header to this form is
+`plan/pending/qualified-extension-sweep.md`. It is ~1400 import lines across 74
+files, of which the four projection generics (`print_document`, `read_intent`,
+`map_reference_forward`, `map_reference_backward`) and `evaluate_operation`
+account for 801 of the 902 extension sites.
 
 ### PAR-PARALLEL-TRIADS
 
