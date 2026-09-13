@@ -10,7 +10,7 @@ import ProjecturedSyntax.SyntaxToTextModule: SyntaxToText
 import ProjecturedText.TextToStringModule: TextToString
 import ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 import ProjecturedProjection.ChainingProjectionModule: ChainingProjection
-import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
+import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, execute_db_raw
 import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedKernel.IoMapModule: SimpleIoMap

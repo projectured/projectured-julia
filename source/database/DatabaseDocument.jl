@@ -1,19 +1,6 @@
-"""
-    DatabaseDocumentModule
-
-Document layer for database access. `DatabaseTable` is pure query metadata
-(no result cache); `UpdateDatabaseCellOperation` / `InsertDatabaseRowOperation` are
-the mutations the projection reader produces.
-"""
-module DatabaseDocumentModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..OperationModule: Operation
-
-export DatabaseDocument, UpdateDatabaseCellOperation, InsertDatabaseRowOperation
+# ── The database documents ────────────────────────────────────────────────────
+#
+# A table and the two edits a cell and a row accept.
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -54,5 +41,3 @@ struct InsertDatabaseRowOperation <: Operation
     table::String
     row::Dict{String,Any}
 end
-
-end # module

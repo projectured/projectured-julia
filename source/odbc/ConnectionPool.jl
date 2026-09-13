@@ -2,7 +2,7 @@ module ConnectionPoolModule
 
 import ProjecturedDatabase.DatabaseModule: connect_db!, close_db!, is_db_alive
 import ..OdbcAdapterModule: OdbcDatabaseAdapter
-import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
+import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 
 export OdbcConnectionPool, with_connection, get_dsn, close_pool!
 

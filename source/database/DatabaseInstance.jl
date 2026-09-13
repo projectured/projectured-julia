@@ -1,23 +1,7 @@
-"""
-    DatabaseInstanceDocumentModule
-
-Document layer for a *database connection specification*. A `DatabaseInstance`
-names a reachable database (database/host/port) together with the
-`DatabaseCredentials` (user/password) needed to authenticate.
-
-It carries no live connection and no adapter — it is a pure value document.
-Projections that need to talk to the database (e.g. `DatabaseInstanceToDbCatalog`,
-`SqlToCellTable`) take a connection pool as a parameter and build the actual
-ODBC DSN from this instance via `ConnectionPoolModule.get_dsn`.
-"""
-module DatabaseInstanceDocumentModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-
-export DatabaseInstanceDocument
+# ── A live database as a document ─────────────────────────────────────────────
+#
+# The connection and its catalog, held as a document so a projection can render
+# what a database contains.
 
 abstract type DatabaseInstanceDocument <: Document end
 
@@ -44,5 +28,3 @@ DatabaseCredentials(; user::AbstractString, password::AbstractString) =
     port::Int = 5432
     credentials::DatabaseCredentials
 end
-
-end # module

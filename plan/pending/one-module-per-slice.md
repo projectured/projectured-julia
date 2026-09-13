@@ -69,8 +69,25 @@ one of the 1626 cross-slice edges survives.
 Take the slices in order of what they cost, so the pattern is proven before it
 meets a hard case.
 
-1. **`database`, `plot`, `primitive`** — 3 slices, 0 internal edges. Nothing is
-   lost. Prove the shape here.
+1. **`database`, `plot`, `primitive`** — 3 slices, 0 internal edges. **DONE
+   2026-09-13.** Seven modules became three and nothing declared was lost.
+
+   What the three taught:
+
+   - **The fragment's imports do not always move up.** `plot` had to lift
+     `PlotStyle.jl`'s `import ..ColorModule` into the module header; `primitive`
+     did not, because `PrimitiveModule` already imported every name
+     `ObjectField.jl` used.
+   - **A qualified call is the bulk of the work.** 85 of `plot`'s 93 retargeted
+     references are `PlotGeometryModule.to_pixel` and its siblings in one test
+     file.
+   - **A module no grep finds can still be live.** `DatabaseDocumentModule` was
+     named nowhere, because each test package walks `names(pkg; all = true)` and
+     re-exports whatever submodules it finds. Deleting it as dead would have
+     removed `DatabaseTable` from every test silently. Its exports moved into
+     `DatabaseModule` and the suite still passes.
+   - **A slice whose module already carries the slice name is nearly free.**
+     `PrimitiveModule` was already right, so its 49 references never moved.
 2. **The 15 slices with 1 to 3 internal edges.**
 3. **The 16 slices with 4 to 9.**
 4. **The 11 slices with 10 or more**, hardest last: `graph` 39, `text` 25,

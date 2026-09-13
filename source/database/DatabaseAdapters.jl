@@ -18,6 +18,13 @@ implement the methods (e.g. the `RawDatabaseResult` target).
 """
 module DatabaseModule
 
+import ..CellModule: Cell, ComputedCell
+import ..DocumentModule: Document, @document
+import ..ReferenceModule: Reference
+import ..OperationModule: Operation
+
+export DatabaseDocument, UpdateDatabaseCellOperation, InsertDatabaseRowOperation
+export DatabaseInstanceDocument
 export DatabaseAdapter,
        RawDatabaseResult,
        make_database_adapter,
@@ -153,5 +160,8 @@ function Base.show(io::IO, r::RawDatabaseResult)
         println(io, join(string.(row), "\t"))
     end
 end
+
+include("DatabaseInstance.jl")
+include("DatabaseDocument.jl")
 
 end # module
