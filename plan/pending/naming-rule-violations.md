@@ -971,7 +971,7 @@ needed for them: `reference/ReferenceStep.jl`, `reference/ReferenceSyntax.jl`,
 
 `PAR-NAMING-LAW` is part of the audit that a file passes before it is sealed, so
 `SelectionMismatch` means the audit of that file missed the rule. Re-audit the
-file after the fix and keep the `🔒` mark, as CLAUDE.md directs.
+file after the fix and keep the `🔒` mark, as SEALING.md directs.
 
 
 ## 13. The three rulings

@@ -121,7 +121,7 @@ section of the file you are reading; cite any other file by name.
 | Folder | What it holds |
 | --- | --- |
 | [plan/pending/](../plan/pending/) and [plan/done/](../plan/done/) | The design and implementation plans. A done plan is a step of the history. |
-| [../CLAUDE.md](../CLAUDE.md) | Which kernel files are sealed, and the audit before a seal. |
+| [../SEALING.md](../SEALING.md) | Which kernel files are sealed, and the audit before a seal. |
 | [asset/](../asset/) | Fonts, the reference screenshots the examples are checked against, the web client, and the precompile recording. |
 
 ## Where to start

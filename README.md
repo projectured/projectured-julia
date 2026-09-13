@@ -378,6 +378,8 @@ code style, and how to add a new domain.
 
 If you are an AI assistant working in this repo, also read [CLAUDE.md](CLAUDE.md);
 it points at the same guides with a framing tuned for non-trivial changes.
+[SEALING.md](SEALING.md) says which files are sealed, and a sealed file must not
+be changed without permission.
 
 ## Licence
 
