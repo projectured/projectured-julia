@@ -6,6 +6,21 @@
 > [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
 > (`PAR-NAMING-LAW`, `PAR-MODULE-BOUNDARY-IS-API`)
 
+## 0. Where this stands
+
+**The collapse is done.** Sixty of the sixty-two slices declare one module.
+The two that do not are `graph` and `text`, which §4.2 records as slices to
+divide rather than to fold. `source/` holds 107 modules, 29 of them the
+kernel's, where it held 45 multi-module slices when this plan was written.
+
+Three items are open:
+
+- **§4.1**, the split of `ClipboardToAny.jl` into one file per projection
+  stem, which this plan unblocked but did not do.
+- **§5.3**, what replaces the intra-slice guard.
+- **§5.4**, the namespace size, which only `text` raises and `text` is not
+  folded.
+
 ## 1. The decision
 
 The user decided on 2026-09-12: **a module is one unit of architecture, never one
