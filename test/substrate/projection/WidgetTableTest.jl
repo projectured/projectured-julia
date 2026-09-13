@@ -107,7 +107,7 @@ end # function
 
 # A table's header strips stay put while its body scrolls.
 #
-# The pane freezes and the content declares: `frozen_extent` answers the extent of
+# The pane freezes and the content declares: `get_frozen_extent` answers the extent of
 # the strips, and the pane draws four regions instead of one. A pane over any
 # other content answers `nothing` and stays the single viewport it has always
 # been.

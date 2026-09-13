@@ -1,11 +1,11 @@
-# Anchor resolution: `anchor_point` reuses `map_reference_forward` to resolve a
+# Anchor resolution: `get_anchor_point` reuses `map_reference_forward` to resolve a
 # document reference to the anchor widget's absolute graphics position. The forward
 # image of a positioned widget is a `PointReferenceStep`; each container shifts only a
 # coordinate result by where it placed the child (paths stay paths). Self-contained
 # per projection, so widgets nest in any container and vice versa. Ground truth is
 # walked directly from the output canvas tree.
 function test_anchor_point()
-@testset "anchor_point (forward-map to graphics coords)" begin
+@testset "get_anchor_point (forward-map to graphics coords)" begin
 
 # Symbols resolve from the enclosing `ProjecturedTest` module's `using Projectured`
 # / `using ProjecturedExample`; `Cell` is referenced fully-qualified.
@@ -40,10 +40,10 @@ field(name) = (FieldReferenceStep(name),)
     for i in 1:3
         # Output: layout canvas -> wrapper(i) -> button canvas, i.e. elements[i]/elements[1].
         truth = abs_top_left(iomap.output, (i, 1))
-        @test anchor_point(iomap, cref(child(i)...)) == truth
+        @test get_anchor_point(iomap, cref(child(i)...)) == truth
     end
     # An unresolvable reference yields nothing.
-    @test anchor_point(iomap, cref(child(9)...)) === nothing
+    @test get_anchor_point(iomap, cref(child(9)...)) === nothing
 end
 
 @testset "buttons in a WidgetComposite" begin
@@ -51,7 +51,7 @@ end
     iomap = print_document(proj, doc)
     for i in 1:2
         truth = abs_top_left(iomap.output, (i, 1))
-        @test anchor_point(iomap, cref(elem(i)...)) == truth
+        @test get_anchor_point(iomap, cref(elem(i)...)) == truth
     end
 end
 
@@ -61,9 +61,9 @@ end
     iomap = print_document(proj, doc)
     # children[1] = composite: layout-wrapper -> composite canvas -> composite-wrapper -> button.
     truth1 = abs_top_left(iomap.output, (1, 1, 1, 1))
-    @test anchor_point(iomap, cref(child(1)..., elem(1)...)) == truth1
+    @test get_anchor_point(iomap, cref(child(1)..., elem(1)...)) == truth1
     truth2 = abs_top_left(iomap.output, (1, 1, 2, 1))
-    @test anchor_point(iomap, cref(child(1)..., elem(2)...)) == truth2
+    @test get_anchor_point(iomap, cref(child(1)..., elem(2)...)) == truth2
 end
 
 # Step 4c: a horizontal WidgetMenu lays items left-to-right and forward-maps each
@@ -77,12 +77,12 @@ end
     for i in 1:3
         # menu canvas -> item wrapper(i) -> item canvas: elements[i]/elements[1].
         truth = abs_top_left(iomap.output, (i, 1))
-        @test anchor_point(iomap, cref(elem(i)...)) == truth
+        @test get_anchor_point(iomap, cref(elem(i)...)) == truth
         push!(xs, truth[1]); push!(ys, truth[2])
     end
     @test xs[1] < xs[2] < xs[3]      # laid out left-to-right
     @test ys[1] == ys[2] == ys[3]    # on a single row
-    @test anchor_point(iomap, cref(elem(9)...)) === nothing
+    @test get_anchor_point(iomap, cref(elem(9)...)) === nothing
 end
 
 # Step 4c: the same entry resolves through a WidgetShell whose `menu_bar` is the
@@ -98,7 +98,7 @@ end
     # menu_bar-wrapper(2) -> menu canvas(1) -> item wrapper(i) -> item canvas(1).
     for i in 1:3
         truth = abs_top_left(iomap.output, (2, 1, i, 1))
-        @test anchor_point(iomap, cref(field("menu_bar")..., elem(i)...)) == truth
+        @test get_anchor_point(iomap, cref(field("menu_bar")..., elem(i)...)) == truth
     end
 end
 

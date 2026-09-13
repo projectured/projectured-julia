@@ -40,14 +40,14 @@ end
     # printing). It is NOT a write to a private index field.
     pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, ModifierKeys()))           # row 2
     @test pick2 isa ReplaceSelectionOperation
-    @test pick2.path == widget_list_selection(2)
+    @test pick2.path == make_widget_list_selection(2)
     @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false)).path ==
-          widget_list_selection(2)                                                         # 1 → 2
+          make_widget_list_selection(2)                                                         # 1 → 2
     @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false)).path ==
-          widget_list_selection(1)                                                         # 1 → 1 (floor)
-    # `selected=` sugar and `widget_list_selected` are inverses; 0 = none.
-    @test widget_list_selected(l) == 1
-    @test widget_list_selected(WidgetList(Point2D(0, 0), ["Alpha", "Beta"])) == 0
+          make_widget_list_selection(1)                                                         # 1 → 1 (floor)
+    # `selected=` sugar and `get_widget_list_selected` are inverses; 0 = none.
+    @test get_widget_list_selected(l) == 1
+    @test get_widget_list_selected(WidgetList(Point2D(0, 0), ["Alpha", "Beta"])) == 0
     # An empty list is inert.
     @test read_intent(proj, print_document(proj, WidgetList(Point2D(0, 0), String[])),
                           MousePress(:left, 2, 2, ModifierKeys())) === nothing
@@ -103,15 +103,15 @@ end
                       MousePress(:left, 4, 4, ModifierKeys())) === nothing
 end
 
-@testset "numeric_validator accepts digits, rejects letters" begin
-    v = numeric_validator()
+@testset "make_numeric_validator accepts digits, rejects letters" begin
+    v = make_numeric_validator()
     @test v("123") === true
     @test v("") === true            # a deletion
     @test v("12") === true
     @test v("a") === false
     @test v("1a") === false
-    @test numeric_validator()(".") === true        # decimal allowed by default
-    @test numeric_validator(; integer=true)(".") === false
+    @test make_numeric_validator()(".") === true        # decimal allowed by default
+    @test make_numeric_validator(; integer=true)(".") === false
     # The field carries the validator.
     t = WidgetText(Point2D(0, 0), "x"; validator=v)
     @test t.validator === v

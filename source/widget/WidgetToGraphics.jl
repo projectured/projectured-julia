@@ -42,17 +42,17 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
                        WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
                        WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
-                       WidgetSpinBox, WidgetList, widget_list_selection, widget_list_selected,
+                       WidgetSpinBox, WidgetList, make_widget_list_selection, get_widget_list_selected,
                        resolve_toggle_group_write, resolve_slider_write,
                        WidgetTable, WidgetTree, WidgetTreeNode,
                        WidgetLazyTable, get_lazy_table_cell,
                        get_lazy_table_column_names, get_lazy_table_column_widths,
-                       widget_lazy_table_row_selection,
+                       make_widget_lazy_table_row_selection,
                        Inset, Point2D, inset_default,
                        SelectTabOperation, CloseTabOperation,
                        OpenTabOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-                       Action, InvokeActionOperation, action_shortcut_matches
+                       Action, InvokeActionOperation, matches_action_shortcut
 import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
 import ..ImageModule: ImageDocument
@@ -94,20 +94,20 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
        WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
        WidgetHighlightToGraphicsCanvas,
-       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, frozen_extent,
+       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, get_frozen_extent,
        WidgetLazyTableToGraphicsCanvas, WidgetLazyTableToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, widget_theme_light, widget_theme_dark,
-       widget_theme_slate_light, widget_theme_slate_dark,
+       WidgetToGraphics, WidgetTheme, make_light_theme, make_dark_theme,
+       make_slate_light_theme, make_slate_dark_theme,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
        WidgetSliderToGraphicsCanvasIoMap,
        WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
-       anchor_point,
-       register_icon!, glyph_icon, image_icon
+       get_anchor_point,
+       register_icon!, make_glyph_icon, make_image_icon
 
 # ── Anchor resolution ──────────────────────────────────────────────
 #
@@ -117,7 +117,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
 # of a positioned widget is a `PointReferenceStep` in the root output's frame; add the
 # root canvas's own origin to land in window-content coordinates. The trigger
 # bakes any size-relative offset (e.g. "below the box") into the open op itself.
-function anchor_point(iomap, reference)
+function get_anchor_point(iomap, reference)
     img = map_reference_forward(iomap.projection, iomap, reference)
     img isa PointReferenceStep || return nothing
     out = iomap.output
@@ -149,8 +149,8 @@ factory, not a bigger theme. The fields:
 
 Spacing tokens are *logical* pixels scaled at render time via `_sc`. They are
 palette-independent, so both presets share them via [`_widget_theme`](@ref);
-only colors and fonts differ. See [`widget_theme_light`](@ref) /
-[`widget_theme_dark`](@ref).
+only colors and fonts differ. See [`make_light_theme`](@ref) /
+[`make_dark_theme`](@ref).
 """
 struct WidgetTheme
     # ── Palette ──
@@ -229,13 +229,13 @@ function _widget_theme(; background, foreground, card, card_foreground, popover,
 end
 
 """
-    widget_theme_light(; font=font_ubuntu_regular_20) -> WidgetTheme
+    make_light_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The neutral zinc light theme (a neutral zinc palette on a white background).
 Kept as an alternative; the expressed slate/indigo theme is the default — see
-[`widget_theme_slate_light`](@ref).
+[`make_slate_light_theme`](@ref).
 """
-function widget_theme_light(; font::StyleFont=font_ubuntu_regular_20)
+function make_light_theme(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_white,       foreground=color_zinc_950,
         card=color_white,             card_foreground=color_zinc_950,
@@ -251,13 +251,13 @@ function widget_theme_light(; font::StyleFont=font_ubuntu_regular_20)
 end
 
 """
-    widget_theme_dark(; font=font_ubuntu_regular_20) -> WidgetTheme
+    make_dark_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The neutral zinc dark theme (zinc-950 surfaces). Ships alongside the light
 default; the editor chrome can opt in. For the expressed slate/indigo variant
-see [`widget_theme_slate_dark`](@ref).
+see [`make_slate_dark_theme`](@ref).
 """
-function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_20)
+function make_dark_theme(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_zinc_950,    foreground=color_zinc_50,
         card=color_zinc_900,          card_foreground=color_zinc_50,
@@ -273,12 +273,12 @@ function widget_theme_dark(; font::StyleFont=font_ubuntu_regular_20)
 end
 
 """
-    widget_theme_slate_light(; font=font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_light_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The default light theme: a cool slate palette with an indigo accent, on tinted
 (non-white) surfaces so the colors read as expressed rather than washed out.
 """
-function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_20)
+function make_slate_light_theme(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_slate_100,    foreground=color_slate_950,
         card=color_slate_50,           card_foreground=color_slate_950,
@@ -294,12 +294,12 @@ function widget_theme_slate_light(; font::StyleFont=font_ubuntu_regular_20)
 end
 
 """
-    widget_theme_slate_dark(; font=font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_dark_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
 
 The expressed dark theme: deep slate surfaces with a bright indigo accent, the
-dark counterpart to [`widget_theme_slate_light`](@ref).
+dark counterpart to [`make_slate_light_theme`](@ref).
 """
-function widget_theme_slate_dark(; font::StyleFont=font_ubuntu_regular_20)
+function make_slate_dark_theme(; font::StyleFont=font_ubuntu_regular_20)
     _widget_theme(
         background=color_slate_950,    foreground=color_slate_50,
         card=color_slate_900,          card_foreground=color_slate_50,
@@ -2215,7 +2215,7 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     # Ctrl+S works regardless of which widget is selected.
     if evt isa KeyDown
         for action in _shell_shortcut_actions(iomap.input)
-            action_shortcut_matches(action, evt) && return InvokeActionOperation(action)
+            matches_action_shortcut(action, evt) && return InvokeActionOperation(action)
         end
     end
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3373,7 +3373,7 @@ end
 # field and the widths are the caller's.
 #
 # The header is the FIRST node of that same list, not a sibling element — a
-# canvas holds a vector or a list, never both. `frozen_extent` then names its
+# canvas holds a vector or a list, never both. `get_frozen_extent` then names its
 # height, and an enclosing `WidgetScrollPane` holds exactly that prefix still.
 
 @projection struct WidgetLazyTableToGraphicsCanvas
@@ -3392,8 +3392,8 @@ end
 end
 
 # What this table holds still: the header, and nothing on the other axis. The
-# pane freezes and the content declares — see `frozen_extent`.
-frozen_extent(iomap::WidgetLazyTableToGraphicsCanvasIoMap) =
+# pane freezes and the content declares — see `get_frozen_extent`.
+get_frozen_extent(iomap::WidgetLazyTableToGraphicsCanvasIoMap) =
     ComputedCell(function ()
         w = iomap.input
         (0, w.header ? Int(w.row_height) : 0)
@@ -3491,7 +3491,7 @@ function read_intent(p::WidgetLazyTableToGraphicsCanvas,
     band = event.y ÷ height
     row = w.header ? band : band + 1
     (1 <= row <= Int(w.row_count)) || return nothing
-    ReplaceSelectionOperation(widget_lazy_table_row_selection(row))
+    ReplaceSelectionOperation(make_widget_lazy_table_row_selection(row))
 end
 
 map_reference_forward(::WidgetLazyTableToGraphicsCanvas, iomap, reference) = nothing
@@ -3500,7 +3500,7 @@ map_reference_backward(::WidgetLazyTableToGraphicsCanvas, iomap, reference) = no
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
 """
-    frozen_extent(iomap) -> Cell of `(fx, fy)`, or `nothing`
+    get_frozen_extent(iomap) -> Cell of `(fx, fy)`, or `nothing`
 
 How many pixels of a printed content do **not** scroll: a prefix on each axis
 that an enclosing `WidgetScrollPane` holds still while the rest travels.
@@ -3515,7 +3515,7 @@ and a pane around it would scroll a thing that scrolls; every wheel and drag
 already reaches the pane. And a prefix is not about tables: a sequence chart, a
 spreadsheet and a log with a fixed first line all want one.
 """
-frozen_extent(::Any) = nothing
+get_frozen_extent(::Any) = nothing
 
 # One region of a pane that holds a prefix of its content still.
 #
@@ -3619,7 +3619,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # A content that holds a prefix of itself still is drawn in four regions;
         # every other content is the one viewport it has always been, and pays
         # nothing for a feature it does not use.
-        frozen = frozen_extent(content_iomap)
+        frozen = get_frozen_extent(content_iomap)
         if frozen === nothing
             push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
                                           vw_cell, vh_cell,
@@ -4964,7 +4964,7 @@ end
 # widget printers ask the registry to draw an icon at the label's color + size
 # (tinting like text), never branching on the backing. v1 ships a built-in vector
 # set (tinted `GraphicsPolyline`/`Line`/`Circle`/`Polygon`); a glyph-font or raster
-# icon drops in by name via `glyph_icon` / `image_icon` with no widget-code change.
+# icon drops in by name via `make_glyph_icon` / `make_image_icon` with no widget-code change.
 
 const ICON_REGISTRY = Dict{Symbol,Function}()
 
@@ -4993,13 +4993,13 @@ icon_width(name, size::Int) = (name !== nothing && haskey(ICON_REGISTRY, name)) 
 
 # A glyph-font icon: render a codepoint as text in an icon font (tintable, scales).
 # (No icon font is bundled yet; use any `StyleFont` whose glyph the backend has.)
-glyph_icon(font::StyleFont, codepoint) =
+make_glyph_icon(font::StyleFont, codepoint) =
     (elems, x, y, size, color) -> begin
         push!(elems, GraphicsText(string(codepoint), x, y, font, color))
     end
 
 # A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).
-image_icon(image::ImageDocument) =
+make_image_icon(image::ImageDocument) =
     (elems, x, y, size, color) -> begin
         data, _, _ = _image_payload(image)
         data === nothing || push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(size), Int32(size), data))
@@ -5548,7 +5548,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         end
         control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
         control_height = _resolve_height(ctx, 0, max(row_height, n * row_height))
-        sel = widget_list_selected(w)
+        sel = get_widget_list_selected(w)
         hov = w.enabled === false ? 0 : w.hovered
         elements = Any[]
         _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
@@ -5585,12 +5585,12 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     (w.enabled === false) && return nothing
     n = length(collect(w.items))
     n == 0 && return nothing
-    sel = widget_list_selected(w)
+    sel = get_widget_list_selected(w)
     # Selection is a selection: like every other widget, the reader reports it as
     # a ReplaceSelectionOperation carrying a reference (`items[i-1:i]`), not as a
     # write to a private index field. That is what lets an enclosing projection
     # map the reference into its own domain (and map it back when printing).
-    pick(r) = ReplaceSelectionOperation(widget_list_selection(r))
+    pick(r) = ReplaceSelectionOperation(make_widget_list_selection(r))
     row_at(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? r : 0)
     click_row(yy) = (r = row_at(yy); r == 0 ? nothing : pick(r))
     # Hover is per ROW, so it follows motion rather than the shared enter/leave
@@ -5779,7 +5779,7 @@ end
 # with no strip. `col_x` and `row_y` are the cumulative edges the geometry
 # already computes, in the table's own outer coordinates — which is the space a
 # pane places its content in — so `col_x[2]` IS the width of the row-header strip.
-frozen_extent(iomap::WidgetTableToGraphicsCanvasIoMap) =
+get_frozen_extent(iomap::WidgetTableToGraphicsCanvasIoMap) =
     ComputedCell(function ()
         g = iomap.geometry
         fx = (g.has_row_headers && length(g.col_x) >= 2) ? g.col_x[2] : 0
@@ -6844,16 +6844,16 @@ end
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
-    WidgetToGraphics(font; measure, theme=widget_theme_slate_light(font=font))
+    WidgetToGraphics(font; measure, theme=make_slate_light_theme(font=font))
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure(text, font) -> (width, height)` is
 used for all text sizing. The `theme` ([`WidgetTheme`](@ref)) is the single
 source of truth for colors, radius, and spacing. Defaults to the expressed
-slate/indigo light theme; the neutral zinc theme is `widget_theme_light`.
+slate/indigo light theme; the neutral zinc theme is `make_light_theme`.
 """
 function WidgetToGraphics(font::StyleFont; measure::Function,
-                          theme::WidgetTheme=widget_theme_slate_light(font=font))
+                          theme::WidgetTheme=make_slate_light_theme(font=font))
     # Wrapped measure for the `@projection`-based widget projections, which store
     # their fields in Cells (a bare Function would be read as a thunk).
     measurer = TextMeasurer(measure)

@@ -54,7 +54,7 @@ end
 end
 
 @testset "a glyph-font icon registers and renders as text (pluggable backing)" begin
-    register_icon!(:test_glyph_A, glyph_icon(font_ubuntu_regular_20, 'A'))
+    register_icon!(:test_glyph_A, make_glyph_icon(font_ubuntu_regular_20, 'A'))
     b = _btn(icon = :test_glyph_A)
     @test "A" in [string(t.text) for t in _prims_of(b, GraphicsText)]
 end

@@ -9,7 +9,7 @@ cannot; it only knows local coordinates).
 
 When a trigger (e.g. a `WidgetSelect`) emits an `OpenPopupOperation` carrying an
 `anchor` reference + an offset, this seam resolves the anchor to the widget's
-absolute position via [`anchor_point`] (which rides `map_reference_forward`),
+absolute position via [`get_anchor_point`] (which rides `map_reference_forward`),
 adds the offset, and emits an `OpenWindowOperation` at that position. That op then
 bubbles up to `WindowManagingProjection`, which opens the popup window — the same
 window route the tooltip already uses.
@@ -26,7 +26,7 @@ import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
-import ..WidgetToGraphicsModule: anchor_point
+import ..WidgetToGraphicsModule: get_anchor_point
 
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 
@@ -65,7 +65,7 @@ function read_intent(p::WidgetPopupResolverProjection, recursion, change::Intent
     res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
     op = res isa Intent ? res.operation : res
     op isa OpenPopupOperation || return res isa Intent ? res : Intent(change.gesture, op)
-    pt = anchor_point(iomap.child_iomap, op.anchor)
+    pt = get_anchor_point(iomap.child_iomap, op.anchor)
     # Anchor unresolved (the trigger's reference has no graphics image): drop the
     # open rather than place the popup at a wrong (0,0).
     pt === nothing && return Intent(change.gesture, nothing)

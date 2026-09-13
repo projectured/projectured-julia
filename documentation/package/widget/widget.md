@@ -103,11 +103,11 @@ Widget look & feel is driven by a single `WidgetTheme` token object (a neutral
 zinc palette: `background`, `foreground`, `card`, `muted`, `primary`,
 `destructive`, `border`, `input`, `ring`, `radius`, …). It is the source of
 truth — individual widgets should not carry their own colors. Two presets ship:
-`widget_theme_light()` (the default) and `widget_theme_dark()`. Pass one to the
+`make_light_theme()` (the default) and `make_dark_theme()`. Pass one to the
 projection factory:
 
 ```julia
-WidgetToGraphics(font; measure=sdl_measure_text, theme=widget_theme_dark())
+WidgetToGraphics(font; measure=sdl_measure_text, theme=make_dark_theme())
 ```
 
 The renderer leans on graphics primitives that anti-alias cleanly: `GraphicsRect`
@@ -185,7 +185,7 @@ shows them together.
   field with up/down steppers (the `:plus` / `:minus` icons). A click on a stepper
   emits `ReplaceReferencedValueOperation(spin, "value", clamp(value ± step, min, max))`;
   `Up`/`Down` do the same from the keyboard. The default `validator` is
-  `numeric_validator()`, so typing only commits numeric text. Disabled is inert.
+  `make_numeric_validator()`, so typing only commits numeric text. Disabled is inert.
 - **`WidgetList(pos, items; selected, width)`** — a first-class single-column
   selectable list (the sanctioned `QListWidget`; previously expressible only as a
   one-column table). A left click selects the hit row (drawing the accent
@@ -209,7 +209,7 @@ shows them together.
   `WidgetSpinBox`), consulted by the editable-text reader before a
   `ReplaceStringRangeOperation` commits: an **acceptor** `(String) -> Bool` drops
   the edit when it returns `false`. `nothing` (the default) imposes no constraint.
-  The built-in `numeric_validator(; integer=false, allow_negative=true)` accepts
+  The built-in `make_numeric_validator(; integer=false, allow_negative=true)` accepts
   digits with an optional sign / decimal point.
 
 ## A form of object fields
@@ -494,7 +494,7 @@ there is no separate in-window overlay layer. The flow:
 2. A **`WidgetPopupResolverProjection`** sits at the content root (for a windowed
    app, *between* `WindowManagingProjection` and `ScreenToScreen`). It intercepts
    the `OpenPopupOperation`, forward-maps the anchor to absolute coordinates via
-   `anchor_point` (which rides `map_reference_forward`), adds the offset, and
+   `get_anchor_point` (which rides `map_reference_forward`), adds the offset, and
    emits an **`OpenWindowOperation`**. That bubbles up to `WindowManager`, which
    opens the popup window (`style = :floating`).
 3. **Dismissal** is a window-level event: the popup window's
@@ -591,8 +591,8 @@ three backings coexist:
 | Backing | Emits | Tints / scales |
 |---|---|---|
 | **Vector** (built-in set) | `GraphicsPolyline` / `Circle` / `Polygon` | ✅ — generalises the chevron drawer |
-| **Glyph-font** (`glyph_icon(font, codepoint)`) | `GraphicsText` | ✅ — needs a bundled icon font |
-| **Raster** (`image_icon(image)`) | `GraphicsImage` | ❌ — for brand art |
+| **Glyph-font** (`make_glyph_icon(font, codepoint)`) | `GraphicsText` | ✅ — needs a bundled icon font |
+| **Raster** (`make_image_icon(image)`) | `GraphicsImage` | ❌ — for brand art |
 
 - **Built-in vector names** (v1): `:save :folder :file :check :x/:close :plus
   :minus :chevron_down :chevron_right :menu :pencil/:edit :trash/:delete :search`.
@@ -600,7 +600,7 @@ three backings coexist:
   `:play :pause :stop :step_forward/:step :finish` — play triangle, pause bars,
   stop square, step triangle + bar, checkered finish flag.
 - **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
-  or `glyph_icon` / `image_icon`. An unknown name draws nothing (zero width).
+  or `make_glyph_icon` / `make_image_icon`. An unknown name draws nothing (zero width).
 - **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,
   drawn left of the label, tinted to its foreground. It is constructor sugar: the
   icon lives on the control's `Action` (`action.icon`), which is how a menu item
@@ -656,7 +656,7 @@ stays in the backend (`decode_image_file!`); the domain-layer printer only
 
 ## Projection to graphics
 
-`WidgetToGraphics(font; measure=sdl_measure_text, theme=widget_theme_light())`
+`WidgetToGraphics(font; measure=sdl_measure_text, theme=make_light_theme())`
 is the convenience factory that returns
 
 ```julia

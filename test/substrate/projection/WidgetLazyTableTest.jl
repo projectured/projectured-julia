@@ -69,14 +69,14 @@ end
     table, _ = _table(50)
     io = print_document(RecursiveProjection(TypeDispatchingProjection(
              _projection().dispatch)), table)
-    extent = frozen_extent(io)
+    extent = get_frozen_extent(io)
     @test extent !== nothing
     @test extent[] == (0, 20)
 
     bare, _ = _table(50; header = false)
     bare_io = print_document(RecursiveProjection(TypeDispatchingProjection(
                   _projection().dispatch)), bare)
-    @test frozen_extent(bare_io)[] == (0, 0)
+    @test get_frozen_extent(bare_io)[] == (0, 0)
     # With no header the first node is row 1, so the table is one band shorter.
     @test Int(bare_io.output.h) == 50 * 20
 end
@@ -89,7 +89,7 @@ end
     @test read_intent(io.projection, io, MousePress(:left, 10, 5, ModifierKeys())) === nothing
     # Band 1 is row 1.
     first_row = read_intent(io.projection, io, MousePress(:left, 10, 25, ModifierKeys()))
-    @test widget_lazy_table_selected_row(
+    @test get_widget_lazy_table_selected_row(
         WidgetLazyTable(Point2D(0, 0), [("ID", 80)], 1, 20, (r, c) -> "";
                         header = true)) == 0
     @test first_row isa ReplaceSelectionOperation

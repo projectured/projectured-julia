@@ -32,16 +32,16 @@ import ..GeometryModule: Inset, Point2D, inset_default,
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
        DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-       EndSplitterDragOperation, Shortcut, action_shortcut_matches,
-       InvokeActionOperation, as_action,
+       EndSplitterDragOperation, Shortcut, matches_action_shortcut,
+       InvokeActionOperation, resolve_action,
        WidgetLazyTable, get_lazy_table_cell, get_lazy_table_column_names,
-       get_lazy_table_column_widths, widget_lazy_table_row_selection,
-       widget_lazy_table_selected_row,
-       numeric_validator, evaluate_operation, inset_default, inset_size,
+       get_lazy_table_column_widths, make_widget_lazy_table_row_selection,
+       get_widget_lazy_table_selected_row,
+       make_numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!, widget_pager, widget_filter_bar, widget_column_chooser,
-       widget_list_selection, widget_list_selected,
-       widget_table_row_selection, widget_table_selected_row,
+       inset_bottom_right, set_cell_function!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
+       make_widget_list_selection, get_widget_list_selected,
+       make_widget_table_row_selection, get_widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
 
 # ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
@@ -164,7 +164,7 @@ end
 set_cell_function!(w::WidgetText, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
 
 """
-    numeric_validator(; integer=false, allow_negative=true) -> (String) -> Bool
+    make_numeric_validator(; integer=false, allow_negative=true) -> (String) -> Bool
 
 A text-input validator (input mask, Stage 6): accepts an inserted edit string
 made only of digits — plus, when allowed, `-` (sign) and `.` (decimal point). An
@@ -172,7 +172,7 @@ empty string (a deletion) is always accepted. Used by `WidgetSpinBox`; pass it
 to `WidgetText(...; validator=…)` for a numeric field. A validator is any
 `(String) -> Bool` acceptor; the editable reader drops an edit it rejects.
 """
-function numeric_validator(; integer::Bool=false, allow_negative::Bool=true)
+function make_numeric_validator(; integer::Bool=false, allow_negative::Bool=true)
     function (s::AbstractString)
         isempty(s) && return true
         for c in s
@@ -188,7 +188,7 @@ end
 
 """
     WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=0,
-                  validator=numeric_validator(), <enabled/visible>)
+                  validator=make_numeric_validator(), <enabled/visible>)
 
 A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that add
 / subtract `step`, clamped to `[min, max]` (a `nothing` bound is unbounded). The
@@ -208,7 +208,7 @@ end
 
 function WidgetSpinBox(position::Point2D, value;
                        min=nothing, max=nothing, step=1, width::Integer=0,
-                       validator=numeric_validator(),
+                       validator=make_numeric_validator(),
                        visible::Bool=true, enabled::Bool=true)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
                   Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled), Cell(nothing))
@@ -234,7 +234,7 @@ Selection lives in the standard macro-injected `selection` field, as a reference
 so a reader returns a `ReplaceSelectionOperation` like every other widget and an
 enclosing projection can map the reference across domains. The `selected`
 keyword is 1-based sugar (`0` = none) that builds that reference; read the
-selection back with [`widget_list_selected`](@ref).
+selection back with [`get_widget_list_selected`](@ref).
 """
 @document struct WidgetList <: WidgetDocument
     position::Point2D
@@ -266,22 +266,22 @@ function _widget_element_selected(sel, field::AbstractString)
 end
 
 # The canonical selection reference for row `i` (1-based); `nothing` for none.
-widget_list_selection(i::Integer) = _widget_element_selection("items", i)
+make_widget_list_selection(i::Integer) = _widget_element_selection("items", i)
 
 """
-    widget_list_selected(list) -> Int
+    get_widget_list_selected(list) -> Int
 
 The selected row of a [`WidgetList`](@ref) as a 1-based index, or `0` when
 nothing is selected. The inverse of the `selected` construction keyword.
 """
-widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, "items")
+get_widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, "items")
 
 function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=0,
                     visible::Bool=true, enabled::Bool=true)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
                Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0),
-               Cell(widget_list_selection(selected)))
+               Cell(make_widget_list_selection(selected)))
 end
 
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────
@@ -408,7 +408,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # `content` and `icon` are constructor sugar, not fields: they fold into the
     # button's `Action`, which is the single home of what the command is.
     WidgetButton(Cell(position), Cell(size),
-                 Cell(as_action(content, icon, action)), Cell(gestures),
+                 Cell(resolve_action(content, icon, action)), Cell(gestures),
                  Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
@@ -680,7 +680,7 @@ function WidgetMenuItem(content;
                         padding_color=nothing)
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
-    WidgetMenuItem(Cell(as_action(content, icon, action)), Cell(gestures), Cell(submenu),
+    WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
@@ -766,7 +766,7 @@ set_cell_function!(w::WidgetToolbar, f::Function) =
     (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 """
-    widget_pager(; from, total, page, move, button_size) -> WidgetToolbar
+    make_pager_widget(; from, total, page, move, button_size) -> WidgetToolbar
 
 The strip that moves a WINDOW over a longer sequence: first, previous, next,
 last, and a line saying where the reader is.
@@ -796,7 +796,7 @@ knows how many rows it has and which it is showing, and this asks:
 Both `from` and `total` are read as functions rather than taken as numbers, so
 the label follows a sequence that grows while the reader watches it.
 """
-function widget_pager(; from, total, page::Integer, move,
+function make_pager_widget(; from, total, page::Integer, move,
                         button_size::Point2D = Point2D(34, 24))
     rows_a_page = max(1, Int(page))
     # The first row of the LAST window. A sequence shorter than one window has
@@ -827,12 +827,12 @@ function widget_pager(; from, total, page::Integer, move,
 end
 
 """
-    widget_filter_bar(; text, place, regex, apply, width) -> WidgetToolbar
+    make_filter_bar_widget(; text, place, regex, apply, width) -> WidgetToolbar
 
 The strip a reader types a filter into: a text box, a place box, and a switch
 that says whether the text is a regular expression.
 
-Beside `widget_pager` and for the same reason. Narrowing a long list is not a
+Beside `make_pager_widget` and for the same reason. Narrowing a long list is not a
 property of any one list — a log, a packet table, a module tree and a result set
 all want it — and a filter each of them grew separately is a filter that means
 something slightly different in each.
@@ -849,7 +849,7 @@ What it does NOT do is decide what the terms mean. A place is a place to
 whatever holds the records, and a regular expression is compiled by the thing
 that runs it, once, rather than here per keystroke.
 """
-function widget_filter_bar(; text, place, regex, apply,
+function make_filter_bar_widget(; text, place, regex, apply,
                              button_size::Point2D = Point2D(60, 24))
     # The boxes own what is typed into them. They are NOT derived from the
     # filter: a cell with a function behind it recomputes, and a box that
@@ -874,12 +874,12 @@ function widget_filter_bar(; text, place, regex, apply,
 end
 
 """
-    widget_column_chooser(; columns, is_shown, choose) -> WidgetToolbar
+    make_column_chooser_widget(; columns, is_shown, choose) -> WidgetToolbar
 
 Which columns a table shows: one switch per column, pressed when it is shown.
 
-The third of the strips a long table wants, beside `widget_pager` and
-`widget_filter_bar`, and here for the same reason — a table's columns are its
+The third of the strips a long table wants, beside `make_pager_widget` and
+`make_filter_bar_widget`, and here for the same reason — a table's columns are its
 own, but *choosing* them is not.
 
 - `columns` — what may be shown, as `(name, label)` pairs. The name is what the
@@ -891,7 +891,7 @@ It does not decide what happens when every column is turned off. A table that
 should keep one is the table that should say so, because which one is not a
 question this can answer.
 """
-function widget_column_chooser(; columns, is_shown, choose,
+function make_column_chooser_widget(; columns, is_shown, choose,
                                  button_size::Point2D = Point2D(92, 24))
     # Buttons and not switches, and the reason is worth stating: a `WidgetToggle`
     # owns its `pressed`, so a chooser built from toggles would hold the truth
@@ -1936,20 +1936,20 @@ get_lazy_table_column_widths(w::WidgetLazyTable) =
     Int[Int(last(column)) for column in w.columns]
 
 """
-    widget_lazy_table_row_selection(i) -> Reference
-    widget_lazy_table_selected_row(table) -> Int
+    make_widget_lazy_table_row_selection(i) -> Reference
+    get_widget_lazy_table_selected_row(table) -> Int
 
 The whole-row selection a lazy table's reader emits, and its inverse. It is
 `WidgetTable`'s own shape — `rows[i-1:i]`, 1-based — so a projection that reads
 one table's row selection reads the other's unchanged.
 """
-widget_lazy_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
-widget_lazy_table_selected_row(w::WidgetLazyTable) =
+make_widget_lazy_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
+get_widget_lazy_table_selected_row(w::WidgetLazyTable) =
     _widget_element_selected(w.selection, "rows")
 
 """
-    widget_table_row_selection(i) -> Reference
-    widget_table_selected_row(table) -> Int
+    make_widget_table_row_selection(i) -> Reference
+    get_widget_table_selected_row(table) -> Int
 
 The canonical whole-row selection for a [`WidgetTable`](@ref) (`rows[i-1:i]`,
 1-based; `0`/`nothing` = none) and its inverse — the pair a row-selecting reader
@@ -1957,8 +1957,8 @@ emits and an enclosing projection maps across domains. Row selection is what the
 table's reader produces for a click on the ROW-HEADER strip, so a table that
 wants it must be built with `row_headers`.
 """
-widget_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
-widget_table_selected_row(w::WidgetTable) = _widget_element_selected(w.selection, "rows")
+make_widget_table_row_selection(i::Integer) = _widget_element_selection("rows", i)
+get_widget_table_selected_row(w::WidgetTable) = _widget_element_selected(w.selection, "rows")
 
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
 _table_cell_doc(v::Document) = v
@@ -2247,7 +2247,7 @@ end
 # control — is folded together with the control's own `content`/`icon` into a
 # fresh `Action`, whose cells then ARE the storage: there is exactly one home
 # for the command's appearance, and the printers need no precedence rule.
-function as_action(content, icon, action)
+function resolve_action(content, icon, action)
     bound = content isa Action ? content : nothing
     behaviour = action
     if bound !== nothing
@@ -2292,7 +2292,7 @@ end
 
 # True when `evt` fires `action`'s shortcut and the action is enabled. Reuses the
 # gesture-layer `matches_event_pattern` (exact-modifier `KeyDownPattern` matching).
-action_shortcut_matches(action::Action, evt) =
+matches_action_shortcut(action::Action, evt) =
     action.shortcut !== nothing && !(action.enabled === false) && matches_event_pattern(action.shortcut, evt)
 
 """
