@@ -17,11 +17,10 @@ the walk for Tab traversal.
 """
 module FocusModule
 
-import ..CellModule: Cell
-import ..DocumentModule: Document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document
 

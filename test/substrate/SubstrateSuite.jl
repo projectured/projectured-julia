@@ -1,4 +1,16 @@
 """
+Files migrated to `PAR-QUALIFIED-EXTENSION`: bare `using ..Xxx`, and any
+extension of a sibling's generic written `Xxx.f(…) = …`. Opt-in and growing, the
+same ledger the kernel keeps. See
+`plan/pending/qualified-extension-sweep.md`. When it covers every file of a
+package the entry can go, and when it covers every package so can the parameter.
+"""
+const _QUALIFIED_FILES = Dict(
+    "ProjecturedComponent" => Set(["ComponentDocument.jl"]),
+    "ProjecturedFocus"     => Set(["Focus.jl"]),
+    "ProjecturedPlot"      => Set(["PlotGeometry.jl"]))
+
+"""
     test_substrate_layering()
 
 The static layered-architecture guard of every substrate package (see
@@ -10,7 +22,9 @@ function test_substrate_layering()
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
         main = get_package_source_root(pkg)
-        check_layering(main, pathof(pkg); name = String(nameof(pkg)))
+        name = String(nameof(pkg))
+        check_layering(main, pathof(pkg); name = name,
+                       qualified_files = get(_QUALIFIED_FILES, name, Set{String}()))
     end
 end
 

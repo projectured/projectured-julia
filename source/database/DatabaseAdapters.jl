@@ -18,10 +18,10 @@ implement the methods (e.g. the `RawDatabaseResult` target).
 """
 module DatabaseModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document, @document
-import ..ReferenceModule: Reference
-import ..OperationModule: Operation
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..OperationModule
 
 export DatabaseDocument, UpdateDatabaseCellOperation, InsertDatabaseRowOperation
 export DatabaseInstanceDocument

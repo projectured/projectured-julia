@@ -18,10 +18,9 @@ or as a standalone top-level document.
 """
 module ComponentModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
 export ComponentDocument
 
 # ── ComponentDocument (abstract base) ────────────────────────────────────────

@@ -76,6 +76,18 @@ sweep starts. They block six files, not seventy-four.
 1. **The five modules that extend nothing and sit outside `graph`** —
    `DefaultBackendModule`, `PlotModule`, `ComponentModule`, `DatabaseModule`,
    `FocusModule`. A header rewrite and a load, with no site to qualify.
+   **DONE 2026-09-13.** Fourteen import lines became twelve bare `using` lines,
+   five lines of symbol list went, and every package loads. No site needed
+   qualification, exactly as the count predicted.
+
+   Four are registered in a guard: `ProjecturedComponent`, `ProjecturedFocus`
+   and `ProjecturedPlot` in `test/substrate/SubstrateSuite.jl`, and
+   `ProjecturedDatabase` in its own suite. Regressing one line of `Focus.jl` to
+   `import` was tried, and the guard named the file, the line and the rule.
+
+   `example/projectured/DefaultBackend.jl` is migrated but not registered: the
+   example package has no layering guard to register it with. Either give it
+   one, or accept that the example tree is checked by loading alone.
 2. **The domain slices**, whose sites are almost entirely the four projection
    functions. Take them in batches, smallest first.
 3. **`SyntaxModule`, `ProjectionAlgebraModule`, `SqlModule`, `WidgetModule`**

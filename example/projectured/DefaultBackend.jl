@@ -15,7 +15,7 @@ which no package of the substrate would otherwise carry.
 module DefaultBackendModule
 
 import InteractiveUtils: subtypes
-import ..BackendModule: Backend
+using ..BackendModule
 
 export default_backend
 
