@@ -847,7 +847,10 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
     io = IOBuffer()
     println(io, "# API matches for $(repr(query))\n")
     for (_, e) in first(scored, min(limit, length(scored)))
-        doc = isempty(e.doc) ? "(no documentation)" : e.doc
+        # One line. A third-party docstring can open with four overloads run
+        # together, and eight of those bury the verb the model came for.
+        doc = isempty(e.doc) ? "(no documentation)" : first(split(e.doc, '\n'))
+        length(doc) > 160 && (doc = first(doc, 157) * "…")
         println(io, "- **$(e.kind)** `$(e.qualname)` — $doc")
         println(io, "  → read full: `$(e.locator)`")
     end

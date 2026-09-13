@@ -221,26 +221,30 @@ function register_default_tools!(set::ToolSet)
         (target, args) -> read_resource(set, String(get(args, "uri", ""))),
     ))
 
-    # The guides describe the whole editor, so a `ToolSet` that declares an API does
-    # not offer them: they would send the model to read about a surface it cannot
-    # reach. Its own modules are its documentation, and `search_api` finds them.
-    if isempty(set.api)
-        register_resource!(set, Resource(
-            "resource://guides",
-            "Documentation Guides",
-            "List all available documentation with a one-paragraph description for each guide. " *
-            "Documentation files are markdown files containing tips and tricks for using ProjecturEd.",
-            list_guides,
-        ))
-        for (guide_name, _) in _all_guides()
-            let gd_name = guide_name
-                register_resource!(set, Resource(
-                    "resource://guide/$gd_name",
-                    "Guide: $gd_name",
-                    "Full content of the $gd_name documentation guide.",
-                    () -> read_guide(gd_name),
-                ))
-            end
+    # **The guides are offered whatever the declaration says.** A declaration
+    # narrows the NAMES a model may write, and a guide is prose about how to use
+    # them — an application registers its own with `register_guide_root!`, and
+    # that is the documentation a declared surface most wants.
+    #
+    # It was once the other way: guides only when nothing was declared. But
+    # `search_documentation` went on printing `resource://guide/…` for every hit,
+    # and `read_resource` could not resolve one, so a model told to read a guide
+    # spent a round on "Resource not found". Measured 2026-09-13.
+    register_resource!(set, Resource(
+        "resource://guides",
+        "Documentation Guides",
+        "List all available documentation with a one-paragraph description for each guide. " *
+        "Documentation files are markdown files containing tips and tricks.",
+        list_guides,
+    ))
+    for (guide_name, _) in _all_guides()
+        let gd_name = guide_name
+            register_resource!(set, Resource(
+                "resource://guide/$gd_name",
+                "Guide: $gd_name",
+                "Full content of the $gd_name documentation guide.",
+                () -> read_guide(gd_name),
+            ))
         end
     end
 

@@ -357,18 +357,33 @@ function test_declared_api()
         end
     end
 
-    # The resources a declared set publishes are its own modules, and the guides
-    # are withheld: they describe the whole editor, and would send the model to
-    # read about a surface it cannot reach.
-    @testset "the resources are the declared modules, and no guides" begin
+    # The resources a declared set publishes are its own modules AND the guides.
+    #
+    # The guides were once withheld from a declared set, on the reasoning that
+    # they describe the whole editor and would send a model to read about a
+    # surface it cannot reach. That was wrong in one way and then wrong in
+    # another. `search_documentation` went on printing `resource://guide/…` for
+    # every hit it found, and `read_resource` could not resolve one, so a model
+    # told to read a guide spent a round on "Resource not found" — measured
+    # 2026-09-13. And an application registers guides of its own with
+    # `register_guide_root!`: prose about the window a declared surface belongs
+    # to, which is the documentation such a surface most wants.
+    #
+    # A declaration narrows the NAMES a model may write. It is not a reason to
+    # withhold the prose about how to write them.
+    @testset "the resources are the declared modules and the guides" begin
         set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
         uris = [r.uri for r in list_resources(set)]
         @test "resource://module/ToyApi" in uris
         @test "resource://modules" in uris
-        @test !any(u -> startswith(u, "resource://guide"), uris)
         @test occursin("ToyApi", read_resource(set, "resource://modules"))
         @test occursin("Answer the word", read_resource(set, "resource://module/ToyApi")) ||
               occursin("ToyApi", read_resource(set, "resource://module/ToyApi"))
+
+        # Every guide a search can name, a read can fetch.
+        guides = [u for u in uris if startswith(u, "resource://guide/")]
+        @test !isempty(guides)
+        @test !occursin("not found", read_resource(set, first(guides)))
 
         wide = register_default_tools!(ToolSet())
         wide_uris = [r.uri for r in list_resources(wide)]
