@@ -163,14 +163,12 @@ kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
 kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
 the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
-> Per-file paths cited in the module inventory below sometimes reflect an
-> older single-package layout; the code now lives across the four
-> packages per the mapping above. A quick reference:
-> — Collection.jl → base/main/document/Collection.jl
-> — Primitive.jl → base/main/document/Primitive.jl
-> — ScreenDocument.jl → visual/main/screen/ScreenDocument.jl
-> — Widget.jl / Graphics.jl / Layout.jl / Text.jl / Syntax.jl / Color.jl / Font.jl → visual/main/<slice>/
-> — Json.jl / Xml.jl / Sql.jl / Julia.jl / … → domain/main/<slice>/
+> The inventory below cites a file by name. Every one of them lives in
+> `source/<slice>/`, one folder per slice, and the package that includes it is
+> `Projectured<Slice>`. A slice's document file is `<Slice>Document.jl`, so the
+> JSON documents are in `source/json/JsonDocument.jl` and the package is
+> `ProjecturedJson`. [naming-rules.md](../rule/naming-rules.md) states the
+> derivation and `test/suite/naming.jl` checks it.
 
 ---
 
@@ -198,24 +196,23 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | Module | Types |
 |---|---|
 | kernel `reference/` | `Reference`, `EmptyReference`, `ConcreteReference` (`ReferencePath.jl`); the kernel step structs `RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep` (`ReferenceStep.jl`). `ElementReferenceStep`/`PositionReferenceStep` are convenience constructors producing a `RangeReferenceStep`, not distinct structs. Step types owned by higher packages each live with their owner and register through the layer's seam: `ProjectionReferenceStep` (kernel `projection/`), `PointReferenceStep` (visual `graphics/`), `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep` (visual `text/`) |
-| `Json.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
-| `Xml.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
-| `Text.jl` | `TextBlock`, `TextString`, `TextNewline` |
-| `Syntax.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
-| `Graphics.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
-| `Widget.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
-| `Workbench.jl` | `WorkbenchWorkbench`, `WorkbenchPage`, `WorkbenchNavigator`, `WorkbenchConsole`, `WorkbenchDescriptor`, `WorkbenchOperator`, `WorkbenchSearcher`, `WorkbenchEvaluator`, `WorkbenchAssistant`, `WorkbenchEditor` |
-| `Book.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
-| `Math.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
-| `Julia.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOperation`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
-| `Process.jl` | `ProcessModel`, `ProcessSequence`, `ProcessStep`, `ProcessDecision`, `ProcessWhile`, `ProcessForeach`, `ProcessBreak`, `ProcessContinue`, `ProcessReturn`; presentation `ProcessDiagram`, `ProcessTerminal`, `ProcessEdgeLabel`, `ProcessDebugSession` |
-| `Primitive.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation` |
+| `JsonDocument.jl` | `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`, `JsonArray`, `JsonObject`, `JsonObjectEntry` |
+| `XmlDocument.jl` | `XmlText`, `XmlAttribute`, `XmlElement` |
+| `TextDocument.jl` | `TextBlock`, `TextString`, `TextNewline` |
+| `SyntaxDocument.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
+| `GraphicsDocument.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
+| `WidgetDocument.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
+| `WorkbenchDocument.jl` | `WorkbenchWorkbench`, `WorkbenchPage`, `WorkbenchNavigator`, `WorkbenchConsole`, `WorkbenchDescriptor`, `WorkbenchOperator`, `WorkbenchSearcher`, `WorkbenchEvaluator`, `WorkbenchAssistant`, `WorkbenchEditor` |
+| `BookDocument.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
+| `MathDocument.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
+| `JuliaDocument.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOperation`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
+| `ProcessDocument.jl` | `ProcessModel`, `ProcessSequence`, `ProcessStep`, `ProcessDecision`, `ProcessWhile`, `ProcessForeach`, `ProcessBreak`, `ProcessContinue`, `ProcessReturn`; presentation `ProcessDiagram`, `ProcessTerminal`, `ProcessEdgeLabel`, `ProcessDebugSession` |
+| `PrimitiveDocument.jl` | `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`; ops `ReplaceNumberRangeOperation`, `ReplaceStringRangeOperation` |
 | `ObjectField.jl` | `ObjectField` — one field of one object: a root object and a `Reference` to a value |
-| `Table.jl` | `TableCell`, `TableRow`, `TableColumn`, `TableTable` |
-| `FileSystem.jl` | `FileSystemFile`, `FileSystemDirectory` |
-| `Collection.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
+| `FileSystemDocument.jl` | `FileSystemFile`, `FileSystemDirectory` |
+| `CollectionDocument.jl` | `CellVector`, `CellMatrix`, `CellTable`, `ListNode` |
 | `Dragging.jl` | `DraggingState` — transparent wrapper marking a sub-tree as drag-and-drop reorderable (paired with `DraggingProjection`) |
-| `Font.jl`, `Color.jl`, `Geometry.jl`, `Image.jl`, `Clipboard.jl` | Supporting types |
+| `Font.jl`, `Color.jl`, `Geometry.jl`, `Image.jl`, `ClipboardDocument.jl` | Supporting types |
 
 ### Stage 2 — Projection modules (`projection/`)
 
@@ -461,18 +458,18 @@ for adding one.
 | Lisp ProjecturEd | Julia ProjecturEd | Status |
 |---|---|---|
 | `computed-class` (change propagation) | `CellModule` (`ReactiveCell`) | ✅ |
-| JSON domain | `Json.jl` | ✅ |
-| Tree domain | `Syntax.jl` | ✅ |
-| Styled string domain | `Text.jl` | ✅ |
-| Graphics domain | `Graphics.jl` | ✅ |
+| JSON domain | `JsonDocument.jl` | ✅ |
+| Tree domain | `SyntaxDocument.jl` | ✅ |
+| Styled string domain | `TextDocument.jl` | ✅ |
+| Graphics domain | `GraphicsDocument.jl` | ✅ |
 | SDL backend | `backend/Sdl.jl` | ✅ |
 | Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 8) | ✅ |
-| Navigation operations | `Operation.jl` (`ReplaceSelectionOperation`) | ✅ |
+| Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `Editor.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
-| Insert / delete operations | `Operation.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
+| Insert / delete operations | `Operations.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | — | ❌ |

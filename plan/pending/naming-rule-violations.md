@@ -665,7 +665,7 @@ its Status and what it Stands on. 57 of 60 do.
 | [documentation/package/executable/README.md](../../documentation/package/executable/README.md) | add the header under the title | certain |
 | [documentation/presentation/projectured-overview.md](../../documentation/presentation/projectured-overview.md) | **no change.** The user decided on 2026-09-12 to exempt a slide deck. Marp renders the file, so a block-quote after the front matter shows as text on slide one. `documentation/README.md` now states the exemption. | closed |
 
-### 8.3 A stale block in the module inventory — NOT IN THIS PLAN
+### 8.3 A stale block in the module inventory — DONE 2026-09-13
 
 [system-anatomy.md:165-173](../../documentation/design/system-anatomy.md#L165)
 holds a block-quote that exists to correct stale per-file paths, and the
@@ -674,9 +674,15 @@ packages" and maps files to `base/main/`, `visual/main/` and `domain/main/`.
 None of those three trees exists, and the repository holds 119 packages under
 `source/<slice>/`, not four.
 
-The block sits directly above the module inventory, so a fix means auditing that
-inventory too. That is documentation rot, not a naming violation, and it needs
-its own scope. Recorded here so it is not lost.
+**Fixed.** The block now says the truth: every file the inventory cites lives in
+`source/<slice>/`, one folder per slice, and a slice's document file is
+`<Slice>Document.jl`.
+
+The audit it needed found more. Seventeen file names the inventory cited did not
+exist: fifteen were the `<Slice>Document.jl` rename this plan made, `Operation.jl`
+is `Operations.jl`, and `Table.jl` described a document family — `TableCell`,
+`TableRow`, `TableColumn`, `TableTable` — that exists nowhere in the repository.
+That row is deleted. Every file the inventory names now exists.
 
 ### 8.2 One rule sentence is stale
 
