@@ -710,13 +710,19 @@ The **query type selects the mode** (Julia dispatch):
 function search_documentation(query::Union{AbstractString,Regex}; limit::Integer = 8)
     patterns, fold = _matchers(query)
     isempty(patterns) && return "Provide a search query (two or more characters)."
-    scored = Tuple{Int,_GuideSection}[]
+    # **Two numbers, as in `search_api`.** A heading is what a section is about
+    # and a body is where words happen to fall, so the heading decides and the
+    # body only separates what it could not. Added into one number, the longest
+    # document wins: "change the layout" answered `design/system-anatomy` while a
+    # guide held a section of that name. Measured 2026-09-13.
+    scored = Tuple{Tuple{Int,Int},_GuideSection}[]
     for sec in _guide_index()
-        s = _term_score(patterns, sec.heading, 5, fold) + _term_score(patterns, sec.body, 1, fold)
-        s > 0 && push!(scored, (s, sec))
+        heading = _term_score(patterns, sec.heading, 5, fold)
+        body = _term_score(patterns, sec.body, 1, fold)
+        (heading > 0 || body > 0) && push!(scored, ((heading, body), sec))
     end
     isempty(scored) && return "No documentation matches $(repr(query))."
-    sort!(scored; by = x -> -x[1])
+    sort!(scored; by = x -> (-x[1][1], -x[1][2]))
     io = IOBuffer()
     println(io, "# Documentation matches for $(repr(query))\n")
     for (_, sec) in first(scored, min(limit, length(scored)))
