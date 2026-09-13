@@ -907,6 +907,23 @@ its head says why.
 - The kernel seal list in [CLAUDE.md](../../CLAUDE.md) names each file by path.
   A file rename in `source/kernel/` must rewrite that entry in the same commit.
 
+## 11.2 The SDL backend's public surface — DONE 2026-09-13
+
+[Sdl.jl](../../source/sdl/Sdl.jl) exported five names that nothing outside the
+slice uses: `render_sdl_canvas`, `decode_sdl_image`, `get_sdl_display_size`,
+`decode_image_file!` and `_emit_frames!`. Each of the first three sits behind a
+`BackendModule` generic — `BackendModule.render_canvas(canvas) =
+render_sdl_canvas(canvas)` — and the generic is how a caller reaches the
+backend. The export claimed a public surface nobody used, which
+`PAR-MODULE-BOUNDARY-IS-API` says the boundary must not do.
+
+The five exports are gone and all five functions remain defined.
+
+`measure_sdl_text` keeps its export, and the reason is in the file: a caller
+hands it on by value, `TextToGraphics(measure = measure_sdl_text)`, and a
+generic can not be passed that way. It pairs with `measure_truetype_text`, and
+seven places outside the slice name it.
+
 ## 11.1 A design finding this work uncovered — NOT A NAMING PROBLEM
 
 `EVALUATION_HANDLER` in

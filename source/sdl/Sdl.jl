@@ -1,7 +1,13 @@
-export SdlBackend, measure_sdl_text, render_sdl_canvas, get_sdl_display_size,
+# A backend's public surface is the generic it extends, not the helper behind
+# it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
+# how a caller reaches this backend. The helpers stay module-internal.
+#
+# `measure_sdl_text` is the exception and is exported, because a caller hands it
+# on by value — `TextToGraphics(measure = measure_sdl_text)` — and a generic can
+# not be passed that way. It pairs with `measure_truetype_text`.
+export SdlBackend, measure_sdl_text,
        write_image, GraphicsCanvasToImageFile,
-       _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
-       decode_sdl_image, decode_image_file!
+       _open_offscreen_renderer, _close_offscreen_renderer
 
 # Pixel size of the primary monitor from xrandr's RandR 1.5
 # `--listmonitors`. SDL can fold a multi-monitor X screen into a single
