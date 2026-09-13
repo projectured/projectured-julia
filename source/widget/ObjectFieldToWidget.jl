@@ -64,7 +64,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ObjectFieldModule: ObjectField, get_object_field_value
+import ..PrimitiveModule: ObjectField, get_object_field_value
 # The value classification, the type coercion, the character-range edit and the
 # end-caret path are `ObjectToWidget`'s and are used unchanged. One control looks
 # and behaves the same whether a form or a reflected object produced it, so a

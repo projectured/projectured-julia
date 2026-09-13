@@ -38,7 +38,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..IoMapModule: SimpleIoMap, reconcile_child_iomap
 import ..ReferenceModule: FieldReferenceStep, get_reference_steps, strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..ObjectFieldModule: ObjectField, get_object_field_value, get_object_field_name
+import ..PrimitiveModule: ObjectField, get_object_field_value, get_object_field_name
 
 export ObjectFieldToSyntax
 

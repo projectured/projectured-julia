@@ -17,6 +17,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           ReferenceStep, FieldReferenceStep, RangeReferenceStep, evaluate_reference,
                           strip_reference_types, get_reference_steps
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
+export ObjectField, get_object_field_value, get_object_field_name
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -261,5 +262,7 @@ retarget_operation(op::ReplaceStringRangeOperation, reference::Reference) =
     ReplaceStringRangeOperation(reference, op.replacement)
 retarget_operation(op::ReplaceNumberRangeOperation, reference::Reference) =
     ReplaceNumberRangeOperation(reference, op.replacement)
+
+include("ObjectField.jl")
 
 end # module

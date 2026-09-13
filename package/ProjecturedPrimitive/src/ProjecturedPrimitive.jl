@@ -24,6 +24,5 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
 include("../../../source/primitive/PrimitiveDocument.jl")
-include("../../../source/primitive/ObjectField.jl")
 
 end # module ProjecturedPrimitive
