@@ -31,17 +31,17 @@ function Base.setindex!(ct::CellTable, val, r::Integer, c::Integer)
     return val
 end
 
-function insertrow(ct::CellTable, r::Integer, row::CellVector)
+function insert_row!(ct::CellTable, r::Integer, row::CellVector)
     insert!(ct.rows, r, Cell(row))
     return ct
 end
 
-function insertrow(ct::CellTable, r::Integer, items::AbstractVector)
+function insert_row!(ct::CellTable, r::Integer, items::AbstractVector)
     insert!(ct.rows, r, Cell(CellVector(items)))
     return ct
 end
 
-function deleterow(ct::CellTable, r::Integer)
+function delete_row!(ct::CellTable, r::Integer)
     deleteat!(ct.rows, r)
     return ct
 end

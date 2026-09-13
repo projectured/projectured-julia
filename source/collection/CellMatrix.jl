@@ -54,7 +54,7 @@ function Base.setindex!(cm::CellMatrix, cell::Cell, r::Integer, c::Integer)
     return cell
 end
 
-function insertrow!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
+function insert_row!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
     length(cells) == ncols || throw(DimensionMismatch("expected $ncols cells, got $(length(cells))"))
@@ -66,7 +66,7 @@ function insertrow!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     return cm
 end
 
-function insertcol!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
+function insert_column!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
     length(cells) == nrows || throw(DimensionMismatch("expected $nrows cells, got $(length(cells))"))
@@ -78,7 +78,7 @@ function insertcol!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     return cm
 end
 
-function deleterow!(cm::CellMatrix, r::Integer)
+function delete_row!(cm::CellMatrix, r::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)
     new_elems = Matrix{Cell}(undef, nrows - 1, ncols)
@@ -88,7 +88,7 @@ function deleterow!(cm::CellMatrix, r::Integer)
     return cm
 end
 
-function deletecol!(cm::CellMatrix, c::Integer)
+function delete_column!(cm::CellMatrix, c::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)
     new_elems = Matrix{Cell}(undef, nrows, ncols - 1)

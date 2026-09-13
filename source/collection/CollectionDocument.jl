@@ -30,8 +30,8 @@ import ..ReferenceModule: Reference, RangeReferenceStep
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, get_children_container_type
 export CollectionDocument, CellVector, ComputedCellVector, CellMatrix, CellTable, ListNode,
-       get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
-       insertcol!, deleterow!, deletecol!, insertrow, deleterow
+       get_left_tail, get_right_tail, get_cell_at, take_first, insert_row!,
+       insert_column!, delete_row!, delete_column!
 
 # The four collection shapes, one fragment file each (fragments share this
 # module's namespace). CellVector first — CellTable's rows are a CellVector.
