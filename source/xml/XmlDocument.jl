@@ -12,37 +12,23 @@ The domain includes:
 module XmlModule
 
 export parse_xml, parse_xml_file
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..SyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_black, color_default, color_solarized_blue, color_solarized_green,
-                      color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+using ..CellModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: read_intent, map_reference_forward
+using ..ProjectionModule
+using ..SyntaxModule
+using ..TextModule
+using ..StyleModule
+using ..ProjectionAlgebraModule
+using ..ProjectionTemplateModule
+using ..SerializationModule
+import ..SerializationModule: emit_text, populate_file!
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
        XmlElementToSyntaxNode,
        ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
        XmlToSyntax
 import ..FileFormatModule: make_document_seed
-import ..NaturalModule: register_natural_domain!
-import ..CellModule: Cell, ComputedCell, AbstractCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..NaturalModule: print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!
+using ..NaturalModule
 export XmlFile, PRED_REF_ELEMENT_TAG
 export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
 

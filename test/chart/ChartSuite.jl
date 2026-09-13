@@ -7,6 +7,8 @@ function test_chart_layering()
     main = get_package_source_root(ProjecturedChart)
     check_layering(main, pathof(ProjecturedChart);
                    name = "chart",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["ChartSampleReferenceStep.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedChart; all = true)
                          if isdefined(ProjecturedChart, n) &&

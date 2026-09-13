@@ -7,6 +7,8 @@ function test_markdown_layering()
     main = get_package_source_root(ProjecturedMarkdown)
     check_layering(main, pathof(ProjecturedMarkdown);
                    name = "markdown",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["MarkdownDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedMarkdown; all = true)
                          if isdefined(ProjecturedMarkdown, n) &&

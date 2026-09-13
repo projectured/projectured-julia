@@ -27,58 +27,28 @@ must re-resolve identity references by name within the pasted subtree.
 """
 module FsmModule
 
-import ..CellModule: Cell
+using ..CellModule
 export get_fsm_states, get_fsm_transitions, find_fsm,
        find_state, find_event, find_timer, get_fsm_transition_index
 export FsmDiagram
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SyntaxModule: DomainInsertionToSyntaxLeaf,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_green,
-                      color_solarized_gray, color_solarized_magenta, color_solarized_violet,
-                      color_solarized_cyan, color_solarized_orange
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..JuliaModule: JuliaToSyntax
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..SyntaxModule
+using ..TextModule
+using ..StyleModule
+using ..ProjectionAlgebraModule
+using ..ProjectionTemplateModule
+using ..JuliaModule
 export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
        FsmTransitionToSyntaxNode, FsmStateToSyntaxNode, FsmMachineToSyntaxNode,
        FsmComponentToSyntaxNode, FsmInsertionToSyntaxLeaf, FsmToSyntax
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
+using ..IoMapModule
 export FsmToFsmDiagram, FsmToFsmDiagramIoMap
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
-                      color_solarized_gray, color_solarized_blue
-import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
-import ..ProjectionTemplateModule: var"@projection_template", bound, project
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference
+using ..GraphModule
 export FsmDiagramToGraph, FsmDiagramToGraphIoMap,
        FsmStateToSyntaxLabel, FsmTransitionToSyntaxLabel
-import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
-                      JuliaString, JuliaNothing, JuliaCall, JuliaBinaryOperation,
-                      JuliaAssignment, JuliaBlock, JuliaIf, JuliaWhile,
-                      JuliaReturn, JuliaBreak, JuliaConst, JuliaUsing,
-                      JuliaStruct, JuliaSubtype, JuliaFunction, JuliaTuple,
-                      JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDefinition,
-                      JuliaUnaryOperation
-import ..NaturalModule: print_natural_text
+using ..NaturalModule
 export generate_component, generate_component_text, export_component,
        get_fsm_state_constant_name, get_fsm_field_name, dispatch_function_name,
        get_fsm_event_constant_name

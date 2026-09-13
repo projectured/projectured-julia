@@ -6,43 +6,30 @@ quotes, lists) and inlines (text, code, emphasis, strong, link, image).
 """
 module MarkdownModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document, @forward_vector_protocol
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+import ..CellModule: set_cell_function!, set_cell_value!
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export MarkdownDocument, set_cell_function!
 export parse_markdown, parse_markdown_file
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString, make_hinted_text, TextGraphics
-import ..StyleModule: ImageFile
-import ..BackendModule: decode_image
-import ..GraphicsModule: GraphicsDocument
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
-                     font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
-                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18,
-                     font_dejavu_monospace_regular_20
-import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_gray, color_solarized_violet
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionAlgebraModule: CopyingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..TextModule
+using ..StyleModule
+using ..BackendModule
+using ..GraphicsModule
+using ..SyntaxModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..PrinterContextModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..ProjectionTemplateModule
+using ..SerializationModule
+import ..SerializationModule: emit_text, populate_file!, get_document_section
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
@@ -53,28 +40,11 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownImageToStyledNode, MarkdownListToStyledNode,
        ReferenceStubToMarkdownSyntaxLeaf, EmbeddedFileDocumentToMarkdownSyntaxLeaf,
        MarkdownToSyntax
-import ..NaturalModule: register_natural_syntax!
-import ..CellModule: Cell, ComputedCell, AbstractCell
-import ..DocumentModule: @document
-import ..NaturalModule: register_natural_domain!, print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!, get_document_section,
-                            is_file_document
+using ..NaturalModule
 export MarkdownFile, PRED_REF_LANGUAGE, get_markdown_section
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
-import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
-                              read_intent, Projection
-import ..IoMapModule: SimpleIoMap
-import ..WidgetModule: InvokeActionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, is_element_reference_step
+using ..LayoutModule
+using ..WidgetModule
 export MarkdownRootToVerticalLayout
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..LayoutModule: VerticalLayoutToGraphicsCanvas
-import ..NaturalModule: register_natural_graphics!
 export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion
 
 

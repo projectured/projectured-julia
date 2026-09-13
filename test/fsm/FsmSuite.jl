@@ -7,6 +7,8 @@ function test_fsm_layering()
     main = get_package_source_root(ProjecturedFsm)
     check_layering(main, pathof(ProjecturedFsm);
                    name = "fsm",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["FsmDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFsm; all = true)
                          if isdefined(ProjecturedFsm, n) &&

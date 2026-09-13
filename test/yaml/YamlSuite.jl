@@ -7,6 +7,8 @@ function test_yaml_layering()
     main = get_package_source_root(ProjecturedYaml)
     check_layering(main, pathof(ProjecturedYaml);
                    name = "yaml",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["YamlDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedYaml; all = true)
                          if isdefined(ProjecturedYaml, n) &&

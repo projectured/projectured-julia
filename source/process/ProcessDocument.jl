@@ -40,7 +40,7 @@ specified in `package/domain/doc/process.md`.
 """
 module ProcessModule
 
-import ..CellModule: Cell
+using ..CellModule
 export process_children, process_nodes, get_node_index, find_node_at_index, get_body_steps,
        get_unrefined_nodes, is_executable
 export ProcessTrace, ProcessStoppedException, process_at!,
@@ -49,58 +49,29 @@ export ProcessTrace, ProcessStoppedException, process_at!,
 export ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
 export ProcessDebugSession, is_stale, has_breakpoint, toggle_breakpoint!,
        set_process_position!, sync_process_debug!, detach_process_debug!
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SyntaxModule: DomainInsertionToSyntaxLeaf,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_orange, color_solarized_red
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..JuliaModule: JuliaToSyntax
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..SyntaxModule
+using ..TextModule
+using ..StyleModule
+using ..ProjectionAlgebraModule
+using ..ProjectionTemplateModule
+using ..JuliaModule
 export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
        ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,
        ProcessWhileToSyntaxNode, ProcessForeachToSyntaxNode,
        ProcessBreakToSyntaxLeaf, ProcessContinueToSyntaxLeaf,
        ProcessReturnToSyntaxNode, ProcessInsertionToSyntaxLeaf, ProcessToSyntax
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
+using ..IoMapModule
 export ProcessToProcessDiagram, ProcessToProcessDiagramIoMap
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
-                      color_solarized_gray, color_solarized_magenta, color_solarized_cyan
-import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
-import ..ProjectionTemplateModule: var"@projection_template", bound, project
-import ..ReferenceModule: EmptyReference, try_evaluate_reference, search_references,
-                          get_reference_node_type
+using ..GraphModule
 export ProcessDiagramToGraph, ProcessDiagramToGraphIoMap,
        ProcessStepToSyntaxLabel, ProcessDecisionToSyntaxLabel,
        ProcessWhileToSyntaxLabel, ProcessForeachToSyntaxLabel,
        ProcessTerminalToSyntaxLabel, ProcessEdgeLabelToSyntaxLeaf,
        ProcessToSyntaxLabel
-import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
-                      JuliaBlock, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
-                      JuliaReturn, JuliaBreak, JuliaContinue, JuliaFunction,
-                      JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
-                      JuliaTypeAnnotation
-import ..DocumentModule: search_documents
-import ..NaturalModule: print_natural_text
+using ..NaturalModule
 export realize_process, realize_process_text, export_process,
        PROCESS_INSTRUMENTATION_LEVELS, TRACE_PARAMETER_NAME
 export start_process, realize_into, ProcessRun

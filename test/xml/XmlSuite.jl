@@ -7,6 +7,8 @@ function test_xml_layering()
     main = get_package_source_root(ProjecturedXml)
     check_layering(main, pathof(ProjecturedXml);
                    name = "xml",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["XmlDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedXml; all = true)
                          if isdefined(ProjecturedXml, n) &&

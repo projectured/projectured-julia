@@ -8,44 +8,24 @@ environment; other formulas cite each other by identity.
 """
 module FormulaModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
-import ..TextModule: TextBlock, TextString
-import ..JuliaModule: JuliaDocument,
-                      JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
-                      JuliaNothing, JuliaSymbol, JuliaChar,
-                      JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaTernary,
-                      JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
-                      JuliaTypeAnnotation, JuliaAssignment, JuliaForIterator, JuliaFor,
-                      JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry,
-                      JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+using ..TextModule
+using ..JuliaModule
 export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_references, get_formula_dependencies, would_create_cycle, compute_topological_order,
        convert_formula_to_expr, evaluate_formula
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
-                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
-                      color_solarized_violet
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapModule: IoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep,
-                          RangeReferenceStep, FieldReferenceStep,
-                          Reference, EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context
-import ..JuliaModule: JuliaToSyntax
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..StyleModule
+using ..SyntaxModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..ProjectionReferenceStepModule
+using ..PrinterContextModule
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
        FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
 export FormulaInsertion, FormulaReference
