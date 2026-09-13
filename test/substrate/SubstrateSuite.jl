@@ -158,5 +158,5 @@ export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TR
        explore_tree_selections, test_tree_navigation
 export walk_typein, test_typein
 export test_click_roundtrip, test_text_navigation_invariants,
-       _find_text_iomap, _find_cursor_rect, _pipeline_measure, _seg_x_at,
+       _find_text_iomap, _find_cursor_rect, _pipeline_measure, _segment_x_at,
        _path_contains_projection_reference

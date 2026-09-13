@@ -63,7 +63,7 @@ import ProjecturedSubstrateTest: test_projection_template_hygiene,
                               walk_typein, test_typein,
                               test_click_roundtrip, test_text_navigation_invariants,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
-                              _seg_x_at, _path_contains_projection_reference
+                              _segment_x_at, _path_contains_projection_reference
 import ProjecturedKernelTest: test_kernel
 import ProjecturedSubstrateTest: test_substrate
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
@@ -122,6 +122,7 @@ include("PackageGraphTest.jl")
 # it reads directories and project files, and it has to run before the packages
 # it describes exist. See `plan/done/repository-tree.md` §3.
 include("../suite/tree.jl")
+include("../suite/naming.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
@@ -236,6 +237,26 @@ function test_tree()
 end
 
 """
+    test_naming()
+
+The naming guard: every mechanical rule of
+`documentation/rule/naming-rules.md`, which `PAR-NAMING-LAW` makes an
+invariant. It checks a module name against its file and its slice, an alias no
+file declares, an abbreviation the rules ban, and a test package's entry point.
+It does not judge whether a verb fits the work or whether a name reads as
+English — those need a person. It loads nothing and runs in well under a second.
+"""
+function test_naming()
+    @testset "naming" begin
+        root = normpath(joinpath(@__DIR__, "..", ".."))
+        for violation in naming_violations(root)
+            @test violation == ""
+        end
+        @test isempty(naming_violations(root))
+    end
+end
+
+"""
     test_all()
 
 The full suite: the three engine test packages and the twenty domain test
@@ -247,6 +268,7 @@ function test_all()
     # The per-package suites: the kernel unit tests, the substrate documents and
     # projections, every domain, and the layering guard of each package.
     test_tree()
+    test_naming()
     test_package_graph()
     test_kernel()
     test_substrate()
@@ -259,7 +281,7 @@ function test_all()
     test_math()
     test_julia()
     test_sql()
-    test_database_domain()
+    test_database()
     test_filesystem()
     test_graph()
     test_chart()
@@ -318,7 +340,7 @@ function test_all()
     test_tree_navigations()
     test_tree_navigations_complete()
     test_table_navigation()
-    test_database_no_db()
+    test_odbc_database_no_db()
     end
 end
 
@@ -335,7 +357,7 @@ function test_table()
     end
 end
 
-export test_all, test_domain_examples, test_package_graph, test_tree
+export test_all, test_domain_examples, test_package_graph, test_tree, test_naming
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
@@ -366,7 +388,7 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_workbench_file_keys, test_gallery_wrappers
-export test_database_connection, test_database, test_database_no_db
+export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
 
 # The suites that rose from the dissolved domain test package.

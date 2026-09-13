@@ -262,7 +262,7 @@ end
 
 # ── Entry points ──────────────────────────────────────────────────────────────
 
-function test_database_connection()
+function test_odbc_database_connection()
     adapter = _make_test_adapter()
     @testset "Database connection" begin
         @test_nowarn connect_db!(adapter)
@@ -272,14 +272,14 @@ function test_database_connection()
     end
 end
 
-function test_database_no_db()
+function test_odbc_database_no_db()
     @testset "Database (no DB)" begin
         test_raw_database_result_show()
         test_raw_database_result_struct()
     end
 end
 
-function test_database(; skip_if_no_db=true)
+function test_odbc_database(; skip_if_no_db=true)
     adapter = _make_test_adapter()
     can_connect = try
         connect_db!(adapter)
@@ -289,7 +289,7 @@ function test_database(; skip_if_no_db=true)
         false
     end
 
-    test_database_no_db()
+    test_odbc_database_no_db()
 
     can_connect || return
 
@@ -314,4 +314,4 @@ function test_database(; skip_if_no_db=true)
     end
 end
 
-export test_database_connection, test_database, test_database_no_db
+export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db

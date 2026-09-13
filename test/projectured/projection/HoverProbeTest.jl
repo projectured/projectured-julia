@@ -75,7 +75,7 @@ function _first_content_pixel(t2g, measure)
     isempty(coords) && return nothing
     sc = first(coords)
     k = sc.char_start
-    cx = _seg_x_at(sc, k, measure) + 1
+    cx = _segment_x_at(sc, k, measure) + 1
     cy = sc.y + max(1, sc.font.size ÷ 2)
     (cx, cy)
 end

@@ -73,7 +73,7 @@ function _pipeline_measure(projection)
     nothing
 end
 
-function _seg_x_at(sc::SegmentCoordinate, k::Int, measure)
+function _segment_x_at(sc::SegmentCoordinate, k::Int, measure)
     local_pos = k - sc.char_start
     local_pos <= 0 && return sc.x
     prefix = first(sc.text, min(local_pos, length(sc.text)))
@@ -146,7 +146,7 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
             line_h = sc.font.size
             band_h = get(line_height_at, sc.y, line_h)
             for k in sc.char_start:sc.char_end
-                cx = _seg_x_at(sc, k, measure) + 1
+                cx = _segment_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
                 op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
                 # A click on an inline expand/collapse marker (or a collapsed

@@ -32,11 +32,11 @@ end
 "Run the ODBC database + catalog suite (skips when no DB is reachable)."
 function test_odbc()
     @testset "ProjecturedOdbc" begin
-        test_database_no_db()
-        test_database()
+        test_odbc_database_no_db()
+        test_odbc_database()
         test_db_catalog()
         test_db_catalog_syntax()
     end
 end
 
-export test_odbc, test_odbc_layering, test_database, test_database_no_db, test_db_catalog, test_db_catalog_syntax
+export test_odbc, test_odbc_layering, test_odbc_database, test_odbc_database_no_db, test_db_catalog, test_db_catalog_syntax

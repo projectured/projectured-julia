@@ -41,7 +41,7 @@ function test_json_content_clicks_clean(label, document, projection)
             sc.text in content_strings || continue
             line_h = sc.font.size
             # Click in the middle of the segment, well inside content.
-            cx = sc.x + max(1, (_seg_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
+            cx = sc.x + max(1, (_segment_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
             cy = sc.y + max(1, line_h ÷ 2)
             op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
             op isa ReplaceSelectionOperation || continue
