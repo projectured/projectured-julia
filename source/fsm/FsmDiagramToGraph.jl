@@ -32,7 +32,7 @@ import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..FsmModule: FsmMachine, FsmState, FsmTransition, FsmTimer,
-                    FsmNothing, FsmInsertion, machine_transitions
+                    FsmNothing, FsmInsertion, get_fsm_transitions
 import ..FsmDiagramModule: FsmDiagram
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..IoMapModule: IoMap, var"@iomap"
@@ -175,7 +175,7 @@ function print_document(p::FsmDiagramToGraph, recursion,
         diagram isa FsmDiagram || return nothing
         index = diagram.live_transition
         machine isa FsmMachine || return nothing
-        flat = machine_transitions(machine)
+        flat = get_fsm_transitions(machine)
         (index < 1 || index > length(flat)) && return nothing
         transition = flat[index]
         for (t, e) in edge_cells[]

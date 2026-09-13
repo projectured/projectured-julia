@@ -39,8 +39,8 @@ using ..DomainModule
 
 import ..CellModule: Cell
 
-export machine_states, machine_transitions, component_machine,
-       find_state, find_event, find_timer, transition_index
+export get_fsm_states, get_fsm_transitions, find_fsm,
+       find_state, find_event, find_timer, get_fsm_transition_index
 
 @domain Fsm
 
@@ -221,7 +221,7 @@ function find_timer(component::FsmComponent, name::AbstractString)
 end
 
 "Find a machine of `component` by name; `nothing` when absent."
-function component_machine(component::FsmComponent, name::AbstractString)
+function find_fsm(component::FsmComponent, name::AbstractString)
     for m in component.machines
         m isa FsmMachine && m.name == name && return m
     end
@@ -229,15 +229,15 @@ function component_machine(component::FsmComponent, name::AbstractString)
 end
 
 "The states of `machine` as a plain `Vector{FsmState}` (document order)."
-machine_states(machine::FsmMachine) = FsmState[s for s in machine.states if s isa FsmState]
+get_fsm_states(machine::FsmMachine) = FsmState[s for s in machine.states if s isa FsmState]
 
 """
 All transitions of `machine` flattened in document order (states in order,
 each state's transitions in order). This global order is the transition-index
-vocabulary shared by `transition_index`, the generated `last_transition`
+vocabulary shared by `get_fsm_transition_index`, the generated `last_transition`
 recording, and the diagram's live edge highlight.
 """
-function machine_transitions(machine::FsmMachine)
+function get_fsm_transitions(machine::FsmMachine)
     result = FsmTransition[]
     for s in machine.states
         s isa FsmState || continue
@@ -249,8 +249,8 @@ function machine_transitions(machine::FsmMachine)
 end
 
 "The 1-based global index of `transition` in `machine`'s flattened order; 0 when absent."
-function transition_index(machine::FsmMachine, transition::FsmTransition)
-    for (i, t) in enumerate(machine_transitions(machine))
+function get_fsm_transition_index(machine::FsmMachine, transition::FsmTransition)
+    for (i, t) in enumerate(get_fsm_transitions(machine))
         t === transition && return i
     end
     0

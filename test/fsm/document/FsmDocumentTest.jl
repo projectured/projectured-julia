@@ -67,18 +67,18 @@ push!(comp.machines, machine)
 @test find_event(comp, "UPPER_PACKET") === e
 @test find_event(comp, "NOPE") === nothing
 @test find_timer(comp, "tx_timer") === t
-@test component_machine(comp, "Mac") === machine
-@test component_machine(comp, "NOPE") === nothing
-@test machine_states(machine) == [idle, transmitting]
+@test find_fsm(comp, "Mac") === machine
+@test find_fsm(comp, "NOPE") === nothing
+@test get_fsm_states(machine) == [idle, transmitting]
 
 # flattened transition order = states in order, each state's transitions in order
 push!(transmitting.transitions, FsmTransition(trigger = e, target = idle))
-flat = machine_transitions(machine)
+flat = get_fsm_transitions(machine)
 @test length(flat) == 3
 @test flat[1] === tr
 @test flat[2] === selftr
-@test transition_index(machine, flat[3]) == 3
-@test transition_index(machine, FsmTransition()) == 0
+@test get_fsm_transition_index(machine, flat[3]) == 3
+@test get_fsm_transition_index(machine, FsmTransition()) == 0
 
 # ── renaming a state never dangles identity references ──────────────────
 transmitting.name = "TX"

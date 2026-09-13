@@ -182,8 +182,8 @@ ProcessReturn(value) = ProcessReturn(Cell(value), Cell(nothing))
 
 # ── The tree walk ────────────────────────────────────────────────────────
 # One vocabulary, used by the notation, the diagram, realization and the
-# debugger: a node's index in the flattened document order. `machine_states` /
-# `machine_transitions` play the same role for fsm.
+# debugger: a node's index in the flattened document order. `get_fsm_states` /
+# `get_fsm_transitions` play the same role for fsm.
 
 """
     process_children(node) -> iterable

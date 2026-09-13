@@ -57,7 +57,7 @@ module FsmToJuliaCodeModule
 
 import ..FsmModule: FsmComponent, FsmMachine, FsmState, FsmTransition,
                     FsmVariable, FsmTimer, FsmEvent,
-                    machine_states, machine_transitions
+                    get_fsm_states, get_fsm_transitions
 import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
                       JuliaString, JuliaNothing, JuliaCall, JuliaBinaryOperation,
                       JuliaAssignment, JuliaBlock, JuliaIf, JuliaWhile,
@@ -68,8 +68,8 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
 import ..NaturalNotationModule: print_natural_text
 
 export generate_component, generate_component_text, export_component,
-       state_constant_name, machine_field_name, dispatch_function_name,
-       event_constant_name
+       get_fsm_state_constant_name, get_fsm_field_name, dispatch_function_name,
+       get_fsm_event_constant_name
 
 # ── Naming ───────────────────────────────────────────────────────────────────
 #
@@ -87,14 +87,14 @@ module_name(component::FsmComponent) = component.name * "Fsm"
 host_type_name(component::FsmComponent) = component.name * "State"
 
 "The constant naming one state of one machine, e.g. `MAC_S_IDLE`."
-state_constant_name(machine::FsmMachine, state::FsmState) =
+get_fsm_state_constant_name(machine::FsmMachine, state::FsmState) =
     _upper(machine.name) * "_S_" * _upper(state.name)
 
 "The constant naming one event of the component, e.g. `E_UPPER_PACKET`."
-event_constant_name(event::FsmEvent) = "E_" * _upper(event.name)
+get_fsm_event_constant_name(event::FsmEvent) = "E_" * _upper(event.name)
 
 "The host struct's field holding one machine's `Fsm`."
-machine_field_name(machine::FsmMachine) = "fsm_" * _lower(machine.name)
+get_fsm_field_name(machine::FsmMachine) = "fsm_" * _lower(machine.name)
 
 "The machine's dispatch function, e.g. `mac_dispatch!`."
 dispatch_function_name(machine::FsmMachine) = _lower(machine.name) * "_dispatch!"
@@ -132,10 +132,10 @@ function state_constants(component::FsmComponent)
     result = JuliaDocument[]
     for machine in component.machines
         machine isa FsmMachine || continue
-        states = machine_states(machine)
+        states = get_fsm_states(machine)
         for (index, state) in enumerate(states)
             push!(result, JuliaConst(JuliaAssignment(
-                _id(state_constant_name(machine, state)), _int32(index - 1))))
+                _id(get_fsm_state_constant_name(machine, state)), _int32(index - 1))))
         end
         push!(result, JuliaConst(JuliaAssignment(
             _id(_upper(machine.name) * "_STATE_NAMES"),
@@ -155,7 +155,7 @@ function event_constants(component::FsmComponent)
     for (index, event) in enumerate(component.events)
         event isa FsmEvent || continue
         push!(result, JuliaConst(JuliaAssignment(
-            _id(event_constant_name(event)), _int32(index))))
+            _id(get_fsm_event_constant_name(event)), _int32(index))))
     end
     result
 end
@@ -171,7 +171,7 @@ function host_struct(component::FsmComponent)
     fields = JuliaDocument[]
     for machine in component.machines
         machine isa FsmMachine || continue
-        push!(fields, JuliaTypeAnnotation(_id(machine_field_name(machine)), _id("Fsm")))
+        push!(fields, JuliaTypeAnnotation(_id(get_fsm_field_name(machine)), _id("Fsm")))
     end
     for timer in component.timers
         timer isa FsmTimer || continue
@@ -203,11 +203,11 @@ function host_constructor(component::FsmComponent)
     for machine in component.machines
         machine isa FsmMachine || continue
         initial = machine.initial
-        states = machine_states(machine)
+        states = get_fsm_states(machine)
         initial_state = initial isa FsmState ? initial :
                         (isempty(states) ? nothing : states[1])
         initial_value = initial_state === nothing ? _int32(0) :
-                        _id(state_constant_name(machine, initial_state))
+                        _id(get_fsm_state_constant_name(machine, initial_state))
         push!(arguments, _call("Fsm", JuliaCall(_id("Symbol"), JuliaDocument[JuliaString(machine.name)]),
                                initial_value))
     end
@@ -235,7 +235,7 @@ function _transition_condition(machine::FsmMachine, transition::FsmTransition,
     trigger = transition.trigger
     guard = transition.guard
     trigger_test = if trigger isa FsmEvent
-        JuliaBinaryOperation(:(==), _id("event"), _id(event_constant_name(trigger)))
+        JuliaBinaryOperation(:(==), _id("event"), _id(get_fsm_event_constant_name(trigger)))
     elseif trigger isa FsmTimer
         JuliaBinaryOperation(:(==), _id("event"), _id("T_" * _upper(trigger.name)))
     else
@@ -257,8 +257,8 @@ function _transition_body(machine::FsmMachine, state::FsmState,
     action === nothing || append!(statements, _statements(action))
     target = transition.target
     if target isa FsmState
-        push!(statements, _call("fsm_goto!", _field("m", machine_field_name(machine)),
-                                _id(state_constant_name(machine, target)), JuliaInteger(Int(index))))
+        push!(statements, _call("fsm_goto!", _field("m", get_fsm_field_name(machine)),
+                                _id(get_fsm_state_constant_name(machine, target)), JuliaInteger(Int(index))))
         entry = target.entry
         if entry !== nothing
             # `prev` and `ev` are bound for the entry, which is the one place
@@ -304,15 +304,15 @@ condition-driven machine is run). `payload` is whatever the classifier attached
 to it.
 """
 function dispatch_function(component::FsmComponent, machine::FsmMachine)
-    flat = machine_transitions(machine)
+    flat = get_fsm_transitions(machine)
     flat_index = Dict{FsmTransition,Int}(t => i for (i, t) in enumerate(flat))
-    fsm = _field("m", machine_field_name(machine))
+    fsm = _field("m", get_fsm_field_name(machine))
 
     # The state dispatch inside the cascade loop.
     state_branch = nothing
-    for state in reverse(machine_states(machine))
+    for state in reverse(get_fsm_states(machine))
         condition = JuliaBinaryOperation(:(==), _call("fsm_state", fsm),
-                                  _id(state_constant_name(machine, state)))
+                                  _id(get_fsm_state_constant_name(machine, state)))
         body = _state_branch(component, machine, state, flat_index)
         state_branch = JuliaIf(condition, _block(body),
                                state_branch === nothing ? JuliaBlock(JuliaDocument[]) : _block(state_branch))
@@ -379,8 +379,8 @@ function timer_expiry_functions(component::FsmComponent)
         statements = JuliaDocument[]
         for machine in component.machines
             machine isa FsmMachine || continue
-            triggered = any(t -> t.trigger === timer, machine_transitions(machine))
-            conditional = any(t -> t.trigger === nothing, machine_transitions(machine))
+            triggered = any(t -> t.trigger === timer, get_fsm_transitions(machine))
+            conditional = any(t -> t.trigger === nothing, get_fsm_transitions(machine))
             if triggered
                 push!(statements, _call(dispatch_function_name(machine), _id("ctx"), _id("m"),
                                         _id("T_" * _upper(timer.name)), JuliaNothing()))

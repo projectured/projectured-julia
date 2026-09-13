@@ -19,7 +19,7 @@ _count(canvas, T) = count(e -> e isa T, canvas.elements)
     @test length(graph.vertices) == 2
     @test length(graph.edges) == 2
     # A stay contributes no edge — it is visible in the notation, not here.
-    @test length(machine_transitions(machine)) == 3
+    @test length(get_fsm_transitions(machine)) == 3
 
     # Each vertex holds the real state by identity, so a click on a node
     # reaches the document the notation edits.

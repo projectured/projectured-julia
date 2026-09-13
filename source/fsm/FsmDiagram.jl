@@ -16,7 +16,7 @@ three writes:
 - `live_state` — 1-based index into the machine's states; 0 when nothing is
   running,
 - `live_transition` — 1-based index into the machine's *flattened* transition
-  order (`machine_transitions`), the last one taken; 0 when none yet,
+  order (`get_fsm_transitions`), the last one taken; 0 when none yet,
 - `transition_count` — how many transitions the machine has taken.
 
 The diagram renders the current state as a ring and the last transition as a
