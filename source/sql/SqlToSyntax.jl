@@ -1,68 +1,16 @@
-"""
-    SqlToSyntaxModule
-
-SQL → SyntaxDocument projection. Renders a `SqlSelectStatement` as a syntax tree.
-
-Keywords render as bold colored leaves; identifiers as regular leaves.
-Projections compose recursively through the clause structure. Combine with
-`SyntaxToText` to get the textual form.
-
-Selection mapping is implemented at all levels: leaf projections share
-`doc.selection` with the SyntaxLeaf; `SqlSelectStatementToSyntaxNode` uses
-`ChildrenIoMap` with clause-level delegation so selection propagates through
-the full statement tree.
-"""
-module SqlToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SqlDocumentModule: SqlNothing, SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
-                            SqlWhereFilterCondition,
-                            SqlSelectItem, SqlAllColumns, SqlColumnReference,
-                            SqlTableName, SqlColumnName,
-                            SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinedFromItem, SqlJoinType,
-                            SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
-                            SqlJoinOnCondition,
-                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot, SqlBooleanExpression,
-                            SqlInsertStatement, SqlUpdateAssignment, SqlUpdateStatement,
-                            SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement,
-                            SqlStatementList, SqlInsertion
-import ..DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf, parse_completion,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation, SyntaxNavigation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: ChildrenIoMap
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..PrinterContextModule: make_child_context
-
-export SqlInsertionToSyntaxLeaf,
-       SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
-       SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
-       SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
-       SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
-       SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
-       SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
-       SqlWhereFilterConditionToSyntaxNode, SqlWhereClauseToSyntaxNode,
-       SqlScalarValueToSyntaxLeaf, SqlComparisonToSyntaxNode,
-       SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
-       SqlSelectStatementToSyntaxNode,
-       SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
-       SqlUpdateStatementToSyntaxNode,
-       SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
-       SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode, SqlToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SqlToSyntax.jl.
+#
+# SQL → SyntaxDocument projection. Renders a `SqlSelectStatement` as a syntax tree.
+#
+# Keywords render as bold colored leaves; identifiers as regular leaves.
+# Projections compose recursively through the clause structure. Combine with
+# `SyntaxToText` to get the textual form.
+#
+# Selection mapping is implemented at all levels: leaf projections share
+# `doc.selection` with the SyntaxLeaf; `SqlSelectStatementToSyntaxNode` uses
+# `ChildrenIoMap` with clause-level delegation so selection propagates through
+# the full statement tree.
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 _kw(text, font, color) = SyntaxLeaf(TextString(text, font, color))
@@ -2051,7 +1999,6 @@ function SqlToSyntax()
 end
 
 # ── The SQL source insertion ────────────────────────────────────────────────
-import ..SqlParserModule: parse_sql_text
 
 # Commit SQL source by parsing it; partial / invalid source can't commit.
 function _sql_commit(value::AbstractString)
@@ -2074,16 +2021,12 @@ SqlInsertionToSyntaxLeaf() =
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
-import ..SqlDocumentModule: SqlDocument
-import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:sql}) = SqlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is
 # written in, the extension that names the format back, and how to read that text
 # in again. Runtime state, so `__init__` rather than a top-level call.
-import ..NaturalModule: register_natural_domain!
-import ..SqlDocumentModule: SqlDocument
 
 function __init__()
     register_natural_domain!(SqlDocument;
@@ -2093,5 +2036,3 @@ function __init__()
                              extension = ".sql",
                              parse     = parse_sql_text)
 end
-
-end # module

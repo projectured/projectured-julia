@@ -232,7 +232,7 @@ end
 _heading_texts(elements) =
     String[_heading_text(e) for e in elements if e isa MarkdownHeading]
 
-# The `section` verb is one shared generic (`FileProjectModule.get_document_section`),
+# The `section` verb is one shared generic (`SerializationModule.get_document_section`),
 # because the registry holds one function per verb name. Markdown adds its method
 # here; RST adds its own.
 get_document_section(root::MarkdownRoot, title::AbstractString) = get_markdown_section(root, title)

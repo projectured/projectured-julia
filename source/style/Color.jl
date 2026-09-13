@@ -1,14 +1,13 @@
 """
-    ColorModule
+    StyleModule
 
 Color style value type and named color constants. Colors are stored as
 normalized Float64 components in [0, 1].
 """
-module ColorModule
+module StyleModule
 
 import ..DocumentModule: Document
 import ..DocumentModule: @document
-
 export StyleColor, make_style_color,
        is_color_equal, color_interpolate, color_lighten, color_darken,
        color_lighten_selection, color_darken_selection,
@@ -47,6 +46,74 @@ export StyleColor, make_style_color,
        color_indigo_400, color_indigo_500, color_indigo_600, color_indigo_700,
        color_indigo_800, color_indigo_900, color_indigo_950,
        color_destructive, color_destructive_fg
+import ..CellModule: Cell, ComputedCell, set_cell_value!
+export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
+       _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,
+       recompute_display_scale!, adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR,
+       font_inconsolata_regular_18,
+       font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
+       font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,
+       font_ubuntu_monospace_regular_18, font_ubuntu_monospace_italic_18, font_ubuntu_monospace_bold_18,
+       font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, font_ubuntu_monospace_bold_20,
+       font_ubuntu_monospace_regular_22, font_ubuntu_monospace_italic_22, font_ubuntu_monospace_bold_22,
+       font_ubuntu_monospace_regular_24, font_ubuntu_monospace_italic_24, font_ubuntu_monospace_bold_24,
+       font_ubuntu_monospace_regular_36, font_ubuntu_monospace_italic_36, font_ubuntu_monospace_bold_36,
+       font_ubuntu_monospace_regular_48, font_ubuntu_monospace_italic_48, font_ubuntu_monospace_bold_48,
+       font_ubuntu_regular_14, font_ubuntu_italic_14, font_ubuntu_bold_14,
+       font_ubuntu_regular_16, font_ubuntu_italic_16, font_ubuntu_bold_16,
+       font_ubuntu_regular_18, font_ubuntu_italic_18, font_ubuntu_bold_18,
+       font_ubuntu_regular_20, font_ubuntu_italic_20, font_ubuntu_bold_20,
+       font_ubuntu_regular_22, font_ubuntu_italic_22, font_ubuntu_bold_22,
+       font_ubuntu_regular_24, font_ubuntu_italic_24, font_ubuntu_bold_24,
+       font_ubuntu_regular_36, font_ubuntu_italic_36, font_ubuntu_bold_36,
+       font_liberation_sans_regular_14, font_liberation_sans_italic_14, font_liberation_sans_bold_14,
+       font_liberation_sans_regular_16, font_liberation_sans_italic_16, font_liberation_sans_bold_16,
+       font_liberation_sans_regular_18, font_liberation_sans_italic_18, font_liberation_sans_bold_18,
+       font_liberation_sans_regular_20, font_liberation_sans_italic_20, font_liberation_sans_bold_20,
+       font_liberation_sans_regular_22, font_liberation_sans_italic_22, font_liberation_sans_bold_22,
+       font_liberation_sans_regular_24, font_liberation_sans_italic_24, font_liberation_sans_bold_24,
+       font_liberation_sans_regular_30, font_liberation_sans_italic_30, font_liberation_sans_bold_30,
+       font_liberation_sans_regular_36, font_liberation_sans_italic_36, font_liberation_sans_bold_36,
+       font_liberation_serif_regular_14, font_liberation_serif_italic_14, font_liberation_serif_bold_14,
+       font_liberation_serif_regular_16, font_liberation_serif_italic_16, font_liberation_serif_bold_16,
+       font_liberation_serif_regular_18, font_liberation_serif_italic_18, font_liberation_serif_bold_18,
+       font_liberation_serif_regular_20, font_liberation_serif_italic_20, font_liberation_serif_bold_20,
+       font_liberation_serif_regular_22, font_liberation_serif_italic_22, font_liberation_serif_bold_22,
+       font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_liberation_serif_bold_24,
+       font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30,
+       font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36,
+       font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42,
+       font_dejavu_monospace_regular_14, font_dejavu_monospace_italic_14, font_dejavu_monospace_bold_14,
+       font_dejavu_monospace_regular_16, font_dejavu_monospace_italic_16, font_dejavu_monospace_bold_16,
+       font_dejavu_monospace_regular_18, font_dejavu_monospace_italic_18, font_dejavu_monospace_bold_18,
+       font_dejavu_monospace_regular_20, font_dejavu_monospace_italic_20, font_dejavu_monospace_bold_20,
+       font_dejavu_monospace_regular_22, font_dejavu_monospace_italic_22, font_dejavu_monospace_bold_22,
+       font_dejavu_monospace_regular_24, font_dejavu_monospace_italic_24, font_dejavu_monospace_bold_24,
+       font_dejavu_monospace_regular_36, font_dejavu_monospace_italic_36, font_dejavu_monospace_bold_36,
+       font_dejavu_monospace_regular_48, font_dejavu_monospace_italic_48, font_dejavu_monospace_bold_48,
+       font_dejavu_sans_regular_14, font_dejavu_sans_italic_14, font_dejavu_sans_bold_14,
+       font_dejavu_sans_regular_16, font_dejavu_sans_italic_16, font_dejavu_sans_bold_16,
+       font_dejavu_sans_regular_18, font_dejavu_sans_italic_18, font_dejavu_sans_bold_18,
+       font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20,
+       font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22,
+       font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
+       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
+export measure_truetype_text, font_ascent, font_descent, font_line_height,
+       font_x_height, font_cap_height, font_glyph_bounds, font_file
+import ..CellModule: Cell, ComputedCell
+export Inset, Point2D, inset_default,
+       inset_size, inset_width, inset_height,
+       inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
+       AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
+       apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
+import ..ReferenceModule: Reference
+export ImageDocument, set_cell_function!
+export StyleStroke, make_style_stroke
+export StyleText, make_style_text
+
+
+
 
 # ── Document ──────────────────────────────────────────────────────────────────
 
@@ -1275,5 +1342,13 @@ function color_darken_selection(color::StyleColor, selection; default_color::Sty
         default_color
     end
 end
+
+
+include("Font.jl")
+include("TrueType.jl")
+include("Geometry.jl")
+include("Image.jl")
+include("StyleStroke.jl")
+include("StyleText.jl")
 
 end # module

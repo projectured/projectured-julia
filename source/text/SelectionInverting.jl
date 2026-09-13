@@ -27,7 +27,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, get_flat_length, get_flat_selection, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
+import ..StyleModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: IoMap, var"@iomap"

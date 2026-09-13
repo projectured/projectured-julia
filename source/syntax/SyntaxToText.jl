@@ -26,8 +26,8 @@ import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
                        get_separator, get_indentation, is_syntax_collapsed,
                        is_syntax_collapsible, build_syntax_child_path, peel_child_step
 import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
-import ..ColorModule: color_default, color_solarized_gray
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
+import ..StyleModule: color_default, color_solarized_gray
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep

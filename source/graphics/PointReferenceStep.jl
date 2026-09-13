@@ -1,5 +1,5 @@
 """
-    PointReferenceStepModule
+    GraphicsModule
 
 The `PointReferenceStep` step type — a reference step that identifies a point
 within an element by pixel coordinates relative to that element's origin.
@@ -18,16 +18,16 @@ import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_logical_size
-import ..ColorModule: StyleColor, color_white, color_black
+import ..StyleModule: StyleFont, font_logical_size
+import ..StyleModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference
-import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
+import ..StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ColorModule: StyleColor
-import ..FontModule: font_logical_size
+import ..StyleModule: StyleColor
+import ..StyleModule: font_logical_size
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..CopyingProjectionModule: CopyingProjection

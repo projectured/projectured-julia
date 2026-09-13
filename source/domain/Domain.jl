@@ -1,5 +1,29 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from Domain.jl.
+#
+# What a document domain *is* — the concept the domain package's JSON, XML, SQL,
+# Julia, … are instances of. Two halves:
+#
+# 1. **The `@domain` macro** — generates a document domain's whole kit from one
+#    line: the abstract root (`JsonDocument`), the empty placeholder
+#    (`JsonNothing`), the typed-name insertion buffer (`JsonInsertion`), the
+#    Insert-key gesture that turns the placeholder into the insertion, and the
+#    insertion *traits* that anchor everything below.
+#
+# 2. **Reflection-based completion** — the candidate list for an insertion is
+#    *computed* from the document type tree (`get_insertion_candidates`, memoized on
+#    the world counter so a newly defined `@document` type is completable the
+#    moment its `struct` is evaluated), the accepted names are *derived* from the
+#    type name (`get_insertion_names`: the capitalized type name `JsonString` and the
+#    lowercase human-readable form `json string`; prefix-free inside a domain
+#    scope), and construction goes through *dispatch* (`make_insertion_document`,
+#    zero-arg fallback + per-type cursor/scaffold overrides written with
+#    `@insertion`). Nothing is listed or registered.
+#
+# `complete_insertion` classifies a typed prefix (`:empty` / `:invalid` /
+# `:unambiguous` / `:ambiguous`) and computes the completion continuation;
+# `resolve_insertion` maps a typed name to the committable type (exact name or
+# alias first, then an unambiguous prefix).
 # `subtypes` WITHOUT InteractiveUtils.
 #
 # `InteractiveUtils` is the REPL's introspection stdlib — `@which`, `@edit`,

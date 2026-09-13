@@ -1,22 +1,10 @@
-"""
-    ConversationModule
-
-The conversation document domain — an AI chat session (including in-flight
-streaming) as a `Document`, so selection/projections/editing compose with the
-rest of the editor. `ConversationConversation` holds `ConversationTurn`s; each
-turn has a role + a list of `ConversationPart`s wrapping arbitrary content.
-"""
-module ConversationModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..TextModule: TextBlock, TextString
-import ..ReferenceModule: Reference
-
-export ConversationDocument, make_conversation_thinking_part
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ConversationDocument.jl.
+#
+# The conversation document domain — an AI chat session (including in-flight
+# streaming) as a `Document`, so selection/projections/editing compose with the
+# rest of the editor. `ConversationConversation` holds `ConversationTurn`s; each
+# turn has a role + a list of `ConversationPart`s wrapping arbitrary content.
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type ConversationDocument <: Document end
@@ -70,7 +58,7 @@ ConversationThinking(text::AbstractString;
 make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
     ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
 
-# Accessor mirroring EvaluatorModule.make_evaluator_result_text / _eval_*.
+# Accessor mirroring ConversationModule.make_evaluator_result_text / _eval_*.
 _thinking_text(t::ConversationThinking) = t.text
 
 # ── ConversationTurn ──────────────────────────────────────────────────────────
@@ -146,5 +134,3 @@ set_cell_function!(c::ConversationConversation, f::Function) =
 
 set_cell_function!(t::ConversationTurn, f::Function) =
     (set_cell_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
-
-end # module

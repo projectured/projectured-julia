@@ -1,5 +1,30 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from Dragging.jl.
+#
+# A higher-order projection that dispatches on `DraggingState` documents and adds
+# drag-and-drop reordering to the wrapped `content`.
+#
+# **Printer** — transparent: projects `state.content` through the outer recursion
+# and returns its output (the `DraggingState` itself contributes nothing visible),
+# modelled on `TooltipDecoratorProjection`.
+#
+# **Reader** — a press → drag → drop state machine. A `MouseDown(:left)` on the
+# currently-selected element arms a *pending* drag; once the cursor moves past
+# `threshold` pixels the drag becomes *active*; the `MouseUp` that ends an active
+# drag resolves a drop target and emits a `MoveRangeOperation` reordering the
+# elements. A press that is released before crossing the threshold falls through
+# unchanged so the normal click-to-select path runs.
+#
+# The drop *target* reference is read out of the operation the inner (downstream)
+# reader produces for the ending `MouseUp` — i.e. the graphics layer's hit-test of
+# that event. Until the graphics layer hit-tests `MouseUp` (see the plan's Phase 1),
+# a live drop produces no target and the drag is a no-op; the reader logic itself
+# is exercised by `DraggingTest` with a synthetic hit-test operation.
+#
+# Transient gesture state (phase, grab coords, source reference) lives on the
+# projection instance — there is only ever one drag in flight — mirroring how
+# `TooltipDecoratorProjection` keeps its state on the projection rather than the
+# document.
 # ── Transient gesture state ───────────────────────────────────────────────
 
 """

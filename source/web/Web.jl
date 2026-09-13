@@ -742,7 +742,7 @@ function BackendModule.quit_backend!(backend::WebBackend)
         backend.server = nothing
     end
     # Intentionally do not TTF_Quit/SDL_Quit: the shared SDL font cache in
-    # SdlBackendModule holds open TTF_Font pointers that would dangle. SDL stays
+    # ProjecturedSdl holds open TTF_Font pointers that would dangle. SDL stays
     # initialised for the process lifetime; harmless.
     return nothing
 end

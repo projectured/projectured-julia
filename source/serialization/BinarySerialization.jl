@@ -1,5 +1,5 @@
 """
-    BinarySerializationModule
+    SerializationModule
 
 Exact, lossless binary persistence for documents — `save_document` /
 `load_document` — independent of any domain's text format.
@@ -17,7 +17,7 @@ uniformly — so the saved **selection is restored** on load.
 Targets *structural* documents. A document that holds a live external resource
 (a database adapter, an open socket) is not serializable this way; for a
 portable, human-readable format use the natural import/export
-(`NaturalFormatModule`). The binary format is tied to the in-memory struct
+(`FileFormatModule`). The binary format is tied to the in-memory struct
 layout, so it is a *same-version* persistence format, not an interchange format.
 """
 module SerializationModule

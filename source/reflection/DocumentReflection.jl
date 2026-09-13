@@ -1,5 +1,24 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from DocumentReflection.jl.
+#
+# A bounded shadow of an **arbitrary Julia object** — a live simulation engine, a
+# model, anything that is not a `Document` and never will be.
+#
+# [`ReflectionModule`](@ref) needs a `Document` on both sides. The things one most
+# wants to inspect are ordinary structs, so there is nothing to shadow: no shadow,
+# no bound, no inspector. Hence this walk, which reflects an object into a tree of
+# [`ReflectedNode`](@ref)s — label, kind, leaf value, children — and syncs that
+# tree in place against the object, under the same [`SyncPolicy`](@ref).
+#
+# Everything bounded sync provides carries over unchanged, because the same policy
+# and the same [`UnsyncedDocument`](@ref) marker are used: a node's `children` slot
+# holds a marker while it is collapsed, `request_sync!` on that marker expands it
+# one level on the next sync, a large field is capped with a tail marker, and the
+# nodes a widget holds keep their identity across syncs.
+#
+# What it does *not* do is guess at presentation. A leaf's `value` is a short
+# string and a node's `kind` is a type name; deciding what that should look like is
+# the projection's business.
 """
     ReflectedNode(label, kind, value, children)
 

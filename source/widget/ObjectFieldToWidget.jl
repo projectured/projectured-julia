@@ -57,9 +57,9 @@ import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..WidgetModule: WidgetLabel, WidgetText, WidgetCheckbox, Point2D
 import ..TextModule: TextBlock, TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: color_default
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: color_default
+import ..StyleModule: StyleText
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation

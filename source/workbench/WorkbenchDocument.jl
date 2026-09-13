@@ -1,28 +1,10 @@
-"""
-    WorkbenchModule
-
-The workbench document domain — the IDE shell. A `WorkbenchWorkbench` holds
-four `WorkbenchPage`s (navigation/editing/information/control), each hosting
-panels (navigator, console, descriptor, operator, searcher, evaluator,
-assistant).
-"""
-module WorkbenchModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..TextModule: TextBlock
-import ..PrimitiveModule: PrimitiveString
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..LlmModule: Llm
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, is_element_reference_step
-import ..WorkspaceModule: Workspace, WorkspaceFolder
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: insert_elements, delete_elements
-export WorkbenchDocument, get_workbench_title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
-       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WorkbenchDocument.jl.
+#
+# The workbench document domain — the IDE shell. A `WorkbenchWorkbench` holds
+# four `WorkbenchPage`s (navigation/editing/information/control), each hosting
+# panels (navigator, console, descriptor, operator, searcher, evaluator,
+# assistant).
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
 
 abstract type WorkbenchDocument <: Document end
@@ -246,5 +228,3 @@ identity-rooted splice — `delete_elements` with `root=page` at the 0-based
 """
 WorkbenchCloseDocumentOperation(page::WorkbenchPage, index::Integer) =
     delete_elements(_WORKBENCH_ELEMENTS, index - 1, 1; root=page)
-
-end # module

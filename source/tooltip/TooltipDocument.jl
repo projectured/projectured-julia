@@ -1,5 +1,5 @@
 """
-    TooltipDocumentModule
+    TooltipModule
 
 `TooltipSource` — a transparent wrapper marking a sub-tree as a tooltip
 anchor. The `TooltipDecoratorProjection` reader watches events on it and emits
@@ -16,7 +16,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
-import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
+import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationModule: Operation
 export TooltipSource
 export TooltipDecoratorProjection, TooltipDecoratorIoMap

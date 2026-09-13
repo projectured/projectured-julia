@@ -1,3 +1,6 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WindowScene.jl.
+#
 # ── One window on one document, and the loop that drives it ─────────────────
 #
 # `ProjecturedExample.run_example` opens the development gallery: one window per
@@ -20,26 +23,12 @@
 #
 # It was written twice before it was written here, as `CampaignScene.jl` and
 # `QtenvWindowScene.jl` in omnet-julia, which differed only in their names.
-
-module WindowSceneModule
-
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument
-import ..ScreenToScreenModule: ScreenToScreen
-import ..WindowManagingProjectionModule: WindowManagingProjection
-import ..CollectionModule: CellVector
-import ..DocumentModule: Document
-import ..ReferenceModule: var"@reference", is_reference_equal, strip_reference_types,
-                          EmptyReference
-import ..BackendModule: get_display_size
-import ..EditorModule: run_editor!
-
 using ProjecturedProjection.ReferenceDispatchingProjectionModule: ReferenceDispatchingProjection
 using ProjecturedProjection.NestingProjectionModule: NestingProjection
 using ProjecturedProjection.IdentityProjectionModule: IdentityProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 
-export make_window_scene, make_window_scene_projection, run_window_editor
 
 """
     make_window_scene(document, title; width, height) -> ScreenDocument
@@ -113,5 +102,3 @@ function run_window_editor(document, projection, title::AbstractString;
     run_editor!(backend, make_window_scene_projection(projection), scene;
                              mcp = mcp, on_start = on_start)
 end
-
-end # module WindowSceneModule

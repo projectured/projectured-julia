@@ -43,7 +43,7 @@
 
 using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
-using ProjecturedStyle.FontModule: StyleFont
+using ProjecturedStyle.StyleModule: StyleFont
 using ProjecturedText.TextModule: TextString, TextBlock, TextDocument, TextGraphics
 using ProjecturedSyntax.SyntaxModule: SyntaxNode, SyntaxLeaf
 

@@ -289,7 +289,7 @@ Playback.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeli
 The gesture recognizer that synthesises `MousePress` from MouseDown/MouseUp
 pairs and `KeyChord` from KeyDown sequences lives in `gesture/` (its only
 dependency is `EventModule`, no editor coupling). The global animation clock
-`TimeModule` lives in `cell/`
+`ClockModule` lives in `clock/`
 (every animated projection reads it, so it belongs beside the engine it
 depends on). What's left in `editor/` is the loop and its scripted
 playback. Alongside the four visible sub-steps, `read!` also folds
@@ -308,7 +308,7 @@ that subscribed to `get_reactive_editor_time()`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MousePress`, …).
 - `..PerformanceCounterModule` — the counters bumped inline in the loop.
-- `..TimeModule` — `tick_editor_time!`.
+- `..ClockModule` — `tick_editor_time!`.
 - `..DocumentModule` — the abstract `Document` type.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.

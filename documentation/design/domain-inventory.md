@@ -85,7 +85,7 @@ package, below every domain:
   (`ProjecturedGestureLog`). They render a *projection*, not a content kind.
 - **The render-anything projection.** `NaturalToGraphics`
   (`ProjecturedNatural`) draws any document, so it cannot name any
-  domain. Both its tables come from `NaturalRegistryModule`, and each domain
+  domain. Both its tables come from `NaturalModule`, and each domain
   registers its own row.
 
 ## The root module
@@ -134,7 +134,7 @@ the test package measures the set from the loaded package and passes it as
    file you already have:
 
    ```julia
-   import ..NaturalRegistryModule: register_natural_syntax!
+   import ..NaturalModule: register_natural_syntax!
    function __init__()
        register_natural_syntax!(:mydomain,
            () -> Pair{Type,Any}[MyDocument => MyToSyntax()])
@@ -144,7 +144,7 @@ the test package measures the set from the loaded package and passes it as
    A domain that draws itself rather than going through the syntax tail uses
    `register_natural_graphics!` instead; its factory takes `measure`.
 4. If the domain has a text form, register `natural_syntax_projection`,
-   `natural_extension` and `parse_natural` on `NaturalFormatModule` the same way.
+   `natural_extension` and `parse_natural` on `FileFormatModule` the same way.
 5. Add the package to `Projectured`'s `import` list and `_SOURCES` tuple. That
    tuple is the one place the full set is written down.
 6. Add `package/<name>/example/` and `package/<name>/test/`, and add the test

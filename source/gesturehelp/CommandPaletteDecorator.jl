@@ -53,7 +53,7 @@ import ..SyntaxToTextModule: SyntaxToText
 import ..WordWrappingModule: WordWrapping
 import ..TextToGraphicsModule: TextToGraphics
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..ColorModule: color_solarized_background_lighter, color_solarized_blue
+import ..StyleModule: color_solarized_background_lighter, color_solarized_blue
 
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,

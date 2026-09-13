@@ -1,9 +1,9 @@
 """
-    OsClipboardModule
+    ClipboardModule
 
 Access to the host operating system's clipboard, behind a stubbable indirection.
 
-The internal-clipboard projection ([`ClipboardToAnyProjectionModule`](@ref)) uses this
+The internal-clipboard projection ([`ClipboardModule`](@ref)) uses this
 to mirror a copy/cut out to the OS clipboard and to fall back to the OS clipboard when
 nothing is on the ProjecturEd clipboard.
 

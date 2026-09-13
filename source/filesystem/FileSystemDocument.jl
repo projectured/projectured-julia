@@ -16,9 +16,9 @@ export FileSystemDocument, make_filesystem_pathname
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap

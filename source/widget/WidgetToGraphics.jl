@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IntentModule: Intent
 import ..ProjectionModule: var"@projection"
 import ..DocumentModule: Document
-import ..ColorModule: StyleColor,
+import ..StyleModule: StyleColor,
                       color_white, color_zinc_50, color_zinc_100, color_zinc_200,
                       color_zinc_300, color_zinc_400, color_zinc_500, color_zinc_600,
                       color_zinc_700, color_zinc_800, color_zinc_900, color_zinc_950,
@@ -55,14 +55,14 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        Action, InvokeActionOperation, matches_action_shortcut
 import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
-import ..ImageModule: ImageDocument
+import ..StyleModule: ImageDocument
 import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, get_graphics_size
-import ..GeometryModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
+import ..StyleModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
                          apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-import ..FontModule: StyleFont,
+import ..StyleModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
-import ..StyleTextModule: StyleText
-import ..StyleStrokeModule: StyleStroke
+import ..StyleModule: StyleText
+import ..StyleModule: StyleStroke
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
 import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
@@ -70,7 +70,7 @@ import ..SelectionModule: get_stored_selection
 import ..EventPatternModule: var"@event_case"
 import ..OperationModule: Operation
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
-import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
+import ..ScreenModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, EmptyReference, is_element_reference_step

@@ -1,5 +1,23 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from DocumentFile.jl.
+#
+# Format-by-extension file I/O — the single "read/write a document file" seam that
+# bridges the two serializers and the domain insertion seeds:
+#
+# | extension | write | read (exists) | read (missing) |
+# |-----------|-------|---------------|----------------|
+# | `.pdoc`   | binary `save_document` | `load_document` | `DocumentNothing` |
+# | natural   | `export_document`      | `import_document` | the domain's seed |
+#
+# Opening a *non-existent* file yields the extension's seed — the domain insertion
+# placeholder registered on `make_document_seed` (`.json` → `JsonInsertion`, …), or a
+# `DocumentNothing` otherwise — so a new file starts as an editable seed that can be
+# typed into and then saved. Used by the `WorkbenchEditor` save/reload keybindings
+# and the file-editor registry.
+#
+# Sits in `visual` beside [`FileFormatModule`](@ref) (the natural half needs the
+# visual text printers); the binary half calls up to `base`'s
+# [`SerializationModule`](@ref).
 const _BINARY_EXT = ".pdoc"
 
 _ext(path::AbstractString) = lowercase(splitext(path)[2])

@@ -3,7 +3,7 @@
 
 The LP-backed constraint-layout solver for ProjecturEd: a `TulipConstraintSolver`
 that adds a `solve_constraint_layout` method to the seam defined in
-`ProjecturedLayout.ConstraintSolverModule`. Opt-in so core `ProjecturedDomain`
+`ProjecturedLayout.LayoutModule`. Opt-in so core `ProjecturedDomain`
 carries no `Tulip` / `MathOptInterface` dependency — exactly how
 `ProjecturedAdaptagrams` adds the native `AdaptagramsLayout` to the
 `GraphLayoutEngine` seam without core depending on the native shim.

@@ -25,9 +25,9 @@ import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics,
                      ReplaceTextRangeOperation, _lower_text_range
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
-import ..ImageModule: ImageDocument
-import ..FontModule: StyleFont, font_logical_size
-import ..ColorModule: StyleColor, color_black
+import ..StyleModule: ImageDocument
+import ..StyleModule: StyleFont, font_logical_size
+import ..StyleModule: StyleColor, color_black
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..GraphicsModule: PointReferenceStep

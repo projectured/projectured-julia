@@ -69,10 +69,10 @@ import ..ProcessToSyntaxModule: ProcessToSyntax, ProcessBreakToSyntaxLeaf,
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..IoMapModule: IoMap, var"@iomap"
 import ..TextModule: TextString, make_hinted_text
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: color_default, color_solarized_green, color_solarized_violet,
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
                       color_solarized_gray, color_solarized_magenta, color_solarized_cyan
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project

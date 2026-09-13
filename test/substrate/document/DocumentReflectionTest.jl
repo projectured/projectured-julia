@@ -1,5 +1,5 @@
 """
-`DocumentReflectionModule` — the bounded shadow of a plain Julia object.
+`ReflectionModule` — the bounded shadow of a plain Julia object.
 
 Bounded sync needs a `Document` on both sides, and the things worth inspecting (a
 live engine, a model) are ordinary structs. This walk closes that gap, and the

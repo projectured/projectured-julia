@@ -1,46 +1,51 @@
-"""
-    SqlParserModule
-
-Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
-from `SqlDocumentModule`. Two statement families are recognised:
-
-- **SELECT** queries → `SqlSelectStatement`.
-- **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
-  `SqlCreateSchemaStatement`.
-
-Provides:
-- `parse_sql_text(text)` — parse a SQL string into a `SqlStatement`
-- `parse_sql_file(path)` — read and parse a `.sql` file from disk
-
-A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
-parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
-clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
-references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
-(table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
-
-Unsupported fragments are handled gracefully: comments are stripped by the
-tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
-expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
-a greedy token fallback. Input that is not a parseable SELECT statement raises an
-error rather than guessing, matching the other parsers in this directory.
-"""
-module SqlParserModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause,
-                            SqlWhereFilterCondition,
-                            SqlSelectItem, SqlAllColumns, SqlColumnReference,
-                            SqlTableName, SqlTableAlias, SqlColumnName, SqlColumnAlias,
-                            SqlDistinct,
-                            SqlTableExpression, SqlSubqueryFromItem, SqlFromItem, SqlJoinedFromItem,
-                            SqlInnerJoin, SqlLeftOuterJoin, SqlRightOuterJoin, SqlFullOuterJoin, SqlCrossJoin,
-                            SqlJoinOnCondition, SqlJoinUsingCondition,
-                            SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
-                            SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement
-
-export parse_sql_text, parse_sql_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SqlParser.jl.
+#
+# Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
+# from `SqlModule`. Two statement families are recognised:
+#
+# - **SELECT** queries → `SqlSelectStatement`.
+# - **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
+#   `SqlCreateSchemaStatement`.
+#
+# Provides:
+# - `sqlparse(text)` — parse a SQL string into a `SqlStatement`
+# - `sqlparse_file(path)` — read and parse a `.sql` file from disk
+#
+# A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
+# parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
+# clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
+# references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
+# (table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
+#
+# Unsupported fragments are handled gracefully: comments are stripped by the
+# tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
+# expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
+# a greedy token fallback. Input that is not a parseable SELECT statement raises an
+# error rather than guessing, matching the other parsers in this directory.
+#
+# Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
+# from `SqlModule`. Two statement families are recognised:
+#
+# - **SELECT** queries → `SqlSelectStatement`.
+# - **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
+#   `SqlCreateSchemaStatement`.
+#
+# Provides:
+# - `parse_sql_text(text)` — parse a SQL string into a `SqlStatement`
+# - `parse_sql_file(path)` — read and parse a `.sql` file from disk
+#
+# A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
+# parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
+# clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
+# references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
+# (table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
+#
+# Unsupported fragments are handled gracefully: comments are stripped by the
+# tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
+# expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
+# a greedy token fallback. Input that is not a parseable SELECT statement raises an
+# error rather than guessing, matching the other parsers in this directory.
 # ══════════════════════════════════════════════════════════════════════════════
 # §1  Entry points
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1032,5 +1037,3 @@ function parse_number(s::String)
         return parse(Int, s)
     end
 end
-
-end # module

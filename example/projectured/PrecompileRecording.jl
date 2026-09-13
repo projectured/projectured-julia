@@ -35,7 +35,7 @@ const PRECOMPILE_STALE_RATIO = 0.1
 
 Bind every loaded module into `scope` under its own name, and answer how many
 took. What a recorded statement names is a type in the module that defines it —
-`ProjecturedSerialization.FileProjectModule.var"#…"` — so a name that is not bound is a
+`ProjecturedSerialization.SerializationModule.var"#…"` — so a name that is not bound is a
 statement that cannot resolve. Measured on one recording: 12.9 % of the list
 resolves against a single package's own imports and 99.2 % against every loaded
 module.

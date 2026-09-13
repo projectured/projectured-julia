@@ -1,11 +1,55 @@
 """
-    SqlDocumentModule
+    SqlModule
 
 The SQL statement document model (ANSI/PostgreSQL conventions). The AST is
 database-agnostic; `SqlToSyntax` renders it and `SqlToCellTable` executes it
 against a `DatabaseInstance`.
 """
-module SqlDocumentModule
+module SqlModule
+
+export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
+       SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
+import ..CellModule: Cell, ComputedCell
+import ..CollectionModule: CellVector, ComputedCellVector
+export parse_sql_text, parse_sql_file
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf, parse_completion,
+                                          InsertionNothingToSyntaxLeaf
+import ..TextModule: TextString
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
+import ..StyleModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation, SyntaxNavigation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..IoMapModule: ChildrenIoMap
+import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..PrinterContextModule: make_child_context
+export SqlInsertionToSyntaxLeaf,
+       SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
+       SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
+       SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
+       SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
+       SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
+       SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
+       SqlWhereFilterConditionToSyntaxNode, SqlWhereClauseToSyntaxNode,
+       SqlScalarValueToSyntaxLeaf, SqlComparisonToSyntaxNode,
+       SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
+       SqlSelectStatementToSyntaxNode,
+       SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
+       SqlUpdateStatementToSyntaxNode,
+       SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
+       SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode, SqlToSyntax
+import ..FileFormatModule: make_document_seed
+import ..NaturalModule: register_natural_domain!
+export SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause, SqlNothing, SqlDocument
+
 
 using ..CellModule
 using ..DocumentModule
@@ -13,8 +57,6 @@ using ..CollectionModule
 using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
 using ..DomainModule
 
-export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
-       SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
 
 # ── Abstract types ─────────────────────────────────────────────────────────────
 
@@ -340,5 +382,9 @@ SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
     SqlCreateTableStatement(table_name, columns, Cell(nothing))
 SqlCreateSchemaStatement(schema_name::AbstractString) =
     SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
+
+
+include("SqlParser.jl")
+include("SqlToSyntax.jl")
 
 end # module

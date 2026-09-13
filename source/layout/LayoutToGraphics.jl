@@ -1,5 +1,19 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from LayoutToGraphics.jl.
+#
+# Projections from layout documents (`HorizontalLayout`, `VerticalLayout`,
+# `GridLayout`, `FlowLayout`, `StackLayout`) to `GraphicsCanvas`.
+#
+# Every projection follows the same two-phase shape:
+#
+# 1. Recurse into each child to obtain a `GraphicsCanvas`.
+# 2. Read each child canvas's `w` / `h` cells and wire computed cells
+#    for per-child `(x, y)` and the outer canvas's `(w, h)`.
+#
+# Each child canvas is wrapped in an outer `GraphicsCanvas` at its
+# computed `(x, y)`. The resulting per-child position cells are reactive:
+# an edit that changes a child's intrinsic extent invalidates only the
+# downstream position/extent cells, no re-projection of the layout.
 # The focus walk is generic and names no widget type, so layout containers share
 # Tab traversal with the widget readers without importing the widget domain.
 

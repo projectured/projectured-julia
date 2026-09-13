@@ -1,64 +1,31 @@
-"""
-    ConversationToWidgetModule
-
-ConversationDocument → WidgetDocument projection — a vertical list of chat
-bubbles:
-
-    ConversationConversation → VerticalLayout of turn bands
-    ConversationTurn         → WidgetCard, quiet: title = [avatar(role) + role
-                               label], content = VerticalLayout of part widgets.
-                               The user's band is tinted and the model's is
-                               plain — neither draws a border.
-    ConversationPart         → the part's `content` document (recursed), bare.
-                               Code, a thinking block and an evaluation each keep
-                               a quiet tinted panel with a one-line tag; every
-                               other kind draws no chrome at all.
-
-A turn is collapsible, and so is a part that kept a panel: when `collapsed` is
-set, the body is wrapped in a `WidgetScrollPane` clipped to a few lines (a
-graphics-viewport clip). A part with no panel has no header to click, so it does
-not fold — prose is what a person reads, and folding it hides the message.
-The richer first-line collapse (`TextFirstLine`) is a later refinement.
-
-The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
-part updates the layout without re-running `print_document` (streaming). The
-`collapsed` state is read at print time.
-"""
-module ConversationToWidgetModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..DocumentModule: Document
-import ..ConversationModule: ConversationDocument, ConversationConversation,
-                              ConversationTurn, ConversationPart, ConversationThinking
-import ..EvaluatorModule: EvaluatorForm, get_evaluation_kind_label
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ConversationToWidget.jl.
+#
+# ConversationDocument → WidgetDocument projection — a vertical list of chat
+# bubbles:
+#
+#     ConversationConversation → VerticalLayout of turn bands
+#     ConversationTurn         → WidgetCard, quiet: title = [avatar(role) + role
+#                                label], content = VerticalLayout of part widgets.
+#                                The user's band is tinted and the model's is
+#                                plain — neither draws a border.
+#     ConversationPart         → the part's `content` document (recursed), bare.
+#                                Code, a thinking block and an evaluation each keep
+#                                a quiet tinted panel with a one-line tag; every
+#                                other kind draws no chrome at all.
+#
+# A turn is collapsible, and so is a part that kept a panel: when `collapsed` is
+# set, the body is wrapped in a `WidgetScrollPane` clipped to a few lines (a
+# graphics-viewport clip). A part with no panel has no header to click, so it does
+# not fold — prose is what a person reads, and folding it hides the message.
+# The richer first-line collapse (`TextFirstLine`) is a later refinement.
+#
+# The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
+# part updates the layout without re-running `print_document` (streaming). The
+# `collapsed` state is read at print time.
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
-import ..NaturalModule: get_natural_format
-import ..WidgetModule: WidgetDocument, WidgetCard, WidgetLabel,
-                       WidgetScrollPane, Point2D, Inset, inset_default
-import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed
-import ..TextModule: TextBlock, TextString
-import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_bold_14, font_ubuntu_bold_18,
-                     font_dejavu_monospace_bold_20
-import ..ColorModule: color_indigo_600, color_solarized_cyan, color_slate_600
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, RangeReferenceStep, get_reference_steps
-import ..OperationModule: ToggleCollapseOperation, Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..EventModule: MousePress
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context
 
-export ConversationConversationToWidgetComposite,
-       ConversationTurnToWidgetComposite,
-       ConversationPartToWidget,
-       ConversationToWidget
 
 # ── Projection structs ──────────────────────────────────────────────────────
 
@@ -143,14 +110,19 @@ const CODE_FORMATS  = Set([:jl, :json, :xml])
 
 _is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
 
-function _kind_label(content)
-    content isa EvaluatorForm      && return get_evaluation_kind_label(content)
-    content isa ConversationThinking && return "thinking"
-    content isa TextBlock           && return "text"
-    key = get_natural_format(typeof(content))
-    key === nothing && return "doc"
-    get(FORMAT_LABELS, key, String(key))
-end
+# Per-part label, covering both editing states and committed content.
+#
+# A domain's insertion is a subtype of its own root, so one entry of the table
+# covers a kind while it is typed and after it is committed. The transcript and
+# the composer draw the same tag on a part of the same kind.
+_kind_label(::PrimitiveString)      = "text"
+_kind_label(::DocumentInsertion)    = "insert"
+_kind_label(::ConversationThinking) = "thinking"
+_kind_label(::TextBlock)            = "text"
+_kind_label(f::EvaluatorForm)       = get_evaluation_kind_label(f)
+_kind_label(c)                      = _format_label(get_natural_format(typeof(c)))
+_format_label(::Nothing)            = "doc"
+_format_label(key::Symbol)          = get(FORMAT_LABELS, key, String(key))
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -468,5 +440,3 @@ function ConversationToWidget()
         ConversationPart         => ConversationPartToWidget(),
     )
 end
-
-end # module

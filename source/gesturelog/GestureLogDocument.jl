@@ -41,9 +41,9 @@ import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..CollectionModule: ComputedCellVector
 import ..TextModule: TextString
-import ..FontModule: font_dejavu_monospace_regular_16, font_dejavu_monospace_bold_16
-import ..ColorModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleModule: font_dejavu_monospace_regular_16, font_dejavu_monospace_bold_16
+import ..StyleModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..PrinterContextModule: PrinterContext
 export GestureLogToSyntax
@@ -58,10 +58,10 @@ import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..ColorModule: StyleColor
+import ..StyleModule: StyleColor
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToGraphicsModule: TextToGraphics
-import ..TrueTypeModule: measure_truetype_text
+import ..StyleModule: measure_truetype_text
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
        make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
 

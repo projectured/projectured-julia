@@ -18,7 +18,7 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
+const ScreenModule = ProjecturedScreen.ScreenModule
 const OperationModule = ProjecturedKernel.OperationModule
 
 include("../../../source/tooltip/TooltipDocument.jl")

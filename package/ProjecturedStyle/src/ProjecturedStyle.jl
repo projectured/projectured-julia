@@ -17,11 +17,5 @@ const CellModule = ProjecturedKernel.CellModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
 include("../../../source/style/Color.jl")
-include("../../../source/style/Font.jl")
-include("../../../source/style/TrueType.jl")
-include("../../../source/style/Geometry.jl")
-include("../../../source/style/Image.jl")
-include("../../../source/style/StyleStroke.jl")
-include("../../../source/style/StyleText.jl")
 
 end # module ProjecturedStyle

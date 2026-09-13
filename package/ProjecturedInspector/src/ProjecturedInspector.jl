@@ -21,14 +21,14 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceToTextModule = ProjecturedText.ReferenceToTextModule
 const TextModule = ProjecturedText.TextModule
-const FontModule = ProjecturedStyle.FontModule
-const ColorModule = ProjecturedStyle.ColorModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
-const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
+const ScreenModule = ProjecturedScreen.ScreenModule
 
 include("../../../source/inspector/ReferenceInspector.jl")
 

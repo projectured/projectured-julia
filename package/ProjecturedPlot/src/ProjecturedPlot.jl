@@ -12,7 +12,7 @@ module ProjecturedPlot
 
 using ProjecturedStyle
 
-const ColorModule = ProjecturedStyle.ColorModule
+const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/plot/PlotGeometry.jl")
 

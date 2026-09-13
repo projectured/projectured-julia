@@ -1,79 +1,30 @@
-"""
-    WorkbenchToWidgetModule
-
-WorkbenchDocument → WidgetDocument projection. Maps the workbench document
-hierarchy to a widget tree.
-
-    WorkbenchWorkbench  → WidgetShell containing a horizontal WidgetSplitPane
-                          (navigation | center | control), where the center
-                          is itself a vertical split of editing / information
-    WorkbenchPage       → WidgetTabbedPane with one tab per panel
-    WorkbenchNavigator  → WidgetScrollPane wrapping a WidgetComposite of folders
-    WorkbenchConsole    → WidgetScrollPane wrapping projected content
-    WorkbenchDescriptor → WidgetScrollPane wrapping a TextBlock that renders the content reference
-    WorkbenchOperator   → empty WidgetScrollPane
-    WorkbenchSearcher   → empty WidgetScrollPane
-    WorkbenchEvaluator  → WidgetScrollPane wrapping projected content
-    Assistant  → WidgetSplitPane (vertical) of conversation + input WidgetScrollPanes
-    WorkbenchEditor     → WidgetScrollPane wrapping projected content
-
-The printer also **forward-projects the workbench selection** onto the widget
-tree: each `map_reference_forward` method is the structure-complete inverse of
-the matching `map_reference_backward`, and `print_document` wires the
-`selection` cells of the shell, the structural split panes, and the tabbed
-panes to it. That lets the widget readers route a keystroke to the child the
-selection points at (split panes via `_selected_split_slot`, tabbed panes by
-making the active tab follow the selection) instead of broadcasting to every
-pane. See the "Forward-Projecting Selection" section of package/kernel/doc/selection.md.
-"""
-module WorkbenchToWidgetModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                               map_reference_forward, map_reference_backward, Projection
-import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
-                          WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
-                          WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
-                          WorkbenchEditor, get_workbench_title
-import ..AssistantModule: Assistant, ASSISTANT_TITLE
-import ..AssistantModule: AssistantToWidgetSplitPane, AssistantToWidgetCard
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset, inset_default,
-                       SelectTabOperation
-import ..LayoutModule: VerticalLayout
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, RangeReferenceStep, get_reference_steps
-import ..LayoutModule: LayoutConstraint
-import ..TextModule: TextBlock, TextString
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap,
-                      reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..IoMapModule: IoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
-import ..OperationModule: Operation
-import ..OperationModule: reroot_operation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..EventModule: KeyDown, KeyPress
-import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, extend_reference, try_evaluate_reference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: annotate_reference_types
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
-       WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
-       WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
-       WorkbenchConsoleToWidgetScrollPane,
-       WorkbenchDescriptorToWidgetScrollPane,
-       WorkbenchOperatorToWidgetScrollPane,
-       WorkbenchSearcherToWidgetScrollPane,
-       WorkbenchEvaluatorToWidgetScrollPane,
-       WorkbenchEditorToWidgetScrollPane,
-       WorkbenchToWidget
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WorkbenchToWidget.jl.
+#
+# WorkbenchDocument → WidgetDocument projection. Maps the workbench document
+# hierarchy to a widget tree.
+#
+#     WorkbenchWorkbench  → WidgetShell containing a horizontal WidgetSplitPane
+#                           (navigation | center | control), where the center
+#                           is itself a vertical split of editing / information
+#     WorkbenchPage       → WidgetTabbedPane with one tab per panel
+#     WorkbenchNavigator  → WidgetScrollPane wrapping a WidgetComposite of folders
+#     WorkbenchConsole    → WidgetScrollPane wrapping projected content
+#     WorkbenchDescriptor → WidgetScrollPane wrapping a TextBlock that renders the content reference
+#     WorkbenchOperator   → empty WidgetScrollPane
+#     WorkbenchSearcher   → empty WidgetScrollPane
+#     WorkbenchEvaluator  → WidgetScrollPane wrapping projected content
+#     Assistant  → WidgetSplitPane (vertical) of conversation + input WidgetScrollPanes
+#     WorkbenchEditor     → WidgetScrollPane wrapping projected content
+#
+# The printer also **forward-projects the workbench selection** onto the widget
+# tree: each `map_reference_forward` method is the structure-complete inverse of
+# the matching `map_reference_backward`, and `print_document` wires the
+# `selection` cells of the shell, the structural split panes, and the tabbed
+# panes to it. That lets the widget readers route a keystroke to the child the
+# selection points at (split panes via `_selected_split_slot`, tabbed panes by
+# making the active tab follow the selection) instead of broadcasting to every
+# pane. See the "Forward-Projecting Selection" section of package/kernel/doc/selection.md.
 # ── Projection structs ────────────────────────────────────────────────────────
 
 struct WorkbenchWorkbenchToWidgetShell    <: Projection end
@@ -851,7 +802,7 @@ end
 function read_intent(p::WorkbenchEditorToWidgetScrollPane,
                           iomap::ContentIoMap, op)
     # Give the WorkbenchEditor tab first crack at a raw input gesture — its
-    # `@gestures` table (Ctrl+S save, Ctrl+O reload, in `WorkbenchFileModule`) —
+    # `@gestures` table (Ctrl+S save, Ctrl+O reload, in `WorkbenchModule`) —
     # before the event descends into the tab's content. `iomap.input` is the
     # `WorkbenchEditor`. This mirrors the generic leaf delegation to
     # `read_gesture` in `Projection.jl`, which this projection's own reader
@@ -917,5 +868,3 @@ function WorkbenchToWidget()
         WorkbenchEditor     => WorkbenchEditorToWidgetScrollPane(),
     )
 end
-
-end # module

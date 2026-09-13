@@ -1,5 +1,22 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from FormulaToSyntax.jl.
+#
+# Formula → Syntax projection, composed with the Julia projection so a formula
+# body (a mix of `JuliaDocument` nodes and `FormulaReference`s) renders through one
+# shared `recursion`:
+#
+# - `FormulaReference` → `SyntaxLeaf` whose value is `() -> reference.target.name`,
+#   coloured as a link. Reactive, so it tracks renames.
+# - `FormulaFormula` → `SyntaxNode` with three layouts selected by the formula's
+#   `display_mode` cell (`:code` / `:result` / `:both`).
+# - `FormulaEnvironment` → `SyntaxNode`, one formula per line.
+#
+# Mappers follow the School-A peel-and-delegate pattern (see the tutorial and
+# package/kernel/doc/projection-system.md): each node peels the one step it owns and delegates
+# the tail through the stored child IO maps. `FormulaToSyntax()` merges the Julia
+# type-dispatch table with the Formula entries into a single
+# `TypeDispatchingProjection` (callers wrap it once in `RecursiveProjection`, as
+# with `JuliaToSyntax`).
 # ── Leaf helpers ─────────────────────────────────────────────────────────────
 
 _empty(font) = TextString("", font, color_default)

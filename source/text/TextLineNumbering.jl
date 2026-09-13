@@ -13,8 +13,8 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, convert_flat_offset_to_element, convert_element_to_flat_offset
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ColorModule: StyleColor, color_default
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap

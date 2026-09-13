@@ -7,7 +7,7 @@ operators and text becomes selectable `Tj` text shows. The editor's own fonts
 (`font/`) are embedded as Type0 / CIDFontType2 composite fonts (`Identity-H`),
 so the full Unicode range the editor uses is covered.
 
-Entry points mirror `write_image` in `SdlBackendModule`:
+Entry points mirror `write_image` in `ProjecturedSdl`:
 
 - `write_pdf(canvas, filename; width, height)` — a canvas you already have.
 - `write_pdf(document, projection, filename; ...)` — runs the pipeline, sizes a
@@ -27,15 +27,15 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _canvas_content_bounds, tessellate_spline, build_polyline_arrowhead
-import ..ColorModule: StyleColor
-import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
-import ..FontModule: StyleFont, font_logical_size
-# The TrueType parser + SDL-free measurer moved to TrueTypeModule (it is used by
+import ..StyleModule: StyleColor
+import ..StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
+import ..StyleModule: StyleFont, font_logical_size
+# The TrueType parser + SDL-free measurer moved to StyleModule (it is used by
 # the web backend and every projection example too, not just PDF). The PDF writer
 # still needs the parser internals for glyph embedding and text sizing.
-import ..TrueTypeModule: TrueTypeFont, _load_ttf, glyph_id, advance_1000, ascent_px,
+import ..StyleModule: TrueTypeFont, _load_ttf, glyph_id, advance_1000, ascent_px,
                          text_width, measure_truetype_text
-import ..ImageModule: ImageFile
+import ..StyleModule: ImageFile
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
 import ..PrinterContextModule: PrinterContext

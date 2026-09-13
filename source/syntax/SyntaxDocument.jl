@@ -40,8 +40,8 @@ import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: color_default
+import ..StyleModule: font_ubuntu_monospace_regular_20
+import ..StyleModule: color_default
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_function!,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,

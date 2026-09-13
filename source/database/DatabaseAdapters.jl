@@ -4,7 +4,7 @@
 Generic database access layer. Defines the abstract `DatabaseAdapter`
 interface and `RawDatabaseResult`. This module is **dependency-free** — it
 touches neither `ODBC`, `DBInterface`, nor `Tables`. The first concrete
-implementation, `OdbcDatabaseAdapter`, lives in `OdbcAdapterModule`
+implementation, `OdbcDatabaseAdapter`, lives in `OdbcModule`
 (`external/OdbcAdapter.jl`) and is constructed through the
 `make_database_adapter` factory, so live-database access can be confined to an
 optional package extension.

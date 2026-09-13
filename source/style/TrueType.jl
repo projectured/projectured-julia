@@ -1,24 +1,27 @@
-"""
-    TrueTypeModule
-
-A minimal read-only TrueType parser and the SDL-free text measurer built on it.
-Reads advance widths straight from a font's own `hmtx` table (pure Julia — no
-rasterizer, no display server, no SDL), so any projection pipeline can measure
-text for layout without a live backend.
-
-This machinery is format-neutral: the PDF backend uses it for both measurement
-and glyph embedding, the web backend uses `measure_truetype_text` for its
-metrics, and every projection example defaults `measure=measure_truetype_text`.
-It lives here next to `FontModule` (which owns `StyleFont` and the font-zoom
-sizing) rather than inside the PDF backend, which is only one of its consumers.
-"""
-module TrueTypeModule
-
-import ..FontModule: StyleFont, font_logical_size
-
-export measure_truetype_text, font_ascent, font_descent, font_line_height,
-       font_x_height, font_cap_height, font_glyph_bounds, font_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TrueType.jl.
+#
+# A minimal read-only TrueType parser and the SDL-free text measurer built on it.
+# Reads advance widths straight from a font's own `hmtx` table (pure Julia — no
+# rasterizer, no display server, no SDL), so any projection pipeline can measure
+# text for layout without a live backend.
+#
+# This machinery is format-neutral: the PDF backend uses it for both measurement
+# and glyph embedding, the web backend uses `measure_truetype_text` for its
+# metrics, and every projection example defaults `measure=measure_truetype_text`.
+# It lives here next to `StyleModule` (which owns `StyleFont` and the font-zoom
+# sizing) rather than inside the PDF backend, which is only one of its consumers.
+#
+# A minimal read-only TrueType parser and the SDL-free text measurer built on it.
+# Reads advance widths straight from a font's own `hmtx` table (pure Julia — no
+# rasterizer, no display server, no SDL), so any projection pipeline can measure
+# text for layout without a live backend.
+#
+# This machinery is format-neutral: the PDF backend uses it for both measurement
+# and glyph embedding, the web backend uses `measure_truetype_text` for its
+# metrics, and every projection example defaults `measure=measure_truetype_text`.
+# It lives here next to `StyleModule` (which owns `StyleFont` and the font-zoom
+# sizing) rather than inside the PDF backend, which is only one of its consumers.
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
 # ════════════════════════════════════════════════════════════════════════
@@ -374,6 +377,4 @@ function font_glyph_bounds(font::StyleFont, ch::AbstractChar)
     ymin, ymax = _glyph_bounds(f, ch)
     scale = font_logical_size(font) / f.units_per_em
     (round(Int, ymin * scale), round(Int, ymax * scale))
-end
-
 end

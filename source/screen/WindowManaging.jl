@@ -1,37 +1,23 @@
-"""
-    WindowManagingProjectionModule
-
-A higher-order projection that wraps the `ScreenDocument` case of the
-type dispatcher in the main pipeline. Its printer is a passthrough to
-the inner projection (typically `ScreenToScreen`). Its reader intercepts
-`OpenWindowOperation` and `CloseWindowOperation` bubbling up from below
-and applies them to the input `ScreenDocument`; the inner stage mirrors
-the change into the projected output reactively, so the next frame renders it.
-
-Together with `TooltipDecoratorProjection`, this turns "show a tooltip"
-into "request a window via an operation; let the manager apply it" —
-the same input → operation → input → printer loop every other state
-change uses.
-
-The manager mutates only the *input* screen. `ScreenToScreen` reconciles
-the output's windows by identity (a push/remove on the input's `windows`
-cell reflows the output), re-projects a replaced window's content, and
-shares each window's metadata cells — so the output tracks the input with
-no explicit output mutation (PAR-STABLE-IOMAP-IDENTITY).
-"""
-module WindowManagingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument, OpenWindowOperation, CloseWindowOperation, ResizeWindowOperation
-import ..EventModule: WindowResize, WindowClose, WindowDefocus
-import ..EventModule: WindowInput
-import ..OperationModule: CompoundOperation
-
-export WindowManagingProjection, WindowManagingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WindowManaging.jl.
+#
+# A higher-order projection that wraps the `ScreenDocument` case of the
+# type dispatcher in the main pipeline. Its printer is a passthrough to
+# the inner projection (typically `ScreenToScreen`). Its reader intercepts
+# `OpenWindowOperation` and `CloseWindowOperation` bubbling up from below
+# and applies them to the input `ScreenDocument`; the inner stage mirrors
+# the change into the projected output reactively, so the next frame renders it.
+#
+# Together with `TooltipDecoratorProjection`, this turns "show a tooltip"
+# into "request a window via an operation; let the manager apply it" —
+# the same input → operation → input → printer loop every other state
+# change uses.
+#
+# The manager mutates only the *input* screen. `ScreenToScreen` reconciles
+# the output's windows by identity (a push/remove on the input's `windows`
+# cell reflows the output), re-projects a replaced window's content, and
+# shares each window's metadata cells — so the output tracks the input with
+# no explicit output mutation (PAR-STABLE-IOMAP-IDENTITY).
 """
     WindowManagingProjection(; inner)
 
@@ -228,5 +214,3 @@ end
 function map_reference_backward(::WindowManagingProjection, iomap::WindowManagingIoMap, reference)
     map_reference_backward(iomap.inner_iomap.projection, iomap.inner_iomap, reference)
 end
-
-end # module

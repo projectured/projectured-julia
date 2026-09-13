@@ -4,7 +4,7 @@
 Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
 on `ProjecturedDomain` + HTTP/JSON3; `using ProjecturedWeb` exports `WebBackend`
 (construct it directly). SDL-free — reuses the pure-Julia TrueType text metrics.
-Relocated from the former program/src/backend/Web.jl (WebBackendModule).
+Relocated from the former program/src/backend/Web.jl (ProjecturedWeb).
 """
 module ProjecturedWeb
 
@@ -32,20 +32,20 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
 import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedStyle.ColorModule: StyleColor
-import ProjecturedStyle.GeometryModule: AffineTransform, affine_identity
-import ProjecturedStyle.FontModule: StyleFont, font_logical_size
+import ProjecturedStyle.StyleModule: StyleColor
+import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
+import ProjecturedStyle.StyleModule: StyleFont, font_logical_size
 import ProjecturedKernel.CellModule: Cell, ComputedCell, is_cell_up_to_date
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus
-import ProjecturedScreen.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseDown, MouseUp, MouseMove, MouseScroll
 # SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
 # the SDL-free TrueType measurer, so the web backend needs no SDL/SDL_ttf at all.
-# `measure_truetype_text` is the shared font-metrics utility (TrueTypeModule),
+# `measure_truetype_text` is the shared font-metrics utility (StyleModule),
 # also used by the PDF backend and every projection example.
-import ProjecturedStyle.TrueTypeModule: measure_truetype_text
+import ProjecturedStyle.StyleModule: measure_truetype_text
 
 include("../../../source/web/Web.jl")
 

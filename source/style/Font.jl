@@ -1,67 +1,8 @@
-"""
-    FontModule
-
-Font style value type and named font constants. Fonts are identified by a
-file path and a point size.
-"""
-module FontModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-
-export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_device_size,
-       _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, _USER_ZOOM, _FONT_ZOOM,
-       recompute_display_scale!, adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR,
-       font_inconsolata_regular_18,
-       font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
-       font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,
-       font_ubuntu_monospace_regular_18, font_ubuntu_monospace_italic_18, font_ubuntu_monospace_bold_18,
-       font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, font_ubuntu_monospace_bold_20,
-       font_ubuntu_monospace_regular_22, font_ubuntu_monospace_italic_22, font_ubuntu_monospace_bold_22,
-       font_ubuntu_monospace_regular_24, font_ubuntu_monospace_italic_24, font_ubuntu_monospace_bold_24,
-       font_ubuntu_monospace_regular_36, font_ubuntu_monospace_italic_36, font_ubuntu_monospace_bold_36,
-       font_ubuntu_monospace_regular_48, font_ubuntu_monospace_italic_48, font_ubuntu_monospace_bold_48,
-       font_ubuntu_regular_14, font_ubuntu_italic_14, font_ubuntu_bold_14,
-       font_ubuntu_regular_16, font_ubuntu_italic_16, font_ubuntu_bold_16,
-       font_ubuntu_regular_18, font_ubuntu_italic_18, font_ubuntu_bold_18,
-       font_ubuntu_regular_20, font_ubuntu_italic_20, font_ubuntu_bold_20,
-       font_ubuntu_regular_22, font_ubuntu_italic_22, font_ubuntu_bold_22,
-       font_ubuntu_regular_24, font_ubuntu_italic_24, font_ubuntu_bold_24,
-       font_ubuntu_regular_36, font_ubuntu_italic_36, font_ubuntu_bold_36,
-       font_liberation_sans_regular_14, font_liberation_sans_italic_14, font_liberation_sans_bold_14,
-       font_liberation_sans_regular_16, font_liberation_sans_italic_16, font_liberation_sans_bold_16,
-       font_liberation_sans_regular_18, font_liberation_sans_italic_18, font_liberation_sans_bold_18,
-       font_liberation_sans_regular_20, font_liberation_sans_italic_20, font_liberation_sans_bold_20,
-       font_liberation_sans_regular_22, font_liberation_sans_italic_22, font_liberation_sans_bold_22,
-       font_liberation_sans_regular_24, font_liberation_sans_italic_24, font_liberation_sans_bold_24,
-       font_liberation_sans_regular_30, font_liberation_sans_italic_30, font_liberation_sans_bold_30,
-       font_liberation_sans_regular_36, font_liberation_sans_italic_36, font_liberation_sans_bold_36,
-       font_liberation_serif_regular_14, font_liberation_serif_italic_14, font_liberation_serif_bold_14,
-       font_liberation_serif_regular_16, font_liberation_serif_italic_16, font_liberation_serif_bold_16,
-       font_liberation_serif_regular_18, font_liberation_serif_italic_18, font_liberation_serif_bold_18,
-       font_liberation_serif_regular_20, font_liberation_serif_italic_20, font_liberation_serif_bold_20,
-       font_liberation_serif_regular_22, font_liberation_serif_italic_22, font_liberation_serif_bold_22,
-       font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_liberation_serif_bold_24,
-       font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30,
-       font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36,
-       font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42,
-       font_dejavu_monospace_regular_14, font_dejavu_monospace_italic_14, font_dejavu_monospace_bold_14,
-       font_dejavu_monospace_regular_16, font_dejavu_monospace_italic_16, font_dejavu_monospace_bold_16,
-       font_dejavu_monospace_regular_18, font_dejavu_monospace_italic_18, font_dejavu_monospace_bold_18,
-       font_dejavu_monospace_regular_20, font_dejavu_monospace_italic_20, font_dejavu_monospace_bold_20,
-       font_dejavu_monospace_regular_22, font_dejavu_monospace_italic_22, font_dejavu_monospace_bold_22,
-       font_dejavu_monospace_regular_24, font_dejavu_monospace_italic_24, font_dejavu_monospace_bold_24,
-       font_dejavu_monospace_regular_36, font_dejavu_monospace_italic_36, font_dejavu_monospace_bold_36,
-       font_dejavu_monospace_regular_48, font_dejavu_monospace_italic_48, font_dejavu_monospace_bold_48,
-       font_dejavu_sans_regular_14, font_dejavu_sans_italic_14, font_dejavu_sans_bold_14,
-       font_dejavu_sans_regular_16, font_dejavu_sans_italic_16, font_dejavu_sans_bold_16,
-       font_dejavu_sans_regular_18, font_dejavu_sans_italic_18, font_dejavu_sans_bold_18,
-       font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20,
-       font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22,
-       font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
-       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from Font.jl.
+#
+# Font style value type and named font constants. Fonts are identified by a
+# file path and a point size.
 # ── Document ──────────────────────────────────────────────────────────────────
 
 """
@@ -389,5 +330,3 @@ const font_dejavu_sans_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bo
 const font_dejavu_sans_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 36)
 const font_dejavu_sans_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 36)
 const font_dejavu_sans_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 36)
-
-end # module

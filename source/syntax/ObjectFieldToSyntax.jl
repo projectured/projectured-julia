@@ -31,9 +31,9 @@ import ..CellModule: Cell, ComputedCell
 import ..ProjectionApiModule: print_document, print_child, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_solarized_green
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_solarized_green
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..IoMapModule: SimpleIoMap, reconcile_child_iomap
 import ..ReferenceModule: FieldReferenceStep, get_reference_steps, strip_reference_types

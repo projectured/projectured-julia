@@ -1,5 +1,39 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from VersioningToAny.jl.
+#
+# The version-elimination projection — the direct analogue of
+# `ClipboardSliceToAnyProjection` (`ClipboardModule`).
+#
+# `VersioningToAnyProjection` sits on top of a `VersionedObject` document. Its
+# printer selects one `ObjectVersion` according to the document's `criterion`
+# (`select_version`) and projects that version's **value object** in place of the
+# wrapper — so the output is a plain, non-versioned document and the wrapper
+# vanishes. Because the elimination is purely structural and recurses through
+# `print_child`, nested `VersionedObject`s inside a selected value
+# resolve automatically, each by its own criterion.
+#
+# The reader delegates non-versioning gestures into the selected value's child
+# reader and re-roots the returned operation under `versions[idx].value` (the
+# School-A pattern — delegate through the stored child IoMap, never re-walk by
+# document type). Own gestures snapshot a new version
+# (`insert_elements` on `versions`) or remove the active one (`delete_elements`) —
+# the same standard, universally-rerooted sequence splices the clipboard uses;
+# `SetVersionCriterionOperation` switches the active criterion.
+#
+# ## Criterion swapping
+#
+# `criterion` lives on the document as a `Cell`, and the printer defers
+# `select_version` into a derived `selection_cell`, so `SetVersionCriterionOperation`
+# is a plain reactive cell write: the new version is selected and re-printed and the
+# reactive `ChainingProjection` re-pulls the output downstream, with **no
+# `editor.iomap` drop** (mirroring `ToggleClipboardSliceOperation`).
+#
+# ## Empty / no-match
+#
+# When `select_version` returns `nothing` (an empty `versions` list, or a
+# criterion that matches no version) the printer emits a `DocumentNothing`,
+# mirroring `ClipboardSlice`'s empty-slice fallback. The reference maps and the
+# delegating reader then have no child to descend into and decline.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """

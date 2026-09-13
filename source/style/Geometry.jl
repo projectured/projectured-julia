@@ -1,19 +1,9 @@
-"""
-    GeometryModule
-
-Reactive geometry primitives shared across document domains. Provides
-`Inset` (spacing descriptor for margin, border, padding) and `Point2D`
-(2-D coordinate or dimension), both built on reactive Cells.
-"""
-module GeometryModule
-
-import ..CellModule: Cell, ComputedCell
-export Inset, Point2D, inset_default,
-       inset_size, inset_width, inset_height,
-       inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
-       AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
-       apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from Geometry.jl.
+#
+# Reactive geometry primitives shared across document domains. Provides
+# `Inset` (spacing descriptor for margin, border, padding) and `Point2D`
+# (2-D coordinate or dimension), both built on reactive Cells.
 # ── Inset ──────────────────────────────────────────────────────────────────
 
 """
@@ -169,5 +159,3 @@ function Base.show(io::IO, M::AffineTransform)
         print(io, "AffineTransform(", M.a, ", ", M.b, ", ", M.c, ", ", M.d, ", ", M.e, ", ", M.f, ")")
     end
 end
-
-end # module

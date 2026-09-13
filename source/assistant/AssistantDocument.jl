@@ -5,8 +5,8 @@ The assistant: a chat with a model that can act on the editor.
 
 The document alone lives here — the conversation it holds, the prompt a person
 types, the draft the composer edits, the model and the key it talks to, and the
-`Llm` that services a turn. What a turn DOES is `AssistantTurnModule`'s, and what
-it looks like is `AssistantToWidgetModule`'s.
+`Llm` that services a turn. What a turn DOES is `AssistantModule`'s, and what
+it looks like is `AssistantModule`'s.
 
 It was `ProjecturedWorkbench`'s, as a `WorkbenchDocument` beside the navigator and
 the console. It is a `Document` of its own now, because a program that wants an
@@ -28,8 +28,8 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetSplitPane,
                        inset_default
 import ..LayoutModule: VerticalLayout, LayoutConstraint
 import ..TextModule: TextBlock, TextString
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default
+import ..StyleModule: font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default
 import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap, IoMap,
                       reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
 import ..CellModule: Cell, ComputedCell, set_cell_function!
@@ -61,7 +61,7 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
                               ConversationThinking, make_conversation_thinking_part
-import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
+import ..ConversationModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
 import ..EventModule: KeyDown
 import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
                       register_default_tools!, execute_julia_code, get_last_evaluated_value
@@ -79,7 +79,7 @@ import ..LlmModule: Llm, stream_turn, make_llm, get_llm_backend_names,
                      LlmTurnEnd, LlmFailure
 import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
-import ..ConversationEditorModule: read_composer_gesture, resolve_composer_host_operation,
+import ..ConversationModule: read_composer_gesture, resolve_composer_host_operation,
                                     ComposerSubmitOperation, ComposerEvaluateOperation,
                                     finalize_draft!, reset_draft!
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,

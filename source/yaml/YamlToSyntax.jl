@@ -1,5 +1,22 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from YamlToSyntax.jl.
+#
+# YAML → SyntaxDocument projection. Maps each YAML value type to a matching syntax
+# tree shape: null, bool, number, and string scalars become leaves; sequences and
+# mappings become nodes.
+#
+# The container rendering is selectable via `YamlToSyntax(; style)`:
+#
+# - `:block` (default) — idiomatic block YAML: `key: value` lines and `- item`
+#   sequences, laid out by indentation, no braces/brackets/commas.
+# - `:flow` — flow YAML (a JSON superset): `{key: value}` and `[a, b]` with commas.
+#
+# String scalars and mapping keys are plain (unquoted) in both styles.
+#
+# Mappings are rendered through `@projection_template` (the flow/block difference is
+# just the wrapper's open/close/separator). Block **sequences** need a `- ` before
+# every item, which the template's homogeneous `collection` cannot inject, so the
+# block sequence is a hand-written projection (like `FileSystemDirectoryToSyntaxNode`).
 # ── YamlNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct YamlNullToSyntaxLeaf

@@ -1,12 +1,36 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from AssistantTurn.jl.
+#
+# Operations, streaming orchestration, and message building for the
+# in-editor AI chat surface. Glue between `WorkbenchModule.Assistant`, the
+# editor's `ToolSet`, and the `LlmModule` provider seam.
+#
+# Submit flows:
+# - `SubmitProseOperation(assistant)`  — append a user message from `assistant.input`,
+#   clear the input, launch a streaming Claude turn on an `@async` task.
+# - `SubmitJuliaOperation(assistant)`  — parse `assistant.input` as Julia, run it via
+#   the editor's `execute_julia_code` tool, append the input/result message pair,
+#   clear the input. No Claude call now; the next prose turn synthesizes the eval
+#   into the conversation history.
+#
+# The tools come from `editor.tools` — the `ToolSet` that editor owns. Nothing here
+# holds a registry of its own, so two editors in one process never share tools or
+# evaluate code into each other's namespace.
+#
+# Internal helpers:
+# - `build_messages(conversation)`  — walk the conversation history and produce
+#   the `LlmMessage`s the provider seam takes.
+# - `parse_markdown_blocks(text)`   — split a finished assistant text block into
+#   parts: top-level fenced code blocks become live domain documents, prose runs
+#   become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
+#   block, when it closes.
 # The assistant names no source domain. What it needs of one — parse this
 # fenced block, render this document back to its own text — is the natural-format
 # seam, which every domain registers itself with. A domain that is not loaded
 # has no method there, and the fenced-text fallback below answers instead.
 # Bare, to extend the composer's two generics by qualification below. That is
 # `PAR-QUALIFIED-EXTENSION`.
-using ..ConversationEditorModule
+using ..ConversationModule
 
 # ═══════════════════════════════════════════════════════════════════════
 # Operations
@@ -301,10 +325,10 @@ image read `nothing` and both gestures fell back to what the composer alone can
 do. That is why they had to be filled from the package's `__init__`, and why a
 method needs no `__init__` at all.
 """
-ConversationEditorModule.make_submit_operation(assistant::Assistant) =
+ConversationModule.make_submit_operation(assistant::Assistant) =
     SubmitDraftTurnOperation(assistant)
 
-ConversationEditorModule.make_evaluate_operation(assistant::Assistant) =
+ConversationModule.make_evaluate_operation(assistant::Assistant) =
     EvaluateDraftTurnOperation(assistant)
 
 # ═══════════════════════════════════════════════════════════════════════

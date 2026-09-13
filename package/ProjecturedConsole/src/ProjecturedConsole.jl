@@ -17,8 +17,8 @@ using ProjecturedText
 
 const BackendModule = ProjecturedKernel.BackendModule
 const EventModule = ProjecturedKernel.EventModule
-const ColorModule = ProjecturedStyle.ColorModule
-const FontModule = ProjecturedStyle.FontModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 const TextModule = ProjecturedText.TextModule
 
 include("../../../source/console/Console.jl")

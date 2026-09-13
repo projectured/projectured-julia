@@ -37,7 +37,7 @@ import ..IoMapModule: SimpleIoMap
 import ..RstModule: RstRoot, RstSection, RstText, RstLiteral, RstRole, RstStrong, RstEmphasis
 import ..RstToSyntaxModule: _title_font, _TITLE_COLOR
 import ..TextModule: TextBlock, TextString
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..WidgetModule: InvokeActionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, is_element_reference_step

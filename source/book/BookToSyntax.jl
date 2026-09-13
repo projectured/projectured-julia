@@ -1,5 +1,25 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from BookToSyntax.jl.
+#
+# Book → SyntaxDocument projection. Maps each Book node type to a matching
+# syntax tree shape.
+#
+# The simple rules are written with `@projection_template` (like JsonToSyntax /
+# XmlToSyntax): `BookInsertion` is an opaque placeholder leaf, `BookParagraph` a
+# single `bound(:content)` leaf, and `BookPicture` a fixed-children node with a
+# `bound(:title)` caption leaf and a `bound(:content)` figure leaf. The engine
+# records the wiring, strips the markers, and derives the reference mappers and
+# readers generically.
+#
+# `BookBook`, `BookChapter`, and `BookList` remain hand-written because their
+# mapping cannot be expressed by the template markers — a conditional author leaf
+# in front of a spliced collection (BookBook), a title leaf fusing numbering+title
+# with a character offset (BookChapter), and a per-item bullet decorator wrapping
+# each whole projected element (BookList); see the note above each. They map
+# references by peeling the one step they own (title/author/numbering structural
+# rewrites) and delegating each element tail through the stored child IO maps, so
+# they do not dispatch on the element types — see the "Mapping references when the
+# printer recurses" section of package/kernel/doc/projection-system.md.
 # ── BookInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 #
 # Maps BookInsertion → SyntaxLeaf. "insert here" is a projection-introduced

@@ -32,7 +32,7 @@ using ProjecturedKernel.SelectionModule: set_selection!, get_selection
 using ProjecturedNatural.NaturalModule: print_natural_text
 using ProjecturedNatural.NaturalModule: NaturalToGraphics
 using ProjecturedWidget.WidgetModule: WidgetButton
-using ProjecturedStyle.GeometryModule: Point2D
+using ProjecturedStyle.StyleModule: Point2D
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
 using ProjecturedKernel.CellModule: AbstractCell
 

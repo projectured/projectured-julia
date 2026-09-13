@@ -56,8 +56,8 @@ module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template", bound
     import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
     import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.FontModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.ColorModule: color_default
+    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedStyle.StyleModule: color_default
 
     @document struct Pair2 <: Document
         a::String

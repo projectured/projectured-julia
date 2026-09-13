@@ -28,9 +28,9 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..ProjectionModule: var"@projection"
 import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
                                    bound, project, collection
@@ -60,11 +60,11 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..IoMapModule: SimpleIoMap, IoMap, var"@iomap"
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, GraphicsText, GraphicsRect,
                          get_graphics_size, layout_none
-import ..FontModule: StyleFont, make_style_font,
+import ..StyleModule: StyleFont, make_style_font,
                      font_dejavu_sans_regular_20, font_dejavu_sans_italic_20
-import ..TrueTypeModule: font_ascent, font_descent, font_line_height, font_x_height,
+import ..StyleModule: font_ascent, font_descent, font_line_height, font_x_height,
                          font_glyph_bounds, measure_truetype_text
-import ..ColorModule: StyleColor, color_default, color_solarized_gray
+import ..StyleModule: StyleColor, color_default, color_solarized_gray
 import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,

@@ -1,33 +1,16 @@
-"""
-    WorkspaceToFileSystemModule
-
-Workspace → FileSystem projection. Maps workspace documents to file-system
-documents:
-
-    Workspace       → projects each WorkspaceFolder child via recursion
-    WorkspaceFolder → FileSystemDirectory (shallow, one level)
-
-The WorkspaceFolderToFileSystemDirectory projection reads the folder's
-pathname and constructs a FileSystemDirectory with one level of children.
-Deeper levels are expanded by the downstream FileSystemToSyntax projection
-when the user expands directory nodes.
-"""
-module WorkspaceToFileSystemModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                               map_reference_forward, map_reference_backward, Projection
-import ..OperationModule: Operation
-import ..WorkspaceModule: WorkspaceDocument, Workspace, WorkspaceFolder
-import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap, reconcile_child_iomaps
-import ..IoMapModule: IoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep
-import ..PrinterContextModule: make_child_context
-export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WorkspaceToFileSystem.jl.
+#
+# Workspace → FileSystem projection. Maps workspace documents to file-system
+# documents:
+#
+#     Workspace       → projects each WorkspaceFolder child via recursion
+#     WorkspaceFolder → FileSystemDirectory (shallow, one level)
+#
+# The WorkspaceFolderToFileSystemDirectory projection reads the folder's
+# pathname and constructs a FileSystemDirectory with one level of children.
+# Deeper levels are expanded by the downstream FileSystemToSyntax projection
+# when the user expands directory nodes.
 # ── WorkspaceFolderToFileSystemDirectory ─────────────────────────────────────
 
 struct WorkspaceFolderToFileSystemDirectory <: Projection end
@@ -99,5 +82,3 @@ function WorkspaceToFileSystem()
         WorkspaceFolder => WorkspaceFolderToFileSystemDirectory(),
     )
 end
-
-end # module

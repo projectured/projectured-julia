@@ -30,7 +30,7 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-import ..ColorModule: StyleColor
+import ..StyleModule: StyleColor
 import ..PlotModule: default_color_cycle, default_symbol_cycle, get_series_color
 import ..PlotModule: compute_bin_values
 import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
@@ -57,7 +57,7 @@ Common supertype of every data series a `Chart` can hold.
 abstract type ChartSeries <: ChartDocument end
 
 # ── Style ────────────────────────────────────────────────────────────────
-# The colour and marker cycles themselves live in `PlotStyleModule`, beside the
+# The colour and marker cycles themselves live in `PlotModule`, beside the
 # plot arithmetic: a sequence chart hands colours out by the same rule.
 
 """

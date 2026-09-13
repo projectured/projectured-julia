@@ -17,9 +17,9 @@ using ProjecturedLayout.LayoutModule: LayoutToGraphics
 using ProjecturedWidget.WidgetModule: WidgetLabel, Point2D
 using ProjecturedWidget.WidgetToGraphicsModule: WidgetToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-using ProjecturedStyle.ColorModule: color_black
+using ProjecturedStyle.StyleModule: color_black
 using ProjecturedCollection.CollectionModule: CellVector
-using ProjecturedStyle.FontModule: font_ubuntu_monospace_regular_20
+using ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
 import ProjecturedKernel.ProjectionApiModule: print_document, map_reference_forward
 using ProjecturedKernel.ProjectionApiModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap

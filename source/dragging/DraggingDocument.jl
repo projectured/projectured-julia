@@ -1,5 +1,5 @@
 """
-    DraggingDocumentModule
+    DraggingModule
 
 `DraggingState` — a transparent wrapper marking a sub-tree as a drag-and-drop
 reorder region. Actual gesture interpretation lives in `DraggingProjection`.

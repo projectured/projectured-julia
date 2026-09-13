@@ -1,13 +1,13 @@
 """
-    DocumentCoreModule
+    DomainModule
 
 The core document domain. Models document-level identity and basic structural
 documents: a base abstract type, a nothing-document, an insertion placeholder,
 and a reference document.
 
 The load/save/import/export document operations live with the serializers:
-binary `Save`/`LoadDocumentOperation` in `BinarySerializationModule`, natural
-`Export`/`ImportDocumentOperation` in `NaturalFormatModule`.
+binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
+`Export`/`ImportDocumentOperation` in `FileFormatModule`.
 """
 module DomainModule
 
@@ -99,8 +99,8 @@ DocumentReference(path::Reference; selection=nothing) =
     DocumentReference(Cell(path), Cell(selection))
 
 # The load/save/import/export document operations now live with the serializers
-# (see the module docstring): binary in `BinarySerializationModule`, natural in
-# `NaturalFormatModule`.
+# (see the module docstring): binary in `SerializationModule`, natural in
+# `FileFormatModule`.
 
 
 include("Domain.jl")

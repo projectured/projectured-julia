@@ -33,10 +33,10 @@ import ..DomainModule
 import ..DomainModule: @domain, @insertion
 import ..SelectionModule: @with_selection, clear_selection!, set_selection!
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_gray
-import ..StyleTextModule: StyleText
-import ..GeometryModule: Inset
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default, color_solarized_gray
+import ..StyleModule: StyleText
+import ..StyleModule: Inset
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..TextColumnReferenceStepModule: TextColumnReferenceStep

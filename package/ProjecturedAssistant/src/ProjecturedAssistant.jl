@@ -49,7 +49,5 @@ end
 include("../../../source/assistant/AssistantDocument.jl")
 
 using .AssistantModule
-using .AssistantModule
-using .AssistantModule
 
 end # module ProjecturedAssistant

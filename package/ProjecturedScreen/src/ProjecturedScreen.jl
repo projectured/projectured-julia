@@ -34,9 +34,6 @@ const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule
 
 include("../../../source/screen/ScreenDocument.jl")
-include("../../../source/screen/WindowManaging.jl")
-include("../../../source/screen/ScreenToScreen.jl")
 # One window on one document, for a program rather than for the gallery.
-include("../../../source/screen/WindowScene.jl")
 
 end # module ProjecturedScreen

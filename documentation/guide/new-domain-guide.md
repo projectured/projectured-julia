@@ -24,7 +24,9 @@ steps below fill it in.
 
 ## Step 1: Define the document types
 
-Create `package/bookmark/main/Bookmark.jl`:
+Create `source/bookmark/Bookmark.jl`. It is the slice's module file: one
+module holds the whole slice, and every other file of the slice is a fragment
+of it.
 
 ```julia
 """
@@ -99,7 +101,30 @@ function BookmarkList(name::AbstractString, entries::Vector)
     BookmarkList(Cell(name), Cell(CellVector(Cell[Cell(e) for e in entries])))
 end
 
-end # module
+```
+
+The imports the projection needs, and the names it offers, go in the module
+file next to the ones Step 1 wrote:
+
+```julia
+import ..ProjectionApiModule: print_document, print_child,
+                              map_reference_forward, map_reference_backward, Projection
+import ..StyleModule: font_ubuntu_monospace_regular_18
+import ..StyleModule: StyleColor, color_default, color_solarized_blue,
+                      color_solarized_cyan
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..TextModule: TextString
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..ChainingProjectionModule: ChainingProjection
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
+                          PositionReferenceStep, EmptyReference
+import ..PrinterContextModule: PrinterContext, make_child_context
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+
+export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 ```
 
 **Key points:**
@@ -121,63 +146,33 @@ end # module
 
 ## Step 2: Register the domain in `Projectured.jl`
 
-In `package/bookmark/main/ProjecturedBookmark.jl`, add after the other includes:
+In `package/ProjecturedBookmark/src/ProjecturedBookmark.jl`, include the module
+file:
 
 ```julia
-include("document/Bookmark.jl")
+include("../../../source/bookmark/Bookmark.jl")
 ```
 
-Add a `using` line (near the `using .ImageModule:` block):
-
-```julia
-using .BookmarkModule: BookmarkDocument, BookmarkInsertion,
-                       BookmarkEntry, BookmarkList
-```
-
-Add an `export` line:
-
-```julia
-export BookmarkDocument, BookmarkInsertion, BookmarkEntry, BookmarkList
-```
+The package root includes the module file and nothing else. What the slice
+offers is what `BookmarkModule` exports, so the names above need no second
+list here.
 
 ---
 
 ## Step 3: Write the projection (printer)
 
-Create `package/bookmark/main/BookmarkToSyntax.jl`:
+Create `source/bookmark/BookmarkToSyntax.jl`. The projection is part of the
+same slice, so the file is a fragment of `BookmarkModule`: it declares no
+module of its own, and its imports and exports belong to the module file.
+
+The fragment itself carries no module line. It opens with a comment that says
+what this part of the slice is:
 
 ```julia
-"""
-    BookmarkToSyntaxModule
-
-Bookmark → Syntax projection. Renders each BookmarkEntry as a SyntaxLeaf
-pair (title and url), and a BookmarkList as a SyntaxNode whose children
-are the entry leaves.
-"""
-module BookmarkToSyntaxModule
-
-import ..CellModule: Cell
-import ..CollectionModule: CellVector
-import ..ProjectionApiModule: print_document, print_child,
-                               map_reference_forward, map_reference_backward, Projection
-import ..BookmarkModule: BookmarkDocument, BookmarkInsertion,
-                          BookmarkEntry, BookmarkList
-import ..TextModule: TextString
-import ..FontModule: font_ubuntu_monospace_regular_18
-import ..ColorModule: StyleColor, color_default, color_solarized_blue,
-                      color_solarized_cyan
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..ChainingProjectionModule: ChainingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
-                           PositionReferenceStep, Reference, EmptyReference
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..ReferenceCaseModule: var"@reference_case"
-import ..ReferenceBuilderModule: var"@reference"
-
-export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
+# ──────────────────────────────────────────────────────────────────────────
+# Bookmark → Syntax projection. Renders each BookmarkEntry as a SyntaxLeaf
+# pair (title and url), and a BookmarkList as a SyntaxNode whose children
+# are the entry leaves.
 
 const _font = font_ubuntu_monospace_regular_18
 
@@ -330,7 +325,30 @@ function BookmarkToSyntax()
     )))
 end
 
-end # module
+```
+
+The imports the projection needs, and the names it offers, go in the module
+file next to the ones Step 1 wrote:
+
+```julia
+import ..ProjectionApiModule: print_document, print_child,
+                              map_reference_forward, map_reference_backward, Projection
+import ..StyleModule: font_ubuntu_monospace_regular_18
+import ..StyleModule: StyleColor, color_default, color_solarized_blue,
+                      color_solarized_cyan
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..TextModule: TextString
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..ChainingProjectionModule: ChainingProjection
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
+                          PositionReferenceStep, EmptyReference
+import ..PrinterContextModule: PrinterContext, make_child_context
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+
+export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 ```
 
 **Key points:**
@@ -362,18 +380,14 @@ end # module
 
 ## Step 4: Register the projection in `Projectured.jl`
 
-Include the projection file (after the other primitive projections):
+The module file includes the fragment, after the document types it needs:
 
 ```julia
-include("projection/primitive/BookmarkToSyntax.jl")
+include("BookmarkToSyntax.jl")
 ```
 
-Add `using` and `export`:
-
-```julia
-using .BookmarkToSyntaxModule: BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
-export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
-```
+Step 3 already added the export to the module file, so the package root needs
+no change.
 
 ---
 

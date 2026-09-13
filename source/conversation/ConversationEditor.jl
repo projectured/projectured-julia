@@ -1,74 +1,34 @@
-"""
-    ConversationEditorModule
-
-The **user-message composer** (Stage 3b): editing a draft `ConversationDraft`
-part by part, growing it left-to-right and always ending on an active text
-typein. One projection (`ConversationComposerToWidget`) renders the draft to a
-stack of per-part widget cards and maps gestures to composer operations; the
-operations mutate the draft's parts in place. The draft is always a user message,
-so it renders without a role/avatar header.
-
-A part's `content` moves through these states as you edit:
-
-| state         | content type        | gesture in →                                    |
-|---------------|---------------------|-------------------------------------------------|
-| text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; TAB/INSERT→chooser; ENTER→submit |
-| kind chooser  | `DocumentInsertion` | keys edit; ENTER commits keyword→insertion; ESC→typein |
-| julia source  | `JuliaInsertion`    | keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
-| quoted code   | `JuliaDocument`     | (committed)                                      |
-| eval form     | `EvaluatorForm`     | (committed)                                      |
-
-After any structured commit (`JuliaDocument` / `EvaluatorForm`) the composer
-appends a fresh active text typein, so the draft always ends in a typein.
-`TAB` / `INSERT` commits the current text typein (dropping it when blank) and appends a
-`DocumentInsertion` kind chooser. Typing a keyword (`julia`/`json`/`xml`/`text`)
-into the chooser does **not** auto-switch — ENTER commits it via the factory.
-`ESC` reverts a structured insertion back to an empty text typein.
-"""
-module ConversationEditorModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationModule: Operation, evaluate_operation, ReplaceSelectionOperation
-import ..OperationModule
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
-import ..ConversationToWidgetModule: FORMAT_LABELS, _is_code
-import ..DomainModule: DocumentInsertion
-import ..PrimitiveModule: PrimitiveString
-import ..TextModule: TextBlock, TextString
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ConversationEditor.jl.
+#
+# The **user-message composer** (Stage 3b): editing a draft `ConversationDraft`
+# part by part, growing it left-to-right and always ending on an active text
+# typein. One projection (`ConversationComposerToWidget`) renders the draft to a
+# stack of per-part widget cards and maps gestures to composer operations; the
+# operations mutate the draft's parts in place. The draft is always a user message,
+# so it renders without a role/avatar header.
+#
+# A part's `content` moves through these states as you edit:
+#
+# | state         | content type        | gesture in →                                    |
+# |---------------|---------------------|-------------------------------------------------|
+# | text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; TAB/INSERT→chooser; ENTER→submit |
+# | kind chooser  | `DocumentInsertion` | keys edit; ENTER commits keyword→insertion; ESC→typein |
+# | julia source  | `JuliaInsertion`    | keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
+# | quoted code   | `JuliaDocument`     | (committed)                                      |
+# | eval form     | `EvaluatorForm`     | (committed)                                      |
+#
+# After any structured commit (`JuliaDocument` / `EvaluatorForm`) the composer
+# appends a fresh active text typein, so the draft always ends in a typein.
+# `TAB` / `INSERT` commits the current text typein (dropping it when blank) and appends a
+# `DocumentInsertion` kind chooser. Typing a keyword (`julia`/`json`/`xml`/`text`)
+# into the chooser does **not** auto-switch — ENTER commits it via the factory.
+# `ESC` reverts a structured insertion back to an empty text typein.
 # The composer names no source domain. Which kinds it offers, what each is
 # called, and how a typed source becomes a document are all asked of two seams:
 # `get_insertion_root` says a type is a domain's insertion, and `get_natural_format`
 # / `parse_natural_text` say that domain's key and how to read its text.
-import ..NaturalModule: get_natural_format, parse_natural_text, has_natural_parser
-import ..ToolModule: execute_julia_code, get_last_evaluated_value
-import ..DocumentModule: Document
-import ..WidgetModule: WidgetCard, WidgetLabel, Point2D
-import ..LayoutModule: VerticalLayout, Fill, Content
-import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_14
-import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
-                      color_solarized_red, color_completion_hint, color_slate_600
-import ..DomainModule: resolve_insertion, make_insertion_document, get_insertion_root
-import ..DomainModule: name_completion
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          RangeReferenceStep, EmptyReference
-import ..EventModule: KeyDown, KeyPress, MousePress
-import ..GestureBindingModule: GestureBinding, fire_gesture_bindings
-import ..EventPatternModule: KeyDownPattern, KeyPressPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
-import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
-       finalize_draft!, make_conversation_draft, reset_draft!,
-       make_submit_operation, make_evaluate_operation,
-       ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
-       ComposerInsertPartOperation, ComposerCommitChooserOperation,
-       ComposerCommitSourceOperation, ComposerEvaluateOperation,
-       ComposerRevertOperation, ComposerSubmitOperation
 
 # ═══════════════════════════════════════════════════════════════════════
 # Active-part / cursor helpers
@@ -404,25 +364,6 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 """
 struct ConversationComposerToWidget <: Projection end
 
-const _GAP = 8
-
-# Per-part label, covering both editing states and committed content.
-#
-# A domain's insertion is a subtype of its own root, so one entry of the label
-# table covers a kind while it is typed and after it is committed. The table is
-# `ConversationToWidgetModule`'s, which draws the same tag on a committed part.
-_kind_label(::PrimitiveString)   = "text"
-_kind_label(::DocumentInsertion) = "insert"
-_kind_label(f::EvaluatorForm)    = get_evaluation_kind_label(f)
-_kind_label(::TextBlock)          = "text"
-_kind_label(c)                   = _format_label(get_natural_format(typeof(c)))
-_format_label(::Nothing)         = "doc"
-_format_label(key::Symbol)       = get(FORMAT_LABELS, key, String(key))
-
-# The tag a chromed part draws to name itself. Small and muted, matching the tag
-# the transcript draws on a committed part of the same kind.
-const _KIND_STYLE = StyleText(font_ubuntu_bold_14, color_slate_600)
-
 const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
 
@@ -739,7 +680,7 @@ by the host, because the composer loads first and cannot name the operation its
 host would build. A host adds a method by qualification, which is
 `PAR-QUALIFIED-EXTENSION`:
 
-    ConversationEditorModule.make_submit_operation(a::Assistant) =
+    ConversationModule.make_submit_operation(a::Assistant) =
         SubmitDraftTurnOperation(a)
 
 The default answers `nothing`, which means this host owns no submit of its own
@@ -826,5 +767,3 @@ end
 # enumerates exactly the composer gestures available for the draft's current mode.
 get_projection_gesture_bindings(::ConversationComposerToWidget, iomap) =
     iomap.input isa ConversationDraft ? _composer_bindings(iomap.input) : GestureBinding[]
-
-end # module

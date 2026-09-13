@@ -50,10 +50,6 @@ for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversatio
 end
 
 include("../../../source/workbench/Workspace.jl")
-include("../../../source/workbench/WorkbenchDocument.jl")
-include("../../../source/workbench/WorkspaceToFileSystem.jl")
-include("../../../source/workbench/WorkbenchToWidget.jl")
-include("../../../source/workbench/WorkbenchFile.jl")
 
 # The draft's key handlers are registered by `ProjecturedAssistant`, which owns
 # them now.

@@ -1,5 +1,16 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from AssistantToWidget.jl.
+#
+# What the assistant looks like: a split pane of the transcript over the composer,
+# and a card of the same two for a page that embeds one.
+#
+# Both were `WorkbenchModule`'s, beside the IDE's shell, its navigator and
+# its console. They moved with the document, so a program that wants an assistant
+# pane draws one without carrying the shell.
+#
+# The layout tokens and the two helpers below are this module's own copies of the
+# workbench's. They are literals and a step comparison; sharing them would mean one
+# package reaching into another's private surface.
 # ── Layout tokens ───────────────────────────────────────────────────────────
 const _PAD5  = Inset(5, 5, 5, 5)
 const _WHITE = StyleColor(255, 255, 255, 255)
@@ -239,7 +250,7 @@ _same_step(::Any, ::Any) = false
 # Translate a path-bearing operation through `map_reference_backward` and pass
 # every other one through unchanged. It is the kernel's default reader with one
 # difference: an operation this projection cannot place travels rather than being
-# dropped. `WorkbenchToWidgetModule` keeps the same helper for its own panels.
+# dropped. `WorkbenchModule` keeps the same helper for its own panels.
 function _retarget_panel_op(p, iomap, op)
     op === nothing && return nothing
     if op isa ReplaceSelectionOperation

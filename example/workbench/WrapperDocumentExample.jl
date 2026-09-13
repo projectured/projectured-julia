@@ -27,7 +27,7 @@ make_clipboard_document(document; collection=false) =
 
 # Dragging's two helpers moved into `ProjecturedDragging`, where the types they
 # name live, so a program can drag without this package's 52 dependencies. The
-# gallery re-exports them from there; see `DraggingWrapperModule`.
+# gallery re-exports them from there; see `DraggingModule`.
 
 # Wrap any example document in a WidgetShell, so the content sits inside a
 # top-level window frame: a menu bar, a toolbar, and a status bar that names the

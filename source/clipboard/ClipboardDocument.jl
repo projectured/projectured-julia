@@ -1,5 +1,8 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from ClipboardDocument.jl.
+#
+# Clipboard document types — a `ClipboardSlice` (content + slice reference) and
+# a `ClipboardCollection` (content + sequence of elements).
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type ClipboardDocument <: Document end

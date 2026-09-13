@@ -1,4 +1,4 @@
-# Tests for the Stage 3b user-message composer (ConversationEditorModule):
+# Tests for the Stage 3b user-message composer (ConversationModule):
 # the gesture→operation reader and the part-growing operations that turn a draft
 # `ConversationTurn` into a finished sequence of parts.
 

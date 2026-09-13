@@ -88,8 +88,26 @@ meets a hard case.
      `DatabaseModule` and the suite still passes.
    - **A slice whose module already carries the slice name is nearly free.**
      `PrimitiveModule` was already right, so its 49 references never moved.
-2. **The 15 slices with 1 to 3 internal edges.**
-3. **The 16 slices with 4 to 9.**
+2. **The 15 slices with 1 to 3 internal edges. DONE 2026-09-13.** Forty-eight
+   modules became fifteen.
+3. **The 16 slices with 4 to 9.** `style`, `workbench`, `conversation`, `screen`
+   and `sql` are **DONE 2026-09-13**: twenty-six modules became five.
+
+   What these five taught:
+
+   - **A fragment loses its own head.** The first tool wrote a two-line banner
+     and dropped what sat before the module line, which on 36 files was the
+     docstring that said what the file is. The banner now carries that head as
+     a comment, and the 36 are restored from the revision before their fold.
+   - **Two private helpers of the same name merge silently.** `conversation`
+     held `_kind_label` twice, written independently in the transcript and in
+     the composer, and Julia refuses a method overwrite during precompilation.
+     It also held `_GAP` and `_KIND_STYLE` twice with equal values, which Julia
+     accepts without a word. A collapse must look for a name defined in two
+     fragments, not only for one the compiler rejects.
+   - **A fold leaves a duplicate `using`.** Three `using .XModule` lines that
+     named three modules of one slice became three identical lines in
+     `ProjecturedAssistant`.
 4. **The 11 slices with 10 or more.** Read each one before collapsing it. Two
    of them should not be collapsed at all — see §4.2.
 5. **The kernel does not change at all.** Its 31 modules across 17 layers stay

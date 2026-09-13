@@ -89,7 +89,7 @@ stale.
 
 Editor scaffolding is expected to fail the round trip rather than pass it: a
 document carrying an insertion placeholder has no valid natural text, as
-`NaturalNotationModule` says outright. So this counts successes instead of
+`NaturalModule` says outright. So this counts successes instead of
 asserting them, and `test_natural_round_trips_every_atom` is where the count is
 held to a number.
 """

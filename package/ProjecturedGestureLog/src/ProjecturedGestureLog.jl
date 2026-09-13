@@ -28,9 +28,9 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule
-const FontModule = ProjecturedStyle.FontModule
-const ColorModule = ProjecturedStyle.ColorModule
-const StyleTextModule = ProjecturedStyle.StyleTextModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IntentModule = ProjecturedKernel.IntentModule
@@ -39,7 +39,7 @@ const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModul
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
-const TrueTypeModule = ProjecturedStyle.TrueTypeModule
+const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/gesturelog/GestureLogDocument.jl")
 

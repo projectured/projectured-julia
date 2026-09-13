@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..IntentModule: Intent
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
-import ..ScreenDocumentModule: OpenPopupOperation, OpenWindowOperation
+import ..ScreenModule: OpenPopupOperation, OpenWindowOperation
 import ..WidgetToGraphicsModule: get_anchor_point
 
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap

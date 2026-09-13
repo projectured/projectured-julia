@@ -319,7 +319,7 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
-    # Clipboard projection chords (ClipboardToAnyProjectionModule): the letter and
+    # Clipboard projection chords (ClipboardModule): the letter and
     # punctuation keys it binds need distinct symbols rather than the `:char`
     # fallback so `@event_case` can tell them apart under Ctrl.
     keysym == Int32(116)        && return :t        # Ctrl+T — open a pane tab
@@ -2153,7 +2153,7 @@ function render_sdl_canvas(canvas::GraphicsCanvas)
 end
 
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
-# through the generic BackendModule seams without naming SdlBackendModule, so the
+# through the generic BackendModule seams without naming ProjecturedSdl, so the
 # SDL backend can move into an optional extension.
 BackendModule.render_canvas(canvas::GraphicsCanvas) = render_sdl_canvas(canvas)
 

@@ -39,8 +39,8 @@ module ConsoleBackendModule
 # `using` binds the module's *real* name, so extensions qualify BackendModule.
 using ..BackendModule
 using ..TextModule
-using ..ColorModule
-using ..FontModule
+using ..StyleModule
+using ..StyleModule
 using ..EventModule
 
 export ConsoleBackend, render_console

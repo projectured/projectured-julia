@@ -1,5 +1,17 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from GraphicsDocument.jl.
+#
+# The graphics domain provides the final output stage before the SDL backend.
+# Elements are positioned, styled render primitives. The canvas is itself a
+# Document so the selection mechanism can descend into individual elements,
+# enabling mouse hit-testing and element-level selection in the reader.
+#
+# The domain includes:
+# - **Render primitives**: `GraphicsText` (text rendering), `GraphicsRect` (filled rectangles)
+# - **Container types**: `GraphicsCanvas` (collection of graphics elements), `GraphicsViewport` (clipping viewport)
+# - **Hit testing**: `hit_element_at` for mouse hit detection
+#
+# All fields are reactive Cells for automatic dependency tracking and incremental redraws.
 abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical

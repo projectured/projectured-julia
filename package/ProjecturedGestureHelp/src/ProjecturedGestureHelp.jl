@@ -28,9 +28,9 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule
-const FontModule = ProjecturedStyle.FontModule
-const ColorModule = ProjecturedStyle.ColorModule
-const StyleTextModule = ProjecturedStyle.StyleTextModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CollectionModule = ProjecturedCollection.CollectionModule
@@ -42,7 +42,7 @@ const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
 const WordWrappingModule = ProjecturedText.WordWrappingModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
-const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
+const ScreenModule = ProjecturedScreen.ScreenModule
 
 include("../../../source/gesturehelp/GestureMap.jl")
 include("../../../source/gesturehelp/CommandPalette.jl")

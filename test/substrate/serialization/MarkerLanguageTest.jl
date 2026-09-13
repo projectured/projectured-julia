@@ -3,7 +3,7 @@ Tests for the **marker language** — `<<expr>>` bodies as restricted Julia
 expressions, the vocabulary registry, and the interpreter's interning.
 
 The three properties a marker must keep (module docstring of
-`FileProjectModule`): verbatim source, interning by canonical source,
+`SerializationModule`): verbatim source, interning by canonical source,
 and lazy evaluation. Recognition is syntactic — the vocabulary is
 consulted only when a stub is resolved.
 """

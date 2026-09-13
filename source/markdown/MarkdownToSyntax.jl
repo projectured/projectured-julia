@@ -32,17 +32,17 @@ import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, Markdown
                          MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak,
                          MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
 import ..TextModule: TextString, make_hinted_text, TextGraphics
-import ..ImageModule: ImageFile
+import ..StyleModule: ImageFile
 import ..BackendModule: decode_image
 import ..GraphicsModule: GraphicsDocument
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
                      font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18,
                      font_dejavu_monospace_regular_20
-import ..ColorModule: color_black, color_solarized_blue, color_solarized_green,
+import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
                       color_solarized_gray, color_solarized_violet
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection

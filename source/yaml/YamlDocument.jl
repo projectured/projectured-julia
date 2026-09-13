@@ -14,9 +14,9 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, make_hinted_text
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection

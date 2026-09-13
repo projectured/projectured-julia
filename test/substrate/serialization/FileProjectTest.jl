@@ -1,5 +1,5 @@
 """
-Tests for the `FileProjectModule` — the natural-format save/load driver
+Tests for the `SerializationModule` — the natural-format save/load driver
 and its simplest concrete file document, `TextFile`.
 
 S2 covers a one-file project: no cross-file traversal, no marker walk,

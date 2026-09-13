@@ -1,42 +1,22 @@
-"""
-    ScreenToScreenModule
-
-The screen-domain projection. `ScreenToScreen` owns *all* structural knowledge
-of the screen domain — `ScreenDocument` and `WindowDocument` — so that the
-domain-independent `CopyingProjection` need not. It:
-
-- copies the `ScreenDocument` shell, recursing each window through itself;
-- copies a `WindowDocument`'s metadata verbatim and recurses its `content`
-  through the outer pipeline (`recursion`), seeding the window's
-  `width`/`height` as the available layout extent so layout-aware content
-  sizes itself to the window;
-- on the reader side, routes an `WindowInput` to the matching window by
-  `window_id`, hands the inner event to that window's `content` reader, and
-  prepends the `windows[i].content` steps to the operation that comes back.
-
-`ScreenToScreen` is normally the `inner` of a `WindowManagingProjection`, which
-layers window-management *operations* (open/close/resize) on top. The two are
-separate concerns: structural projection here, operation interception there.
-"""
-module ScreenToScreenModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..CellModule: Cell, ComputedCell
-import ..ScreenDocumentModule: ScreenDocument, WindowDocument
-import ..EventModule: WindowInput
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
-import ..GraphicsModule: PointReferenceStep
-import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap, var"@iomap"
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-
-export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ScreenToScreen.jl.
+#
+# The screen-domain projection. `ScreenToScreen` owns *all* structural knowledge
+# of the screen domain — `ScreenDocument` and `WindowDocument` — so that the
+# domain-independent `CopyingProjection` need not. It:
+#
+# - copies the `ScreenDocument` shell, recursing each window through itself;
+# - copies a `WindowDocument`'s metadata verbatim and recurses its `content`
+#   through the outer pipeline (`recursion`), seeding the window's
+#   `width`/`height` as the available layout extent so layout-aware content
+#   sizes itself to the window;
+# - on the reader side, routes an `WindowInput` to the matching window by
+#   `window_id`, hands the inner event to that window's `content` reader, and
+#   prepends the `windows[i].content` steps to the operation that comes back.
+#
+# `ScreenToScreen` is normally the `inner` of a `WindowManagingProjection`, which
+# layers window-management *operations* (open/close/resize) on top. The two are
+# separate concerns: structural projection here, operation interception there.
 struct ScreenToScreen <: Projection end
 
 # ── IoMaps ──────────────────────────────────────────────────────────────────
@@ -230,5 +210,3 @@ function _prepend(steps::Tuple, path::Reference)
     end
     result
 end
-
-end # module

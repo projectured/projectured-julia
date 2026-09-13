@@ -31,8 +31,8 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
 import ..GraphicsModule: PointReferenceStep
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
-import ..ColorModule: StyleColor, color_default,
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
+import ..StyleModule: StyleColor, color_default,
                       color_solarized_gray, color_solarized_cyan,
                       color_solarized_magenta, color_solarized_orange,
                       color_solarized_green, color_solarized_yellow,

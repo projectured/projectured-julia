@@ -1,5 +1,25 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from GestureLogRecording.jl.
+#
+# A transparent decorator that records what the reader chain below it decides.
+#
+# **Printer** — transparent: it projects the wrapped `inner` and returns its output
+# unchanged, so the display is exactly the display without the decorator.
+#
+# **Reader** — it calls the inner reader, records the pair (gesture, operation) in
+# the [`GestureLog`](GestureLogDocument.jl) when the filter accepts the pair, and returns
+# the inner result without a change. The decorator never makes an operation of its
+# own and never consumes a gesture.
+#
+# Put it at the **root** of the composed projection. The root is the seam where
+# every operation passes, so a content operation, a window operation and an
+# operation of a nested application all reach the log. The editor makes the
+# readability-zoom operation after the pipeline declines the gesture, so that one
+# operation stays outside the log.
+#
+# The filter is a plain field of a plain struct, not a reactive field. A
+# `Function` in a reactive field becomes a thunk and the reader calls it with no
+# arguments.
 """
     GestureLogRecordingProjection(; inner, log, filter = default_gesture_log_filter)
 

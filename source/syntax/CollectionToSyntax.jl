@@ -16,9 +16,9 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..ProjectionModule: var"@projection"
 import ..SyntaxModule: SyntaxDocument, SyntaxNode
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_solarized_gray
+import ..StyleModule: StyleText
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,

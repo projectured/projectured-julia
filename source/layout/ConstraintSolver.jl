@@ -1,5 +1,19 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from ConstraintSolver.jl.
+#
+# The constraint-layout solver **seam**. Defines the plain data interchange types
+# (`SolverAnchor`, `SolverRelation`), the abstract `ConstraintSolver`, the
+# `solve_constraint_layout` generic function, and a dependency-free
+# `FallbackConstraintSolver`.
+#
+# The real LP-backed solver lives in the opt-in `ProjecturedTulip` package
+# (`TulipConstraintSolver`, built on `MathOptInterface` + `Tulip`), which adds a
+# `solve_constraint_layout` method to the generic here. This mirrors how
+# `GraphLayoutEngine` keeps a pure-Julia `GridEmbedding` in core and lets
+# `ProjecturedAdaptagrams` add the heavy native `AdaptagramsLayout` — so core
+# `ProjecturedDomain` stays free of the heavy solver dependency, and a
+# `ConstraintLayout` degrades gracefully (children stacked at the origin) when the
+# solver package is not loaded.
 """
     SolverAnchor(child, edge)
 

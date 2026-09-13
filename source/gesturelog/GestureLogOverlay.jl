@@ -1,5 +1,22 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from GestureLogOverlay.jl.
+#
+# A decorator that draws the [`GestureLog`](GestureLogDocument.jl) as a panel over the
+# content of a window.
+#
+# **Printer** — it projects the wrapped `inner`, projects the log through the
+# `content` chain (Syntax → Text → Graphics), and returns a canvas with two
+# elements: the inner output at the origin, and the panel at a corner. The inner
+# output keeps the origin, so a pixel coordinate means the same thing above and
+# below this decorator.
+#
+# **Reader** — a pure pass-through. The panel is not a hit target, so a click on
+# the panel reaches the content below it.
+#
+# The log chain is printed one time. It stays up to date because
+# [`GestureLogToSyntax`](GestureLogToSyntax.jl) derives its lines from
+# `log.entries` inside a cell: an append invalidates the lines, and the text and
+# graphics stages below re-derive from there.
 """
     GESTURE_LOG_BACKGROUND
 

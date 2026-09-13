@@ -1,5 +1,26 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from MathToSyntax.jl.
+#
+# Math → SyntaxDocument projection: the **linear** form of a formula, one line of
+# text. It is the save path (`print_natural_text` runs it) and the plain-text view;
+# `MathToGraphics` draws the two-dimensional one.
+#
+# A construct that has no plain-text form prints its LaTeX-like name, so the line
+# stays unambiguous and a future LaTeX reader has something to read:
+# `\\sqrt{x}`, `\\sum_{k=0}^{n} body`, `x_{i}^{2}`, `\\bar{x}`.
+#
+# Colorized tokens:
+# - Variables in blue
+# - Operators (+, -, *, /) in cyan
+# - Parentheses in gray
+# - Assignment (=) in yellow
+# - Symbols in violet, function names in green
+# - Numbers in magenta (via PrimitiveNumberToSyntaxLeaf)
+#
+# The rules added after the original five are `@projection_template` builders, so
+# printing, reference mapping and the structural readers are generic. Each
+# compound rule collapses an unmapped caret to a bounded flat offset
+# (`_syntax_to_flat`), because a formula is full of projection-introduced chrome.
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf

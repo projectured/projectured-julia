@@ -1,5 +1,15 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from GraphicsCaching.jl.
+#
+# GraphicsCanvas → GraphicsImage projection. Finite leaf canvases (no nested
+# canvases, no infinite `ListNode`-backed element lists) are passed through
+# `GraphicsCanvasToGraphicsImage` which will eventually rasterize them to a
+# cached image. Non-leaf or infinite canvases are preserved as-is via
+# `IdentityProjection` so that recursion can process their children.
+#
+# The reader performs mouse hit-testing: click coordinates are matched against
+# canvas elements and translated into a pixel-offset selection path that
+# upstream projection readers interpret as a character position.
 # ── Predicates ──────────────────────────────────────────────────────────────
 
 is_infinite_canvas(canvas::GraphicsCanvas) = canvas.elements isa ListNode

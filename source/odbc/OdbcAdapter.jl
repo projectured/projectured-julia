@@ -256,4 +256,4 @@ include("ConnectionPool.jl")
 include("SqlToCellTable.jl")
 include("DatabaseInstanceToDbCatalog.jl")
 
-end # module OdbcAdapterModule
+end # module OdbcModule

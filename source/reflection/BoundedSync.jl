@@ -1,5 +1,5 @@
 """
-    BoundedSyncModule
+    ReflectionModule
 
 Bounded `sync_document!`: stop the shadow walk at a bound and leave a marker
 where it stopped, so a shadow grows only where someone looked.

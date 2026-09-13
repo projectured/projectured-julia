@@ -18,17 +18,17 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 export BookDocument
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ImageModule: ImageFile
+import ..StyleModule: ImageFile
 import ..BackendModule: decode_image
 import ..GraphicsModule: GraphicsDocument
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
 import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
                      font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
-import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: ChildrenIoMap

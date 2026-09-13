@@ -1,17 +1,8 @@
-"""
-    ImageModule
-
-The image document domain. Provides file-backed and memory-backed image
-documents. Both subtypes share the abstract `ImageDocument` base.
-"""
-module ImageModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-export ImageDocument, set_cell_function!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from Image.jl.
+#
+# The image document domain. Provides file-backed and memory-backed image
+# documents. Both subtypes share the abstract `ImageDocument` base.
 # ── Abstract base ──────────────────────────────────────────────────────────
 
 """
@@ -59,5 +50,3 @@ end
 
 set_cell_function!(img::ImageFile,   f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
 set_cell_function!(img::ImageMemory, f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
-
-end # module

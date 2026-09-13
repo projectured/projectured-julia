@@ -25,7 +25,7 @@ using ProjecturedStyle
 using ProjecturedText
 using ProjecturedWidget
 
-const FontModule = ProjecturedStyle.FontModule
+const StyleModule = ProjecturedStyle.StyleModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
 const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
 const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
@@ -36,8 +36,8 @@ const CollectionModule = ProjecturedCollection.CollectionModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const WordWrappingModule = ProjecturedText.WordWrappingModule
 const TextModule = ProjecturedText.TextModule
-const StyleTextModule = ProjecturedStyle.StyleTextModule
-const ColorModule = ProjecturedStyle.ColorModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 const DomainModule = ProjecturedDomain.DomainModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
@@ -48,7 +48,7 @@ include("../../../source/natural/NaturalNotation.jl")
 
 # The two rungs this package can supply itself, because it names the text
 # package. `syntax → text` belongs to whoever can supply it, and is registered
-# from outside — see `NaturalNotationModule`.
+# from outside — see `NaturalModule`.
 #
 # Prose is registered here for the same reason. A `TextDocument` IS text, so its
 # own rung is the identity, and it reaches a string and a canvas through the two

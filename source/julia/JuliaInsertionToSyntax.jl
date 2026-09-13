@@ -37,9 +37,9 @@ import ..EventModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
-import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: color_solarized_green, color_solarized_red,
+import ..StyleModule: StyleText
+import ..StyleModule: font_ubuntu_monospace_regular_20
+import ..StyleModule: color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default
 import ..OperationModule: replace_document, ReplaceSelectionOperation,
                           SelectNextInsertionOperation, CompoundOperation

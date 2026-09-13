@@ -21,11 +21,11 @@ import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 # The focus walk is generic; this module answers its open trait for the
 # interactive widget leaves.
 import ..FocusModule
-import ..ColorModule: StyleColor
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleColor
+import ..StyleModule: StyleText
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep,
                           EmptyReference, FieldReferenceStep, RangeReferenceStep
-import ..GeometryModule: Inset, Point2D, inset_default,
+import ..StyleModule: Inset, Point2D, inset_default,
                         inset_size, inset_width, inset_height,
                         inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
                         AffineTransform, affine_identity

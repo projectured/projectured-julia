@@ -66,11 +66,11 @@ import ..PlotModule: get_series_color, build_marker_polygon
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsSpline, GraphicsViewport, layout_none
-import ..ColorModule: StyleColor,
+import ..StyleModule: StyleColor,
                       color_solarized_background_lighter, color_solarized_background_light,
                       color_solarized_content_dark, color_solarized_content_darker,
                       color_solarized_blue
-import ..FontModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
+import ..StyleModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
 import ..IoMapModule: IoMap, var"@iomap"
 import ..EventModule: MousePress, MouseMove, MouseLeave, MouseScroll
 import ..OperationModule: Operation, ReplaceSelectionOperation,

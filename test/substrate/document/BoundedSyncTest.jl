@@ -1,5 +1,5 @@
 """
-`BoundedSyncModule` — the walk that stops at a bound and leaves an
+`ReflectionModule` — the walk that stops at a bound and leaves an
 `UnsyncedDocument` where it stopped, and the copy that builds such a shadow in
 the first place.
 

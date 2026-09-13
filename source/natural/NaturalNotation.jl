@@ -1,5 +1,5 @@
 """
-    NaturalNotationModule
+    NaturalModule
 
 What a document's **natural notation** is, and how two notations combine.
 
@@ -60,7 +60,7 @@ export register_natural_domain!, register_natural_notation!, register_natural_fo
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
-import ..FontModule: font_ubuntu_monospace_regular_20
+import ..StyleModule: font_ubuntu_monospace_regular_20
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..WidgetToGraphicsModule: WidgetToGraphics
 import ..LayoutModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
@@ -69,8 +69,8 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextToGraphicsModule: TextToGraphics
 import ..WordWrappingModule: WordWrapping
 import ..TextModule: TextDocument, TextBlock, TextString
-import ..StyleTextModule: StyleText
-import ..ColorModule: color_default
+import ..StyleModule: StyleText
+import ..StyleModule: color_default
 import ..DomainModule: DocumentNothing
 import ..IoMapModule: SimpleIoMap, get_iomap_output
 export NaturalToGraphics,

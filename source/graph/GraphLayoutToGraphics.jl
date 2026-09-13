@@ -26,7 +26,7 @@ import ..IntentModule: Intent
 import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout
 import ..GraphModule: GraphVertex, GraphEdge
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
-import ..ColorModule: color_default, StyleColor
+import ..StyleModule: color_default, StyleColor
 import ..IoMapModule: ChildrenIoMap
 import ..IoMapModule: IoMap, var"@iomap"
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference

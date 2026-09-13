@@ -95,7 +95,7 @@ end
 Maps a file extension (lowercased, with the dot) to the editor domain that opens
 it — the runtime seam that lets *one* executable edit several file kinds by looking
 at the argument's extension. Mirrors the extension set `read_document_file`
-understands (see `DocumentFileModule`).
+understands (see `FileFormatModule`).
 """
 const EXTENSION_DOMAINS = Dict{String,Symbol}(
     ".json" => :json,

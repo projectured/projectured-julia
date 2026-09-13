@@ -1,5 +1,68 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from NaturalProjection.jl.
+#
+# The **natural projection**: one generic factory, [`NaturalToGraphics`](@ref),
+# that projects *almost any* document to a `GraphicsCanvas` — recursively and
+# bidirectionally — without the caller hand-assembling a per-context dispatch
+# table.
+#
+# It is built entirely from existing, already-bidirectional projections
+# (`TypeDispatchingProjection`, `RecursiveProjection`, `ChainingProjection`, and
+# the per-domain `*ToSyntax` / `*ToGraphics` projections), so it inherits the
+# printer, the reader, and both reference maps for free — there are no new
+# `print_document` / `read_intent` / `map_reference_*` methods here.
+#
+# ## How "render anything, including nestings" works
+#
+# Two recursion fabrics, tied together by the four-function recursion contract:
+#
+# - **`natural_to_syntax`** — a `TypeDispatchingProjection` that routes every
+#   *syntax-producible* domain to its `*ToSyntax`, collections (`CellVector` /
+#   `ListNode`) to `CollectionToSyntax`, and *anything else* to `ObjectToSyntax`'s
+#   reflection table (`Cell`/`Nothing`/`Bool`/`Number`/`String`/`Symbol`/`Char`/`Any`).
+#   Wrapped in a `RecursiveProjection`, it is the shared element-recursion fabric:
+#   a collection of mixed-domain values, or any cross-domain nesting, projects to a
+#   single syntax tree because each element re-enters this same fabric by type.
+#
+# - **the to-graphics dispatcher** — the returned `RecursiveProjection(
+#   TypeDispatchingProjection(…))`. It routes layout combinators and widget nodes
+#   to their direct graphics renderers (which recurse their embedded content back
+#   through this same dispatcher), a domain that draws itself to its own stages
+#   (whose content re-enters here, so a diagram node may be a widget or prose or a
+#   table), prose `TextDocument` to a text→graphics chain,
+#   and **everything else** (`Any`) to `syntax_to_graphics =
+#   RecursiveProjection(natural_to_syntax) → SyntaxToText → Text→Graphics`. The
+#   `Any` catch-all means the renderer never errors — it degrades to a reflected
+#   object tree for genuinely unknown values.
+#
+# ## No domain is named here
+#
+# Both tables come from [`NaturalModule`](@ref). A domain registers its
+# own row in a file it already has, so this module names no domain and sits below
+# all of them. A domain in a package this one cannot see registers the same way.
+#
+# ## Scope
+#
+# This renders *content / data* documents. Structural shells (the conversation
+# chat bubbles, the workbench tabs/panes) are projected to widgets by their own
+# panels as a separate top-level stage; a `ConversationDocument` / `WorkbenchDocument`
+# reaching a content slot here falls through to the reflective `Any` fallback. A
+# caller that wants the real rendering injects an entry via `extra`.
+#
+# ## Collections render as stacked blocks
+#
+# A `CellVector` renders as a `VerticalLayout` of independent graphics blocks
+# (`CellVectorToVerticalLayout` → `VerticalLayoutToGraphicsCanvas`): each element
+# re-enters *this* renderer in its own domain (prose→prose, JSON→JSON,
+# widget→widget), rather than the whole collection collapsing to one syntax tree.
+# So a `CellVector` of mixed content — including `TextBlock` prose — renders
+# naturally.
+#
+# A `ListNode` is **not** treated this way: it stays in the to-syntax fabric
+# (`CollectionToSyntax`), because a list may be lazy/infinite and must not be forced
+# into a finite layout. A `TextBlock` placed directly inside a `ListNode` therefore
+# still reflects via `ObjectToSyntax` rather than rendering as prose — an accepted
+# edge case.
 """
     PhraseToGraphics(message, style, measure)
 

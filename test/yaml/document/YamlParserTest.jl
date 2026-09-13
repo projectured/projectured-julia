@@ -1,6 +1,6 @@
 # The YAML parser: what it reads, and what it declines to guess.
 #
-# The parser is deliberately partial (see YamlParserModule): block mappings and
+# The parser is deliberately partial (see YamlModule): block mappings and
 # sequences, flow collections, the scalar kinds, comments and a leading `---`.
 # The cases it does NOT support must fail loudly rather than misread, because a
 # document that parsed wrong is worse than one that did not parse — so the

@@ -41,10 +41,10 @@ import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: color_black, color_default, color_solarized_blue, color_solarized_green,
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_black, color_default, color_solarized_blue, color_solarized_green,
                       color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap

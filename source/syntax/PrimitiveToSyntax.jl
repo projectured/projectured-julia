@@ -14,9 +14,9 @@ import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, Pri
                           ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
+import ..StyleModule: StyleText
 import ..IoMapModule: SimpleIoMap
 import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position

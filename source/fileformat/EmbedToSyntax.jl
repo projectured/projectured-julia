@@ -1,5 +1,43 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from EmbedToSyntax.jl.
+#
+# The two rules that make a **cross-file embed** part of the shared
+# to-syntax fabric, so a document spliced into another one by a marker
+# renders as itself rather than as the marker's text:
+#
+# - `ReferenceStubToSyntax` — a resolved [`ReferenceStub`](@ref) prints
+#   the value its marker evaluated to, through `recursion`, so the embed
+#   lands in whatever domain that value belongs to. An unforced stub
+#   prints its marker.
+# - `FileDocumentToSyntax` — a file document prints its content, so
+#   `<<file("child.json")>>` shows the JSON, not the `JsonFile` wrapper.
+#
+# Both are **neutral about the host format**: they belong to the fabric
+# (`make_natural_to_syntax_dispatch`), which is what a document reaches when
+# it is rendered *for reading*. Each format keeps its own stub rule for
+# the other direction — `print_natural_text` runs the domain projection
+# alone, whose table renders a stub as the marker in that format's
+# syntax (a `pred-ref` fence, a JSON string, a `pred_ref(…)` call), so
+# **saving is by marker and never by content**. One projection reads,
+# another writes; the split is what keeps the two invariants from
+# fighting.
+#
+# Selection descends into an embed through `.resolved` — the stub's
+# field holding the evaluated value — which is a plain structural step
+# the walker and both reference maps carry like any other.
+#
+# Both rules are domain-neutral in the direction that matters: they hand
+# the embedded value to `recursion`, so they work unchanged in the
+# to-syntax fabric and in a to-graphics dispatch table. Only the
+# *unforced* fallback has to know which table it is in (`unforced`).
+#
+# `wrap = :card` frames the embedded document in a titled, foldable
+# `WidgetCard`, so a page shows where the host stops and the embed
+# starts. The card is built here and lives only in the projected tree;
+# the document keeps its marker. A card is a widget, so this belongs in
+# a to-graphics table only. It costs one reference step — the card's
+# `content` — which both maps and the reader add on the way in and drop
+# on the way out.
 """
     EmbedIoMap(projection, input, output, inner_iomap)
 

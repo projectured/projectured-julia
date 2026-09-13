@@ -1,5 +1,5 @@
 """
-    NaturalFormatModule
+    FileFormatModule
 
 Reading and writing a document **as a file** — `import_document` /
 `export_document` — and the two editor operations that do it.
@@ -10,7 +10,7 @@ format back, and how to read the text in again. This module is the file half
 alone: it picks a parser by the extension of a path, and it writes what
 `print_natural_text` produced.
 
-Unlike the binary format ([`BinarySerializationModule`](@ref)), this is portable
+Unlike the binary format ([`SerializationModule`](@ref)), this is portable
 and editable outside ProjecturEd, but lossy with respect to editor-only state:
 selection and collapse are not represented, and a document carrying an *insertion
 placeholder* has no valid natural-text form, so its export will not re-parse.
@@ -40,10 +40,10 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..SyntaxModule: SyntaxLeaf
 import ..TextModule: TextString, TextBlock
-import ..StyleTextModule: StyleText
-import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
-import ..ColorModule: color_solarized_gray
-import ..GeometryModule: Point2D
+import ..StyleModule: StyleText
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
+import ..StyleModule: color_solarized_gray
+import ..StyleModule: Point2D
 import ..LayoutModule: HorizontalLayout
 import ..OperationModule: ReplaceSelectionOperation
 import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel

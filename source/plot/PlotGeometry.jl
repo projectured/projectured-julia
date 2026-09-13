@@ -27,7 +27,7 @@ The scalability story lives here:
 """
 module PlotModule
 
-import ..ColorModule: StyleColor,
+import ..StyleModule: StyleColor,
     color_solarized_blue, color_solarized_red, color_solarized_green,
     color_solarized_orange, color_solarized_violet, color_solarized_cyan,
     color_solarized_magenta, color_solarized_yellow

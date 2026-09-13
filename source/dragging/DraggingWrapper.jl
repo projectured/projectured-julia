@@ -1,5 +1,14 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from DraggingWrapper.jl.
+#
+# ── Applying the wrapper ────────────────────────────────────────────────────
+#
+# A wrapper is a `(document, projection)` pair of transforms, applied in a fixed
+# order where later sits further out. These two are dragging's half of that, and
+# they live here rather than in the gallery because the types they name are this
+# package's. They were `ProjecturedWorkbenchExample`'s until stage 14 of
+# omnet-julia's build-programs plan, which is a package of 52 dependencies —
+# so a program could not drag without the whole example tier for two lines.
 using ProjecturedProjection.NestingProjectionModule: NestingProjection
 
 

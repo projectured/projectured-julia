@@ -1,5 +1,27 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from MathToGraphics.jl.
+#
+# Math → `GraphicsCanvas`: the **two-dimensional** form of a formula. A fraction
+# gets a horizontal rule with the numerator centered above it, a sum gets its
+# limits above and below the sign, an exponent rises off the baseline, and a
+# delimiter grows with what it holds.
+#
+# The slice typesets its own boxes. A formula is not a row of aligned widgets:
+# every part has a width, an ascent above the baseline and a descent below it, and
+# its parent places it from those three numbers. The generic layouts align by top,
+# center or bottom, which cannot put a fraction on the baseline of the row that
+# holds it, so this module places its children itself and wraps them in a
+# `GraphicsCanvas` — the way `LayoutToGraphics` does internally.
+#
+# Every rule answers a [`MathIoMap`](@ref), which carries the three numbers as
+# reactive cells beside the usual projection/input/output. A parent reads its
+# children's cells to place them. `GridLayoutIoMap` is the precedent: an IO map
+# may publish geometry so that a parent can place and decorate its child.
+#
+# The glyphs come from one family, DejaVu, which is the only vendored font that
+# carries the whole math set — the signs, the Greek letters, the arrows and the
+# delimiter extension pieces. A variable is set in the oblique face, everything
+# else in the upright one, all in one ink color, the way a formula is printed.
 # ════════════════════════════════════════════════════════════════════════════
 # The box protocol
 # ════════════════════════════════════════════════════════════════════════════

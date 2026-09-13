@@ -21,11 +21,11 @@ const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
-const ColorModule = ProjecturedStyle.ColorModule
-const FontModule = ProjecturedStyle.FontModule
-const GeometryModule = ProjecturedStyle.GeometryModule
-const ImageModule = ProjecturedStyle.ImageModule
-const TrueTypeModule = ProjecturedStyle.TrueTypeModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
+const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/pdf/Pdf.jl")
 

@@ -352,7 +352,7 @@ is exported, with no entry to add here.
 ### WindowInput
 
 `WindowInput` wraps every event with the id of the window it came from. It
-lives in `EventModule`, not in the concrete `ScreenDocumentModule` document,
+lives in `EventModule`, not in the concrete `ScreenModule` document,
 because it is a protocol type consumed by the editor loop, the gesture
 recognizer, and the window-input-unwrapping projection — a plain struct
 declaration for a protocol type has no business living inside a concrete

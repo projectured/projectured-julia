@@ -25,7 +25,7 @@ import ..ProjectionApiModule: print_document, read_intent, map_reference_forward
 import ..IntentModule: Intent, CollectIntents
 import ..IoMapModule: IoMap, var"@iomap"
 import ..CellModule: Cell, ComputedCell
-import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
+import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureMapModule: make_gesture_map

@@ -1,5 +1,19 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from FileSystemToSyntax.jl.
+#
+# FileSystem → SyntaxDocument projection. Maps file-system nodes to syntax
+# tree shapes:
+#
+#     FileSystemFile      → SyntaxLeaf  " <basename>"
+#     FileSystemDirectory → SyntaxNode  " <dirname>"  (children indented 2)
+#
+# The directory printer places a name leaf as children[1] and wraps all
+# recursively-projected element outputs in a body SyntaxNode (indentation=2)
+# as children[2], mirroring the Lisp file-system-to-syntax/indentation layout.
+#
+# When the downstream `SyntaxToText` is configured with expand/collapse markers,
+# pass `marker_eligible = is_filesystem_marker_eligible` so the fold marker lands on
+# the directory header node (the name line) and not on the indented body wrapper.
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct FileSystemFileToSyntaxLeaf

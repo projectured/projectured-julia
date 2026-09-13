@@ -10,7 +10,7 @@ primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_fram
 that the opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives there,
 not here).
 
-Relocated from the former program/src/backend/Sdl.jl (SdlBackendModule); relative
+Relocated from the former program/src/backend/Sdl.jl (ProjecturedSdl); relative
 submodule imports were rewritten to absolute ProjecturedDomain.* references.
 """
 module ProjecturedSdl
@@ -40,23 +40,23 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, build_polyline_arrowhead
 import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedStyle.GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
-import ProjecturedStyle.ColorModule: StyleColor
-import ProjecturedStyle.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
+import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
+import ProjecturedStyle.StyleModule: StyleColor
+import ProjecturedStyle.StyleModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
                          adjust_user_zoom!, adjust_font_zoom!, _FONT_DIR
 # `_get_font` resolves a font's name through this rather than opening
 # `font.filename` directly, so a bundle copied to another machine finds its
 # fonts where they are now. The metrics reader resolves the same way, which is
 # what keeps SDL and it opening one file.
-import ProjecturedStyle.TrueTypeModule: font_file
+import ProjecturedStyle.StyleModule: font_file
 import ProjecturedKernel.EventModule: WindowQuit
-import ProjecturedScreen.ScreenDocumentModule: ScreenDocument, WindowDocument
+import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
 import ProjecturedKernel.EventModule: ModifierKeys
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ProjecturedStyle.ImageModule: ImageFile
+import ProjecturedStyle.StyleModule: ImageFile
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent, Projection
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation

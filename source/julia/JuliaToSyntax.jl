@@ -35,11 +35,11 @@ import ..JuliaModule: JuliaDocument,
                       JuliaStringChunk, JuliaInterpolation,
                       JuliaFunctionDeclaration, JuliaWhereParameters, _julia_operator_string
 import ..TextModule: TextString, make_hinted_text
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..JuliaInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf

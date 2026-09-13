@@ -1,5 +1,19 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from FileSystemToWidget.jl.
+#
+# FileSystem → WidgetDocument projection. Maps a whole file-system tree to a single
+# [`WidgetTree`](@ref): the root directory becomes the one root node, each
+# directory/file below it a nested [`WidgetTreeNode`](@ref) carrying a **dedicated
+# icon** (an extension-derived glyph) plus its basename as the **text** label.
+#
+#     FileSystemDirectory → WidgetTreeNode(folder-icon, dirname, [child nodes…])
+#     FileSystemFile      → WidgetTreeNode(type-icon,   filename)
+#
+# Selection maps in lockstep with the node layout: the root node is path `roots[1]`
+# (file-system reference `∅`), and a node at file-system reference
+# `elements[a].elements[b]…` is the tree node `roots[1].children[a].children[b]…`.
+# The two reference mappers encode that correspondence and are the single source of
+# truth reused by the printer's selection wiring and the generic reader.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 struct FileSystemToWidgetTree <: Projection

@@ -1,5 +1,5 @@
 """
-    ScreenDocumentModule
+    ScreenModule
 
 The screen domain: the projection-output side of the multi-window pipeline.
 
@@ -18,7 +18,7 @@ vocabulary and live with the other events in the kernel; a reader here
 translates one into a document mutation — typically removing the matching
 `WindowDocument` from `windows`, or writing its new size.
 """
-module ScreenDocumentModule
+module ScreenModule
 
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..DocumentModule: Document
@@ -26,9 +26,36 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 import ..OperationModule: Operation, evaluate_operation
-
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..IntentModule: Intent
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CellModule: Cell, ComputedCell
+import ..EventModule: WindowResize, WindowClose, WindowDefocus
+import ..EventModule: WindowInput
+import ..OperationModule: CompoundOperation
+export WindowManagingProjection, WindowManagingIoMap
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
+                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
+import ..GraphicsModule: PointReferenceStep
+import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
+import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap, var"@iomap"
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
+import ..CollectionModule: CellVector
+import ..ReferenceModule: var"@reference", is_reference_equal, strip_reference_types,
+                          EmptyReference
+import ..BackendModule: get_display_size
+import ..EditorModule: run_editor!
+export make_window_scene, make_window_scene_projection, run_window_editor
+export ScreenDocument, WindowDocument
+
+
+
 
 # ── ScreenDocument ────────────────────────────────────────────────────────
 
@@ -202,5 +229,10 @@ function evaluate_operation(editor, op::ResizeWindowOperation)
     op.target.width = op.width
     op.target.height = op.height
 end
+
+
+include("WindowManaging.jl")
+include("ScreenToScreen.jl")
+include("WindowScene.jl")
 
 end # module

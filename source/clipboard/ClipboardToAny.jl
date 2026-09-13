@@ -1,5 +1,40 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from ClipboardToAny.jl.
+#
+# The internal-clipboard projection — Julia port of Lisp's `clipboard/slice->t`
+# and `clipboard/collection->t` (`source/projection/primitive/clipboard-to-t.lisp`).
+#
+# Two projections sit on top of the `ClipboardSlice` / `ClipboardCollection`
+# documents:
+#
+# - `ClipboardSliceToAnyProjection` shows either the wrapped `content` or the stored
+#   `slice`, toggled by `Ctrl+/`. Copy / cut / note / paste gestures move the
+#   selected sub-document in and out of the slice.
+# - `ClipboardCollectionToAnyProjection` shows either the wrapped `content` or the
+#   `elements` collection, toggled by `Ctrl+*`. `Ctrl+=` adds the selected object
+#   to the collection; `Ctrl+-` removes the selected element.
+#
+# Both delegate non-clipboard gestures into their `content` child reader and
+# re-root the returned operation under the `content` field (the School-A pattern —
+# delegate through the stored child IoMap, never re-walk by document type).
+#
+# ## Display toggling
+#
+# The display flag is a `Cell`, and each projection's `output` is a derived cell over
+# it. Flipping the flag is a plain reactive cell write: the reactive
+# `ChainingProjection` re-pulls the changed output and re-prints only the downstream
+# stages, so the view switches with **no `editor.iomap` drop**.
+#
+# ## OS-clipboard bridge (corresponds to the Lisp `#+nil` `xclip` branch)
+#
+# `ClipboardSliceToAnyProjection` takes optional `to_text` / `from_text` converters.
+# When set, copy/cut/note mirror the copied sub-document out to the OS clipboard (via a
+# `WriteOsClipboardOperation`), and `Ctrl+V` falls back to the OS clipboard when the
+# internal slice is empty. The actual OS read/write goes through
+# [`ClipboardModule`](@ref) (shell-out to `xclip`/`xsel`/`wl-*`/`pb*`), which is
+# stubbable and degrades gracefully when no clipboard tool is present. With both
+# converters `nothing` (the default) there is no OS interaction — only the internal
+# clipboard, exactly as before.
 # ── Projections ─────────────────────────────────────────────────────────────
 
 """

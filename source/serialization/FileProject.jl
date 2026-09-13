@@ -1,5 +1,85 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from FileProject.jl.
+#
+# Save/load a ProjecturEd document graph as a set of text files that git
+# can version the ordinary way. Every node that should live in its own
+# file is a **file document**: a type carrying a `filename` field that
+# either subtypes `FileDocument` (the ergonomic case for types that
+# have no existing supertype) or opts in via the `is_file_document`
+# trait (for types that already have one, e.g. omnetpp-pred's `NedFile
+# <: NedDocument`). The driver walks the graph and each file
+# document's content is emitted to its named file. Cross-file
+# embedding survives save/load through a **marker** embedded in each
+# format's natural syntax — see "The marker language" below.
+#
+# This module carries the pieces every format hooks into:
+#
+# - `abstract FileDocument <: Document` — supertype for the ergonomic
+#   case; concrete types (`TextFile`, `JsonFile`, …) inherit and get
+#   the trait automatically.
+# - `is_file_document(x) :: Bool` — the trait predicate every driver
+#   check goes through. Default `false`; `true` for `FileDocument`
+#   subtypes; external types opt in with their own method.
+# - `get_filename(f)` / `get_file_content(f)` — the interface accessors. Both work off
+#   the two `@document`-generated cell fields.
+# - `emit_text(f)` — the format's path-to-text. Concrete types override
+#   it (a plain leaf like `TextFile` returns its `content` directly; a
+#   parsed leaf like `JsonFile` delegates to `print_natural_text` from the
+#   visual layer, which is why this abstract lives free of any `visual/`
+#   dependency). Callers never pull in visual to save a plain text file.
+# - `populate_file!(f, filename, ctx)` — the format's text-to-tree
+#   hook: reads a file, parses, wires cross-file markers to
+#   `ReferenceStub`s sharing `ctx`, and sets `f`'s content. Each
+#   concrete type overrides it. The driver pre-registers `f` in
+#   `ctx.intern` before calling `populate_file!`, which is what
+#   breaks cycles.
+# - `save_project!(root, base_dir)` — write every reachable file
+#   document, skipping ones whose emitted bytes match the file already
+#   on disk (byte-equality dirty check, no op-log required).
+# - `load_project(T, filename, base_dir)` — read a project rooted at
+#   a single file document of concrete type `T`. Creates one
+#   `LoaderContext` that all stubs from the load share.
+# - `ReferenceStub` — a first-class `Document` node standing in for one
+#   marker. `resolve!(stub)` evaluates the marker's expression (lazily,
+#   once) and caches the value in a reactive cell.
+# - `LoaderContext` — the per-load intern table + base directory the
+#   stubs consult.
+# - `register_file_document_type!(ext, T)` — every concrete
+#   `FileDocument` registers its extension so `file(…)` can pick the
+#   right type for a marker's target.
+#
+# # The marker language
+#
+# A marker is `<<expr>>`, where `expr` is a **restricted Julia
+# expression**: a call over a registered vocabulary whose arguments are
+# literals or nested calls. It is read with the Julia parser and run by
+# the small interpreter here — never `eval`, so opening a project can
+# never execute arbitrary code, and a marker is still analyzable data.
+#
+#     <<file("child.json")>>                          the parsed file document
+#     <<definition(file("steps.jl"), "queue_step")>>   one definition inside it
+#     <<UdpHeader(source_port = 5000)>>                a document, constructed
+#
+# The vocabulary is the extension seam: each function is registered by
+# the package that owns its machinery, with
+# `register_marker_function!(:name, f)`, and is called as
+# `f(ctx, args...)`. This module registers `file` (the project loader
+# itself); the Julia domain registers `definition`; a downstream
+# presentation package registers `realize`.
+#
+# Three properties every marker keeps:
+#
+# - **Verbatim source.** A stub stores the marker body exactly as
+#   written, and `format_marker_text` re-emits it, so saving a file that was
+#   loaded is byte-identical — the save path never re-prints an
+#   evaluated value.
+# - **Interning.** Every call's value is cached in `ctx.intern` under
+#   its canonical source, so two markers naming the same thing evaluate
+#   to the `===` object. `file(…)` also pre-registers its placeholder
+#   before parsing, which is what makes reference cycles terminate.
+# - **Laziness.** Evaluation happens on `resolve!`, not at load, and the
+#   result lands in a reactive cell — so a projection that reads
+#   `stub.resolved` re-prints by itself when the embed is forced.
 # ── FileDocument: abstract type + is_file_document trait ──────────────────
 #
 # `FileDocument` is the *ergonomic* case: a domain that hasn't picked an

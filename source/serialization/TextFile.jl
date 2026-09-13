@@ -1,5 +1,12 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from TextFile.jl.
+#
+# The simplest concrete `FileDocument`: `TextFile`, whose `content` is a
+# raw `String`. Emit is the identity (write `content` unchanged); load
+# reads the file as a `String`. No parser, no printer, no projection —
+# this is the fallback for a file the driver doesn't know a format for,
+# and the smallest possible test target for the `save_project!` /
+# `load_project` driver.
 """
     TextFile(filename, content)
 

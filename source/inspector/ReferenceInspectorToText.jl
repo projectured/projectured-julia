@@ -1,5 +1,26 @@
 # ──────────────────────────────────────────────────────────────────────────
 # Folded in from ReferenceInspectorToText.jl.
+#
+# `ReferenceInspectorToText` — projects a `ReferenceInspector` document into a
+# two-section `TextBlock`:
+#
+# 1. a bold, colored **Compact** header, then the Julia-printed reference on one
+#    colored line (delegated to `ReferenceToText`);
+# 2. a bold, colored **Human-readable** header, then the reverse-order English
+#    narrative (delegated to `ReferenceToHumanReadableText`).
+#
+# Before rendering, the reference is annotated against the inspector's `target`
+# document with `TypeReferenceStep` checkpoints (`annotate_reference_types`). Both
+# sections render from that canonical reference, so the compact form shows the
+# `::Type` steps and the human-readable form names each step's parent type from
+# the embedded checkpoints.
+#
+# The two delegate projections own all per-step rendering; this projection stacks
+# their outputs with section headers and blank lines, inside a reactive thunk so
+# it refreshes when the inspector's `reference` cell changes.
+#
+# Display-only: `map_reference_forward`/`map_reference_backward` return `nothing`,
+# so a click landing inside the rendered panel produces no operation.
 """
     ReferenceInspectorToText(; font=font_ubuntu_monospace_regular_20,
                                header_font=font_liberation_sans_bold_30,

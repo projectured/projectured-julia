@@ -1,5 +1,20 @@
-# ────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # Folded in from TooltipDecorator.jl.
+#
+# A higher-order projection that dispatches on `TooltipSource` documents.
+#
+# **Printer** — transparent: projects `source.child` through the outer
+# recursion and returns its output. The `TooltipSource` itself contributes
+# nothing to the visual output.
+#
+# **Reader** — runs a small per-source state machine each time it sees an
+# event. The `trigger` callback decides whether the tooltip should
+# currently be visible; transitions emit `OpenWindowOperation` /
+# `CloseWindowOperation`, which bubble up to `WindowManagingProjection`.
+#
+# State (arm-time / is-open) is held per `source.id` on the projection
+# instance, so a single decorator instance can handle multiple sibling
+# sources independently.
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct TooltipDecoratorIoMap

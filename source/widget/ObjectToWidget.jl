@@ -49,9 +49,9 @@ import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
                        WidgetComposite, WidgetCard, Point2D
 import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
 import ..TextModule: TextBlock, TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_default
+import ..StyleModule: StyleText
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           extend_reference, evaluate_reference

@@ -62,10 +62,10 @@ import ..ReferenceModule: var"@reference"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
-import ..ColorModule: color_solarized_gray, color_solarized_green, color_solarized_red,
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
+import ..StyleModule: color_solarized_gray, color_solarized_green, color_solarized_red,
                       color_completion_hint, color_default, StyleColor
-import ..StyleTextModule: StyleText
+import ..StyleModule: StyleText
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell

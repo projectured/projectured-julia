@@ -19,9 +19,9 @@ import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
 import ..GestureMapModule: GestureMap, GestureRow
 import ..TextModule: TextString
-import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
-import ..StyleTextModule: StyleText
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
+import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..PrinterContextModule: PrinterContext
 
