@@ -277,7 +277,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
             projection = GestureHelpDecoratorProjection(inner = projection, state = help_state)
         end
         if command_palette
-            projection = make_command_palette_projection(projection)
+            projection = make_command_palette_decorator_projection(projection)
         end
         # The overlay comes last, so it draws over every wrapper above. It is
         # transparent to the reader; the recorder below, at the root, is what

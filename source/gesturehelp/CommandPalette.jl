@@ -27,16 +27,16 @@ import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
 import ..GestureMapModule: GestureRow
 
-export CommandPalette, command_palette_selection, command_palette_selected,
-       command_palette_matches, command_palette_row, command_palette_step,
-       command_palette_settled_selection
+export CommandPalette, build_command_palette_selection, get_command_palette_selected,
+       get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
+       get_command_palette_settled_selection
 
 """
     CommandPalette(query = "", rows = GestureRow[])
 
 The palette state: what the user typed so far, and every row the palette was
 opened with. The matching subset is derived from `query` by
-[`command_palette_matches`](@ref); it is not stored, so it cannot go stale.
+[`get_command_palette_matches`](@ref); it is not stored, so it cannot go stale.
 """
 @document struct CommandPalette
     query::String = ""
@@ -47,21 +47,21 @@ end
 # one a widget row already uses. Building it here rather than reaching into the
 # widget slice keeps the palette independent of how a list happens to render.
 """
-    command_palette_selection(i) -> Reference or nothing
+    build_command_palette_selection(i) -> Reference or nothing
 
 The selection reference for row `i` of `rows` (1-based); `nothing` for no row.
 """
-command_palette_selection(i::Integer) = i <= 0 ? nothing :
+build_command_palette_selection(i::Integer) = i <= 0 ? nothing :
     ConcreteReference(FieldReferenceStep("rows"),
         ConcreteReference(RangeReferenceStep(Int(i) - 1, Int(i)), EmptyReference()))
 
 """
-    command_palette_selected(palette) -> Int
+    get_command_palette_selected(palette) -> Int
 
 The selected row as a 1-based index into `rows`, or `0` when nothing is selected.
-The inverse of [`command_palette_selection`](@ref).
+The inverse of [`build_command_palette_selection`](@ref).
 """
-function command_palette_selected(palette::CommandPalette)
+function get_command_palette_selected(palette::CommandPalette)
     selection = palette.selection
     selection isa ConcreteReference || return 0
     head = selection.head
@@ -74,12 +74,12 @@ function command_palette_selected(palette::CommandPalette)
 end
 
 """
-    command_palette_row(palette) -> GestureRow or nothing
+    get_command_palette_row(palette) -> GestureRow or nothing
 
 The selected row itself, or `nothing` when the selection names no row.
 """
-function command_palette_row(palette::CommandPalette)
-    i = command_palette_selected(palette)
+function get_command_palette_row(palette::CommandPalette)
+    i = get_command_palette_selected(palette)
     rows = palette.rows
     1 <= i <= length(rows) ? rows[i] : nothing
 end
@@ -112,7 +112,7 @@ function _query_position(query::AbstractString, text::AbstractString)
 end
 
 """
-    command_palette_matches(palette) -> Vector{Int}
+    get_command_palette_matches(palette) -> Vector{Int}
 
 The indices of the rows that match `query`, best first. A row matches when every word of the
 query appears in `"<description> <domain>"` as a contiguous run, without case.
@@ -130,7 +130,7 @@ leads: the best answer stays first, and its neighbours are its own kind.
 Matching by word rather than by letter is what makes the list a filter: a query of
 "sort" leaves the rows that say sort, not every row whose letters happen to spell it.
 """
-function command_palette_matches(palette::CommandPalette)
+function get_command_palette_matches(palette::CommandPalette)
     rows = palette.rows
     query = palette.query
     ranked = NTuple{3,Int}[]
@@ -159,32 +159,32 @@ function command_palette_matches(palette::CommandPalette)
 end
 
 """
-    command_palette_step(palette, delta) -> Reference or nothing
+    compute_command_palette_step(palette, delta) -> Reference or nothing
 
 The selection reference `delta` rows away in the matching subset, clamped at both
 ends. With nothing selected, a forward step lands on the first match and a
 backward step on the last. Returns `nothing` when nothing matches.
 """
-function command_palette_step(palette::CommandPalette, delta::Integer)
-    matches = command_palette_matches(palette)
+function compute_command_palette_step(palette::CommandPalette, delta::Integer)
+    matches = get_command_palette_matches(palette)
     isempty(matches) && return nothing
-    at = findfirst(==(command_palette_selected(palette)), matches)
+    at = findfirst(==(get_command_palette_selected(palette)), matches)
     next = at === nothing ? (delta >= 0 ? 1 : length(matches)) :
            clamp(at + delta, 1, length(matches))
-    command_palette_selection(matches[next])
+    build_command_palette_selection(matches[next])
 end
 
 """
-    command_palette_settled_selection(palette) -> Reference or nothing
+    get_command_palette_settled_selection(palette) -> Reference or nothing
 
 The selection to hold after `query` changed: the chosen row while it still
 matches, the first match once it does not, and `nothing` when nothing matches.
 """
-function command_palette_settled_selection(palette::CommandPalette)
-    matches = command_palette_matches(palette)
+function get_command_palette_settled_selection(palette::CommandPalette)
+    matches = get_command_palette_matches(palette)
     isempty(matches) && return nothing
-    selected = command_palette_selected(palette)
-    command_palette_selection(selected in matches ? selected : matches[1])
+    selected = get_command_palette_selected(palette)
+    build_command_palette_selection(selected in matches ? selected : matches[1])
 end
 
 end # module

@@ -18,7 +18,7 @@ function test_gesture_map()
     @testset "renders gesture → description rows grouped by domain" begin
         obj = JsonObject("a" => JsonNumber(1))
         set_selection!(obj, EmptyReference())
-        gmap = gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj))
+        gmap = make_gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj))
         text = render(print_document(g2s, gmap).output)
         # Domain headings.
         @test occursin("JsonObject", text)
@@ -38,7 +38,7 @@ function test_gesture_map()
 
     @testset "greys rows whose precondition fails for the selection" begin
         obj = JsonObject("a" => JsonNumber(1))         # selection === nothing → type-replace n/a
-        gmap = gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj))
+        gmap = make_gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj))
         text = render(print_document(g2s, gmap).output)
         @test occursin("n — Replace with null  (n/a)", text)   # greyed
         @test occursin(", — Insert a new entry", text)          # still applicable
@@ -48,7 +48,7 @@ function test_gesture_map()
     @testset "contextual collection feeds the map" begin
         arr = JsonArray([JsonNumber(1)])
         set_selection!(arr, EmptyReference())
-        gmap = gesture_map(_collect(RecursiveProjection(JsonToSyntax()), arr))
+        gmap = make_gesture_map(_collect(RecursiveProjection(JsonToSyntax()), arr))
         @test length(gmap.rows) == 9                            # array's full set
         text = render(print_document(g2s, gmap).output)
         @test occursin(", — Insert a new element", text)
@@ -57,7 +57,7 @@ function test_gesture_map()
     @testset "a row carries the operation it would apply" begin
         obj = JsonObject("a" => JsonNumber(1))
         set_selection!(obj, EmptyReference())
-        rows = gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj)).rows
+        rows = make_gesture_map(_collect(RecursiveProjection(JsonToSyntax()), obj)).rows
         # Every row that can fire right now carries a built operation, ready to
         # apply against the document these rows were collected over.
         insert = only(r for r in rows if r.description == "Insert a new entry")

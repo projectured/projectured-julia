@@ -21,7 +21,7 @@ function test_gesture_help()
 
         # What the window must show == what the reader answers over the same iomap.
         answer = read_intent(inner, nothing, Intent(CollectIntents()), iomap.inner_iomap)
-        expected = gesture_map(answer isa Intent ? answer.operation : answer)
+        expected = make_gesture_map(answer isa Intent ? answer.operation : answer)
         @test length(expected.rows) == 9          # the array's full reified set
 
         op = read_intent(help, iomap, f1)

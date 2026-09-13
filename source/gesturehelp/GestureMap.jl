@@ -11,8 +11,8 @@ help window reuses the normal display path.
 Build one from a binding list and the document the bindings act on (applicability
 is evaluated against that document's current selection):
 
-    gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
-    gesture_map(get_document_gesture_bindings(JsonObject), some_object)   # global, by type
+    make_gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
+    make_gesture_map(get_document_gesture_bindings(JsonObject), some_object)   # global, by type
 """
 module GestureMapModule
 
@@ -24,7 +24,7 @@ import ..GestureBindingModule: GestureBinding
 import ..IntentModule: Intent, CollectedIntentsOperation
 import ..EventPatternModule: describe_event_pattern
 
-export GestureRow, gesture_row, gesture_map, gesture_rows
+export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 
 """
     GestureRow(gesture, description, domain, operation)
@@ -64,18 +64,18 @@ end
 _row_gesture(pattern) = pattern === nothing ? "" : describe_event_pattern(pattern)
 
 """
-    gesture_row(intent) -> GestureRow
+    make_gesture_row(intent) -> GestureRow
 
 One row for one collected `Intent`. Nothing is evaluated here: the operation was
 built by the binding that owns it, against the document that owns it, and rooted
 by every stage on the way back.
 """
-gesture_row(intent::Intent) =
+make_gesture_row(intent::Intent) =
     GestureRow(_row_gesture(intent.gesture), intent.description, intent.domain,
                intent.operation)
 
 """
-    gesture_rows(collected) -> Vector{GestureRow}
+    collect_gesture_rows(collected) -> Vector{GestureRow}
 
 The rows for a [`CollectedIntentsOperation`](@ref), in collection order — which is
 chain order, so the innermost document's rules come first. A chain that visits one
@@ -84,25 +84,25 @@ document from more than one stage offers it more than once; the same
 
 `nothing` (a reader that had nothing to say) yields no rows.
 """
-function gesture_rows(collected::CollectedIntentsOperation)
+function collect_gesture_rows(collected::CollectedIntentsOperation)
     rows = GestureRow[]
     seen = Set{Tuple{String,String}}()
     for intent in collected.intents
         key = (intent.domain, intent.description)
         key in seen && continue
         push!(seen, key)
-        push!(rows, gesture_row(intent))
+        push!(rows, make_gesture_row(intent))
     end
     rows
 end
-gesture_rows(::Nothing) = GestureRow[]
-gesture_rows(::Any) = GestureRow[]
+collect_gesture_rows(::Nothing) = GestureRow[]
+collect_gesture_rows(::Any) = GestureRow[]
 
 """
-    gesture_map(collected) -> GestureMap
+    make_gesture_map(collected) -> GestureMap
 
 The help window's document for a collection.
 """
-gesture_map(collected) = GestureMap(gesture_rows(collected), nothing)
+make_gesture_map(collected) = GestureMap(collect_gesture_rows(collected), nothing)
 
 end # module

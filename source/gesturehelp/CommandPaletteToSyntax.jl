@@ -18,8 +18,8 @@ module CommandPaletteToSyntaxModule
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..IoMapModule: SimpleIoMap
-import ..CommandPaletteModule: CommandPalette, command_palette_matches,
-                               command_palette_selected
+import ..CommandPaletteModule: CommandPalette, get_command_palette_matches,
+                               get_command_palette_selected
 import ..TextModule: TextString
 import ..FontModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
@@ -66,12 +66,12 @@ _domain_line(domain) = isempty(domain) ? "  (unlabelled)" : string("  ", domain)
 function print_document(p::CommandPaletteToSyntax, recursion, doc::CommandPalette, ctx::PrinterContext)
     children = () -> begin
         lines = SyntaxDocument[SyntaxLeaf(TextString(_query_line(doc), p.query))]
-        matches = command_palette_matches(doc)
+        matches = get_command_palette_matches(doc)
         if isempty(matches)
             push!(lines, SyntaxLeaf(TextString("  no command matches", p.muted)))
         end
-        selected = command_palette_selected(doc)
-        # `command_palette_matches` returns the rows grouped by domain, so a heading
+        selected = get_command_palette_selected(doc)
+        # `get_command_palette_matches` returns the rows grouped by domain, so a heading
         # goes in wherever the domain changes — the same shape the help window has.
         # A heading is display only: the selection names a row of `rows`, and a step
         # walks the matching rows, so headings never take a turn.

@@ -28,7 +28,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
 import ..OperationModule: Operation
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureMapModule: gesture_map
+import ..GestureMapModule: make_gesture_map
 
 export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
        HELP_GESTURE, is_help_gesture
@@ -123,7 +123,7 @@ function read_intent(p::GestureHelpDecoratorProjection, recursion, change::Inten
         # What comes back is already rooted at this decorator's input, so the rows
         # carry runnable operations rather than rules someone still has to resolve.
         answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
-        gm = gesture_map(answer isa Intent ? answer.operation : answer)
+        gm = make_gesture_map(answer isa Intent ? answer.operation : answer)
         p.state.open = true
         return Intent(change.gesture, OpenWindowOperation(
             id = p.id, title = p.title,

@@ -40,7 +40,7 @@ end
 # palette. The help window is a *sibling window* and can share one flag across
 # windows; the palette is drawn INTO its window, so a shared flag would draw it
 # over every window at once.
-make_command_palette_projection(projection; measure=truetype_measure_text) =
+make_command_palette_decorator_projection(projection; measure=truetype_measure_text) =
     CommandPaletteDecoratorProjection(inner = projection, measure = measure)
 
 function make_introspection_projection(projection; measure=truetype_measure_text)

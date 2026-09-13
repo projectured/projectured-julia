@@ -43,9 +43,9 @@ import ..OperationModule: DoNothingOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
 import ..EventModule: KeyDown, KeyPress
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureMapModule: GestureRow, gesture_rows
-import ..CommandPaletteModule: CommandPalette, command_palette_row,
-                               command_palette_step, command_palette_settled_selection
+import ..GestureMapModule: GestureRow, collect_gesture_rows
+import ..CommandPaletteModule: CommandPalette, get_command_palette_row,
+                               compute_command_palette_step, get_command_palette_settled_selection
 import ..CommandPaletteToSyntaxModule: CommandPaletteToSyntax
 import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
@@ -57,7 +57,7 @@ import ..ColorModule: color_solarized_background_lighter, color_solarized_blue
 
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
-       command_palette_projection
+       make_command_palette_projection
 
 """
     COMMAND_PALETTE_GESTURE
@@ -120,12 +120,12 @@ struct CommandPaletteDecoratorProjection <: Projection
 end
 
 """
-    command_palette_projection(measure) -> Projection
+    make_command_palette_projection(measure) -> Projection
 
 The palette's own rendering chain: the type-in lines down to graphics, through the
 same stages the help window uses.
 """
-command_palette_projection(measure::Function) =
+make_command_palette_projection(measure::Function) =
     ChainingProjection(CommandPaletteToSyntax(),
                        RecursiveProjection(SyntaxToText()),
                        WordWrapping(measure=measure),
@@ -133,7 +133,7 @@ command_palette_projection(measure::Function) =
 
 CommandPaletteDecoratorProjection(; inner, measure::Function,
                            state::CommandPaletteState = CommandPaletteState(),
-                           projection = command_palette_projection(measure),
+                           projection = make_command_palette_projection(measure),
                            x::Integer = 60, y::Integer = 60) =
     CommandPaletteDecoratorProjection(inner, state, projection, Int(x), Int(y))
 
@@ -210,9 +210,9 @@ read_intent(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecorator
 function _open!(p::CommandPaletteDecoratorProjection, recursion, iomap::CommandPaletteDecoratorIoMap)
     answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
     palette = p.state.palette
-    palette.rows = gesture_rows(answer isa Intent ? answer.operation : answer)
+    palette.rows = collect_gesture_rows(answer isa Intent ? answer.operation : answer)
     palette.query = ""
-    palette.selection = command_palette_settled_selection(palette)
+    palette.selection = get_command_palette_settled_selection(palette)
     p.state.open[] = true
 end
 
@@ -242,12 +242,12 @@ end
 # matches, and the first match takes over once it does not.
 function _type!(palette::CommandPalette, query::AbstractString)
     palette.query = String(query)
-    palette.selection = command_palette_settled_selection(palette)
+    palette.selection = get_command_palette_settled_selection(palette)
     DoNothingOperation()
 end
 
 function _step!(palette::CommandPalette, delta::Integer)
-    next = command_palette_step(palette, delta)
+    next = compute_command_palette_step(palette, delta)
     next === nothing || (palette.selection = next)
     DoNothingOperation()
 end
@@ -260,7 +260,7 @@ end
 # it, because the reader already rooted it where this decorator's own result is
 # expected.
 function _run(p::CommandPaletteDecoratorProjection)
-    row = command_palette_row(p.state.palette)
+    row = get_command_palette_row(p.state.palette)
     (row === nothing || row.operation === nothing) && return DoNothingOperation()
     _close!(p)
     row.operation

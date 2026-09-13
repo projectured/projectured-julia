@@ -21,69 +21,69 @@ function test_command_palette()
 
     @testset "an empty query matches every row, the runnable ones first" begin
         p = _palette()
-        @test command_palette_matches(p) == [1, 2, 3, 4]
+        @test get_command_palette_matches(p) == [1, 2, 3, 4]
     end
 
     @testset "every word of the query must appear, contiguously" begin
-        @test command_palette_matches(_palette("sort")) == [2]
-        @test command_palette_matches(_palette("SORT")) == [2]
+        @test get_command_palette_matches(_palette("sort")) == [2]
+        @test get_command_palette_matches(_palette("SORT")) == [2]
         # Words may arrive in any order, and need not be adjacent in the text — so a
         # user types the two words they remember, not the sentence between them.
-        @test command_palette_matches(_palette("entries sort")) == [2]
-        @test command_palette_matches(_palette("copy")) == [1]
+        @test get_command_palette_matches(_palette("entries sort")) == [2]
+        @test get_command_palette_matches(_palette("copy")) == [1]
         # Letters with gaps do NOT match. A subsequence rule made "sort" find
         # "Select the root node" and most of the JSON replace commands, which is a
         # ranking, not a filter.
-        @test command_palette_matches(_palette("srt")) == []
-        @test command_palette_matches(_palette("zzz")) == []
+        @test get_command_palette_matches(_palette("srt")) == []
+        @test get_command_palette_matches(_palette("zzz")) == []
         # The domain is searchable too, so a group can be narrowed to by name. The
         # order inside is by where the match falls, which is a detail; that all three
         # JSON rows survive and the text row does not is the point.
-        @test Set(command_palette_matches(_palette("json"))) == Set([1, 2, 4])
+        @test Set(get_command_palette_matches(_palette("json"))) == Set([1, 2, 4])
     end
 
     @testset "the selection names a row, and survives a narrower query" begin
         p = _palette()
-        p.selection = command_palette_selection(2)
-        @test command_palette_selected(p) == 2
-        @test command_palette_row(p).description == "Sort the entries"
+        p.selection = build_command_palette_selection(2)
+        @test get_command_palette_selected(p) == 2
+        @test get_command_palette_row(p).description == "Sort the entries"
         # A query the chosen row still matches keeps it.
         p.query = "sort"
-        @test command_palette_settled_selection(p) == command_palette_selection(2)
+        @test get_command_palette_settled_selection(p) == build_command_palette_selection(2)
         # A query it does not match moves to the first match.
         p.query = "copy"
-        @test command_palette_settled_selection(p) == command_palette_selection(1)
+        @test get_command_palette_settled_selection(p) == build_command_palette_selection(1)
         # No match at all leaves nothing selected.
         p.query = "zzz"
-        @test command_palette_settled_selection(p) === nothing
+        @test get_command_palette_settled_selection(p) === nothing
     end
 
     @testset "no selection reads as row 0" begin
         p = _palette()
-        @test command_palette_selected(p) == 0
-        @test command_palette_row(p) === nothing
-        @test command_palette_selection(0) === nothing
+        @test get_command_palette_selected(p) == 0
+        @test get_command_palette_row(p) === nothing
+        @test build_command_palette_selection(0) === nothing
     end
 
     @testset "a step walks the matching subset and stops at both ends" begin
         p = _palette()
         # Nothing selected: forward lands on the first match, backward on the last.
-        @test command_palette_step(p, 1) == command_palette_selection(1)
-        @test command_palette_step(p, -1) == command_palette_selection(4)
-        p.selection = command_palette_selection(1)
-        @test command_palette_step(p, 1) == command_palette_selection(2)
-        @test command_palette_step(p, -1) == command_palette_selection(1)   # clamped
-        p.selection = command_palette_selection(4)                          # the last match
-        @test command_palette_step(p, 1) == command_palette_selection(4)    # clamped
+        @test compute_command_palette_step(p, 1) == build_command_palette_selection(1)
+        @test compute_command_palette_step(p, -1) == build_command_palette_selection(4)
+        p.selection = build_command_palette_selection(1)
+        @test compute_command_palette_step(p, 1) == build_command_palette_selection(2)
+        @test compute_command_palette_step(p, -1) == build_command_palette_selection(1)   # clamped
+        p.selection = build_command_palette_selection(4)                          # the last match
+        @test compute_command_palette_step(p, 1) == build_command_palette_selection(4)    # clamped
         p.query = "zzz"
-        @test command_palette_step(p, 1) === nothing
+        @test compute_command_palette_step(p, 1) === nothing
     end
 
     @testset "matches are grouped by domain, best group first" begin
         p = _palette()
         # Rows of one domain sit together: the domain of each row, in match order,
         # never returns to a domain it has left.
-        domains = [p.rows[i].domain for i in command_palette_matches(p)]
+        domains = [p.rows[i].domain for i in get_command_palette_matches(p)]
         @test length(unique(domains)) == length([d for (k, d) in enumerate(domains)
                                                  if k == 1 || d != domains[k-1]])
         # A group sits where its own best row would have sat, so the row that would
@@ -94,12 +94,12 @@ function test_command_palette()
         two = CommandPalette("alpha", [
             GestureRow("", "qq alpha", "Zz", _op()),
             GestureRow("", "alpha",    "Ww", _op())], nothing)
-        @test [two.rows[i].domain for i in command_palette_matches(two)] == ["Ww", "Zz"]
+        @test [two.rows[i].domain for i in get_command_palette_matches(two)] == ["Ww", "Zz"]
     end
 
     @testset "the rendering heads each group with its domain" begin
         p = _palette()
-        p.selection = command_palette_selection(2)
+        p.selection = build_command_palette_selection(2)
         text = render(print_document(CommandPaletteToSyntax(), p).output)
         # One heading per domain, above its rows.
         @test occursin("  JsonObject\n", text)
@@ -113,7 +113,7 @@ function test_command_palette()
 
     @testset "the palette renders the query, the marker, and the gesture" begin
         p = _palette()
-        p.selection = command_palette_selection(2)
+        p.selection = build_command_palette_selection(2)
         text = render(print_document(CommandPaletteToSyntax(), p).output)
         @test occursin("> ▏", text)                              # the type-in line
         @test occursin("▸ Sort the entries", text)               # the chosen row
@@ -199,7 +199,7 @@ function test_command_palette_decorator()
             @test read_intent(p, iomap, KeyPress(c)) isa DoNothingOperation
         end
         @test state.palette.query == "insert"
-        @test command_palette_row(state.palette).description == "Insert a new element"
+        @test get_command_palette_row(state.palette).description == "Insert a new element"
         # A comma inserts an element in JSON. While the palette is open it is a
         # character of the query, and the array is untouched.
         @test read_intent(p, iomap, KeyPress(',')) isa DoNothingOperation
@@ -219,11 +219,11 @@ function test_command_palette_decorator()
         for _ in 1:5; read_intent(p, iomap, KeyDown(:backspace, none)); end
         @test state.palette.query == ""
         # Compare the selection, not the row: two rows can hold equal values.
-        first_at = command_palette_selected(state.palette)
+        first_at = get_command_palette_selected(state.palette)
         read_intent(p, iomap, KeyDown(:down, none))
-        @test command_palette_selected(state.palette) != first_at
+        @test get_command_palette_selected(state.palette) != first_at
         read_intent(p, iomap, KeyDown(:up, none))
-        @test command_palette_selected(state.palette) == first_at
+        @test get_command_palette_selected(state.palette) == first_at
     end
 
     @testset "Enter runs the command against the document and closes" begin
@@ -340,7 +340,7 @@ function test_command_palette_decorator()
         arr = mkarr()
         # Wrapped exactly as `run_example(...; command_palette=true)` wraps it.
         composed = ProjecturedExample._multi_window_projection(
-            [make_command_palette_projection(make_json_projection_example())])
+            [make_command_palette_decorator_projection(make_json_projection_example())])
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
@@ -379,7 +379,7 @@ function test_command_palette_decorator()
         for c in "insert a new entry"
             read_intent(p, iomap, KeyPress(c))
         end
-        row = command_palette_row(p.state.palette)
+        row = get_command_palette_row(p.state.palette)
         @test row.description == "Insert a new entry"
         @test row.domain == "JsonObject"
         before = length(inner_json.entries)
