@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedXml`.
 """
 function test_xml_layering()
-    main = package_source_root(ProjecturedXml)
+    main = get_package_source_root(ProjecturedXml)
     check_layering(main, pathof(ProjecturedXml);
                    name = "xml",
                    extra_aliases = Set{Symbol}(

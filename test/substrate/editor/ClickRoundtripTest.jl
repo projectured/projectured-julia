@@ -12,7 +12,7 @@
 #     neighbour band (the line-boundary case, where the cursor at end of
 #     line N is logically identical to cursor at start of line N+1).
 #
-#   - test_text_nav_invariants walks a single cursor end to end and asserts the
+#   - test_text_navigation_invariants walks a single cursor end to end and asserts the
 #     walk is a chain: each step lands on a state not yet visited, and the walk
 #     ends by itself at the edge of the text.
 # ═══════════════════════════════════════════════════════════════════════════
@@ -85,7 +85,7 @@ end
 # whitespace), but a click that lands *inside* a content segment should NOT
 # end up wrapped in a ProjectionReferenceStep — that signals a missing
 # domain-level translation step somewhere in the chain.
-function _path_contains_projection_ref(path)
+function _path_contains_projection_reference(path)
     while path isa ConcreteReference
         head(path) isa ProjectionReferenceStep && return true
         path = tail(path)
@@ -378,7 +378,7 @@ function _assert_walks_agree(label, right, left, broken)
 end
 
 """
-    test_text_nav_invariants(label, document, projection;
+    test_text_navigation_invariants(label, document, projection;
                              directions=(:right, :left), broken=())
 
 Walk a single cursor end to end in both directions and assert the two walks
@@ -394,7 +394,7 @@ cannot run at all (the printer or a reader throws), `:cycle_right` / `:cycle_lef
 for a walk that revisits a caret (not a chain), and `:same_length` /
 `:right_reaches_end` / `:left_reaches_start` for the cross-direction ones.
 """
-function test_text_nav_invariants(label, document, projection;
+function test_text_navigation_invariants(label, document, projection;
                                   directions=(:right, :left), broken=())
     @testset "$label" begin
         results = Dict{Symbol,Any}()
@@ -411,7 +411,7 @@ function test_text_nav_invariants(label, document, projection;
     end
 end
 
-# The `Example`-typed overload and the sweep (`test_text_nav_invariants_all`)
+# The `Example`-typed overload and the sweep (`test_text_navigation_invariants_all`)
 # live in the `ProjecturedTest` umbrella; the JSON content-click checks live
 # beside the JSON domain (JsonContentClicksTest.jl, → domain-test in phase 3).
 
@@ -419,6 +419,6 @@ end
 test_click_roundtrip(example::Example) =
     test_click_roundtrip(example.name, example.document, example.projection)
 
-test_text_nav_invariants(example::Example; directions=(:right, :left), broken=()) =
-    test_text_nav_invariants(example.name, example.document, example.projection;
+test_text_navigation_invariants(example::Example; directions=(:right, :left), broken=()) =
+    test_text_navigation_invariants(example.name, example.document, example.projection;
                              directions=directions, broken=broken)

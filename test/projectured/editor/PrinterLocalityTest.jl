@@ -95,7 +95,7 @@ function _collect_locality!(x, owner, field::Symbol,
     # selection-path artifact (a Reference / Reference), never output content.
     # `sel_objects` records those ids so a move's lost objects can be split into
     # selection churn (expected) vs. lost content (a routing change). See
-    # `printer_locality_report`.
+    # `measure_printer_locality`.
     under_sel = under_sel || (field === :selection)
 
     id = objectid(x)
@@ -160,7 +160,7 @@ end
 _is_routing_change(r::LocalityReport) = r.lost_content > 0
 
 """
-    printer_locality_report(document, projection, mutate!) -> LocalityReport
+    measure_printer_locality(document, projection, mutate!) -> LocalityReport
 
 Print `document` with `projection`, force every reachable **output** cell and
 snapshot validity + object identity, run `mutate!(document)` (ONE minimal input
@@ -172,7 +172,7 @@ The validity scan runs *before* re-forcing, so it observes exactly the eager
 invalidation the mutation caused; the identity diff and `perf` counters come
 from a subsequent re-force.
 """
-function printer_locality_report(document, projection, mutate!)
+function measure_printer_locality(document, projection, mutate!)
     errors = String[]
     iomap = try
         print_document(projection, document)
@@ -239,7 +239,7 @@ function explore_selection_locality(document, projection; onstate=nothing)
     errors = String[]
     carets = collect_position_selections(document)
     for target in carets
-        r = printer_locality_report(document, projection, doc -> replace_selection!(doc, target))
+        r = measure_printer_locality(document, projection, doc -> replace_selection!(doc, target))
         msgs = String[]
         append!(msgs, r.errors)
         # Dimension A is measured by the INVALIDATION set, not object identity: a
@@ -367,7 +367,7 @@ function explore_structural_locality(document, projection; onresult=nothing)
     results = NamedTuple[]
     for (label, cv) in _find_input_collections(document)
         n0 = length(cv)
-        r = printer_locality_report(document, projection, _ -> push!(cv, cv[1]))
+        r = measure_printer_locality(document, projection, _ -> push!(cv, cv[1]))
         # Restore the document to its original shape regardless of outcome.
         while length(cv) > n0
             try pop!(cv) catch; break end
@@ -521,7 +521,7 @@ function explore_value_locality(document, projection; onstate=nothing)
     errors = String[]
     leaves = _find_input_value_leaves(document)
     for (label, node, original) in leaves
-        r = printer_locality_report(document, projection,
+        r = measure_printer_locality(document, projection,
                                     _ -> (node.value = _perturb(original)))
         try node.value = original catch end   # restore
         msgs = String[]

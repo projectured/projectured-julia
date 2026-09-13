@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedDatabase`.
 """
 function test_database_layering()
-    main = package_source_root(ProjecturedDatabase)
+    main = get_package_source_root(ProjecturedDatabase)
     check_layering(main, pathof(ProjecturedDatabase);
                    name = "database",
                    extra_aliases = Set{Symbol}(

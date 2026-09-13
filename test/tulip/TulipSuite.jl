@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedTulip`.
 """
 function test_tulip_layering()
-    main = package_source_root(ProjecturedTulip)
+    main = get_package_source_root(ProjecturedTulip)
     check_layering(main, pathof(ProjecturedTulip);
                    name = "tulip",
                    extra_aliases = Set{Symbol}(

@@ -110,7 +110,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_position_navigations_complete()` | Over a curated subset, additionally asserts navigation reaches every position enumerated from the document (`collect_position_selections`). |
 | `test_tree_navigations_complete()` | Same idea for whole-element/structural selections (`collect_tree_selections`); curated to the native syntax tree. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
-| `test_text_nav_invariants_all()` | Runs `test_text_nav_invariants` (walk the cursor end to end, rightwards from Ctrl+Home and leftwards from Ctrl+End, and cross-check the two walks) over every example with a text pipeline. |
+| `test_text_navigation_invariants_all()` | Runs `test_text_navigation_invariants` (walk the cursor end to end, rightwards from Ctrl+Home and leftwards from Ctrl+End, and cross-check the two walks) over every example with a text pipeline. |
 | `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. ~1200 positions, ~30s. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
@@ -185,22 +185,22 @@ julia> test_position_navigation(json_example; check_reaches_all=true)  # + reach
 julia> test_repl(json_example)
 julia> test_typein(json_example)                               # every caret of every string
 julia> test_typein(json_example; positions=:ends)              # just the boundary carets + one interior
-julia> test_text_nav_invariants(json_example)                  # end-to-end cursor walk, both directions
+julia> test_text_navigation_invariants(json_example)                  # end-to-end cursor walk, both directions
 
 julia> ex = widget_example;
 julia> test_printer("widget", ex.document, ex.projection)
 ```
 
-`test_text_nav_invariants` is the linear counterpart to `test_position_navigation`'s
+`test_text_navigation_invariants` is the linear counterpart to `test_position_navigation`'s
 BFS: it walks a single cursor from one end of the text to the other and back, so a
 direction that skips a caret or stalls partway is caught. Several examples are known
 to fail the leftward walk; the sweep marks those `@test_broken`, but a bare
-single-example call does not. Pass `broken=nav_broken(example.name)` to see one
+single-example call does not. Pass `broken=get_navigation_broken(example.name)` to see one
 example exactly as the sweep does:
 
 ```julia
-julia> test_text_nav_invariants(json_example; broken=nav_broken("json"))
-julia> test_text_nav_invariants(json_example; directions=(:left,))   # one walk, while debugging
+julia> test_text_navigation_invariants(json_example; broken=get_navigation_broken("json"))
+julia> test_text_navigation_invariants(json_example; directions=(:left,))   # one walk, while debugging
 ```
 
 `test_example(ex)` bundles printer + reader + repl + text-navigation + typein
@@ -250,17 +250,17 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 
 **`test_position_navigation`** — caret navigation is closed and (optionally) complete.
 - **Seed:** fire `Ctrl+Home`; the first selection is the resulting `ReplaceSelectionOperation.path`.
-- **Drive:** BFS over selection states. At each state: set the selection, reprint, `_walk!`; then try each `POSITION_NAV_KEYS` gesture (arrows, Home/End, Ctrl+arrows, Ctrl+Home/End) via `read_intent`, enqueuing every new target path (deduped modulo type checkpoints via `strip_reference_types`) not yet visited.
+- **Drive:** BFS over selection states. At each state: set the selection, reprint, `_walk!`; then try each `POSITION_NAVIGATION_KEYS` gesture (arrows, Home/End, Ctrl+arrows, Ctrl+Home/End) via `read_intent`, enqueuing every new target path (deduped modulo type checkpoints via `strip_reference_types`) not yet visited.
 - **Asserts:** one `@test` per reachable state (its reprint + walk don't throw), plus `@test state_count > 0`. With `check_reaches_all=true`: additionally one `@test` per selection enumerated by `collect_position_selections(document)` asserting it was reached (subset check: *enumerated ⊆ reachable*), plus `@test !isempty(enumerated)`.
 - **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or — in completeness mode — navigation can't reach a caret the document actually has (a stuck or leaky navigator).
 
 **`test_tree_navigation`** — the same, for whole-element (∅) structural selections.
 - **Seed:** `Ctrl+Alt+Home`, which selects the root ∅.
-- **Drive:** identical BFS, but with the `TREE_NAV_KEYS` (Alt+arrow) structural moves.
+- **Drive:** identical BFS, but with the `TREE_NAVIGATION_KEYS` (Alt+arrow) structural moves.
 - **Asserts:** same shape (one `@test` per reachable whole-element state; `state_count > 0`; optional *enumerated ⊆ reachable*), against `collect_tree_selections` — or a projection-aware enumerator for domains whose document is not a native syntax tree (e.g. JSON passes `collect_json_tree_selections`, mirroring `JsonToSyntax`'s decomposition).
 - **A failure means:** structural navigation throws or can't reach an enumerated node.
 
-**`test_text_nav_invariants`** — linear cursor walks are chains and agree both ways. This is the *linear* counterpart to the position-navigation BFS: a BFS proves reachability but hides a direction that skips or stalls; this catches it.
+**`test_text_navigation_invariants`** — linear cursor walks are chains and agree both ways. This is the *linear* counterpart to the position-navigation BFS: a BFS proves reachability but hides a direction that skips or stalls; this catches it.
 - **Seed / Drive:** two walks. **Right:** seed `Ctrl+Home`, step `:right`. **Left:** seed `Ctrl+End`, step `:left`. Each fires its seed, then repeats its step — reprinting between moves — until the reader declines the step (edge of text), the step is a fixed point (edge), or it lands on an already-visited state (cycle).
 - **Asserts:** *per direction* — the walk ran without error, `terminated` on its own (not by exhausting `max_steps`), never revisited a state (`cycle === nothing`, i.e. it is a chain), and moved at least once (`length(paths) > 1`). *Cross-direction* — both walks visit the same caret count (`:same_length`), the right walk ends where `Ctrl+End` lands, and the left walk ends where `Ctrl+Home` lands. Exact caret-*sequence* equality is deliberately **not** asserted: at a line boundary the same logical caret renders in two places and the two directions canonicalize to different ones.
 - **A failure means:** a direction skips a caret, stalls partway, loops, or the two directions disagree on caret count / endpoints — a directional asymmetry invisible to the BFS.

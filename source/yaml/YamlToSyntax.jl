@@ -302,7 +302,7 @@ end
 # YAML was the one source domain that declared none of this, so a caller that
 # asked the seam rather than the domain — the assistant's fenced code blocks, for
 # one — got nothing for it while JSON, XML, Julia and Markdown worked.
-import ..YamlParserModule: yamlparse
+import ..YamlParserModule: parse_yaml
 import ..NaturalNotationModule: register_natural_domain!, register_natural_parser!
 
 function __init__()
@@ -311,10 +311,10 @@ function __init__()
                              make      = () -> YamlToSyntax(),
                              format    = :yaml,
                              extension = ".yaml",
-                             parse     = yamlparse)
+                             parse     = parse_yaml)
     # `.yml` is the same format under the other spelling, and a fenced block is
     # written either way.
-    register_natural_parser!(:yml, yamlparse)
+    register_natural_parser!(:yml, parse_yaml)
 end
 
 end # module

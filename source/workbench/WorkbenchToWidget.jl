@@ -33,7 +33,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchNavigator, WorkbenchConsole, WorkbenchDescriptor,
                           WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
-                          WorkbenchEditor, title
+                          WorkbenchEditor, get_workbench_title
 import ..AssistantModule: Assistant, ASSISTANT_TITLE
 import ..AssistantToWidgetModule: AssistantToWidgetSplitPane, AssistantToWidgetCard
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
@@ -155,7 +155,7 @@ _is_panel(doc) = doc isa WorkbenchDocument || doc isa Assistant
 _recurse(recursion, doc, ctx) =
     (recursion !== nothing && _is_panel(doc)) ? print_child(recursion, doc, ctx) : SimpleIoMap(nothing, doc, doc)
 
-_title_widget(doc::WorkbenchDocument) = title(doc)
+_title_widget(doc::WorkbenchDocument) = get_workbench_title(doc)
 # The assistant is not a `WorkbenchDocument` any more; its title is its own.
 _title_widget(::Assistant) = ASSISTANT_TITLE
 

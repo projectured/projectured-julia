@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedWorkbench`.
 """
 function test_workbench_layering()
-    main = package_source_root(ProjecturedWorkbench)
+    main = get_package_source_root(ProjecturedWorkbench)
     check_layering(main, pathof(ProjecturedWorkbench);
                    name = "workbench",
                    extra_aliases = Set{Symbol}(

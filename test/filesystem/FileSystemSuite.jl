@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedFileSystem`.
 """
 function test_filesystem_layering()
-    main = package_source_root(ProjecturedFileSystem)
+    main = get_package_source_root(ProjecturedFileSystem)
     check_layering(main, pathof(ProjecturedFileSystem);
                    name = "filesystem",
                    extra_aliases = Set{Symbol}(

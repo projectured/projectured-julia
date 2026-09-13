@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedYaml`.
 """
 function test_yaml_layering()
-    main = package_source_root(ProjecturedYaml)
+    main = get_package_source_root(ProjecturedYaml)
     check_layering(main, pathof(ProjecturedYaml);
                    name = "yaml",
                    extra_aliases = Set{Symbol}(

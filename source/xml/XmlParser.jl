@@ -5,8 +5,8 @@ A small recursive-descent XML parser. Converts XML source text into an
 `XmlElement` tree from `XmlModule`.
 
 Provides:
-- `xmlparse(text)` — parse an XML string into its root `XmlElement`
-- `xmlparse_file(path)` — read and parse a `.xml` file from disk
+- `parse_xml(text)` — parse an XML string into its root `XmlElement`
+- `parse_xml_file(path)` — read and parse a `.xml` file from disk
 
 Deliberately minimal: one root element, nested elements, attributes
 (`name="value"` or `name='value'`), text content, self-closing tags, and the
@@ -18,7 +18,7 @@ module XmlParserModule
 
 import ..XmlModule: XmlDocument, XmlElement, XmlAttribute, XmlText
 
-export xmlparse, xmlparse_file
+export parse_xml, parse_xml_file
 
 # ── Cursor over the source ─────────────────────────────────────────────────────
 
@@ -147,11 +147,11 @@ end
 # ── Entry points ───────────────────────────────────────────────────────────────
 
 """
-    xmlparse(text) -> XmlElement
+    parse_xml(text) -> XmlElement
 
 Parse an XML string into its root `XmlElement`.
 """
-function xmlparse(text::AbstractString)
+function parse_xml(text::AbstractString)
     p = _Cur(collect(String(text)), 1)
     _skip_prolog!(p)
     _skipws!(p)
@@ -160,10 +160,10 @@ function xmlparse(text::AbstractString)
 end
 
 """
-    xmlparse_file(path) -> XmlElement
+    parse_xml_file(path) -> XmlElement
 
 Read and parse a `.xml` file from disk.
 """
-xmlparse_file(path::AbstractString) = xmlparse(read(path, String))
+parse_xml_file(path::AbstractString) = parse_xml(read(path, String))
 
 end # module

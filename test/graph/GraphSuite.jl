@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedGraph`.
 """
 function test_graph_layering()
-    main = package_source_root(ProjecturedGraph)
+    main = get_package_source_root(ProjecturedGraph)
     check_layering(main, pathof(ProjecturedGraph);
                    name = "graph",
                    extra_aliases = Set{Symbol}(

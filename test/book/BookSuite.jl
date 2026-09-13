@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedBook`.
 """
 function test_book_layering()
-    main = package_source_root(ProjecturedBook)
+    main = get_package_source_root(ProjecturedBook)
     check_layering(main, pathof(ProjecturedBook);
                    name = "book",
                    extra_aliases = Set{Symbol}(

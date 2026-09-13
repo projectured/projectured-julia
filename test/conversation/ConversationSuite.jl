@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedConversation`.
 """
 function test_conversation_layering()
-    main = package_source_root(ProjecturedConversation)
+    main = get_package_source_root(ProjecturedConversation)
     check_layering(main, pathof(ProjecturedConversation);
                    name = "conversation",
                    extra_aliases = Set{Symbol}(

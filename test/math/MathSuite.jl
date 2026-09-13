@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedMath`.
 """
 function test_math_layering()
-    main = package_source_root(ProjecturedMath)
+    main = get_package_source_root(ProjecturedMath)
     check_layering(main, pathof(ProjecturedMath);
                    name = "math",
                    extra_aliases = Set{Symbol}(

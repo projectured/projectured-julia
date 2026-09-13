@@ -20,7 +20,7 @@ import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, Ra
 import ..WorkspaceModule: Workspace, WorkspaceFolder
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule: insert_elements, delete_elements
-export WorkbenchDocument, title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
+export WorkbenchDocument, get_workbench_title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
 
 # ── WorkbenchDocument (abstract base) ────────────────────────────────────────
@@ -91,7 +91,7 @@ The navigator panel.  `workspace` is a `Workspace` document containing
 end
 
 
-title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
+get_workbench_title(::WorkbenchNavigator) = WORKBENCH_NAVIGATOR_TITLE
 
 # ── WorkbenchConsole ──────────────────────────────────────────────────────────
 
@@ -111,7 +111,7 @@ function WorkbenchConsole(content::TextBlock)
     WorkbenchConsole(Cell(content), Cell(nothing))
 end
 
-title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
+get_workbench_title(::WorkbenchConsole) = WORKBENCH_CONSOLE_TITLE
 set_cell_function!(c::WorkbenchConsole, f::Function) = (set_cell_function!(getfield(c, :content), f); c)
 
 # ── WorkbenchDescriptor ───────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ function WorkbenchDescriptor(content::Reference)
     WorkbenchDescriptor(Cell(content), Cell(nothing))
 end
 
-title(::WorkbenchDescriptor) = WORKBENCH_DESCRIPTOR_TITLE
+get_workbench_title(::WorkbenchDescriptor) = WORKBENCH_DESCRIPTOR_TITLE
 
 # ── WorkbenchOperator ─────────────────────────────────────────────────────────
 
@@ -147,7 +147,7 @@ The operator panel.  Its title is the class-level constant `"Operator"`.
 @document struct WorkbenchOperator <: WorkbenchDocument
 end
 
-title(::WorkbenchOperator) = WORKBENCH_OPERATOR_TITLE
+get_workbench_title(::WorkbenchOperator) = WORKBENCH_OPERATOR_TITLE
 
 # ── WorkbenchSearcher ─────────────────────────────────────────────────────────
 
@@ -161,7 +161,7 @@ The searcher panel.  Its title is the class-level constant `"Searcher"`.
 @document struct WorkbenchSearcher <: WorkbenchDocument
 end
 
-title(::WorkbenchSearcher) = WORKBENCH_SEARCHER_TITLE
+get_workbench_title(::WorkbenchSearcher) = WORKBENCH_SEARCHER_TITLE
 
 # ── WorkbenchEvaluator ────────────────────────────────────────────────────────
 
@@ -182,7 +182,7 @@ function WorkbenchEvaluator(content)
     WorkbenchEvaluator(Cell(content), Cell(nothing))
 end
 
-title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
+get_workbench_title(::WorkbenchEvaluator) = WORKBENCH_EVALUATOR_TITLE
 set_cell_function!(e::WorkbenchEvaluator, f::Function) = (set_cell_function!(getfield(e, :content), f); e)
 
 # ── WorkbenchEditor ──────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ function WorkbenchEditor(content;
                    Cell(content), Cell(follow_end), Cell(nothing))
 end
 
-title(e::WorkbenchEditor) = e.title
+get_workbench_title(e::WorkbenchEditor) = e.title
 set_cell_function!(e::WorkbenchEditor, f::Function) = (set_cell_function!(getfield(e, :content), f); e)
 
 # ── Workbench manipulation (B1) ───────────────────────────────────────────────

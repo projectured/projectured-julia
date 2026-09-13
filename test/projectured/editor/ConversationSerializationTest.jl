@@ -17,7 +17,7 @@ function test_conversation_serialization()
                 ConversationPart("hello"),
                 ConversationPart(parse_julia("2+2")),
                 ConversationPart(parse_json("""{"a": 1}""")),
-                ConversationPart(xmlparse("<a/>")),
+                ConversationPart(parse_xml("<a/>")),
             ])
             msgs = build_messages(ConversationConversation([turn]))
             @test length(msgs) == 1

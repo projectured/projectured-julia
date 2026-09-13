@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedProcess`.
 """
 function test_process_layering()
-    main = package_source_root(ProjecturedProcess)
+    main = get_package_source_root(ProjecturedProcess)
     check_layering(main, pathof(ProjecturedProcess);
                    name = "process",
                    extra_aliases = Set{Symbol}(

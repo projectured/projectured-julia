@@ -15,25 +15,25 @@ Scalars, block and flow collections, nesting, comments, and the constructs the
 parser refuses.
 """
 function test_yaml_parser()
-@testset "yamlparse" begin
+@testset "parse_yaml" begin
 
     @testset "scalars" begin
-        @test yamlparse("null") isa YamlNull
-        @test yamlparse("~") isa YamlNull
-        @test yamlparse("true").value == true
-        @test yamlparse("false").value == false
-        @test yamlparse("42").value == 42
-        @test yamlparse("-7").value == -7
-        @test yamlparse("2.5").value ≈ 2.5
-        @test yamlparse("hello").value == "hello"
-        @test yamlparse("'quoted'").value == "quoted"
-        @test yamlparse("\"double\"").value == "double"
+        @test parse_yaml("null") isa YamlNull
+        @test parse_yaml("~") isa YamlNull
+        @test parse_yaml("true").value == true
+        @test parse_yaml("false").value == false
+        @test parse_yaml("42").value == 42
+        @test parse_yaml("-7").value == -7
+        @test parse_yaml("2.5").value ≈ 2.5
+        @test parse_yaml("hello").value == "hello"
+        @test parse_yaml("'quoted'").value == "quoted"
+        @test parse_yaml("\"double\"").value == "double"
         # A quoted number stays a string: the quotes are the type, not the digits.
-        @test yamlparse("'42'") isa YamlString
+        @test parse_yaml("'42'") isa YamlString
     end
 
     @testset "block mapping" begin
-        m = yamlparse("a: 1\nb: two")
+        m = parse_yaml("a: 1\nb: two")
         @test m isa YamlMapping
         @test length(m.entries) == 2
         @test m.entries[1].key == "a"
@@ -42,14 +42,14 @@ function test_yaml_parser()
     end
 
     @testset "block sequence" begin
-        s = yamlparse("- 1\n- 2\n- 3")
+        s = parse_yaml("- 1\n- 2\n- 3")
         @test s isa YamlSequence
         @test length(s.elements) == 3
         @test [e.value for e in s.elements] == [1, 2, 3]
     end
 
     @testset "nesting by indentation" begin
-        m = yamlparse("outer:\n  inner: 1\n  list:\n    - a\n    - b")
+        m = parse_yaml("outer:\n  inner: 1\n  list:\n    - a\n    - b")
         @test m isa YamlMapping
         inner = m.entries[1].value
         @test inner isa YamlMapping
@@ -60,7 +60,7 @@ function test_yaml_parser()
     end
 
     @testset "sequence of mappings" begin
-        s = yamlparse("- name: a\n  n: 1\n- name: b\n  n: 2")
+        s = parse_yaml("- name: a\n  n: 1\n- name: b\n  n: 2")
         @test s isa YamlSequence
         @test length(s.elements) == 2
         @test s.elements[1] isa YamlMapping
@@ -69,16 +69,16 @@ function test_yaml_parser()
     end
 
     @testset "flow collections — YAML is a JSON superset" begin
-        s = yamlparse("[1, 2, 3]")
+        s = parse_yaml("[1, 2, 3]")
         @test s isa YamlSequence
         @test length(s.elements) == 3
-        m = yamlparse("{a: 1, b: 2}")
+        m = parse_yaml("{a: 1, b: 2}")
         @test m isa YamlMapping
         @test length(m.entries) == 2
     end
 
     @testset "comments and the document marker" begin
-        m = yamlparse("---\n# a comment\na: 1   # trailing\n")
+        m = parse_yaml("---\n# a comment\na: 1   # trailing\n")
         @test m isa YamlMapping
         @test length(m.entries) == 1
         @test m.entries[1].value.value == 1
@@ -92,7 +92,7 @@ function test_yaml_parser()
 
         # An anchor lands in the scalar text, so `&x 1` becomes the string
         # "&x 1" and the alias becomes the string "*x".
-        anchored = yamlparse("a: &x 1\nb: *x")
+        anchored = parse_yaml("a: &x 1\nb: *x")
         @test anchored.entries[1].value isa YamlString
         @test anchored.entries[1].value.value == "&x 1"
         @test anchored.entries[2].value.value == "*x"
@@ -101,10 +101,10 @@ function test_yaml_parser()
 
         # A tab indent parses without complaint. YAML forbids tabs for
         # indentation precisely because the width is not defined.
-        @test yamlparse("a:\n\tb: 1") isa YamlMapping
+        @test parse_yaml("a:\n\tb: 1") isa YamlMapping
         # @broken: a tab indent should raise; YAML forbids it and the width is undefined
-        @test_broken (try yamlparse("a:\n\tb: 1"); false catch; true end)
+        @test_broken (try parse_yaml("a:\n\tb: 1"); false catch; true end)
     end
 
-end # @testset "yamlparse"
+end # @testset "parse_yaml"
 end # test_yaml_parser

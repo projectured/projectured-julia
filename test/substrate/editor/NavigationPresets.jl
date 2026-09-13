@@ -17,7 +17,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Position navigation: character / word / line / document moves.
-const POSITION_NAV_KEYS = [
+const POSITION_NAVIGATION_KEYS = [
     KeyDown(:left,  ModifierKeys()),
     KeyDown(:right, ModifierKeys()),
     KeyDown(:up,    ModifierKeys()),
@@ -33,7 +33,7 @@ const POSITION_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true))
 
 # Tree navigation: Alt+arrow structural moves. The seed Ctrl+Alt+Home is
 # recognised and resolved at the syntax layer, selecting the root ∅.
-const TREE_NAV_KEYS = [
+const TREE_NAVIGATION_KEYS = [
     KeyDown(:up,    ModifierKeys(alt=true)),
     KeyDown(:down,  ModifierKeys(alt=true)),
     KeyDown(:left,  ModifierKeys(alt=true)),
@@ -43,12 +43,12 @@ const TREE_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
 
 explore_position_selections(document, projection, initial_selection=nothing; onstate=nothing) =
     explore_selections(document, projection;
-                       nav_keys=POSITION_NAV_KEYS, seed_gesture=POSITION_SEED_GESTURE,
+                       nav_keys=POSITION_NAVIGATION_KEYS, seed_gesture=POSITION_SEED_GESTURE,
                        initial_selection=initial_selection, onstate=onstate)
 
 explore_tree_selections(document, projection; onstate=nothing) =
     explore_selections(document, projection;
-                       nav_keys=TREE_NAV_KEYS, seed_gesture=TREE_SEED_GESTURE,
+                       nav_keys=TREE_NAVIGATION_KEYS, seed_gesture=TREE_SEED_GESTURE,
                        onstate=onstate)
 
 # One @test per reachable position state. When `check_reaches_all=true`,
@@ -60,7 +60,7 @@ function test_position_navigation(label, document, projection, initial_selection
                                   seed_broken=nothing, broken=nothing, unreached_broken=nothing,
                                   throws_broken=nothing)
     test_navigation(label, document, projection;
-                    nav_keys=POSITION_NAV_KEYS, seed_gesture=POSITION_SEED_GESTURE,
+                    nav_keys=POSITION_NAVIGATION_KEYS, seed_gesture=POSITION_SEED_GESTURE,
                     initial_selection=initial_selection,
                     check_reaches_all=check_reaches_all, collect=collect,
                     seed_broken=seed_broken, broken=broken, unreached_broken=unreached_broken,
@@ -87,7 +87,7 @@ function test_tree_navigation(label, document, projection;
                   d -> collect_tree_selections(d; is_node=is_node)
     end
     test_navigation(label, document, projection;
-                    nav_keys=TREE_NAV_KEYS, seed_gesture=TREE_SEED_GESTURE,
+                    nav_keys=TREE_NAVIGATION_KEYS, seed_gesture=TREE_SEED_GESTURE,
                     check_reaches_all=check_reaches_all, collect=collect,
                     seed_broken=seed_broken, broken=broken, unreached_broken=unreached_broken,
                     throws_broken=throws_broken)

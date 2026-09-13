@@ -9,7 +9,7 @@ own entry file plus the file inventory of its own folder.
 function test_substrate_layering()
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
-        main = package_source_root(pkg)
+        main = get_package_source_root(pkg)
         check_layering(main, pathof(pkg); name = String(nameof(pkg)))
     end
 end
@@ -153,10 +153,10 @@ export test_object_to_widget, test_projection_configuring,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard_to_any, test_tooltip, test_split_pane_drag, test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip
-export POSITION_NAV_KEYS, POSITION_SEED_GESTURE, TREE_NAV_KEYS, TREE_SEED_GESTURE,
+export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,
        explore_tree_selections, test_tree_navigation
 export walk_typein, test_typein
-export test_click_roundtrip, test_text_nav_invariants,
+export test_click_roundtrip, test_text_navigation_invariants,
        _find_text_iomap, _find_cursor_rect, _pipeline_measure, _seg_x_at,
-       _path_contains_projection_ref
+       _path_contains_projection_reference

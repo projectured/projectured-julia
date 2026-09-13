@@ -234,7 +234,7 @@ end
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # XML's seams for import_document / export_document / read+write_document_file.
-import ..XmlParserModule: xmlparse
+import ..XmlParserModule: parse_xml
 import ..DocumentFileModule: make_document_seed
 make_document_seed(::Val{:xml}) = XmlInsertion()
 
@@ -251,7 +251,7 @@ function __init__()
                              make      = () -> XmlToSyntax(),
                              format    = :xml,
                              extension = ".xml",
-                             parse     = xmlparse)
+                             parse     = parse_xml)
 end
 
 end # module

@@ -641,7 +641,7 @@ end
 # ── the shared entry point ─────────────────────────────────────────────────
 
 """
-    package_source_root(pkg) -> String
+    get_package_source_root(pkg) -> String
 
 The folder a package's source lives in: `source/<slice>/` at the repository
 root. A package is a name and an include list; the two do not share a directory
@@ -652,7 +652,7 @@ The package root file sits three levels below the repository root, both before
 and after the flattening of `package/`, so the depth is stable. The slice folder
 is the package name without its `Projectured` prefix, in lower case.
 """
-package_source_root(pkg::Module) =
+get_package_source_root(pkg::Module) =
     normpath(joinpath(dirname(pathof(pkg)), "..", "..", "..", "source",
                       lowercase(replace(String(nameof(pkg)), "Projectured" => ""))))
 

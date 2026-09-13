@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedMarkdown`.
 """
 function test_markdown_layering()
-    main = package_source_root(ProjecturedMarkdown)
+    main = get_package_source_root(ProjecturedMarkdown)
     check_layering(main, pathof(ProjecturedMarkdown);
                    name = "markdown",
                    extra_aliases = Set{Symbol}(

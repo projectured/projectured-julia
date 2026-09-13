@@ -2,7 +2,7 @@
     XmlFileModule
 
 `XmlFile`: a `FileDocument` whose `content` is an `XmlDocument`
-(the projectured XML AST). Parse uses the existing `xmlparse`; emit
+(the projectured XML AST). Parse uses the existing `parse_xml`; emit
 runs the standard `XmlToSyntax → SyntaxToText → TextToString`
 projection chain via `print_natural_text`.
 
@@ -24,7 +24,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..XmlModule: XmlDocument, XmlElement, XmlText, XmlAttribute, XmlNothing
-import ..XmlParserModule: xmlparse
+import ..XmlParserModule: parse_xml
 import ..NaturalNotationModule: print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
@@ -52,7 +52,7 @@ emit_text(f::XmlFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::XmlFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
-    ast = xmlparse(text)
+    ast = parse_xml(text)
     ast = _substitute_markers(ast, ctx)
     getfield(f, :content)[] = ast
     f

@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedOllama`.
 """
 function test_ollama_layering()
-    main = package_source_root(ProjecturedOllama)
+    main = get_package_source_root(ProjecturedOllama)
     check_layering(main, pathof(ProjecturedOllama); name = "ollama")
 end
 

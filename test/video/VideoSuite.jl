@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedVideo`.
 """
 function test_video_layering()
-    main = package_source_root(ProjecturedVideo)
+    main = get_package_source_root(ProjecturedVideo)
     check_layering(main, pathof(ProjecturedVideo);
                    name = "video",
                    extra_aliases = Set{Symbol}(

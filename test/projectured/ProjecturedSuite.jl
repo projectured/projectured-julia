@@ -61,9 +61,9 @@ import ProjecturedSubstrateTest: test_projection_template_hygiene,
                               test_widget_transform_pane, test_layout_closeout,
                               test_widget_forms, test_anchor_point,
                               walk_typein, test_typein,
-                              test_click_roundtrip, test_text_nav_invariants,
+                              test_click_roundtrip, test_text_navigation_invariants,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
-                              _seg_x_at, _path_contains_projection_ref
+                              _seg_x_at, _path_contains_projection_reference
 import ProjecturedKernelTest: test_kernel
 import ProjecturedSubstrateTest: test_substrate
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
@@ -312,7 +312,7 @@ function test_all()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
-    test_text_nav_invariants_all()
+    test_text_navigation_invariants_all()
     test_json_content_clicks_clean_all()
     test_collapse_roundtrip()
     test_tree_navigations()
@@ -346,7 +346,7 @@ export test_table, test_table_selection, test_table_navigation, explore_table_se
 export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation
-export printer_locality_report, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
+export measure_printer_locality, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
 export explore_structural_locality, report_structural_locality, test_template_structural_locality, test_graphics_structural_locality
 export explore_value_locality, test_value_locality, test_value_localities
 export explore_position_selections, collect_position_selections, collect_tree_selections, collect_json_tree_selections
@@ -354,12 +354,12 @@ export test_recursion_contract, test_recursion_contracts, walk_recursion_contrac
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_catalog, test_catalog_typeins
-export test_catalog_coverage, catalog_coverage_gap
+export test_catalog_coverage, get_catalog_coverage_gap
 export test_natural_renders_every_atom, test_natural_round_trips_every_atom
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
-export test_click_roundtrip, test_click_roundtrips, test_text_nav_invariants, test_text_nav_invariants_all, nav_broken
+export test_click_roundtrip, test_click_roundtrips, test_text_navigation_invariants, test_text_navigation_invariants_all, get_navigation_broken
 export test_json_content_clicks_clean, test_json_content_clicks_clean_all
 export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections

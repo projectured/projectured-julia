@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedChart`.
 """
 function test_chart_layering()
-    main = package_source_root(ProjecturedChart)
+    main = get_package_source_root(ProjecturedChart)
     check_layering(main, pathof(ProjecturedChart);
                    name = "chart",
                    extra_aliases = Set{Symbol}(

@@ -5,8 +5,8 @@ A small YAML parser. Converts YAML source text into a `YamlDocument` tree from
 `YamlModule`.
 
 Provides:
-- `yamlparse(text)` — parse a YAML string into a `YamlDocument`
-- `yamlparse_file(path)` — read and parse a `.yaml`/`.yml` file from disk
+- `parse_yaml(text)` — parse a YAML string into a `YamlDocument`
+- `parse_yaml_file(path)` — read and parse a `.yaml`/`.yml` file from disk
 
 Deliberately minimal — enough to turn typed/loaded YAML into a real document, not
 a conformance-grade parser. It supports:
@@ -27,7 +27,7 @@ module YamlParserModule
 import ..YamlModule: YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString,
                      YamlSequence, YamlMapping
 
-export yamlparse, yamlparse_file
+export parse_yaml, parse_yaml_file
 
 # ── Line preprocessing ─────────────────────────────────────────────────────────
 
@@ -317,21 +317,21 @@ end
 # ── Entry points ───────────────────────────────────────────────────────────────
 
 """
-    yamlparse(text) -> YamlDocument
+    parse_yaml(text) -> YamlDocument
 
 Parse a YAML string into a `YamlDocument`. An empty document yields `YamlNull`.
 """
-function yamlparse(text::AbstractString)
+function parse_yaml(text::AbstractString)
     p = _Block(_logical_lines(text), 1)
     _at_end(p) && return YamlNull()
     _block(p, _cur(p)[1])
 end
 
 """
-    yamlparse_file(path) -> YamlDocument
+    parse_yaml_file(path) -> YamlDocument
 
 Read and parse a `.yaml`/`.yml` file from disk.
 """
-yamlparse_file(path::AbstractString) = yamlparse(read(path, String))
+parse_yaml_file(path::AbstractString) = parse_yaml(read(path, String))
 
 end # module

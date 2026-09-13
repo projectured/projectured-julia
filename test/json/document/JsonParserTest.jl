@@ -1,4 +1,4 @@
-# Tests for the small recursive-descent JSON/XML parsers (parse_json / xmlparse):
+# Tests for the small recursive-descent JSON/XML parsers (parse_json / parse_xml):
 # enough basic coverage to trust turning typed source into a real document.
 
 

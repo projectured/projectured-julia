@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedRst`.
 """
 function test_rst_layering()
-    main = package_source_root(ProjecturedRst)
+    main = get_package_source_root(ProjecturedRst)
     check_layering(main, pathof(ProjecturedRst);
                    name = "rst",
                    extra_aliases = Set{Symbol}(

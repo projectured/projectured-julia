@@ -444,7 +444,7 @@ for adding one.
 
 | Step | Status |
 |---|---|
-| Selection movement across all major pipelines | ⚠️ rightwards ✅; leftwards stalls on projection-introduced text in every syntax-backed pipeline (`test_text_nav_invariants_all`, `plan/pending/left-motion-stalls-on-introduced-text.md`) |
+| Selection movement across all major pipelines | ⚠️ rightwards ✅; leftwards stalls on projection-introduced text in every syntax-backed pipeline (`test_text_navigation_invariants_all`, `plan/pending/left-motion-stalls-on-introduced-text.md`) |
 | `TextToGraphics` — `:left` / `:right` → `ReplaceSelectionOperation` | ✅ |
 | `SyntaxLeafToText` — flat position → leaf-domain path | ✅ |
 | `SyntaxCompoundToText` — flat position → recursive child path | ✅ |

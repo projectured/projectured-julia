@@ -15,7 +15,7 @@ include("projection/GraphicsToFileTest.jl")
 Static layered-architecture guard for `ProjecturedSdl`.
 """
 function test_sdl_layering()
-    main = package_source_root(ProjecturedSdl)
+    main = get_package_source_root(ProjecturedSdl)
     check_layering(main, pathof(ProjecturedSdl);
                    name = "sdl",
                    extra_aliases = Set{Symbol}(

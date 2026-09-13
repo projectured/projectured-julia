@@ -45,7 +45,7 @@ function test_json_content_clicks_clean(label, document, projection)
             cy = sc.y + max(1, line_h ÷ 2)
             op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
             op isa ReplaceSelectionOperation || continue
-            if _path_contains_projection_ref(op.path)
+            if _path_contains_projection_reference(op.path)
                 push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReferenceStep: $(op.path)")
             end
         end

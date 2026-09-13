@@ -11,7 +11,7 @@ implementing (PAR-INTERFACE-DECLARES-ONLY).
 function test_kernel_layering()
     # `pkgdir` rejects the flat entryfile-at-root layout (main/ProjecturedKernel.jl
     # is not under a src/), so derive the package root from `pathof`.
-    main = package_source_root(ProjecturedKernel)
+    main = get_package_source_root(ProjecturedKernel)
     check_layering(main, pathof(ProjecturedKernel);
                    name = "kernel",
                    layers = ["cell", "clock", "event", "device", "gesture", "backend",
@@ -60,7 +60,7 @@ function test_kernel()
         test_document_contract()
         test_document_macro()
         test_reference_builder()
-        test_reference_eval()
+        test_reference_evaluation()
         test_reference_rules()
         test_rerooting()
         test_traversal()
@@ -80,11 +80,11 @@ end
 
 export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
-export check_layering, package_source_root, test_layering_checkers
+export check_layering, get_package_source_root, test_layering_checkers
 # kernel unit suites
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
-       test_reference_builder, test_reference_eval, test_reference_rules, test_rerooting,
+       test_reference_builder, test_reference_evaluation, test_reference_rules, test_rerooting,
        test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
        test_declared_api,

@@ -29,7 +29,7 @@ its code lives in: `ProjecturedSequenceChart` is
 `package/ProjecturedSequenceChart/`, its code is `source/sequencechart/`, its
 suite is `test/sequencechart/` and its documents are `example/sequencechart/`.
 That derivation is a rule and not a coincidence —
-`ProjecturedKernelTest.package_source_root` computes it, and
+`ProjecturedKernelTest.get_package_source_root` computes it, and
 `test_package_graph()` walks it.
 
 ### The suffix says which kind of package it is

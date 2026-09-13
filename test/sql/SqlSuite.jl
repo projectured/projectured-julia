@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedSql`.
 """
 function test_sql_layering()
-    main = package_source_root(ProjecturedSql)
+    main = get_package_source_root(ProjecturedSql)
     check_layering(main, pathof(ProjecturedSql);
                    name = "sql",
                    extra_aliases = Set{Symbol}(

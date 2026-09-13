@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedDbCatalog`.
 """
 function test_dbcatalog_layering()
-    main = package_source_root(ProjecturedDbCatalog)
+    main = get_package_source_root(ProjecturedDbCatalog)
     check_layering(main, pathof(ProjecturedDbCatalog);
                    name = "dbcatalog",
                    extra_aliases = Set{Symbol}(

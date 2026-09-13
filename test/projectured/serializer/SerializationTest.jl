@@ -67,7 +67,7 @@ function test_serialization()
             # Clean data documents (no insertion placeholders).
             cases = [
                 (".json", parse_json("""{"name":"ada","age":36,"tags":["x","y"],"ok":true,"nil":null}"""), JsonObject, true),
-                (".xml",  xmlparse("<a id=\"1\"><b>hi</b></a>"),                                          XmlElement, false),
+                (".xml",  parse_xml("<a id=\"1\"><b>hi</b></a>"),                                          XmlElement, false),
                 (".sql",  parse_sql_text("SELECT * FROM persons"),                                              SqlSelectStatement, true),
                 (".jl",   parse_julia("function f(n)\n  n + 1\nend"),                                       JuliaFunction, true),
             ]

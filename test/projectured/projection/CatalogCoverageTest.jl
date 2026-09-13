@@ -81,13 +81,13 @@ const _NO_ATOM = Set{String}()
 
 
 """
-    catalog_coverage_gap() -> Vector{String}
+    get_catalog_coverage_gap() -> Vector{String}
 
 Document type names that a printer renders and no atom instantiates, sorted.
 Exposed so the gap can be inspected from the REPL while it is being closed —
-`setdiff(catalog_coverage_gap(), …)` is the worklist.
+`setdiff(get_catalog_coverage_gap(), …)` is the worklist.
 """
-catalog_coverage_gap() =
+get_catalog_coverage_gap() =
     sort(String[string(nameof(T isa UnionAll ? Base.unwrap_unionall(T) : T))
                 for T in setdiff(_coverage_wanted(), _coverage_covered())])
 
@@ -203,7 +203,7 @@ function test_catalog_coverage()
     @testset "catalog coverage" begin
         wanted = _coverage_wanted()
         @test !isempty(wanted)                 # the method table was actually read
-        gap = Set(catalog_coverage_gap())
+        gap = Set(get_catalog_coverage_gap())
 
         # A printer written after this list was drawn up, whose document type has
         # no atom, lands here as an unmarked failure. That is the whole check.

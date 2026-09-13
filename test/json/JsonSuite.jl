@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedJson`.
 """
 function test_json_layering()
-    main = package_source_root(ProjecturedJson)
+    main = get_package_source_root(ProjecturedJson)
     check_layering(main, pathof(ProjecturedJson);
                    name = "json",
                    extra_aliases = Set{Symbol}(

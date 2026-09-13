@@ -18,7 +18,7 @@ include("external/DbCatalogSyntaxTest.jl")
 Static layered-architecture guard for `ProjecturedOdbc`.
 """
 function test_odbc_layering()
-    main = package_source_root(ProjecturedOdbc)
+    main = get_package_source_root(ProjecturedOdbc)
     check_layering(main, pathof(ProjecturedOdbc);
                    name = "odbc",
                    extra_aliases = Set{Symbol}(

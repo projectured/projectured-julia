@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedSequenceChart`.
 """
 function test_sequencechart_layering()
-    main = package_source_root(ProjecturedSequenceChart)
+    main = get_package_source_root(ProjecturedSequenceChart)
     check_layering(main, pathof(ProjecturedSequenceChart);
                    name = "sequencechart",
                    extra_aliases = Set{Symbol}(

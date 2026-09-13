@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedFormula`.
 """
 function test_formula_layering()
-    main = package_source_root(ProjecturedFormula)
+    main = get_package_source_root(ProjecturedFormula)
     check_layering(main, pathof(ProjecturedFormula);
                    name = "formula",
                    extra_aliases = Set{Symbol}(

@@ -423,11 +423,11 @@ const NAV_WALK_THROWS = Dict(
     "searching"         => (:walk_right, :walk_left),
 )
 
-# The invariants a given example is known to fail, for `test_text_nav_invariants`.
-# A bare `test_text_nav_invariants(example)` runs unannotated and will report the
-# known failures above as plain `Fail`s; pass `broken=nav_broken(example.name)`
+# The invariants a given example is known to fail, for `test_text_navigation_invariants`.
+# A bare `test_text_navigation_invariants(example)` runs unannotated and will report the
+# known failures above as plain `Fail`s; pass `broken=get_navigation_broken(example.name)`
 # to see it the way the sweep does.
-function nav_broken(name)
+function get_navigation_broken(name)
     broken = Symbol[]
     append!(broken, get(NAV_WALK_THROWS, name, ()))
     name in NAV_LEFT_WALK_STALLS && append!(broken, (:same_length, :left_reaches_start))
@@ -435,7 +435,7 @@ function nav_broken(name)
     broken
 end
 
-function test_text_nav_invariants_all()
+function test_text_navigation_invariants_all()
     @testset "TextNavInvariants" begin
         for example in examples
             # Skip:
@@ -471,8 +471,8 @@ function test_text_nav_invariants_all()
                 # doc changes the caret walk enough to flip a `@test_broken`
                 # left/right-stall marker into an Unexpected Pass. A fresh build
                 # matches the isolated behaviour the markers were calibrated on.
-                test_text_nav_invariants(example.name, example.make_document(),
-                                         example.make_projection(); broken=nav_broken(example.name))
+                test_text_navigation_invariants(example.name, example.make_document(),
+                                         example.make_projection(); broken=get_navigation_broken(example.name))
             end
         end
     end

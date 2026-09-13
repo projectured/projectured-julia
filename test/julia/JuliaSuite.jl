@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedJulia`.
 """
 function test_julia_layering()
-    main = package_source_root(ProjecturedJulia)
+    main = get_package_source_root(ProjecturedJulia)
     check_layering(main, pathof(ProjecturedJulia);
                    name = "julia",
                    extra_aliases = Set{Symbol}(

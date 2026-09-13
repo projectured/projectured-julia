@@ -4,7 +4,7 @@
 Static layered-architecture guard for `ProjecturedFsm`.
 """
 function test_fsm_layering()
-    main = package_source_root(ProjecturedFsm)
+    main = get_package_source_root(ProjecturedFsm)
     check_layering(main, pathof(ProjecturedFsm);
                    name = "fsm",
                    extra_aliases = Set{Symbol}(

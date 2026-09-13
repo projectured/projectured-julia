@@ -24,7 +24,7 @@ struct EA end
 struct EB end
 struct EC end
 
-function test_reference_eval()
+function test_reference_evaluation()
 @testset "ReferenceEval" begin
 
     root = EvaluationBranch(EvaluationLeaf(10, nothing), EvaluationLeaf(20, nothing), nothing)
@@ -229,4 +229,4 @@ function test_reference_eval()
     end
 
 end
-end # test_reference_eval
+end # test_reference_evaluation
