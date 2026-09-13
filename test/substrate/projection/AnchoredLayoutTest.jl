@@ -15,7 +15,7 @@ using ProjecturedLayout.LayoutModule: AnchoredLayout, AnchoredEntry, VerticalLay
     compute_anchored_positions
 using ProjecturedLayout.LayoutModule: LayoutToGraphics
 using ProjecturedWidget.WidgetModule: WidgetLabel, Point2D
-using ProjecturedWidget.WidgetToGraphicsModule: WidgetToGraphics
+using ProjecturedWidget.WidgetModule: WidgetToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 using ProjecturedStyle.StyleModule: color_black
 using ProjecturedCollection.CollectionModule: CellVector

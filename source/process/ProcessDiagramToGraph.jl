@@ -1,92 +1,55 @@
-"""
-    ProcessDiagramToGraphModule
-
-ProcessDiagram → GraphGraph: the flowchart. The structured tree is walked once
-into vertices and edges, so the stock `GraphToGraphLayout →
-GraphLayoutToGraphics` stages draw the whole picture — boxes, arrows, the
-current-node ring and the last-arrow re-stroke — with no process-specific
-rendering code.
-
-## What becomes a vertex
-
-Every step, decision, loop header and jump gets one vertex whose content is the
-document node **itself**, held by identity, so clicking a box selects the real
-node through the graph pipeline's existing `vertex_layouts[i].vertex.content.…`
-routing. Sequences do not: they are the tree's structure, and the picture shows
-structure as edges. The start and stop ovals are `ProcessTerminal`s the stage
-synthesizes — picture, not semantics, with no node behind them.
-
-## What becomes an edge
-
-The walk is the standard structured-control-flow construction: `emit(node,
-next)` draws `node` and points it at the vertex control reaches afterwards.
-
-- a sequence chains: each node's `next` is the following node's entry, and the
-  last one's is the sequence's own `next`;
-- a decision points `yes` at its then-branch entry and `no` at its else-branch
-  entry — or straight at `next` when that branch is empty or absent. **There is
-  no merge vertex**: both tails already point at the successor, which is what
-  the recursion hands them;
-- a `while` points `yes` at its body entry and `no` at `next`, and its body's
-  `next` is the loop header itself — that back-edge is the loop;
-- a `foreach` has the same two exits, labelled `next`/`done`;
-- `break` points at the enclosing loop's exit, `continue` at its header,
-  `return` at the stop terminal.
-
-Vertices are created in document order in a first pass and wired in a second,
-so the vector order the layout engine sees matches the notation's reading
-order.
-
-## The live overlay
-
-`highlight_vertex` and `highlight_edge` are `ComputedCell`s over the diagram's
-debug session: the node it names resolves to a vertex by identity, and the
-`(previous, current)` pair resolves to the edge between them. Deriving the stroked arrow from the
-node *pair* is what keeps edges picture-only — the document has no edge to
-index and the runtime never learns a picture vocabulary. Both cells read
-nothing else, so a step arriving mid-run repaints the overlay without
-invalidating anything the layout engine depends on.
-
-Known v1 limits: a selection is mapped only when it names a node exactly (a
-caret *inside* a step's action does not light up its box), and edges are not
-clickable.
-"""
-module ProcessDiagramToGraphModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ProcessModule: ProcessDocument, ProcessModel, ProcessSequence, ProcessStep,
-                        ProcessDecision, ProcessWhile, ProcessForeach,
-                        ProcessBreak, ProcessContinue, ProcessReturn,
-                        ProcessNothing, ProcessInsertion,
-                        process_nodes, find_node_at_index, get_body_steps
-import ..ProcessDiagramModule: ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
-import ..ProcessToSyntaxModule: ProcessToSyntax, ProcessBreakToSyntaxLeaf,
-                                ProcessContinueToSyntaxLeaf, ProcessReturnToSyntaxNode
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..IoMapModule: IoMap, var"@iomap"
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
-                      color_solarized_gray, color_solarized_magenta, color_solarized_cyan
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, project
-import ..ReferenceModule: EmptyReference, try_evaluate_reference, search_references,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-
-export ProcessDiagramToGraph, ProcessDiagramToGraphIoMap,
-       ProcessStepToSyntaxLabel, ProcessDecisionToSyntaxLabel,
-       ProcessWhileToSyntaxLabel, ProcessForeachToSyntaxLabel,
-       ProcessTerminalToSyntaxLabel, ProcessEdgeLabelToSyntaxLeaf,
-       ProcessToSyntaxLabel
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessDiagramToGraph.jl.
+#
+# ProcessDiagram → GraphGraph: the flowchart. The structured tree is walked once
+# into vertices and edges, so the stock `GraphToGraphLayout →
+# GraphLayoutToGraphics` stages draw the whole picture — boxes, arrows, the
+# current-node ring and the last-arrow re-stroke — with no process-specific
+# rendering code.
+#
+# ## What becomes a vertex
+#
+# Every step, decision, loop header and jump gets one vertex whose content is the
+# document node **itself**, held by identity, so clicking a box selects the real
+# node through the graph pipeline's existing `vertex_layouts[i].vertex.content.…`
+# routing. Sequences do not: they are the tree's structure, and the picture shows
+# structure as edges. The start and stop ovals are `ProcessTerminal`s the stage
+# synthesizes — picture, not semantics, with no node behind them.
+#
+# ## What becomes an edge
+#
+# The walk is the standard structured-control-flow construction: `emit(node,
+# next)` draws `node` and points it at the vertex control reaches afterwards.
+#
+# - a sequence chains: each node's `next` is the following node's entry, and the
+#   last one's is the sequence's own `next`;
+# - a decision points `yes` at its then-branch entry and `no` at its else-branch
+#   entry — or straight at `next` when that branch is empty or absent. **There is
+#   no merge vertex**: both tails already point at the successor, which is what
+#   the recursion hands them;
+# - a `while` points `yes` at its body entry and `no` at `next`, and its body's
+#   `next` is the loop header itself — that back-edge is the loop;
+# - a `foreach` has the same two exits, labelled `next`/`done`;
+# - `break` points at the enclosing loop's exit, `continue` at its header,
+#   `return` at the stop terminal.
+#
+# Vertices are created in document order in a first pass and wired in a second,
+# so the vector order the layout engine sees matches the notation's reading
+# order.
+#
+# ## The live overlay
+#
+# `highlight_vertex` and `highlight_edge` are `ComputedCell`s over the diagram's
+# debug session: the node it names resolves to a vertex by identity, and the
+# `(previous, current)` pair resolves to the edge between them. Deriving the stroked arrow from the
+# node *pair* is what keeps edges picture-only — the document has no edge to
+# index and the runtime never learns a picture vocabulary. Both cells read
+# nothing else, so a step arriving mid-run repaints the overlay without
+# invalidating anything the layout engine depends on.
+#
+# Known v1 limits: a selection is mapped only when it names a node exactly (a
+# caret *inside* a step's action does not light up its box), and edges are not
+# clickable.
 # ── Node and edge content projections ────────────────────────────────────────
 #
 # Compact forms used only inside the diagram. A box shows what the node *is*,
@@ -390,5 +353,3 @@ function _node_reference(diagram, index)
     isempty(found) && return nothing
     @reference ::ProcessDiagram.model::ProcessModel.^(found[1])
 end
-
-end # module

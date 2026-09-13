@@ -1,38 +1,32 @@
-"""
-    ProcessDiagramModule
-
-The flowchart's **presentation document** — what a process looks like on
-screen, as opposed to what it is.
-
-`ProcessDiagram` is projection output (`ProcessToProcessDiagram` builds it once
-and keeps its identity across reprints, exactly as `ChartToChartPlot` does with
-`ChartPlot` and `FsmToFsmDiagram` with `FsmDiagram`), so nothing here is
-document content and nothing here serializes.
-
-Two fields:
-
-- `model` — the `ProcessModel` being drawn,
-- `session` — the `ProcessDebugSession` whose cells the live overlay reads, or
-  `nothing` when nothing is attached. A driver takes the diagram's handle at
-  projection setup and keeps writing that one session for the rest of a run,
-  which is why the diagram's identity has to hold.
-
-`ProcessTerminal` is the other presentation-only type: the start and stop
-ovals a flowchart draws. They are **picture, not semantics** — the document
-tree has no node behind them, which is why they live here rather than in
-`ProcessModule`, and why they are opted out of the insertion candidates.
-"""
-module ProcessDiagramModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessDiagram.jl.
+#
+# The flowchart's **presentation document** — what a process looks like on
+# screen, as opposed to what it is.
+#
+# `ProcessDiagram` is projection output (`ProcessToProcessDiagram` builds it once
+# and keeps its identity across reprints, exactly as `ChartToChartPlot` does with
+# `ChartPlot` and `FsmToFsmDiagram` with `FsmDiagram`), so nothing here is
+# document content and nothing here serializes.
+#
+# Two fields:
+#
+# - `model` — the `ProcessModel` being drawn,
+# - `session` — the `ProcessDebugSession` whose cells the live overlay reads, or
+#   `nothing` when nothing is attached. A driver takes the diagram's handle at
+#   projection setup and keeps writing that one session for the rest of a run,
+#   which is why the diagram's identity has to hold.
+#
+# `ProcessTerminal` is the other presentation-only type: the start and stop
+# ovals a flowchart draws. They are **picture, not semantics** — the document
+# tree has no node behind them, which is why they live here rather than in
+# `ProcessModule`, and why they are opted out of the insertion candidates.
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
 using ..DomainModule
 
-import ..CellModule: Cell
-import ..ProcessModule: ProcessDocument
 
-export ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
 
 @document struct ProcessDiagram <: ProcessDocument
     model::Any
@@ -67,5 +61,3 @@ ProcessEdgeLabel(text::AbstractString) = ProcessEdgeLabel(Cell(String(text)), Ce
 insertable(::Type{ProcessTerminal}) = false
 insertable(::Type{ProcessEdgeLabel}) = false
 insertable(::Type{ProcessDiagram}) = false
-
-end # module

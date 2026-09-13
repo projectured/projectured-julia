@@ -61,7 +61,7 @@ import ..EventModule: KeyDown, KeyPress
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
-import ..SyntaxToTextModule: SyntaxToText
+import ..SyntaxModule: SyntaxToText
 import ..WordWrappingModule: WordWrapping
 import ..TextToGraphicsModule: TextToGraphics
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none

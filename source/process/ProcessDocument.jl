@@ -40,6 +40,73 @@ specified in `package/domain/doc/process.md`.
 """
 module ProcessModule
 
+import ..CellModule: Cell
+export process_children, process_nodes, get_node_index, find_node_at_index, get_body_steps,
+       get_unrefined_nodes, is_executable
+export ProcessTrace, ProcessStoppedException, process_at!,
+       resume_process!, pause_process!, stop_process!, set_process_breakpoints!,
+       is_process_paused, is_process_finished
+export ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
+export ProcessDebugSession, is_stale, has_breakpoint, toggle_breakpoint!,
+       set_process_position!, sync_process_debug!, detach_process_debug!
+import ..CellModule: Cell, ComputedCell
+import ..CollectionModule: CellVector, ComputedCellVector
+import ..ProjectionApiModule: print_document, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..SyntaxModule: DomainInsertionToSyntaxLeaf,
+                                          InsertionNothingToSyntaxLeaf
+import ..TextModule: TextString, make_hinted_text
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
+                      color_solarized_magenta, color_solarized_cyan,
+                      color_solarized_orange, color_solarized_red
+import ..StyleModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
+                                   bound, project, collection
+import ..ReferenceModule: ConcreteReference, PositionReferenceStep
+import ..ProjectionReferenceStepModule: make_introduced_reference
+import ..OperationModule: ReplaceSelectionOperation
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
+import ..JuliaModule: JuliaToSyntax
+export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
+       ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,
+       ProcessWhileToSyntaxNode, ProcessForeachToSyntaxNode,
+       ProcessBreakToSyntaxLeaf, ProcessContinueToSyntaxLeaf,
+       ProcessReturnToSyntaxNode, ProcessInsertionToSyntaxLeaf, ProcessToSyntax
+import ..IoMapModule: IoMap, var"@iomap"
+import ..ReferenceModule: get_reference_node_type
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..ReferenceModule: var"@reference_case"
+export ProcessToProcessDiagram, ProcessToProcessDiagramIoMap
+import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
+                      color_solarized_gray, color_solarized_magenta, color_solarized_cyan
+import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
+import ..ProjectionTemplateModule: var"@projection_template", bound, project
+import ..ReferenceModule: EmptyReference, try_evaluate_reference, search_references,
+                          get_reference_node_type
+export ProcessDiagramToGraph, ProcessDiagramToGraphIoMap,
+       ProcessStepToSyntaxLabel, ProcessDecisionToSyntaxLabel,
+       ProcessWhileToSyntaxLabel, ProcessForeachToSyntaxLabel,
+       ProcessTerminalToSyntaxLabel, ProcessEdgeLabelToSyntaxLeaf,
+       ProcessToSyntaxLabel
+import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
+                      JuliaBlock, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
+                      JuliaReturn, JuliaBreak, JuliaContinue, JuliaFunction,
+                      JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
+                      JuliaTypeAnnotation
+import ..DocumentModule: search_documents
+import ..NaturalModule: print_natural_text
+export realize_process, realize_process_text, export_process,
+       PROCESS_INSTRUMENTATION_LEVELS, TRACE_PARAMETER_NAME
+export start_process, realize_into, ProcessRun
+export ProcessDocument, ProcessNothing, ProcessInsertion, ProcessModel, ProcessSequence, ProcessStep, ProcessDecision, ProcessWhile, ProcessForeach, ProcessBreak, ProcessContinue, ProcessReturn
+
+
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -50,10 +117,7 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-import ..CellModule: Cell
 
-export process_children, process_nodes, get_node_index, find_node_at_index, get_body_steps,
-       get_unrefined_nodes, is_executable
 
 @domain Process
 
@@ -310,5 +374,15 @@ is_executable(root) = isempty(get_unrefined_nodes(root))
 @gestures ProcessSequence begin
     KeyPress(',') => "Insert a new step" => append_insertion_operation(doc, :steps, ProcessInsertion)
 end
+
+
+include("ProcessRuntime.jl")
+include("ProcessDiagram.jl")
+include("ProcessDebugSession.jl")
+include("ProcessToSyntax.jl")
+include("ProcessToProcessDiagram.jl")
+include("ProcessDiagramToGraph.jl")
+include("ProcessToJuliaCode.jl")
+include("ProcessDebug.jl")
 
 end # module

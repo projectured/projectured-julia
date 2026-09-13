@@ -1,80 +1,40 @@
-"""
-    DocumentInsertionToSyntaxModule
-
-The insert-by-typing mechanism, ported from the Common Lisp ProjecturEd
-`document-to-syntax.lisp` — now with the live completion hint and green/red
-commitability colouring.
-
-`InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` projects any
-document with an editable `value::String` to a `SyntaxNode` rendered as
-`prefix · value · ⟨continuation⟩ · suffix`. The reader edits `value`
-character-by-character; the value's colour and the pale continuation are
-computed cells driven by the `completion` policy (see `name_completion`):
-
-- **green** typed text — the buffer names a candidate (or parses, for source
-  insertions); with an **unambiguous** prefix the rest of the name renders as
-  the **pale-green continuation**;
-- **red** — no completion is possible;
-- **Tab** accepts the continuation (the longest-common-prefix *partial*
-  completion when ambiguous);
-- **Enter** calls `commit(value)` — for name insertions that is
-  `resolve_insertion` + `make_insertion_document` over the insertion's domain
-  root, so an unambiguous prefix commits too;
-- **Escape** aborts to the domain's own placeholder (`get_nothing_document`), the
-  inverse of the placeholder's Insert gesture.
-
-The candidates, names (`JsonString` / `json string`, prefix-free inside a
-domain scope), and constructors all come from `DomainModule`'s
-reflection — nothing here is a table. The chain is *domain-independent
-insertion (`DocumentInsertion`) → domain-specific insertion
-(`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*, exactly as in
-the Lisp editor.
-
-Nothing here names a domain. A domain that wants a *source* insertion — one
-that commits by parsing rather than by naming a type — builds its own leaf from
-`InsertionToSyntaxLeaf` and `parse_completion`, in a file it already has.
-`SqlInsertionToSyntaxLeaf` and `JuliaInsertionToSyntaxLeaf` are the two
-examples.
-"""
-module DocumentInsertionToSyntaxModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..DocumentModule: Document
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyPress, KeyDown, ModifierKeys
-import ..EventModule: MousePress
-import ..DomainModule: DocumentInsertion, DocumentNothing
-import ..DomainModule: get_insertion_root, get_nothing_document, get_insertion_names,
-                       get_insertion_candidates, complete_insertion, name_completion,
-                       resolve_insertion,
-                       make_insertion_document
-import ..TextModule: TextString
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxDocument, SyntaxDelimitation
-import ..OperationModule: replace_document, ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReference, Position, get_reference_node_type
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern, KeyPressPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
-import ..StyleModule: color_solarized_gray, color_solarized_green, color_solarized_red,
-                      color_completion_hint, color_default, StyleColor
-import ..StyleModule: StyleText
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: SimpleIoMap
-import ..CellModule: Cell, ComputedCell
-
-export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
-       InsertionNothingToSyntaxLeaf,
-       default_factory, default_completion, parse_completion,
-       insert_insertion_text_operation, delete_insertion_text_operation
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from InsertionToSyntax.jl.
+#
+# The insert-by-typing mechanism, ported from the Common Lisp ProjecturEd
+# `document-to-syntax.lisp` — now with the live completion hint and green/red
+# commitability colouring.
+#
+# `InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` projects any
+# document with an editable `value::String` to a `SyntaxNode` rendered as
+# `prefix · value · ⟨continuation⟩ · suffix`. The reader edits `value`
+# character-by-character; the value's colour and the pale continuation are
+# computed cells driven by the `completion` policy (see `name_completion`):
+#
+# - **green** typed text — the buffer names a candidate (or parses, for source
+#   insertions); with an **unambiguous** prefix the rest of the name renders as
+#   the **pale-green continuation**;
+# - **red** — no completion is possible;
+# - **Tab** accepts the continuation (the longest-common-prefix *partial*
+#   completion when ambiguous);
+# - **Enter** calls `commit(value)` — for name insertions that is
+#   `resolve_insertion` + `make_insertion_document` over the insertion's domain
+#   root, so an unambiguous prefix commits too;
+# - **Escape** aborts to the domain's own placeholder (`get_nothing_document`), the
+#   inverse of the placeholder's Insert gesture.
+#
+# The candidates, names (`JsonString` / `json string`, prefix-free inside a
+# domain scope), and constructors all come from `DomainModule`'s
+# reflection — nothing here is a table. The chain is *domain-independent
+# insertion (`DocumentInsertion`) → domain-specific insertion
+# (`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*, exactly as in
+# the Lisp editor.
+#
+# Nothing here names a domain. A domain that wants a *source* insertion — one
+# that commits by parsing rather than by naming a type — builds its own leaf from
+# `InsertionToSyntaxLeaf` and `parse_completion`, in a file it already has.
+# `SqlInsertionToSyntaxLeaf` and `JuliaInsertionToSyntaxLeaf` are the two
+# examples.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 struct InsertionToSyntaxLeaf <: Projection
@@ -451,5 +411,3 @@ function read_intent(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::Rep
     isempty(text) && return nothing
     read_gesture(iomap.input, KeyPress(first(text), text, ModifierKeys()))
 end
-
-end # module

@@ -47,6 +47,103 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
        build_syntax_child_path, peel_child_step
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..SelectionModule: map_selection_forward, get_stored_selection, is_live_selection
+import ..DocumentModule: SelectionDocument
+import ..PrinterContextModule: make_child_context
+import ..IntentModule: Intent
+import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
+import ..StyleModule: color_default, color_solarized_gray
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
+import ..TextSpanReferenceStepModule: TextSpanReferenceStep
+import ..TextRangeReferenceStepModule: TextRangeReferenceStep
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..IoMapModule: SimpleIoMap, var"@iomap"
+import ..IoMapModule: IoMap
+import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..GestureBindingModule: read_gesture
+import ..EventPatternModule: var"@event_case"
+import ..EventModule: MousePress
+export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
+       SyntaxCompoundToTextIoMap, _syntax_to_flat
+import ..CellModule: Cell, ComputedCell
+import ..DocumentModule: is_element_collection
+import ..ProjectionModule: var"@projection"
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
+import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleModule: StyleText
+import ..IoMapModule: SimpleIoMap, reconcile_child_iomap, reconcile_child_iomaps
+import ..ReferenceModule: ElementReferenceStep, FieldReferenceStep
+import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
+import ..TextToStringModule: TextToString
+import ..ChainingProjectionModule: ChainingProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
+       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
+       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
+import ..ProjectionApiModule: print_document, print_child, Projection
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
+import ..StyleModule: StyleColor, color_solarized_green
+import ..IoMapModule: SimpleIoMap, reconcile_child_iomap
+import ..ReferenceModule: FieldReferenceStep, get_reference_steps, strip_reference_types
+import ..PrinterContextModule: PrinterContext, make_child_context
+import ..PrimitiveModule: ObjectField, get_object_field_value, get_object_field_name
+export ObjectFieldToSyntax
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_solarized_gray
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
+                          PositionReferenceStep, Reference,
+                          EmptyReference, extend_reference, is_element_reference_step
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
+export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
+                          ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+import ..StyleModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
+import ..IoMapModule: SimpleIoMap
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position
+export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
+       PrimitiveToSyntax
+import ..ProjectionReferenceStepModule: make_introduced_reference
+import ..ProjectionApiModule: print_document, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..EventModule: KeyPress, KeyDown, ModifierKeys
+import ..DomainModule: DocumentInsertion, DocumentNothing
+import ..DomainModule: get_insertion_root, get_nothing_document, get_insertion_names,
+                       get_insertion_candidates, complete_insertion, name_completion,
+                       resolve_insertion,
+                       make_insertion_document
+import ..OperationModule: replace_document, ReplaceSelectionOperation
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          ElementReferenceStep, EmptyReference, Position, get_reference_node_type
+import ..GestureBindingModule: GestureBinding
+import ..EventPatternModule: KeyDownPattern, KeyPressPattern
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, StyleFont
+import ..StyleModule: color_solarized_gray, color_solarized_green, color_solarized_red,
+                      color_completion_hint, color_default, StyleColor
+export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
+       InsertionNothingToSyntaxLeaf,
+       default_factory, default_completion, parse_completion,
+       insert_insertion_text_operation, delete_insertion_text_operation
+import ..ProjectionApiModule: Projection
+import ..TextToGraphicsModule: TextToGraphics
+import ..PrimitiveModule: PrimitiveDocument
+import ..TextModule: TextDocument, TextNothing, TextInsertion
+import ..DomainModule: DocumentNothing
+import ..NaturalModule: get_natural_syntax_entries, register_natural_fallback!
+import ..NaturalModule: register_natural_rung!
+export make_natural_to_syntax_dispatch, register_syntax_fallback!
+export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
+
+
 
 """
     SyntaxDocument
@@ -876,5 +973,14 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
         new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
     end
 end
+
+
+include("SyntaxToText.jl")
+include("ObjectToSyntax.jl")
+include("ObjectFieldToSyntax.jl")
+include("CollectionToSyntax.jl")
+include("PrimitiveToSyntax.jl")
+include("InsertionToSyntax.jl")
+include("SyntaxNatural.jl")
 
 end # module

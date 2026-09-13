@@ -1,114 +1,20 @@
-"""
-    WidgetToGraphicsModule
-
-WidgetDocument → GraphicsCanvas projection. One projection struct per widget
-document type, composed via `TypeDispatchingProjection(...)` through the
-`WidgetToGraphics()` factory function. Wrap the result in `RecursiveProjection`
-at the call site to enable recursive child dispatch.
-
-Each widget projection produces a `GraphicsCanvas` as output. Leaf widgets
-emit text and rect elements; container widgets recurse via the `recursion`
-argument and nest child canvases. Event routing (e.g. MouseScroll) is
-delegated through containers to the appropriate child via hit-testing.
-
-`WidgetScrollPaneToGraphicsCanvas` is the one scroll pane projection: a sized
-`GraphicsCanvas` wrapping the `GraphicsViewport` that clips, with the content
-delegated through the recursion argument. Compose it with `NestingProjection`
-to give that content a different recursion table than the surrounding tree.
-"""
-module WidgetToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..ClockModule: get_clock_time, get_reactive_clock_time, get_wall_clock
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                               map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..ProjectionModule: var"@projection"
-import ..DocumentModule: Document
-import ..StyleModule: StyleColor,
-                      color_white, color_zinc_50, color_zinc_100, color_zinc_200,
-                      color_zinc_300, color_zinc_400, color_zinc_500, color_zinc_600,
-                      color_zinc_700, color_zinc_800, color_zinc_900, color_zinc_950,
-                      color_slate_50, color_slate_100, color_slate_200, color_slate_300,
-                      color_slate_400, color_slate_500, color_slate_700, color_slate_800,
-                      color_slate_900, color_slate_950,
-                      color_indigo_100, color_indigo_200, color_indigo_400, color_indigo_500,
-                      color_indigo_600, color_indigo_700, color_indigo_950,
-                      color_destructive, color_destructive_fg, color_interpolate
-import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox,
-                       WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem,
-                       WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane,
-                       WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar,
-                       WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
-                       WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-                       WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetAccordionItem,
-                       WidgetSpinBox, WidgetList, make_widget_list_selection, get_widget_list_selected,
-                       resolve_toggle_group_write, resolve_slider_write,
-                       WidgetTable, WidgetTree, WidgetTreeNode,
-                       WidgetLazyTable, get_lazy_table_cell,
-                       get_lazy_table_column_names, get_lazy_table_column_widths,
-                       make_widget_lazy_table_row_selection,
-                       Inset, Point2D, inset_default,
-                       SelectTabOperation, CloseTabOperation,
-                       OpenTabOperation, DragTabOperation,
-                       StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
-                       Action, InvokeActionOperation, matches_action_shortcut
-import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
-import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
-import ..StyleModule: ImageDocument
-import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, get_graphics_size
-import ..StyleModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
-                         apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-import ..StyleModule: StyleFont,
-                     font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
-import ..StyleModule: StyleText
-import ..StyleModule: StyleStroke
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap, var"@iomap"
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap, reconcile_child_iomaps
-import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
-import ..SelectionModule: get_stored_selection
-import ..EventPatternModule: var"@event_case"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, ToggleCollapseOperation, CompoundOperation
-import ..ScreenModule: OpenPopupOperation, OpenWindowOperation, CloseWindowOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, EmptyReference, is_element_reference_step
-import ..GraphicsModule: PointReferenceStep
-import ..OperationModule: reroot_operation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
-import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
-                       layout_preferred, layout_weight
-import ..LayoutModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
-import ..EventModule: KeyDown
-import ..EventModule: ModifierKeys
-import ..GestureBindingModule: read_bound_gesture
-export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
-       WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
-       WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
-       WidgetContextMenuToGraphicsCanvasIoMap,
-       WidgetDialogToGraphicsCanvas, WidgetDialogToGraphicsCanvasIoMap,
-       WidgetMenuToGraphicsCanvas,
-       WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
-       WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
-       WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
-       WidgetHighlightToGraphicsCanvas,
-       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, get_frozen_extent,
-       WidgetLazyTableToGraphicsCanvas, WidgetLazyTableToGraphicsCanvasIoMap,
-       WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
-       WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, make_light_theme, make_dark_theme,
-       make_slate_light_theme, make_slate_dark_theme,
-       WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
-       WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
-       WidgetSliderToGraphicsCanvasIoMap,
-       WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
-       WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
-       WidgetOptionToGraphicsCanvas,
-       get_anchor_point,
-       register_icon!, make_glyph_icon, make_image_icon
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WidgetToGraphics.jl.
+#
+# WidgetDocument → GraphicsCanvas projection. One projection struct per widget
+# document type, composed via `TypeDispatchingProjection(...)` through the
+# `WidgetToGraphics()` factory function. Wrap the result in `RecursiveProjection`
+# at the call site to enable recursive child dispatch.
+#
+# Each widget projection produces a `GraphicsCanvas` as output. Leaf widgets
+# emit text and rect elements; container widgets recurse via the `recursion`
+# argument and nest child canvases. Event routing (e.g. MouseScroll) is
+# delegated through containers to the appropriate child via hit-testing.
+#
+# `WidgetScrollPaneToGraphicsCanvas` is the one scroll pane projection: a sized
+# `GraphicsCanvas` wrapping the `GraphicsViewport` that clips, with the content
+# delegated through the recursion argument. Compose it with `NestingProjection`
+# to give that content a different recursion table than the surrounding tree.
 # ── Anchor resolution ──────────────────────────────────────────────
 #
 # Resolve a document-domain `reference` to the anchor's absolute top-left within
@@ -6991,5 +6897,3 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
     )
 end
-
-end # module

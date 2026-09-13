@@ -37,7 +37,7 @@ const IntentModule = ProjecturedKernel.IntentModule
 const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
 const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
-const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
+const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const StyleModule = ProjecturedStyle.StyleModule
 

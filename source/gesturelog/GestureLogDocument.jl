@@ -59,7 +59,7 @@ import ..ChainingProjectionModule: ChainingProjection
 import ..RecursiveProjectionModule: RecursiveProjection
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 import ..StyleModule: StyleColor
-import ..SyntaxToTextModule: SyntaxToText
+import ..SyntaxModule: SyntaxToText
 import ..TextToGraphicsModule: TextToGraphics
 import ..StyleModule: measure_truetype_text
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,

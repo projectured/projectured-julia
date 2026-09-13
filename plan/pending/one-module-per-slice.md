@@ -90,11 +90,10 @@ meets a hard case.
      `PrimitiveModule` was already right, so its 49 references never moved.
 2. **The 15 slices with 1 to 3 internal edges. DONE 2026-09-13.** Forty-eight
    modules became fifteen.
-3. **The 16 slices with 4 to 9.** Fifteen are **DONE 2026-09-13**: `style`,
-   `workbench`, `conversation`, `screen`, `sql`, `json`, `xml`, `chart`,
-   `julia`, `rst`, `gesturehelp`, `markdown`, `pane`, `sequencechart` and
-   `fsm`. Seventy-three modules became fifteen. `syntax`, `widget` and
-   `process` are what is left of the tier.
+3. **The 16 slices with 4 to 9. DONE 2026-09-13.** `style`, `workbench`,
+   `conversation`, `screen`, `sql`, `json`, `xml`, `chart`, `julia`, `rst`,
+   `gesturehelp`, `markdown`, `pane`, `sequencechart`, `fsm`, `syntax`,
+   `widget` and `process`. Ninety-five modules became eighteen.
 
    What these five taught:
 

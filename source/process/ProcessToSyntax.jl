@@ -1,101 +1,64 @@
-"""
-    ProcessToSyntaxModule
-
-Process → Syntax projection: the **natural notation**, the primary edit
-surface of the process domain.
-
-```
-process csma_transmit(frame)
-  step "prepare" / x = encode(frame)
-  while attempts < max_attempts
-    if carrier_free()
-      step / start_tx!(ctx, x)
-      return :sent
-    step "binary exponential backoff"
-    step / attempts += 1
-  return :failed
-```
-
-The notation is **indentation-scoped and has no `end`**: a body is an indented
-run of lines, which is what makes the text view read like the flowchart it
-projects to. Line grammar, bracketed parts optional:
-
-```
-process NAME(PARAM, …)
-step ["DESCRIPTION"] [/ ACTION]
-if CONDITION  /  else
-while CONDITION
-for VAR in ITERABLE
-break | continue | return [VALUE]
-```
-
-The keywords `if`, `else`, `while`, `for`, `in`, `break`, `continue` and
-`return` carry their exact Julia meanings and their Julia colour, so an
-embedded expression and the structure around it read as one language; only
-`process` and `step` are minted.
-
-A step renders its description only when it has one, or when it has no action
-to render instead — so a code-only step is a clean `step / …` line and an
-unrefined step always offers a caret. An unrefined condition renders a muted
-`<condition>` marker: chrome, not content, and the flat-offset reader below is
-what keeps a caret there bounded.
-
-Composed with the Julia projection exactly as `FsmToSyntax` is: the embedded
-code (a step's action, a decision's or loop's condition, a `for`'s variable and
-iterable, the model's parameters) is a `JuliaDocument` subtree rendered through
-the same shared `recursion`, so `ProcessToSyntax()` merges the Julia
-type-dispatch table with the Process entries into one
-`TypeDispatchingProjection`.
-
-`ProcessToSyntax(; session)` hands every node rule a `ProcessDebugSession`, and
-a node the session names renders its leading keyword in the live colour (a
-breakpoint in another). It is a **style swap on a keyword that is printed
-anyway**: no glyph is added, so where a realized run happens to be cannot shift
-a caret offset out from under whoever is typing.
-
-The rules are `@projection_template` builders, so printing, reference mapping
-and the structural readers are generic. Each compound rule additionally
-collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
-`XmlElementToSyntaxNode` precedent) — every keyword in this notation is
-projection-introduced text with no input pre-image, and without that collapse
-the navigation walk grows its paths without bound.
-"""
-module ProcessToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ProcessModule: ProcessDocument, ProcessNothing, ProcessInsertion,
-                        ProcessModel, ProcessSequence, ProcessStep, ProcessDecision,
-                        ProcessWhile, ProcessForeach, ProcessBreak, ProcessContinue,
-                        ProcessReturn
-import ..ProcessDebugSessionModule: ProcessDebugSession, has_breakpoint
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_orange, color_solarized_red
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..JuliaModule: JuliaToSyntax
-
-export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
-       ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,
-       ProcessWhileToSyntaxNode, ProcessForeachToSyntaxNode,
-       ProcessBreakToSyntaxLeaf, ProcessContinueToSyntaxLeaf,
-       ProcessReturnToSyntaxNode, ProcessInsertionToSyntaxLeaf, ProcessToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessToSyntax.jl.
+#
+# Process → Syntax projection: the **natural notation**, the primary edit
+# surface of the process domain.
+#
+# ```
+# process csma_transmit(frame)
+#   step "prepare" / x = encode(frame)
+#   while attempts < max_attempts
+#     if carrier_free()
+#       step / start_tx!(ctx, x)
+#       return :sent
+#     step "binary exponential backoff"
+#     step / attempts += 1
+#   return :failed
+# ```
+#
+# The notation is **indentation-scoped and has no `end`**: a body is an indented
+# run of lines, which is what makes the text view read like the flowchart it
+# projects to. Line grammar, bracketed parts optional:
+#
+# ```
+# process NAME(PARAM, …)
+# step ["DESCRIPTION"] [/ ACTION]
+# if CONDITION  /  else
+# while CONDITION
+# for VAR in ITERABLE
+# break | continue | return [VALUE]
+# ```
+#
+# The keywords `if`, `else`, `while`, `for`, `in`, `break`, `continue` and
+# `return` carry their exact Julia meanings and their Julia colour, so an
+# embedded expression and the structure around it read as one language; only
+# `process` and `step` are minted.
+#
+# A step renders its description only when it has one, or when it has no action
+# to render instead — so a code-only step is a clean `step / …` line and an
+# unrefined step always offers a caret. An unrefined condition renders a muted
+# `<condition>` marker: chrome, not content, and the flat-offset reader below is
+# what keeps a caret there bounded.
+#
+# Composed with the Julia projection exactly as `FsmToSyntax` is: the embedded
+# code (a step's action, a decision's or loop's condition, a `for`'s variable and
+# iterable, the model's parameters) is a `JuliaDocument` subtree rendered through
+# the same shared `recursion`, so `ProcessToSyntax()` merges the Julia
+# type-dispatch table with the Process entries into one
+# `TypeDispatchingProjection`.
+#
+# `ProcessToSyntax(; session)` hands every node rule a `ProcessDebugSession`, and
+# a node the session names renders its leading keyword in the live colour (a
+# breakpoint in another). It is a **style swap on a keyword that is printed
+# anyway**: no glyph is added, so where a realized run happens to be cannot shift
+# a caret offset out from under whoever is typing.
+#
+# The rules are `@projection_template` builders, so printing, reference mapping
+# and the structural readers are generic. Each compound rule additionally
+# collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
+# `XmlElementToSyntaxNode` precedent) — every keyword in this notation is
+# projection-introduced text with no input pre-image, and without that collapse
+# the navigation walk grows its paths without bound.
 # ── Shared styles ────────────────────────────────────────────────────────────
 #
 # Control-flow keywords take the Julia projection's keyword colour: an embedded
@@ -360,5 +323,3 @@ function ProcessToSyntax(; session = nothing)
     push!(pairs, ProcessNothing   => InsertionNothingToSyntaxLeaf())
     TypeDispatchingProjection(pairs)
 end
-
-end # module

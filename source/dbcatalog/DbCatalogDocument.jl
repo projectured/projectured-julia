@@ -40,7 +40,7 @@ import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..PrinterContextModule: make_child_context
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
 import ..OperationModule: ReplaceSelectionOperation
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,

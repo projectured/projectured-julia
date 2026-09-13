@@ -19,7 +19,7 @@
 #
 # The generic half of the mechanism — the shared insertion leaf, the completion
 # policies and the `*Nothing` placeholder — lives in
-# [`DocumentInsertionToSyntaxModule`](@ref), which knows no domain.
+# [`SyntaxModule`](@ref), which knows no domain.
 # ── Julia keyword scaffolds + completion ───────────────────────────────────────
 #
 # A partially-typed prefix of a keyword shows a pale-green completion

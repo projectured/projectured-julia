@@ -1,65 +1,42 @@
-"""
-    ObjectToWidgetModule
-
-Generic, reflection-driven projection from an arbitrary object to a widget
-**form** that displays and edits the object's reactive parameters. It walks the
-object's fields and, for each renderable one, emits a control:
-
-    String / number  → WidgetText      (editable when backed by a `Cell`)
-    Bool             → WidgetCheckbox
-    struct (with `Cell` fields) → a 2-column `GridLayout` of its own fields,
-                                  wrapped in a collapsible `WidgetCard`
-    vector / tuple   → a `VerticalLayout` of its elements, wrapped in a
-                       collapsible `WidgetCard`
-
-The **root** object renders as a bare `WidgetComposite` wrapping a 2-column
-(label | control) `GridLayout` — *no* surrounding card. Cards appear only for
-*nested* composite values, so a flat object (only scalar fields) produces exactly
-the historical output and the `ProjectionConfiguringProjection` control bar is
-unaffected.
-
-Fields it cannot render (a `Function`, a `StyleColor`, a plain struct without
-`Cell` fields, …) are skipped — opaque forms stay non-editable.
-
-**Collapse.** Each nested card is collapsible. Collapse is transient *view* state
-stored on the output `WidgetCard.collapsed` cell (like `WidgetScrollPane`'s scroll
-offset): the card's `title`/`content` are reactive `CellVector`s that read
-`card.collapsed`, so a header click — which `WidgetCardToGraphicsCanvas` turns into
-`ToggleCollapseOperation(card)`, flipped by the default operation handler —
-re-renders the chevron and shows/hides the body.
-
-**Editing.** Controls edit the *object's own* cells. A checkbox click or a text
-edit is matched (by control identity, or by the top-level grid row) and converted
-to `ReplaceReferencedValueOperation(root, path, value)` where `path` is the full reference
-from the root to the edited field — so an edit at any nesting depth writes the
-right cell. Caret navigation *into* the tree (real `map_reference_*`) and nested
-text-caret editing are deferred to a later navigation stage.
-
-Used by `ProjectionConfiguringProjection`, which projects an inner projection
-*object* through this to build its parameter-control bar.
-"""
-module ObjectToWidgetModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetCheckbox,
-                       WidgetComposite, WidgetCard, Point2D
-import ..LayoutModule: GridLayout, VerticalLayout, HorizontalLayout
-import ..TextModule: TextBlock, TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default
-import ..StyleModule: StyleText
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          extend_reference, evaluate_reference
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-
-export ObjectToWidget, ObjectToWidgetIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ObjectToWidget.jl.
+#
+# Generic, reflection-driven projection from an arbitrary object to a widget
+# **form** that displays and edits the object's reactive parameters. It walks the
+# object's fields and, for each renderable one, emits a control:
+#
+#     String / number  → WidgetText      (editable when backed by a `Cell`)
+#     Bool             → WidgetCheckbox
+#     struct (with `Cell` fields) → a 2-column `GridLayout` of its own fields,
+#                                   wrapped in a collapsible `WidgetCard`
+#     vector / tuple   → a `VerticalLayout` of its elements, wrapped in a
+#                        collapsible `WidgetCard`
+#
+# The **root** object renders as a bare `WidgetComposite` wrapping a 2-column
+# (label | control) `GridLayout` — *no* surrounding card. Cards appear only for
+# *nested* composite values, so a flat object (only scalar fields) produces exactly
+# the historical output and the `ProjectionConfiguringProjection` control bar is
+# unaffected.
+#
+# Fields it cannot render (a `Function`, a `StyleColor`, a plain struct without
+# `Cell` fields, …) are skipped — opaque forms stay non-editable.
+#
+# **Collapse.** Each nested card is collapsible. Collapse is transient *view* state
+# stored on the output `WidgetCard.collapsed` cell (like `WidgetScrollPane`'s scroll
+# offset): the card's `title`/`content` are reactive `CellVector`s that read
+# `card.collapsed`, so a header click — which `WidgetCardToGraphicsCanvas` turns into
+# `ToggleCollapseOperation(card)`, flipped by the default operation handler —
+# re-renders the chevron and shows/hides the body.
+#
+# **Editing.** Controls edit the *object's own* cells. A checkbox click or a text
+# edit is matched (by control identity, or by the top-level grid row) and converted
+# to `ReplaceReferencedValueOperation(root, path, value)` where `path` is the full reference
+# from the root to the edited field — so an edit at any nesting depth writes the
+# right cell. Caret navigation *into* the tree (real `map_reference_*`) and nested
+# text-caret editing are deferred to a later navigation stage.
+#
+# Used by `ProjectionConfiguringProjection`, which projects an inner projection
+# *object* through this to build its parameter-control bar.
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 """
@@ -365,5 +342,3 @@ _coerce(_, v) = v
 
 map_reference_forward(::ObjectToWidget, ::ObjectToWidgetIoMap, reference) = nothing
 map_reference_backward(::ObjectToWidget, ::ObjectToWidgetIoMap, reference) = nothing
-
-end # module

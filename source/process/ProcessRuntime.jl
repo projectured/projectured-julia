@@ -1,45 +1,38 @@
-"""
-    ProcessRuntimeModule
-
-The probe runtime realized code calls — **plain Julia**. No `@document`, no
-cells, no ProjecturEd: a realized process must stay runnable outside the
-editor, and a runtime that could touch a document would make that untrue (and
-would let a probe write a document cell from the process's own task, which is
-the one thing the debug design forbids).
-
-The `Fsm` runtime an embedder supplies plays exactly this role for
-`FsmToJuliaCode`,
-and like it, **the protocol is the contract, not this file**: an embedder that
-wants its own recording or its own scheduler implements `process_at!` over its
-own trace type and realized code neither knows nor cares.
-
-## The protocol
-
-Realized code carries one extra statement per node:
-
-```julia
-process_at!(trace, 7)              # instrumentation = :position
-process_at!(trace, 7, (; x, y))    # instrumentation = :locals
-```
-
-`trace` is the realized function's last parameter and defaults to `nothing`,
-and `process_at!(::Nothing, …)` is a no-op — so instrumented code runs
-standalone at full speed with no debug machinery attached.
-
-A probe does three things, in this order: it records where execution is, it
-calls the `on_step` hook if there is one, and then — only if the UI has asked
-for it — it **blocks** until the UI resumes it. Blocking is what makes a
-breakpoint a breakpoint, and it blocks the *calling task*: run a realized
-process on its own `Task` (see `start_process`) or the caller stops with it.
-A process realized into a simulation should run at `:none`, or with `:run`
-mode and no breakpoints, for exactly that reason.
-"""
-module ProcessRuntimeModule
-
-export ProcessTrace, ProcessStoppedException, process_at!,
-       resume_process!, pause_process!, stop_process!, set_process_breakpoints!,
-       is_process_paused, is_process_finished
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessRuntime.jl.
+#
+# The probe runtime realized code calls — **plain Julia**. No `@document`, no
+# cells, no ProjecturEd: a realized process must stay runnable outside the
+# editor, and a runtime that could touch a document would make that untrue (and
+# would let a probe write a document cell from the process's own task, which is
+# the one thing the debug design forbids).
+#
+# The `Fsm` runtime an embedder supplies plays exactly this role for
+# `FsmToJuliaCode`,
+# and like it, **the protocol is the contract, not this file**: an embedder that
+# wants its own recording or its own scheduler implements `process_at!` over its
+# own trace type and realized code neither knows nor cares.
+#
+# ## The protocol
+#
+# Realized code carries one extra statement per node:
+#
+# ```julia
+# process_at!(trace, 7)              # instrumentation = :position
+# process_at!(trace, 7, (; x, y))    # instrumentation = :locals
+# ```
+#
+# `trace` is the realized function's last parameter and defaults to `nothing`,
+# and `process_at!(::Nothing, …)` is a no-op — so instrumented code runs
+# standalone at full speed with no debug machinery attached.
+#
+# A probe does three things, in this order: it records where execution is, it
+# calls the `on_step` hook if there is one, and then — only if the UI has asked
+# for it — it **blocks** until the UI resumes it. Blocking is what makes a
+# breakpoint a breakpoint, and it blocks the *calling task*: run a realized
+# process on its own `Task` (see `start_process`) or the caller stops with it.
+# A process realized into a simulation should run at `:none`, or with `:run`
+# mode and no breakpoints, for exactly that reason.
 """
 Thrown inside a realized process when the UI asks it to stop. The runner
 catches it; nothing else should.
@@ -146,5 +139,3 @@ set_process_breakpoints!(trace::ProcessTrace, indices) =
 
 is_process_paused(trace::ProcessTrace) = trace.paused
 is_process_finished(trace::ProcessTrace) = trace.finished
-
-end # module

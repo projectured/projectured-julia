@@ -43,13 +43,5 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
 end
 
 include("../../../source/process/ProcessDocument.jl")
-include("../../../source/process/ProcessRuntime.jl")
-include("../../../source/process/ProcessDiagram.jl")
-include("../../../source/process/ProcessDebugSession.jl")
-include("../../../source/process/ProcessToSyntax.jl")
-include("../../../source/process/ProcessToProcessDiagram.jl")
-include("../../../source/process/ProcessDiagramToGraph.jl")
-include("../../../source/process/ProcessToJuliaCode.jl")
-include("../../../source/process/ProcessDebug.jl")
 
 end # module ProjecturedProcess

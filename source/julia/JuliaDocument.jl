@@ -14,7 +14,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..SelectionModule: with_selection
 import ..DomainModule: var"@insertion"
-import ..DocumentInsertionToSyntaxModule: insert_insertion_text_operation, delete_insertion_text_operation
+import ..SyntaxModule: insert_insertion_text_operation, delete_insertion_text_operation
 import ..EventModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..SyntaxModule: SyntaxLeaf

@@ -153,8 +153,7 @@ Modules whose name a slice collapse will settle, so renaming them now is work
 that gets undone. See `plan/pending/one-module-per-slice.md`.
 """
 const _PENDING_SLICE_MODULES = Set([
-    "ConsoleBackendModule", "PdfBackendModule",
-    "DocumentInsertionToSyntaxModule"])
+    "ConsoleBackendModule", "PdfBackendModule"])
 
 "Words the rules ban inside a name, and the expansion each one owes."
 const _BANNED_WORDS = Dict(

@@ -40,7 +40,7 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
 import ..PrinterContextModule: make_child_context
 import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
 export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,

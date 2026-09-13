@@ -1,35 +1,21 @@
-"""
-    WidgetPopupResolverProjectionModule
-
-A content-level seam that turns an anchor-relative [`OpenPopupOperation`] into an
-absolute [`OpenWindowOperation`]. It wraps the window's content projection, so it
-sits at the root of that content and holds the content iomap — the level that can
-resolve a widget reference to graphics coordinates (the deep trigger reader
-cannot; it only knows local coordinates).
-
-When a trigger (e.g. a `WidgetSelect`) emits an `OpenPopupOperation` carrying an
-`anchor` reference + an offset, this seam resolves the anchor to the widget's
-absolute position via [`get_anchor_point`] (which rides `map_reference_forward`),
-adds the offset, and emits an `OpenWindowOperation` at that position. That op then
-bubbles up to `WindowManagingProjection`, which opens the popup window — the same
-window route the tooltip already uses.
-
-Transparent on print and for reference mapping; only the reader does work. Mirrors
-how `HoverProbeProjection` produces window ops from the content level.
-"""
-module WidgetPopupResolverProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..ScreenModule: OpenPopupOperation, OpenWindowOperation
-import ..WidgetToGraphicsModule: get_anchor_point
-
-export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WidgetPopupResolver.jl.
+#
+# A content-level seam that turns an anchor-relative [`OpenPopupOperation`] into an
+# absolute [`OpenWindowOperation`]. It wraps the window's content projection, so it
+# sits at the root of that content and holds the content iomap — the level that can
+# resolve a widget reference to graphics coordinates (the deep trigger reader
+# cannot; it only knows local coordinates).
+#
+# When a trigger (e.g. a `WidgetSelect`) emits an `OpenPopupOperation` carrying an
+# `anchor` reference + an offset, this seam resolves the anchor to the widget's
+# absolute position via [`get_anchor_point`] (which rides `map_reference_forward`),
+# adds the offset, and emits an `OpenWindowOperation` at that position. That op then
+# bubbles up to `WindowManagingProjection`, which opens the popup window — the same
+# window route the tooltip already uses.
+#
+# Transparent on print and for reference mapping; only the reader does work. Mirrors
+# how `HoverProbeProjection` produces window ops from the content level.
 struct WidgetPopupResolverProjection <: Projection
     inner::Projection
 end
@@ -86,5 +72,3 @@ map_reference_forward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolv
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(p::WidgetPopupResolverProjection, iomap::WidgetPopupResolverIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-
-end # module

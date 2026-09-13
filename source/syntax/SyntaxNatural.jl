@@ -1,44 +1,23 @@
-"""
-    SyntaxNaturalModule
-
-What the natural renderer draws with when nothing else claimed a document: the
-shared to-syntax fabric, and the `Syntax → Text → Graphics` tail that turns it
-into pixels.
-
-# Why it is registered rather than named
-
-`ProjecturedNatural` used to hold this, and naming it made every renderer carry
-the syntax domain — the reflection tail that can draw a document of any shape.
-A campaign runner that draws a form, a table of runs and a chat never reaches it,
-and paid for it in its dependency list all the same.
-
-So the renderer declares a fallback seam and this module fills it. A session that
-loads `ProjecturedSyntax` can draw anything; one that does not draws what it was
-taught, and an error message for the rest.
-
-The rows a domain registers with `register_natural_syntax!` are consumed here,
-which is why the fabric knows every loaded domain without naming one.
-"""
-module SyntaxNaturalModule
-
-import ..ProjectionApiModule: Projection
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..ChainingProjectionModule: ChainingProjection
-import ..TextToGraphicsModule: TextToGraphics
-import ..SyntaxToTextModule: SyntaxToText
-import ..ObjectToSyntaxModule: ObjectToSyntax
-import ..CollectionToSyntaxModule: CollectionToSyntax
-import ..PrimitiveToSyntaxModule: PrimitiveToSyntax
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..PrimitiveModule: PrimitiveDocument
-import ..TextModule: TextDocument, TextNothing, TextInsertion
-import ..DomainModule: DocumentNothing
-import ..NaturalModule: get_natural_syntax_entries, register_natural_fallback!
-import ..NaturalModule: register_natural_rung!
-
-export make_natural_to_syntax_dispatch, register_syntax_fallback!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SyntaxNatural.jl.
+#
+# What the natural renderer draws with when nothing else claimed a document: the
+# shared to-syntax fabric, and the `Syntax → Text → Graphics` tail that turns it
+# into pixels.
+#
+# # Why it is registered rather than named
+#
+# `ProjecturedNatural` used to hold this, and naming it made every renderer carry
+# the syntax domain — the reflection tail that can draw a document of any shape.
+# A campaign runner that draws a form, a table of runs and a chat never reaches it,
+# and paid for it in its dependency list all the same.
+#
+# So the renderer declares a fallback seam and this module fills it. A session that
+# loads `ProjecturedSyntax` can draw anything; one that does not draws what it was
+# taught, and an error message for the rest.
+#
+# The rows a domain registers with `register_natural_syntax!` are consumed here,
+# which is why the fabric knows every loaded domain without naming one.
 """
     make_natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
 
@@ -109,5 +88,3 @@ function register_syntax_fallback!()
     register_natural_rung!(:syntax, :text, (; measure) -> SyntaxToText())
     nothing
 end
-
-end # module SyntaxNaturalModule

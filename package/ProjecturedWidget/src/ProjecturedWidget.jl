@@ -54,12 +54,5 @@ const LayoutModule = ProjecturedLayout.LayoutModule
 const TextModule = ProjecturedText.TextModule
 
 include("../../../source/widget/WidgetDocument.jl")
-include("../../../source/widget/WidgetToGraphics.jl")
-include("../../../source/widget/ObjectToWidget.jl")
-include("../../../source/widget/ObjectFieldToWidget.jl")
-include("../../../source/widget/CellTableToWidgetTable.jl")
-include("../../../source/widget/WidgetHoverTracking.jl")
-include("../../../source/widget/ProjectionConfiguring.jl")
-include("../../../source/widget/WidgetPopupResolver.jl")
 
 end # module ProjecturedWidget

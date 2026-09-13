@@ -14,7 +14,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 export parse_sql_text, parse_sql_file
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..DocumentInsertionToSyntaxModule: InsertionToSyntaxLeaf, parse_completion,
+import ..SyntaxModule: InsertionToSyntaxLeaf, parse_completion,
                                           InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -29,7 +29,7 @@ import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
 import ..PrinterContextModule: make_child_context
 export SqlInsertionToSyntaxLeaf,
        SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,

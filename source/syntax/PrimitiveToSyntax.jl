@@ -1,31 +1,9 @@
-"""
-    PrimitiveToSyntaxModule
-
-PrimitiveDocument → SyntaxLeaf projection. Converts `PrimitiveBool`,
-`PrimitiveNumber`, and `PrimitiveString` into `SyntaxLeaf` nodes
-with appropriate delimiters and colors.
-"""
-module PrimitiveToSyntaxModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..CellModule: Cell, ComputedCell
-import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                          ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..SyntaxModule: SyntaxLeaf
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default, color_solarized_magenta, color_solarized_cyan, color_solarized_green, color_solarized_yellow
-import ..StyleModule: StyleText
-import ..IoMapModule: SimpleIoMap
-import ..IoMapModule: IoMap
-import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep, Position
-import ..ReferenceModule: var"@reference"
-import ..ReferenceModule: var"@reference_case"
-import ..OperationModule: ReplaceSelectionOperation
-export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
-       PrimitiveToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PrimitiveToSyntax.jl.
+#
+# PrimitiveDocument → SyntaxLeaf projection. Converts `PrimitiveBool`,
+# `PrimitiveNumber`, and `PrimitiveString` into `SyntaxLeaf` nodes
+# with appropriate delimiters and colors.
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToSyntaxLeaf
@@ -133,9 +111,6 @@ end
 
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..PrinterContextModule: make_child_context
 
 """
     PrimitiveToSyntax()
@@ -151,5 +126,3 @@ function PrimitiveToSyntax(; bool_kw=(), number_kw=(), string_kw=())
         PrimitiveString => PrimitiveStringToSyntaxLeaf(; string_kw...),
     )
 end
-
-end # module

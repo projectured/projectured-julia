@@ -1,34 +1,12 @@
-"""
-    CollectionToSyntaxModule
-
-Collection → Syntax projection. Handles `CellVector` and `ListNode`
-as top-level collection documents, mapping each element through recursion.
-
-- `CellVector` → `SyntaxNode` with `[`, `]` delimiters and eager children.
-- `ListNode`   → `ListNode(projected)` preserving lazy structure (no wrapping
-   delimiters for infinite lists).
-"""
-module CollectionToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SyntaxModule: SyntaxDocument, SyntaxNode
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_solarized_gray
-import ..StyleModule: StyleText
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapModule: IoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
-                          PositionReferenceStep, Reference,
-                          EmptyReference, extend_reference, is_element_reference_step
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from CollectionToSyntax.jl.
+#
+# Collection → Syntax projection. Handles `CellVector` and `ListNode`
+# as top-level collection documents, mapping each element through recursion.
+#
+# - `CellVector` → `SyntaxNode` with `[`, `]` delimiters and eager children.
+# - `ListNode`   → `ListNode(projected)` preserving lazy structure (no wrapping
+#    delimiters for infinite lists).
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
 @projection struct CollectionCellVectorToSyntax
@@ -178,8 +156,6 @@ end
 
 # ── CollectionToSyntax (composite) ───────────────────────────────────────────
 
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context
 
 """
     CollectionToSyntax()
@@ -198,5 +174,3 @@ function CollectionToSyntax()
         ListNode   => CollectionListNodeToSyntax(),
     )
 end
-
-end # module

@@ -1,33 +1,19 @@
-"""
-    CellTableToWidgetTableModule
-
-Projection: `CellTable` → `WidgetTable`.
-
-Wraps a generic reactive `CellTable` (row 1 = column names, rows 2..n = data) in a
-`WidgetTable` so it can be rendered through the `WidgetToGraphics` table renderer
-(which delegates positioning to `GridLayout` and overlays decorations). Column
-headers come from row 1 of the `CellTable`; the data rows become the table body
-(row-major). Each value is wrapped in a base `Primitive` document
-(`PrimitiveString` / `PrimitiveNumber` / `PrimitiveBool`) so the table's content
-recursion (e.g. `Primitive*ToSyntaxLeaf → SyntaxToText → TextToGraphics`) renders
-it — this keeps the projection domain-free (no Json), so it lives in `visual`
-rather than a domain slice.
-
-Read-only: no reference mapping or read support.
-"""
-module CellTableToWidgetTableModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector, CellTable
-import ..WidgetModule: WidgetTable, Point2D
-import ..LayoutModule: Content
-import ..PrimitiveModule: PrimitiveBool, PrimitiveNumber, PrimitiveString
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-
-export CellTableToWidgetTable
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from CellTableToWidgetTable.jl.
+#
+# Projection: `CellTable` → `WidgetTable`.
+#
+# Wraps a generic reactive `CellTable` (row 1 = column names, rows 2..n = data) in a
+# `WidgetTable` so it can be rendered through the `WidgetToGraphics` table renderer
+# (which delegates positioning to `GridLayout` and overlays decorations). Column
+# headers come from row 1 of the `CellTable`; the data rows become the table body
+# (row-major). Each value is wrapped in a base `Primitive` document
+# (`PrimitiveString` / `PrimitiveNumber` / `PrimitiveBool`) so the table's content
+# recursion (e.g. `Primitive*ToSyntaxLeaf → SyntaxToText → TextToGraphics`) renders
+# it — this keeps the projection domain-free (no Json), so it lives in `visual`
+# rather than a domain slice.
+#
+# Read-only: no reference mapping or read support.
 # Wrap a raw cell value in a base Primitive document so the table content
 # recursion renders it. `Bool` is matched before `Real` (Bool <: Real) so
 # booleans stay booleans; there is no `PrimitiveNull`, so null/missing render as
@@ -76,5 +62,3 @@ end
 map_reference_forward(::CellTableToWidgetTable, iomap, ref) = nothing
 map_reference_backward(::CellTableToWidgetTable, iomap, ref) = nothing
 read_intent(::CellTableToWidgetTable, iomap, op) = nothing
-
-end # module

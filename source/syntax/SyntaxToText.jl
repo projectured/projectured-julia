@@ -1,51 +1,13 @@
-"""
-    SyntaxToTextModule
-
-Syntax → Text projection. Each `SyntaxNode` transforms only its own single level —
-marker, delimiters, separators, newline/indent decoration — and projects every
-child one level down through `recursion` (`print_child`), splicing the child's
-output element list into its own (School A; see the recursion contract in
-package/kernel/doc/projection-system.md). The per-child element ranges and the child
-IoMaps are recorded in the IoMap so the mappers and reader can peel the one
-`.children[i]` step this node owns and delegate the rest to the child's own mapper.
-"""
-module SyntaxToTextModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..SelectionModule: map_selection_forward, get_stored_selection, is_live_selection
-import ..DocumentModule: SelectionDocument
-import ..PrinterContextModule: make_child_context
-import ..IntentModule: Intent
-import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
-                       SyntaxConcatenation, SyntaxSeparation,
-                       SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
-                       SyntaxNavigation,
-                       get_syntax_children, get_opening_delimiter, get_closing_delimiter,
-                       get_separator, get_indentation, is_syntax_collapsed,
-                       is_syntax_collapsible, build_syntax_child_path, peel_child_step
-import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
-import ..StyleModule: color_default, color_solarized_gray
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..IoMapModule: SimpleIoMap, var"@iomap"
-import ..IoMapModule: IoMap
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyDown
-import ..EventPatternModule: var"@event_case"
-import ..EventModule: MousePress
-export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
-       SyntaxCompoundToTextIoMap, _syntax_to_flat
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SyntaxToText.jl.
+#
+# Syntax → Text projection. Each `SyntaxNode` transforms only its own single level —
+# marker, delimiters, separators, newline/indent decoration — and projects every
+# child one level down through `recursion` (`print_child`), splicing the child's
+# output element list into its own (School A; see the recursion contract in
+# package/kernel/doc/projection-system.md). The per-child element ranges and the child
+# IoMaps are recorded in the IoMap so the mappers and reader can peel the one
+# `.children[i]` step this node owns and delegate the rest to the child's own mapper.
 # ── SyntaxLeafToText ───────────────────────────────────────────────────
 # One span per delimiter the leaf actually has, plus the value: a delimited leaf
 # renders [open, value, close], a bare one renders just [value]. An absent
@@ -1621,5 +1583,3 @@ function _text_elem_path_to_flat(spans, span_idx::Int, char_idx::Int)
     end
     return flat
 end
-
-end # module

@@ -1,47 +1,29 @@
-"""
-    ProjectionConfiguringProjectionModule
-
-A higher-order projection that wraps an inner ("parameter") projection and
-extends its output with an editable control bar for the inner projection's
-parameters. The printer:
-
-1. runs the inner projection on the input (giving the projected document), and
-2. projects the inner projection *object itself* through a `control` projection
-   (default `ObjectToWidget`) into a parameter-control widget,
-
-then stacks the two in a `WidgetSplitPane` (control above document by default).
-
-The reader routes backward-flowing changes three ways:
-
-- a `ReplaceReferencedValueOperation` produced by a control is handed to the control
-  reader, which redirects it onto the inner projection's parameter cell;
-- a show/hide gesture (`Ctrl+F` toggles, `Escape` hides) flips the control
-  widget's `visible` cell via `ReplaceReferencedValueOperation(control_widget, "visible", …)`;
-- everything else delegates to the inner projection's reader (document edits).
-
-Because the control edits the *same* parameter `Cell`s the inner projection
-reads inside its reactive thunks, configuring re-projects the document live.
-
-Reader-routing model mirrors `WindowManagingProjection`: intercept the changes
-this projection owns, delegate the rest.
-"""
-module ProjectionConfiguringProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetScrollPane
-import ..ObjectToWidgetModule: ObjectToWidget
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep
-import ..EventModule: KeyDown, has_ctrl_modifier_key
-
-export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProjectionConfiguring.jl.
+#
+# A higher-order projection that wraps an inner ("parameter") projection and
+# extends its output with an editable control bar for the inner projection's
+# parameters. The printer:
+#
+# 1. runs the inner projection on the input (giving the projected document), and
+# 2. projects the inner projection *object itself* through a `control` projection
+#    (default `ObjectToWidget`) into a parameter-control widget,
+#
+# then stacks the two in a `WidgetSplitPane` (control above document by default).
+#
+# The reader routes backward-flowing changes three ways:
+#
+# - a `ReplaceReferencedValueOperation` produced by a control is handed to the control
+#   reader, which redirects it onto the inner projection's parameter cell;
+# - a show/hide gesture (`Ctrl+F` toggles, `Escape` hides) flips the control
+#   widget's `visible` cell via `ReplaceReferencedValueOperation(control_widget, "visible", …)`;
+# - everything else delegates to the inner projection's reader (document edits).
+#
+# Because the control edits the *same* parameter `Cell`s the inner projection
+# reads inside its reactive thunks, configuring re-projects the document live.
+#
+# Reader-routing model mirrors `WindowManagingProjection`: intercept the changes
+# this projection owns, delegate the rest.
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 @iomap struct ProjectionConfiguringIoMap
@@ -167,5 +149,3 @@ end
 
 map_reference_forward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
 map_reference_backward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
-
-end # module

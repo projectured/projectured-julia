@@ -49,7 +49,7 @@ end # @testset "SyntaxToText"
 # self-contained `_pos_to_selection` helper; its job now lives inside
 # `map_reference_backward`, which reads flat positions as a bare `{k}` ref.)
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
     ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
@@ -95,7 +95,7 @@ end # @testset "SyntaxToText flat-position round-trip"
 # rendered before the open delimiter in both states. Which glyph shows depends
 # on `node.collapsed`; an empty configured marker (the default) emits nothing.
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
@@ -167,7 +167,7 @@ end # @testset "SyntaxToText collapse/expand marker"
 # children pruned. The flat-position round-trip must still hold in the
 # collapsed state, and toggling back must restore the expanded output exactly.
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 mk(s) = TextString(s)
 
 node = SyntaxNode(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2"), SyntaxLeaf("3")]; open="[", close="]", sep=", ")
@@ -328,7 +328,7 @@ end # @testset "SyntaxToText plain-arrow navigation & Ctrl+Space toggle"
 # delimiters, no separator, no indent chrome, no fold marker — and so no caret
 # that is not one of its children's.
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 s2st = RecursiveProjection(SyntaxToText())
 
 @testset "renders as its children, end to end" begin
@@ -431,7 +431,7 @@ end # @testset "SyntaxConcatenation"
 
 # A separation is a concatenation that also puts something between the children.
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 s2st = RecursiveProjection(SyntaxToText())
 
 @testset "joins its children with the separator" begin
@@ -524,7 +524,7 @@ end # @testset "SyntaxSeparation"
 # lay out their own spans around it, and they are a level of the tree. The only thing
 # that distinguishes them is how they address that child — `.content`, not `.children[i]`.
 let
-_S2T = SyntaxToTextModule
+_S2T = SyntaxModule
 s2st = RecursiveProjection(SyntaxToText())
 
 @testset "a wrapper is a compound with exactly one child" begin

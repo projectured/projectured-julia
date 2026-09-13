@@ -15,11 +15,11 @@ using ProjecturedSerialization.SerializationModule
 using ProjecturedMarkdown.MarkdownModule
 using ProjecturedMarkdown.MarkdownModule: MarkdownDocument, MarkdownRoot
 using ProjecturedMarkdown.MarkdownModule: MarkdownToSyntax
-using ProjecturedSyntax.SyntaxNaturalModule: make_natural_to_syntax_dispatch
+using ProjecturedSyntax.SyntaxModule: make_natural_to_syntax_dispatch
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
-using ProjecturedSyntax.SyntaxToTextModule: SyntaxToText
+using ProjecturedSyntax.SyntaxModule: SyntaxToText
 using ProjecturedText.TextToStringModule: TextToString
 using ProjecturedKernel.ProjectionApiModule: print_document, map_reference_backward, read_intent
 using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys

@@ -1,63 +1,45 @@
-"""
-    ProcessToJuliaCodeModule
-
-**Realization**: a `ProcessModel` → a runnable Julia function, built as a
-`JuliaDocument` tree and written out through the ordinary `print_natural_text`
-path.
-
-This is deliberately **not** a registered bidirectional projection. Reading a
-hand-edited generated file back into a process is not a goal — the process
-document is the source, the `.jl` file is output — and the bidirectionality
-convention applies to editor projections, not to exporters. What it *is* is a
-document-to-document function, so realized code can also be shown in the editor
-(through the stock Julia pipeline) without generating a string first.
-
-The embedded code is **spliced verbatim**: a condition, an action, an iterable
-is already a `JuliaDocument`, so it is placed into the realized tree as-is.
-Nothing is stringified and re-parsed, and nothing is rewritten — what the
-author sees in the notation is exactly what runs.
-
-## The mapping
-
-There is no cleverness in it, which is the point of the domain's shape: every
-process node has a Julia counterpart with the same fields, so the walk is 1:1.
-
-| process | julia |
-|---|---|
-| `ProcessModel(name, parameters, body)` | `JuliaFunction` |
-| `ProcessSequence(steps)` | `JuliaBlock` |
-| `ProcessStep(_, action)` | the action's statements, spliced |
-| `ProcessDecision(c, t, e)` | `JuliaIf` |
-| `ProcessWhile(c, body)` | `JuliaWhile` |
-| `ProcessForeach(v, i, body)` | `JuliaFor` with one iterator clause |
-| `ProcessBreak` / `ProcessContinue` / `ProcessReturn` | the same three |
-
-An **unrefined** node — a step with no action, a decision or loop with no
-condition — realizes to `error("unrefined …")` rather than to nothing: an
-informal box that silently did nothing would be a process that lies about what
-it does. [`is_executable`](@ref) is the check to run *before* realizing;
-`get_unrefined_nodes` says which boxes are still prose.
-
-Step descriptions do not survive into realized code — the julia domain has no
-comment node — so the notation and the diagram are where the prose lives.
-"""
-module ProcessToJuliaCodeModule
-
-import ..ProcessModule: ProcessModel, ProcessSequence, ProcessStep, ProcessDecision,
-                        ProcessWhile, ProcessForeach, ProcessBreak, ProcessContinue,
-                        ProcessReturn, ProcessNothing, ProcessInsertion,
-                        get_body_steps, process_nodes, get_unrefined_nodes, is_executable
-import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
-                      JuliaBlock, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
-                      JuliaReturn, JuliaBreak, JuliaContinue, JuliaFunction,
-                      JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
-                      JuliaTypeAnnotation
-import ..DocumentModule: search_documents
-import ..NaturalModule: print_natural_text
-
-export realize_process, realize_process_text, export_process,
-       PROCESS_INSTRUMENTATION_LEVELS, TRACE_PARAMETER_NAME
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessToJuliaCode.jl.
+#
+# **Realization**: a `ProcessModel` → a runnable Julia function, built as a
+# `JuliaDocument` tree and written out through the ordinary `print_natural_text`
+# path.
+#
+# This is deliberately **not** a registered bidirectional projection. Reading a
+# hand-edited generated file back into a process is not a goal — the process
+# document is the source, the `.jl` file is output — and the bidirectionality
+# convention applies to editor projections, not to exporters. What it *is* is a
+# document-to-document function, so realized code can also be shown in the editor
+# (through the stock Julia pipeline) without generating a string first.
+#
+# The embedded code is **spliced verbatim**: a condition, an action, an iterable
+# is already a `JuliaDocument`, so it is placed into the realized tree as-is.
+# Nothing is stringified and re-parsed, and nothing is rewritten — what the
+# author sees in the notation is exactly what runs.
+#
+# ## The mapping
+#
+# There is no cleverness in it, which is the point of the domain's shape: every
+# process node has a Julia counterpart with the same fields, so the walk is 1:1.
+#
+# | process | julia |
+# |---|---|
+# | `ProcessModel(name, parameters, body)` | `JuliaFunction` |
+# | `ProcessSequence(steps)` | `JuliaBlock` |
+# | `ProcessStep(_, action)` | the action's statements, spliced |
+# | `ProcessDecision(c, t, e)` | `JuliaIf` |
+# | `ProcessWhile(c, body)` | `JuliaWhile` |
+# | `ProcessForeach(v, i, body)` | `JuliaFor` with one iterator clause |
+# | `ProcessBreak` / `ProcessContinue` / `ProcessReturn` | the same three |
+#
+# An **unrefined** node — a step with no action, a decision or loop with no
+# condition — realizes to `error("unrefined …")` rather than to nothing: an
+# informal box that silently did nothing would be a process that lies about what
+# it does. [`is_executable`](@ref) is the check to run *before* realizing;
+# `get_unrefined_nodes` says which boxes are still prose.
+#
+# Step descriptions do not survive into realized code — the julia domain has no
+# comment node — so the notation and the diagram are where the prose lives.
 # ── Small AST helpers ────────────────────────────────────────────────────────
 
 _id(name::AbstractString) = JuliaIdentifier(String(name))
@@ -291,5 +273,3 @@ function export_process(model::ProcessModel, path::AbstractString;
     write(path, realize_process_text(model; instrumentation = instrumentation))
     path
 end
-
-end # module

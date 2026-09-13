@@ -1,72 +1,63 @@
-"""
-    ProcessDebugSessionModule
-
-Where a realized process **is**, as a document — the one thing both views read
-to draw the live position, and the one thing the UI writes to drive execution.
-
-A session is live view state, never content: a running process's position is
-not part of the process, exactly as a running machine's state is not part of
-the machine (`FsmDiagram`'s rule). It never serializes.
-
-It is a document of its own rather than a field of `ProcessDiagram` because
-"where the process is" belongs in the notation as much as in the flowchart —
-and the notation is the primary edit surface. The diagram holds one; the
-notation is handed the same one.
-
-The cells:
-
-- `status` — `:detached` (nothing realized), `:running`, `:paused` (stopped in
-  a probe), `:finished`, or `:stale` (see `node_count`),
-- `node` — the node index of the probe last reached, in the domain's position
-  vocabulary (`process_nodes`); 0 when nowhere,
-- `previous` — the node stepped from, which is what lets the diagram derive
-  *which arrow* was just taken without the runtime ever learning a picture
-  vocabulary,
-- `current` / `previous_document` — the same two positions as the **documents**
-  they name. Indices are the vocabulary the runtime speaks; documents are what
-  a view can compare against the node it is drawing, without having to walk
-  the tree from a root it does not have. `set_process_position!` is the one
-  place the two representations are set, so they cannot disagree,
-- `step_count` — how many probes have been reached,
-- `breakpoints` — the **nodes** to stop at, held by identity. They live here
-  rather than on `ProcessStep` because a breakpoint is debug state, not process
-  content, and they are documents rather than indices because that is what a
-  view has in hand when it draws one, and what survives an edit that renumbers
-  the tree. The bridge converts them to indices for the runtime,
-- `locals` — the `NamedTuple` captured at the last probe under the `:locals`
-  instrumentation level, or `nothing`,
-- `node_count` — how many nodes the tree had when the code was realized. Node
-  indices belong to the tree they were realized from; when this stops matching,
-  the position is meaningless and the views must show **no** highlight rather
-  than a plausible wrong one,
-- `command` — what the UI has asked for and the bridge has not applied yet:
-  `:none`, `:continue`, `:step`, `:pause` or `:stop`. A gesture writes it; the
-  next `sync_process_debug!` turns it into a runtime write and clears it.
-
-## The bridge
-
-[`sync_process_debug!`](@ref) is the *only* place the session and a running
-`ProcessTrace` meet, and it goes both ways in one call: UI intent down,
-position up. Call it **from the editor's refresh hook, never from a cell** —
-it writes document cells, and the rule that only the editor's own task does
-that is what makes the threading model safe (an embedder's own refresh
-hook is the precedent). Pause latency is one refresh, which buys a
-design with no locks and no races.
-"""
-module ProcessDebugSessionModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessDebugSession.jl.
+#
+# Where a realized process **is**, as a document — the one thing both views read
+# to draw the live position, and the one thing the UI writes to drive execution.
+#
+# A session is live view state, never content: a running process's position is
+# not part of the process, exactly as a running machine's state is not part of
+# the machine (`FsmDiagram`'s rule). It never serializes.
+#
+# It is a document of its own rather than a field of `ProcessDiagram` because
+# "where the process is" belongs in the notation as much as in the flowchart —
+# and the notation is the primary edit surface. The diagram holds one; the
+# notation is handed the same one.
+#
+# The cells:
+#
+# - `status` — `:detached` (nothing realized), `:running`, `:paused` (stopped in
+#   a probe), `:finished`, or `:stale` (see `node_count`),
+# - `node` — the node index of the probe last reached, in the domain's position
+#   vocabulary (`process_nodes`); 0 when nowhere,
+# - `previous` — the node stepped from, which is what lets the diagram derive
+#   *which arrow* was just taken without the runtime ever learning a picture
+#   vocabulary,
+# - `current` / `previous_document` — the same two positions as the **documents**
+#   they name. Indices are the vocabulary the runtime speaks; documents are what
+#   a view can compare against the node it is drawing, without having to walk
+#   the tree from a root it does not have. `set_process_position!` is the one
+#   place the two representations are set, so they cannot disagree,
+# - `step_count` — how many probes have been reached,
+# - `breakpoints` — the **nodes** to stop at, held by identity. They live here
+#   rather than on `ProcessStep` because a breakpoint is debug state, not process
+#   content, and they are documents rather than indices because that is what a
+#   view has in hand when it draws one, and what survives an edit that renumbers
+#   the tree. The bridge converts them to indices for the runtime,
+# - `locals` — the `NamedTuple` captured at the last probe under the `:locals`
+#   instrumentation level, or `nothing`,
+# - `node_count` — how many nodes the tree had when the code was realized. Node
+#   indices belong to the tree they were realized from; when this stops matching,
+#   the position is meaningless and the views must show **no** highlight rather
+#   than a plausible wrong one,
+# - `command` — what the UI has asked for and the bridge has not applied yet:
+#   `:none`, `:continue`, `:step`, `:pause` or `:stop`. A gesture writes it; the
+#   next `sync_process_debug!` turns it into a runtime write and clears it.
+#
+# ## The bridge
+#
+# [`sync_process_debug!`](@ref) is the *only* place the session and a running
+# `ProcessTrace` meet, and it goes both ways in one call: UI intent down,
+# position up. Call it **from the editor's refresh hook, never from a cell** —
+# it writes document cells, and the rule that only the editor's own task does
+# that is what makes the threading model safe (an embedder's own refresh
+# hook is the precedent). Pause latency is one refresh, which buys a
+# design with no locks and no races.
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
 using ..DomainModule
 
-import ..CellModule: Cell
-import ..ProcessModule: ProcessDocument, process_nodes, find_node_at_index, get_node_index
-import ..ProcessRuntimeModule: ProcessTrace, resume_process!, pause_process!,
-                               stop_process!, set_process_breakpoints!
 
-export ProcessDebugSession, is_stale, has_breakpoint, toggle_breakpoint!,
-       set_process_position!, sync_process_debug!, detach_process_debug!
 
 @document struct ProcessDebugSession <: ProcessDocument
     status::Symbol = :detached
@@ -195,5 +186,3 @@ function detach_process_debug!(session::ProcessDebugSession)
     session.command = :none
     session
 end
-
-end # module

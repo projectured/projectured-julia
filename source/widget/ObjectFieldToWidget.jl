@@ -1,77 +1,58 @@
-"""
-    ObjectFieldToWidgetModule
-
-Projects an [`ObjectField`](@ref) — one field of one object — to the **bare
-control** that displays and edits it.
-
-# Why a bare control and not a labelled row
-
-A `GridLayout` takes a flat child list, so a label and its control must be two
-separate children. A projection that emitted both could never place them in
-different columns. The caller writes the label:
-
-    GridLayout(Any[
-        WidgetLabel("Server name"), ObjectField(server, "name"),
-        WidgetLabel("Client name"), ObjectField(client, "name"),
-        WidgetLabel("Capacity"),    ObjectField(server, "capacity"),
-    ], 2)
-
-The two `name` fields come from **different objects**. `ObjectToWidget` can not
-do that: it takes one root and emits a fixed grid of that root's own fields.
-
-# The control
-
-The value type picks the control, through the same classification
-`ObjectToWidget` uses:
-
-    Bool             → WidgetCheckbox
-    String / number  → WidgetText
-    anything else    → WidgetLabel (read only)
-
-`controls` is a `Vector{Type}` mapping value type to projection, so a domain adds
-a row without a change here. The default table is the three above.
-
-The control is chosen **once**, from the value at print time, and its content is
-then bound reactively. A value that changes type after the first print keeps the
-old control. That is the same bound `ObjectToWidget` has, and it keeps the
-control identity — and with it the caret — stable across an ordinary edit.
-
-# Editing an element
-
-A vector element renders read-only under `ObjectToWidget`, because a `@document`
-field is a `Cell` but a vector's elements live inside one cell, and its printer
-registers a control only when it holds the backing cell. This projection needs no
-cell: it writes through the path. `ElementReferenceStep(i)` is
-`RangeReferenceStep(i-1, i)`, which `_write_slot!` writes as `parent[i] = value`.
-
-One trap comes with that. The kernel overloads the same terminal step with an
-`AbstractVector` value as a **splice**. An `ObjectField` whose value is itself a
-vector can not be written by a plain replace; the write would delete and
-re-insert.
-"""
-module ObjectFieldToWidgetModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..WidgetModule: WidgetLabel, WidgetText, WidgetCheckbox, Point2D
-import ..TextModule: TextBlock, TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: color_default
-import ..StyleModule: StyleText
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..PrimitiveModule: ObjectField, get_object_field_value
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ObjectFieldToWidget.jl.
+#
+# Projects an [`ObjectField`](@ref) — one field of one object — to the **bare
+# control** that displays and edits it.
+#
+# # Why a bare control and not a labelled row
+#
+# A `GridLayout` takes a flat child list, so a label and its control must be two
+# separate children. A projection that emitted both could never place them in
+# different columns. The caller writes the label:
+#
+#     GridLayout(Any[
+#         WidgetLabel("Server name"), ObjectField(server, "name"),
+#         WidgetLabel("Client name"), ObjectField(client, "name"),
+#         WidgetLabel("Capacity"),    ObjectField(server, "capacity"),
+#     ], 2)
+#
+# The two `name` fields come from **different objects**. `ObjectToWidget` can not
+# do that: it takes one root and emits a fixed grid of that root's own fields.
+#
+# # The control
+#
+# The value type picks the control, through the same classification
+# `ObjectToWidget` uses:
+#
+#     Bool             → WidgetCheckbox
+#     String / number  → WidgetText
+#     anything else    → WidgetLabel (read only)
+#
+# `controls` is a `Vector{Type}` mapping value type to projection, so a domain adds
+# a row without a change here. The default table is the three above.
+#
+# The control is chosen **once**, from the value at print time, and its content is
+# then bound reactively. A value that changes type after the first print keeps the
+# old control. That is the same bound `ObjectToWidget` has, and it keeps the
+# control identity — and with it the caret — stable across an ordinary edit.
+#
+# # Editing an element
+#
+# A vector element renders read-only under `ObjectToWidget`, because a `@document`
+# field is a `Cell` but a vector's elements live inside one cell, and its printer
+# registers a control only when it holds the backing cell. This projection needs no
+# cell: it writes through the path. `ElementReferenceStep(i)` is
+# `RangeReferenceStep(i-1, i)`, which `_write_slot!` writes as `parent[i] = value`.
+#
+# One trap comes with that. The kernel overloads the same terminal step with an
+# `AbstractVector` value as a **splice**. An `ObjectField` whose value is itself a
+# vector can not be written by a plain replace; the write would delete and
+# re-insert.
 # The value classification, the type coercion, the character-range edit and the
 # end-caret path are `ObjectToWidget`'s and are used unchanged. One control looks
 # and behaves the same whether a form or a reflected object produced it, so a
 # second copy of these would be a second thing to keep in step.
-import ..ObjectToWidgetModule: _coerce, _apply_range, _as_string, _end_cursor
 
-export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 
 """
     ObjectFieldToWidgetIoMap(projection, input, output)
@@ -238,5 +219,3 @@ end
 # projection-introduced path on the way in and unwrap it on the way out, which is
 # exactly the correspondence. Answering `nothing` from either would drop every
 # click and every key that crosses this projection.
-
-end # module

@@ -1,37 +1,12 @@
-"""
-    ObjectToSyntaxModule
-
-Object → SyntaxDocument projection. Reflects any Julia value into a nested
-syntax tree using runtime type information. Structs produce a SyntaxNode
-whose first child is the type-name leaf and whose remaining children are
-per-field SyntaxNodes, each holding a field-name leaf and the recursively
-projected field value. Primitive values (Nothing, Bool, Number,
-AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
-"""
-module ObjectToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: is_element_collection
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20
-import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, reconcile_child_iomap, reconcile_child_iomaps
-import ..ReferenceModule: ElementReferenceStep, FieldReferenceStep
-import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
-import ..SyntaxToTextModule: SyntaxToText
-import ..TextToStringModule: TextToString
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-
-export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
-       StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
-       ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ObjectToSyntax.jl.
+#
+# Object → SyntaxDocument projection. Reflects any Julia value into a nested
+# syntax tree using runtime type information. Structs produce a SyntaxNode
+# whose first child is the type-name leaf and whose remaining children are
+# per-field SyntaxNodes, each holding a field-name leaf and the recursively
+# projected field value. Primitive values (Nothing, Bool, Number,
+# AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
 @projection struct NothingToSyntaxLeaf
@@ -339,6 +314,3 @@ function print_object(obj; include_selection=false, open_delimiter="{", close_de
     # strip per-line trailing whitespace so the rendering is clean.
     newlines ? join((rstrip(l) for l in split(out, '\n')), '\n') : out
 end
-
-
-end # module

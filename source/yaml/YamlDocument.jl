@@ -12,7 +12,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..SyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, make_hinted_text
 import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray

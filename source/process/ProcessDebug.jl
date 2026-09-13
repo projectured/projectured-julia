@@ -1,34 +1,24 @@
-"""
-    ProcessDebugModule
-
-Running a realized process **under the debugger**: realize it with probes,
-load it, start it on its own task, and hand back the trace the bridge reads.
-
-This is the one place the three halves of the debug design meet — the
-realization (`ProcessToJuliaCode`), the plain-Julia runtime
-(`ProcessRuntime`), and the session document (`ProcessDebugSession`) — and it
-is deliberately thin, because each of them is useful without it: an embedder
-that realizes into its own host and drives its own trace uses none of this.
-
-The process runs on a `Task`. That is what makes a breakpoint bearable: the
-probe blocks its own task while the editor keeps refreshing, and the refresh
-hook's `sync_process_debug!` is what eventually lets it go.
-
-Realized code calls `process_at!` by name, so the module it is loaded into
-must have the runtime in scope. `start_process` arranges that for the module
-it creates; a caller supplying its own `context` module gets the same `using`
-injected, and everything else the process calls — the functions its steps
-name — has to be there already.
-"""
-module ProcessDebugModule
-
-import ..ProcessModule: ProcessModel, process_nodes
-import ..ProcessDebugSessionModule: ProcessDebugSession, sync_process_debug!
-import ..ProcessRuntimeModule: ProcessTrace, ProcessStoppedException
-import ..ProcessToJuliaCodeModule: realize_process_text
-
-export start_process, realize_into, ProcessRun
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessDebug.jl.
+#
+# Running a realized process **under the debugger**: realize it with probes,
+# load it, start it on its own task, and hand back the trace the bridge reads.
+#
+# This is the one place the three halves of the debug design meet — the
+# realization (`ProcessToJuliaCode`), the plain-Julia runtime
+# (`ProcessRuntime`), and the session document (`ProcessDebugSession`) — and it
+# is deliberately thin, because each of them is useful without it: an embedder
+# that realizes into its own host and drives its own trace uses none of this.
+#
+# The process runs on a `Task`. That is what makes a breakpoint bearable: the
+# probe blocks its own task while the editor keeps refreshing, and the refresh
+# hook's `sync_process_debug!` is what eventually lets it go.
+#
+# Realized code calls `process_at!` by name, so the module it is loaded into
+# must have the runtime in scope. `start_process` arranges that for the module
+# it creates; a caller supplying its own `context` module gets the same `using`
+# injected, and everything else the process calls — the functions its steps
+# name — has to be there already.
 """
 A started process: the `task` running it, the `trace` the bridge reads, the
 `context` module it was loaded into, and the `model` it came from (which is
@@ -50,7 +40,7 @@ runtime is brought into scope first, so the probes resolve.
 function realize_into(model::ProcessModel, context::Module;
                       instrumentation::Symbol = :position)
     Base.include_string(context,
-        "using ProjecturedProcess.ProcessRuntimeModule: process_at!, ProcessTrace\n")
+        "using ProjecturedProcess.ProcessModule: process_at!, ProcessTrace\n")
     Base.include_string(context, realize_process_text(model; instrumentation = instrumentation))
     Base.invokelatest(getfield, context, Symbol(model.name))
 end
@@ -99,5 +89,3 @@ function start_process(model::ProcessModel, arguments...;
     end
     ProcessRun(model, trace, task, context)
 end
-
-end # module

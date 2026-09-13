@@ -36,7 +36,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf,
+import ..SyntaxModule: DomainInsertionToSyntaxLeaf,
                                           InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, make_hinted_text
 import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -51,7 +51,7 @@ import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
 import ..ReferenceModule: ConcreteReference, PositionReferenceStep
 import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
 import ..JuliaModule: JuliaToSyntax
 export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
        FsmTransitionToSyntaxNode, FsmStateToSyntaxNode, FsmMachineToSyntaxNode,

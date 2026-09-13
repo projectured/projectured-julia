@@ -1,53 +1,39 @@
-"""
-    WidgetHoverTrackingProjectionModule
-
-A **generic** higher-order projection that turns raw pointer motion into
-`MouseEnter` / `MouseLeave` crossings and lets the widgets themselves decide
-what those mean. It owns *when* the pointer crosses a boundary; each widget owns
-*what changes* as a result (a button flips its `hovered`/`pressed` cells, another
-widget might do something else entirely). The tracker constructs **no**
-widget-specific operation — it only routes enter/leave and forwards whatever
-operation the widget returns.
-
-The problem it solves: container hit-test routing delivers a `MouseMove` only to
-the child under the pointer, so a widget can learn it was entered but never that
-it was left (the leaving move goes to whatever is under the pointer now).
-
-**Printer** — transparent: projects the wrapped document through `inner` and
-returns its output unchanged, remembering the inner iomap for the reader.
-
-**Reader** — on each `MouseMove`:
-
-1. Route a synthetic `MouseEnter` at the pointer to `inner`; the widget under the
-   pointer answers with an operation identifying itself (an opaque `widget`
-   field — the tracker never inspects the operation otherwise).
-2. If that target is the same as last time, nothing changed — emit nothing.
-3. If it changed, route a synthetic `MouseLeave` to the *previously* entered
-   widget (at the last position that was over it) so it can undo its own state,
-   and forward both the leave and the enter operations (as a `CompoundOperation`
-   when both are present).
-
-Every non-`MouseMove` event passes straight through to `inner`.
-
-Mirrors `HoverProbeProjection` in shape (a transparent wrapper whose reader
-reverse-routes the pointer); here the synthesised events are `MouseEnter` /
-`MouseLeave` rather than a probe `MousePress`.
-"""
-module WidgetHoverTrackingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..EventModule: MouseMove, MouseEnter, MouseLeave
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..EventModule: KeyDown
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WidgetHoverTracking.jl.
+#
+# A **generic** higher-order projection that turns raw pointer motion into
+# `MouseEnter` / `MouseLeave` crossings and lets the widgets themselves decide
+# what those mean. It owns *when* the pointer crosses a boundary; each widget owns
+# *what changes* as a result (a button flips its `hovered`/`pressed` cells, another
+# widget might do something else entirely). The tracker constructs **no**
+# widget-specific operation — it only routes enter/leave and forwards whatever
+# operation the widget returns.
+#
+# The problem it solves: container hit-test routing delivers a `MouseMove` only to
+# the child under the pointer, so a widget can learn it was entered but never that
+# it was left (the leaving move goes to whatever is under the pointer now).
+#
+# **Printer** — transparent: projects the wrapped document through `inner` and
+# returns its output unchanged, remembering the inner iomap for the reader.
+#
+# **Reader** — on each `MouseMove`:
+#
+# 1. Route a synthetic `MouseEnter` at the pointer to `inner`; the widget under the
+#    pointer answers with an operation identifying itself (an opaque `widget`
+#    field — the tracker never inspects the operation otherwise).
+# 2. If that target is the same as last time, nothing changed — emit nothing.
+# 3. If it changed, route a synthetic `MouseLeave` to the *previously* entered
+#    widget (at the last position that was over it) so it can undo its own state,
+#    and forward both the leave and the enter operations (as a `CompoundOperation`
+#    when both are present).
+#
+# Every non-`MouseMove` event passes straight through to `inner`.
+#
+# Mirrors `HoverProbeProjection` in shape (a transparent wrapper whose reader
+# reverse-routes the pointer); here the synthesised events are `MouseEnter` /
+# `MouseLeave` rather than a probe `MousePress`.
 # The generic focus walk, for the top-level Tab wrap-around rule.
-import ..FocusModule: get_first_focusable_path, get_last_focusable_path
 
-export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 
 struct WidgetHoverTrackingProjection <: Projection
     inner::Projection
@@ -168,5 +154,3 @@ map_reference_forward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackin
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::WidgetHoverTrackingProjection, iomap::WidgetHoverTrackingIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-
-end # module

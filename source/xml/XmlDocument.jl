@@ -18,8 +18,8 @@ import ..ProjectionModule: var"@projection"
 import ..ReferenceModule: ConcreteReference, PositionReferenceStep
 import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString
 import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..StyleModule: color_black, color_default, color_solarized_blue, color_solarized_green,

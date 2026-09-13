@@ -55,18 +55,11 @@ const DomainModule = ProjecturedDomain.DomainModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
 include("../../../source/syntax/SyntaxDocument.jl")
-include("../../../source/syntax/SyntaxToText.jl")
-include("../../../source/syntax/ObjectToSyntax.jl")
-include("../../../source/syntax/ObjectFieldToSyntax.jl")
-include("../../../source/syntax/CollectionToSyntax.jl")
-include("../../../source/syntax/PrimitiveToSyntax.jl")
-include("../../../source/syntax/InsertionToSyntax.jl")
-include("../../../source/syntax/SyntaxNatural.jl")
 
 # The reflection tail this package can draw with, offered to the natural
 # renderer. Runtime state, so it is registered on load rather than baked into an
 # image — and from here, because Julia calls `__init__` on a package's top-level
 # module only.
-__init__() = SyntaxNaturalModule.register_syntax_fallback!()
+__init__() = SyntaxModule.register_syntax_fallback!()
 
 end # module ProjecturedSyntax

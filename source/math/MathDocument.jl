@@ -42,8 +42,8 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
 import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..SyntaxModule: PrimitiveNumberToSyntaxLeaf
+import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode, MathToSyntax,

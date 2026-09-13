@@ -1,33 +1,18 @@
-"""
-    ProcessToProcessDiagramModule
-
-ProcessModel → ProcessDiagram: the first stage of the flowchart pipeline, and
-a thin one. It wraps the model in the presentation document that carries the
-debug session, so the renderer downstream has one place to read the live
-position and the model itself stays pure content.
-
-The `ProcessDiagram` is built once per projection setup and keeps its identity,
-so a driver can take its handle at setup and keep writing the same session for
-the rest of the run — the `FsmToFsmDiagram` pattern, for the same reason.
-
-Selection peels exactly the one step this stage owns — `model` — and hands the
-rest through unchanged, so a selection into a step round-trips through the
-whole pipeline (School A).
-"""
-module ProcessToProcessDiagramModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProcessModule: ProcessModel, ProcessNothing, ProcessInsertion
-import ..ProcessDiagramModule: ProcessDiagram
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-
-export ProcessToProcessDiagram, ProcessToProcessDiagramIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ProcessToProcessDiagram.jl.
+#
+# ProcessModel → ProcessDiagram: the first stage of the flowchart pipeline, and
+# a thin one. It wraps the model in the presentation document that carries the
+# debug session, so the renderer downstream has one place to read the live
+# position and the model itself stays pure content.
+#
+# The `ProcessDiagram` is built once per projection setup and keeps its identity,
+# so a driver can take its handle at setup and keep writing the same session for
+# the rest of the run — the `FsmToFsmDiagram` pattern, for the same reason.
+#
+# Selection peels exactly the one step this stage owns — `model` — and hands the
+# rest through unchanged, so a selection into a step round-trips through the
+# whole pipeline (School A).
 """
     ProcessToProcessDiagram()
 
@@ -79,5 +64,3 @@ function map_reference_backward(::ProcessToProcessDiagram, iomap, reference)
         __ => nothing
     end
 end
-
-end # module

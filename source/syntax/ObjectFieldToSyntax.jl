@@ -1,47 +1,29 @@
-"""
-    ObjectFieldToSyntaxModule
-
-Projects an [`ObjectField`](@ref) — one field of one object — to the field node
-`ObjectNodeToSyntaxNode` builds inline for each field of a struct:
-
-    SyntaxNode("", "", " ", [
-      SyntaxLeaf(field_name),
-      <the projected value>,
-    ])
-
-The name comes from the last `FieldReferenceStep` of the field's path. When the
-last step names no field — an element step, for example — the value is emitted
-alone, because an index makes a poor label and the caller can put one beside it.
-
-This projection adds no render concept. It **names** one that
-`ObjectNodeToSyntaxNode` keeps private, and makes it addressable on its own, so a
-single field of an object can be shown next to a field of another object.
-
-# Why it does not replace the private one
-
-`ObjectNodeToSyntaxNode` projects each field's **`Cell`**, through `CellToSyntax`,
-not the field's value. That is what makes a field repaint when its cell is
-written. An `ObjectField` names a value reached by `evaluate_reference`, which has
-no cell to hand on. The two are reactive by different means, so the private
-version stays.
-"""
-module ObjectFieldToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, print_child, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_solarized_green
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..IoMapModule: SimpleIoMap, reconcile_child_iomap
-import ..ReferenceModule: FieldReferenceStep, get_reference_steps, strip_reference_types
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..PrimitiveModule: ObjectField, get_object_field_value, get_object_field_name
-
-export ObjectFieldToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ObjectFieldToSyntax.jl.
+#
+# Projects an [`ObjectField`](@ref) — one field of one object — to the field node
+# `ObjectNodeToSyntaxNode` builds inline for each field of a struct:
+#
+#     SyntaxNode("", "", " ", [
+#       SyntaxLeaf(field_name),
+#       <the projected value>,
+#     ])
+#
+# The name comes from the last `FieldReferenceStep` of the field's path. When the
+# last step names no field — an element step, for example — the value is emitted
+# alone, because an index makes a poor label and the caller can put one beside it.
+#
+# This projection adds no render concept. It **names** one that
+# `ObjectNodeToSyntaxNode` keeps private, and makes it addressable on its own, so a
+# single field of an object can be shown next to a field of another object.
+#
+# # Why it does not replace the private one
+#
+# `ObjectNodeToSyntaxNode` projects each field's **`Cell`**, through `CellToSyntax`,
+# not the field's value. That is what makes a field repaint when its cell is
+# written. An `ObjectField` names a value reached by `evaluate_reference`, which has
+# no cell to hand on. The two are reactive by different means, so the private
+# version stays.
 """
     ObjectFieldToSyntax(; field_name = <green>, newlines = false)
 
@@ -76,5 +58,3 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
     end)
     SimpleIoMap(p, field, output)
 end
-
-end # module
