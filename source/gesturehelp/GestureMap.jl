@@ -1,7 +1,11 @@
 """
-    GestureMapModule
+    GestureHelpModule
 
-A read-only document listing the gesture bindings available in some context — the
+The gesture help domain: the gesture map, the command palette, the projections
+that draw them, and the two decorators that put them on screen. This file holds
+the map, which the rest of the slice is written in terms of.
+
+A `GestureMap` is a read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
 pairs a gesture rendering (`describe_event_pattern(pattern)`) with what it does and whether it
 is currently applicable; [`GestureMapToSyntax`](../projection/primitive/GestureMapToSyntax.jl)
@@ -14,7 +18,7 @@ is evaluated against that document's current selection):
     make_gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
     make_gesture_map(get_document_gesture_bindings(JsonObject), some_object)   # global, by type
 """
-module GestureMapModule
+module GestureHelpModule
 
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: Document
@@ -23,8 +27,56 @@ import ..ReferenceModule: Reference
 import ..GestureBindingModule: GestureBinding
 import ..IntentModule: Intent, CollectedIntentsOperation
 import ..EventPatternModule: describe_event_pattern
-
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
+import ..CellModule: Cell
+import ..DocumentModule: var"@document"
+import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
+                          RangeReferenceStep, EmptyReference
+export CommandPalette, build_command_palette_selection, get_command_palette_selected,
+       get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
+       get_command_palette_settled_selection
+import ..ProjectionApiModule: print_document, Projection
+import ..ProjectionModule: var"@projection"
+import ..IoMapModule: SimpleIoMap
+import ..TextModule: TextString
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
+import ..StyleModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..PrinterContextModule: PrinterContext
+export GestureMapToSyntax
+import ..StyleModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
+import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
+                      color_solarized_violet, color_default
+export CommandPaletteToSyntax
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
+                              map_reference_backward, Projection
+import ..IntentModule: Intent, CollectIntents
+import ..IoMapModule: IoMap, var"@iomap"
+import ..CollectionModule: ComputedCellVector
+import ..OperationModule: Operation
+import ..OperationModule: DoNothingOperation
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
+import ..EventModule: KeyDown, KeyPress
+import ..EventPatternModule: KeyDownPattern, matches_event_pattern
+import ..ChainingProjectionModule: ChainingProjection
+import ..RecursiveProjectionModule: RecursiveProjection
+import ..SyntaxToTextModule: SyntaxToText
+import ..WordWrappingModule: WordWrapping
+import ..TextToGraphicsModule: TextToGraphics
+import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
+import ..StyleModule: color_solarized_background_lighter, color_solarized_blue
+export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
+       COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
+       make_command_palette_projection
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
+export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
+       HELP_GESTURE, is_help_gesture
+export GestureMap
+
+
+
 
 """
     GestureRow(gesture, description, domain, operation)
@@ -104,5 +156,12 @@ collect_gesture_rows(::Any) = GestureRow[]
 The help window's document for a collection.
 """
 make_gesture_map(collected) = GestureMap(collect_gesture_rows(collected), nothing)
+
+
+include("CommandPalette.jl")
+include("GestureMapToSyntax.jl")
+include("CommandPaletteToSyntax.jl")
+include("CommandPaletteDecorator.jl")
+include("GestureHelpDecorator.jl")
 
 end # module

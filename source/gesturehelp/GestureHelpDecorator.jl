@@ -1,38 +1,23 @@
-"""
-    GestureHelpDecoratorProjectionModule
-
-A content-level decorator that opens the **gesture-help window** on the help
-gesture (F1), modelled on [`TooltipDecoratorProjection`](TooltipDecorator.jl).
-
-**Printer** — transparent: projects the wrapped `inner` and returns its output
-unchanged, so the content window looks exactly as it did without the decorator.
-
-**Reader** — the inner reader has priority (it is the real editor). When the
-inner declines and the event is the help gesture, the decorator asks the reader
-what is available — the same route a keystroke takes, so the answer is rooted where
-this decorator can use it — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
-`content` is that map. The op bubbles up to `WindowManagingProjection`, which opens
-a real sibling window beside the content (the same rail tooltips ride). A second
-help gesture emits `CloseWindowOperation`, so F1 toggles the window.
-
-Open/closed state lives in a shared `GestureHelpState` (not on the projection
-instance) because the example pipeline rebuilds the decorator per dispatch — the
-caller threads one state object through every decorator so the toggle is stable.
-"""
-module GestureHelpDecoratorProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
-import ..OperationModule: Operation
-import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureMapModule: make_gesture_map
-
-export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
-       HELP_GESTURE, is_help_gesture
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GestureHelpDecorator.jl.
+#
+# A content-level decorator that opens the **gesture-help window** on the help
+# gesture (F1), modelled on [`TooltipDecoratorProjection`](TooltipDecorator.jl).
+#
+# **Printer** — transparent: projects the wrapped `inner` and returns its output
+# unchanged, so the content window looks exactly as it did without the decorator.
+#
+# **Reader** — the inner reader has priority (it is the real editor). When the
+# inner declines and the event is the help gesture, the decorator asks the reader
+# what is available — the same route a keystroke takes, so the answer is rooted where
+# this decorator can use it — builds a snapshot `GestureMap`, and emits an `OpenWindowOperation` whose
+# `content` is that map. The op bubbles up to `WindowManagingProjection`, which opens
+# a real sibling window beside the content (the same rail tooltips ride). A second
+# help gesture emits `CloseWindowOperation`, so F1 toggles the window.
+#
+# Open/closed state lives in a shared `GestureHelpState` (not on the projection
+# instance) because the example pipeline rebuilds the decorator per dispatch — the
+# caller threads one state object through every decorator so the toggle is stable.
 """
     HELP_GESTURE
 
@@ -143,5 +128,3 @@ map_reference_forward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecor
 
 map_reference_backward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
-
-end # module

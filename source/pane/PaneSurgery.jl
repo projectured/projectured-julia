@@ -1,55 +1,27 @@
-"""
-    PaneSurgeryModule
-
-The pane-tree edits, and the paths they are expressed against.
-
-**This module declares no operation type.** Each builder returns a generic
-operation — `insert_elements`, `delete_elements`,
-`ReplaceReferencedValueOperation`, `MoveRangeOperation`,
-`ReplaceSelectionOperation`, or a `CompoundOperation` of two of them. Every write
-leaves the operation's `document` field at `nothing`, so the reference re-roots as
-the operation bubbles up and a pane tree keeps working nested inside another
-document.
-
-**The surgery reuses node objects; it never rebuilds a subtree.** A split puts
-the *existing* group into the new split, and a collapse writes the *existing*
-sibling at the parent's slot. Only the node that goes away is dropped — a rebuilt
-subtree would drop the iomaps below it, and every tab would re-print.
-
-**Paths carry their node types as they are built.** Each `(node, step)` pair
-records the document the step descends *from*, which is what
-`ConcreteReference`'s `type` field means. This is what lets a builder name a slot
-the edit is *about to* create — a fresh tab, a collapsed sibling — which
-`annotate_reference_types` can not do, because it resolves against the tree as it
-stands now.
-"""
-module PaneSurgeryModule
-
-import ..CellModule: Cell
-import ..CollectionModule: CellVector
-import ..DocumentModule: Document
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
-                          ReplaceSelectionOperation, insert_elements, delete_elements,
-                          evaluate_operation
-import ..DraggingModule: MoveRangeOperation
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
-                          get_reference_node_type, concat_references, Position
-import ..ReferenceModule: var"@reference"
-import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
-import ..SelectionModule: get_selection, get_stored_selection
-import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     get_pane_weights, get_pane_normalized_weights, get_pane_groups, get_pane_parent
-
-export get_pane_path, get_pane_collection_path,
-       get_pane_focus, get_pane_focused_group, get_pane_focused_tab_index, get_pane_focus_title,
-       get_pane_shown_tab_index,
-       get_pane_tab_reference, make_pane_focus_operation,
-       get_pane_title_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
-       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
-       make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,
-       apply_pane_operation!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PaneSurgery.jl.
+#
+# The pane-tree edits, and the paths they are expressed against.
+#
+# **This module declares no operation type.** Each builder returns a generic
+# operation — `insert_elements`, `delete_elements`,
+# `ReplaceReferencedValueOperation`, `MoveRangeOperation`,
+# `ReplaceSelectionOperation`, or a `CompoundOperation` of two of them. Every write
+# leaves the operation's `document` field at `nothing`, so the reference re-roots as
+# the operation bubbles up and a pane tree keeps working nested inside another
+# document.
+#
+# **The surgery reuses node objects; it never rebuilds a subtree.** A split puts
+# the *existing* group into the new split, and a collapse writes the *existing*
+# sibling at the parent's slot. Only the node that goes away is dropped — a rebuilt
+# subtree would drop the iomaps below it, and every tab would re-print.
+#
+# **Paths carry their node types as they are built.** Each `(node, step)` pair
+# records the document the step descends *from*, which is what
+# `ConcreteReference`'s `type` field means. This is what lets a builder name a slot
+# the edit is *about to* create — a fresh tab, a collapsed sibling — which
+# `annotate_reference_types` can not do, because it resolves against the tree as it
+# stands now.
 # ── Path construction ──────────────────────────────────────────────────────
 
 # A reference from `(node, step)` pairs. Each pair's node is what its step
@@ -761,5 +733,3 @@ function _slot_write(tree::PaneTree, node, replacement; subs = _NO_SUBSTITUTIONS
     path === nothing && return nothing
     ReplaceReferencedValueOperation(nothing, path, replacement)
 end
-
-end # module PaneSurgeryModule

@@ -10,7 +10,7 @@
 # module means the *same binding object* (a re-export), and raises
 # `UndefVarError` **on use** when the bindings differ. The re-export case is
 # pervasive and healthy here — `evaluate_operation` is one function visible
-# through `OperationModule`, `EditorModule`, `PaneSurgeryModule`
+# through `OperationModule`, `EditorModule`, `PaneModule`
 # and `WidgetModule`; `set_cell_function!` through eight modules — and is not a
 # collision. The distinct-binding case is the hazard.
 #

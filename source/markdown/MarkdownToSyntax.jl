@@ -1,73 +1,24 @@
-"""
-    MarkdownToSyntaxModule
-
-Markdown → SyntaxDocument projection with two presentations, selected by
-`MarkdownToSyntax(; style)`:
-
-- `:source` (default) — colourised **raw markdown**: `#` headings, `**bold**`,
-  `` `code` ``, `[text](url)`, `- ` bullets, ` ``` ` fences, `>` quotes, `---`.
-  Every marker is an editable text span. Written entirely with
-  `@projection_template`, so the reader is derived from the wiring.
-- `:rendered` — **formatted markdown**, marker-free: big bold headings, real
-  bold/italic, plain inline code, `•` bullets, `▏` quote bars, `───` rules, blue
-  links. Inline font weight/size cascades from a container to its descendant text
-  via an ambient `:md_style` carried in the printer context (School A: containers
-  delegate to their children and only *augment* the ambient style; the leaf reads
-  it). This mirrors YAML's `YamlToSyntax(; style)`: most rules stay on
-  `@projection_template` (rendered field values), only the cascading nodes
-  (Text/Strong/Emphasis/Heading/Link) are hand-written.
-
-Blocks stack flush-left (`indentation=0` + a newline `sep`, the BookToSyntax
-idiom); inline runs concatenate (a `SyntaxConcatenation`).
-"""
-module MarkdownToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward
-import ..ProjectionModule: var"@projection"
-import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, MarkdownEmphasis,
-                         MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading,
-                         MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak,
-                         MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
-import ..TextModule: TextString, make_hinted_text, TextGraphics
-import ..StyleModule: ImageFile
-import ..BackendModule: decode_image
-import ..GraphicsModule: GraphicsDocument
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
-                     font_ubuntu_regular_20, font_ubuntu_bold_20, font_ubuntu_italic_20,
-                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18,
-                     font_dejavu_monospace_regular_20
-import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_gray, color_solarized_violet
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
-export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
-       MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
-       MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
-       MarkdownListToSyntaxNode, MarkdownListItemToSyntaxNode, MarkdownRootToSyntaxNode,
-       MarkdownLinkToSyntaxNode, MarkdownImageToSyntaxNode, MarkdownCodeBlockToSyntaxNode,
-       MarkdownStyledTextToSyntaxLeaf, MarkdownStyledInline, MarkdownStrongToStyledNode,
-       MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
-       MarkdownImageToStyledNode, MarkdownListToStyledNode,
-       ReferenceStubToMarkdownSyntaxLeaf, EmbeddedFileDocumentToMarkdownSyntaxLeaf,
-       MarkdownToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MarkdownToSyntax.jl.
+#
+# Markdown → SyntaxDocument projection with two presentations, selected by
+# `MarkdownToSyntax(; style)`:
+#
+# - `:source` (default) — colourised **raw markdown**: `#` headings, `**bold**`,
+#   `` `code` ``, `[text](url)`, `- ` bullets, ` ``` ` fences, `>` quotes, `---`.
+#   Every marker is an editable text span. Written entirely with
+#   `@projection_template`, so the reader is derived from the wiring.
+# - `:rendered` — **formatted markdown**, marker-free: big bold headings, real
+#   bold/italic, plain inline code, `•` bullets, `▏` quote bars, `───` rules, blue
+#   links. Inline font weight/size cascades from a container to its descendant text
+#   via an ambient `:md_style` carried in the printer context (School A: containers
+#   delegate to their children and only *augment* the ambient style; the leaf reads
+#   it). This mirrors YAML's `YamlToSyntax(; style)`: most rules stay on
+#   `@projection_template` (rendered field values), only the cascading nodes
+#   (Text/Strong/Emphasis/Heading/Link) are hand-written.
+#
+# Blocks stack flush-left (`indentation=0` + a newline `sep`, the BookToSyntax
+# idiom); inline runs concatenate (a `SyntaxConcatenation`).
 const _MONO      = font_ubuntu_monospace_regular_20
 const _MONO_BOLD = font_ubuntu_monospace_bold_20
 
@@ -671,11 +622,3 @@ _embedded_marker_fence(f::FileDocument) =
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalModule: register_natural_syntax!
-import ..MarkdownModule: MarkdownDocument
-
-function __init__()
-    register_natural_syntax!(:markdown, () -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
-end
-
-end # module

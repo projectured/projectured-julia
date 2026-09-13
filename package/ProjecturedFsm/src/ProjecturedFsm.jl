@@ -42,10 +42,5 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
 end
 
 include("../../../source/fsm/FsmDocument.jl")
-include("../../../source/fsm/FsmDiagram.jl")
-include("../../../source/fsm/FsmToSyntax.jl")
-include("../../../source/fsm/FsmToFsmDiagram.jl")
-include("../../../source/fsm/FsmDiagramToGraph.jl")
-include("../../../source/fsm/FsmToJuliaCode.jl")
 
 end # module ProjecturedFsm

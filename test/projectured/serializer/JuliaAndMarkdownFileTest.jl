@@ -16,7 +16,7 @@ using ProjecturedKernel.CellModule
 using ProjecturedSerialization.SerializationModule
 using ProjecturedJulia.JuliaModule
 using ProjecturedJulia.JuliaModule
-using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedMarkdown.MarkdownModule
 using ProjecturedMarkdown.MarkdownModule
 
 _arg1(call::JuliaCall) = begin

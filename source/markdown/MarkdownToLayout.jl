@@ -1,42 +1,24 @@
-"""
-    MarkdownToLayoutModule
-
-`MarkdownRoot → VerticalLayout` — the structural rewrap that makes a
-markdown page a **stack of blocks** instead of one syntax tree, so each
-block renders in its own domain.
-
-That distinction only matters because of embeds. A page's elements are
-mostly markdown, which renders through the to-syntax fabric either way;
-but an embedded document may belong to a domain that is *not*
-syntax-producible — a live simulation card is a widget, and a widget
-squeezed through a syntax tree would arrive as reflected text, and (the
-part that matters) would never see a click. Stacking the page's elements
-as layout children lets the surrounding renderer recurse each one by
-type: prose to prose, JSON to JSON, a widget to the widget renderer.
-
-The rewrap does not transform its children (the element subtrees are
-identical on both sides, just moved), so the reference maps only
-relocate the head: `elements[i] + rest ↔ children[i] + rest`. This
-mirrors `CellVectorToVerticalLayout`, which does the same for a bare
-collection.
-"""
-module MarkdownToLayoutModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector
-import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
-                              read_intent, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..MarkdownModule: MarkdownRoot
-import ..WidgetModule: InvokeActionOperation
-import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, is_element_reference_step
-
-export MarkdownRootToVerticalLayout
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MarkdownToLayout.jl.
+#
+# `MarkdownRoot → VerticalLayout` — the structural rewrap that makes a
+# markdown page a **stack of blocks** instead of one syntax tree, so each
+# block renders in its own domain.
+#
+# That distinction only matters because of embeds. A page's elements are
+# mostly markdown, which renders through the to-syntax fabric either way;
+# but an embedded document may belong to a domain that is *not*
+# syntax-producible — a live simulation card is a widget, and a widget
+# squeezed through a syntax tree would arrive as reflected text, and (the
+# part that matters) would never see a click. Stacking the page's elements
+# as layout children lets the surrounding renderer recurse each one by
+# type: prose to prose, JSON to JSON, a widget to the widget renderer.
+#
+# The rewrap does not transform its children (the element subtrees are
+# identical on both sides, just moved), so the reference maps only
+# relocate the head: `elements[i] + rest ↔ children[i] + rest`. This
+# mirrors `CellVectorToVerticalLayout`, which does the same for a bare
+# collection.
 @projection struct MarkdownRootToVerticalLayout
     horizontal_align::Symbol = :left
     gap::Int = 8
@@ -112,15 +94,3 @@ end
 # syntax fabric; an embed whose document is a widget (a live simulation card)
 # reaches the widget renderer and can be clicked, which a syntax tree could
 # never offer it.
-import ..ChainingProjectionModule: ChainingProjection
-import ..LayoutModule: VerticalLayoutToGraphicsCanvas
-import ..NaturalModule: register_natural_graphics!
-
-function __init__()
-    register_natural_graphics!(:markdown_page, (; measure) -> Pair{Type,Any}[
-        MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
-                                           VerticalLayoutToGraphicsCanvas()),
-    ])
-end
-
-end # module MarkdownToLayoutModule

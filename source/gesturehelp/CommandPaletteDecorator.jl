@@ -1,64 +1,33 @@
-"""
-    CommandPaletteDecoratorProjectionModule
-
-The decorator that opens the **command palette** over a content pipeline, modelled
-on [`GestureHelpDecoratorProjection`](GestureHelpDecorator.jl).
-
-**Printer** — the inner output, with the palette drawn over it. The output is
-always one wrapping `GraphicsCanvas` whose first element is the inner output, open
-or closed, so a mapped reference always gains the same one step.
-
-**Reader** — while the palette is closed the inner reader has priority, and the
-palette gesture is considered only after it declines. While the palette is open the
-decorator reads first and swallows every event: the keys build the query, move the
-selection, run the chosen command, or close the palette. The content therefore
-never sees a keystroke meant for the palette, and its selection does not move while
-the user types.
-
-**Why a decorator and not a window.** `ScreenToScreen` prefixes
-`windows[i].content` to every operation that leaves a window's chain. A command
-edits the *content* document, so an operation returned from a palette window would
-carry the palette window's path and land in the wrong place. Here the operation is
-this decorator's own reader result, and every stage above reroots it exactly as if
-a key had fired the binding.
-
-**Which bindings it runs.** Only the bindings of its own input document — the
-per-instance table and the per-type table. Those build their operations in that
-document's reference vocabulary, which is the vocabulary this reader returns. A
-binding gathered from a deeper stage of the chain builds its operation against
-*that* stage's document, and only the reader chain maps it back; the palette lists
-such a row with its key and marks it "key only".
-"""
-module CommandPaletteDecoratorProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
-                              map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: ComputedCellVector
-import ..DocumentModule: Document
-import ..OperationModule: Operation
-import ..OperationModule: DoNothingOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
-import ..EventModule: KeyDown, KeyPress
-import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..GestureMapModule: GestureRow, collect_gesture_rows
-import ..CommandPaletteModule: CommandPalette, get_command_palette_row,
-                               compute_command_palette_step, get_command_palette_settled_selection
-import ..CommandPaletteToSyntaxModule: CommandPaletteToSyntax
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..SyntaxToTextModule: SyntaxToText
-import ..WordWrappingModule: WordWrapping
-import ..TextToGraphicsModule: TextToGraphics
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..StyleModule: color_solarized_background_lighter, color_solarized_blue
-
-export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
-       COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
-       make_command_palette_projection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from CommandPaletteDecorator.jl.
+#
+# The decorator that opens the **command palette** over a content pipeline, modelled
+# on [`GestureHelpDecoratorProjection`](GestureHelpDecorator.jl).
+#
+# **Printer** — the inner output, with the palette drawn over it. The output is
+# always one wrapping `GraphicsCanvas` whose first element is the inner output, open
+# or closed, so a mapped reference always gains the same one step.
+#
+# **Reader** — while the palette is closed the inner reader has priority, and the
+# palette gesture is considered only after it declines. While the palette is open the
+# decorator reads first and swallows every event: the keys build the query, move the
+# selection, run the chosen command, or close the palette. The content therefore
+# never sees a keystroke meant for the palette, and its selection does not move while
+# the user types.
+#
+# **Why a decorator and not a window.** `ScreenToScreen` prefixes
+# `windows[i].content` to every operation that leaves a window's chain. A command
+# edits the *content* document, so an operation returned from a palette window would
+# carry the palette window's path and land in the wrong place. Here the operation is
+# this decorator's own reader result, and every stage above reroots it exactly as if
+# a key had fired the binding.
+#
+# **Which bindings it runs.** Only the bindings of its own input document — the
+# per-instance table and the per-type table. Those build their operations in that
+# document's reference vocabulary, which is the vocabulary this reader returns. A
+# binding gathered from a deeper stage of the chain builds its operation against
+# *that* stage's document, and only the reader chain maps it back; the palette lists
+# such a row with its key and marks it "key only".
 """
     COMMAND_PALETTE_GESTURE
 
@@ -301,5 +270,3 @@ end
 # does not claim to the content, and a `CollectIntents` payload is one of those —
 # so the help window sees exactly what it would see without the palette in the
 # chain. While the palette is open it swallows everything, itself included.
-
-end # module

@@ -1,24 +1,15 @@
-"""
-    PaneGeometryModule
-
-Where the groups of a pane tree sit, and which one lies in a given direction.
-
-The arithmetic runs on the **tree and its weights alone** — one walk gives every
-group a rectangle in the unit square. No font, no measurement, and no backend
-takes part, so directional navigation is decided the same way whatever the pane
-is rendered on, and it is testable on its own.
-
-A rectangle is a `NamedTuple` `(x, y, w, h)`, with `x` growing right and `y`
-growing down, matching the screen.
-"""
-module PaneGeometryModule
-
-import ..PaneModule: PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     get_pane_groups, get_pane_weights, get_pane_normalized_weights
-
-export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
-       get_pane_group_at_point, get_pane_drop_zone, get_pane_zone_orientation
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PaneGeometry.jl.
+#
+# Where the groups of a pane tree sit, and which one lies in a given direction.
+#
+# The arithmetic runs on the **tree and its weights alone** — one walk gives every
+# group a rectangle in the unit square. No font, no measurement, and no backend
+# takes part, so directional navigation is decided the same way whatever the pane
+# is rendered on, and it is testable on its own.
+#
+# A rectangle is a `NamedTuple` `(x, y, w, h)`, with `x` growing right and `y`
+# growing down, matching the screen.
 # Two edges that meet exactly must still read as "past each other", so every
 # comparison allows this much slack.
 const _PANE_EPSILON = 1e-9
@@ -207,5 +198,3 @@ function get_pane_next_group(tree::PaneTree, group; backward::Bool = false)
     n = length(groups)
     groups[backward ? (index == 1 ? n : index - 1) : (index == n ? 1 : index + 1)]
 end
-
-end # module PaneGeometryModule

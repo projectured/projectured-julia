@@ -45,10 +45,5 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 
 include("../../../source/gesturehelp/GestureMap.jl")
-include("../../../source/gesturehelp/CommandPalette.jl")
-include("../../../source/gesturehelp/GestureMapToSyntax.jl")
-include("../../../source/gesturehelp/CommandPaletteToSyntax.jl")
-include("../../../source/gesturehelp/CommandPaletteDecorator.jl")
-include("../../../source/gesturehelp/GestureHelpDecorator.jl")
 
 end # module ProjecturedGestureHelp

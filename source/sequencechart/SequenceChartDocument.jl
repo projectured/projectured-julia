@@ -1,37 +1,34 @@
-"""
-    SequenceChartModule
-
-The sequence chart document domain: lanes with occurrences on them, arrows
-between those occurrences, and a mapping from time to a readable axis.
-
-A sequence chart answers one question — *what happened where, in what order, and
-what caused what* — and it answers it for anything with participants and
-messages: a simulation trace, a protocol exchange, a distributed system's logs,
-a UML interaction. So this domain knows only the shapes that question needs:
-
-- an **axis** is a lane, something occurrences happen to;
-- an **event** is an occurrence on a lane at a time;
-- an **arrow** connects two events, one causing the other;
-- a **band** is a value a lane holds between two moments;
-- a **kind** says how a class of events or arrows looks.
-
-Nothing here is specific to any of those sources. The features that *are*
-specific — module hierarchies that fold, filters that hide events, message
-taxonomies, the semantics of a "send" — belong to domains **upstream** of this
-one, which print a sequence chart the way the json domain prints syntax. An
-upstream domain hides a class of arrows by clearing a kind's `visible`; it folds
-a subtree of modules by printing a different lane list; it summarises a filtered
-chain by printing one arrow whose kind is `elided`. This file never learns what
-a module is.
-
-Bulk data — the event and arrow tables — is held as whole column vectors, one
-reactive cell per column, exactly as chart series are: a column is bulk leaf
-data, not navigable structure, and per-row cells would cost far more than they
-buy. Reassigning a column is what repaints, which is also how a live producer
-feeds a growing chart.
-"""
-module SequenceChartModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SequenceChartDocument.jl.
+#
+# The sequence chart document domain: lanes with occurrences on them, arrows
+# between those occurrences, and a mapping from time to a readable axis.
+#
+# A sequence chart answers one question — *what happened where, in what order, and
+# what caused what* — and it answers it for anything with participants and
+# messages: a simulation trace, a protocol exchange, a distributed system's logs,
+# a UML interaction. So this domain knows only the shapes that question needs:
+#
+# - an **axis** is a lane, something occurrences happen to;
+# - an **event** is an occurrence on a lane at a time;
+# - an **arrow** connects two events, one causing the other;
+# - a **band** is a value a lane holds between two moments;
+# - a **kind** says how a class of events or arrows looks.
+#
+# Nothing here is specific to any of those sources. The features that *are*
+# specific — module hierarchies that fold, filters that hide events, message
+# taxonomies, the semantics of a "send" — belong to domains **upstream** of this
+# one, which print a sequence chart the way the json domain prints syntax. An
+# upstream domain hides a class of arrows by clearing a kind's `visible`; it folds
+# a subtree of modules by printing a different lane list; it summarises a filtered
+# chain by printing one arrow whose kind is `elided`. This file never learns what
+# a module is.
+#
+# Bulk data — the event and arrow tables — is held as whole column vectors, one
+# reactive cell per column, exactly as chart series are: a column is bulk leaf
+# data, not navigable structure, and per-row cells would cost far more than they
+# buy. Reassigning a column is what repaints, which is also how a live producer
+# feeds a growing chart.
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -42,28 +39,7 @@ using ..DomainModule
 using ..EventPatternModule
 using ..GestureBindingModule
 
-import ..PlotModule: default_color_cycle
-import ..SequenceChartRowReferenceStepModule: SequenceChartRowReferenceStep
-import ..ReferenceModule
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          ElementReferenceStep, EmptyReference,
-                          annotate_reference_types, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
-                          ReplaceSelectionOperation
 
-export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
-       SequenceChartBandSeries, SequenceChartEventKind, SequenceChartArrowKind,
-       SequenceChartTimeline, SequenceChartGutter, SequenceChartStyle, SequenceChart,
-       get_event_count, get_arrow_count, get_axis_display_order, get_event_axis, get_event_kind,
-       get_arrow_kind, get_arrow_source_axis, get_arrow_target_axis,
-       get_event_label, get_arrow_label, get_band_state_name,
-       insert_events, delete_events, delete_axis, move_axis,
-       get_sequence_chart_parts, get_sequence_chart_part_index,
-       get_event_reference, get_arrow_reference, get_band_reference, get_axis_reference,
-       get_selected_event, get_selected_arrow, get_selected_axis_index,
-       get_event_row, get_arrow_row, get_band_row,
-       get_next_event_on_lane, get_arrow_from_event, get_arrow_into_event
 
 @domain SequenceChart
 
@@ -529,14 +505,14 @@ function delete_events(chart::SequenceChart, rows; lane_map=identity)
     map_row(row) = (1 <= row <= n) ? renumber[row] : 0
 
     operations = Any[
-        ReplaceReferencedValueOperation(events, "times", _select(events.times, keep)),
+        ReplaceReferencedValueOperation(events, "times", _keep_rows(events.times, keep)),
         ReplaceReferencedValueOperation(events, "axes",
             _narrow(Any[lane_map(Int(events.axes[i])) for i in keep if i <= length(events.axes)])),
-        ReplaceReferencedValueOperation(events, "kinds", _select(events.kinds, keep))]
+        ReplaceReferencedValueOperation(events, "kinds", _keep_rows(events.kinds, keep))]
     events.labels === nothing || push!(operations,
-        ReplaceReferencedValueOperation(events, "labels", _select(events.labels, keep)))
+        ReplaceReferencedValueOperation(events, "labels", _keep_rows(events.labels, keep)))
     events.ordinals === nothing || push!(operations,
-        ReplaceReferencedValueOperation(events, "ordinals", _select(events.ordinals, keep)))
+        ReplaceReferencedValueOperation(events, "ordinals", _keep_rows(events.ordinals, keep)))
     _push_arrow_deletions!(operations, chart, map_row)
     _push_band_remaps!(operations, chart, map_row)
     CompoundOperation(operations)
@@ -641,11 +617,11 @@ function _push_arrow_deletions!(operations, chart::SequenceChart, map_row)
     push!(operations, ReplaceReferencedValueOperation(arrows, "targets",
         [map_row(Int(arrows.targets[k])) for k in keep]))
     push!(operations, ReplaceReferencedValueOperation(arrows, "kinds",
-        _select(arrows.kinds, keep)))
+        _keep_rows(arrows.kinds, keep)))
     for field in ("labels", "source_axes", "target_axes")
         column = getproperty(arrows, Symbol(field))
         column === nothing && continue
-        push!(operations, ReplaceReferencedValueOperation(arrows, field, _select(column, keep)))
+        push!(operations, ReplaceReferencedValueOperation(arrows, field, _keep_rows(column, keep)))
     end
 end
 
@@ -662,7 +638,7 @@ function _splice(column, at::Integer, inserted, pad)
     _narrow(out)
 end
 
-_select(column, keep) = column === nothing ? nothing :
+_keep_rows(column, keep) = column === nothing ? nothing :
     _narrow(Any[column[i] for i in keep if i <= length(column)])
 
 # Keep columns concretely typed: they are read a row at a time in the renderer's
@@ -1041,5 +1017,3 @@ end
     KeyDown(:delete; alt) => "Remove the selected lane" =>
         (get_selected_axis_index(doc) == 0 ? nothing : delete_axis(doc, get_selected_axis_index(doc)))
 end
-
-end # module

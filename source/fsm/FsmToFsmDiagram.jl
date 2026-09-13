@@ -1,36 +1,20 @@
-"""
-    FsmToFsmDiagramModule
-
-FsmMachine → FsmDiagram: the first stage of the diagram pipeline, and a thin
-one. It wraps the machine in the presentation document that carries the live
-position (current state, last transition, transition count), so the renderer
-downstream has one place to read all of it and the machine itself stays pure
-content.
-
-The `FsmDiagram` is built once per projection setup and keeps its identity, so
-a live driver can take its handle at setup and keep writing to the same three
-cells for the rest of the run — the `ChartToChartPlot` pattern, for the same
-reason.
-
-Selection peels exactly the one step this stage owns — `machine` — and hands
-the rest through unchanged, so a selection into a state round-trips through the
-whole pipeline (School A).
-"""
-module FsmToFsmDiagramModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..FsmModule: FsmMachine, FsmNothing, FsmInsertion
-import ..FsmDiagramModule: FsmDiagram
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-
-export FsmToFsmDiagram, FsmToFsmDiagramIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FsmToFsmDiagram.jl.
+#
+# FsmMachine → FsmDiagram: the first stage of the diagram pipeline, and a thin
+# one. It wraps the machine in the presentation document that carries the live
+# position (current state, last transition, transition count), so the renderer
+# downstream has one place to read all of it and the machine itself stays pure
+# content.
+#
+# The `FsmDiagram` is built once per projection setup and keeps its identity, so
+# a live driver can take its handle at setup and keep writing to the same three
+# cells for the rest of the run — the `ChartToChartPlot` pattern, for the same
+# reason.
+#
+# Selection peels exactly the one step this stage owns — `machine` — and hands
+# the rest through unchanged, so a selection into a state round-trips through the
+# whole pipeline (School A).
 """
     FsmToFsmDiagram()
 
@@ -82,5 +66,3 @@ function map_reference_backward(::FsmToFsmDiagram, iomap, reference)
         __ => nothing
     end
 end
-
-end # module

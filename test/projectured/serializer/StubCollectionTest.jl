@@ -10,7 +10,7 @@ asked about instead of reaching every other document the session holds.
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedMarkdown.MarkdownModule
 using ProjecturedJulia.JuliaModule
 using ProjecturedSerialization.SerializationModule
 

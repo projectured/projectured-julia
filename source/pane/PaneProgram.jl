@@ -1,109 +1,85 @@
-"""
-    PaneProgramModule
-
-**The window's layout, as something a language model can read and change.**
-
-Three verbs read and write it. [`show_layout`](@ref) prints the pane tree as a
-Julia program, [`get_referenced_value`](@ref) answers the node a reference names,
-and [`replace_referenced_value!`](@ref) writes a new value at a reference. Two
-more do what a write cannot say: [`open_pane!`](@ref) puts a document in a new
-tab and answers a reference to it, and [`focus_pane!`](@ref) moves the focus,
-which is the selection and not a value in the tree.
-
-**The level is the reference, not the verb.** A replace at `root` rearranges the
-whole window; a replace at `root.elements[1]` moves one side of a split; a
-replace at `root.elements[1].tabs[1].content` changes what one pane holds; a
-replace at `root.weights` resizes a split. One verb reaches all of them, because
-a layout is a document and a reference names any part of one — which is why
-moving, resizing and closing a pane have no words of their own.
-
-**A pane is named by reference, never by title.** A reference names any part of
-any document; a title names a tab, and two tabs can carry one title. So every
-verb here takes a reference, and the verbs that place something answer one.
-
-# What the model reads
-
-`show_layout` answers the program that rebuilds the window as it stands:
-
-```julia
-window = get_window_tree(editor)
-
-runner    = get_referenced_value(editor, @reference(window, root.elements[1].tabs[1]))   # Runner — the run form
-assistant = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1]))   # Assistant — this conversation
-
-replace_referenced_value!(editor, @reference(window, root),
-    PaneSplit(:vertical, [
-        PaneGroup([runner]),
-        PaneGroup([assistant])], weights = [0.3, 0.7]))
-```
-
-**A reference is written against the window**, which is what the first line binds.
-`@reference(window, path)` fills in the type of every node from the tree itself,
-so a path needs no `::T` spelled by hand and is wrong at once rather than later
-when it names a node that is not there.
-
-Paste it back unchanged and the window does not move. A model that wants a change
-therefore edits the text it was given — it swaps two names, changes a weight, or
-puts two names in one `PaneGroup` — rather than composing a program out of a
-docstring. And each name binds the `PaneTab` object that is already there, so the
-tree that is written holds the same tabs and no pane re-prints.
-
-# The numbering
-
-`[…]` counts elements, from 1: `root.elements[1].tabs[2]` is the second tab of
-the first group, and `tabs[2, 3]` is the second and third tabs together. That is
-the whole of what a caller needs to know.
-
-# What else the model may write
-
-A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`,
-and this module exports none of them — [`make_pane_api`](@ref) declares them **by
-name** instead. A declaration is not an export, so each of those names still has
-exactly one owning module, and the program says them plainly.
-
-Their modules are not declared, and that is the point. `@document` exports about
-thirty generated schema variants per document type — `APaneSplit`, `ACPaneSplit`,
-`DCPaneSplit`, each with no documentation of its own. Declared whole,
-`PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a
-search for "what panes are open" then answers with those variants instead of
-`show_layout`. Measured, not feared.
-
-`GridLayout` is what one pane holds several documents with: `GridLayout(cells, 2)`
-written at a tab's `.content` puts four plots in a pane in two rows, with one tab
-strip over them rather than four.
-
-# Adding a description
-
-[`describe_document`](@ref) is the one line the program's comment carries
-for a pane. Write a method for each document this window can show, beside the
-ones below.
-"""
-module PaneProgramModule
-
-import ..ReferenceModule
-import ..ReferenceModule:
-    Reference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
-    evaluate_reference, strip_reference_types, get_reference_steps,
-    is_fully_typed_reference, annotate_reference_types, var"@reference"
-import ..OperationModule: ReplaceReferencedValueOperation
-import ..SelectionModule: replace_selection!
-import ..PaneModule
-import ..PaneModule:
-    PaneTree, PaneSplit, PaneGroup, PaneTab, get_pane_groups, get_pane_tab_title_string,
-    get_pane_parent, get_pane_weights, get_pane_normalized_weights
-import ..PaneGeometryModule: get_pane_rectangles
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PaneProgram.jl.
+#
+# **The window's layout, as something a language model can read and change.**
+#
+# Three verbs read and write it. [`show_layout`](@ref) prints the pane tree as a
+# Julia program, [`get_referenced_value`](@ref) answers the node a reference names,
+# and [`replace_referenced_value!`](@ref) writes a new value at a reference. Two
+# more do what a write cannot say: [`open_pane!`](@ref) puts a document in a new
+# tab and answers a reference to it, and [`focus_pane!`](@ref) moves the focus,
+# which is the selection and not a value in the tree.
+#
+# **The level is the reference, not the verb.** A replace at `root` rearranges the
+# whole window; a replace at `root.elements[1]` moves one side of a split; a
+# replace at `root.elements[1].tabs[1].content` changes what one pane holds; a
+# replace at `root.weights` resizes a split. One verb reaches all of them, because
+# a layout is a document and a reference names any part of one — which is why
+# moving, resizing and closing a pane have no words of their own.
+#
+# **A pane is named by reference, never by title.** A reference names any part of
+# any document; a title names a tab, and two tabs can carry one title. So every
+# verb here takes a reference, and the verbs that place something answer one.
+#
+# # What the model reads
+#
+# `show_layout` answers the program that rebuilds the window as it stands:
+#
+# ```julia
+# window = get_window_tree(editor)
+#
+# runner    = get_referenced_value(editor, @reference(window, root.elements[1].tabs[1]))   # Runner — the run form
+# assistant = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1]))   # Assistant — this conversation
+#
+# replace_referenced_value!(editor, @reference(window, root),
+#     PaneSplit(:vertical, [
+#         PaneGroup([runner]),
+#         PaneGroup([assistant])], weights = [0.3, 0.7]))
+# ```
+#
+# **A reference is written against the window**, which is what the first line binds.
+# `@reference(window, path)` fills in the type of every node from the tree itself,
+# so a path needs no `::T` spelled by hand and is wrong at once rather than later
+# when it names a node that is not there.
+#
+# Paste it back unchanged and the window does not move. A model that wants a change
+# therefore edits the text it was given — it swaps two names, changes a weight, or
+# puts two names in one `PaneGroup` — rather than composing a program out of a
+# docstring. And each name binds the `PaneTab` object that is already there, so the
+# tree that is written holds the same tabs and no pane re-prints.
+#
+# # The numbering
+#
+# `[…]` counts elements, from 1: `root.elements[1].tabs[2]` is the second tab of
+# the first group, and `tabs[2, 3]` is the second and third tabs together. That is
+# the whole of what a caller needs to know.
+#
+# # What else the model may write
+#
+# A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`,
+# and this module exports none of them — [`make_pane_api`](@ref) declares them **by
+# name** instead. A declaration is not an export, so each of those names still has
+# exactly one owning module, and the program says them plainly.
+#
+# Their modules are not declared, and that is the point. `@document` exports about
+# thirty generated schema variants per document type — `APaneSplit`, `ACPaneSplit`,
+# `DCPaneSplit`, each with no documentation of its own. Declared whole,
+# `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a
+# search for "what panes are open" then answers with those variants instead of
+# `show_layout`. Measured, not feared.
+#
+# `GridLayout` is what one pane holds several documents with: `GridLayout(cells, 2)`
+# written at a tab's `.content` puts four plots in a pane in two rows, with one tab
+# strip over them rather than four.
+#
+# # Adding a description
+#
+# [`describe_document`](@ref) is the one line the program's comment carries
+# for a pane. Write a method for each document this window can show, beside the
+# ones below.
 # The pane package binds it, so a layout costs this package no dependency of its
 # own and the window's closure is what it was.
-import ..LayoutModule
-import ..LayoutModule: LayoutDocument
-import ..PaneSurgeryModule:
-    apply_pane_operation!, get_pane_focus, make_pane_focus_operation, get_pane_shown_tab_index,
-    make_pane_open_tab_operation, get_pane_focused_group
 
-export show_layout, get_referenced_value, replace_referenced_value!,
-       open_pane!, focus_pane!,
-       get_window_tree, describe_document, get_document_title,
-       pane_group_to_avoid, make_pane_api
 
 """
     make_pane_api() -> Vector
@@ -126,7 +102,7 @@ make_pane_api() = Any[
     # extension point `show_layout` writes its comments with, and the sentence a
     # caller asks about a value it holds: how far a set of runs has got, whether
     # that set is in a pane or in a hand.
-    PaneProgramModule => (:show_layout, :get_window_tree, :get_referenced_value,
+    PaneModule => (:show_layout, :get_window_tree, :get_referenced_value,
                           :replace_referenced_value!, :open_pane!, :focus_pane!,
                           :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
@@ -730,5 +706,3 @@ _step_text(step::RangeReferenceStep) =
     step.stop == step.start + 1 ? "[" * string(step.stop) * "]" :
     "[" * string(step.start + 1) * ", " * string(step.stop) * "]"
 _step_text(step) = "." * string(step)
-
-end # module PaneProgramModule

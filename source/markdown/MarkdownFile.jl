@@ -1,47 +1,26 @@
-"""
-    MarkdownFileModule
-
-`MarkdownFile`: a `FileDocument` whose `content` is a
-`MarkdownDocument` (the projectured Markdown AST). Parse uses
-`parse_markdown`; emit runs the standard `MarkdownToSyntax(style=:source)
-→ SyntaxToText → TextToString` projection chain via `print_natural_text`.
-This module also registers this domain's natural notation — the rung it starts
-at, the format, the extension and the parser — so `print_natural_text` works for
-a `MarkdownDocument` the way it works for every other domain.
-
-**Marker syntax in Markdown.** A cross-file reference reads as a
-fenced code block with the info string `pred-ref`:
-
-    ```pred-ref
-    <<file("child.md")>>
-    ```
-
-Fenced blocks parse robustly (unlike inline link URLs, which the
-markdown parser stops at the first `)`). Load walks the AST for
-`MarkdownCodeBlock` with `language == "pred-ref"` and rewrites each
-into a `ReferenceStub`. Emit is symmetric via a projection extension
-(see `MarkdownToSyntax.jl`).
-"""
-module MarkdownFileModule
-
-import ..CellModule: Cell, ComputedCell, AbstractCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
-                         MarkdownHeading, MarkdownCodeBlock, MarkdownQuote,
-                         MarkdownList, MarkdownListItem, MarkdownEmphasis,
-                         MarkdownStrong, MarkdownLink, MarkdownText
-import ..MarkdownParserModule: parse_markdown
-import ..MarkdownToSyntaxModule: MarkdownToSyntax
-import ..NaturalModule: register_natural_domain!, print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!, get_document_section,
-                            is_file_document
-
-export MarkdownFile, PRED_REF_LANGUAGE, get_markdown_section
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MarkdownFile.jl.
+#
+# `MarkdownFile`: a `FileDocument` whose `content` is a
+# `MarkdownDocument` (the projectured Markdown AST). Parse uses
+# `parse_markdown`; emit runs the standard `MarkdownToSyntax(style=:source)
+# → SyntaxToText → TextToString` projection chain via `print_natural_text`.
+# This module also registers this domain's natural notation — the rung it starts
+# at, the format, the extension and the parser — so `print_natural_text` works for
+# a `MarkdownDocument` the way it works for every other domain.
+#
+# **Marker syntax in Markdown.** A cross-file reference reads as a
+# fenced code block with the info string `pred-ref`:
+#
+#     ```pred-ref
+#     <<file("child.md")>>
+#     ```
+#
+# Fenced blocks parse robustly (unlike inline link URLs, which the
+# markdown parser stops at the first `)`). Load walks the AST for
+# `MarkdownCodeBlock` with `language == "pred-ref"` and rewrites each
+# into a `ReferenceStub`. Emit is symmetric via a projection extension
+# (see `MarkdownToSyntax.jl`).
 """
 The info string that tags a fenced code block as a cross-file marker:
 
@@ -236,20 +215,3 @@ _heading_texts(elements) =
 # because the registry holds one function per verb name. Markdown adds its method
 # here; RST adds its own.
 get_document_section(root::MarkdownRoot, title::AbstractString) = get_markdown_section(root, title)
-
-function __init__()
-    register_file_document_type!(".md",       MarkdownFile)
-    register_file_document_type!(".markdown", MarkdownFile)
-    # What this domain's natural notation is: the syntax rung, the format, and
-    # how to read it back. The `:graphics` rung — a page of blocks — is
-    # registered in `MarkdownToLayout.jl`, because a domain may reach more than
-    # one rung and markdown reaches two.
-    register_natural_domain!(MarkdownDocument;
-                             rung      = :syntax,
-                             make      = () -> MarkdownToSyntax(),
-                             format    = :md,
-                             extension = ".md",
-                             parse     = parse_markdown)
-end
-
-end # module

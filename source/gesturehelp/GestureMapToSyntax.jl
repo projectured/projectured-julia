@@ -1,32 +1,15 @@
-"""
-    GestureMapToSyntaxModule
-
-Projects a [`GestureMap`](../../document/GestureMap.jl) onto a `SyntaxNode` for
-display: one line per gesture row, grouped under a heading per domain, reusing the
-existing `SyntaxToText → TextToGraphics` pipeline. Read-only — there are no
-authoring gestures to invert — so it is a plain leaf printer with no reader or
-reference mappers.
-
-Greyed (not-applicable) rows are styled muted and tagged, the v1 of the Lisp
-`accessible` colouring: a row that cannot fire for the current selection is shown
-but dimmed.
-"""
-module GestureMapToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..GestureMapModule: GestureMap, GestureRow
-import ..TextModule: TextString
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..PrinterContextModule: PrinterContext
-
-export GestureMapToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GestureMapToSyntax.jl.
+#
+# Projects a [`GestureMap`](../../document/GestureMap.jl) onto a `SyntaxNode` for
+# display: one line per gesture row, grouped under a heading per domain, reusing the
+# existing `SyntaxToText → TextToGraphics` pipeline. Read-only — there are no
+# authoring gestures to invert — so it is a plain leaf printer with no reader or
+# reference mappers.
+#
+# Greyed (not-applicable) rows are styled muted and tagged, the v1 of the Lisp
+# `accessible` colouring: a row that cannot fire for the current selection is shown
+# but dimmed.
 @projection struct GestureMapToSyntax
     header::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
     gesture::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
@@ -62,5 +45,3 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
     out = SyntaxNode(children; sep=TextString("\n"))
     return SimpleIoMap(p, doc, out)
 end
-
-end # module

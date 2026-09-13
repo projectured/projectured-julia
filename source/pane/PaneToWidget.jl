@@ -1,73 +1,31 @@
-"""
-    PaneToWidgetModule
-
-PaneDocument → WidgetDocument. The layout tree becomes split panes and tabbed
-panes:
-
-    PaneTree  → the widget of its root (transparent)
-    PaneSplit → WidgetSplitPane, one slot per element
-    PaneGroup → WidgetTabbedPane, one tab per tab
-
-**The two orientation vocabularies meet here.** A `:vertical` `PaneSplit` — one
-with a vertical divider, so its children sit side by side — prints a
-`WidgetSplitPane(:horizontal, …)`, because the widget's symbol names the axis its
-children lay out along. `get_pane_split_axis` is the translation, and this module is
-the only place that applies it.
-
-**Weights become layout weights.** Each slot is wrapped in a `LayoutConstraint`
-whose weight on the split axis is the element's share. Where the parent seeded an
-available extent the slot also takes a preferred extent of 0, so the allocator
-hands out the whole extent in proportion to the weights and nothing else. Where
-it did not — an unconstrained print, which has no total to divide — the slots
-fall back to their intrinsic sizes.
-
-**The selection is forwarded** onto both widgets, so a tabbed pane shows the tab
-the pane tree's selection names and a split pane routes a keystroke to the slot
-it names. Only the *routing prefix* is forwarded, not the deep suffix: every
-consumer reads the index alone, and forwarding less keeps a caret move inside a
-tab from regenerating the strip.
-"""
-module PaneToWidgetModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     get_pane_split_axis, get_pane_weights, get_pane_normalized_weights,
-                     get_pane_tab_title_string, default_new_pane_tab
-import ..PaneSurgeryModule: make_pane_focus_operation, make_pane_open_tab_operation,
-                            make_pane_close_tab_operation, make_pane_resize_operation,
-                            make_pane_move_tab_operation, make_pane_drop_split_operation,
-                            get_pane_focus, get_pane_shown_tab_index
-import ..PaneGeometryModule: get_pane_drop_zone, get_pane_zone_orientation, get_pane_rectangle
-import ..IntentModule: Intent
-import ..EventModule: MouseMove, MouseUp, MousePress
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
-import ..WidgetModule: SelectTabOperation, CloseTabOperation,
-                       OpenTabOperation, DragTabOperation,
-                       StartSplitterDragOperation, ResizeSplitPaneOperation,
-                       EndSplitterDragOperation
-import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetComposite, WidgetHighlight,
-                       Inset, Point2D
-import ..LayoutModule: LayoutConstraint
-import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
-                      reconcile_child_iomap, reconcile_child_iomaps
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..DocumentModule: SelectionDocument
-import ..CollectionModule: CellVector
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-
-export PaneTreeToWidget, PaneTreeToWidgetIoMap,
-       PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
-       PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
-       PaneToWidget
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PaneToWidget.jl.
+#
+# PaneDocument → WidgetDocument. The layout tree becomes split panes and tabbed
+# panes:
+#
+#     PaneTree  → the widget of its root (transparent)
+#     PaneSplit → WidgetSplitPane, one slot per element
+#     PaneGroup → WidgetTabbedPane, one tab per tab
+#
+# **The two orientation vocabularies meet here.** A `:vertical` `PaneSplit` — one
+# with a vertical divider, so its children sit side by side — prints a
+# `WidgetSplitPane(:horizontal, …)`, because the widget's symbol names the axis its
+# children lay out along. `get_pane_split_axis` is the translation, and this module is
+# the only place that applies it.
+#
+# **Weights become layout weights.** Each slot is wrapped in a `LayoutConstraint`
+# whose weight on the split axis is the element's share. Where the parent seeded an
+# available extent the slot also takes a preferred extent of 0, so the allocator
+# hands out the whole extent in proportion to the weights and nothing else. Where
+# it did not — an unconstrained print, which has no total to divide — the slots
+# fall back to their intrinsic sizes.
+#
+# **The selection is forwarded** onto both widgets, so a tabbed pane shows the tab
+# the pane tree's selection names and a split pane routes a keystroke to the slot
+# it names. Only the *routing prefix* is forwarded, not the deep suffix: every
+# consumer reads the index alone, and forwarding less keeps a caret move inside a
+# tab from regenerating the strip.
 # ── Projection structs ─────────────────────────────────────────────────────
 
 """
@@ -675,5 +633,3 @@ PaneToWidget(; new_tab = default_new_pane_tab) = TypeDispatchingProjection(
     PaneSplit => PaneSplitToWidgetSplitPane(),
     PaneGroup => PaneGroupToWidgetTabbedPane(),
 )
-
-end # module PaneToWidgetModule

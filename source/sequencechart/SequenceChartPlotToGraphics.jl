@@ -1,88 +1,38 @@
-"""
-    SequenceChartPlotToGraphicsModule
-
-SequenceChartPlot → Graphics: the sequence chart renderer. Lanes, the
-occurrences on them, the arrows between those, the state bands, and the time
-scale alongside — all composed out of the existing graphics primitives, so a
-sequence chart is vector output like every other projection and stays selectable
-and resolution-independent.
-
-**Three cells, not one.** The work splits by what invalidates it:
-
-1. `timeline` — the cumulative pass that assigns every event a coordinate. It
-   depends on the times and the mapping and nothing else, so panning, hovering
-   or resizing never re-runs it.
-2. `geometry` — the frame: the window, the lane positions, which events and
-   arrows are visible, their decimated shapes, the ticks and their measured
-   labels. It depends on the data and the size, and deliberately **not** on the
-   pointer.
-3. `elements` — the drawable list, which reads the geometry *and* the pointer
-   state. Hover, selection and the cursor readout live only here, so moving the
-   mouse rebuilds the overlay rather than re-deciding the layout.
-
-That last split is the one worth keeping: hover on a dense chart changes at
-pointer-move frequency, and re-deriving a layout over a hundred thousand arrows
-at that rate is the difference between a chart that tracks the mouse and one
-that lags behind it.
-
-**Cost.** Events are decimated to at most one per lane per pixel and arrows to
-the pixels they actually cover, so the element count is bounded by the size of
-the chart rather than by the length of the trace.
-
-**Tolerance.** A kind index that names nothing, an endpoint row that is out of
-range, a lane column shorter than the event table — none of these throw. They
-are drawn as far as they make sense and skipped where they do not, because a
-chart is often being watched while something upstream is still writing it.
-"""
-module SequenceChartPlotToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..SequenceChartModule: SequenceChart, SequenceChartNothing, SequenceChartInsertion,
-                              SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
-                              SequenceChartBandSeries, SequenceChartEventKind,
-                              SequenceChartArrowKind, SequenceChartStyle,
-                              get_event_count, get_arrow_count, get_axis_display_order,
-                              get_event_axis, get_event_kind, get_event_label,
-                              get_arrow_kind, get_arrow_label,
-                              get_arrow_source_axis, get_arrow_target_axis,
-                              get_band_state_name,
-                              get_event_reference, get_arrow_reference, get_band_reference,
-                              get_axis_reference, get_selected_event, get_selected_arrow
-import ..SequenceChartPlotModule: SequenceChartPlot, SequenceChartView
-import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
-                                      frame_flow_span, frame_cross_span,
-                                      get_timeline_coordinates, default_nonlinear_focus,
-                                      time_to_coordinate, convert_coordinate_to_time,
-                                      get_visible_event_range, get_visible_arrows,
-                                      flow_ticks, get_honest_tick_label, tick_common_prefix,
-                                      get_zero_time_spans, get_axis_cross_positions,
-                                      get_arc_geometry, arc_height, split_arrow, get_arrow_route,
-                                      decimate_events, deduplicate_arrow_coverage, get_band_intervals
-import ..PlotModule: AxisScale, to_pixel, to_data
-import ..PlotModule: get_series_color, build_marker_polygon
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
-                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
-                         GraphicsSpline, GraphicsViewport, layout_none
-import ..StyleModule: StyleColor,
-                      color_solarized_background_lighter, color_solarized_background_light,
-                      color_solarized_content_dark, color_solarized_content_darker,
-                      color_solarized_blue
-import ..StyleModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
-import ..IoMapModule: IoMap, var"@iomap"
-import ..EventModule: MousePress, MouseMove, MouseLeave, MouseScroll
-import ..OperationModule: Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation
-import ..ReferenceModule: get_reference_node_type
-import ..ReferenceModule: var"@reference"
-import ..ReferenceModule: var"@reference_case"
-
-export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
-       resolve_window, get_lane_cross_position,
-       find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SequenceChartPlotToGraphics.jl.
+#
+# SequenceChartPlot → Graphics: the sequence chart renderer. Lanes, the
+# occurrences on them, the arrows between those, the state bands, and the time
+# scale alongside — all composed out of the existing graphics primitives, so a
+# sequence chart is vector output like every other projection and stays selectable
+# and resolution-independent.
+#
+# **Three cells, not one.** The work splits by what invalidates it:
+#
+# 1. `timeline` — the cumulative pass that assigns every event a coordinate. It
+#    depends on the times and the mapping and nothing else, so panning, hovering
+#    or resizing never re-runs it.
+# 2. `geometry` — the frame: the window, the lane positions, which events and
+#    arrows are visible, their decimated shapes, the ticks and their measured
+#    labels. It depends on the data and the size, and deliberately **not** on the
+#    pointer.
+# 3. `elements` — the drawable list, which reads the geometry *and* the pointer
+#    state. Hover, selection and the cursor readout live only here, so moving the
+#    mouse rebuilds the overlay rather than re-deciding the layout.
+#
+# That last split is the one worth keeping: hover on a dense chart changes at
+# pointer-move frequency, and re-deriving a layout over a hundred thousand arrows
+# at that rate is the difference between a chart that tracks the mouse and one
+# that lags behind it.
+#
+# **Cost.** Events are decimated to at most one per lane per pixel and arrows to
+# the pixels they actually cover, so the element count is bounded by the size of
+# the chart rather than by the length of the trace.
+#
+# **Tolerance.** A kind index that names nothing, an endpoint row that is out of
+# range, a lane column shorter than the event table — none of these throw. They
+# are drawn as far as they make sense and skipped where they do not, because a
+# chart is often being watched while something upstream is still writing it.
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
 
@@ -1133,7 +1083,7 @@ function lift_sequence_chart_reference(plot::SequenceChartPlot, inner)
     @reference ::SequenceChartPlot.chart::ct.^(inner)
 end
 
-_select(plot, inner) = begin
+_make_selection_operation(plot, inner) = begin
     reference = lift_sequence_chart_reference(plot, inner)
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
@@ -1159,18 +1109,18 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
 
     if _in_body(g, x, y)
         row = find_event_hit(g, plot, x, y)
-        row === nothing || return _select(plot, get_event_reference(chart, row))
+        row === nothing || return _make_selection_operation(plot, get_event_reference(chart, row))
         arrow = find_arrow_hit(g, plot, x, y)
-        arrow === nothing || return _select(plot, get_arrow_reference(chart, arrow))
+        arrow === nothing || return _make_selection_operation(plot, get_arrow_reference(chart, arrow))
         band = find_band_hit(g, plot, x, y)
-        band === nothing || return _select(plot, get_band_reference(chart, band...))
+        band === nothing || return _make_selection_operation(plot, get_band_reference(chart, band...))
         lane = find_lane_hit(g, plot, x, y)
-        lane === nothing || return _select(plot, get_axis_reference(chart, lane))
+        lane === nothing || return _make_selection_operation(plot, get_axis_reference(chart, lane))
         return nothing
     end
 
     lane = _label_strip_lane(g, x, y)
-    lane === nothing || return _select(plot, get_axis_reference(chart, lane))
+    lane === nothing || return _make_selection_operation(plot, get_axis_reference(chart, lane))
     nothing
 end
 
@@ -1265,5 +1215,3 @@ function _window_operation(g, plot::SequenceChartPlot, lo::Real, span::Real)
     view = SequenceChartView(anchor, Float64(lo) - coordinates[anchor], Float64(span))
     ReplaceReferencedValueOperation(plot, "view", view)
 end
-
-end # module

@@ -1,36 +1,22 @@
-"""
-    CommandPaletteModule
-
-The document behind the **command palette**: a type-in field over a list of the
-commands available where the user is. The user types a few characters, the list
-narrows to what matches, and Enter runs the selected row.
-
-The palette is the running twin of the gesture-help window. Both read one
-collected set of [`GestureBinding`](@ref)s, and both display it as
-[`GestureRow`](@ref)s. The help window only shows the set; the palette runs the
-rows that carry an operation — see [`GestureRow`](GestureMap.jl).
-
-The chosen row is the palette's own `selection`, as `rows[i-1:i]` — the same
-"element `i` of this collection field" reference a `WidgetList` row uses. The
-selection names a row of `rows`, not a row of the displayed subset, so the chosen
-command stays chosen while the user types more characters.
-
-The palette has one selection and it names the chosen row, so the query is edited
-at its end, as a type-in buffer is.
-"""
-module CommandPaletteModule
-
-import ..CellModule: Cell
-import ..DocumentModule: Document
-import ..DocumentModule: var"@document"
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          RangeReferenceStep, EmptyReference
-import ..GestureMapModule: GestureRow
-
-export CommandPalette, build_command_palette_selection, get_command_palette_selected,
-       get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
-       get_command_palette_settled_selection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from CommandPalette.jl.
+#
+# The document behind the **command palette**: a type-in field over a list of the
+# commands available where the user is. The user types a few characters, the list
+# narrows to what matches, and Enter runs the selected row.
+#
+# The palette is the running twin of the gesture-help window. Both read one
+# collected set of [`GestureBinding`](@ref)s, and both display it as
+# [`GestureRow`](@ref)s. The help window only shows the set; the palette runs the
+# rows that carry an operation — see [`GestureRow`](GestureMap.jl).
+#
+# The chosen row is the palette's own `selection`, as `rows[i-1:i]` — the same
+# "element `i` of this collection field" reference a `WidgetList` row uses. The
+# selection names a row of `rows`, not a row of the displayed subset, so the chosen
+# command stays chosen while the user types more characters.
+#
+# The palette has one selection and it names the chosen row, so the query is edited
+# at its end, as a type-in buffer is.
 """
     CommandPalette(query = "", rows = GestureRow[])
 
@@ -186,5 +172,3 @@ function get_command_palette_settled_selection(palette::CommandPalette)
     selected = get_command_palette_selected(palette)
     build_command_palette_selection(selected in matches ? selected : matches[1])
 end
-
-end # module

@@ -1,87 +1,54 @@
-"""
-    FsmToSyntaxModule
-
-Fsm → Syntax projection: the **natural notation**, the primary edit surface of
-the state machine domain.
-
-```
-component EthernetCsmaMac
-  variable num_retries::Int = 0
-  timer tx_timer
-  event UPPER_PACKET
-  machine Mac initial IDLE
-    state IDLE
-      on UPPER_PACKET / set_current_tx!(m, payload) -> TRANSMITTING
-    state TRANSMITTING
-      entry / start_transmission!(ctx, m)
-      on COLLISION_START / abort_tx!(ctx, m) -> JAMMING
-```
-
-Transition line grammar, each part optional except the ending:
-
-```
-[on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | stay | ignore) [/ ACTION]
-```
-
-The action comes **last**, after the ending, because it is the only part that
-can be more than one statement: an action written as a `begin`-style block
-renders as an indented run of lines below its transition, and anything printed
-after it would be stranded at the bottom of that block, away from the line it
-belongs to.
-
-Composed with the Julia projection, exactly as `FormulaToSyntax` is: the
-embedded code (a transition's guard/action, a state's entry, a variable's
-type/default, the component's helpers and usings) is a `JuliaDocument` subtree
-rendered through the same shared `recursion`, so `FsmToSyntax()` merges the
-Julia type-dispatch table with the Fsm entries into one
-`TypeDispatchingProjection`.
-
-`trigger`, `target` and `initial` are held by identity and point at documents
-that live *elsewhere in the same component* (an event of the component, a state
-of the machine). They are rendered as **name leaves read reactively from the
-referent** — the `FormulaReferenceToSyntaxLeaf` pattern — never recursed into:
-projecting a transition's target would inline the whole target state, which for
-a self-loop does not terminate. A rename of the referent updates every mention.
-
-The rules are `@projection_template` builders, so printing, reference mapping
-and the structural readers are generic. Each compound rule additionally
-collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
-`XmlElementToSyntaxNode` precedent) — projection-introduced chrome is pervasive
-in this notation (every keyword and every referent name), and without that
-collapse the navigation walk grows its paths without bound.
-"""
-module FsmToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..FsmModule: FsmDocument, FsmNothing, FsmInsertion,
-                    FsmComponent, FsmMachine, FsmState, FsmTransition,
-                    FsmVariable, FsmTimer, FsmEvent
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_green,
-                      color_solarized_gray, color_solarized_magenta, color_solarized_violet,
-                      color_solarized_cyan, color_solarized_orange
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..JuliaModule: JuliaToSyntax
-
-export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
-       FsmTransitionToSyntaxNode, FsmStateToSyntaxNode, FsmMachineToSyntaxNode,
-       FsmComponentToSyntaxNode, FsmInsertionToSyntaxLeaf, FsmToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FsmToSyntax.jl.
+#
+# Fsm → Syntax projection: the **natural notation**, the primary edit surface of
+# the state machine domain.
+#
+# ```
+# component EthernetCsmaMac
+#   variable num_retries::Int = 0
+#   timer tx_timer
+#   event UPPER_PACKET
+#   machine Mac initial IDLE
+#     state IDLE
+#       on UPPER_PACKET / set_current_tx!(m, payload) -> TRANSMITTING
+#     state TRANSMITTING
+#       entry / start_transmission!(ctx, m)
+#       on COLLISION_START / abort_tx!(ctx, m) -> JAMMING
+# ```
+#
+# Transition line grammar, each part optional except the ending:
+#
+# ```
+# [on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | stay | ignore) [/ ACTION]
+# ```
+#
+# The action comes **last**, after the ending, because it is the only part that
+# can be more than one statement: an action written as a `begin`-style block
+# renders as an indented run of lines below its transition, and anything printed
+# after it would be stranded at the bottom of that block, away from the line it
+# belongs to.
+#
+# Composed with the Julia projection, exactly as `FormulaToSyntax` is: the
+# embedded code (a transition's guard/action, a state's entry, a variable's
+# type/default, the component's helpers and usings) is a `JuliaDocument` subtree
+# rendered through the same shared `recursion`, so `FsmToSyntax()` merges the
+# Julia type-dispatch table with the Fsm entries into one
+# `TypeDispatchingProjection`.
+#
+# `trigger`, `target` and `initial` are held by identity and point at documents
+# that live *elsewhere in the same component* (an event of the component, a state
+# of the machine). They are rendered as **name leaves read reactively from the
+# referent** — the `FormulaReferenceToSyntaxLeaf` pattern — never recursed into:
+# projecting a transition's target would inline the whole target state, which for
+# a self-loop does not terminate. A rename of the referent updates every mention.
+#
+# The rules are `@projection_template` builders, so printing, reference mapping
+# and the structural readers are generic. Each compound rule additionally
+# collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
+# `XmlElementToSyntaxNode` precedent) — projection-introduced chrome is pervasive
+# in this notation (every keyword and every referent name), and without that
+# collapse the navigation walk grows its paths without bound.
 # ── Shared styles ────────────────────────────────────────────────────────────
 
 const _KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
@@ -322,5 +289,3 @@ function FsmToSyntax()
     push!(pairs, FsmNothing    => InsertionNothingToSyntaxLeaf())
     TypeDispatchingProjection(pairs)
 end
-
-end # module

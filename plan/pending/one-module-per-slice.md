@@ -90,9 +90,11 @@ meets a hard case.
      `PrimitiveModule` was already right, so its 49 references never moved.
 2. **The 15 slices with 1 to 3 internal edges. DONE 2026-09-13.** Forty-eight
    modules became fifteen.
-3. **The 16 slices with 4 to 9.** Ten are **DONE 2026-09-13**: `style`,
+3. **The 16 slices with 4 to 9.** Fifteen are **DONE 2026-09-13**: `style`,
    `workbench`, `conversation`, `screen`, `sql`, `json`, `xml`, `chart`,
-   `julia` and `rst`. Forty-four modules became ten.
+   `julia`, `rst`, `gesturehelp`, `markdown`, `pane`, `sequencechart` and
+   `fsm`. Seventy-three modules became fifteen. `syntax`, `widget` and
+   `process` are what is left of the tier.
 
    What these five taught:
 
@@ -120,6 +122,18 @@ meets a hard case.
    - **An include line can carry a trailing comment.** `ProjecturedJson` still
      included `JsonFile.jl` at package level, where `@document` is not bound,
      because the tool matched the call and not the line.
+   - **A docstring can declare a module.** `FsmToJuliaCode.jl` documents the
+     code it generates, `module FooFsm` and its `end` included. The tool read
+     that as the file's own module and cut the file in half. It now skips a
+     line inside a docstring.
+   - **A self-import has three shapes.** `pane` wrote `import ..PaneModule`,
+     and `import ..PaneModule:` with the names on the next line. The tool
+     recognised only `import ..X: a, b`, so the module imported itself and
+     Julia warned on every name. All three shapes are dropped now.
+   - **Two private helpers can take the same two untyped arguments.**
+     `sequencechart` had `_select(column, keep)` and `_select(plot, inner)`,
+     which is one method, not two. They are `_keep_rows` and
+     `_make_selection_operation` now.
 4. **The 11 slices with 10 or more.** Read each one before collapsing it. Two
    of them should not be collapsed at all — see §4.2.
 5. **The kernel does not change at all.** Its 31 modules across 17 layers stay

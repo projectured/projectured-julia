@@ -1,55 +1,28 @@
-"""
-    FsmDiagramToGraphModule
-
-FsmDiagram → GraphGraph: the state diagram. One vertex per state, one directed
-edge per transition that has a target, and the two graph highlights derived from
-the diagram's live fields — so the stock `GraphToGraphLayout →
-GraphLayoutToGraphics` stages draw the whole picture, including the current-state
-ring and the last-transition re-stroke, with no fsm-specific rendering code.
-
-A vertex's content is the `FsmState` **itself**, held by identity, so clicking a
-node selects the real state through the graph pipeline's existing
-`vertex_layouts[i].vertex.content.…` routing. The diagram renders it through
-`FsmStateToSyntaxLabel` — the state's name alone. Projecting a state through the
-full notation would inline its whole transition list into the node box, and for
-a self-loop would not terminate.
-
-The highlights are `ComputedCell`s over `diagram.live_state` /
-`diagram.live_transition`, resolved to the `GraphVertex` / `GraphEdge` by
-identity. A live driver writing those two integers repaints the overlay without
-touching any vertex content, so the layout engine is never re-run mid-run.
-
-Known v1 limits, both inherited from the graph slice and recorded in the plan: a
-self-loop transition (`target === its own state`) routes to a zero-length line
-and so does not render, and edges are not clickable — a stay has no edge at all,
-and both are edited in the notation.
-"""
-module FsmDiagramToGraphModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..FsmModule: FsmMachine, FsmState, FsmTransition, FsmTimer,
-                    FsmNothing, FsmInsertion, get_fsm_transitions
-import ..FsmDiagramModule: FsmDiagram
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..IoMapModule: IoMap, var"@iomap"
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_default, color_solarized_green, color_solarized_violet,
-                      color_solarized_gray, color_solarized_blue
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxConcatenation
-import ..ProjectionTemplateModule: var"@projection_template", bound, project
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-
-export FsmDiagramToGraph, FsmDiagramToGraphIoMap,
-       FsmStateToSyntaxLabel, FsmTransitionToSyntaxLabel
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FsmDiagramToGraph.jl.
+#
+# FsmDiagram → GraphGraph: the state diagram. One vertex per state, one directed
+# edge per transition that has a target, and the two graph highlights derived from
+# the diagram's live fields — so the stock `GraphToGraphLayout →
+# GraphLayoutToGraphics` stages draw the whole picture, including the current-state
+# ring and the last-transition re-stroke, with no fsm-specific rendering code.
+#
+# A vertex's content is the `FsmState` **itself**, held by identity, so clicking a
+# node selects the real state through the graph pipeline's existing
+# `vertex_layouts[i].vertex.content.…` routing. The diagram renders it through
+# `FsmStateToSyntaxLabel` — the state's name alone. Projecting a state through the
+# full notation would inline its whole transition list into the node box, and for
+# a self-loop would not terminate.
+#
+# The highlights are `ComputedCell`s over `diagram.live_state` /
+# `diagram.live_transition`, resolved to the `GraphVertex` / `GraphEdge` by
+# identity. A live driver writing those two integers repaints the overlay without
+# touching any vertex content, so the layout engine is never re-run mid-run.
+#
+# Known v1 limits, both inherited from the graph slice and recorded in the plan: a
+# self-loop transition (`target === its own state`) routes to a zero-length line
+# and so does not render, and edges are not clickable — a stay has no edge at all,
+# and both are edited in the notation.
 # ── Node and edge content projections ────────────────────────────────────────
 #
 # Compact forms used only inside the diagram: a state renders as its name, a
@@ -216,5 +189,3 @@ function map_reference_backward(::FsmDiagramToGraph, iomap, reference)
         __ => nothing
     end
 end
-
-end # module

@@ -1,76 +1,57 @@
-"""
-    FsmToJuliaCodeModule
-
-Code generation: an `FsmComponent` → a complete, runnable Julia module, built
-as a `JuliaDocument` tree and written out through the ordinary
-`print_natural_text` path.
-
-This is deliberately **not** a registered bidirectional projection. Reading a
-hand-edited generated file back into a machine is not a goal — the `.fsm`
-document is the source, the `.jl` file is output — and the bidirectionality
-convention applies to editor projections, not to exporters. What it *is* is a
-document-to-document function, so the generated code can also be shown in the
-editor (through the stock Julia pipeline) without generating a string first.
-
-The embedded code is **spliced verbatim**: a guard, an action, an entry block,
-a helper function is already a `JuliaDocument`, so it is placed into the
-generated tree as-is. Nothing is stringified and re-parsed, and nothing is
-rewritten — what the author sees in the notation is exactly what runs.
-
-## What is generated
-
-For a component named `Foo` with machines `A`, `B`:
-
-```julia
-module FooFsm
-using ...                     # the component's own `usings`
-const A_S_IDLE = Int32(0)     # one constant per state, per machine
-const A_STATE_NAMES = ("IDLE", …)
-mutable struct FooState       # the host: variables, timers, one Fsm per machine
-    fsm_a::Fsm
-    tx_timer::TimerHandle
-    num_retries::Int
-    …
-end
-FooState(; …) = …             # keyword constructor with the declared defaults
-function a_dispatch!(ctx, m::FooState, event::Int32, payload = nothing)
-    …                         # the transition logic
-end
-function a_expire_tx_timer!(ctx, m::FooState)  # one per (machine, timer) pair
-    …
-end
-<helpers verbatim>
-end # module FooFsm
-```
-
-**State values are 0-based document order.** They appear in recorded statistics
-and are compared against a reference implementation's, so the numbering is part
-of the contract, not an implementation detail.
-
-The dispatch function is straight-line branching, not a table walk: it reads
-like the hand-written protocol code it replaces, and runs at the same speed.
-The runtime module an embedder supplies (`FsmModule`) gives
-only what a local branch cannot express — the state cell, the deferred queue,
-the re-entrancy guard, the cascade cap.
-"""
-module FsmToJuliaCodeModule
-
-import ..FsmModule: FsmComponent, FsmMachine, FsmState, FsmTransition,
-                    FsmVariable, FsmTimer, FsmEvent,
-                    get_fsm_states, get_fsm_transitions
-import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
-                      JuliaString, JuliaNothing, JuliaCall, JuliaBinaryOperation,
-                      JuliaAssignment, JuliaBlock, JuliaIf, JuliaWhile,
-                      JuliaReturn, JuliaBreak, JuliaConst, JuliaUsing,
-                      JuliaStruct, JuliaSubtype, JuliaFunction, JuliaTuple,
-                      JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDefinition,
-                      JuliaUnaryOperation
-import ..NaturalModule: print_natural_text
-
-export generate_component, generate_component_text, export_component,
-       get_fsm_state_constant_name, get_fsm_field_name, dispatch_function_name,
-       get_fsm_event_constant_name
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FsmToJuliaCode.jl.
+#
+# Code generation: an `FsmComponent` → a complete, runnable Julia module, built
+# as a `JuliaDocument` tree and written out through the ordinary
+# `print_natural_text` path.
+#
+# This is deliberately **not** a registered bidirectional projection. Reading a
+# hand-edited generated file back into a machine is not a goal — the `.fsm`
+# document is the source, the `.jl` file is output — and the bidirectionality
+# convention applies to editor projections, not to exporters. What it *is* is a
+# document-to-document function, so the generated code can also be shown in the
+# editor (through the stock Julia pipeline) without generating a string first.
+#
+# The embedded code is **spliced verbatim**: a guard, an action, an entry block,
+# a helper function is already a `JuliaDocument`, so it is placed into the
+# generated tree as-is. Nothing is stringified and re-parsed, and nothing is
+# rewritten — what the author sees in the notation is exactly what runs.
+#
+# ## What is generated
+#
+# For a component named `Foo` with machines `A`, `B`:
+#
+# ```julia
+# module FooFsm
+# using ...                     # the component's own `usings`
+# const A_S_IDLE = Int32(0)     # one constant per state, per machine
+# const A_STATE_NAMES = ("IDLE", …)
+# mutable struct FooState       # the host: variables, timers, one Fsm per machine
+#     fsm_a::Fsm
+#     tx_timer::TimerHandle
+#     num_retries::Int
+#     …
+# end
+# FooState(; …) = …             # keyword constructor with the declared defaults
+# function a_dispatch!(ctx, m::FooState, event::Int32, payload = nothing)
+#     …                         # the transition logic
+# end
+# function a_expire_tx_timer!(ctx, m::FooState)  # one per (machine, timer) pair
+#     …
+# end
+# <helpers verbatim>
+# end # module FooFsm
+# ```
+#
+# **State values are 0-based document order.** They appear in recorded statistics
+# and are compared against a reference implementation's, so the numbering is part
+# of the contract, not an implementation detail.
+#
+# The dispatch function is straight-line branching, not a table walk: it reads
+# like the hand-written protocol code it replaces, and runs at the same speed.
+# The runtime module an embedder supplies (`FsmModule`) gives
+# only what a local branch cannot express — the state cell, the deferred queue,
+# the re-entrancy guard, the cascade cap.
 # ── Naming ───────────────────────────────────────────────────────────────────
 #
 # Every generated name is derived here, in one place, so the dispatch function,
@@ -474,5 +455,3 @@ function export_component(component::FsmComponent, path::AbstractString;
     write(path, generate_component_text(component; wrap_module = wrap_module))
     path
 end
-
-end # module

@@ -5,7 +5,7 @@
 # makes an RST page a **stack of blocks** instead of one syntax tree, so
 # each block renders in its own domain.
 #
-# It exists for the same reason `MarkdownToLayoutModule` does: an embedded
+# It exists for the same reason markdown's page layout does: an embedded
 # document may belong to a domain that is *not* syntax-producible. A card
 # around an embed is a widget, and a widget squeezed through a syntax tree
 # would arrive as reflected text and would never see a click.

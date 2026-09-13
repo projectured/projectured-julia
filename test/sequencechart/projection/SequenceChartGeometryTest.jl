@@ -16,7 +16,7 @@
 
 using Test
 
-const SCG = SequenceChartGeometryModule
+const SCG = SequenceChartModule
 
 # A trace with the two shapes that make sequence charts hard: a burst of events
 # sharing one instant, and a long quiet gap afterwards.

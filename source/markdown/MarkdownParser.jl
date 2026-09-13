@@ -1,30 +1,20 @@
-"""
-    MarkdownParserModule
-
-A small, pragmatic Markdown parser. Converts Markdown source text into a
-`MarkdownRoot` tree from `MarkdownModule`.
-
-Provides:
-- `parse_markdown(text)` — parse a Markdown string into a `MarkdownRoot`
-- `parse_markdown_file(path)` — read and parse a `.md` file from disk
-
-Deliberately minimal (it is not CommonMark-conformant). Block level: ATX headings
-(`#`…`######`), fenced code blocks (```` ``` ````), thematic breaks
-(`---`/`***`/`___`), blockquotes (`>`), unordered/ordered lists (`-`/`*`/`+`,
-`1.`), and paragraphs (consecutive non-blank lines). Inline level: `` `code` ``,
-`**strong**`, `*emphasis*`, `![alt](url)` images and `[text](url)` links; anything
-unmatched degrades to literal text. It is enough to turn model output or typed
-Markdown into a real document.
-"""
-module MarkdownParserModule
-
-import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownHeading, MarkdownParagraph,
-                         MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList,
-                         MarkdownListItem, MarkdownText, MarkdownCode, MarkdownEmphasis,
-                         MarkdownStrong, MarkdownLink, MarkdownImage
-
-export parse_markdown, parse_markdown_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MarkdownParser.jl.
+#
+# A small, pragmatic Markdown parser. Converts Markdown source text into a
+# `MarkdownRoot` tree from `MarkdownModule`.
+#
+# Provides:
+# - `parse_markdown(text)` — parse a Markdown string into a `MarkdownRoot`
+# - `parse_markdown_file(path)` — read and parse a `.md` file from disk
+#
+# Deliberately minimal (it is not CommonMark-conformant). Block level: ATX headings
+# (`#`…`######`), fenced code blocks (```` ``` ````), thematic breaks
+# (`---`/`***`/`___`), blockquotes (`>`), unordered/ordered lists (`-`/`*`/`+`,
+# `1.`), and paragraphs (consecutive non-blank lines). Inline level: `` `code` ``,
+# `**strong**`, `*emphasis*`, `![alt](url)` images and `[text](url)` links; anything
+# unmatched degrades to literal text. It is enough to turn model output or typed
+# Markdown into a real document.
 # ── Inline parsing (character-level over a `Vector{Char}`) ─────────────────────
 
 _find(cs, ch, from) = findnext(==(ch), cs, from)
@@ -195,5 +185,3 @@ end
 Read and parse a `.md` file from disk.
 """
 parse_markdown_file(path::AbstractString) = parse_markdown(read(path, String))
-
-end # module

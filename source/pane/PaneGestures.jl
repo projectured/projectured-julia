@@ -1,35 +1,21 @@
-"""
-    PaneGesturesModule
-
-The keyboard, as a reified [`@gestures`](@ref) table on `PaneTree`.
-
-Every chord carries a modifier, because the plain keys belong to the content of
-the focused tab. Two of them need more than that:
-
-  * **`Ctrl+Alt` and the arrows** move the focus between groups. Plain
-    `Alt`+arrow is the structural navigation of a document — a syntax tree binds
-    it — so the pane layer takes the next chord out rather than fighting it.
-  * **`Ctrl+Tab`** traverses the groups, and is declared `override` because the
-    widget split pane answers every `Tab` with its own focus traversal. Plain
-    `Tab` can not do this work at all: a text document takes it.
-
-Nothing here builds an operation of its own — each rule calls a surgery builder,
-which answers with a generic operation.
-"""
-module PaneGesturesModule
-
-import ..GestureBindingModule: var"@gestures"
-import ..PaneModule: PaneTree, PaneGroup, PaneTab, default_new_pane_tab, get_pane_groups
-import ..PaneSurgeryModule: get_pane_focus, get_pane_focused_group, make_pane_focus_operation,
-                            make_pane_open_tab_operation, make_pane_close_tab_operation,
-                            make_pane_split_operation, get_pane_focus_title,
-                            make_pane_title_caret_operation, make_pane_retarget_title_operation,
-                            get_pane_shown_tab_index
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyPress, KeyDown, ModifierKeys
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PaneGestures.jl.
+#
+# The keyboard, as a reified [`@gestures`](@ref) table on `PaneTree`.
+#
+# Every chord carries a modifier, because the plain keys belong to the content of
+# the focused tab. Two of them need more than that:
+#
+#   * **`Ctrl+Alt` and the arrows** move the focus between groups. Plain
+#     `Alt`+arrow is the structural navigation of a document — a syntax tree binds
+#     it — so the pane layer takes the next chord out rather than fighting it.
+#   * **`Ctrl+Tab`** traverses the groups, and is declared `override` because the
+#     widget split pane answers every `Tab` with its own focus traversal. Plain
+#     `Tab` can not do this work at all: a text document takes it.
+#
+# Nothing here builds an operation of its own — each rule calls a surgery builder,
+# which answers with a generic operation.
 const _NO_MODIFIERS = ModifierKeys()
-import ..PaneGeometryModule: get_pane_neighbour_group, get_pane_next_group
 
 # ── The rules' bodies ──────────────────────────────────────────────────────
 
@@ -142,5 +128,3 @@ end
     KeyDown(:delete;) =>
         "Delete forward in the tab name" => _title_edit(doc, KeyDown(:delete, _NO_MODIFIERS))
 end
-
-end # module PaneGesturesModule

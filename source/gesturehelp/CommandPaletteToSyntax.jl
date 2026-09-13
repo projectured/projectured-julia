@@ -1,35 +1,17 @@
-"""
-    CommandPaletteToSyntaxModule
-
-Projects a [`CommandPalette`](CommandPalette.jl) onto a `SyntaxNode` for display:
-the type-in line, then one line per matching command, reusing the existing
-`SyntaxToText → TextToGraphics` pipeline the help window already uses.
-
-Read-only. The palette's own decorator owns every key, so there is no reader here
-and no reference mapping — a palette line is a label, not a place a selection can
-land.
-
-The children are a reactive thunk, not a fixed vector: `print_document` runs once,
-and the palette re-derives on every keystroke. A captured list would freeze the
-render at the moment the palette opened.
-"""
-module CommandPaletteToSyntaxModule
-
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..CommandPaletteModule: CommandPalette, get_command_palette_matches,
-                               get_command_palette_selected
-import ..TextModule: TextString
-import ..StyleModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
-import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
-                      color_solarized_violet, color_default
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..PrinterContextModule: PrinterContext
-
-export CommandPaletteToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from CommandPaletteToSyntax.jl.
+#
+# Projects a [`CommandPalette`](CommandPalette.jl) onto a `SyntaxNode` for display:
+# the type-in line, then one line per matching command, reusing the existing
+# `SyntaxToText → TextToGraphics` pipeline the help window already uses.
+#
+# Read-only. The palette's own decorator owns every key, so there is no reader here
+# and no reference mapping — a palette line is a label, not a place a selection can
+# land.
+#
+# The children are a reactive thunk, not a fixed vector: `print_document` runs once,
+# and the palette re-derives on every keystroke. A captured list would freeze the
+# render at the moment the palette opened.
 # DejaVu, not Ubuntu: the palette writes the caret and the row marker as chevron
 # glyphs, and SDL draws a tofu box for a glyph the font lacks — it does no
 # fallback. Ubuntu Mono lacks both.
@@ -90,5 +72,3 @@ function print_document(p::CommandPaletteToSyntax, recursion, doc::CommandPalett
     end
     SimpleIoMap(p, doc, SyntaxNode(children; sep=TextString("\n")))
 end
-
-end # module

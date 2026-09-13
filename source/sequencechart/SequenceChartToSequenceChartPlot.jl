@@ -1,34 +1,19 @@
-"""
-    SequenceChartToSequenceChartPlotModule
-
-SequenceChart → SequenceChartPlot: the first stage of the sequence chart
-pipeline, and a thin one. It wraps the semantic chart in the presentation
-document carrying the view window, the pointer, the hover and any drag in
-progress, so the renderer downstream has one place to read all of it and the
-chart itself stays pure content.
-
-The `SequenceChartPlot` is built once per projection setup and keeps its
-identity, so the window survives a data change: appending events invalidates the
-geometry beneath it without disturbing where the reader had scrolled to.
-
-Selection peels exactly the one step this stage owns — `chart` — and hands the
-rest through unchanged, so a selection naming an event or a lane round-trips
-through the whole pipeline.
-"""
-module SequenceChartToSequenceChartPlotModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, map_reference_forward,
-                              map_reference_backward, Projection
-import ..SequenceChartModule: SequenceChart, SequenceChartNothing, SequenceChartInsertion
-import ..SequenceChartPlotModule: SequenceChartPlot
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: get_reference_node_type
-import ..ReferenceModule: var"@reference"
-import ..ReferenceModule: var"@reference_case"
-
-export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SequenceChartToSequenceChartPlot.jl.
+#
+# SequenceChart → SequenceChartPlot: the first stage of the sequence chart
+# pipeline, and a thin one. It wraps the semantic chart in the presentation
+# document carrying the view window, the pointer, the hover and any drag in
+# progress, so the renderer downstream has one place to read all of it and the
+# chart itself stays pure content.
+#
+# The `SequenceChartPlot` is built once per projection setup and keeps its
+# identity, so the window survives a data change: appending events invalidates the
+# geometry beneath it without disturbing where the reader had scrolled to.
+#
+# Selection peels exactly the one step this stage owns — `chart` — and hands the
+# rest through unchanged, so a selection naming an event or a lane round-trips
+# through the whole pipeline.
 """
     SequenceChartToSequenceChartPlot()
 
@@ -90,5 +75,3 @@ function map_reference_backward(::SequenceChartToSequenceChartPlot, iomap, refer
         __ => nothing
     end
 end
-
-end # module

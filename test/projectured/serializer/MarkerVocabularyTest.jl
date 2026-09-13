@@ -11,7 +11,7 @@ using ProjecturedSerialization.SerializationModule
 using ProjecturedJulia.JuliaModule
 import ProjecturedJson
 using ProjecturedJson.JsonModule
-using ProjecturedMarkdown.MarkdownFileModule
+using ProjecturedMarkdown.MarkdownModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
 using ProjecturedNatural.NaturalModule: print_natural_text
 

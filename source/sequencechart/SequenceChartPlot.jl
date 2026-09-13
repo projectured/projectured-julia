@@ -1,28 +1,19 @@
-"""
-    SequenceChartPlotModule
-
-The sequence chart's presentation document: a `SequenceChart` plus everything
-about *looking at* one — the window onto the timeline, where the pointer is,
-what is hovered, a drag in progress.
-
-None of that is chart content. A saved chart should not remember where someone
-had scrolled to, and the same trace shown in two panes should be able to be
-zoomed differently in each. So the interaction state lives here, on a document
-the projection produces, the same split `ChartPlot` makes against `Chart` and
-`GraphLayout` makes against `GraphGraph`.
-
-`SequenceChartToSequenceChartPlot` builds one and keeps its identity across
-reprints, so the view survives a data change — which is what lets a chart follow
-a growing trace without the window jumping.
-"""
-module SequenceChartPlotModule
-
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..SequenceChartModule: SequenceChartDocument
-
-export SequenceChartView, get_sequence_chart_view, view_contains
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SequenceChartPlot.jl.
+#
+# The sequence chart's presentation document: a `SequenceChart` plus everything
+# about *looking at* one — the window onto the timeline, where the pointer is,
+# what is hovered, a drag in progress.
+#
+# None of that is chart content. A saved chart should not remember where someone
+# had scrolled to, and the same trace shown in two panes should be able to be
+# zoomed differently in each. So the interaction state lives here, on a document
+# the projection produces, the same split `ChartPlot` makes against `Chart` and
+# `GraphLayout` makes against `GraphGraph`.
+#
+# `SequenceChartToSequenceChartPlot` builds one and keeps its identity across
+# reprints, so the view survives a data change — which is what lets a chart follow
+# a growing trace without the window jumping.
 """
     SequenceChartView(anchor, offset, span)
 
@@ -100,5 +91,3 @@ The plot's window, or `nothing` when it is fitting the whole trace. A
 convenience so readers do not reach through the cell by hand.
 """
 get_sequence_chart_view(plot::SequenceChartPlot) = plot.view
-
-end # module

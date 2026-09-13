@@ -14,7 +14,7 @@
 
 using Test
 
-const SCT = SequenceChartPlotToGraphicsModule
+const SCT = SequenceChartModule
 
 _sequencechart_projection(; width::Integer=900, height::Integer=520) =
     ChainingProjection(
