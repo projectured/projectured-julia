@@ -4,7 +4,7 @@ been forced renders as the document it evaluated to, in that
 document's own domain, and the caret walks into it and back out.
 
 The two directions are deliberately different projections and both are
-asserted here: the fabric (`natural_to_syntax_dispatch`) renders an
+asserted here: the fabric (`make_natural_to_syntax_dispatch`) renders an
 embed inline, the domain projection alone (`print_natural_text`, the save
 path) renders only the marker.
 """
@@ -15,7 +15,7 @@ using ProjecturedSerialization.FileProjectModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedMarkdown.MarkdownModule: MarkdownDocument, MarkdownRoot
 using ProjecturedMarkdown.MarkdownToSyntaxModule: MarkdownToSyntax
-using ProjecturedSyntax.SyntaxNaturalModule: natural_to_syntax_dispatch
+using ProjecturedSyntax.SyntaxNaturalModule: make_natural_to_syntax_dispatch
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
@@ -44,7 +44,7 @@ const _ME_JSON_PAGE = "# Data\n\nProse before.\n\n```pred-ref\n" *
 # The open-card chevron the embed card's header draws.
 const _ME_CHEVRON = "▾"
 
-_me_fabric() = RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch()))
+_me_fabric() = RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch()))
 
 _me_rendered_text(document) =
     String(print_document(ChainingProjection(_me_fabric(),

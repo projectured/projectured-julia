@@ -37,10 +37,10 @@ import ..DocumentCoreModule: DocumentNothing
 import ..NaturalRegistryModule: natural_syntax_entries, register_natural_fallback!
 import ..NaturalNotationModule: register_natural_rung!
 
-export natural_to_syntax_dispatch, register_syntax_fallback!
+export make_natural_to_syntax_dispatch, register_syntax_fallback!
 
 """
-    natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
+    make_natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
 
 The shared *to-syntax* dispatch table: every syntax-producible domain → its
 `*ToSyntax`, collections → `CollectionToSyntax`, and the `ObjectToSyntax`
@@ -53,7 +53,7 @@ already has, which is also how a domain living downstream of this package — a 
 file, an INI config — gets rendered. The registered rows come FIRST, so a domain
 can override another domain's row.
 """
-function natural_to_syntax_dispatch()
+function make_natural_to_syntax_dispatch()
     vcat(
         natural_syntax_entries(),
         Pair{Type,Any}[
@@ -78,7 +78,7 @@ end
 # draw a placeholder or a name buffer; `Any` is the reflection tail.
 function _fallback_rows(; measure, font, wrap)
     fabric = ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(natural_to_syntax_dispatch())),
+        RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure = measure),
     )

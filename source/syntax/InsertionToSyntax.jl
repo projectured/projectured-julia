@@ -73,7 +73,7 @@ import ..CellModule: Cell, ComputedCell
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, parse_completion,
-       insertion_insert, insertion_delete
+       insert_insertion_text_operation, delete_insertion_text_operation
 
 # ── Projection ────────────────────────────────────────────────────────────────
 
@@ -267,19 +267,19 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
             (doc, event) -> _insertion_tab(p, ins),
             (doc, sel) -> true, "Accept completion", "insertion"),
         GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
-            (doc, event) -> insertion_delete(ins, :backspace),
+            (doc, event) -> delete_insertion_text_operation(ins, :backspace),
             (doc, sel) -> true, "Delete backward", "insertion"),
         GestureBinding(KeyDownPattern(:delete, nothing, nothing),
-            (doc, event) -> insertion_delete(ins, :delete),
+            (doc, event) -> delete_insertion_text_operation(ins, :delete),
             (doc, sel) -> true, "Delete forward", "insertion"),
         GestureBinding(KeyPressPattern(nothing),
-            (doc, event) -> insertion_insert(ins, event.text),
+            (doc, event) -> insert_insertion_text_operation(ins, event.text),
             (doc, sel) -> true, "Insert character", "insertion"),
     ]
 end
 
 # Insert printable text at the value cursor; nothing without a value[range] cursor.
-function insertion_insert(ins, text)
+function insert_insertion_text_operation(ins, text)
     range = _value_range(ins)
     range === nothing ? nothing : ReplaceStringRangeOperation(_value_path(range), text)
 end
@@ -302,7 +302,7 @@ function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
 end
 
 # Backspace/Delete range computation; nothing at the value boundary.
-function insertion_delete(ins, dir::Symbol)
+function delete_insertion_text_operation(ins, dir::Symbol)
     range = _value_range(ins)
     range === nothing && return nothing
     n = length(something(ins.value, ""))

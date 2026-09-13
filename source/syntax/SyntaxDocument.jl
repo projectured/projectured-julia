@@ -44,9 +44,9 @@ import ..FontModule: font_ubuntu_monospace_regular_20
 import ..ColorModule: color_default
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_function!,
-       syntax_children, syntax_opening, syntax_closing, syntax_separator,
-       syntax_indentation, syntax_collapsed, syntax_collapsible,
-       syntax_child_path, peel_child_step
+       get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
+       get_indentation, is_syntax_collapsed, is_syntax_collapsible,
+       build_syntax_child_path, peel_child_step
 
 """
     SyntaxDocument
@@ -88,7 +88,7 @@ A compound with exactly one child, held in `content` and addressed `.content` �
 A wrapper is a compound like any other: it has a child, it lays out its own spans
 around it, and it is a level of the tree. It is not a special case for the printer,
 the mappers, the readers or the flat metric — the only thing that distinguishes it is
-*how it addresses its child*, which is what `syntax_child_path` answers.
+*how it addresses its child*, which is what `build_syntax_child_path` answers.
 """
 abstract type SyntaxWrapper <: SyntaxCompound end
 
@@ -106,9 +106,9 @@ abstract type SyntaxWrapper <: SyntaxCompound end
 # mappers knowing the difference.
 
 "Every compound's children. A `SyntaxDocument` that is not a compound has none."
-syntax_children(s::SyntaxSequence) = s.children
-syntax_children(w::SyntaxWrapper) = [w.content]      # exactly one, always
-syntax_children(::SyntaxDocument) = nothing
+get_syntax_children(s::SyntaxSequence) = s.children
+get_syntax_children(w::SyntaxWrapper) = [w.content]      # exactly one, always
+get_syntax_children(::SyntaxDocument) = nothing
 
 # ── How a compound addresses its child ───────────────────────────────────────
 #
@@ -118,24 +118,24 @@ syntax_children(::SyntaxDocument) = nothing
 # metric — is written against these two functions and so does not care which it has.
 
 """
-    syntax_child_path(doc, i, inner) -> Reference
+    build_syntax_child_path(doc, i, inner) -> Reference
 
 The path from `doc` down into its `i`-th child, with `inner` beneath it. The type
 checkpoint is the compound's own — `get_reference_node_type`, never `typeof`, which on a
 `@document` struct is the reactive `R`-prefixed type.
 
 **Reads nothing from the document**, deliberately. The reference mappers call this on
-every caret step; indexing `syntax_children(doc)[i]` here would make each call a
+every caret step; indexing `get_syntax_children(doc)[i]` here would make each call a
 *reactive read* of the child's element cell, which registers a dependency on whatever
 cell happens to be computing. Path construction has no business doing that. Anything
 that genuinely needs the child — see `_child_step`, which runs in a reader once per
 keystroke — must already have it in hand.
 """
-syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
+build_syntax_child_path(doc::SyntaxSequence, i::Int, inner) =
     ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("children"),
         ConcreteReference(CellVector, RangeReferenceStep(i - 1, i), inner))
 
-syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
+build_syntax_child_path(doc::SyntaxWrapper, ::Int, inner) =
     ConcreteReference(get_reference_node_type(doc), FieldReferenceStep("content"), inner)
 
 """
@@ -171,15 +171,15 @@ function _rebuild_child_step(node::ConcreteReference, tail)
 end
 
 "The compound's opening / closing delimiter and separator, as `field => span`, or `nothing`."
-syntax_opening(::SyntaxCompound) = nothing
-syntax_closing(::SyntaxCompound) = nothing
-syntax_separator(::SyntaxCompound) = nothing
+get_opening_delimiter(::SyntaxCompound) = nothing
+get_closing_delimiter(::SyntaxCompound) = nothing
+get_separator(::SyntaxCompound) = nothing
 
 "The compound's pretty-print indentation; `0` for one that does not indent."
-syntax_indentation(::SyntaxCompound) = 0
+get_indentation(::SyntaxCompound) = 0
 
 "Whether the compound is collapsed; `false` for one that cannot collapse."
-syntax_collapsed(::SyntaxCompound) = false
+is_syntax_collapsed(::SyntaxCompound) = false
 
 """
 Whether the compound can collapse at all.
@@ -188,7 +188,7 @@ Only a compound that can collapse is given a fold marker, and only such a compou
 can be the target of a `ToggleCollapseOperation`. A compound with no `collapsed`
 field would otherwise be handed a marker glyph that does nothing when clicked.
 """
-syntax_collapsible(::SyntaxCompound) = false
+is_syntax_collapsible(::SyntaxCompound) = false
 
 # ── SyntaxInsertion ───────────────────────────────────────────────────────
 
@@ -234,9 +234,9 @@ SyntaxDelimitation(content; opening_delimiter=nothing, closing_delimiter=nothing
                          closing_delimiter=_text(closing_delimiter),
                          content=content, kwargs...)
 
-syntax_opening(d::SyntaxDelimitation) =
+get_opening_delimiter(d::SyntaxDelimitation) =
     d.opening_delimiter === nothing ? nothing : (:opening_delimiter => d.opening_delimiter)
-syntax_closing(d::SyntaxDelimitation) =
+get_closing_delimiter(d::SyntaxDelimitation) =
     d.closing_delimiter === nothing ? nothing : (:closing_delimiter => d.closing_delimiter)
 
 """
@@ -262,7 +262,7 @@ end
 SyntaxIndentation(content; indentation::Int=0, kwargs...) =
     SyntaxIndentation(; indentation=indentation, content=content, kwargs...)
 
-syntax_indentation(i::SyntaxIndentation) = i.indentation
+get_indentation(i::SyntaxIndentation) = i.indentation
 
 """
     SyntaxCollapsible
@@ -287,8 +287,8 @@ end
 SyntaxCollapsible(content; collapsed::Bool=false, kwargs...) =
     SyntaxCollapsible(; collapsed=collapsed, content=content, kwargs...)
 
-syntax_collapsed(c::SyntaxCollapsible)   = c.collapsed
-syntax_collapsible(::SyntaxCollapsible)  = true
+is_syntax_collapsed(c::SyntaxCollapsible)   = c.collapsed
+is_syntax_collapsible(::SyntaxCollapsible)  = true
 
 """
     SyntaxNavigation
@@ -398,7 +398,7 @@ end
 SyntaxSeparation(children; separator=nothing, kwargs...) =
     SyntaxSeparation(; children=_children(children), separator=_text(separator), kwargs...)
 
-syntax_separator(s::SyntaxSeparation) =
+get_separator(s::SyntaxSeparation) =
     s.separator === nothing ? nothing : (:separator => s.separator)
 
 # ── Constructor helpers ────────────────────────────────────────────────────
@@ -560,12 +560,12 @@ end
 # `SyntaxNode` is the compound that carries every span at once — the combined type
 # a domain reaches for when its node really is delimited, separated, indented and
 # collapsible. It answers the whole contract.
-syntax_opening(n::SyntaxNode)     = n.open === nothing ? nothing : (:open  => n.open)
-syntax_closing(n::SyntaxNode)     = n.close === nothing ? nothing : (:close => n.close)
-syntax_separator(n::SyntaxNode)   = n.sep === nothing ? nothing : (:sep   => n.sep)
-syntax_indentation(n::SyntaxNode) = n.indentation
-syntax_collapsed(n::SyntaxNode)   = n.collapsed
-syntax_collapsible(::SyntaxNode)  = true
+get_opening_delimiter(n::SyntaxNode)     = n.open === nothing ? nothing : (:open  => n.open)
+get_closing_delimiter(n::SyntaxNode)     = n.close === nothing ? nothing : (:close => n.close)
+get_separator(n::SyntaxNode)   = n.sep === nothing ? nothing : (:sep   => n.sep)
+get_indentation(n::SyntaxNode) = n.indentation
+is_syntax_collapsed(n::SyntaxNode)   = n.collapsed
+is_syntax_collapsible(::SyntaxNode)  = true
 
 # Canonical keyword constructor: `children` leads positionally. Its only job is to
 # coerce — the delimiters through `_text`, the children through `_children` — and
@@ -629,10 +629,10 @@ _span_of(::Nothing) = nothing
 _span_of(pair::Pair) = pair.second
 
 function render(c::SyntaxCompound)
-    parts = [render(child) for child in syntax_children(c)]
-    string(_delimiter_content(_span_of(syntax_opening(c))),
-           join(parts, _delimiter_content(_span_of(syntax_separator(c)))),
-           _delimiter_content(_span_of(syntax_closing(c))))
+    parts = [render(child) for child in get_syntax_children(c)]
+    string(_delimiter_content(_span_of(get_opening_delimiter(c))),
+           join(parts, _delimiter_content(_span_of(get_separator(c)))),
+           _delimiter_content(_span_of(get_closing_delimiter(c))))
 end
 
 # ── set_cell_function! delegation ───────────────────────────────────────────────────
@@ -716,12 +716,12 @@ _typed_terminal(t::EmptyReference, child) =
     t.type === nothing ? EmptyReference(get_reference_node_type(child)) : t
 _typed_terminal(t, _child) = t
 
-# The navigation-side child step: `syntax_child_path` plus the child's type on a bare
-# `∅`. This one DOES read the child, so it belongs here and not in `syntax_child_path`
+# The navigation-side child step: `build_syntax_child_path` plus the child's type on a bare
+# `∅`. This one DOES read the child, so it belongs here and not in `build_syntax_child_path`
 # — tree navigation runs in a reader, once per keystroke, where a reactive read is
 # harmless. The mappers, which run per caret step, must keep using the pure form.
 _child_step(doc, i::Int, inner) =
-    syntax_child_path(doc, i, _typed_terminal(inner, syntax_children(doc)[i]))
+    build_syntax_child_path(doc, i, _typed_terminal(inner, get_syntax_children(doc)[i]))
 
 # The whole element: `doc`'s `i`-th child, selected entirely.
 _child_element(doc, i::Int) = _child_step(doc, i, EmptyReference())
@@ -730,7 +730,7 @@ function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
     # sel must be a tree selection: child steps ending in ∅.
     sel === nothing && return nothing
     sel = _unwrap_projection_ref(sel)
-    children = syntax_children(doc)
+    children = get_syntax_children(doc)
 
     # ∅ on this node: it is wholly selected.
     if sel isa EmptyReference
@@ -755,7 +755,7 @@ function _tree_navigate(doc::SyntaxCompound, sel, direction::Symbol)
         elseif direction === :down
             # Descend into the child, if it is an interior node with children of
             # its own; otherwise stay where we are.
-            grandchildren = syntax_children(child)
+            grandchildren = get_syntax_children(child)
             (grandchildren !== nothing && length(grandchildren) > 0) || return _child_element(doc, child_idx)
             return _child_step(doc, child_idx, _child_element(child, 1))
         elseif direction === :left
@@ -828,7 +828,7 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
         step = peel_child_step(p)
         step === nothing && return nothing
         i, tail = step
-        children = syntax_children(cur)
+        children = get_syntax_children(cur)
         children === nothing && return nothing
         (1 <= i <= length(children)) || return nothing
         push!(docs, cur)
@@ -839,16 +839,16 @@ function _descend_to_text_cursor(node::SyntaxCompound, sel)
     # Descend through any interior node — the first leaf is where a text cursor can
     # actually land.
     while cur isa SyntaxCompound
-        isempty(syntax_children(cur)) && return nothing
+        isempty(get_syntax_children(cur)) && return nothing
         push!(docs, cur)
         push!(indices, 1)
-        cur = syntax_children(cur)[1]
+        cur = get_syntax_children(cur)[1]
     end
     cur isa SyntaxLeaf || return nothing
     path = ConcreteReference(FieldReferenceStep("value"),
                ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
     for k in length(indices):-1:1
-        path = syntax_child_path(docs[k], indices[k], path)
+        path = build_syntax_child_path(docs[k], indices[k], path)
     end
     return path
 end

@@ -422,7 +422,7 @@ and the answer decides what a non-reacting write means.
 | **not shown** | neither path maps; a filtering, searching or focusing projection drops it deliberately |
 
 `SyntaxLeaf.indentation` is the reason `unproven` exists: the field is there, and
-`syntax_indentation` has no method for a leaf, so nothing consults it.
+`get_indentation` has no method for a leaf, so nothing consults it.
 `ChartToChartPlot` is the reason `carried` exists: its output wraps the live
 `Chart`, so writing `chart.title` moves nothing there and nothing is stale — the
 renderer one stage on reads the same cell.

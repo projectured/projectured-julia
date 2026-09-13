@@ -442,7 +442,7 @@ shown", and each failed in an opposite direction when it was used alone.
   at the field itself. The field is rendered, so a frozen verdict is a finding.
 - `:weak` — only the **document** path maps. The document is shown, but a field
   of it may have no reader at all: a `SyntaxLeaf` carries an `indentation` field
-  and `syntax_indentation` has no method for a leaf, so nothing consults it.
+  and `get_indentation` has no method for a leaf, so nothing consults it.
   Writing such a field correctly moves nothing, and a frozen verdict here proves
   nothing.
 - `:none` — neither maps. The projection drops this location; filtering,

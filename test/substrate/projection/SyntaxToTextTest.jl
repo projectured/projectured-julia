@@ -346,12 +346,12 @@ end
     @test c isa SyntaxCompound
     @test !(SyntaxLeaf("a") isa SyntaxCompound)
     # It answers the compound contract with the defaults throughout.
-    @test syntax_opening(c) === nothing
-    @test syntax_closing(c) === nothing
-    @test syntax_separator(c) === nothing
-    @test syntax_indentation(c) == 0
-    @test syntax_collapsed(c) == false
-    @test syntax_collapsible(c) == false     # so it is never given a (dead) fold marker
+    @test get_opening_delimiter(c) === nothing
+    @test get_closing_delimiter(c) === nothing
+    @test get_separator(c) === nothing
+    @test get_indentation(c) == 0
+    @test is_syntax_collapsed(c) == false
+    @test is_syntax_collapsible(c) == false     # so it is never given a (dead) fold marker
 end
 
 @testset "a marker is never emitted for a concatenation" begin
@@ -442,7 +442,7 @@ s2st = RecursiveProjection(SyntaxToText())
     @test render(s) == "a, b, c"
     # n children, n-1 separators, and nothing else.
     @test length(out.elements) == 5
-    @test syntax_separator(s).first === :separator      # its own field name, not `sep`
+    @test get_separator(s).first === :separator      # its own field name, not `sep`
 end
 
 @testset "an absent separator is a concatenation" begin
@@ -450,11 +450,11 @@ end
     # they must render identically.
     kids() = SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]
     bare = SyntaxSeparation(kids())
-    @test syntax_separator(bare) === nothing
+    @test get_separator(bare) === nothing
     @test render(bare) == render(SyntaxConcatenation(kids()))
     @test [x.content for x in print_document(s2st, bare).output.elements] == ["a", "b"]
     # An empty separator string means the same thing as none.
-    @test syntax_separator(SyntaxSeparation(kids(); separator="")) === nothing
+    @test get_separator(SyntaxSeparation(kids(); separator="")) === nothing
 end
 
 @testset "a cursor maps onto the separator, an edit does not map back to it" begin
@@ -532,9 +532,9 @@ s2st = RecursiveProjection(SyntaxToText())
     @test d isa SyntaxWrapper
     @test d isa SyntaxCompound
     @test !(d isa SyntaxSequence)
-    @test length(syntax_children(d)) == 1
-    @test syntax_opening(d).first === :opening_delimiter   # its own field name
-    @test syntax_closing(d).first === :closing_delimiter
+    @test length(get_syntax_children(d)) == 1
+    @test get_opening_delimiter(d).first === :opening_delimiter   # its own field name
+    @test get_closing_delimiter(d).first === :closing_delimiter
 end
 
 @testset "each wrapper lays out the one job it owns" begin
@@ -558,9 +558,9 @@ end
 
 @testset "only a collapsible wrapper can collapse" begin
     leaf = SyntaxLeaf("x")
-    @test syntax_collapsible(SyntaxCollapsible(leaf))
-    @test !syntax_collapsible(SyntaxDelimitation(leaf))
-    @test !syntax_collapsible(SyntaxIndentation(leaf))
+    @test is_syntax_collapsible(SyntaxCollapsible(leaf))
+    @test !is_syntax_collapsible(SyntaxDelimitation(leaf))
+    @test !is_syntax_collapsible(SyntaxIndentation(leaf))
     # A non-collapsible wrapper is never handed a fold marker (it would be a dead glyph).
     p_on = _S2T.SyntaxCompoundToText(expanded_marker=TextString("▾"),
                                      collapsed_marker=TextString("▸"))

@@ -28,7 +28,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..SelectionModule: with_selection
 import ..DomainModule: var"@insertion"
-import ..DocumentInsertionToSyntaxModule: insertion_insert, insertion_delete
+import ..DocumentInsertionToSyntaxModule: insert_insertion_text_operation, delete_insertion_text_operation
 import ..JuliaModule: JuliaInsertion,
                       JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
                       JuliaBegin, JuliaReturn, JuliaBlock
@@ -233,9 +233,9 @@ end
 # cursor, so the gesture keeps propagating); Enter commits in place; Tab commits and
 # jumps to the next hole.
 @gestures JuliaInsertion begin
-    KeyPress(_, t)       => "Insert character"  => insertion_insert(doc, t)
-    KeyDown(:backspace;) => "Delete backward"   => insertion_delete(doc, :backspace)
-    KeyDown(:delete;)    => "Delete forward"    => insertion_delete(doc, :delete)
+    KeyPress(_, t)       => "Insert character"  => insert_insertion_text_operation(doc, t)
+    KeyDown(:backspace;) => "Delete backward"   => delete_insertion_text_operation(doc, :backspace)
+    KeyDown(:delete;)    => "Delete forward"    => delete_insertion_text_operation(doc, :delete)
     KeyDown(:return;)    => "Commit hole"       => _julia_ins_commit(doc)
     KeyDown(:tab;)       => "Commit + next hole" => _julia_ins_tab(doc)
 end

@@ -13,7 +13,7 @@ renders as itself rather than as the marker's text:
   `<<file("child.json")>>` shows the JSON, not the `JsonFile` wrapper.
 
 Both are **neutral about the host format**: they belong to the fabric
-(`natural_to_syntax_dispatch`), which is what a document reaches when
+(`make_natural_to_syntax_dispatch`), which is what a document reaches when
 it is rendered *for reading*. Each format keeps its own stub rule for
 the other direction — `print_natural_text` runs the domain projection
 alone, whose table renders a stub as the marker in that format's

@@ -22,9 +22,9 @@ import ..SyntaxModule: SyntaxDocument, SyntaxCompound, SyntaxLeaf, SyntaxNode,
                        SyntaxConcatenation, SyntaxSeparation,
                        SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible,
                        SyntaxNavigation,
-                       syntax_children, syntax_opening, syntax_closing,
-                       syntax_separator, syntax_indentation, syntax_collapsed,
-                       syntax_collapsible, syntax_child_path, peel_child_step
+                       get_syntax_children, get_opening_delimiter, get_closing_delimiter,
+                       get_separator, get_indentation, is_syntax_collapsed,
+                       is_syntax_collapsible, build_syntax_child_path, peel_child_step
 import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..ColorModule: color_default, color_solarized_gray
@@ -256,7 +256,7 @@ end
 # any node with at least one child. Projection instances can pass a custom
 # `marker_eligible` predicate to restrict this further (e.g. the filesystem
 # pipeline marks only directory header nodes, not the indented body wrapper).
-_default_marker_eligible(node) = length(syntax_children(node)) > 0
+_default_marker_eligible(node) = length(get_syntax_children(node)) > 0
 
 # Default ellipsis glyph for a collapsed node's body. Uses the DejaVu mono
 # font (which carries the … glyph) and a muted gray so the placeholder reads
@@ -427,7 +427,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
     step = peel_child_step(reference)
     if step !== nothing
-        syntax_collapsed(node) && return nothing   # a collapsed node lays out no children
+        is_syntax_collapsed(node) && return nothing   # a collapsed node lays out no children
         child_i, ctail = step
         cims = iomap.child_iomaps
         (1 <= child_i <= length(cims)) || return nothing
@@ -452,7 +452,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     k = _rr_start(rest.head); k === nothing && return nothing
     # The separator renders between every pair of children; a cursor on it is placed
     # at the first occurrence (right after child 1).
-    separator = syntax_separator(node)
+    separator = get_separator(node)
     if separator !== nothing && fname == String(separator.first)
         seps = iomap.sep_indices
         isempty(seps) && return nothing
@@ -472,7 +472,7 @@ _child_tree_path(idx::Int) =
 
 # The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
 # for a wrapper. The compound answers; this file does not care which it is.
-_prepend_child(doc::SyntaxCompound, i::Int, inner) = syntax_child_path(doc, i, inner)
+_prepend_child(doc::SyntaxCompound, i::Int, inner) = build_syntax_child_path(doc, i, inner)
 
 # A cursor in one of this compound's own delimiter spans: `.<field>{c}`.
 _own_span_path(doc::SyntaxCompound, field::Symbol, c::Int) =
@@ -561,8 +561,8 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # projects no children (its reactive subtree is pruned).
     child_cache = IdDict{Any, IoMap}()
     child_iomaps = ComputedCell(() -> begin
-        syntax_collapsed(node) && return IoMap[]
-        kids = syntax_children(node)
+        is_syntax_collapsed(node) && return IoMap[]
+        kids = get_syntax_children(node)
         result = IoMap[]
         for (i, child) in enumerate(kids)
             child_ctx = make_child_context(ctx, node, (@reference_step children), (@reference_step [i]))
@@ -746,16 +746,16 @@ _splice_result(buf::SpliceBuffer) =
 # as its children, end to end, with no chrome and no caret that is not a child's.
 function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims)
     buf = SpliceBuffer(deco, objectid(doc), _deco_font(doc), p.indent_size)
-    indent = syntax_indentation(doc)
-    separator = syntax_separator(doc)
+    indent = get_indentation(doc)
+    separator = get_separator(doc)
 
     _push_marker!(buf, _active_marker(p, doc))       # collapse marker, before the open delimiter
-    _push_delimiter!(buf, syntax_opening(doc))
+    _push_delimiter!(buf, get_opening_delimiter(doc))
 
-    if syntax_collapsed(doc)
+    if is_syntax_collapsed(doc)
         # A collapsed node projects no children; a single ellipsis stands in for
         # them. A childless node gets none.
-        length(syntax_children(doc)) > 0 && _push_ellipsis!(buf, p.ellipsis_text)
+        length(get_syntax_children(doc)) > 0 && _push_ellipsis!(buf, p.ellipsis_text)
     else
         for (i, cim) in enumerate(cims)
             i > 1 && _push_separator!(buf, separator)
@@ -770,7 +770,7 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
         indent > 0 && _push_line_chrome!(buf, 0, 0)
     end
 
-    _push_delimiter!(buf, syntax_closing(doc))
+    _push_delimiter!(buf, get_closing_delimiter(doc))
     _splice_result(buf)
 end
 
@@ -785,7 +785,7 @@ end
 # force its output cells during the parent's splice, making the printer eager
 # where it is meant to be lazy.
 function _deco_font(node::SyntaxCompound)
-    for d in (syntax_opening(node), syntax_separator(node), syntax_closing(node))
+    for d in (get_opening_delimiter(node), get_separator(node), get_closing_delimiter(node))
         d === nothing || return d.second.font
     end
     font_ubuntu_monospace_regular_20
@@ -903,7 +903,7 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     mi > 0 && flat <= length(elements[mi].content::AbstractString) &&
         return ToggleCollapseOperation(node)
     # Own collapsed-body ellipsis (element after marker? + open).
-    syntax_collapsed(node) && length(syntax_children(node)) > 0 && j == mi + 2 &&
+    is_syntax_collapsed(node) && length(get_syntax_children(node)) > 0 && j == mi + 2 &&
         return ToggleCollapseOperation(node)
 
     for (i, r) in enumerate(iomap.child_elem_ranges)
@@ -1011,7 +1011,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     # domain's own reader defers this `.<field>` edit and the key falls through to a
     # structural gesture; for a standalone syntax document it edits the separator in place.
     if span_idx in iomap.sep_indices
-        separator = syntax_separator(iomap.input)
+        separator = get_separator(iomap.input)
         if separator !== nothing
             new_ref = ConcreteReference(get_reference_node_type(iomap.input),
                           FieldReferenceStep(String(separator.first)),
@@ -1230,9 +1230,9 @@ end
 # gesture would have nothing to act on.
 function _active_marker(p::SyntaxCompoundToText, node::SyntaxCompound)
     # A compound that cannot collapse gets no fold marker — the glyph would be dead.
-    syntax_collapsible(node) || return nothing
+    is_syntax_collapsible(node) || return nothing
     p.marker_eligible(node) || return nothing
-    m = syntax_collapsed(node) ? p.collapsed_marker : p.expanded_marker
+    m = is_syntax_collapsed(node) ? p.collapsed_marker : p.expanded_marker
     isempty(m.content::AbstractString) ? nothing : m
 end
 
@@ -1247,7 +1247,7 @@ end
 # a childless node — there is nothing to stand in for, so a collapsed empty
 # node renders as bare `<open><close>`. Only meaningful when `node.collapsed`.
 function _ellipsis_len(p::SyntaxCompoundToText, node::SyntaxCompound)
-    length(syntax_children(node)) > 0 ? length(p.ellipsis_text.content::AbstractString) : 0
+    length(get_syntax_children(node)) > 0 ? length(p.ellipsis_text.content::AbstractString) : 0
 end
 
 # Reads leaf.selection[] (.open[k], .value[k], .close[k], or PS variants) and
@@ -1347,11 +1347,11 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
         fname = h.name
         rest = path.tail
         rest isa ConcreteReference || return -1
-        opening   = syntax_opening(node)
-        closing   = syntax_closing(node)
-        separator = syntax_separator(node)
-        children  = syntax_children(node)
-        indent    = syntax_indentation(node)
+        opening   = get_opening_delimiter(node)
+        closing   = get_closing_delimiter(node)
+        separator = get_separator(node)
+        children  = get_syntax_children(node)
+        indent    = get_indentation(node)
         lead      = _marker_len(p, node) + _own_len(opening)   # everything before child 1
         if opening !== nothing && fname == String(opening.first)
             k = _rr_start(rest.head); k === nothing && return -1
@@ -1363,7 +1363,7 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
             # The separator renders between every pair of children; the cursor is
             # placed at its first occurrence (after child 1, before child 2).
             k = _rr_start(rest.head); k === nothing && return -1
-            syntax_collapsed(node) && return -1
+            is_syntax_collapsed(node) && return -1
             length(children) >= 2 || return -1
             char_count = lead
             if indent != 0
@@ -1379,7 +1379,7 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
         # no image in the rendered text.
         step = peel_child_step(path)
         step === nothing && return -1
-        syntax_collapsed(node) && return -1
+        is_syntax_collapsed(node) && return -1
         child_i, rest2 = step
         (1 <= child_i <= length(children)) || return -1
         sep_len = _own_len(separator)
@@ -1425,11 +1425,11 @@ function _subtree_len(leaf::SyntaxLeaf, ::SyntaxCompoundToText, _depth::Int)
 end
 
 function _subtree_len(node::SyntaxCompound, p::SyntaxCompoundToText, depth::Int)
-    children = syntax_children(node)
-    indent   = syntax_indentation(node)
-    sep_len  = _own_len(syntax_separator(node))
-    n = _marker_len(p, node) + _own_len(syntax_opening(node))
-    if syntax_collapsed(node)
+    children = get_syntax_children(node)
+    indent   = get_indentation(node)
+    sep_len  = _own_len(get_separator(node))
+    n = _marker_len(p, node) + _own_len(get_opening_delimiter(node))
+    if is_syntax_collapsed(node)
         n += _ellipsis_len(p, node)
     elseif indent != 0
         child_depth = depth + 1
@@ -1449,7 +1449,7 @@ function _subtree_len(node::SyntaxCompound, p::SyntaxCompoundToText, depth::Int)
             n += _subtree_len(child, p, depth)
         end
     end
-    n += _own_len(syntax_closing(node))
+    n += _own_len(get_closing_delimiter(node))
     return n
 end
 
@@ -1463,7 +1463,7 @@ end
 function _resolve_collapsible(node::SyntaxCompound, path)
     # Only a collapsible compound can be a fold target; a non-collapsible one on the
     # way down is stepped over, not selected.
-    best = syntax_collapsible(node) ? node : nothing
+    best = is_syntax_collapsible(node) ? node : nothing
     cur = node
     # Selections are canonical (carry TypeReferenceStep checkpoints); strip them so
     # the plain structural skeleton (.children[i]...) is what we walk below.
@@ -1472,12 +1472,12 @@ function _resolve_collapsible(node::SyntaxCompound, path)
         step = peel_child_step(p)
         step === nothing && break
         i, tail = step
-        children = syntax_children(cur)
+        children = get_syntax_children(cur)
         children === nothing && break
         (1 <= i <= length(children)) || break
         child = children[i]
         child isa SyntaxCompound || break
-        syntax_collapsible(child) && (best = child)
+        is_syntax_collapsible(child) && (best = child)
         cur = child
         p = strip_reference_types(tail)
     end
