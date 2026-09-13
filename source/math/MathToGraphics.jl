@@ -43,9 +43,9 @@ import ..MathModule: MathDocument, MathInsertion, MathVariable, MathSymbol, Math
                      MathAssignment, MathParenthesized, MathFraction, MathScript,
                      MathRadical, MathBigOperator, MathDifferential, MathDerivative,
                      MathFunction, MathAccent, MathMatrix, MathCase, MathCases,
-                     math_operator_glyph, math_operator_class, math_symbol_glyph,
-                     math_big_operator_glyph, math_big_operator_is_text,
-                     math_delimiter_strings, math_accent_is_wide
+                     get_math_operator_glyph, get_math_operator_class, get_math_symbol_glyph,
+                     get_math_big_operator_glyph, is_math_big_operator_text,
+                     get_math_delimiter_strings, is_math_accent_wide
 import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_property, get_property
@@ -59,8 +59,8 @@ import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPre
 import ..EventPatternModule: var"@event_case"
 import ..ReferenceModule: var"@reference_step"
 
-export MathIoMap, MathConfig, MathMetrics, math_metrics, MathToGraphics,
-       math_to_graphics_dispatch,
+export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
+       make_math_to_graphics_dispatch,
        MathVariableToGraphics, MathSymbolToGraphics, MathTextToGraphics,
        MathSpaceToGraphics, MathInsertionToGraphics, MathNumberToGraphics,
        MathRowToGraphics, MathBinaryOperationToGraphics,
@@ -242,12 +242,12 @@ _scaled(font::StyleFont, size::Integer) =
     size == font.size ? font : make_style_font(font.filename, size)
 
 """
-    math_metrics(config, style) -> MathMetrics
+    compute_math_metrics(config, style) -> MathMetrics
 
 The numbers for one style level. Call it **inside** a computed cell: it reads
 the font zoom, so a formula relayouts when the user zooms.
 """
-function math_metrics(c::MathConfig, style::Symbol)
+function compute_math_metrics(c::MathConfig, style::Symbol)
     size = max(6, round(Int, c.font.size * _script_factor(style)))
     upright = _scaled(c.font, size)
     slanted = _scaled(c.slanted, size)
@@ -365,7 +365,7 @@ the metrics so a font zoom moves them.
 function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbol,
               steps::Vector = Any[nothing for _ in boxes])
     ascent = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         a = 0
         for b in boxes
             a = max(a, _box_ascent(b, m))
@@ -373,7 +373,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
         a
     end)
     descent = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         d = 0
         for b in boxes
             d = max(d, _box_descent(b, m))
@@ -381,7 +381,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
         d
     end)
     width = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         w = 0
         for (i, b) in enumerate(boxes)
             w += _class_space(spaces[i], m) + _box_width(b, m)
@@ -392,7 +392,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
     children = MathChild[]
     for i in eachindex(boxes)
         x = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             at = 0
             for j in 1:i
                 at += _class_space(spaces[j], m)
@@ -401,7 +401,7 @@ function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbo
             Int32(at)
         end)
         y = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             Int32(ascent[] - _box_ascent(boxes[i], m))
         end)
         push!(elements, _place(_box_output(boxes[i]), x, y))
@@ -455,7 +455,7 @@ end
 function print_document(p::MathVariableToGraphics, recursion, doc::MathVariable, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> doc.name,
-                () -> math_metrics(p.config, style).slanted, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).slanted, p.config.ink, p.config)
 end
 
 struct MathSymbolToGraphics <: MathProjection
@@ -468,7 +468,7 @@ MathSymbolToGraphics(c::MathConfig) = MathSymbolToGraphics(c, :display)
 # an arrow and a capital Greek letter stay upright — the convention every
 # printed formula follows.
 function _symbol_font(name::Symbol, m::MathMetrics)
-    glyph = math_symbol_glyph(name)
+    glyph = get_math_symbol_glyph(name)
     if length(glyph) == 1
         point = UInt32(first(glyph))
         0x3B1 <= point <= 0x3C9 && return m.slanted
@@ -478,8 +478,8 @@ end
 
 function print_document(p::MathSymbolToGraphics, recursion, doc::MathSymbol, ctx)
     style = _style_of(p, ctx)
-    _leaf_iomap(p, doc, () -> math_symbol_glyph(doc.name),
-                () -> _symbol_font(doc.name, math_metrics(p.config, style)),
+    _leaf_iomap(p, doc, () -> get_math_symbol_glyph(doc.name),
+                () -> _symbol_font(doc.name, compute_math_metrics(p.config, style)),
                 p.config.ink, p.config)
 end
 
@@ -492,7 +492,7 @@ MathTextToGraphics(c::MathConfig) = MathTextToGraphics(c, :display)
 function print_document(p::MathTextToGraphics, recursion, doc::MathText, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> doc.content,
-                () -> math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
 end
 
 struct MathNumberToGraphics <: MathProjection
@@ -504,13 +504,13 @@ MathNumberToGraphics(c::MathConfig) = MathNumberToGraphics(c, :display)
 function print_document(p::MathNumberToGraphics, recursion, doc::PrimitiveNumber, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> string(doc.value),
-                () -> math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
 end
 
 function print_document(p::MathNumberToGraphics, recursion, doc::PrimitiveString, ctx)
     style = _style_of(p, ctx)
     _leaf_iomap(p, doc, () -> string(doc.value),
-                () -> math_metrics(p.config, style).upright, p.config.ink, p.config)
+                () -> compute_math_metrics(p.config, style).upright, p.config.ink, p.config)
 end
 
 struct MathSpaceToGraphics <: MathProjection
@@ -524,7 +524,7 @@ function print_document(p::MathSpaceToGraphics, recursion, doc::MathSpace, ctx)
     c = p.config
     build = ComputedCell(function ()
         width = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             doc.kind === :medium ? m.medium :
             doc.kind === :thick ? m.thick :
             doc.kind === :quad ? m.size : m.thin
@@ -546,8 +546,8 @@ function print_document(p::MathInsertionToGraphics, recursion, doc::MathInsertio
     style = _style_of(p, ctx)
     c = p.config
     build = ComputedCell(function ()
-        width = ComputedCell(() -> max(4, math_metrics(c, style).x_height))
-        ascent = ComputedCell(() -> math_metrics(c, style).x_height)
+        width = ComputedCell(() -> max(4, compute_math_metrics(c, style).x_height))
+        ascent = ComputedCell(() -> compute_math_metrics(c, style).x_height)
         element = _outline_element(() -> 0, () -> 0, () -> width[], () -> ascent[], c.hint)
         _build(Any[element], width, ascent, Cell(0), MathChild[])
     end)
@@ -597,9 +597,9 @@ function print_document(p::MathBinaryOperationToGraphics, recursion, doc::MathBi
         right_ctx = make_child_context(ctx, doc, @reference_step right)
         left = _print_math_child(recursion, doc.left, left_ctx)
         right = _print_math_child(recursion, doc.right, right_ctx)
-        sign = _glyph_box(c, () -> math_operator_glyph(doc.operator),
-                          () -> math_metrics(c, style).upright)
-        space = math_operator_class(doc.operator)
+        sign = _glyph_box(c, () -> get_math_operator_glyph(doc.operator),
+                          () -> compute_math_metrics(c, style).upright)
+        space = get_math_operator_class(doc.operator)
         _row(Any[left, sign, right], Symbol[:none, space, space], c, style,
              Any[(FieldReferenceStep("left"),), nothing, (FieldReferenceStep("right"),)])
     end)
@@ -618,8 +618,8 @@ function print_document(p::MathUnaryOperationToGraphics, recursion, doc::MathUna
     build = ComputedCell(function ()
         operand_ctx = make_child_context(ctx, doc, @reference_step operand)
         operand = _print_math_child(recursion, doc.operand, operand_ctx)
-        sign = _glyph_box(c, () -> math_operator_glyph(doc.operator),
-                          () -> math_metrics(c, style).upright)
+        sign = _glyph_box(c, () -> get_math_operator_glyph(doc.operator),
+                          () -> compute_math_metrics(c, style).upright)
         # A sign that binds to one operand takes no space: `−x`, `n!`.
         boxes = doc.postfix ? Any[operand, sign] : Any[sign, operand]
         step = (FieldReferenceStep("operand"),)
@@ -643,7 +643,7 @@ function print_document(p::MathAssignmentToGraphics, recursion, doc::MathAssignm
         value_ctx = make_child_context(ctx, doc, @reference_step value)
         target = _print_math_child(recursion, doc.target, target_ctx)
         value = _print_math_child(recursion, doc.value, value_ctx)
-        sign = _glyph_box(c, () -> "=", () -> math_metrics(c, style).upright)
+        sign = _glyph_box(c, () -> "=", () -> compute_math_metrics(c, style).upright)
         _row(Any[target, sign, value], Symbol[:none, :relation, :relation], c, style,
              Any[(FieldReferenceStep("target"),), nothing, (FieldReferenceStep("value"),)])
     end)
@@ -679,29 +679,29 @@ their ink. `half` is a thunk, so the delimiter grows when its content does.
 """
 function _delimiter_box(c::MathConfig, style::Symbol, kind::Symbol, side::Symbol,
                         half::Function)
-    glyph = side === :open ? math_delimiter_strings(kind)[1] : math_delimiter_strings(kind)[2]
+    glyph = side === :open ? get_math_delimiter_strings(kind)[1] : get_math_delimiter_strings(kind)[2]
     pieces = get(_DELIMITER_PIECES, (kind, side), nothing)
 
     # The scale one glyph needs to cover the height, and the font it lands at.
     scale = () -> begin
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         base = max(1, font_line_height(m.upright))
         max(1.0, 2 * half() / base)
     end
     scaled_font = () -> begin
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         _scaled(m.upright, max(1, round(Int, m.size * scale())))
     end
     tiled = () -> pieces !== nothing && scale() > _DELIMITER_SCALE_LIMIT
 
     width = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         isempty(glyph) && return 0
         tiled() ? c.measure(string(pieces[1]), m.upright)[1] :
                   c.measure(glyph, scaled_font())[1]
     end)
-    ascent = ComputedCell(() -> math_metrics(c, style).axis + half())
-    descent = ComputedCell(() -> max(0, half() - math_metrics(c, style).axis))
+    ascent = ComputedCell(() -> compute_math_metrics(c, style).axis + half())
+    descent = ComputedCell(() -> max(0, half() - compute_math_metrics(c, style).axis))
 
     output = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             _int32(() -> width[]),
@@ -720,7 +720,7 @@ end
 # `top` is drawn at `top - ascent + ymax`.
 function _tiled_delimiter(c::MathConfig, style::Symbol, pieces::NTuple{4, Char},
                           half::Function)
-    m = math_metrics(c, style)
+    m = compute_math_metrics(c, style)
     font = m.upright
     ascent = font_ascent(font)
     height = 2 * half()
@@ -782,7 +782,7 @@ function print_document(p::MathParenthesizedToGraphics, recursion, doc::MathPare
         # A delimiter covers its content symmetrically about the axis, plus a
         # little air, so `(1)` and `(a/b)` both look deliberate.
         half = function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             reach = max(_box_ascent(content, m) - m.axis, _box_descent(content, m) + m.axis)
             reach + m.rule
         end
@@ -814,7 +814,7 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
         numerator = _print_math_child(recursion, doc.numerator, numerator_ctx)
         denominator = _print_math_child(recursion, doc.denominator, denominator_ctx)
 
-        metrics = () -> math_metrics(c, inner)
+        metrics = () -> compute_math_metrics(c, inner)
         gap = () -> (m = metrics(); style === :display ? 3 * m.rule : m.rule)
         pad = () -> metrics().thin
 
@@ -825,18 +825,18 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
         # The rule sits on the axis; the box reaches from the top of the
         # numerator to the bottom of the denominator.
         ascent = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             im = metrics()
             m.axis + m.rule + gap() + _box_ascent(numerator, im) + _box_descent(numerator, im)
         end)
         descent = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             im = metrics()
             gap() - m.axis + _box_ascent(denominator, im) + _box_descent(denominator, im)
         end)
 
-        rule_y = ComputedCell(() -> Int32(ascent[] - math_metrics(c, style).axis -
-                                          math_metrics(c, style).rule))
+        rule_y = ComputedCell(() -> Int32(ascent[] - compute_math_metrics(c, style).axis -
+                                          compute_math_metrics(c, style).rule))
         elements = Any[]
         children = MathChild[]
         for (box, above, field) in ((numerator, true, "numerator"),
@@ -848,13 +848,13 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
             y = ComputedCell(function ()
                 m = metrics()
                 above ? Int32(rule_y[] - gap() - _box_ascent(box, m) - _box_descent(box, m)) :
-                        Int32(rule_y[] + math_metrics(c, style).rule + gap())
+                        Int32(rule_y[] + compute_math_metrics(c, style).rule + gap())
             end)
             push!(elements, _place(_box_output(box), x, y))
             push!(children, MathChild((FieldReferenceStep(field),), box, x, y))
         end
         push!(elements, _rule_element(() -> 0, () -> rule_y[], () -> width[],
-                                      () -> math_metrics(c, style).rule, c.ink))
+                                      () -> compute_math_metrics(c, style).rule, c.ink))
         _build(elements, width, ascent, descent, children)
     end)
     _math_iomap(p, doc, build)
@@ -884,8 +884,8 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
             _print_math_child(recursion, doc.superscript,
                               _with_style(make_child_context(ctx, doc, @reference_step superscript), inner))
 
-        metrics = () -> math_metrics(c, style)
-        inner_metrics = () -> math_metrics(c, inner)
+        metrics = () -> compute_math_metrics(c, style)
+        inner_metrics = () -> compute_math_metrics(c, inner)
         # How far each script's own baseline moves off the base's.
         up = ComputedCell(function ()
             superscript === nothing && return 0
@@ -982,8 +982,8 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
             _print_math_child(recursion, doc.index,
                               _with_style(make_child_context(ctx, doc, @reference_step index), :scriptscript))
 
-        metrics = () -> math_metrics(c, style)
-        index_metrics = () -> math_metrics(c, :scriptscript)
+        metrics = () -> compute_math_metrics(c, style)
+        index_metrics = () -> compute_math_metrics(c, :scriptscript)
         # The sign covers the radicand plus the bar and the air above it, so it
         # is scaled by its *ink*, not by its text box: a radical is one tall
         # stroke, and the box around it says little about where that stroke is.
@@ -1098,11 +1098,11 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
             _print_math_child(recursion, doc.upper,
                               _with_style(make_child_context(ctx, doc, @reference_step upper), inner))
 
-        metrics = () -> math_metrics(c, style)
-        inner_metrics = () -> math_metrics(c, inner)
+        metrics = () -> compute_math_metrics(c, style)
+        inner_metrics = () -> compute_math_metrics(c, inner)
         placement = _limit_placement(doc, style)
-        word = math_big_operator_is_text(doc.operator)
-        glyph = math_big_operator_glyph(doc.operator)
+        word = is_math_big_operator_text(doc.operator)
+        glyph = get_math_big_operator_glyph(doc.operator)
         # A word operator (`lim`) keeps the text size; a sign is enlarged.
         sign_font = function ()
             m = metrics()
@@ -1256,7 +1256,7 @@ function print_document(p::MathDifferentialToGraphics, recursion, doc::MathDiffe
         variable = _print_math_child(recursion, doc.variable,
                                      make_child_context(ctx, doc, @reference_step variable))
         sign = _glyph_box(c, () -> _differential_glyph(doc.kind),
-                          () -> math_metrics(c, style).upright)
+                          () -> compute_math_metrics(c, style).upright)
         _row(Any[sign, variable], Symbol[:thin, :none], c, style,
              Any[nothing, (FieldReferenceStep("variable"),)])
     end)
@@ -1280,15 +1280,15 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
                                  _with_style(make_child_context(ctx, doc, @reference_step body), inner))
         variable = _print_math_child(recursion, doc.variable,
                                      _with_style(make_child_context(ctx, doc, @reference_step variable), inner))
-        metrics = () -> math_metrics(c, style)
-        inner_metrics = () -> math_metrics(c, inner)
+        metrics = () -> compute_math_metrics(c, style)
+        inner_metrics = () -> compute_math_metrics(c, inner)
         order_text = () -> doc.order == 1 ? "" : string(doc.order)
         sign = () -> _differential_glyph(doc.kind)
 
         sign_width = ComputedCell(() -> c.measure(sign(), inner_metrics().upright)[1])
         order_width = ComputedCell(function ()
             isempty(order_text()) && return 0
-            c.measure(order_text(), math_metrics(c, :scriptscript).upright)[1]
+            c.measure(order_text(), compute_math_metrics(c, :scriptscript).upright)[1]
         end)
 
         numerator_width = ComputedCell(() -> sign_width[] + order_width[] +
@@ -1326,7 +1326,7 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
                                       () -> denominator_x[],
                                       () -> denominator_y[]))
         if !isempty(order_text())
-            small = () -> math_metrics(c, :scriptscript).upright
+            small = () -> compute_math_metrics(c, :scriptscript).upright
             push!(elements, _text_element(order_text, small, c.ink,
                                           () -> numerator_x[] + sign_width[],
                                           () -> numerator_y[]))
@@ -1371,7 +1371,7 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             _print_math_child(recursion, doc.base,
                               _with_style(make_child_context(ctx, doc, @reference_step base),
                                           _script_style(style)))
-        metrics = () -> math_metrics(c, style)
+        metrics = () -> compute_math_metrics(c, style)
         # The name is upright: `log`, not the product of l, o and g.
         name = _glyph_box(c, () -> doc.name, () -> metrics().upright)
 
@@ -1389,12 +1389,12 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             # two.
             down = () -> round(Int, 0.2 * metrics().size)
             base_offset = ComputedCell(() -> Int32(max(0, down() -
-                                                       _box_ascent(base, math_metrics(c, inner)))))
+                                                       _box_ascent(base, compute_math_metrics(c, inner)))))
             base_box = MathGlyphBox(
                 _place(_box_output(base), Cell(Int32(0)), base_offset),
-                ComputedCell(() -> _box_width(base, math_metrics(c, inner))),
-                ComputedCell(() -> max(0, _box_ascent(base, math_metrics(c, inner)) - down())),
-                ComputedCell(() -> down() + _box_descent(base, math_metrics(c, inner))))
+                ComputedCell(() -> _box_width(base, compute_math_metrics(c, inner))),
+                ComputedCell(() -> max(0, _box_ascent(base, compute_math_metrics(c, inner)) - down())),
+                ComputedCell(() -> down() + _box_descent(base, compute_math_metrics(c, inner))))
             push!(boxes, base_box)
             push!(spaces, :none)
             # The box is a wrapper the projection introduced, not the base
@@ -1461,9 +1461,9 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
     build = ComputedCell(function ()
         base = _print_math_child(recursion, doc.base,
                                  make_child_context(ctx, doc, @reference_step base))
-        metrics = () -> math_metrics(c, style)
+        metrics = () -> compute_math_metrics(c, style)
         gap = () -> metrics().rule
-        wide = math_accent_is_wide(doc.accent)
+        wide = is_math_accent_wide(doc.accent)
         glyph = get(_ACCENT_GLYPHS, doc.accent, "")
 
         accent_height = ComputedCell(function ()
@@ -1522,26 +1522,26 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol, field:
     cell(r, k) = (i = (r - 1) * columns + k; i <= n ? boxes[i] : nothing)
 
     column_width = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         [maximum(r -> (b = cell(r, k); b === nothing ? 0 : _box_width(b, m)), 1:rows)
          for k in 1:columns]
     end)
     row_ascent = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         [maximum(k -> (b = cell(r, k); b === nothing ? 0 : _box_ascent(b, m)), 1:columns)
          for r in 1:rows]
     end)
     row_descent = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         [maximum(k -> (b = cell(r, k); b === nothing ? 0 : _box_descent(b, m)), 1:columns)
          for r in 1:rows]
     end)
-    column_gap = () -> math_metrics(c, style).size ÷ 2
-    row_gap = () -> math_metrics(c, style).size ÷ 4
+    column_gap = () -> compute_math_metrics(c, style).size ÷ 2
+    row_gap = () -> compute_math_metrics(c, style).size ÷ 4
 
     width = ComputedCell(() -> sum(column_width[]) + (columns - 1) * column_gap())
     height = ComputedCell(() -> sum(row_ascent[]) + sum(row_descent[]) + (rows - 1) * row_gap())
-    ascent = ComputedCell(() -> (height[] + 1) ÷ 2 + math_metrics(c, style).axis)
+    ascent = ComputedCell(() -> (height[] + 1) ÷ 2 + compute_math_metrics(c, style).axis)
     descent = ComputedCell(() -> height[] - ascent[])
 
     elements = Any[]
@@ -1551,7 +1551,7 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol, field:
         box === nothing && continue
         index = (r - 1) * columns + k
         x = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             widths = column_width[]
             at = 0
             for j in 1:(k - 1)
@@ -1560,7 +1560,7 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol, field:
             Int32(at + (widths[k] - _box_width(box, m)) ÷ 2)
         end)
         y = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             ascents = row_ascent[]
             descents = row_descent[]
             at = 0
@@ -1580,7 +1580,7 @@ end
 function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol)
     kind === :none && return inner
     half = () -> begin
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         max(inner.ascent[] - m.axis, inner.descent[] + m.axis) + m.rule
     end
     open = _delimiter_box(c, style, kind, :open, half)
@@ -1637,7 +1637,7 @@ function print_document(p::MathCaseToGraphics, recursion, doc::MathCase, ctx)
     build = ComputedCell(function ()
         value = _print_math_child(recursion, doc.value,
                                   make_child_context(ctx, doc, @reference_step value))
-        metrics = () -> math_metrics(c, style)
+        metrics = () -> compute_math_metrics(c, style)
         if doc.condition === nothing
             word = _glyph_box(c, () -> "otherwise", () -> metrics().upright)
             return _row(Any[value, word], Symbol[:none, :thick], c, style,
@@ -1676,9 +1676,9 @@ end
 
 # A single left-aligned column: the shape a case list wants.
 function _grid_left(boxes::Vector, c::MathConfig, style::Symbol, field::String)
-    row_gap = () -> math_metrics(c, style).size ÷ 4
+    row_gap = () -> compute_math_metrics(c, style).size ÷ 4
     width = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         w = 0
         for b in boxes
             w = max(w, _box_width(b, m))
@@ -1686,7 +1686,7 @@ function _grid_left(boxes::Vector, c::MathConfig, style::Symbol, field::String)
         w
     end)
     height = ComputedCell(function ()
-        m = math_metrics(c, style)
+        m = compute_math_metrics(c, style)
         h = 0
         for (i, b) in enumerate(boxes)
             h += _box_ascent(b, m) + _box_descent(b, m)
@@ -1694,13 +1694,13 @@ function _grid_left(boxes::Vector, c::MathConfig, style::Symbol, field::String)
         end
         h
     end)
-    ascent = ComputedCell(() -> (height[] + 1) ÷ 2 + math_metrics(c, style).axis)
+    ascent = ComputedCell(() -> (height[] + 1) ÷ 2 + compute_math_metrics(c, style).axis)
     descent = ComputedCell(() -> height[] - ascent[])
     elements = Any[]
     children = MathChild[]
     for i in eachindex(boxes)
         y = ComputedCell(function ()
-            m = math_metrics(c, style)
+            m = compute_math_metrics(c, style)
             at = 0
             for j in 1:(i - 1)
                 at += _box_ascent(boxes[j], m) + _box_descent(boxes[j], m) + row_gap()
@@ -2015,7 +2015,7 @@ function MathToGraphics(; measure::Function = truetype_measure_text,
 end
 
 """
-    math_to_graphics_dispatch(; kwargs...) -> Vector{Pair{Type,Any}}
+    make_math_to_graphics_dispatch(; kwargs...) -> Vector{Pair{Type,Any}}
 
 The math rules alone, for splicing into a bigger table. `MathToGraphics` also
 claims `PrimitiveNumber` and `PrimitiveString`, which is right for a table that
@@ -2026,7 +2026,7 @@ A number inside a formula then renders through the surrounding renderer and
 lands on the formula's baseline anyway: a foreign box that draws text reports
 that text's baseline.
 """
-math_to_graphics_dispatch(; kwargs...) =
+make_math_to_graphics_dispatch(; kwargs...) =
     Pair{Type,Any}[entry for entry in MathToGraphics(; kwargs...).dispatch
                    if first(entry) !== PrimitiveNumber && first(entry) !== PrimitiveString]
 
@@ -2040,7 +2040,7 @@ import ..NaturalRegistryModule: register_natural_graphics!
 
 function __init__()
     register_natural_graphics!(:math, (; measure) ->
-        math_to_graphics_dispatch(measure = measure))
+        make_math_to_graphics_dispatch(measure = measure))
 end
 
 end # module

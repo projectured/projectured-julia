@@ -33,8 +33,8 @@ import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperat
                      MathFraction, MathScript, MathRadical, MathBigOperator,
                      MathDifferential, MathDerivative, MathFunction, MathAccent,
                      MathMatrix, MathCase, MathCases,
-                     math_operator_class, math_symbol_glyph, math_delimiter_strings,
-                     math_big_operator_name
+                     get_math_operator_class, get_math_symbol_glyph, get_math_delimiter_strings,
+                     get_math_big_operator_name
 import ..PrimitiveModule: PrimitiveNumber
 import ..TextModule: TextString
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
@@ -257,8 +257,8 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
 
     node = SyntaxNode(
         ComputedCellVector(() -> SyntaxDocument[content_iomap[].output]);
-        open=TextString(() -> math_delimiter_strings(m.kind)[1], p.delim),
-        close=TextString(() -> math_delimiter_strings(m.kind)[2], p.delim),
+        open=TextString(() -> get_math_delimiter_strings(m.kind)[1], p.delim),
+        close=TextString(() -> get_math_delimiter_strings(m.kind)[2], p.delim),
         selection=sel)
     ChildrenIoMap(p, m, node, content_iomap)
 end
@@ -415,7 +415,7 @@ end
 end
 
 @projection_template MathSymbolToSyntaxLeaf MathSymbol (p, doc) ->
-    SyntaxLeaf(TextString(() -> math_symbol_glyph(doc.name), p.style))
+    SyntaxLeaf(TextString(() -> get_math_symbol_glyph(doc.name), p.style))
 
 # ── MathTextToSyntaxLeaf ─────────────────────────────────────────────────────
 
@@ -526,7 +526,7 @@ end
 
 @projection_template MathBigOperatorToSyntaxNode MathBigOperator (p, doc) ->
     SyntaxConcatenation(() -> begin
-        children = Any[ SyntaxLeaf(TextString(() -> math_big_operator_name(doc.operator), p.name)) ]
+        children = Any[ SyntaxLeaf(TextString(() -> get_math_big_operator_name(doc.operator), p.name)) ]
         doc.lower === nothing || _push_braced!(children, "_{", project(:lower), p.chrome)
         doc.upper === nothing || _push_braced!(children, "^{", project(:upper), p.chrome)
         push!(children, SyntaxLeaf(TextString(" ", p.chrome)))

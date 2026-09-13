@@ -20,10 +20,10 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-export MathDocument, _operator_string, math_operator_glyph, math_operator_class,
-       math_symbol_glyph, math_big_operator_glyph, math_big_operator_name,
-       math_big_operator_is_text,
-       math_delimiter_strings, math_accent_is_wide, MathSubscript, MathSuperscript
+export MathDocument, _operator_string, get_math_operator_glyph, get_math_operator_class,
+       get_math_symbol_glyph, get_math_big_operator_glyph, get_math_big_operator_name,
+       is_math_big_operator_text,
+       get_math_delimiter_strings, is_math_accent_wide, MathSubscript, MathSuperscript
 
 abstract type MathDocument <: Document end
 
@@ -45,7 +45,7 @@ end
 
 """
 A named symbol: a Greek letter, a constant or an arrow. `name` is what the user
-types (`:lambda`); [`math_symbol_glyph`](@ref) gives the glyph to draw (`λ`).
+types (`:lambda`); [`get_math_symbol_glyph`](@ref) gives the glyph to draw (`λ`).
 """
 @document struct MathSymbol <: MathDocument
     name::Symbol
@@ -78,7 +78,7 @@ end
 
 """
 An infix operation. `operator` names the operator; its *class*
-([`math_operator_class`](@ref)) decides the space around it, and both
+([`get_math_operator_class`](@ref)) decides the space around it, and both
 projections read that one table.
 """
 @document struct MathBinaryOperation <: MathDocument
@@ -306,24 +306,24 @@ function _operator_string(op::Symbol)
 end
 
 """
-    math_operator_glyph(op) -> String
+    get_math_operator_glyph(op) -> String
 
 The operator as it is set on the page: a real minus sign, a real multiplication
 dot. Used by the graphics projection.
 """
-function math_operator_glyph(op::Symbol)
+function get_math_operator_glyph(op::Symbol)
     entry = get(_MATH_OPERATORS, op, nothing)
     entry === nothing && return string(op)
     entry[2]
 end
 
 """
-    math_operator_class(op) -> Symbol
+    get_math_operator_class(op) -> Symbol
 
 `:binary`, `:relation`, `:punctuation`, `:prefix` or `:postfix`. The class
 decides how much space surrounds the operator.
 """
-function math_operator_class(op::Symbol)
+function get_math_operator_class(op::Symbol)
     entry = get(_MATH_OPERATORS, op, nothing)
     entry === nothing && return :binary
     entry[3]
@@ -349,12 +349,12 @@ const _MATH_SYMBOLS = Dict{Symbol, String}(
 )
 
 """
-    math_symbol_glyph(name) -> String
+    get_math_symbol_glyph(name) -> String
 
 The glyph of a named symbol. An unknown name renders as its own text, so a
 half-typed name is still visible.
 """
-math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
+get_math_symbol_glyph(name::Symbol) = get(_MATH_SYMBOLS, name, string(name))
 
 # ── Large operators ───────────────────────────────────────────────────────────
 
@@ -386,27 +386,27 @@ const _MATH_TEXT_OPERATORS = Set{Symbol}(
     [:lim, :max, :min, :sup, :inf, :argmax, :argmin])
 
 """
-    math_big_operator_glyph(op) -> String
+    get_math_big_operator_glyph(op) -> String
 
 The sign of a large operator, or its word when the operator is a word.
 """
-math_big_operator_glyph(op::Symbol) =
+get_math_big_operator_glyph(op::Symbol) =
     haskey(_MATH_BIG_OPERATORS, op) ? _MATH_BIG_OPERATORS[op][1] : string(op)
 
 """
-    math_big_operator_name(op) -> String
+    get_math_big_operator_name(op) -> String
 
 The name the linear form writes for a large operator: `\\sum`, `\\int`.
 """
-math_big_operator_name(op::Symbol) =
+get_math_big_operator_name(op::Symbol) =
     haskey(_MATH_BIG_OPERATORS, op) ? _MATH_BIG_OPERATORS[op][2] : "\\" * String(op)
 
 """
-    math_big_operator_is_text(op) -> Bool
+    is_math_big_operator_text(op) -> Bool
 
 True for a word operator (`lim`, `max`), which is set upright and not enlarged.
 """
-math_big_operator_is_text(op::Symbol) = op in _MATH_TEXT_OPERATORS
+is_math_big_operator_text(op::Symbol) = op in _MATH_TEXT_OPERATORS
 
 # ── Delimiters ────────────────────────────────────────────────────────────────
 
@@ -423,12 +423,12 @@ const _MATH_DELIMITERS = Dict{Symbol, Tuple{String, String}}(
 )
 
 """
-    math_delimiter_strings(kind) -> (String, String)
+    get_math_delimiter_strings(kind) -> (String, String)
 
 The opening and the closing delimiter of a grouping kind, one character each.
 The graphics projection grows them; the linear one prints them as they are.
 """
-math_delimiter_strings(kind::Symbol) = get(_MATH_DELIMITERS, kind, ("(", ")"))
+get_math_delimiter_strings(kind::Symbol) = get(_MATH_DELIMITERS, kind, ("(", ")"))
 
 # ── Accents ───────────────────────────────────────────────────────────────────
 
@@ -437,10 +437,10 @@ math_delimiter_strings(kind::Symbol) = get(_MATH_DELIMITERS, kind, ("(", ")"))
 const _MATH_WIDE_ACCENTS = Set{Symbol}([:bar, :vec, :overline, :widehat, :widetilde])
 
 """
-    math_accent_is_wide(accent) -> Bool
+    is_math_accent_wide(accent) -> Bool
 
 True when the accent covers the whole base and must be drawn to its width.
 """
-math_accent_is_wide(accent::Symbol) = accent in _MATH_WIDE_ACCENTS
+is_math_accent_wide(accent::Symbol) = accent in _MATH_WIDE_ACCENTS
 
 end # module

@@ -11,7 +11,7 @@ _print(doc) = print_document(_projection(), doc)
 _config() = MathConfig(font = font_dejavu_sans_regular_20,
                        slanted = font_dejavu_sans_italic_20,
                        measure = truetype_measure_text)
-_metrics(style = :display) = math_metrics(_config(), style)
+_metrics(style = :display) = compute_math_metrics(_config(), style)
 
 # Element 1 of every box is the selection wash, so the content starts at 2.
 # `_at` and `_inner` count content, not elements.
@@ -76,7 +76,7 @@ end
     @test Int(rule.y[]) == Int(fraction.ascent[]) - m.axis - m.rule
     @test Int(rule.w[]) == Int(fraction.width[])
     # Both parts center on the rule.
-    inner = math_metrics(_config(), :text)
+    inner = compute_math_metrics(_config(), :text)
     numerator_width = truetype_measure_text("1", inner.upright)[1]
     @test _at(canvas, 1)[1] == (Int(fraction.width[]) - numerator_width) ÷ 2
     # The numerator sits above the rule and the denominator below it.
@@ -86,7 +86,7 @@ end
 
 @testset "a script rises and falls by a baseline shift" begin
     m = _metrics()
-    inner = math_metrics(_config(), :script)
+    inner = compute_math_metrics(_config(), :script)
     base_ascent = font_ascent(m.slanted)
 
     superscript = _print(MathSuperscript(MathVariable("x"), PrimitiveNumber(2)))
@@ -108,14 +108,14 @@ end
 @testset "a script is set smaller, and a script inside one smaller again" begin
     # The level rides in the printer context, so the same rule table gives
     # three sizes.
-    @test math_metrics(_config(), :display).size == 20
-    @test math_metrics(_config(), :script).size == 14
-    @test math_metrics(_config(), :scriptscript).size == 10
+    @test compute_math_metrics(_config(), :display).size == 20
+    @test compute_math_metrics(_config(), :script).size == 14
+    @test compute_math_metrics(_config(), :scriptscript).size == 10
 
     nested = _print(MathSuperscript(MathVariable("x"),
                                     MathSuperscript(MathVariable("y"), PrimitiveNumber(2))))
-    script = math_metrics(_config(), :script)
-    scriptscript = math_metrics(_config(), :scriptscript)
+    script = compute_math_metrics(_config(), :script)
+    scriptscript = compute_math_metrics(_config(), :scriptscript)
     # The exponent's own exponent is drawn in the smallest face.
     outer = _inner(nested.output, 2)
     @test _first_text(_content(outer, 1)).font == script.slanted
