@@ -41,7 +41,7 @@ import ..PrimitiveModule: PrimitiveString
 import ..TextModule: TextBlock, TextString
 # The composer names no source domain. Which kinds it offers, what each is
 # called, and how a typed source becomes a document are all asked of two seams:
-# `insertion_root` says a type is a domain's insertion, and `get_natural_format`
+# `get_insertion_root` says a type is a domain's insertion, and `get_natural_format`
 # / `parse_natural_text` say that domain's key and how to read its text.
 import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natural_parser
 import ..ToolModule: execute_julia_code, get_last_evaluated_value
@@ -52,7 +52,7 @@ import ..StyleTextModule: StyleText
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_bold_14
 import ..ColorModule: color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_red, color_completion_hint, color_slate_600
-import ..DomainModule: resolve_insertion, make_insertion_document, insertion_root
+import ..DomainModule: resolve_insertion, make_insertion_document, get_insertion_root
 import ..DomainModule: name_completion
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
                           RangeReferenceStep, EmptyReference
@@ -82,11 +82,11 @@ _active_content(d::ConversationDraft) =
     (p = _active_part(d); p === nothing ? nothing : p.content)
 
 # The editing-state contents all carry an editable `value` you can type into: the
-# plain text part, the kind chooser, and any domain's insertion. `insertion_root`
+# plain text part, the kind chooser, and any domain's insertion. `get_insertion_root`
 # is what makes the last of those a question rather than a list — it answers a
 # domain root for an insertion type and `Document` for everything else.
 _is_editable(c) = c isa PrimitiveString || c isa DocumentInsertion ||
-                  insertion_root(typeof(c)) !== Document
+                  get_insertion_root(typeof(c)) !== Document
 _is_editable(::Nothing) = false
 
 _value(c) = something(c.value, "")
@@ -260,7 +260,7 @@ end
 # offers whatever domains a session loaded, and offering one it cannot commit is
 # not expressible.
 function _composer_kind(T)
-    insertion_root(T) === Document && return false
+    get_insertion_root(T) === Document && return false
     key = get_natural_format(T)
     key !== nothing && has_natural_parser(key)
 end
@@ -280,7 +280,7 @@ end
 
 # Parse a source insertion into its domain document, through the seam.
 function _parse_source(c)
-    insertion_root(typeof(c)) === Document && return nothing
+    get_insertion_root(typeof(c)) === Document && return nothing
     key = get_natural_format(typeof(c))
     key === nothing && return nothing
     _try_parse(text -> parse_natural_text(key, text), _value(c))
@@ -706,7 +706,7 @@ function _composer_bindings(draft::ConversationDraft)
                 (d, sel) -> true, "Commit source", "composer"),
             revert, backspace, insert,
         ]
-    elseif insertion_root(typeof(c)) !== Document
+    elseif get_insertion_root(typeof(c)) !== Document
         # Any other domain's source insertion: ENTER parses it into that domain's
         # document, and does nothing while it does not parse. Structural
         # key-driven insertion (`[` → JsonArray, …) is still future work.

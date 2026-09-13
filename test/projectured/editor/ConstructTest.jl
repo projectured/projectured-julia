@@ -6,11 +6,11 @@
 #
 # The oracle (`compare_content`) lives in ProjecturedKernelTest (kernel tier); it
 # needs only kernel primitives. The *engine* lives here because it needs the
-# `@domain` seed machinery (`nothing_document` / `domain_insertion`, base tier)
+# `@domain` seed machinery (`get_nothing_document` / `get_domain_insertion`, base tier)
 # and drives real domain examples.
 #
 # Phase 1 — leaf reconstruction by print-then-type:
-#   1. seed   = the domain's empty placeholder, `nothing_document(domain_insertion(T))()`
+#   1. seed   = the domain's empty placeholder, `get_nothing_document(get_domain_insertion(T))()`
 #   2. surface = the target rendered to plain text (swap the projection's graphics
 #      terminal for `RecursiveProjection(TextToString())`) — the keystrokes to type
 #   3. drive   = set the ∅ (whole-element) selection, then feed each surface
@@ -36,7 +36,7 @@ using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedText.TextToStringModule: TextToString
 using ProjecturedSyntax.SyntaxModule: SyntaxLeaf
-using ProjecturedDomain.DomainModule: nothing_document, domain_insertion, insertion_root
+using ProjecturedDomain.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque
 using ProjecturedKernel.CellModule: unwrap_cell
 using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, ElementReferenceStep,
@@ -58,17 +58,17 @@ mutable struct _ConstructEditor
 end
 
 # ── seed ─────────────────────────────────────────────────────────────────────
-# The empty placeholder to build `target` up from. `domain_insertion(T)` is
+# The empty placeholder to build `target` up from. `get_domain_insertion(T)` is
 # defined for every document type of a `@domain` (→ its `*Insertion`), and
-# `nothing_document(*Insertion)` is its `*Nothing`.
+# `get_nothing_document(*Insertion)` is its `*Nothing`.
 function construct_seed(target)
-    # A placeholder insertion buffer (a `*Insertion`, whose `insertion_root` is overridden
+    # A placeholder insertion buffer (a `*Insertion`, whose `get_insertion_root` is overridden
     # away from the default `Document`) is authored as itself — there is no completed
     # document to build up to, so a fresh one of its own type is the whole reconstruction.
-    insertion_root(typeof(target)) !== Document && return Base.typename(typeof(target)).wrapper()
-    ins = domain_insertion(typeof(target))
+    get_insertion_root(typeof(target)) !== Document && return Base.typename(typeof(target)).wrapper()
+    ins = get_domain_insertion(typeof(target))
     ins === nothing && error("no @domain insertion for $(typeof(target)); cannot seed")
-    nothing_document(ins)()
+    get_nothing_document(ins)()
 end
 
 # ── surface (the keystrokes) ─────────────────────────────────────────────────
@@ -284,7 +284,7 @@ function _grow_event(projection, container, field, child)
         if Base.typename(typeof(newel)).wrapper === tw
             _GROW_EVENT_CACHE[key] = ev            # lands the exact kind (XML)
             return ev
-        elseif fallback === nothing && insertion_root(typeof(newel)) !== Document
+        elseif fallback === nothing && get_insertion_root(typeof(newel)) !== Document
             fallback = ev                          # lands a placeholder (JSON/YAML)
         end
     end

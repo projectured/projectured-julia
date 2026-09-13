@@ -11,10 +11,10 @@ Julia, … are instances of. Two halves:
    insertion *traits* that anchor everything below.
 
 2. **Reflection-based completion** — the candidate list for an insertion is
-   *computed* from the document type tree (`insertion_candidates`, memoized on
+   *computed* from the document type tree (`get_insertion_candidates`, memoized on
    the world counter so a newly defined `@document` type is completable the
    moment its `struct` is evaluated), the accepted names are *derived* from the
-   type name (`insertion_names`: the capitalized type name `JsonString` and the
+   type name (`get_insertion_names`: the capitalized type name `JsonString` and the
    lowercase human-readable form `json string`; prefix-free inside a domain
    scope), and construction goes through *dispatch* (`make_insertion_document`,
    zero-arg fallback + per-type cursor/scaffold overrides written with
@@ -85,9 +85,9 @@ import ..EventPatternModule: KeyDownPattern
 import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 
 export var"@domain", var"@insertion",
-       insertion_root, nothing_document, insertion_document, domain_prefix,
-       domain_insertion, insertable, insertion_aliases, make_insertion_document,
-       insertion_names, insertion_candidates, complete_insertion, name_completion,
+       get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
+       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
+       get_insertion_names, get_insertion_candidates, complete_insertion, name_completion,
        resolve_insertion,
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
@@ -100,62 +100,62 @@ export var"@domain", var"@insertion",
 # derive display names.
 
 """
-    insertion_root(::Type{<:Document}) -> Type
+    get_insertion_root(::Type{<:Document}) -> Type
 
 The abstract root whose subtypes an insertion buffer completes over —
 `JsonDocument` for `JsonInsertion`, `Document` for the domain-independent
 `DocumentInsertion` (the default).
 """
-insertion_root(::Type) = Document
+get_insertion_root(::Type) = Document
 
 """
-    nothing_document(::Type{<:Document}) -> Type
+    get_nothing_document(::Type{<:Document}) -> Type
 
 The placeholder document an insertion aborts back to on Escape. Defaults to
 `DocumentNothing`; `@domain` points each domain's insertion at its own
 `*Nothing`.
 """
-nothing_document(::Type) = DocumentNothing
+get_nothing_document(::Type) = DocumentNothing
 
 """
-    insertion_document(::Type{<:Document}) -> Type
+    get_insertion_document(::Type{<:Document}) -> Type
 
 The insertion a `*Nothing` placeholder turns into on the Insert key. Defaults
 to `DocumentInsertion`.
 """
-insertion_document(::Type) = DocumentInsertion
+get_insertion_document(::Type) = DocumentInsertion
 
 """
-    domain_insertion(::Type) -> Type | Nothing
+    get_domain_insertion(::Type) -> Type | Nothing
 
 The insertion type belonging to an abstract domain root (`JsonDocument` →
 `JsonInsertion`), or `nothing` when the root has none. Used to exclude the
 scope's own insertion from its candidate list.
 """
-domain_insertion(::Type) = nothing
+get_domain_insertion(::Type) = nothing
 
 """
-    domain_prefix(root::Type) -> String
+    get_domain_prefix(root::Type) -> String
 
 The type-name prefix stripped for prefix-free matching inside a domain scope
 (`JsonDocument` → `"Json"`, so `JsonString` also answers to `String` /
 `string`). Empty for the universal root `Document`. The default derives it
 from the root's name by dropping a trailing `"Document"`.
 """
-function domain_prefix(root::Type)
+function get_domain_prefix(root::Type)
     root === Document && return ""
     n = String(nameof(root))
     endswith(n, "Document") ? n[1:end-length("Document")] : n
 end
 
 """
-    insertion_aliases(::Type) -> Vector{String}
+    get_insertion_aliases(::Type) -> Vector{String}
 
 Extra short names a candidate answers to besides its derived names (`"julia"`
 for `JuliaInsertion`). `@domain` emits the lowercase domain name as its
 insertion's alias; anything else is a hand-written method.
 """
-insertion_aliases(::Type) = String[]
+get_insertion_aliases(::Type) = String[]
 
 # ── Construction (dispatch, not factory tables) ───────────────────────────────
 
@@ -233,13 +233,13 @@ end
 
 # A type that *looks like* an insertion cursor (its name ends in "Insertion")
 # is only a candidate when it really is a domain's entry point — its
-# `insertion_root` names it back as that root's `domain_insertion`. This keeps
+# `get_insertion_root` names it back as that root's `get_domain_insertion`. This keeps
 # the `@domain` insertions committable from the top level (they carry the
 # traits) while stray per-slice cursors (`ClipboardInsertion`,
 # `WidgetInsertion`, …) stay out of the list without per-type opt-outs.
 function _is_domain_entry(T::Type)
     endswith(String(nameof(T)), "Insertion") || return true
-    domain_insertion(insertion_root(T)) === T
+    get_domain_insertion(get_insertion_root(T)) === T
 end
 
 # A native mutable-layout struct (`MFoo`) is the same document as its stem (`Foo`)
@@ -253,21 +253,21 @@ _is_layout_variant(T::Type) =
     isconcretetype(T) && get_document_family(T) !== Base.typename(T).wrapper
 
 """
-    insertion_candidates(root::Type) -> Vector{Type}
+    get_insertion_candidates(root::Type) -> Vector{Type}
 
 Every insertable concrete document type under `root`, computed by reflection
 over the type tree — never listed or registered, so a newly defined
 `@document` type appears automatically. Memoized on `Base.get_world_counter()`
 (any new type/method definition invalidates the cache; otherwise it is one
-dictionary lookup). The scope's own insertion (`domain_insertion(root)`) is
+dictionary lookup). The scope's own insertion (`get_domain_insertion(root)`) is
 excluded — you are already in one — as are insertion cursors that are not
 their domain's entry point.
 """
-function insertion_candidates(root::Type)
+function get_insertion_candidates(root::Type)
     world = Base.get_world_counter()
     cached = get(_CANDIDATE_CACHE, root, nothing)
     cached !== nothing && cached[1] == world && return cached[2]
-    own = domain_insertion(root)
+    own = get_domain_insertion(root)
     result = filter!(T -> insertable(T) && T !== own && _is_domain_entry(T) && !_is_layout_variant(T),
                      _collect_concrete!(Type[], root))
     _CANDIDATE_CACHE[root] = (world, result)
@@ -281,23 +281,23 @@ _camel_words(s::AbstractString) =
     lowercase(replace(s, r"(?<=[a-z0-9])(?=[A-Z])" => " "))
 
 """
-    insertion_names(T; root = Document) -> Vector{String}
+    get_insertion_names(T; root = Document) -> Vector{String}
 
 The names candidate `T` answers to, derived from its type name: the
 capitalized type name (`"JsonString"`), the lowercase human-readable form
-(`"json string"`), the same pair with the scope's `domain_prefix` stripped
+(`"json string"`), the same pair with the scope's `get_domain_prefix` stripped
 (`"String"` / `"string"` when `root = JsonDocument`), plus any
-`insertion_aliases`.
+`get_insertion_aliases`.
 """
-function insertion_names(T::Type; root::Type = Document)
+function get_insertion_names(T::Type; root::Type = Document)
     base = String(nameof(T))
     names = String[base, _camel_words(base)]
-    p = domain_prefix(root)
+    p = get_domain_prefix(root)
     if !isempty(p) && startswith(base, p) && length(base) > length(p)
         stripped = base[length(p)+1:end]
         push!(names, stripped, _camel_words(stripped))
     end
-    append!(names, insertion_aliases(T))
+    append!(names, get_insertion_aliases(T))
     unique!(names)
 end
 
@@ -310,8 +310,8 @@ end
 function _matching(root::Type, typed::AbstractString)
     key = lowercase(typed)
     matches = Tuple{Type, Vector{String}}[]
-    for T in insertion_candidates(root)
-        ns = [n for n in insertion_names(T; root) if startswith(lowercase(n), key)]
+    for T in get_insertion_candidates(root)
+        ns = [n for n in get_insertion_names(T; root) if startswith(lowercase(n), key)]
         isempty(ns) || push!(matches, (T, ns))
     end
     matches
@@ -380,7 +380,7 @@ belongs beside it: nothing in it is about syntax, and a composer that draws its
 own chooser needs it without needing a syntax tree.
 """
 function name_completion(insertion)
-    c = complete_insertion(insertion_root(typeof(insertion)),
+    c = complete_insertion(get_insertion_root(typeof(insertion)),
                            something(insertion.value, ""))
     (state = c.state,
      hint = c.state === :unambiguous ? c.continuation : "",
@@ -398,8 +398,8 @@ prefix; otherwise `nothing`.
 function resolve_insertion(root::Type, typed::AbstractString)
     key = lowercase(strip(typed))
     isempty(key) && return nothing
-    for T in insertion_candidates(root)
-        any(lowercase(n) == key for n in insertion_names(T; root)) && return T
+    for T in get_insertion_candidates(root)
+        any(lowercase(n) == key for n in get_insertion_names(T; root)) && return T
     end
     c = complete_insertion(root, typed)
     c.state === :unambiguous ? c.matches[1] : nothing
@@ -520,10 +520,10 @@ _insert_gesture_binding(::Type{I}, tag::String) where {I} = GestureBinding(
 # implement the same traits, so the shared gestures and the reflection treat
 # the domain-independent insertion identically.
 
-insertion_root(::Type{<:DocumentInsertion}) = Document
-nothing_document(::Type{<:DocumentInsertion}) = DocumentNothing
-insertion_document(::Type{<:DocumentNothing}) = DocumentInsertion
-domain_insertion(::Type{Document}) = DocumentInsertion
+get_insertion_root(::Type{<:DocumentInsertion}) = Document
+get_nothing_document(::Type{<:DocumentInsertion}) = DocumentNothing
+get_insertion_document(::Type{<:DocumentNothing}) = DocumentInsertion
+get_domain_insertion(::Type{Document}) = DocumentInsertion
 insertable(::Type{<:DocumentNothing}) = false
 insertable(::Type{<:DocumentInsertion}) = false
 
@@ -546,8 +546,8 @@ Generate a document domain's insertion kit from its name:
   (`value::String = ""`),
 - the Insert-key gesture turning the placeholder into the insertion (cursor in
   the buffer),
-- the traits wiring it all: `domain_prefix`, `domain_insertion`,
-  `insertion_root`, `nothing_document`, `insertion_document`, the lowercase
+- the traits wiring it all: `get_domain_prefix`, `get_domain_insertion`,
+  `get_insertion_root`, `get_nothing_document`, `get_insertion_document`, the lowercase
   domain name as the insertion's alias, and the placeholder's `insertable`
   opt-out.
 
@@ -555,7 +555,7 @@ Each `root = X` / `nothing = X` / `insertion = X` option **adopts** an existing
 type instead of generating one (only its traits and gestures are emitted); the
 option's type must already be defined at the `@domain` call site. Escape from
 an insertion is *not* generated per domain — the shared insertion gestures
-abort to `nothing_document(typeof(ins))()` generically.
+abort to `get_nothing_document(typeof(ins))()` generically.
 
 Candidates whose empty instance needs a cursor or a scaffold declare it with
 the companion `@insertion` macro.
@@ -622,12 +622,12 @@ macro domain(name, opts...)
 
     tag = lowercase(prefix)
     append!(out.args, (
-        :($M.domain_prefix(::Type{<:$root}) = $prefix),
-        :($M.domain_insertion(::Type{<:$root}) = $ins),
-        :($M.insertion_root(::Type{<:$ins}) = $root),
-        :($M.nothing_document(::Type{<:$ins}) = $noth),
-        :($M.insertion_document(::Type{<:$noth}) = $ins),
-        :($M.insertion_aliases(::Type{<:$ins}) = [$tag]),
+        :($M.get_domain_prefix(::Type{<:$root}) = $prefix),
+        :($M.get_domain_insertion(::Type{<:$root}) = $ins),
+        :($M.get_insertion_root(::Type{<:$ins}) = $root),
+        :($M.get_nothing_document(::Type{<:$ins}) = $noth),
+        :($M.get_insertion_document(::Type{<:$noth}) = $ins),
+        :($M.get_insertion_aliases(::Type{<:$ins}) = [$tag]),
         :($M.insertable(::Type{<:$noth}) = false),
         # The Insert-key gesture on the placeholder. Same registry seam as
         # `@gestures` (a method, not a mutable table, so it survives

@@ -33,15 +33,15 @@ function test_document_insertion()
 
         @testset "derived names" begin
             DS = DomainModule
-            @test DS.insertion_names(JsonString) == ["JsonString", "json string"]
-            @test DS.insertion_names(JsonObjectEntry; root = JsonDocument) ==
+            @test DS.get_insertion_names(JsonString) == ["JsonString", "json string"]
+            @test DS.get_insertion_names(JsonObjectEntry; root = JsonDocument) ==
                   ["JsonObjectEntry", "json object entry", "ObjectEntry", "object entry"]
-            @test "julia" in DS.insertion_names(JuliaInsertion)     # @domain alias
-            @test "text" in DS.insertion_names(TextInsertion)       # @domain alias
+            @test "julia" in DS.get_insertion_names(JuliaInsertion)     # @domain alias
+            @test "text" in DS.get_insertion_names(TextInsertion)       # @domain alias
             # `text` names the domain entry, so the container answers to its own
             # name — prefix-free inside the Text scope, prefixed outside it.
-            @test DS.insertion_names(TextBlock) == ["TextBlock", "text block"]
-            @test DS.insertion_names(TextBlock; root = TextDocument) ==
+            @test DS.get_insertion_names(TextBlock) == ["TextBlock", "text block"]
+            @test DS.get_insertion_names(TextBlock; root = TextDocument) ==
                   ["TextBlock", "text block", "Block", "block"]
             @test DS.resolve_insertion(TextDocument, "block") === TextBlock
             # It is also the only candidate in the scope, so the bare domain name
@@ -50,11 +50,11 @@ function test_document_insertion()
             # opt-out it would be a candidate — one that makes `text` ambiguous,
             # and that commits a lone line as a *root* document.
             @test !DS.insertable(TextLine)
-            @test !(TextLine in DS.insertion_candidates(TextDocument))
+            @test !(TextLine in DS.get_insertion_candidates(TextDocument))
             @test DS.resolve_insertion(TextDocument, "text") === TextBlock
-            @test DS.domain_prefix(JsonDocument) == "Json"
-            @test DS.domain_prefix(TextDocument) == "Text"
-            @test DS.domain_prefix(Document) == ""
+            @test DS.get_domain_prefix(JsonDocument) == "Json"
+            @test DS.get_domain_prefix(TextDocument) == "Text"
+            @test DS.get_domain_prefix(Document) == ""
         end
 
         @testset "completion states" begin
@@ -98,7 +98,7 @@ function test_document_insertion()
             DS = DomainModule
             # InsertionReflectionProbe is defined only in this test file — no
             # registration anywhere — yet it is a candidate with derived names.
-            @test InsertionReflectionProbe in DS.insertion_candidates(Document)
+            @test InsertionReflectionProbe in DS.get_insertion_candidates(Document)
             @test DS.resolve_insertion(Document, "insertion reflection probe") ===
                   InsertionReflectionProbe
             @test DS.make_insertion_document(InsertionReflectionProbe) isa
@@ -112,12 +112,12 @@ function test_document_insertion()
                   YamlNothing <: YamlDocument && SqlNothing <: SqlDocument &&
                   TextNothing <: TextDocument
             @test !DS.insertable(JsonNothing)
-            @test !(JsonNothing in DS.insertion_candidates(JsonDocument))
+            @test !(JsonNothing in DS.get_insertion_candidates(JsonDocument))
             # Traits pair each placeholder with its insertion, both ways.
-            @test DS.insertion_document(JsonNothing) === JsonInsertion
-            @test DS.nothing_document(JsonInsertion) === JsonNothing
-            @test DS.insertion_document(JuliaNothing) === JuliaInsertion
-            @test DS.nothing_document(DocumentInsertion) === DocumentNothing
+            @test DS.get_insertion_document(JsonNothing) === JsonInsertion
+            @test DS.get_nothing_document(JsonInsertion) === JsonNothing
+            @test DS.get_insertion_document(JuliaNothing) === JuliaInsertion
+            @test DS.get_nothing_document(DocumentInsertion) === DocumentNothing
             # Insert on a placeholder replaces it with its domain's insertion,
             # cursor at the start of the value buffer.
             for (N, I) in ((DocumentNothing, DocumentInsertion),

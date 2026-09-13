@@ -178,8 +178,8 @@ runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/
 # `RCJuliaNothing` walk after `:insert` through `JuliaNothingToSyntaxLeaf` throws once the
 # document has become a `JuliaInsertion` — so such an atom's syntax variant must use the
 # domain's whole-tree dispatching projection instead (what its text/graphics variants
-# already chain through). `domain_insertion(D)` names the domain's insertion for any of
-# its documents; `nothing_document` names the matching placeholder.
+# already chain through). `get_domain_insertion(D)` names the domain's insertion for any of
+# its documents; `get_nothing_document` names the matching placeholder.
 #
 # `D` here is the *reactive* document type — `@document` makes `RCJuliaNothing` an alias for
 # `JuliaNothing{cell kinds…}`, a parameterization of the base `JuliaNothing` — while the
@@ -187,9 +187,9 @@ runnable(ex::Example) = ex.terminal in (:text, :graphics)   # graphics→screen/
 # reactive type still matches (the insertion/nothing types are concrete leaves, so `<:`
 # is exact — nothing else is a subtype).
 function _self_modifying(@nospecialize D)
-    ins = domain_insertion(D)
+    ins = get_domain_insertion(D)
     ins === nothing && return false
-    D <: ins || D <: nothing_document(ins)
+    D <: ins || D <: get_nothing_document(ins)
 end
 
 # Does the trivial single-step syntax projection stand alone? Only if its output is a bare

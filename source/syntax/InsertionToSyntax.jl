@@ -20,7 +20,7 @@ computed cells driven by the `completion` policy (see `name_completion`):
 - **Enter** calls `commit(value)` — for name insertions that is
   `resolve_insertion` + `make_insertion_document` over the insertion's domain
   root, so an unambiguous prefix commits too;
-- **Escape** aborts to the domain's own placeholder (`nothing_document`), the
+- **Escape** aborts to the domain's own placeholder (`get_nothing_document`), the
   inverse of the placeholder's Insert gesture.
 
 The candidates, names (`JsonString` / `json string`, prefix-free inside a
@@ -46,8 +46,8 @@ import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyPress, KeyDown, ModifierKeys
 import ..EventModule: MousePress
 import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
-import ..DomainModule: insertion_root, nothing_document, insertion_names,
-                       insertion_candidates, complete_insertion, name_completion,
+import ..DomainModule: get_insertion_root, get_nothing_document, get_insertion_names,
+                       get_insertion_candidates, complete_insertion, name_completion,
                        resolve_insertion,
                        make_insertion_document
 import ..TextModule: TextString
@@ -253,12 +253,12 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         GestureBinding(KeyDownPattern(:return, nothing, nothing),
             (doc, event) -> _insertion_commit(p, ins),
             (doc, sel) -> true, "Commit insertion", "insertion"),
-        # Escape aborts to the domain's own placeholder (`nothing_document`, a
+        # Escape aborts to the domain's own placeholder (`get_nothing_document`, a
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
         GestureBinding(KeyDownPattern(:escape, nothing, nothing),
             (doc, event) -> replace_document(EmptyReference(),
-                                             nothing_document(typeof(ins))()),
+                                             get_nothing_document(typeof(ins))()),
             (doc, sel) -> true, "Cancel insertion", "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
@@ -331,12 +331,12 @@ end
 
 # ── Name → document: reflection over the type tree ────────────────────────────
 #
-# No factory table: the candidates are `insertion_candidates(Document)` (every
+# No factory table: the candidates are `get_insertion_candidates(Document)` (every
 # insertable concrete document type, computed by reflection and memoized on the
 # world counter), the accepted names are derived from the type names
 # (`"JsonString"` / `"json string"`), and construction goes through
 # `make_insertion_document` dispatch. The historic short names (`"julia"`,
-# `"json"`, …) live on as `insertion_aliases` emitted by each `@domain`.
+# `"json"`, …) live on as `get_insertion_aliases` emitted by each `@domain`.
 
 """
     default_factory(name) -> Document | nothing
@@ -378,7 +378,7 @@ A domain-constrained insertion: the shared typed-name buffer completing over
 `root`'s reflected candidates **prefix-free** (inside a `JsonInsertion`,
 `string`/`String` names `JsonString`), committing the resolved type's
 `make_insertion_document`. The default completion policy already scopes to
-`insertion_root(typeof(ins))`, so the leaf only needs the matching commit.
+`get_insertion_root(typeof(ins))`, so the leaf only needs the matching commit.
 """
 DomainInsertionToSyntaxLeaf(root::Type;
                             prefix::AbstractString = "insert a new ",

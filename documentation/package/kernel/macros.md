@@ -196,8 +196,8 @@ too), the empty placeholder
 `JsonInsertion("…")` convenience constructor), the **Insert-key gesture**
 that turns the placeholder into the insertion (cursor in the buffer), and the
 **insertion traits** the completion machinery dispatches on —
-`domain_prefix`, `domain_insertion`, `insertion_root`, `nothing_document`,
-`insertion_document`, the lowercase domain name as the insertion's alias, and
+`get_domain_prefix`, `get_domain_insertion`, `get_insertion_root`, `get_nothing_document`,
+`get_insertion_document`, the lowercase domain name as the insertion's alias, and
 the placeholder's `insertable` opt-out.
 
 Each `root = X` / `nothing = X` / `insertion = X` option **adopts** an
@@ -208,7 +208,7 @@ JuliaInsertion`, because `JuliaNothing` doubles as the parsed `nothing`
 literal.
 
 What the completion machinery then gives the domain for free: the reflected
-candidate list (`insertion_candidates(JsonDocument)`, every insertable
+candidate list (`get_insertion_candidates(JsonDocument)`, every insertable
 concrete subtype — zero-arg constructible or with an `@insertion`
 method), derived names (`JsonString` / `json string`, prefix-free inside the
 domain), live completion + commitability colouring in the shared insertion
