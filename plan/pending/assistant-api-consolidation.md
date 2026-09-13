@@ -492,6 +492,58 @@ value where the model reads it.
 **So the remaining gains are in the naming, not in the ranker**, which is the
 plan this file already describes.
 
+### 8j. The guides, and the model's own parameters
+
+**The agent could not read the application's documentation at all.** The guide
+root was the editor's own `documentation/`, so a model asked to plot a result
+searched the guides and was answered with `CellVector` and `@document`.
+`register_guide_root!` fixes that, `OmnetCampaignUi` registers this repository's
+tree, and `documentation/guide/assistant-guide.md` is the guide about this
+window.
+
+**A guide a search names must be a guide a read can fetch.** The guide resources
+were registered only when nothing was declared, while `search_documentation` went
+on printing `resource://guide/…` for every hit. In the IDE every one of those was
+unfetchable, and a model told to read a guide spent a round on "Resource not
+found". That fault was there before this work; the prompt only walked into it.
+
+**Offer a guide; do not press it.** Measured, eight cases, one seed:
+
+| what the prompt said | calls | cases failed |
+| --- | ---: | --- |
+| nothing about guides | 31 | 3 — run, plot, add_series |
+| "read a guide when a task is new to you" | 34 | 4 |
+| the guides exist, and when one pays | 37 | **2 — plot, add_series** |
+
+Six of eight now reach their verb, and the two that do not are the two this plan
+is about. The extra calls bought a case.
+
+**The parameters were never sent, and one of them should be.** The window and the
+guard both left `num_ctx` to the server: 32768 on the machine this was measured
+on, and Ollama's own default is 4096. At 4096 a single guide read takes a third
+of the window and pushes the system prompt out of it, with nothing in any log to
+say so. The guard says 32768 now. **The window still says nothing, and should.**
+
+**The temperature is left alone, and that is a measurement.** It looks wrong —
+the model's default is 1.0, a setting for prose, and this work emits exact names
+and string values — but the cases disagreed:
+
+| temperature | cases failed |
+| --- | --- |
+| 0.0, greedy | 5 |
+| 0.3 | 4 |
+| the model's own 1.0 | **2** |
+
+An agent loop is a search and not one answer, and a model that samples narrowly
+repeats the path that did not work.
+
+**The record of trying to make the lookup cheaper: one change in six helped.**
+The full-documentation search hit helped. Stemming into names, temperature 0,
+temperature 0.3, the API list in the prompt, and pressing the guide all made it
+worse, and the guard caught each. The remaining two failures are not lookup
+failures — they are `plot` and `add_series`, which want `make_result_plot` and a
+`kind` spelled in a signature. **The rest of this plan is the answer to them.**
+
 ## 9. Stages
 
 Each stage is a commit, and each leaves the assistant working.
