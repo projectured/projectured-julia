@@ -65,7 +65,7 @@ window. Provide the same projection you would use for `run_example`:
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
 )
 write_image(doc, proj, "snapshot.bmp"; width=1200, height=800)
 ```
@@ -83,7 +83,7 @@ the final projection — its output is an `ImageFile` document:
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
     GraphicsCanvasToImageFile("snapshot.bmp"; width=1200, height=800),
 )
 iomap = print_document(proj, doc)
@@ -108,7 +108,7 @@ any zoom and the text is selectable and searchable. Fonts are embedded
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
 )
 write_pdf(doc, proj, "snapshot.pdf")                         # one page, sized to content
 write_pdf(doc, proj, "snapshot.pdf"; width=1200, height=800) # fixed page size
@@ -129,9 +129,9 @@ print_document(proj, doc)   # writes snapshot.pdf
 
 Unlike `write_image`, `write_pdf` is **SDL-free** — it never opens a renderer.
 It measures text for page sizing from the embedded font metrics via
-`pdf_measure_text` (an `(Int, Int)` measure, drop-in for `sdl_measure_text`). The
+`pdf_measure_text` (an `(Int, Int)` measure, drop-in for `measure_sdl_text`). The
 projection that *produces* the canvas still chooses its own `measure`: pass
-`pdf_measure_text` to keep the whole export SDL-free, or `sdl_measure_text` for
+`pdf_measure_text` to keep the whole export SDL-free, or `measure_sdl_text` for
 byte-for-byte parity with the on-screen layout (which requires SDL to be up — the
 `write_example_pdf` helper initializes it for you).
 

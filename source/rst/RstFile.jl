@@ -2,7 +2,7 @@
     RstFileModule
 
 `RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
-projectured reStructuredText tree). Parse uses `rstparse`; emit runs the
+projectured reStructuredText tree). Parse uses `parse_rst`; emit runs the
 standard `RstToSyntax(style=:source) → SyntaxToText → TextToString`
 projection chain through `print_natural_text`.
 
@@ -37,14 +37,14 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRo
                     RstEnumeratedList, RstDefinitionList, RstDefinitionItem,
                     RstFieldList, RstField, RstBlockQuote, RstFootnote, RstAdmonition,
                     RstGridTable, RstTableRow, RstTableCell
-import ..RstParserModule: rstparse
+import ..RstParserModule: parse_rst
 import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
 import ..NaturalNotationModule: register_natural_domain!, print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             LoaderContext, register_file_document_type!,
                             get_document_section, parse_marker_text, ReferenceStub
 
-export RstFile, rst_section, rst_title_text, PRED_REF_DIRECTIVE
+export RstFile, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
 
 """
     RstFile(filename, content)
@@ -60,7 +60,7 @@ emit_text(f::RstFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::RstFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
-    getfield(f, :content)[] = _substitute_markers(rstparse(text), ctx)
+    getfield(f, :content)[] = _substitute_markers(parse_rst(text), ctx)
     f
 end
 
@@ -115,12 +115,12 @@ _substitute_markers(n::RstDefinitionItem, ctx::LoaderContext) = _visit_vector!(n
 # ── Addressing a section by its title ─────────────────────────────────────────
 
 """
-    rst_title_text(section) -> String
+    get_rst_title_text(section) -> String
 
 The plain text of a section's title, with every inline marker dropped. This is
 what addresses a section by name, so `:ned:`Foo`` in a title reads as `Foo`.
 """
-function rst_title_text(section::RstSection)
+function get_rst_title_text(section::RstSection)
     buffer = IOBuffer()
     _collect_run_text!(buffer, section.title)
     String(take!(buffer))
@@ -136,7 +136,7 @@ _collect_title_text!(buffer::IO, node::RstEmphasis) = _collect_run_text!(buffer,
 _collect_title_text!(::IO, ::Any) = nothing
 
 """
-    rst_section(document, title) -> RstSection or nothing
+    find_rst_section(document, title) -> RstSection or nothing
 
 The section of `document` whose title reads `title`, searched depth first.
 
@@ -144,11 +144,11 @@ The section tree already owns its blocks, so this returns the node itself —
 unlike the markdown counterpart, which has to gather the blocks that follow a
 heading because markdown headings do not nest.
 """
-function rst_section(document, title::AbstractString)
+function find_rst_section(document, title::AbstractString)
     for element in _elements_of(document)
         element isa RstSection || continue
-        rst_title_text(element) == title && return element
-        found = rst_section(element, title)
+        get_rst_title_text(element) == title && return element
+        found = find_rst_section(element, title)
         found === nothing || return found
     end
     nothing
@@ -160,9 +160,9 @@ _elements_of(::Any)                = ()
 
 # The `section` verb is one shared generic; RST adds its method here, markdown
 # adds its own. A marker that names no section fails loudly rather than embed
-# nothing, which is what `rst_section` answers for a caller that wants to look.
+# nothing, which is what `find_rst_section` answers for a caller that wants to look.
 function get_document_section(document::Union{RstRoot,RstSection}, title::AbstractString)
-    found = rst_section(document, title)
+    found = find_rst_section(document, title)
     found === nothing &&
         error("section(…): no title reads ", repr(title),
               " — the document has (", join(_section_titles(document), ", "), ")")
@@ -173,7 +173,7 @@ end
 function _section_titles(document, acc = String[])
     for element in _elements_of(document)
         element isa RstSection || continue
-        push!(acc, rst_title_text(element))
+        push!(acc, get_rst_title_text(element))
         _section_titles(element, acc)
     end
     acc
@@ -189,7 +189,7 @@ function __init__()
                              make      = () -> RstToSyntax(),
                              format    = :rst,
                              extension = ".rst",
-                             parse     = rstparse)
+                             parse     = parse_rst)
 end
 
 end # module

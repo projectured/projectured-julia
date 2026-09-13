@@ -12,7 +12,7 @@ position of each emitted segment. The reader uses it for keyboard navigation
 into character positions.
 
 Text measurement is provided via the mandatory `measure(text, font) -> (w, h)`
-function parameter. Backends inject a real measurer (e.g. `sdl_measure_text`)
+function parameter. Backends inject a real measurer (e.g. `measure_sdl_text`)
 at construction time.
 """
 module TextToGraphicsModule

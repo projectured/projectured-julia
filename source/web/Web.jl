@@ -1,4 +1,4 @@
-export WebBackend, web_key_to_symbol
+export WebBackend, convert_web_key_to_symbol
 
 # ════════════════════════════════════════════════════════════════════════
 # Connection + backend state
@@ -71,14 +71,14 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    web_key_to_symbol(key, code, mods) -> Symbol
+    convert_web_key_to_symbol(key, code, mods) -> Symbol
 
 Map a browser `KeyboardEvent.key` (+ `code` for left/right modifier identity)
 to the backend-agnostic key vocabulary, mirroring `sdl_keysym_to_symbol`.
 Printable keys whose specific identity is not tracked return `:char` (the
 character itself arrives separately via a `keypress` → `KeyPress`).
 """
-function web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
+function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
     # Navigation
     key == "ArrowLeft"  && return :left
     key == "ArrowRight" && return :right
@@ -559,12 +559,12 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         # Escape is an ordinary key here, as it is in the SDL backend: a backend
         # reports what happened and decides no meaning. The editor loop quits on an
         # Escape that no reader handled.
-        sym = web_key_to_symbol(key, String(get(obj, :code, "")), m)
+        sym = convert_web_key_to_symbol(key, String(get(obj, :code, "")), m)
         put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, Bool(get(obj, :repeat, false)))))
 
     elseif typ == "keyup"
         m = _mods(obj)
-        sym = web_key_to_symbol(String(obj[:key]), String(get(obj, :code, "")), m)
+        sym = convert_web_key_to_symbol(String(obj[:key]), String(get(obj, :code, "")), m)
         put!(backend.inbound, WindowInput(wid, KeyUp(sym, m)))
 
     elseif typ == "keypress"

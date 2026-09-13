@@ -5,8 +5,8 @@ A pragmatic reStructuredText parser. Converts RST source text into an
 `RstRoot` tree from `RstModule`.
 
 Provides:
-- `rstparse(text)` — parse an RST string into an `RstRoot`
-- `rstparse_file(path)` — read and parse a `.rst` file from disk
+- `parse_rst(text)` — parse an RST string into an `RstRoot`
+- `parse_rst_file(path)` — read and parse a `.rst` file from disk
 
 Deliberately minimal (it is not docutils). It covers what the INET
 documentation uses. Block level: sections with any adornment character,
@@ -42,7 +42,7 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstParagraph, RstText, Rst
                     RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition,
                     RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective
 
-export rstparse, rstparse_file
+export parse_rst, parse_rst_file
 
 # ── Line helpers ──────────────────────────────────────────────────────────────
 
@@ -750,21 +750,21 @@ end
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 """
-    rstparse(text) -> RstRoot
+    parse_rst(text) -> RstRoot
 
 Parse reStructuredText source into an `RstRoot`.
 """
-function rstparse(text::AbstractString)
+function parse_rst(text::AbstractString)
     normalised = replace(String(text), "\r\n" => "\n", "\t" => "        ")
     lines = String.(split(normalised, '\n'))
     RstRoot(_build_all(_parse_blocks(_dedent(lines))))
 end
 
 """
-    rstparse_file(path) -> RstRoot
+    parse_rst_file(path) -> RstRoot
 
 Read and parse a `.rst` file from disk.
 """
-rstparse_file(path::AbstractString) = rstparse(read(path, String))
+parse_rst_file(path::AbstractString) = parse_rst(read(path, String))
 
 end # module

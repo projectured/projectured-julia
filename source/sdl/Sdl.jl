@@ -1,7 +1,7 @@
-export SdlBackend, sdl_measure_text, sdl_render_canvas, sdl_display_size,
+export SdlBackend, measure_sdl_text, render_sdl_canvas, get_sdl_display_size,
        write_image, GraphicsCanvasToImageFile,
        _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
-       sdl_decode_image, decode_image_file!
+       decode_sdl_image, decode_image_file!
 
 # Pixel size of the primary monitor from xrandr's RandR 1.5
 # `--listmonitors`. SDL can fold a multi-monitor X screen into a single
@@ -35,7 +35,7 @@ function _x11_primary_monitor_size(; require_multi::Bool=false)
 end
 
 """
-    sdl_display_size(; display::Integer=0) -> (width, height)
+    get_sdl_display_size(; display::Integer=0) -> (width, height)
 
 Return the usable size of the given display (default 0) in **logical** pixels —
 the coordinate space window sizes are authored in. "Usable" means with
@@ -52,7 +52,7 @@ size the default window to the whole desktop. When SDL reports one display
 but xrandr sees several, the primary monitor's size from xrandr is used
 instead so the default fills one monitor, not the span.
 """
-function sdl_display_size(; display::Integer=0)
+function get_sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
     # Ensure the scale is known before converting device → logical, since this
     # may run before `initialize_backend!` (early detection is window-free: env
@@ -559,7 +559,7 @@ end
 # Two-phase detection:
 #
 #   _detect_display_scale!() — called from initialize_backend! and from
-#   sdl_display_size, before any window exists:
+#   get_sdl_display_size, before any window exists:
 #     1. PROJECTURED_DISPLAY_SCALE env var — explicit override, always respected.
 #     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
 #        Xft.dpi = 96 × scale, e.g. 192 for 200%).
@@ -1683,14 +1683,14 @@ end
 function _bounds_of_elem(elem, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    _bounds_elem!(elem, ox, oy, measure_sdl_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, sdl_measure_text, mnx, mny, mxx, mxy)
+    _accumulate_bounds!(canvas, ox, oy, measure_sdl_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
@@ -2121,17 +2121,17 @@ end
 const _font_backend = SdlBackend()
 
 """
-    sdl_measure_text(text, font) -> (Int, Int)
+    measure_sdl_text(text, font) -> (Int, Int)
 
 Standalone text measurement using SDL_ttf. Returns `(pixel_width, pixel_height)`.
 Uses a module-level font cache.
 """
-sdl_measure_text(text, font) = measure_text(_font_backend, text, font)
+measure_sdl_text(text, font) = measure_text(_font_backend, text, font)
 
 # ── Canvas rasterization ──────────────────────────────────────────────
 
 """
-    sdl_render_canvas(canvas::GraphicsCanvas) -> GraphicsImage
+    render_sdl_canvas(canvas::GraphicsCanvas) -> GraphicsImage
 
 Render `canvas` to an offscreen SDL texture and return a `GraphicsImage`
 holding the texture pointer as `data`. The caller is responsible for
@@ -2142,14 +2142,14 @@ NOTE: requires an active SDL window/renderer. Currently uses the renderer
 of the first open window — a proper implementation will accept a renderer
 parameter or use a shared offscreen context.
 """
-function sdl_render_canvas(canvas::GraphicsCanvas)
+function render_sdl_canvas(canvas::GraphicsCanvas)
     GraphicsImage(Int32(0), Int32(0), Int32(0), Int32(0), nothing)
 end
 
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
 # through the generic BackendModule seams without naming SdlBackendModule, so the
 # SDL backend can move into an optional extension.
-BackendModule.render_canvas(canvas::GraphicsCanvas) = sdl_render_canvas(canvas)
+BackendModule.render_canvas(canvas::GraphicsCanvas) = render_sdl_canvas(canvas)
 
 # ════════════════════════════════════════════════════════════════════════
 # Offscreen rendering / write_image
@@ -2308,7 +2308,7 @@ end
 #
 # `_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
 # `GraphicsModule` (pure geometry over a `measure` callback, no SDL), imported
-# above and shared with the PDF backend. `write_image` passes `sdl_measure_text`.
+# above and shared with the PDF backend. `write_image` passes `measure_sdl_text`.
 
 """
     write_image(document, projection, filename::AbstractString;
@@ -2336,7 +2336,7 @@ corresponding `max_*`.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
 )
 write_image(doc, proj, "snapshot.png")                          # fits content ≤ 1200×800
 write_image(doc, proj, "snapshot.png"; width=1200, height=800)  # fixed 1200×800
@@ -2374,7 +2374,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     # `_canvas_content_bounds` returns (minx, miny, maxx, maxy). The natural size
     # must span the full extent — including any content at negative coordinates —
     # so subtract a negative min rather than dropping it.
-    minx, miny, maxx, maxy = _canvas_content_bounds(canvas, sdl_measure_text)
+    minx, miny, maxx, maxy = _canvas_content_bounds(canvas, measure_sdl_text)
     nw = maxx - min(minx, 0)
     nh = maxy - min(miny, 0)
 
@@ -2386,7 +2386,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        minx, miny, maxx, maxy = _canvas_content_bounds(canvas, sdl_measure_text)
+        minx, miny, maxx, maxy = _canvas_content_bounds(canvas, measure_sdl_text)
         nw = maxx - min(minx, 0)
         nh = maxy - min(miny, 0)
     end
@@ -2420,7 +2420,7 @@ of the returned `SimpleIoMap` is an `ImageFile` document. Has no reader.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
     GraphicsCanvasToImageFile("output.bmp"; width=1200, height=800),
 )
 iomap = print_document(proj, doc)   # writes output.bmp
@@ -3015,7 +3015,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 """
-    sdl_decode_image(filename::AbstractString) -> (data::Vector{UInt8}, width::Int32, height::Int32)
+    decode_sdl_image(filename::AbstractString) -> (data::Vector{UInt8}, width::Int32, height::Int32)
 
 Load an image file (PNG, JPEG, BMP, etc.) via SDL2_image's `IMG_Load`,
 convert to RGBA32 row-major pixel format, and return the raw bytes plus
@@ -3024,15 +3024,15 @@ the image dimensions. The returned `data` is suitable for passing to
 
 Throws on failure (file not found, unsupported format, etc.).
 """
-function sdl_decode_image(filename::AbstractString)
+function decode_sdl_image(filename::AbstractString)
     SDL_Init(SDL_INIT_VIDEO)
     surface = IMG_Load(filename)
-    surface == C_NULL && error("sdl_decode_image: failed to load '$filename': $(unsafe_string(SDL_GetError()))")
+    surface == C_NULL && error("decode_sdl_image: failed to load '$filename': $(unsafe_string(SDL_GetError()))")
 
     # Convert to RGBA32 (R=byte0, G=byte1, B=byte2, A=byte3 on little-endian)
     rgba_surface = SDL_ConvertSurfaceFormat(surface, UInt32(SDL_PIXELFORMAT_RGBA32), UInt32(0))
     SDL_FreeSurface(surface)
-    rgba_surface == C_NULL && error("sdl_decode_image: format conversion failed: $(unsafe_string(SDL_GetError()))")
+    rgba_surface == C_NULL && error("decode_sdl_image: format conversion failed: $(unsafe_string(SDL_GetError()))")
 
     s = unsafe_load(rgba_surface)
     w = Int32(s.w)
@@ -3061,24 +3061,24 @@ Decode `img.filename` via SDL2_image and populate `img.raw` with a tuple
 function decode_image_file!(img::ImageFile)
     fn = img.filename::AbstractString
     isempty(fn) && return img
-    result = sdl_decode_image(fn)
+    result = decode_sdl_image(fn)
     img.raw = result
     img
 end
 
 # Image decode via the generic seam.
-BackendModule.decode_image(filename::AbstractString) = sdl_decode_image(filename)
+BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename)
 
 # Display size via the generic seam (delegates to the SDL-specific query).
 BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
-    sdl_display_size(; display=display)
+    get_sdl_display_size(; display=display)
 
 # Populate the Display devices with the real display geometry and HiDPI scale
 # discovered at start-up (called after `initialize_backend!`, so the scale is
 # already detected). Mouse/Keyboard are left at their defaults — SDL2 cannot
 # reliably report button count or keyboard layout.
 function BackendModule.configure_devices!(::SdlBackend, devices)
-    width, height = sdl_display_size()
+    width, height = get_sdl_display_size()
     scale = _DISPLAY_SCALE[]
     for device in devices
         device isa Display || continue

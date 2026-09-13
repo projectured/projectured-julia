@@ -107,7 +107,7 @@ truth — individual widgets should not carry their own colors. Two presets ship
 projection factory:
 
 ```julia
-WidgetToGraphics(font; measure=sdl_measure_text, theme=make_dark_theme())
+WidgetToGraphics(font; measure=measure_sdl_text, theme=make_dark_theme())
 ```
 
 The renderer leans on graphics primitives that anti-alias cleanly: `GraphicsRect`
@@ -656,7 +656,7 @@ stays in the backend (`decode_image_file!`); the domain-layer printer only
 
 ## Projection to graphics
 
-`WidgetToGraphics(font; measure=sdl_measure_text, theme=make_light_theme())`
+`WidgetToGraphics(font; measure=measure_sdl_text, theme=make_light_theme())`
 is the convenience factory that returns
 
 ```julia

@@ -39,14 +39,14 @@ using ProjecturedProjection.IdentityProjectionModule: IdentityProjection
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 
-export window_scene, window_scene_projection, run_window_editor
+export make_window_scene, make_window_scene_projection, run_window_editor
 
 """
-    window_scene(document, title; width, height) -> ScreenDocument
+    make_window_scene(document, title; width, height) -> ScreenDocument
 
 The screen a program is drawn on: one window, holding `document`.
 """
-function window_scene(document, title::AbstractString; width::Integer, height::Integer)
+function make_window_scene(document, title::AbstractString; width::Integer, height::Integer)
     window = WindowDocument(; id = Symbol(title), title = String(title),
                             x = 100, y = 100, width = Int(width), height = Int(height),
                             content = document)
@@ -54,7 +54,7 @@ function window_scene(document, title::AbstractString; width::Integer, height::I
 end
 
 """
-    window_scene_projection(projection) -> Projection
+    make_window_scene_projection(projection) -> Projection
 
 How that screen is drawn. The window's content goes through `projection`; the
 screen around it goes through `ScreenToScreen`, wrapped in the manager that owns
@@ -63,7 +63,7 @@ opening, closing and resizing a window.
 The seam is a reference dispatch and not a type dispatch, because the content of
 a window is an ordinary document and the screen must not project it as one.
 """
-function window_scene_projection(projection)
+function make_window_scene_projection(projection)
     target = @reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::Document
     dispatch = ReferenceDispatchingProjection(reference -> begin
         is_reference_equal(strip_reference_types(reference),
@@ -109,8 +109,8 @@ function run_window_editor(document, projection, title::AbstractString;
         width = something(width, display_width)
         height = something(height, display_height)
     end
-    scene = window_scene(document, title; width = width, height = height)
-    run_editor!(backend, window_scene_projection(projection), scene;
+    scene = make_window_scene(document, title; width = width, height = height)
+    run_editor!(backend, make_window_scene_projection(projection), scene;
                              mcp = mcp, on_start = on_start)
 end
 

@@ -749,7 +749,7 @@ vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so
 projection reader code never sees a raw platform event; a projection that needs
 to measure text takes an injected `measure::Function` rather than the backend
 itself. A single source of truth governs any cross-backend mapping (e.g.
-`web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
+`convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
 
 ### PAR-OPT-IN-DEPENDENCY
 

@@ -308,7 +308,7 @@ function test_document_insertion()
             @test read_intent(jproj, eiom, KeyDown(:return, ModifierKeys())) === nothing
         end
 
-        @testset "SqlInsertion commits source via sqlparse" begin
+        @testset "SqlInsertion commits source via parse_sql_text" begin
             si = SqlInsertion("SELECT * FROM persons")
             si.selection = _ins_vpath(length("SELECT * FROM persons"))
             sproj = SqlInsertionToSyntaxLeaf()

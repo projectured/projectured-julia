@@ -13,7 +13,7 @@ using ProjecturedKernel.CellModule: Cell, AbstractCell
 using ProjecturedSerialization.FileProjectModule
 using ProjecturedRst.RstFileModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
-using ProjecturedRst.RstParserModule: rstparse
+using ProjecturedRst.RstParserModule: parse_rst
 using ProjecturedNatural.NaturalNotationModule: print_natural_text
 using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
@@ -136,7 +136,7 @@ function test_rst_embed()
             @test occursin(".. pred-ref:: <<file(\"data.json\")>>", after)
             @test !occursin("\"a\"", after)
             # And what it wrote parses back to the same shape.
-            @test rstparse(after) isa RstRoot
+            @test parse_rst(after) isa RstRoot
         end
     end
 
@@ -201,7 +201,7 @@ function test_rst_embed()
             ctx = LoaderContext(d)
             section = evaluate_marker("section(file(\"page.rst\"), \"Title\")", ctx)
             @test section isa RstSection
-            @test rst_title_text(section) == "Title"
+            @test get_rst_title_text(section) == "Title"
             @test_throws ErrorException evaluate_marker("section(file(\"page.rst\"), \"Nope\")", ctx)
         end
     end

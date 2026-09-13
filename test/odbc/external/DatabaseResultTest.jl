@@ -165,11 +165,11 @@ _ddl_to_sql(stmt) = print_document(_ddl_render_pipe(), stmt).output
 #   4. DROP SCHEMA test
 function test_create_ddl_in_test_schema(adapter)
     @testset "T7 — CREATE SCHEMA/TABLE DDL round-trip (test schema)" begin
-        schema_stmt = sqlparse("CREATE SCHEMA test")
+        schema_stmt = parse_sql_text("CREATE SCHEMA test")
         @test schema_stmt isa SqlCreateSchemaStatement
         @test schema_stmt.schema_name == "test"
 
-        table_stmt = sqlparse(
+        table_stmt = parse_sql_text(
             "CREATE TABLE test.ddl_roundtrip (id integer, name text, price numeric(10, 2))")
         @test table_stmt isa SqlCreateTableStatement
         @test table_stmt.table_name.schema_name == "test"

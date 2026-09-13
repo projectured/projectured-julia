@@ -25,7 +25,7 @@ abstract type SqlStatement <: SqlDocument end
 
 """
 A placeholder for SQL source being typed; committed on Enter by parsing with
-`sqlparse` into a real `SqlStatement`.
+`parse_sql_text` into a real `SqlStatement`.
 """
 @document struct SqlInsertion <: SqlStatement
     value::String = ""

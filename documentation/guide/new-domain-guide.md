@@ -397,7 +397,7 @@ end
 Create `example/projection/Bookmark.jl`:
 
 ```julia
-function make_bookmark_projection_example(; measure=sdl_measure_text)
+function make_bookmark_projection_example(; measure=measure_sdl_text)
     ChainingProjection(
         RecursiveProjection(BookmarkToSyntax()),
         RecursiveProjection(SyntaxToText()),

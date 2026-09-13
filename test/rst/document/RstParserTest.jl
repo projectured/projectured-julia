@@ -1,4 +1,4 @@
-# Tests for the reStructuredText parser (`rstparse`) and the `:source`
+# Tests for the reStructuredText parser (`parse_rst`) and the `:source`
 # projection's emit path.
 #
 # Two levels of check:
@@ -9,7 +9,7 @@
 #
 # The round-trip criterion is **AST idempotence**, not byte equality:
 #
-#     rstparse(print_natural_text(rstparse(text))) == rstparse(text)
+#     parse_rst(print_natural_text(parse_rst(text))) == parse_rst(text)
 #
 # Byte equality is out of reach because the corpus writes adornment lines
 # longer than their titles and mixes indent widths. `test_rst_corpus`
@@ -65,23 +65,23 @@ end
 # ── Unit tests ────────────────────────────────────────────────────────────────
 
 function test_rst_parser()
-    @testset "rstparse" begin
+    @testset "parse_rst" begin
         @testset "sections nest by adornment order" begin
-            doc = rstparse("Alpha\n=====\n\ntext\n\nBeta\n----\n\nmore\n\nGamma\n=====\n")
+            doc = parse_rst("Alpha\n=====\n\ntext\n\nBeta\n----\n\nmore\n\nGamma\n=====\n")
             @test length(doc.elements) == 2
             a = doc.elements[1]
             @test a isa RstSection && a.level == 1 && a.adornment == "="
-            @test rst_title_text(a) == "Alpha"
+            @test get_rst_title_text(a) == "Alpha"
             # `-` is met second, so it opens depth 2 and Beta sits inside Alpha.
             b = a.elements[2]
             @test b isa RstSection && b.level == 2 && b.adornment == "-"
             # `=` reopens depth 1, so Gamma is a sibling of Alpha.
             @test doc.elements[2] isa RstSection && doc.elements[2].level == 1
-            @test rst_title_text(doc.elements[2]) == "Gamma"
+            @test get_rst_title_text(doc.elements[2]) == "Gamma"
         end
 
         @testset "inline markup" begin
-            run(text) = rstparse(text).elements[1].content
+            run(text) = parse_rst(text).elements[1].content
             @test run("plain")[1] isa RstText
             @test run("a ``lit`` b")[2] isa RstLiteral
             @test run("a ``lit`` b")[2].content == "lit"
@@ -102,7 +102,7 @@ function test_rst_parser()
             # after it, the end-string rule a non-blank before it.
             for text in ("*.host.numApps = 1",
                          "*.source.numApps = 1 and *.sink.numApps = 2")
-                content = rstparse(text).elements[1].content
+                content = parse_rst(text).elements[1].content
                 @test length(content) == 1
                 @test content[1] isa RstText
                 @test content[1].content == text
@@ -110,44 +110,44 @@ function test_rst_parser()
         end
 
         @testset "lists" begin
-            b = rstparse("-  one\n-  two\n").elements[1]
+            b = parse_rst("-  one\n-  two\n").elements[1]
             @test b isa RstBulletList && b.marker == "-" && length(b.items) == 2
-            e = rstparse("1. one\n2. two\n").elements[1]
+            e = parse_rst("1. one\n2. two\n").elements[1]
             @test e isa RstEnumeratedList && e.style == "1." && length(e.items) == 2
             # A continuation line belongs to its item, and does not become a
             # definition list.
-            c = rstparse("-  one\n   still one\n").elements[1]
+            c = parse_rst("-  one\n   still one\n").elements[1]
             @test length(c.items) == 1
             @test c.items[1].elements[1] isa RstParagraph
             @test length(c.items[1].elements) == 1
         end
 
         @testset "directives" begin
-            f = rstparse(".. figure:: media/N.png\n   :align: center\n\n   The caption\n").elements[1]
+            f = parse_rst(".. figure:: media/N.png\n   :align: center\n\n   The caption\n").elements[1]
             @test f isa RstFigure && f.path == "media/N.png" && f.align == "center"
             @test length(f.caption) == 1
-            l = rstparse(".. literalinclude:: ../omnetpp.ini\n   :language: ini\n   :start-at: *.a\n").elements[1]
+            l = parse_rst(".. literalinclude:: ../omnetpp.ini\n   :language: ini\n   :start-at: *.a\n").elements[1]
             @test l isa RstLiteralInclude && l.language == "ini" && l.start_at == "*.a"
-            @test rstparse(".. note::\n\n   Careful.\n").elements[1] isa RstAdmonition
-            @test rstparse(".. video_noloop:: a.mp4\n").elements[1].loop == false
-            @test rstparse(".. video:: a.mp4\n").elements[1].loop == true
-            t = rstparse(".. toctree::\n   :maxdepth: 3\n   :titlesonly:\n\n   a/index\n   b/index\n").elements[1]
+            @test parse_rst(".. note::\n\n   Careful.\n").elements[1] isa RstAdmonition
+            @test parse_rst(".. video_noloop:: a.mp4\n").elements[1].loop == false
+            @test parse_rst(".. video:: a.mp4\n").elements[1].loop == true
+            t = parse_rst(".. toctree::\n   :maxdepth: 3\n   :titlesonly:\n\n   a/index\n   b/index\n").elements[1]
             @test t isa RstToctree && t.maxdepth == 3 && t.titlesonly && length(t.entries) == 2
             # A directive with no struct of its own keeps its name and body.
-            g = rstparse(".. only:: html\n\n   web only\n").elements[1]
+            g = parse_rst(".. only:: html\n\n   web only\n").elements[1]
             @test g isa RstDirective && g.name == "only" && g.argument == "html"
         end
 
         @testset "explicit markup" begin
-            @test rstparse(".. _ug:cha:queueing:\n").elements[1] isa RstTarget
-            @test rstparse(".. _ug:cha:queueing:\n").elements[1].name == "ug:cha:queueing"
-            @test rstparse(".. this is a comment\n").elements[1] isa RstComment
-            @test rstparse(".. role:: par(code)\n").elements[1].base == "code"
+            @test parse_rst(".. _ug:cha:queueing:\n").elements[1] isa RstTarget
+            @test parse_rst(".. _ug:cha:queueing:\n").elements[1].name == "ug:cha:queueing"
+            @test parse_rst(".. this is a comment\n").elements[1] isa RstComment
+            @test parse_rst(".. role:: par(code)\n").elements[1].base == "code"
         end
 
         @testset "grid table" begin
             text = "+----+----+\n| a  | b  |\n+====+====+\n| c  | d  |\n+----+----+\n"
-            t = rstparse(text).elements[1]
+            t = parse_rst(text).elements[1]
             @test t isa RstGridTable
             @test length(t.rows) == 2
             @test length(t.rows[1].cells) == 2
@@ -159,7 +159,7 @@ function test_rst_parser()
             # The parser joins a paragraph's source lines with a space, so the
             # emitted paragraph never starts a line at column zero inside a
             # list item or a directive body.
-            p = rstparse("one\ntwo\nthree\n").elements[1]
+            p = parse_rst("one\ntwo\nthree\n").elements[1]
             @test p.content[1].content == "one two three"
         end
     end
@@ -173,9 +173,9 @@ function test_rst_round_trip()
             name = basename(path)
             @testset "$name" begin
                 text = read(path, String)
-                doc = rstparse(text)
+                doc = parse_rst(text)
                 emitted = print_natural_text(doc)
-                again = rstparse(emitted)
+                again = parse_rst(emitted)
                 difference = rst_first_difference(again, doc)
                 @test difference === nothing
                 difference === nothing || @info "round-trip differs" file = name at = difference
@@ -214,7 +214,7 @@ function test_rst_corpus(dir::AbstractString; verbose::Bool = true, limit::Int =
         text = read(f, String)
         local doc
         try
-            doc = rstparse(text)
+            doc = parse_rst(text)
             parsed += 1
         catch e
             push!(failures, "parse: $f: $(sprint(showerror, e))")
@@ -229,7 +229,7 @@ function test_rst_corpus(dir::AbstractString; verbose::Bool = true, limit::Int =
         end
         emitted == text && (exact += 1)
         try
-            if rst_ast_equal(rstparse(emitted), doc)
+            if rst_ast_equal(parse_rst(emitted), doc)
                 idempotent += 1
             else
                 push!(failures, "idempotence: $f")

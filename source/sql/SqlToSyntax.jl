@@ -2051,13 +2051,13 @@ function SqlToSyntax()
 end
 
 # ── The SQL source insertion ────────────────────────────────────────────────
-import ..SqlParserModule: sqlparse
+import ..SqlParserModule: parse_sql_text
 
 # Commit SQL source by parsing it; partial / invalid source can't commit.
 function _sql_commit(value::AbstractString)
     isempty(strip(value)) && return nothing
     try
-        sqlparse(value)
+        parse_sql_text(value)
     catch
         nothing
     end
@@ -2066,11 +2066,11 @@ end
 """
     SqlInsertionToSyntaxLeaf()
 
-A SQL source insertion, committing `value` via `sqlparse`; the buffer is
+A SQL source insertion, committing `value` via `parse_sql_text`; the buffer is
 green when it parses as a complete statement, red otherwise.
 """
 SqlInsertionToSyntaxLeaf() =
-    InsertionToSyntaxLeaf(_sql_commit; completion = parse_completion(sqlparse))
+    InsertionToSyntaxLeaf(_sql_commit; completion = parse_completion(parse_sql_text))
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
@@ -2091,7 +2091,7 @@ function __init__()
                              make      = () -> SqlToSyntax(),
                              format    = :sql,
                              extension = ".sql",
-                             parse     = sqlparse)
+                             parse     = parse_sql_text)
 end
 
 end # module

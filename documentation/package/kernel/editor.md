@@ -123,7 +123,7 @@ document = JsonString("hello world")
 proj     = ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
-    TextToGraphics(measure = (t, f) -> sdl_measure_text(backend, t, f)),
+    TextToGraphics(measure = (t, f) -> measure_sdl_text(backend, t, f)),
 )
 
 run_editor!(backend, proj, document)
@@ -207,7 +207,7 @@ In the example packages this is wired up for you — see `play_live_example` and
   backend provides `initialize_backend!`, `quit_backend!`, `measure_text`, and
   the per-frame device I/O `read_from_devices` / `write_to_devices`.
 - Projections that need to measure text take a `measure::Function` argument
-  (e.g. `TextToGraphics`); the backend's `sdl_measure_text` is the usual
+  (e.g. `TextToGraphics`); the backend's `measure_sdl_text` is the usual
   injection.
 - The `ConsoleBackend` consumes the **Text** domain directly (no
   `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal

@@ -86,7 +86,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 - `sdl_to_keypress` maps SDL keysyms + modifier bits to `KeyPress`/`KeyDown`.
 - Mouse events are mapped inline in `read_from_devices` (there is no
   `sdl_to_mouse` function) to the `Mouse*` structs.
-- `sdl_render_canvas` walks a `GraphicsCanvas` (and its nested
+- `render_sdl_canvas` walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls.
 
@@ -159,7 +159,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   `measure_text` synchronously *while printing*, long before any primitive
   reaches the browser, so the server must measure glyphs the same way the browser
   renders them. `initialize_backend!` runs `SDL_Init` + `TTF_Init` (no window) and reuses
-  `sdl_measure_text`; the same TTFs are served to the browser (`/font/<name>`,
+  `measure_sdl_text`; the same TTFs are served to the browser (`/font/<name>`,
   loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
   with `devicePixelRatio`, so the server stays in logical pixels.
 - **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
@@ -191,7 +191,7 @@ Client → server (raw browser key fields; the server maps them):
 {"type":"resize","window":"json","w":…,"h":…}   {"type":"resync"}   {"type":"quit"}
 ```
 
-Key mapping is done **on the server** (`web_key_to_symbol`, mirroring
+Key mapping is done **on the server** (`convert_web_key_to_symbol`, mirroring
 `sdl_keysym_to_symbol`) so the `:left`/`:char`/… vocabulary has a single source
 of truth.
 
@@ -243,7 +243,7 @@ file:
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
-  `sdl_measure_text`.
+  `measure_sdl_text`.
 
 See [the graphics guide](../graphics/graphics.md) for both APIs.
 
@@ -254,7 +254,7 @@ and `WidgetToGraphics` both word-wrap based on glyph widths). They accept a
 `measure::Function` argument so they stay backend-agnostic:
 
 ```julia
-TextToGraphics(measure = (text, font) -> sdl_measure_text(backend, text, font))
+TextToGraphics(measure = (text, font) -> measure_sdl_text(backend, text, font))
 ```
 
 Inject the backend's measurer when building the pipeline; the projection

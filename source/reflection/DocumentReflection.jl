@@ -35,7 +35,7 @@ import ..OperationModule: Operation, evaluate_operation
 export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
        reflect_document, sync_reflection!,
        reflect_child_count, reflect_child_pairs, reflect_children,
-       is_reflection_leaf, reflection_value
+       is_reflection_leaf, get_reflection_value
 
 """
     ReflectedNode(label, kind, value, children)
@@ -105,12 +105,12 @@ is_reflection_leaf(x) =
     reflect_child_count(x) == 0
 
 """
-    reflection_value(x) -> String
+    get_reflection_value(x) -> String
 
 A leaf's short rendering. Truncated, because a shadow of a live object will
 happily contain a megabyte-long `repr` otherwise.
 """
-function reflection_value(x)
+function get_reflection_value(x)
     s = x isa AbstractString ? String(x) : sprint(show, x; context = :compact => true)
     length(s) <= 64 ? s : string(first(s, 61), "...")
 end
@@ -213,7 +213,7 @@ function _sync_reflection!(node, object, policy::SyncPolicy, depth::Int)
     node.kind == k || (node.kind = k)
 
     if is_reflection_leaf(object)
-        v = reflection_value(object)
+        v = get_reflection_value(object)
         node.value == v || (node.value = v)
         node.children === nothing || (node.children = nothing)
         return node

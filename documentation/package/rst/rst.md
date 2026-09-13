@@ -67,7 +67,7 @@ falls back to a neutral colour for a name it does not know.
 
 ## The parser
 
-`rstparse(text)` and `rstparse_file(path)`. Pragmatic, not docutils, but it
+`parse_rst(text)` and `parse_rst_file(path)`. Pragmatic, not docutils, but it
 covers the corpus.
 
 The block reader takes a line vector that its caller already dedented to
@@ -170,7 +170,7 @@ field is `bound`.
 `.rst` as a file document type, so `import_document`, `export_document` and
 `document_to_text` all reach the slice by extension.
 
-`rst_section(document, title)` finds a section by the plain text of its title.
+`find_rst_section(document, title)` finds a section by the plain text of its title.
 Unlike the markdown counterpart it returns the node itself, because an RST
 section already owns its blocks. It is also the slice's method of
 `get_document_section`, the generic behind the `section(…)` marker verb, so
@@ -232,7 +232,7 @@ section, where the title takes the first slot.
 
 ### The round-trip criterion is AST idempotence
 
-`rstparse(document_to_text(rstparse(text)))` must equal `rstparse(text)`.
+`parse_rst(document_to_text(parse_rst(text)))` must equal `parse_rst(text)`.
 
 Byte equality is not required and is not reached: a paragraph is rejoined onto
 one line, an adornment is redrawn at the title's width, and a directive body

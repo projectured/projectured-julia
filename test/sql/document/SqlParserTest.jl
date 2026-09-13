@@ -5,7 +5,7 @@ using Test
 function test_sql_parser()
     @testset "SqlParser" begin
         # ── helper: parse and return the output document ──────────────
-        parse(sql) = sqlparse(sql)
+        parse(sql) = parse_sql_text(sql)
 
         # ── helper: normalize SQL for round-trip comparison ───────────
         normalize_sql(s) = begin
@@ -211,7 +211,7 @@ function test_sql_parser()
 
         # ── Non-SELECT raises ────────────────────────────────────────
         @testset "non-SELECT" begin
-            @test_throws Exception sqlparse("INSERT INTO t VALUES (1)")
+            @test_throws Exception parse_sql_text("INSERT INTO t VALUES (1)")
         end
 
         # ── Schema-qualified table ───────────────────────────────────

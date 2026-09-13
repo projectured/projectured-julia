@@ -38,7 +38,7 @@ few keyword arguments worth knowing:
 
 | Keyword | Effect |
 |---|---|
-| `width`, `height` | Window size. When unset, defaults to the display size via `sdl_display_size()`. |
+| `width`, `height` | Window size. When unset, defaults to the display size via `get_sdl_display_size()`. |
 | `caching=true` | Wraps the projection in `make_graphics_caching` so you can verify cell invalidation behaviour. |
 | `scrolling=true` | Wraps the document/projection in the scrolling wrapper so you can drive layout that exceeds the viewport. |
 | `workbench=true` | Embeds the example inside the workbench shell. |

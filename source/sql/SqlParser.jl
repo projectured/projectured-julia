@@ -9,8 +9,8 @@ from `SqlDocumentModule`. Two statement families are recognised:
   `SqlCreateSchemaStatement`.
 
 Provides:
-- `sqlparse(text)` — parse a SQL string into a `SqlStatement`
-- `sqlparse_file(path)` — read and parse a `.sql` file from disk
+- `parse_sql_text(text)` — parse a SQL string into a `SqlStatement`
+- `parse_sql_file(path)` — read and parse a `.sql` file from disk
 
 A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
 parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
@@ -39,31 +39,31 @@ import ..SqlDocumentModule: SqlSelectStatement, SqlSelectClause, SqlFromClause, 
                             SqlScalarValue, SqlComparison, SqlAnd, SqlOr, SqlNot,
                             SqlColumnDefinition, SqlCreateTableStatement, SqlCreateSchemaStatement
 
-export sqlparse, sqlparse_file
+export parse_sql_text, parse_sql_file
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §1  Entry points
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
-    sqlparse(text::AbstractString) -> SqlStatement
+    parse_sql_text(text::AbstractString) -> SqlStatement
 
 Parse a SQL string into a `SqlStatement` (a `SqlSelectStatement` for queries, or a
 `SqlCreateTableStatement` / `SqlCreateSchemaStatement` for DDL). Raises an error if
 `text` is not a parseable statement.
 """
-function sqlparse(text::AbstractString)
+function parse_sql_text(text::AbstractString)
     parsed = parse_sql(String(text))
     parsed === nothing && error("SQL: not a parseable statement")
     return parsed
 end
 
 """
-    sqlparse_file(path::AbstractString) -> SqlSelectStatement
+    parse_sql_file(path::AbstractString) -> SqlSelectStatement
 
 Read and parse a `.sql` file from disk.
 """
-sqlparse_file(path::AbstractString) = sqlparse(read(path, String))
+parse_sql_file(path::AbstractString) = parse_sql_text(read(path, String))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # §2  Tokeniser

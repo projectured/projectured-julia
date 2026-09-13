@@ -729,7 +729,7 @@ capped at `max_width`. `max_height` is ignored in this mode.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=sdl_measure_text),
+    TextToGraphics(measure=measure_sdl_text),
 )
 write_pdf(doc, proj, "snapshot.pdf")                       # one content-fit page
 write_pdf(doc, proj, "book.pdf"; paginate=true, height=792) # multi-page

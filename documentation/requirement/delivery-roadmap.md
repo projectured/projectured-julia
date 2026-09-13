@@ -27,7 +27,7 @@ end to end:
   numbers, keys, XML text and attribute values, and styled text spans, produced
   by the reader chain and evaluated as `ReplaceStringRangeOperation`s.
 - **Type-in with live completion.** Julia and SQL are edited through a
-  parser-backed insertion cursor (`parse_julia` / `sqlparse`) with live
+  parser-backed insertion cursor (`parse_julia` / `parse_sql_text`) with live
   reflection-driven completion; Math, Book, and Markdown support text type-in.
 - **Clipboard.** Copy, cut, note, and paste over arbitrary wrapped content is
   provided by the clipboard projections, with an operating-system clipboard

@@ -290,14 +290,14 @@ ascent_px(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
     measure_truetype_text(text, font::StyleFont) -> (Int, Int)
 
 Canonical SDL-free text measurer for layout. Returns `(width, height)` in logical
-pixels — both `Int`, matching `sdl_measure_text`'s contract so the same
+pixels — both `Int`, matching `measure_sdl_text`'s contract so the same
 projections can be driven with or without SDL. Reads advance widths from the
 font's own TrueType `hmtx` metrics (pure Julia, no SDL/SDL_ttf), so any pipeline
 can measure text without a live backend. Use it as the default `measure=` for
 projection examples.
 
 Measures at the font's *logical* (font-zoomed) size — [`font_logical_size`](@ref),
-which reads the reactive `_FONT_ZOOM` cell — exactly like `sdl_measure_text`
+which reads the reactive `_FONT_ZOOM` cell — exactly like `measure_sdl_text`
 (which rasterizes at `font_device_size` and divides back by `_DISPLAY_SCALE`).
 This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
 A no-op at the default zoom (`font_logical_size == size`).
@@ -311,7 +311,7 @@ measure_truetype_text(text, font::StyleFont) =
 # ════════════════════════════════════════════════════════════════════════
 #
 # A measurer answers `(width, height)`, and the two measurers answer different
-# heights: `measure_truetype_text` gives the em size, `sdl_measure_text` gives
+# heights: `measure_truetype_text` gives the em size, `measure_sdl_text` gives
 # the rasterized one. Neither says where the baseline sits, so a caller that
 # aligns boxes on a baseline — a math typesetter — reads the font's own table
 # instead. Every function below answers in *logical* pixels at

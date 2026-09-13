@@ -58,7 +58,7 @@ import ..ReferenceModule: Reference
 
 export UnsyncedDocument, AUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,
-       unsynced_size, make_unsynced_marker, request_sync!
+       get_unsynced_size, make_unsynced_marker, request_sync!
 
 # ── the marker ────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ end
 # `selection` field `@document` appends to every document — that one is
 # machinery, not content, and counting it would misreport the label by one.
 # Anything else reports -1 rather than paying to find out.
-unsynced_size(x) = is_element_collection(x) ? length(x) :
+get_unsynced_size(x) = is_element_collection(x) ? length(x) :
                    (x isa Document ? fieldcount(typeof(x)) - 1 : -1)
 
 """
@@ -95,7 +95,7 @@ what is there: the next sync sees an un-requested marker and leaves it alone, so
 the subtree is dropped and stays dropped until someone asks for it again.
 """
 make_unsynced_marker(source) = UnsyncedDocument(string(nameof(typeof(source))),
-                                           unsynced_size(source), false)
+                                           get_unsynced_size(source), false)
 
 """
     request_sync!(marker) -> marker
