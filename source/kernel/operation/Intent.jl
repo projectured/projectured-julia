@@ -11,7 +11,8 @@ operation, and because the binding layer above has to build one.
 """
 module IntentModule
 
-import ..OperationModule: Operation, reroot_operation
+using ..OperationModule
+import ..OperationModule: reroot_operation
 
 export Intent, ClaimedGesture, CollectIntents, CollectedIntentsOperation,
        with_intent_labels, merge_collected_intents

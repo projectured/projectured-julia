@@ -39,7 +39,9 @@ function test_kernel_layering()
                        "editor/Editor.jl",
                        "editor/Playback.jl",
                        "llm/LlmModule.jl",
-                       "agent/AgentModule.jl"]))
+                       "agent/AgentModule.jl",
+                       "operation/Intent.jl",
+                       "projection/ProjectionTemplate.jl"]))
 end
 
 """
