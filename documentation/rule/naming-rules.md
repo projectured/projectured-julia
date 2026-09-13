@@ -237,6 +237,33 @@ alongside it.
 **Every function name starts with a verb.** The subject is carried by
 dispatch, not by the name.
 
+**The verb follows the nature of the work.** Choose it by what the function
+does, not by what it returns:
+
+| verb | when |
+|---|---|
+| `find_` | it searches, and it can return `nothing` |
+| `get_` | the value sits at a known place, with at most a trivial computation |
+| `compute_` | a non-trivial computation is involved — a loop, a search, a layout pass, a formula |
+| `make_` | the intention is to create a new something |
+| `build_` | it assembles a structure from parts |
+| `format_` | it produces text |
+| `render_` | it produces an output representation |
+| `collect_` | it gathers from several places |
+| `convert_` | it converts one form to another |
+| `measure_` | it measures |
+
+A function does not take `make_` merely because it returns a fresh
+`NamedTuple` or `Vector`. Ask what the caller wants: a newly created object, or
+a value derived from state that already exists.
+
+**A trailing `of` or `for` is dropped.** `chart_view_of` is `get_chart_view`,
+and `dsn_for` is `get_dsn`.
+
+**An external side effect takes `!`**, even when nothing the caller passed is
+mutated: `write_os_clipboard!` writes the operating system clipboard. A pure
+read of external state takes none, so `read_os_clipboard` has no `!`.
+
 - **Getters are `get_<stem>`**, pairing with their `set_<stem>!` twins:
   `get_selection` / `set_selection!`, `get_property`, `get_iomap_input`,
   `get_display_size`.
@@ -274,8 +301,14 @@ dispatch, not by the name.
   `record_performance!`. A name ending in `!` is an action, so it
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
-- **Qualifiers are suffixes**: `get_document_gesture_bindings_own`,
-  `is_reference_equal_ignoring_types`, `is_prefix_of_ignoring_types`.
+- **A qualifier that narrows the *result* is a suffix**:
+  `get_document_gesture_bindings_own`, `is_reference_equal_ignoring_types`,
+  `is_prefix_of_ignoring_types`.
+- **A qualifier that names the *subject* keeps subject-first order**, because
+  it reads as English: `get_base_plane_length`, not `get_length_base_plane`;
+  `get_command_palette_settled_selection`, not
+  `get_command_palette_selection_settled`. The test is whether the words read
+  as a phrase a person would say.
 
 ### Words
 

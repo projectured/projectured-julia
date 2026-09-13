@@ -154,6 +154,7 @@ Read the guides in [documentation/](documentation/) before making non-trivial ch
 
 The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
 
+0. [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md) — **how everything is named.** Read it before you write a name.
 1. [documentation/design/editor-concepts.md](documentation/design/editor-concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
 2. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, and the module inventory.
 2b. [documentation/rule/package-rules.md](documentation/rule/package-rules.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
@@ -175,6 +176,37 @@ When iterating in the REPL or running the test suite:
 
 - [documentation/guide/debugging-guide.md](documentation/guide/debugging-guide.md) — REPL debugging tips: `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, and forcing reactive cells.
 - [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_position_navigations`, `test_repls`, and the walker helpers behind them.
+
+## Naming
+
+**Before you name anything — a file, a module, a type, a function, a constant —
+read [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md)
+and follow it.** The law is also an architecture invariant, `PAR-NAMING-LAW`,
+so a name that breaks it fails the audit that every file passes before it is
+sealed.
+
+The parts that are broken most often:
+
+- **Every function name starts with a verb**, and the verb follows the nature
+  of the work: `find_` searches and can return `nothing`, `get_` reads a value
+  at a known place, `compute_` does real work, `make_` creates a new something.
+- **A predicate is `is_…` or `has_…`**, or a plain verb that reads as a
+  question at the call site.
+- **A function that mutates ends with `!`**, and an external side effect counts.
+- **No ad-hoc abbreviation**: `operation` not `op`, `reference` not `ref`,
+  `column` not `col`, `evaluation` not `eval`, `navigation` not `nav`,
+  `context` not `ctx`. The sanctioned short forms are `api`, `iomap`, `ctrl`,
+  `alt`, `meta`, `ctor` and `expr`.
+- **An operation type is a verb-first phrase** ending in `Operation`; an event
+  is `<Source><Action>`; an exception ends in `Exception`.
+
+**To rename an existing name, use `workspace/bin/julia-rename.jl`.** It walks
+the syntax tree that Julia's own parser builds, so it tells a call from a field
+access, a local variable, a keyword argument and a word in prose. A text
+substitution can not, and it will corrupt the code. Run it with `--report`
+first, and read `--show-other` before you trust a rename whose `other` count is
+not zero. The parser skips a string and a docstring by design, so a second pass
+must update the prose that names the function.
 
 ## Conventions
 
