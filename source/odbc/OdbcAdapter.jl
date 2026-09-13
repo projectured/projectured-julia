@@ -1,4 +1,10 @@
-module OdbcAdapterModule
+module OdbcModule
+
+export OdbcDatabaseAdapter
+export OdbcConnectionPool, with_connection, get_dsn, close_pool!
+export SqlToCellTable
+export DatabaseInstanceToDbCatalog
+
 
 import ODBC
 import DBInterface
@@ -13,7 +19,6 @@ import ProjecturedDatabase.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
                          get_db_catalog_foreign_keys,
                          make_database_adapter
 
-export OdbcDatabaseAdapter
 
 # ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -245,5 +250,10 @@ function get_db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::Strin
     [(from_table=String(row[1]), from_column=String(row[2]),
       to_table=String(row[3]), to_column=String(row[4])) for row in rows]
 end
+
+
+include("ConnectionPool.jl")
+include("SqlToCellTable.jl")
+include("DatabaseInstanceToDbCatalog.jl")
 
 end # module OdbcAdapterModule

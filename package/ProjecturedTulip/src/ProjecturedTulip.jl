@@ -27,7 +27,7 @@ easily overrides them.
 """
 module ProjecturedTulip
 
-import ProjecturedLayout.ConstraintSolverModule: ConstraintSolver, SolverAnchor,
+import ProjecturedLayout.LayoutModule: ConstraintSolver, SolverAnchor,
                                                  SolverRelation, solve_constraint_layout
 import Tulip
 import MathOptInterface as MOI

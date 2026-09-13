@@ -80,7 +80,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight
-import ..LayoutToGraphicsModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
+import ..LayoutModule: GridLayoutToGraphicsCanvas, GridLayoutIoMap, _forward_descend, _shift_child_image
 import ..EventModule: KeyDown
 import ..EventModule: ModifierKeys
 import ..GestureBindingModule: read_bound_gesture

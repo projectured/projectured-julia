@@ -1,5 +1,5 @@
-module SqlToCellTableModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SqlToCellTable.jl.
 import ProjecturedKernel.CellModule: Cell, ComputedCell
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
@@ -12,10 +12,8 @@ import ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 import ProjecturedProjection.ChainingProjectionModule: ChainingProjection
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, execute_db_raw
-import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 
-export SqlToCellTable
 
 struct SqlToCellTable <: Projection
     pool::OdbcConnectionPool
@@ -45,5 +43,3 @@ end
 map_reference_forward(::SqlToCellTable, iomap, ref) = nothing
 map_reference_backward(::SqlToCellTable, iomap, ref) = nothing
 read_intent(::SqlToCellTable, iomap, op) = nothing
-
-end # module SqlToCellTableModule

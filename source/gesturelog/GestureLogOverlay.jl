@@ -1,45 +1,5 @@
-"""
-    GestureLogOverlayProjectionModule
-
-A decorator that draws the [`GestureLog`](GestureLogDocument.jl) as a panel over the
-content of a window.
-
-**Printer** — it projects the wrapped `inner`, projects the log through the
-`content` chain (Syntax → Text → Graphics), and returns a canvas with two
-elements: the inner output at the origin, and the panel at a corner. The inner
-output keeps the origin, so a pixel coordinate means the same thing above and
-below this decorator.
-
-**Reader** — a pure pass-through. The panel is not a hit target, so a click on
-the panel reaches the content below it.
-
-The log chain is printed one time. It stays up to date because
-[`GestureLogToSyntax`](GestureLogToSyntax.jl) derives its lines from
-`log.entries` inside a cell: an append invalidates the lines, and the text and
-graphics stages below re-derive from there.
-"""
-module GestureLogOverlayProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
-                              map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..ColorModule: StyleColor
-import ..SyntaxToTextModule: SyntaxToText
-import ..TextToGraphicsModule: TextToGraphics
-import ..TrueTypeModule: measure_truetype_text
-import ..PrinterContextModule: PrinterContext
-import ..GestureLogModule: GestureLog
-import ..GestureLogToSyntaxModule: GestureLogToSyntax
-
-export GestureLogOverlayProjection, GestureLogOverlayIoMap,
-       make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GestureLogOverlay.jl.
 """
     GESTURE_LOG_BACKGROUND
 
@@ -203,5 +163,3 @@ map_reference_forward(p::GestureLogOverlayProjection,
 map_reference_backward(p::GestureLogOverlayProjection,
                        iomap::GestureLogOverlayIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
-
-end # module

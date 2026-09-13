@@ -163,7 +163,7 @@ read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
 # rewrap alone would leave every embed below the first title inside a syntax
 # tree, where a card could not go.
 import ..ChainingProjectionModule: ChainingProjection
-import ..LayoutToGraphicsModule: VerticalLayoutToGraphicsCanvas
+import ..LayoutModule: VerticalLayoutToGraphicsCanvas
 import ..NaturalModule: register_natural_graphics!
 
 function __init__()

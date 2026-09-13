@@ -13,7 +13,7 @@ using Test
 using ProjecturedKernel.CellModule: Cell, AbstractCell, set_cell_value!
 using ProjecturedLayout.LayoutModule: AnchoredLayout, AnchoredEntry, VerticalLayout,
     compute_anchored_positions
-using ProjecturedLayout.LayoutToGraphicsModule: LayoutToGraphics
+using ProjecturedLayout.LayoutModule: LayoutToGraphics
 using ProjecturedWidget.WidgetModule: WidgetLabel, Point2D
 using ProjecturedWidget.WidgetToGraphicsModule: WidgetToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none

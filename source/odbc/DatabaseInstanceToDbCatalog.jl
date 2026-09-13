@@ -1,12 +1,11 @@
-module DatabaseInstanceToDbCatalogModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from DatabaseInstanceToDbCatalog.jl.
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_catalog_schemas,
                          get_db_catalog_tables, get_db_catalog_columns
-import ..ConnectionPoolModule: OdbcConnectionPool, with_connection
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -15,7 +14,6 @@ import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.ReferenceModule: var"@reference_case"
 import ProjecturedKernel.ReferenceModule: var"@reference"
 
-export DatabaseInstanceToDbCatalog
 
 # ── Lazy tree builders ──────────────────────────────────────────────────────────
 # Each helper returns a CellVector whose contents are recomputed lazily by
@@ -103,5 +101,3 @@ end
 # No read_intent override — the generic default in Projection.jl handles
 # ToggleCollapseOperation (pass-through) and ReplaceSelectionOperation (which now
 # re-targets via the non-nothing map_reference_backward above).
-
-end # module DatabaseInstanceToDbCatalogModule

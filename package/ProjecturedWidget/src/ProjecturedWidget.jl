@@ -50,7 +50,7 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const LayoutModule = ProjecturedLayout.LayoutModule
-const LayoutToGraphicsModule = ProjecturedLayout.LayoutToGraphicsModule
+const LayoutModule = ProjecturedLayout.LayoutModule
 const TextModule = ProjecturedText.TextModule
 
 include("../../../source/widget/WidgetDocument.jl")

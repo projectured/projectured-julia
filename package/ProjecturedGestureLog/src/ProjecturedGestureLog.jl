@@ -42,8 +42,5 @@ const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
 const TrueTypeModule = ProjecturedStyle.TrueTypeModule
 
 include("../../../source/gesturelog/GestureLogDocument.jl")
-include("../../../source/gesturelog/GestureLogToSyntax.jl")
-include("../../../source/gesturelog/GestureLogRecording.jl")
-include("../../../source/gesturelog/GestureLogOverlay.jl")
 
 end # module ProjecturedGestureLog

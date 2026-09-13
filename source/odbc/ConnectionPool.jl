@@ -1,10 +1,8 @@
-module ConnectionPoolModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ConnectionPool.jl.
 import ProjecturedDatabase.DatabaseModule: connect_db!, close_db!, is_db_alive
-import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 
-export OdbcConnectionPool, with_connection, get_dsn, close_pool!
 
 # ── OdbcConnectionPool ──────────────────────────────────────────────────────────
 
@@ -107,5 +105,3 @@ function close_pool!(pool::OdbcConnectionPool)
     end
     pool
 end
-
-end # module ConnectionPoolModule

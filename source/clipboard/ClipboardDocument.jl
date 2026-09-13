@@ -1,18 +1,5 @@
-"""
-    ClipboardModule
-
-Clipboard document types — a `ClipboardSlice` (content + slice reference) and
-a `ClipboardCollection` (content + sequence of elements).
-"""
-module ClipboardModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
-export ClipboardDocument
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ClipboardDocument.jl.
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
 abstract type ClipboardDocument <: Document end
@@ -41,5 +28,3 @@ Clipboard entry: `content` document + sequence of extracted `elements`.
     content::Document
     elements::CellVector = CellVector()
 end
-
-end # module

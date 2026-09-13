@@ -63,8 +63,8 @@ export register_natural_syntax!, register_natural_graphics!, register_natural_fa
 import ..FontModule: font_ubuntu_monospace_regular_20
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..WidgetToGraphicsModule: WidgetToGraphics
-import ..LayoutToGraphicsModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
-import ..CollectionToLayoutModule: CellVectorToVerticalLayout
+import ..LayoutModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
+import ..LayoutModule: CellVectorToVerticalLayout
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextToGraphicsModule: TextToGraphics
 import ..WordWrappingModule: WordWrapping

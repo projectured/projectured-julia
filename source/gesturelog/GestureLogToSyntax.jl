@@ -1,37 +1,5 @@
-"""
-    GestureLogToSyntaxModule
-
-Projects a [`GestureLog`](GestureLogDocument.jl) onto a `SyntaxNode` for display: one
-line per entry, newest line first, so the newest line always sits at the same
-place and the panel does not move under the eye of the user.
-
-Each line holds three parts with their own style: the index, the gesture and the
-operation. A line that records a selection operation is muted, because a
-selection is context and not a change.
-
-The panel uses the DejaVu monospace font. The Ubuntu font has no glyph for the
-arrow keys or for the empty reference, and SDL draws no fallback: a missing
-glyph becomes a box.
-
-Read-only. There is nothing to author here, so this is a plain leaf printer with
-no reader and no reference mappers.
-"""
-module GestureLogToSyntaxModule
-
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..CollectionModule: ComputedCellVector
-import ..GestureLogModule: GestureLog, GestureLogEntry
-import ..TextModule: TextString
-import ..FontModule: font_dejavu_monospace_regular_16, font_dejavu_monospace_bold_16
-import ..ColorModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..PrinterContextModule: PrinterContext
-
-export GestureLogToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GestureLogToSyntax.jl.
 @projection struct GestureLogToSyntax
     index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray159)
     gesture::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
@@ -75,5 +43,3 @@ function _line(p::GestureLogToSyntax, entry::GestureLogEntry)
         SyntaxLeaf(TextString(entry.operation, operation_style)),
     ])
 end
-
-end # module

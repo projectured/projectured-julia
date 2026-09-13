@@ -113,7 +113,7 @@ end
 # reaches the widget renderer and can be clicked, which a syntax tree could
 # never offer it.
 import ..ChainingProjectionModule: ChainingProjection
-import ..LayoutToGraphicsModule: VerticalLayoutToGraphicsCanvas
+import ..LayoutModule: VerticalLayoutToGraphicsCanvas
 import ..NaturalModule: register_natural_graphics!
 
 function __init__()

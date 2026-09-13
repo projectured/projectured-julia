@@ -19,11 +19,47 @@ import ..DocumentModule: Document
 import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
-
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis, layout_min,
        layout_max, layout_preferred, layout_weight,
        SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
+export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
+       solve_constraint_layout
+import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                               map_reference_forward, map_reference_backward, Projection
+import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, get_graphics_size, layout_none, hit_element_at
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
+import ..IoMapModule: IoMap
+import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
+import ..EventPatternModule: var"@event_case"
+import ..OperationModule: Operation
+import ..OperationModule: reroot_operation
+import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
+    RangeReferenceStep, evaluate_reference, annotate_reference_types
+import ..GraphicsModule: PointReferenceStep
+import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
+                          CompoundOperation
+import ..EventModule: KeyDown
+import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
+export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
+       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
+       StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
+       ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
+       LayoutToGraphics, GridLayoutIoMap
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..IoMapModule: SimpleIoMap
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReference, is_element_reference_step
+export CellVectorToVerticalLayout
+export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
+
+
+
 
 # ── Abstract base ───────────────────────────────────────────────────────────
 
@@ -851,5 +887,10 @@ function constrain(lhs, op::Symbol, rhs; strength::Symbol=:required)
     diff = _add(_expr(lhs), -_expr(rhs))     # Σ coeff·anchor + const (op) 0
     LayoutRelation(diff.terms; op=op, constant=-diff.constant, strength=strength)
 end
+
+
+include("ConstraintSolver.jl")
+include("LayoutToGraphics.jl")
+include("CollectionToLayout.jl")
 
 end # module

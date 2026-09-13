@@ -1,58 +1,7 @@
-"""
-    LayoutToGraphicsModule
-
-Projections from layout documents (`HorizontalLayout`, `VerticalLayout`,
-`GridLayout`, `FlowLayout`, `StackLayout`) to `GraphicsCanvas`.
-
-Every projection follows the same two-phase shape:
-
-1. Recurse into each child to obtain a `GraphicsCanvas`.
-2. Read each child canvas's `w` / `h` cells and wire computed cells
-   for per-child `(x, y)` and the outer canvas's `(w, h)`.
-
-Each child canvas is wrapped in an outer `GraphicsCanvas` at its
-computed `(x, y)`. The resulting per-child position cells are reactive:
-an edit that changes a child's intrinsic extent invalidates only the
-downstream position/extent cells, no re-projection of the layout.
-"""
-module LayoutToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                               map_reference_forward, map_reference_backward, Projection
-import ..DocumentModule: Document
-import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout,
-                       LayoutConstraint, ConstraintLayout, LayoutRelation, LayoutAnchor,
-                       AnchoredLayout, AnchoredEntry, compute_anchored_positions,
-                       allocate_axis, SizePolicy,
-                       layout_min, layout_max, layout_preferred, layout_weight
-import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
-                                 ConstraintSolver, FallbackConstraintSolver
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, get_graphics_size, layout_none, hit_element_at
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
-import ..IoMapModule: IoMap
-import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
-import ..EventPatternModule: var"@event_case"
-import ..OperationModule: Operation
-import ..OperationModule: reroot_operation
-import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
-    RangeReferenceStep, evaluate_reference, annotate_reference_types
-import ..GraphicsModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
-                          CompoundOperation
-import ..EventModule: KeyDown
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from LayoutToGraphics.jl.
 # The focus walk is generic and names no widget type, so layout containers share
 # Tab traversal with the widget readers without importing the widget domain.
-import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
-export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
-       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
-       StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
-       ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
-       LayoutToGraphics, GridLayoutIoMap
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
@@ -1909,5 +1858,3 @@ function LayoutToGraphics()
         AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(),
     )
 end
-
-end # module

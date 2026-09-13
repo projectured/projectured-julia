@@ -1,47 +1,5 @@
-"""
-    ReflectionToWidgetModule
-
-A `ReflectedNode` tree rendered as a [`WidgetTree`](@ref), where clicking a
-chevron drives the **bounded sync** rather than merely hiding a row.
-
-The laziness lives in the sync (see `DocumentReflectionModule`), so this
-projection has none of its own: it prints whatever the shadow holds, which is
-small because the shadow was grown to a bound. A node whose `children` slot holds
-an `UnsyncedDocument` is a node nobody has opened yet; expanding it sets that
-marker's `requested` flag, and the *next* sync fills it in one level deeper.
-
-# Why a tree and not `ObjectToWidget`
-
-`ObjectToWidget`'s advantage was that it already knew how to reflect an object.
-`DocumentReflection` now does that ahead of any widget, so both would be
-rendering the same node tree and only density is left to choose on — one compact
-row per node against one card per node. For something meant to be drilled into,
-that is not close. `ObjectToWidget` also offers editing, which is the wrong
-affordance for a running engine's internals.
-
-# The round trip
-
-`WidgetTree` keeps its expansion state as `collapsed`, a set of index paths, and
-its chevron emits a `ReplaceReferencedValueOperation` writing a new set. That
-state is *derived* here, not owned: the printer collects the path of every node
-standing on a marker, and the reader diffs the incoming set against it to find
-the paths that toggled and RETURNS a `SetReflectedDisclosureOperation` naming
-them; evaluating that is what writes the shadow. The widget's own copy is never
-written to — the shadow is the only place expansion is recorded.
-"""
-module ReflectionToWidgetModule
-
-import ..ProjectionApiModule: print_document, read_intent, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep
-import ..DocumentReflectionModule: AReflectedNode, SetReflectedDisclosureOperation
-import ..BoundedSyncModule: AUnsyncedDocument
-
-export ReflectionToWidget
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ReflectionToWidget.jl.
 """
     ReflectionToWidget(; show_kind = true)
 
@@ -164,5 +122,3 @@ function _field_name(op::ReplaceReferencedValueOperation)
     h = r.head
     h isa FieldReferenceStep ? String(h.name) : ""
 end
-
-end # module

@@ -77,8 +77,8 @@ using ProjecturedKernel.ProjectionApiModule: map_reference_backward
 using ProjecturedKernel.ProjectionApiModule: map_reference_forward
 using ProjecturedKernel.EventModule: KeyDown
 using ProjecturedKernel.EventModule: ModifierKeys
-using ProjecturedReflection.BoundedSyncModule
-using ProjecturedReflection.DocumentReflectionModule
+using ProjecturedReflection.ReflectionModule
+using ProjecturedReflection.ReflectionModule
 using ProjecturedKernel.DocumentModule: get_cell_struct_kind
 using ProjecturedVersioning.VersioningModule
 using ProjecturedVersioning.VersioningModule: VersioningToAnyProjection
@@ -88,9 +88,9 @@ using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ReplaceRefer
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
 using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
 
-using ProjecturedReflection.BoundedSyncModule
-using ProjecturedReflection.DocumentReflectionModule
-using ProjecturedReflection.ReflectionToWidgetModule
+using ProjecturedReflection.ReflectionModule
+using ProjecturedReflection.ReflectionModule
+using ProjecturedReflection.ReflectionModule
 using ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 
 const _SOURCES = (ProjecturedKernel,
