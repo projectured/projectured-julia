@@ -68,7 +68,7 @@ import ..ProcessToSyntaxModule: ProcessToSyntax, ProcessBreakToSyntaxLeaf,
                                 ProcessContinueToSyntaxLeaf, ProcessReturnToSyntaxNode
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..IoMapModule: IoMap, var"@iomap"
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_default, color_solarized_green, color_solarized_violet,
                       color_solarized_gray, color_solarized_magenta, color_solarized_cyan
@@ -104,7 +104,7 @@ end
     SyntaxConcatenation(() -> begin
         if !isempty(doc.description)
             Any[ SyntaxLeaf(bound(:description, String,
-                                  hinted_text(() -> doc.description,
+                                  make_hinted_text(() -> doc.description,
                                               () -> isempty(doc.description),
                                               "step", p.text))) ]
         elseif doc.action !== nothing

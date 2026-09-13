@@ -11,7 +11,7 @@ module TextLineNumberingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, convert_flat_offset_to_element, convert_element_to_flat_offset
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_default
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
@@ -107,7 +107,7 @@ end
 function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
     flat = _text_range_caret(op.path)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(iomap.output, flat)
+    loc = convert_flat_offset_to_element(iomap.output, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
     mapping = _output_to_input_map(iomap.input.elements)
@@ -119,7 +119,7 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
         in_span, char_offset, _ = mapping[next]
         out_char = 0
     end
-    f = text_elem_to_flat(iomap.input, in_span, char_offset + out_char)
+    f = convert_element_to_flat_offset(iomap.input, in_span, char_offset + out_char)
     f === nothing && return nothing
     ReplaceSelectionOperation(ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference()))
 end

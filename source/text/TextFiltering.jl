@@ -20,7 +20,7 @@ reactive `pattern` cell.
 module TextFilteringModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, text_flat_to_elem, text_elem_to_flat, text_caret_flat
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -176,14 +176,14 @@ function _forward_map(kept::Vector{Int}, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
     # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
     # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
-    flat = text_caret_flat(in_block, sel)
+    flat = get_flat_caret(in_block, sel)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(in_block, flat)
+    loc = convert_flat_offset_to_element(in_block, flat)
     loc === nothing && return nothing
     in_span, in_char = loc
     j = findfirst(==(in_span), kept)
     j === nothing && return nothing
-    f = text_elem_to_flat(out_block, j, in_char)
+    f = convert_element_to_flat_offset(out_block, j, in_char)
     f === nothing ? nothing : _flat_caret(f)
 end
 
@@ -194,13 +194,13 @@ function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, ref
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(iomap.output, flat)
+    loc = convert_flat_offset_to_element(iomap.output, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
     kept = iomap.kept
     (out_span < 1 || out_span > length(kept)) && return nothing
     in_span = kept[out_span]
-    f = text_elem_to_flat(iomap.input, in_span, out_char)
+    f = convert_element_to_flat_offset(iomap.input, in_span, out_char)
     f === nothing ? nothing : _flat_caret(f)
 end
 

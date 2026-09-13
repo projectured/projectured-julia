@@ -52,7 +52,7 @@ import ..DocumentCoreModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection
-import ..TextModule: TextBlock, TextString, text_selection_substring, text_insert_op
+import ..TextModule: TextBlock, TextString, get_selection_substring, make_text_insert_operation
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
@@ -317,7 +317,7 @@ end
 # In text mode copy/cut/paste move *character ranges*, not document nodes. The
 # slice stores the copied text as a TextString (the ProjecturEd clipboard); the OS
 # clipboard is always mirrored on copy/cut and used as the paste fallback. Edits are
-# `ReplaceStringRangeOperation`s built by `text_insert_op`, re-rooted under
+# `ReplaceStringRangeOperation`s built by `make_text_insert_operation`, re-rooted under
 # `content`; the caret advances automatically on evaluation.
 
 # The plain string held by a stored slice, or `nothing` when it carries no text.
@@ -330,7 +330,7 @@ _slice_text(d)                 = nothing
 function _text_clipboard_copy(p, input)
     content = input.content
     content isa TextBlock || return nothing
-    sub = text_selection_substring(content)
+    sub = get_selection_substring(content)
     sub === nothing && return nothing
     CompoundOperation(Any[
         replace_document(_field_path("slice"), TextString(sub)),
@@ -342,9 +342,9 @@ end
 function _text_clipboard_cut(p, input)
     content = input.content
     content isa TextBlock || return nothing
-    sub = text_selection_substring(content)
+    sub = get_selection_substring(content)
     sub === nothing && return nothing
-    del = text_insert_op(content, "")              # replace the selected range with "" = delete
+    del = make_text_insert_operation(content, "")              # replace the selected range with "" = delete
     del === nothing && return nothing
     CompoundOperation(Any[
         replace_document(_field_path("slice"), TextString(sub)),
@@ -359,7 +359,7 @@ function _text_clipboard_paste(p, input)
     str = _slice_text(input.slice)                 # primary: the ProjecturEd clipboard
     str === nothing && (str = os_clipboard_read())  # fallback: the OS clipboard
     str === nothing && return nothing
-    op = text_insert_op(content, str)
+    op = make_text_insert_operation(content, str)
     op === nothing && return nothing
     _prefix_op(op, (FieldReferenceStep("content"),))
 end

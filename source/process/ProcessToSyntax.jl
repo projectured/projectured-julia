@@ -74,7 +74,7 @@ import ..ProcessModule: ProcessDocument, ProcessNothing, ProcessInsertion,
 import ..ProcessDebugSessionModule: ProcessDebugSession, has_breakpoint
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf,
                                           InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_gray, color_solarized_green,
                       color_solarized_magenta, color_solarized_cyan,
@@ -162,7 +162,7 @@ end
 @projection_template ProcessModelToSyntaxNode ProcessModel (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         hinted_text(() -> doc.name, () -> isempty(doc.name),
+                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
                                                      "enter process name", p.name));
                                    open=TextString("process ", p.keyword)),
                         SyntaxNode(collection(:parameters);
@@ -193,7 +193,7 @@ end
         children = Any[]
         if !isempty(doc.description) || doc.action === nothing
             push!(children, SyntaxLeaf(bound(:description, String,
-                                             hinted_text(() -> doc.description,
+                                             make_hinted_text(() -> doc.description,
                                                          () -> isempty(doc.description),
                                                          "describe this step", p.text));
                                        open=TextString("step \"", _keyword_style(p, doc)),

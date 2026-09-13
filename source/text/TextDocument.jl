@@ -44,9 +44,9 @@ import ..TextRangeReferenceStepModule: TextRangeReferenceStep, is_text_caret
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!, evaluate_operation, reroot_operation, reroot_reference
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
 import ..GestureBindingModule: var"@gestures"
-export set_cell_function!, text_flat_length, text_flat_offsets, text_selection_flat, hinted_text,
-       text_selection_substring, text_insert_op, ReplaceTextRangeOperation,
-       text_flat_to_elem, text_elem_to_flat, text_caret_flat, _lower_text_range
+export set_cell_function!, get_flat_length, get_flat_offsets, get_flat_selection, make_hinted_text,
+       get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation,
+       convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, _lower_text_range
 
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
@@ -174,7 +174,7 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 
 # A text span that shows a muted placeholder while the value is empty. Both text
 # and colour are reactive, so the hint disappears the moment the user types.
-function hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
+function make_hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
     TextString(
         ComputedCell(() -> empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
@@ -390,7 +390,7 @@ end
 # ── Flat character-cursor helpers ─────────────────────────────────────────
 #
 # The text cursor is a single flat offset into the block's concatenated rendered
-# stream (the `text_flat_offsets` / `text_flat_length` space, which counts
+# stream (the `get_flat_offsets` / `get_flat_length` space, which counts
 # TextNewline / TextSpacing / TextLine indentation and the implicit inter-line
 # break). Every offset `0 … total` is a valid caret rest, so character motion is
 # `± 1` clamped — no span bookkeeping and no boundary-duplicate skip: the *same*
@@ -399,20 +399,20 @@ end
 # stays a distinct pair separated by the break. These are geometry-free, so they
 # live on the Text domain alongside `read_gesture`.
 
-# Total flat length of the block — mirrors `text_flat_offsets`' accounting (the
+# Total flat length of the block — mirrors `get_flat_offsets`' accounting (the
 # `+1` before every TextLine but the first is the implicit break).
 function _text_flat_total(text::TextBlock)
     total = 0
     for (k, el) in enumerate(text.elements)
         (el isa TextLine && k > 1) && (total += 1)   # implicit inter-line break
-        total += text_flat_length(el)
+        total += get_flat_length(el)
     end
     total
 end
 
 # The rendered character stream as a `Vector{Char}`, one entry per flat position
 # (so `length` equals `_text_flat_total`). Used by word motion and edit
-# classification; must stay in lockstep with `text_flat_length` / `_text_flat_total`.
+# classification; must stay in lockstep with `get_flat_length` / `_text_flat_total`.
 function _flat_chars(text::TextBlock)
     chars = Char[]
     for (k, el) in enumerate(text.elements)
@@ -424,7 +424,7 @@ end
 _push_flat_chars!(chars, s::TextString) = append!(chars, collect(s.content::AbstractString))
 _push_flat_chars!(chars, ::TextNewline)  = push!(chars, '\n')
 _push_flat_chars!(chars, ::TextSpacing)  = push!(chars, ' ')
-_push_flat_chars!(chars, ::TextDocument) = chars          # TextGraphics etc.: 0-width, matches text_flat_length
+_push_flat_chars!(chars, ::TextDocument) = chars          # TextGraphics etc.: 0-width, matches get_flat_length
 function _push_flat_chars!(chars, line::TextLine)
     for _ in 1:line.indentation
         push!(chars, ' ')
@@ -469,7 +469,7 @@ _flat_range_ref(start::Int, stop::Int) =
     ConcreteReference(TextRangeReferenceStep(start, stop), EmptyReference())
 
 """
-    text_caret_flat(block, ref) -> Int | nothing
+    get_flat_caret(block, ref) -> Int | nothing
 
 The flat caret offset a selection reference denotes over `block`, resolved from
 **either** representation a text caret takes: the flat `TextRangeReferenceStep{k}` form
@@ -483,7 +483,7 @@ The text→text decorators (`WordWrapping`, `LineNumbering`, `TextFiltering`,
 caret renders no matter which representation the last operation left on the block —
 without it, a structural caret maps to nothing and the cursor disappears after an edit.
 """
-function text_caret_flat(block::TextBlock, ref)
+function get_flat_caret(block::TextBlock, ref)
     sel = strip_reference_types(ref)
     if sel isa ConcreteReference && sel.head isa TextRangeReferenceStep && sel.tail isa EmptyReference
         return sel.head.start == sel.head.stop ? sel.head.start::Int : nothing
@@ -645,7 +645,7 @@ end
 _text_selection_range(text::TextBlock) = _text_selection_range(text, text.selection)
 _text_selection_range(::TextBlock, selection) = _parse_selection_range(strip_reference_types(selection))
 
-# The structural-caret parser, over an already-stripped reference. `text_caret_flat`
+# The structural-caret parser, over an already-stripped reference. `get_flat_caret`
 # reuses it so a decorator can resolve either caret form from a raw reference, not just
 # from a block's own `.selection`.
 function _parse_selection_range(sel)
@@ -698,13 +698,13 @@ end
 # `plan/done/clipboard-os-bridge-and-run-example-wrapper.md`.
 
 """
-    text_selection_substring(text::TextBlock) -> Union{String,Nothing}
+    get_selection_substring(text::TextBlock) -> Union{String,Nothing}
 
 The substring currently selected within a single span, or `nothing` when the
 selection is an empty caret, spans no characters, or is not a single-span character
 range. Used by the clipboard to copy / cut text.
 """
-function text_selection_substring(text::TextBlock)
+function get_selection_substring(text::TextBlock)
     rng = _text_selection_range(text)
     rng === nothing && return nothing
     path, a, b = rng
@@ -717,7 +717,7 @@ function text_selection_substring(text::TextBlock)
 end
 
 """
-    text_insert_op(text::TextBlock, str) -> Union{Operation,Nothing}
+    make_text_insert_operation(text::TextBlock, str) -> Union{Operation,Nothing}
 
 The `ReplaceStringRangeOperation` that inserts `str` at the text cursor, replacing
 any selected range. `nothing` when the selection is not a character cursor/range
@@ -725,7 +725,7 @@ any selected range. `nothing` when the selection is not a character cursor/range
 automatically on evaluation. Used by the clipboard to paste text — the flat edit is
 lowered to the structural single-span form here so the clipboard stays unchanged.
 """
-function text_insert_op(text::TextBlock, str::AbstractString)
+function make_text_insert_operation(text::TextBlock, str::AbstractString)
     op = _text_insert(text, str)
     op === nothing ? nothing : _lower_text_range(text, op)
 end
@@ -760,40 +760,40 @@ set_cell_function!(st::TextBlock, f::Function) = (set_cell_function!(getfield(st
 # A `TextLine` contributes its indentation (which the renderers emit as leading
 # spaces, so it occupies characters even though no span holds it) plus its spans'
 # lengths — but *not* the break it implies: that sits between elements, so the
-# container adds it (see `text_flat_offsets`) and a line-structured block gets
+# container adds it (see `get_flat_offsets`) and a line-structured block gets
 # `n-1` breaks for `n` lines rather than a phantom trailing one.
-text_flat_length(span::TextString) = length(span.content::AbstractString)
-text_flat_length(::TextNewline) = 1
-text_flat_length(::TextSpacing) = 1
-text_flat_length(line::TextLine) =
-    line.indentation + sum(text_flat_length(s) for s in line.elements; init = 0)
-text_flat_length(::TextDocument) = 0
+get_flat_length(span::TextString) = length(span.content::AbstractString)
+get_flat_length(::TextNewline) = 1
+get_flat_length(::TextSpacing) = 1
+get_flat_length(line::TextLine) =
+    line.indentation + sum(get_flat_length(s) for s in line.elements; init = 0)
+get_flat_length(::TextDocument) = 0
 
 """
-    text_flat_offsets(text::TextBlock) -> Vector{Int}
+    get_flat_offsets(text::TextBlock) -> Vector{Int}
 
 The flat character offset each element starts at (0-based), and — as the vector's
 `end + 1` entry would be — the block's total flat length. Every `TextLine` but a
 leading one is preceded by its implicit break, which is where the `+1` enters;
-for a block of plain spans this is just the running sum of `text_flat_length`.
+for a block of plain spans this is just the running sum of `get_flat_length`.
 
 The one place the implicit break is materialized. Anything mapping the flat
 character stream back to elements (the console backend, `SelectionInverting`)
-must count offsets through this rather than summing `text_flat_length` itself.
+must count offsets through this rather than summing `get_flat_length` itself.
 """
-function text_flat_offsets(text::TextBlock)
+function get_flat_offsets(text::TextBlock)
     offsets = Int[]
     pos = 0
     for (k, element) in enumerate(text.elements)
         (element isa TextLine && k > 1) && (pos += 1)   # the break before this line
         push!(offsets, pos)
-        pos += text_flat_length(element)
+        pos += get_flat_length(element)
     end
     offsets
 end
 
 """
-    text_selection_flat(text::TextBlock) -> (start, stop, is_cursor) or nothing
+    get_flat_selection(text::TextBlock) -> (start, stop, is_cursor) or nothing
 
 Resolve `text`'s selection to a flat half-open char range `(start, stop)` over
 the concatenated stream (0-based), plus an `is_cursor` flag (a zero-width caret).
@@ -805,7 +805,7 @@ Two shapes occur, both with 0-based offsets:
   • text cursor: `.elements[i].content{a:b}`, or `.elements[i].elements[j].content{a:b}`
     inside a line — add the span's base offset.
 """
-function text_selection_flat(text::TextBlock)
+function get_flat_selection(text::TextBlock)
     # Selections are canonical at rest (carry TypeReferenceStep checkpoints); the
     # range parser peels them, but the rectangular shape is read raw.
     sel = text.selection
@@ -835,13 +835,13 @@ end
 # element index is a single `[i]` path.
 
 """
-    text_flat_to_elem(block, flat) -> (element_index, char) | nothing
+    convert_flat_offset_to_element(block, flat) -> (element_index, char) | nothing
 
 The `TextString` element a flat offset lands in and the char offset within it. A
 gap offset (on a break/spacing element) clamps to the nearest `TextString`
 boundary; `nothing` only when the block has no `TextString`.
 """
-function text_flat_to_elem(block::TextBlock, flat::Int)
+function convert_flat_offset_to_element(block::TextBlock, flat::Int)
     loc = _flat_to_span(block, flat)
     loc !== nothing && length(loc[1]) == 1 && return (loc[1][1], loc[2])
     best = nothing
@@ -860,11 +860,11 @@ function text_flat_to_elem(block::TextBlock, flat::Int)
 end
 
 """
-    text_elem_to_flat(block, element_index, char) -> flat | nothing
+    convert_element_to_flat_offset(block, element_index, char) -> flat | nothing
 
 The flat offset of `char` within the `TextString` at `element_index`.
 """
-function text_elem_to_flat(block::TextBlock, elem::Int, char::Int)
+function convert_element_to_flat_offset(block::TextBlock, elem::Int, char::Int)
     base = _flat_base(block, Int[elem])
     base === nothing ? nothing : base + char
 end
@@ -872,7 +872,7 @@ end
 # The flat offset the span at `path` starts at, or nothing when the path does not
 # land on a span.
 function _flat_base(text::TextBlock, path::SpanPath)
-    offsets = text_flat_offsets(text)
+    offsets = get_flat_offsets(text)
     i = path[1]
     (1 <= i <= length(offsets)) || return nothing
     base = offsets[i]
@@ -884,7 +884,7 @@ function _flat_base(text::TextBlock, path::SpanPath)
     (1 <= j <= length(spans)) || return nothing
     base += line.indentation      # the leading spaces the renderers emit
     for k in 1:(j - 1)
-        base += text_flat_length(spans[k])
+        base += get_flat_length(spans[k])
     end
     base
 end
@@ -892,8 +892,8 @@ end
 # ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────
 #
 # The text-domain edit expressed in the canonical flat coordinate (the
-# `text_flat_offsets` / `_flat_base` space that counts breaks, spacing and
-# indentation — the same space `text_selection_flat` and the renderer use). Its
+# `get_flat_offsets` / `_flat_base` space that counts breaks, spacing and
+# indentation — the same space `get_flat_selection` and the renderer use). Its
 # `reference` is rooted at the editor's document and terminates in a
 # `TextRangeReferenceStep(start, stop)`; unlike a `ReplaceStringRangeOperation` its
 # range may cross spans/lines. It re-roots through the projection stack like the
@@ -1005,7 +1005,7 @@ end
 
 # The `(span_path, char)` a flat offset resolves to, clamping a break/gap offset to the
 # nearest `TextString` span. Path-returning (so it locates a span inside a `TextLine`,
-# `[i, j]`), unlike `text_flat_to_elem` which yields only a top-level index and so
+# `[i, j]`), unlike `convert_flat_offset_to_element` which yields only a top-level index and so
 # returns nothing for a line-structured block.
 function _flat_to_span_nearest(block::TextBlock, flat::Int)
     exact = _flat_to_span(block, flat)

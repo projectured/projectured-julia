@@ -65,14 +65,14 @@ mkblock() = TextBlock(TextLine(TextString("hello"), TextString(" world")),
 block = mkblock()
 @test length(block.elements) == 2
 @test block.elements[2].indentation == 2
-@test text_flat_length(block.elements[1]) == 11        # the line's own spans, no break
-@test text_flat_length(block.elements[2]) == 8         # 2 indent + "second"
-@test text_flat_offsets(block) == [0, 12]
+@test get_flat_length(block.elements[1]) == 11        # the line's own spans, no break
+@test get_flat_length(block.elements[2]) == 8         # 2 indent + "second"
+@test get_flat_offsets(block) == [0, 12]
 
 # The flat offsets must agree with the characters the renderers actually emit —
 # indentation included, one break between lines. Anything mapping the character
 # stream back to a span (the console highlight, SelectionInverting) relies on it.
-@test text_flat_offsets(block)[2] + block.elements[2].indentation ==
+@test get_flat_offsets(block)[2] + block.elements[2].indentation ==
       length("hello world\n  ")
 
 # The caret is a flat offset in the break/indentation-aware stream. `fb(path, k)`
@@ -86,12 +86,12 @@ cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.pat
 
 # The caret at the start of the indented line sits after the indent, not before.
 @test fb(Int[2, 1], 0) == 14
-@test text_selection_flat(caret(fb(Int[2, 1], 0))) == (14, 14, true)
+@test get_flat_selection(caret(fb(Int[2, 1], 0))) == (14, 14, true)
 
 # The flat offset of span 2 of line 1 is the length of span 1; a boundary offset
 # resolves canonically to the earlier span's end (direction-independent).
 b = caret(fb(Int[1, 2], 0))
-@test text_selection_flat(b) == (5, 5, true)
+@test get_flat_selection(b) == (5, 5, true)
 @test TextModule._flat_cursor_coord(b) == (span = [1, 1], char = 5)
 
 # Character motion is `± 1` in the flat stream. Every offset — including the break
@@ -118,7 +118,7 @@ op = read_bound_gesture(b, KeyPress('!'))
 @test op isa ReplaceTextRangeOperation
 evaluate_operation((document = b,), op)
 @test b.elements[2].elements[1].content == "second!"
-@test text_selection_flat(b) == (21, 21, true)
+@test get_flat_selection(b) == (21, 21, true)
 
 # Backspace at the start of a line now produces a flat op targeting the position
 # before it (the indentation gap); the standalone evaluate still declines a gap /
@@ -134,8 +134,8 @@ flat = with_selection(TextBlock(TextString("ab"),
                                 TextNewline(font = font_ubuntu_monospace_regular_20),
                                 TextString("cd")),
                       TextModule._flat_caret_ref(4))   # char 1 of "cd" → flat 4
-@test text_flat_offsets(flat) == [0, 2, 3]
-@test text_selection_flat(flat) == (4, 4, true)
+@test get_flat_offsets(flat) == [0, 2, 3]
+@test get_flat_selection(flat) == (4, 4, true)
 @test TextModule._flat_cursor_coord(flat) == (span = [3], char = 1)
 @test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys()))) == 3
 

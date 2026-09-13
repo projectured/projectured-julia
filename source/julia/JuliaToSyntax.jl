@@ -34,7 +34,7 @@ import ..JuliaModule: JuliaDocument,
                       JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
                       JuliaStringChunk, JuliaInterpolation,
                       JuliaFunctionDeclaration, JuliaWhereParameters, _julia_operator_string
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
@@ -345,7 +345,7 @@ end
     SyntaxConcatenation([
         SyntaxLeaf(TextString(() -> m.bare ? "baremodule " : "module ", p.keyword_style)),
         SyntaxLeaf(bound(:name, String,
-                         hinted_text(() -> m.name, () -> isempty(m.name),
+                         make_hinted_text(() -> m.name, () -> isempty(m.name),
                                      "enter module name", p.name_style))),
         project(:body),
         SyntaxLeaf(TextString(() -> "end # module " * m.name, p.keyword_style)),

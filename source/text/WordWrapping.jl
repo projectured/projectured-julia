@@ -16,7 +16,7 @@ table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 module WordWrappingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, text_flat_to_elem, text_elem_to_flat, text_caret_flat, ReplaceTextRangeOperation, _lower_text_range
+import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, ReplaceTextRangeOperation, _lower_text_range
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..CellModule: Cell, ComputedCell
 import ..CollectionModule: CellVector, ComputedCellVector
@@ -258,9 +258,9 @@ function _forward_map(segs, in_block, out_block, sel)
     # structural `.elements[i].content{k}` a lowered edit leaves on the input block.
     # A flat-only read here drops the cursor the moment an edit lands (the caret
     # disappears after the first typed character).
-    flat = text_caret_flat(in_block, sel)
+    flat = get_flat_caret(in_block, sel)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(in_block, flat)
+    loc = convert_flat_offset_to_element(in_block, flat)
     # A caret inside a `TextLine` has no flat top-level span mapping — `_wrap` passes
     # `TextLine` elements through unchanged (it reflows only top-level spans), so they
     # carry no `WrapSegment`. The line is identical in the output, so such a caret maps to
@@ -277,7 +277,7 @@ function _forward_map(segs, in_block, out_block, sel)
         end
     end
     best === nothing && return nothing
-    f = text_elem_to_flat(out_block, best.out_index, in_char - best.in_char_start)
+    f = convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
     f === nothing ? nothing : _flat_caret(f)
 end
 
@@ -288,14 +288,14 @@ function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, refer
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(iomap.output, flat)
+    loc = convert_flat_offset_to_element(iomap.output, flat)
     # A caret over a `TextLine` (passed through unchanged, so no `WrapSegment` and no
     # flat top-level span) maps backward to itself — the mirror of the forward map.
     loc === nothing && return reference
     out_span, out_char = loc
     for seg in iomap.segs
         seg.out_index == out_span || continue
-        f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
+        f = convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
         return f === nothing ? nothing : _flat_caret(f)
     end
     nothing

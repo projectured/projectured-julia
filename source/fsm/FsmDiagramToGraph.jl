@@ -36,7 +36,7 @@ import ..FsmModule: FsmMachine, FsmState, FsmTransition, FsmTimer,
 import ..FsmDiagramModule: FsmDiagram
 import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..IoMapModule: IoMap, var"@iomap"
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_default, color_solarized_green, color_solarized_violet,
                       color_solarized_gray, color_solarized_blue
@@ -63,7 +63,7 @@ end
 
 @projection_template FsmStateToSyntaxLabel FsmState (p, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     hinted_text(() -> doc.name, () -> isempty(doc.name),
+                     make_hinted_text(() -> doc.name, () -> isempty(doc.name),
                                  "state", p.name)))
 
 @projection struct FsmTransitionToSyntaxLabel

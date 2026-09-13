@@ -122,7 +122,7 @@ end # @testset
     for seg in segs
         seg.length == 0 && continue
         for k in 0:seg.length
-            out_ref = TextModule._flat_caret_ref(text_elem_to_flat(out, seg.out_index, k))
+            out_ref = TextModule._flat_caret_ref(convert_element_to_flat_offset(out, seg.out_index, k))
             in_ref = map_reference_backward(proj, iomap, out_ref)
             @test in_ref !== nothing
             @test map_reference_forward(proj, iomap, in_ref) !== nothing

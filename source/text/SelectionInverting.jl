@@ -25,7 +25,7 @@ module SelectionInvertingModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
 import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, text_flat_length, text_selection_flat, text_flat_to_elem, text_elem_to_flat, text_caret_flat
+import ..TextModule: TextBlock, TextDocument, TextString, get_flat_length, get_flat_selection, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
 import ..ColorModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
 import ..CellModule: Cell, ComputedCell
@@ -113,7 +113,7 @@ end
 # the boundaries and the in-range sub-spans are restyled to inverse video. No
 # character is inserted or removed, so `SelectionSegment` is a piecewise offset map.
 function _invert(p::SelectionInverting, text::TextBlock)
-    sel = text_selection_flat(text)
+    sel = get_flat_selection(text)
     # Widen a zero-width caret to a one-char block so it is visible.
     hl = sel === nothing ? nothing :
          (sel[3] && p.block_cursor) ? (sel[1], sel[1] + 1) : (sel[1], sel[2])
@@ -126,7 +126,7 @@ function _invert(p::SelectionInverting, text::TextBlock)
             base = _invert_string!(p, result, segs, elem, in_span, base, hl)
         else
             push!(result, elem)
-            base += text_flat_length(elem)
+            base += get_flat_length(elem)
         end
     end
     # End-of-text caret: the selection sits one past the last char. Synthesize a
@@ -247,9 +247,9 @@ function _forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
     # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
     # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
-    flat = text_caret_flat(in_block, sel)
+    flat = get_flat_caret(in_block, sel)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(in_block, flat)
+    loc = convert_flat_offset_to_element(in_block, flat)
     loc === nothing && return nothing
     in_span, in_char = loc
     best = nothing
@@ -262,7 +262,7 @@ function _forward_map(segs, in_block, out_block, sel)
         end
     end
     best === nothing && return nothing
-    f = text_elem_to_flat(out_block, best.out_index, in_char - best.in_char_start)
+    f = convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
     f === nothing ? nothing : _flat_caret(f)
 end
 
@@ -273,12 +273,12 @@ function map_reference_backward(p::SelectionInverting, iomap::SelectionInverting
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
-    loc = text_flat_to_elem(iomap.output, flat)
+    loc = convert_flat_offset_to_element(iomap.output, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
     for seg in iomap.segs
         seg.out_index == out_span || continue
-        f = text_elem_to_flat(iomap.input, seg.in_span, seg.in_char_start + out_char)
+        f = convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
         return f === nothing ? nothing : _flat_caret(f)
     end
     nothing

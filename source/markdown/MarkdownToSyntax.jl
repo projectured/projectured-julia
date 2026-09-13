@@ -31,7 +31,7 @@ import ..MarkdownModule: MarkdownInsertion, MarkdownText, MarkdownCode, Markdown
                          MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownHeading,
                          MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak,
                          MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownRoot
-import ..TextModule: TextString, hinted_text, TextGraphics
+import ..TextModule: TextString, make_hinted_text, TextGraphics
 import ..ImageModule: ImageFile
 import ..BackendModule: decode_image
 import ..GraphicsModule: GraphicsDocument
@@ -92,7 +92,7 @@ end
 
 @projection_template MarkdownTextToSyntaxLeaf MarkdownText (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     hinted_text(() -> doc.content, () -> isempty(doc.content), "text", prj.style)))
+                     make_hinted_text(() -> doc.content, () -> isempty(doc.content), "text", prj.style)))
 
 # ── MarkdownCodeToSyntaxLeaf ──────────────────────────────────────────────────
 # `tick` is the delimiter shown around the code (`` ` `` in source, "" rendered).
@@ -105,7 +105,7 @@ end
 
 @projection_template MarkdownCodeToSyntaxLeaf MarkdownCode (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     hinted_text(() -> doc.content, () -> isempty(doc.content), "code", prj.value_style));
+                     make_hinted_text(() -> doc.content, () -> isempty(doc.content), "code", prj.value_style));
                open=TextString(prj.tick, prj.tick_style),
                close=TextString(prj.tick, prj.tick_style))
 
@@ -215,7 +215,7 @@ end
                                      open=TextString("[", prj.bracket_style),
                                      close=TextString("]", prj.bracket_style)),
                           SyntaxLeaf(bound(:url, String,
-                                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
+                                           make_hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
                                      open=TextString("(", prj.bracket_style),
                                      close=TextString(")", prj.bracket_style)) ])
 
@@ -229,11 +229,11 @@ end
 
 @projection_template MarkdownImageToSyntaxNode MarkdownImage (prj, doc) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:alt, String,
-                                           hinted_text(() -> doc.alt, () -> isempty(doc.alt), "alt", prj.alt_style));
+                                           make_hinted_text(() -> doc.alt, () -> isempty(doc.alt), "alt", prj.alt_style));
                                      open=TextString("![", prj.bracket_style),
                                      close=TextString("]", prj.bracket_style)),
                           SyntaxLeaf(bound(:url, String,
-                                           hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
+                                           make_hinted_text(() -> doc.url, () -> isempty(doc.url), "url", prj.url_style));
                                      open=TextString("(", prj.bracket_style),
                                      close=TextString(")", prj.bracket_style)) ])
 
@@ -250,9 +250,9 @@ end
 @projection_template MarkdownCodeBlockToSyntaxNode MarkdownCodeBlock (prj, doc) ->
     SyntaxNode(TextString(prj.open_fence, prj.fence_style), TextString(prj.close_fence, prj.fence_style), nothing,
         [ SyntaxLeaf(bound(:language, String,
-                           hinted_text(() -> doc.language, () -> isempty(doc.language), "lang", prj.lang_style))),
+                           make_hinted_text(() -> doc.language, () -> isempty(doc.language), "lang", prj.lang_style))),
           SyntaxLeaf(bound(:code, String,
-                           hinted_text(() -> doc.code, () -> isempty(doc.code), "code", prj.code_style));
+                           make_hinted_text(() -> doc.code, () -> isempty(doc.code), "code", prj.code_style));
                      open=TextString("\n", prj.fence_style)) ],
         0, false, nothing)
 
@@ -456,7 +456,7 @@ function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownIm
         end
     end)
     alt_leaf = SyntaxLeaf(
-        hinted_text(() -> doc.alt, () -> isempty(doc.alt), "image", p.caption_style);
+        make_hinted_text(() -> doc.alt, () -> isempty(doc.alt), "image", p.caption_style);
         selection=alt_sel)
     img_leaf = SyntaxLeaf(_md_image_value(doc.url, p.caption_style, p.placeholder); selection=url_sel)
     node = SyntaxNode(CellVector(Cell[Cell(alt_leaf), Cell(img_leaf)]); sep=TextString("\n", p.placeholder))

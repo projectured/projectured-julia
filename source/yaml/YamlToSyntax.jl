@@ -27,7 +27,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
 import ..ProjectionModule: var"@projection"
 import ..YamlModule: YamlDocument, YamlNothing, YamlInsertion, YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence, YamlMapping, YamlMappingEntry
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
@@ -74,11 +74,11 @@ YamlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(YamlDocument)
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
 end
 
-# See JsonBoolToSyntaxLeaf: `hinted_text` guards the `doc.value ? …` thunk against a
+# See JsonBoolToSyntaxLeaf: `make_hinted_text` guards the `doc.value ? …` thunk against a
 # transient non-`Bool` value produced by mid-edit `bound` reads.
 @projection_template YamlBoolToSyntaxLeaf YamlBool (prj, doc) ->
     SyntaxLeaf(bound(:value, Bool,
-                     hinted_text(() -> doc.value ? "true" : "false",
+                     make_hinted_text(() -> doc.value ? "true" : "false",
                                  () -> !(doc.value isa Bool), "enter yaml bool", prj.style)))
 
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
@@ -89,7 +89,7 @@ end
 
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter yaml number", prj.style);
+                     make_hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter yaml number", prj.style);
                      retype = ReplaceNumberRangeOperation))
 
 # ── YamlStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -103,7 +103,7 @@ end
 
 @projection_template YamlStringToSyntaxLeaf YamlString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     hinted_text(() -> doc.value, () -> isempty(doc.value), "enter yaml string", prj.style)))
+                     make_hinted_text(() -> doc.value, () -> isempty(doc.value), "enter yaml string", prj.style)))
 
 # ── YamlMappingToSyntaxNode (template; flow or block via delimiter fields) ────
 #
@@ -131,7 +131,7 @@ end
                    SyntaxNode(TextString("", prj.delimiter_style),
                               TextString("", prj.delimiter_style),
                               TextString(": ", prj.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, hinted_text(() -> e.key, () -> isempty(e.key), "enter key", prj.key_style))),
+                              [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> e.key, () -> isempty(e.key), "enter key", prj.key_style))),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
                end;

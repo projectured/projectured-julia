@@ -149,7 +149,7 @@ function test_document_insertion()
             @test text.elements[1] isa TextString
             @test string(getfield(text, :selection)[]) ==
                   "::TextBlock.elements::CellVector[1]::TextString.content::String{0}::Position"
-            @test text_insert_op(text, "a") isa ReplaceStringRangeOperation
+            @test make_text_insert_operation(text, "a") isa ReplaceStringRangeOperation
         end
 
         @testset "rendered completion feedback" begin

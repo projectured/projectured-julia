@@ -463,7 +463,7 @@ end
 # Lines arrive by two mechanisms and the grouping honours both:
 #   • a `TextNewline` *element* terminates the current line;
 #   • a `TextLine` element carries a line of its own and implies a break *before*
-#     itself unless it leads the block — the separator rule of `text_flat_offsets`
+#     itself unless it leads the block — the separator rule of `get_flat_offsets`
 #     and `TextBlockToString`, so `n` lines render with `n-1` breaks.
 # `is_line` marks the second kind: only such a line, when empty, still occupies a
 # row. The empty group a trailing `TextNewline` leaves behind must not, or every
@@ -632,7 +632,7 @@ end
 # `span_flat_offsets` maps a span's `SpanPath` to the flat character offset it
 # starts at: the space a `TextSpanReferenceStep` box is expressed in. A
 # `TextLine` contributes its implicit break and its indentation to that space (the
-# rule of `text_flat_offsets`), because the projection that emits the line counts
+# rule of `get_flat_offsets`), because the projection that emits the line counts
 # both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
 # into the block at wrap points and the box space must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)

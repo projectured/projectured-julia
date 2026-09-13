@@ -14,7 +14,7 @@ import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
 import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, hinted_text
+import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
 import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleTextModule: StyleText
@@ -56,11 +56,11 @@ end
 
 # `bound` editing can transiently clear the value (the reactive `value` cell is
 # type-erased, so a mid-edit read may leave it non-`Bool`); render that state through
-# `hinted_text` so the `doc.value ? …` thunk is never evaluated on a non-`Bool` — the
+# `make_hinted_text` so the `doc.value ? …` thunk is never evaluated on a non-`Bool` — the
 # same guard `JsonNumberToSyntaxLeaf` relies on for its `nothing` state.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
     SyntaxLeaf(bound(:value, Bool,
-                     hinted_text(() -> doc.value ? "true" : "false",
+                     make_hinted_text(() -> doc.value ? "true" : "false",
                                  () -> !(doc.value isa Bool), "enter json bool", prj.style)))
 
 # ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
@@ -71,7 +71,7 @@ end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
+                     make_hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
                      retype = ReplaceNumberRangeOperation))
 
 # ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -83,7 +83,7 @@ end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     hinted_text(() -> json_escape(doc.value), () -> isempty(doc.value), "enter json string", prj.value_style));
+                     make_hinted_text(() -> json_escape(doc.value), () -> isempty(doc.value), "enter json string", prj.value_style));
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
@@ -114,7 +114,7 @@ end
     SyntaxNode(TextString("", prj.colon_style),
                TextString("", prj.colon_style),
                TextString(": ", prj.colon_style),
-               [ SyntaxLeaf(bound(:key, String, hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
+               [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
                             open=TextString("\"", prj.key_style),
                             close=TextString("\"", prj.key_style)),
                  project(:value) ],

@@ -73,7 +73,7 @@ end
 
 # A line contributes its indentation and its spans — but *not* its break: that is
 # a separator between elements, so the enclosing block emits it (see
-# `text_flat_offsets`, the same rule).
+# `get_flat_offsets`, the same rule).
 function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
     child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
