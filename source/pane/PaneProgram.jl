@@ -102,7 +102,8 @@ import ..PaneSurgeryModule:
 
 export show_layout, get_referenced_value, replace_referenced_value!,
        open_pane!, focus_pane!,
-       get_window_tree, describe_document, pane_group_to_avoid, pane_api
+       get_window_tree, describe_document, get_document_title,
+       pane_group_to_avoid, pane_api
 
 """
     pane_api() -> Vector
@@ -117,6 +118,9 @@ model's search — this module's own documentation says what that costs.
 pane_api() = Any[
     # The verbs and not the module: `pane_api` builds this very list, and a model
     # has no use for the function that builds its own surface.
+    # `get_document_title` is not declared either: a caller names a pane by
+    # passing `title`, and what a document calls itself is `open_pane!`'s
+    # business, not something to be asked separately.
     #
     # `describe_document` is here because it is two things at once — the
     # extension point `show_layout` writes its comments with, and the sentence a
@@ -213,6 +217,27 @@ precompiles.
 pane_group_to_avoid(tree) = nothing
 
 """
+    get_document_title(document) -> String or nothing
+
+The name a document carries for itself, or `nothing` when it carries none.
+
+**A title is not a description.** [`describe_document`](@ref) says what a
+document *is* right now — "18 runs, running: 12 done, 6 running" — and that
+sentence changes as the document does. A title is what the thing is called, and
+it holds still. A pane needs the second: a tab that renamed itself as its runs
+finished would be a tab nobody could point at.
+
+The default answers `nothing`, so a document that has no name of its own falls
+back to its description. **Each application writes the methods for the documents
+it holds**, beside those documents.
+
+The argument is untyped in the default on purpose: an application writes a method
+for its own type, and a default of the same signature would be overwritten rather
+than added to.
+"""
+get_document_title(document) = nothing
+
+"""
     open_pane!(editor, document; title = nothing) -> Reference
 
 Put `document` in a new tab, and answer a reference to the tab it made.
@@ -234,7 +259,9 @@ focus_pane!(editor, where)
 replace_referenced_value!(editor, where, PaneTab(other, "something else"))
 ```
 
-`title` is what the tab is called. A title already taken gets a number, so two
+`title` is what the tab is called. Left out, the document's own
+[`get_document_title`](@ref) answers, and a document that carries no name falls
+back to [`describe_document`](@ref). A title already taken gets a number, so two
 panes are never one name, and the name is for a person to read rather than for a
 caller to address the pane by.
 """
@@ -248,8 +275,15 @@ function open_pane!(editor, document; title = nothing)
     group = pane_focused_group(tree)
     (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
 
-    name = _unique_pane_title(tree, title === nothing ? describe_document(document) :
-                                                        String(title))
+    # What the pane is called: what the caller said, else the name the document
+    # carries, else what it is. A description is the last resort, because it
+    # names the document's state and a tab must not rename itself.
+    wanted = title !== nothing ? String(title) :
+             let own = get_document_title(document)
+                 own !== nothing && !isempty(strip(String(own))) ? String(own) :
+                     describe_document(document)
+             end
+    name = _unique_pane_title(tree, wanted)
     tab = PaneTab(name, document)
     operation = pane_open_tab_operation(tree, group, tab)
     operation === nothing && error("The window has no group to open a pane in.")
