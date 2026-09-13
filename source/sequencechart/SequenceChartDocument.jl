@@ -42,7 +42,7 @@ using ..DomainModule
 using ..EventPatternModule
 using ..GestureBindingModule
 
-import ..PlotStyleModule: default_color_cycle
+import ..PlotModule: default_color_cycle
 import ..SequenceChartRowReferenceStepModule: SequenceChartRowReferenceStep
 import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,

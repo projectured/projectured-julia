@@ -37,9 +37,9 @@ import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
                       ChartHistogramSeries, ChartStripSeries,
                       get_chart_series_family, get_chart_axis_family,
                       strip_state_name, strip_state_color
-import ..PlotStyleModule: get_series_color, get_series_symbol, build_marker_polygon
+import ..PlotModule: get_series_color, get_series_symbol, build_marker_polygon
 import ..ChartPlotModule: ChartPlot, ChartView
-import ..PlotGeometryModule: AxisScale, to_pixel, to_data,
+import ..PlotModule: AxisScale, to_pixel, to_data,
                               get_column_bounds, merge_bounds, pad_range,
                               compute_nice_ticks, log_ticks, format_tick,
                               get_visible_range, decimate_minmax, step_points, build_pins_segments,

@@ -1,7 +1,11 @@
 """
-    PlotGeometryModule
+    PlotModule
 
-The chart slice's arithmetic: axis scaling, tick selection, data↔pixel mapping,
+The plot slice: the arithmetic every plotted notation shares, and the vocabulary
+it draws with. A chart and a sequence chart both scale an axis, map data to
+pixels and hand colours out by position, so neither owns either half.
+
+This file holds the arithmetic: axis scaling, tick selection, data↔pixel mapping,
 and the decimation and folding that keep a chart's cost proportional to its
 pixels rather than to its data.
 
@@ -21,8 +25,15 @@ The scalability story lives here:
 - [`fold_bins`](@ref) merges bars or bins narrower than a pixel threshold.
 - [`label_step`](@ref) thins tick labels that would otherwise collide.
 """
-module PlotGeometryModule
+module PlotModule
 
+import ..ColorModule: StyleColor,
+    color_solarized_blue, color_solarized_red, color_solarized_green,
+    color_solarized_orange, color_solarized_violet, color_solarized_cyan,
+    color_solarized_magenta, color_solarized_yellow
+
+export default_color_cycle, default_symbol_cycle,
+       get_series_color, get_series_symbol, build_marker_polygon
 export AxisScale, to_pixel, to_data, get_axis_span,
        get_column_bounds, merge_bounds, pad_range,
        compute_nice_number, compute_nice_ticks, log_ticks, format_tick,
@@ -755,5 +766,7 @@ function compute_histogram_values(edges::AbstractVector, values::AbstractVector,
     end
     out
 end
+
+include("PlotStyle.jl")
 
 end # module

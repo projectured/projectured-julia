@@ -1,25 +1,14 @@
-"""
-    PlotStyleModule
-
-The plot vocabulary that every plotted notation shares: how a series that names
-no colour or marker gets one, and what shape a marker draws as.
-
-A chart and a sequence chart both hand colours out by position in the series
-list, and both draw the same marker shapes, so neither owns this. It sits beside
-[`PlotGeometryModule`](@ref), which owns the arithmetic for the same reason.
-
-Everything here is a pure function over plain values, colours and integers. It
-knows no document type.
-"""
-module PlotStyleModule
-
-import ..ColorModule: StyleColor,
-    color_solarized_blue, color_solarized_red, color_solarized_green,
-    color_solarized_orange, color_solarized_violet, color_solarized_cyan,
-    color_solarized_magenta, color_solarized_yellow
-
-export default_color_cycle, default_symbol_cycle,
-       get_series_color, get_series_symbol, build_marker_polygon
+# ── The plot vocabulary ───────────────────────────────────────────────────────
+#
+# What every plotted notation draws with: how a series that names no colour or
+# marker gets one, and what shape a marker draws as.
+#
+# A chart and a sequence chart both hand colours out by position in the series
+# list, and both draw the same marker shapes, so neither owns this. It sits
+# beside the arithmetic above for the same reason.
+#
+# Everything here is a pure function over plain values, colours and integers. It
+# knows no document type.
 
 # ── Colour and marker cycles ─────────────────────────────────────────────
 
@@ -107,4 +96,3 @@ function build_marker_polygon(shape::Symbol, x::Int, y::Int, r::Int)
     nothing
 end
 
-end # module

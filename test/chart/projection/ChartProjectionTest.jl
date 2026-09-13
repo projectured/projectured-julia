@@ -866,10 +866,10 @@ function test_chart_projection()
             proj = _chart_projection()
             iomap = print_document(proj, proj, big, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
-            target = PlotGeometryModule.to_pixel(g.xs, 500.0)
+            target = PlotModule.to_pixel(g.xs, 500.0)
             elapsed = @elapsed op = read_intent(proj, iomap,
                 MousePress(:left, round(Int, target),
-                           round(Int, PlotGeometryModule.to_pixel(g.ys, sin(500.0)))))
+                           round(Int, PlotModule.to_pixel(g.ys, sin(500.0)))))
             @test op isa ReplaceSelectionOperation
             @test elapsed < 0.5
             big.selection = op.path
@@ -939,7 +939,7 @@ function test_chart_projection()
             before = resolve_view(plot)
             # The wheel zooms about the cursor: the window narrows, and the data
             # point that was under the pointer is still under it.
-            under = PlotGeometryModule.to_data(g.xs, mid_x)
+            under = PlotModule.to_data(g.xs, mid_x)
             op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys()))
             @test op !== nothing
             evaluate_operation(nothing, op)
@@ -951,7 +951,7 @@ function test_chart_projection()
             # a slightly different left margin.
             g2 = iomap.step_iomaps[2][].geometry
             pixel = (after.x_max - after.x_min) / g2.plot_w
-            @test PlotGeometryModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
+            @test PlotModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
 
             # Wheeling out again widens it back.
             op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys()))
@@ -1026,8 +1026,8 @@ function test_chart_projection()
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             v = resolve_view(plot)
             # The committed window is what the band enclosed.
-            @test v.x_min ≈ PlotGeometryModule.to_data(g.xs, x0) atol=0.5
-            @test v.x_max ≈ PlotGeometryModule.to_data(g.xs, x1) atol=0.5
+            @test v.x_min ≈ PlotModule.to_data(g.xs, x0) atol=0.5
+            @test v.x_max ≈ PlotModule.to_data(g.xs, x1) atol=0.5
 
             # A band that never grew is a click, not a zoom.
             plot.view = nothing

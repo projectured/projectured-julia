@@ -31,8 +31,8 @@ using ..GestureBindingModule
 using ..DomainModule
 
 import ..ColorModule: StyleColor
-import ..PlotStyleModule: default_color_cycle, default_symbol_cycle, get_series_color
-import ..PlotGeometryModule: compute_bin_values
+import ..PlotModule: default_color_cycle, default_symbol_cycle, get_series_color
+import ..PlotModule: compute_bin_values
 import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
 import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
