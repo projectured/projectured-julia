@@ -464,8 +464,22 @@ end
 # API entry in one call instead of listing and reading every resource.
 
 # Split a query into lowercase alphanumeric/underscore terms (drop 1-char noise).
-_query_terms(q::AbstractString) =
-    filter(t -> length(t) >= 2, split(lowercase(q), r"[^a-z0-9_]+"))
+# The words a person says to join the words they mean. In a heading they score
+# as loudly as the subject does — "change the layout" scored `the` five points
+# against every heading holding it — and they name nothing, so they are dropped.
+const _STOP_WORDS = Set([
+    "the", "a", "an", "and", "or", "of", "in", "on", "to", "for", "with", "from",
+    "by", "as", "is", "are", "be", "it", "its", "this", "that", "these", "those",
+    "at", "into", "how", "what", "when", "which", "do", "does", "can", "me",
+    "my", "you", "your", "all", "any", "some", "one", "up", "out",
+])
+
+function _query_terms(q::AbstractString)
+    words = filter(t -> length(t) >= 2, split(lowercase(q), r"[^a-z0-9_]+"))
+    kept = filter(t -> !(t in _STOP_WORDS), words)
+    # A query of nothing but joining words still has to search for something.
+    isempty(kept) ? words : kept
+end
 
 # Turn a query into `(patterns, fold)`: `patterns` is what we match against text,
 # `fold` is applied to both query and haystack first. The query *type* selects the
