@@ -70,4 +70,4 @@ function search_references(obj, predicate; kwargs...)
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =
-    search_references(obj, string_predicate(query); kwargs...)
+    search_references(obj, make_string_predicate(query); kwargs...)

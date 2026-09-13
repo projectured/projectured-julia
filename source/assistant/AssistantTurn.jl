@@ -52,12 +52,12 @@ import ..AssistantToWidgetModule: AssistantToWidgetSplitPane,
                                    AssistantToWidgetCard
 import ..EventModule: KeyDown
 import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
-                      register_default_tools!, execute_julia_code, last_evaluated_value
+                      register_default_tools!, execute_julia_code, get_last_evaluated_value
 import ..EventModule: KeyPress
 import ..EventPatternModule: var"@event_case"
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..AgentModule: Agent, run_turn!, AgentToolResult
-import ..LlmModule: Llm, stream_turn, make_llm, llm_backend_names,
+import ..LlmModule: Llm, stream_turn, make_llm, get_llm_backend_names,
                      LlmRequest, LlmMessage, LlmContent,
                      LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
                      LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
@@ -248,7 +248,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     is_error = occursin("ERROR", output) || occursin("Error", output)
     # A Document return value (e.g. a live SimulationTaskDocument) is embedded as
     # the result so it renders live; anything else falls back to its text repr.
-    val = last_evaluated_value(set)
+    val = get_last_evaluated_value(set)
     result = val isa Document ? val : result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
@@ -408,7 +408,7 @@ end
 
 # The tools the model may call are simply the editor's — `list_tools(editor.tools)`.
 # There is nothing to render here: an `LlmRequest` carries `Tool`s, and the provider
-# adapter turns them into its own schema (`tool_schema`).
+# adapter turns them into its own schema (`render_tool_schema`).
 #
 # `list_resources` and `read_resource` used to be "bridging tools" this module
 # hand-wrote provider schemas for, with a companion dispatcher that resolved them
@@ -649,7 +649,7 @@ end
 # honest answer when the person loaded no adapter at all: the fix then is to load
 # one, not to name one.
 function _backend_list()
-    names = Base.invokelatest(llm_backend_names)
+    names = Base.invokelatest(get_llm_backend_names)
     isempty(names) && return "none (load ProjecturedAnthropic or ProjecturedOllama)"
     join(map(n -> ":" * String(n), names), ", ")
 end
@@ -726,7 +726,7 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     # result and renders in place; other tools, and non-Document values, keep the
     # text repr. (The model still sees the textual tool_result, which
     # `build_messages` derives from this same result.)
-    val = call.name == "execute_julia_code" ? last_evaluated_value(set) : nothing
+    val = call.name == "execute_julia_code" ? get_last_evaluated_value(set) : nothing
     result = val isa Document ? val : result_text(ev.output)
     push!(turn.parts, Cell(ConversationPart(
         EvaluatorForm(_eval_form_doc(String(code));

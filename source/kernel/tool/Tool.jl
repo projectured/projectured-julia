@@ -64,11 +64,11 @@ Base.:(==)(a::ApiEntry, b::ApiEntry) = a.module_ === b.module_ && a.names == b.n
 Base.hash(entry::ApiEntry, h::UInt) = hash(entry.names, hash(objectid(entry.module_), h))
 
 """
-    api_entry_names(entry) -> Vector{Symbol}
+    get_api_entry_names(entry) -> Vector{Symbol}
 
 The names one entry gives, whether it named them or took the module's exports.
 """
-api_entry_names(entry::ApiEntry) =
+get_api_entry_names(entry::ApiEntry) =
     entry.names === nothing ?
         [n for n in names(entry.module_)
            if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
@@ -85,12 +85,12 @@ _api_entry(other) = error("A declared API is a module or a `module => names` pai
                           repr(other) * " is neither.")
 
 """
-    api_modules(set) -> Vector{Module}
+    get_api_modules(set) -> Vector{Module}
 
 The modules a declaration names, for a reader that wants those rather than the
 names.
 """
-api_modules(set) = Module[entry.module_ for entry in set.api]
+get_api_modules(set) = Module[entry.module_ for entry in set.api]
 
 """
     ToolSet(; api = ApiEntry[])

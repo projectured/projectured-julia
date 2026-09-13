@@ -85,7 +85,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
                                    bound, project, collection
 import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: introduced_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..JuliaToSyntaxModule: JuliaToSyntax
@@ -336,7 +336,7 @@ for T in (:ProcessModelToSyntaxNode, :ProcessStepToSyntaxNode,
         flat = _syntax_to_flat(iomap.output, op.path, SyntaxCompoundToText(), 0)
         flat < 0 && return nothing
         ReplaceSelectionOperation(
-            introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+            make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
     end
 end
 

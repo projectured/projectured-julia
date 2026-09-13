@@ -31,7 +31,7 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
 
 # This package's registration on the kernel's factory seam. The method IS the
 # registration: `make_llm(:anthropic)` resolves exactly while this package is
-# loaded, and `llm_backend_names()` reads it back out of the method table.
+# loaded, and `get_llm_backend_names()` reads it back out of the method table.
 #
 # `context` is accepted and ignored. Anthropic's context window comes with the
 # model and is not a parameter of a request, so there is nothing here to set.
@@ -44,13 +44,13 @@ default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    tool_schema(llm::AnthropicLlm, tools) -> Vector{Dict}
+    render_tool_schema(llm::AnthropicLlm, tools) -> Vector{Dict}
 
 Render `Tool`s into the JSON-Schema-shaped vector the Messages API wants for its
 `tools` parameter. `ProjecturedMcp` does the same job for MCP's wire format; a
 `Tool` itself knows neither.
 """
-function tool_schema(::AnthropicLlm, tools::AbstractVector{Tool})
+function render_tool_schema(::AnthropicLlm, tools::AbstractVector{Tool})
     out = Dict[]
     for t in tools
         properties = Dict{String,Any}()
@@ -174,7 +174,7 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
         "messages"   => Any[_wire(m) for m in request.messages],
     )
     isempty(request.system) || (body["system"] = request.system)
-    isempty(request.tools)  || (body["tools"]  = tool_schema(llm, request.tools))
+    isempty(request.tools)  || (body["tools"]  = render_tool_schema(llm, request.tools))
     if request.thinking
         t = _thinking_param(llm.model)
         t === nothing || (body["thinking"] = t)

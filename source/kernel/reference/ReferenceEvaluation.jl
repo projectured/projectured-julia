@@ -147,7 +147,7 @@ runtime document (rather than a statically named type) reads the type from
 here — e.g. a whole-element selection mapped across a projection carries
 `get_reference_node_type(output_document)`.
 """
-get_reference_node_type(document) = document_cell_type(document)
+get_reference_node_type(document) = get_document_cell_type(document)
 
 const _node_type = get_reference_node_type
 

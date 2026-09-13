@@ -24,7 +24,7 @@ tool = Tool("get_weather", "Get the weather for a city",
                        (name = "unit", type = "string",
                         description = "celsius or fahrenheit")],
             (args, target) -> "18 degrees")
-schema = tool_schema(llm, [tool])
+schema = render_tool_schema(llm, [tool])
 @test length(schema) == 1
 @test schema[1]["type"] == "function"
 @test schema[1]["function"]["name"] == "get_weather"
@@ -172,7 +172,7 @@ function test_ollama_backend()
 @test make_llm(:ollama; model = "m", api_key = "ignored", context = 4096) isa OllamaLlm
 
 # The package registers itself, so the kernel's factory answers for it.
-@test :ollama in llm_backend_names()
+@test :ollama in get_llm_backend_names()
 @test default_llm_model(:ollama) == "qwen3.8:27b"
 llm = make_llm(:ollama; model = "mistral:latest", api_key = "ignored")
 @test llm isa OllamaLlm

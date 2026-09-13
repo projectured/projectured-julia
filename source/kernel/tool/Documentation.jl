@@ -127,7 +127,7 @@ _projectured() = parentmodule(@__MODULE__)
 function _is_declared(api, mod::Module, name::Symbol)
     isempty(api) && return true
     for entry in api
-        entry.module_ === mod && return name in api_entry_names(entry)
+        entry.module_ === mod && return name in get_api_entry_names(entry)
     end
     false
 end
@@ -522,7 +522,7 @@ function _index_declared(api)
                                  "resource://module/$mn"))
         # The names the declaration gives, and no others. A name a model finds
         # here is a name it can write, which is the whole point of the list.
-        for sym in api_entry_names(declared)
+        for sym in get_api_entry_names(declared)
             sym === nameof(mod) && continue
             isdefined(mod, sym) || continue
             value = getfield(mod, sym)

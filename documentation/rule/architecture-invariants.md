@@ -872,7 +872,7 @@ fix. The only way to share a helper without exporting it is to make the sharers
 imported); otherwise sink the machinery to a module at or below both users and
 export it. Precedents: the `@event_case`/`@gestures` parser (same-module
 fragments); the transparent-Cell struct codegen — `@cell_struct` +
-`cell_struct_exprs`/`cell_struct_kw_params`/`cell_struct_kwctor` exported from
+`build_cell_struct_exprs`/`build_cell_struct_kw_params`/`build_cell_struct_kwctor` exported from
 `CellStructModule` (cell layer), built on by `@document`/`@iomap`/`@projection`.
 Enforcement is
 staged like the layer guard itself: `check_private_imports` already forbids

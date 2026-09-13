@@ -9,7 +9,7 @@ input domain one step at a time.
 module ChainingProjectionModule
 
 import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
-       pure_print_document
+       print_document_pure
 import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
                        merge_collected_intents
 import ..GestureBindingModule: GestureBinding
@@ -97,10 +97,10 @@ end
 
 # Pure: thread each stage's immutable output straight into the next stage — no
 # per-stage cells, no iomaps. Each stage recurses through the pure interpreter.
-function pure_print_document(seq::ChainingProjection, recursion, input, ctx)
+function print_document_pure(seq::ChainingProjection, recursion, input, ctx)
     out = input
     for p in seq.projections
-        out = pure_print_document(p, recursion, out, ctx)
+        out = print_document_pure(p, recursion, out, ctx)
     end
     out
 end

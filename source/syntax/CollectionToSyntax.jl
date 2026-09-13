@@ -24,7 +24,7 @@ import ..IoMapModule: IoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep,
                           PositionReferenceStep, Reference,
                           EmptyReference, extend_reference, is_element_reference_step
-import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
@@ -124,7 +124,7 @@ function read_intent(p::CollectionCellVectorToSyntax,
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # ── CollectionListNodeToSyntax ───────────────────────────────────────────────

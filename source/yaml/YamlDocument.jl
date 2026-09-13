@@ -86,7 +86,7 @@ YamlMapping(pairs::Pair{<:AbstractString}...) =
 
 # A mapping entry must stay a key/value pair — it is retyped through its value.
 _yaml_replaceable(doc, sel) =
-    !(try_evaluate_reference(doc, named_node_reference(sel)) isa Union{Nothing, YamlMappingEntry})
+    !(try_evaluate_reference(doc, normalize_named_node_reference(sel)) isa Union{Nothing, YamlMappingEntry})
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 

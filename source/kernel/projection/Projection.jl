@@ -22,7 +22,7 @@ using ..ProjectionApiModule
 # interface functions (plus the pure-print entry point).
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward,
-                              pure_print_document, pure_print_child
+                              print_document_pure, print_child_pure
 using ..IntentModule
 using ..OperationModule
 # The text- and number-range replace branches of the default read_intent live
@@ -36,7 +36,7 @@ using ..PrinterContextModule
 using ..EventModule
 using ..GestureBindingModule
 
-export @projection, pure_print
+export @projection, print_pure
 
 function print_document(projection, input)
     print_document(projection, nothing, input, PrinterContext())
@@ -49,18 +49,18 @@ end
 print_child(recursion, input, ctx) =
     print_document(recursion, recursion, input, ctx)
 
-pure_print_child(recursion, input, ctx) =
-    pure_print_document(recursion, recursion, input, ctx)
+print_child_pure(recursion, input, ctx) =
+    print_document_pure(recursion, recursion, input, ctx)
 
 """
-    pure_print(projection, input) -> immutable output tree
+    print_pure(projection, input) -> immutable output tree
 
 Entry point for the pure batch printer (see
-[`pure_print_document`](@ref)): project `input` to a fully-built, immutable
+[`print_document_pure`](@ref)): project `input` to a fully-built, immutable
 output tree with no iomap / reactive / selection machinery.
 """
-pure_print(projection, input) =
-    pure_print_document(projection, nothing, input, PrinterContext())
+print_pure(projection, input) =
+    print_document_pure(projection, nothing, input, PrinterContext())
 
 # Snapshot the forced output of a projection to the immutable kind, when it is a
 # document; non-document outputs (a String, a graphics value) pass through.
@@ -71,7 +71,7 @@ _pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
 # interpreter (it builds the reactive machinery first), but it makes the pure
 # pipeline total from day one — a Sequential chain can mix template stages (fast,
 # pure) with hand-written stages (this fallback) transparently.
-pure_print_document(p::Projection, recursion, input, ctx) =
+print_document_pure(p::Projection, recursion, input, ctx) =
     _pure_snapshot(unwrap_cell(print_document(p, recursion, input, ctx).output))
 
 """
@@ -265,13 +265,13 @@ IoMaps as computed cells reading the parameters/input; a plain struct is fine on
 for a projection with no reactive parameters (see `@iomap`).
 """
 macro projection(args...)
-    default, structdef = cell_struct_macro_default(args)
+    default, structdef = parse_cell_struct_macro_default(args)
     structdef.head === :struct || error("@projection expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :Projection)
     end
-    return esc(cell_struct_exprs(structdef; default = default))
+    return esc(build_cell_struct_exprs(structdef; default = default))
 end
 
 end # module

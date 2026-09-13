@@ -4,7 +4,7 @@
 The **provider abstraction**: how the editor drives a language model, and what
 comes back. Three fragments share this namespace:
 
-- [`Llm.jl`](Llm.jl) — the `Llm` supertype and the `stream_turn` / `tool_schema`
+- [`Llm.jl`](Llm.jl) — the `Llm` supertype and the `stream_turn` / `render_tool_schema`
   seams a provider implements.
 - [`LlmMessage.jl`](LlmMessage.jl) — the conversation as the model sees it: content
   blocks, messages, and the `LlmRequest` for one turn.
@@ -33,8 +33,8 @@ module LlmModule
 using ..DocumentModule
 using ..ToolModule
 
-export Llm, stream_turn, tool_schema,
-       make_llm, default_llm_model, llm_backend_names,
+export Llm, stream_turn, render_tool_schema,
+       make_llm, default_llm_model, get_llm_backend_names,
        LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
        LlmMessage, LlmRequest,
        LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,

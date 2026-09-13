@@ -7,7 +7,7 @@
 get_selection(document::Document) = document.selection
 
 # No document keeps a dormant selection unless it says so.
-keeps_dormant_selection(::Any) = false
+has_dormant_selection(::Any) = false
 
 # The path a `selection` cell holds, live or dormant.
 #
@@ -87,14 +87,14 @@ function _keeps_branch(owner, divergence, old_path)
     # hold their alternatives in a `CellVector`, so the step that differs belongs
     # to that collection and the collection is the divergence — while the document
     # that knows the children are alternatives is the one above it.
-    (owner !== nothing && keeps_dormant_selection(owner)) && return true
-    keeps_dormant_selection(divergence) && return true
+    (owner !== nothing && has_dormant_selection(owner)) && return true
+    has_dormant_selection(divergence) && return true
     node = divergence
     path = old_path
     while path isa ConcreteReference
         node = _selection_child(node, path)
         node === nothing && return false
-        keeps_dormant_selection(node) && return true
+        has_dormant_selection(node) && return true
         path = path.tail
     end
     false
@@ -130,7 +130,7 @@ function _restore_selection(document, path)
         node = child
         rest = rest.tail
     end
-    keeps_dormant_selection(node) || return path
+    has_dormant_selection(node) || return path
     hasproperty(node, :selection) || return path
     value = getfield(node, :selection)[]
     (value isa SelectionDocument && !value.live) || return path

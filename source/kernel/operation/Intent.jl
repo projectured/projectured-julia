@@ -14,7 +14,7 @@ module IntentModule
 import ..OperationModule: Operation, reroot_operation
 
 export Intent, ClaimedGesture, CollectIntents, CollectedIntentsOperation,
-       labelled_intent, merge_collected_intents
+       with_intent_labels, merge_collected_intents
 
 """
     Intent(gesture, operation = nothing, description = "", domain = "")
@@ -57,12 +57,12 @@ Intent(gesture) = Intent(gesture, nothing, "", "")
 Intent(gesture, operation) = Intent(gesture, operation, "", "")
 
 """
-    labelled_intent(intent, description, domain) -> Intent
+    with_intent_labels(intent, description, domain) -> Intent
 
 `intent` with its labels replaced. The one place labels are attached, so a reader
 that builds an operation does not have to remember the field order.
 """
-labelled_intent(intent::Intent, description::AbstractString, domain::AbstractString) =
+with_intent_labels(intent::Intent, description::AbstractString, domain::AbstractString) =
     Intent(intent.gesture, intent.operation, String(description), String(domain))
 
 """

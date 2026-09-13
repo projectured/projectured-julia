@@ -34,7 +34,7 @@ is_collection_field_type(::Val{:CellVector}) = true
 # `is_collection_field_type` is: the kernel names no concrete collection type, and
 # a collection says for itself what it stands in for. `CellVector(::AbstractVector)`
 # is the constructor the contract requires, and it exists above.
-cell_layout_field_type(::Val{:Vector}) = CellVector
+get_cell_layout_field_type(::Val{:Vector}) = CellVector
 
 # `CellVector()` is the macro's keyword constructor: `elements` defaults to an
 # empty `Cell[]` and `selection` to `nothing`. Because *every* field defaults,
@@ -271,5 +271,5 @@ end
 
 make_children_container(cells::Vector) = CellVector(cells)
 make_children_container(thunk::Function) = ComputedCellVector(thunk)
-children_container_type() = CellVector
+get_children_container_type() = CellVector
 

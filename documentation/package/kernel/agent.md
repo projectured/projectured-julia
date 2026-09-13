@@ -53,7 +53,7 @@ the same principled exception PAR-PER-EDITOR-STATE grants the wall clock.
 ## Layer 15 — `llm/`: how the editor talks to a model
 
 ```
-Llm.jl         the Llm supertype; the stream_turn and tool_schema seams
+Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams
 LlmMessage.jl  LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
 LlmEvent.jl    LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
 ```
@@ -86,7 +86,7 @@ Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
 `ScriptedLlm` doubles in `ProjecturedKernelExample` — never in a `main` package
 (PAR-NO-TEST-DOUBLES-IN-MAIN). A caller names a backend by symbol,
 `make_llm(:ollama; model = …)`, so nothing in the core stack names a concrete
-backend and `llm_backend_names()` says which packages are loaded.
+backend and `get_llm_backend_names()` says which packages are loaded.
 
 ### Choose a backend
 
@@ -115,7 +115,7 @@ Three functions carry the whole selection, and all three live in `llm/Llm.jl`:
 | --- | --- |
 | `make_llm(kind; model, api_key, context)` | build the backend registered under `kind` |
 | `default_llm_model(kind)` | the model this backend talks to when nobody names one |
-| `llm_backend_names()` | which backends can be built right now |
+| `get_llm_backend_names()` | which backends can be built right now |
 
 `make_llm` dispatches on `Val`, and each adapter package adds one method. **The
 method table is the registry**: there is no dictionary to keep in step, nothing to
@@ -239,5 +239,5 @@ parts; something else might simply print them.
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
 | `make_agent_server(:mcp, …)` | `agent/AgentServer.jl` | `ProjecturedMcp` (`package/mcp`) |
-| `stream_turn`, `tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
+| `stream_turn`, `render_tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

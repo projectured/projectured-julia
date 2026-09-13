@@ -72,13 +72,13 @@ subtypes(x::Type; world::UInt = Base.get_world_counter()) =
     _subtypes_in!(Base.loaded_modules_array(), x, world)
 import ..EventPatternModule
 import ..GestureBindingModule
-import ..DocumentModule: Document, var"@document", document_family
+import ..DocumentModule: Document, var"@document", get_document_family
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, ElementReferenceStep, PositionReferenceStep,
                           extend_reference, concat_references, annotate_reference_types,
                           get_reference_node_type, try_evaluate_reference
 import ..SelectionModule: with_selection, get_selection
-import ..ProjectionReferenceStepModule: named_node_reference
+import ..ProjectionReferenceStepModule: normalize_named_node_reference
 import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
 import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
 import ..EventPatternModule: KeyDownPattern
@@ -243,14 +243,14 @@ function _is_domain_entry(T::Type)
 end
 
 # A native mutable-layout struct (`MFoo`) is the same document as its stem (`Foo`)
-# — they share a `document_family` — just a different variant layout. Reflection
+# — they share a `get_document_family` — just a different variant layout. Reflection
 # over *document types* must see one type per schema, so we skip the concrete
 # layout variants: a concrete type whose family is not its own name-wrapper is a
 # variant of another schema, not a document type in its own right. (The stem is a
 # UnionAll, so `isconcretetype` is false and it stays; a hand-written document is
 # its own family via the fallback, so it stays too.)
 _is_layout_variant(T::Type) =
-    isconcretetype(T) && document_family(T) !== Base.typename(T).wrapper
+    isconcretetype(T) && get_document_family(T) !== Base.typename(T).wrapper
 
 """
     insertion_candidates(root::Type) -> Vector{Type}
@@ -429,11 +429,11 @@ gesture every domain spells the same way (`n` for null, `[` for an array).
 
 "Names" is the whole content of this verb: a caret on a projection-introduced token —
 a bracket, a placeholder — names the node it was printed for, not a node of its own,
-so it normalizes to ∅ (see [`named_node_reference`](@ref)). `replacement` carries its
+so it normalizes to ∅ (see [`normalize_named_node_reference`](@ref)). `replacement` carries its
 own cursor, so nothing else needs placing.
 """
 replace_selected_document(document, replacement) =
-    replace_document(named_node_reference(get_selection(document)), replacement)
+    replace_document(normalize_named_node_reference(get_selection(document)), replacement)
 
 """
     append_insertion_operation(document, field::Symbol, T::Type) -> Operation

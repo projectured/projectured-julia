@@ -24,11 +24,11 @@ module CollectionModule
 
 import ..CellModule: Cell, ComputedCell, Computed, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell, copy_cell_as
 import ..DocumentModule: Document, copy_document,
-       is_element_collection, is_collection_field_type, cell_layout_field_type,
+       is_element_collection, is_collection_field_type, get_cell_layout_field_type,
        @document, @forward_protocol
 import ..ReferenceModule: Reference, RangeReferenceStep
 import ..OperationModule: child_reference_steps
-import ..ChildrenContainerModule: make_children_container, children_container_type
+import ..ChildrenContainerModule: make_children_container, get_children_container_type
 export CollectionDocument, CellVector, ComputedCellVector, CellMatrix, CellTable, ListNode,
        get_left_tail, get_right_tail, get_cell_at, take_first, insertrow!,
        insertcol!, deleterow!, deletecol!, insertrow, deleterow

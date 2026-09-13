@@ -79,7 +79,7 @@ function _scratch_module(set::ToolSet)
         # exports more — which is what makes the list a decision a person writes
         # down, rather than a consequence of what it happens to import.
         for entry in srcs
-            syms = api_entry_names(entry)
+            syms = get_api_entry_names(entry)
             isempty(syms) && continue
             Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(entry.module_)),
                                            (Expr(:., n) for n in syms)...)))
@@ -104,14 +104,14 @@ function _scratch_module(set::ToolSet)
 end
 
 """
-    last_evaluated_value(set) -> Any
+    get_last_evaluated_value(set) -> Any
 
 The value the most recent `execute_julia_code` call on `set` produced (`nothing`
 if it errored or returned `nothing`). A caller uses this to embed a returned
 `Document` as a *live* result — rendering it in place — instead of settling for
 its text repr.
 """
-last_evaluated_value(set::ToolSet) = set.last_value
+get_last_evaluated_value(set::ToolSet) = set.last_value
 
 """
     execute_julia_code(set, target, code) -> String

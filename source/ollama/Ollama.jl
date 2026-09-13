@@ -67,14 +67,14 @@ default_llm_model(::Val{:ollama}) = _DEFAULT_MODEL
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    tool_schema(llm::OllamaLlm, tools) -> Vector{Dict}
+    render_tool_schema(llm::OllamaLlm, tools) -> Vector{Dict}
 
 Render `Tool`s into the shape Ollama's `tools` parameter takes: a function
 wrapper around a JSON-Schema object. Anthropic's `input_schema` is the same
 information in a different envelope, which is why each adapter renders it and a
 `Tool` itself knows neither.
 """
-function tool_schema(::OllamaLlm, tools::AbstractVector{Tool})
+function render_tool_schema(::OllamaLlm, tools::AbstractVector{Tool})
     out = Dict[]
     for t in tools
         properties = Dict{String,Any}()
@@ -328,7 +328,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
         "messages" => _wire_messages(request),
         "options"  => options,
     )
-    isempty(request.tools) || (body["tools"] = tool_schema(llm, request.tools))
+    isempty(request.tools) || (body["tools"] = render_tool_schema(llm, request.tools))
     request.thinking && _supports_thinking(llm) && (body["think"] = true)
 
     handle_line = _line_handler(on_event)

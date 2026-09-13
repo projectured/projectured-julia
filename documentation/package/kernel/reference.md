@@ -182,7 +182,7 @@ ProjectionReferenceStep(projection,
         ConcreteReference(PositionReferenceStep(0))))
 ```
 
-A mapper never wraps that step by hand. `introduced_reference(projection, document,
+A mapper never wraps that step by hand. `make_introduced_reference(projection, document,
 output_path)` builds the whole path: the node records the type of the input node the
 projection printed, and the terminal records `Position`. Both types are needed, because
 `@reference` refuses an under-typed path, and an embedder — a pane tab holding a foreign

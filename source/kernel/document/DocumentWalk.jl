@@ -68,14 +68,14 @@ _walk_string(x::Char)           = string(x)
 _walk_string(::Any)             = nothing
 
 """
-    string_predicate(q::Union{AbstractString,Regex}) -> predicate
+    make_string_predicate(q::Union{AbstractString,Regex}) -> predicate
 
 Turn a `String` (substring) or `Regex` into a walk predicate matching any *leaf*
 node whose string form contains / matches it. Struct and collection nodes have
 no string form and so never match — pass a predicate to match on type or shape.
 """
-string_predicate(q::AbstractString) = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
-string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
+make_string_predicate(q::AbstractString) = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
+make_string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== nothing && occursin(q, t))
 
 """
     walk_document(walk::DocumentWalk, obj, predicate;

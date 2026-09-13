@@ -1,6 +1,6 @@
 # Fragment of `CellStructModule` — the transparent-Cell struct codegen: the
-# `@cell_struct` macro, its assembler `cell_struct_exprs`, and the four
-# expr-builders they compose. `cell_struct_exprs` is the composition seam a
+# `@cell_struct` macro, its assembler `build_cell_struct_exprs`, and the four
+# expr-builders they compose. `build_cell_struct_exprs` is the composition seam a
 # caller reuses — inject a default supertype into the struct definition,
 # delegate to it, and escape the result — while `@cell_struct` is the standalone
 # macro over it. `get_cell_struct_kind` (at the foot) reads back, at runtime, the
@@ -67,23 +67,23 @@ function cell_struct_property_accessors(struct_name, cell_fields)
 end
 
 """
-    cell_struct_kw_params(field_names, default_map) -> Vector
+    build_cell_struct_kw_params(field_names, default_map) -> Vector
 
 Build a keyword-constructor parameter list: a defaulted field becomes
 `field = default`, an undefaulted one a required keyword `field` (à la
 `Base.@kwdef`).
 """
-cell_struct_kw_params(field_names, default_map) =
+build_cell_struct_kw_params(field_names, default_map) =
     [haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
      for fname in field_names]
 
 """
-    cell_struct_kwctor(type_name, field_names, kw_params) -> Expr
+    build_cell_struct_kwctor(type_name, field_names, kw_params) -> Expr
 
 Build a keyword constructor for `type_name` forwarding into its positional
 constructor, so value wrapping stays defined in exactly one place.
 """
-function cell_struct_kwctor(type_name, field_names, kw_params)
+function build_cell_struct_kwctor(type_name, field_names, kw_params)
     # Built without a splat: `Expr(:call, x, xs...)` lowers to
     # `Core._apply_iterate` on the generic `Expr` constructor, which a
     # `--trim=safe` build cannot resolve. `append!` makes the same Expr.
@@ -95,7 +95,7 @@ function cell_struct_kwctor(type_name, field_names, kw_params)
 end
 
 """
-    cell_struct_exprs(structdef) -> Expr
+    build_cell_struct_exprs(structdef) -> Expr
 
 The assembler behind [`@cell_struct`](@ref): rewrite `structdef` in place so
 every field is a `::Cell`, then return a block with the rewritten struct (its
@@ -103,19 +103,19 @@ auto-wrapping inner constructor appended), the transparent property accessors,
 and — when at least one field declares a default — the keyword constructor.
 
 This is the composition seam for a caller: it injects its default supertype into
-`structdef` and returns `esc(cell_struct_exprs(structdef))`. The result must be
+`structdef` and returns `esc(build_cell_struct_exprs(structdef))`. The result must be
 escaped by the caller so the emitted bare names resolve at the expansion site.
 """
-function cell_struct_exprs(structdef; default::Symbol = :reactive)
-    plan = cell_struct_plan(structdef)
+function build_cell_struct_exprs(structdef; default::Symbol = :reactive)
+    plan = make_cell_struct_plan(structdef)
     isempty(plan.field_names) && return structdef
 
     # Each field becomes a transparent cell of its kind: `default` (the struct-level
     # default the caller passes, `:reactive` when none) unless the field names its
     # own kind (`f::ImmutableCell{T}`). The declared value type is otherwise
     # documentation only.
-    kinds = cell_struct_field_kinds(plan; default = default)
-    vts   = cell_struct_value_types(plan)
+    kinds = get_cell_struct_field_kinds(plan; default = default)
+    vts   = get_cell_struct_value_types(plan)
     cell_types  = Any[]
     field_wraps = Any[]
     # Splice the kind as the type OBJECT (not a symbol) so the emitted field type
@@ -143,23 +143,23 @@ function cell_struct_exprs(structdef; default::Symbol = :reactive)
     # without a default become required keywords, à la `Base.@kwdef`.
     extra = Any[]
     if !isempty(plan.defaults)
-        push!(extra, cell_struct_kwctor(plan.name, plan.field_names,
-                                        cell_struct_kw_params(plan.field_names, plan.defaults)))
+        push!(extra, build_cell_struct_kwctor(plan.name, plan.field_names,
+                                        build_cell_struct_kw_params(plan.field_names, plan.defaults)))
     end
 
     Expr(:block, :(Base.@__doc__ $(plan.structdef)), getprop, setprop, extra...)
 end
 
 """
-    cell_struct_macro_default(args) -> (default_kind::Symbol, structdef)
+    parse_cell_struct_macro_default(args) -> (default_kind::Symbol, structdef)
 
 Parse a transparent-cell struct macro's arguments. An optional **leading cell-kind name** sets the
 struct-level default (`ImmutableCell struct …` → `:immutable`); with no leading kind the default is
 `:reactive`. The shared arg convention for any macro built over this codegen.
 """
-function cell_struct_macro_default(args)
+function parse_cell_struct_macro_default(args)
     if length(args) == 2
-        k = args[1] isa Symbol ? cell_kind_of(args[1]) : nothing
+        k = args[1] isa Symbol ? get_cell_kind_of(args[1]) : nothing
         k === nothing && error("expected a cell kind (ImmutableCell / MutableCell / ReactiveCell) " *
                                "before `struct`, got `$(args[1])`")
         return (k, args[2])
@@ -189,15 +189,15 @@ for every unannotated field; a field naming its own kind overrides it.
 
 The struct keeps whatever supertype the definition declares (or none). A caller
 that needs to compose this codegen with its own additions calls the assembler
-`cell_struct_exprs` directly rather than this macro.
+`build_cell_struct_exprs` directly rather than this macro.
 """
 macro cell_struct(args...)
-    default, structdef = cell_struct_macro_default(args)
-    esc(cell_struct_exprs(structdef; default = default))
+    default, structdef = parse_cell_struct_macro_default(args)
+    esc(build_cell_struct_exprs(structdef; default = default))
 end
 
 # The kind constructor behind a cell's concrete type — the runtime companion of
-# `cell_kind_of` (which maps a kind *name*): a cell's kind lives in its type.
+# `get_cell_kind_of` (which maps a kind *name*): a cell's kind lives in its type.
 _cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _cell_kind(::Type{<:MutableCell})   = MutableCell
 _cell_kind(::Type{<:ImmutableCell}) = ImmutableCell

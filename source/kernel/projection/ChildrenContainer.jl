@@ -15,12 +15,12 @@ and the type accessor.
 
 A registrant maps `make_children_container(::Vector)` /
 `make_children_container(::Function)` onto its own sequence container and
-returns that type from `children_container_type()`. The kernel's toy-document
+returns that type from `get_children_container_type()`. The kernel's toy-document
 tests supply a toy container to keep the seam honest.
 """
 module ChildrenContainerModule
 
-export make_children_container, children_container_type
+export make_children_container, get_children_container_type
 
 """
     make_children_container(cells_or_thunk) -> children container
@@ -32,11 +32,11 @@ reactively).
 function make_children_container end
 
 """
-    children_container_type() -> Type
+    get_children_container_type() -> Type
 
 The concrete children container type a registrant supplies. Used by the
 template engine for `TypeReferenceStep(...)` markers.
 """
-function children_container_type end
+function get_children_container_type end
 
 end # module

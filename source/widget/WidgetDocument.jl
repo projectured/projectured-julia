@@ -15,7 +15,7 @@ import ..DocumentModule: @document, DOCUMENT_SHOW_MAX_DEPTH
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..OperationModule: Operation, evaluate_operation
 import ..OperationModule
-import ..SelectionModule: replace_selection!, keeps_dormant_selection
+import ..SelectionModule: replace_selection!, has_dormant_selection
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
 import ..GestureBindingModule: GestureBinding, get_instance_gesture_bindings
 # The focus walk is generic; this module answers its open trait for the
@@ -2333,11 +2333,11 @@ OperationModule.operation_travels_unchanged(::Union{
 # the divergence: switching tabs diverges at the pane's own `selector_element_pairs`
 # collection, where the abandoned branch starts at the page, while a selection
 # leaving the pane altogether diverges above it.
-keeps_dormant_selection(::WidgetTabbedPane) = true
-keeps_dormant_selection(::WidgetTabPage) = true
+has_dormant_selection(::WidgetTabbedPane) = true
+has_dormant_selection(::WidgetTabPage) = true
 # A split pane's selection names which side had the focus, so the same holds for a
 # nested split when the focus comes back from outside it.
-keeps_dormant_selection(::WidgetSplitPane) = true
+has_dormant_selection(::WidgetSplitPane) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 

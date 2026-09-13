@@ -43,15 +43,15 @@ struct CellStructPlan
 end
 
 """
-    cell_struct_plan(structdef) -> CellStructPlan
+    make_cell_struct_plan(structdef) -> CellStructPlan
 
 Parse a `struct` definition. Handles the three field forms (`f`, `f::T`,
 `f[::T] = v`) and strips each default out of the body into the plan — the declared
 type is kept, since it still feeds typed constructors and aliases.
 """
-function cell_struct_plan(structdef)
+function make_cell_struct_plan(structdef)
     structdef isa Expr && structdef.head === :struct ||
-        error("cell_struct_plan expects a struct definition")
+        error("make_cell_struct_plan expects a struct definition")
     name_expr = structdef.args[2]
     has_super = name_expr isa Expr && name_expr.head === :(<:)
     head      = has_super ? name_expr.args[1] : name_expr
@@ -64,7 +64,7 @@ function cell_struct_plan(structdef)
     name       = has_params ? head.args[1] : head
     params     = has_params ? Any[head.args[2:end]...] : Any[]
     name isa Symbol ||
-        error("cell_struct_plan: a struct name must be a symbol, got $(name)")
+        error("make_cell_struct_plan: a struct name must be a symbol, got $(name)")
     body      = structdef.args[3]
 
     field_names = Symbol[]
@@ -135,13 +135,13 @@ _cell_kind_name(s::Symbol) =
     (s === :ReactiveCell || s === :Cell) ? :reactive : nothing
 
 """
-    cell_kind_of(sym) -> :reactive | :immutable | :mutable | nothing
+    get_cell_kind_of(sym) -> :reactive | :immutable | :mutable | nothing
 
 Map a cell-kind **name** (`:ImmutableCell`, `:MutableCell`, `:ReactiveCell`, `:Cell`) to its kind,
 or `nothing` when `sym` names no kind. Used to read a leading struct-level default
 kind (`ImmutableCell struct …`).
 """
-cell_kind_of(s::Symbol) = _cell_kind_name(s)
+get_cell_kind_of(s::Symbol) = _cell_kind_name(s)
 
 # `(kind, value_type, explicit)` for one declared field type (`nothing` = untyped field).
 # `explicit` is true iff the type NAMES a cell kind; an unannotated (`f`) or plain-typed (`f::T`)
@@ -160,25 +160,25 @@ function _field_kind_type(ftype)
 end
 
 """
-    cell_struct_value_types(plan) -> Vector
+    get_cell_struct_value_types(plan) -> Vector
 
 Each field's declared **value** type as an expr, with `Any` standing in for an
 untyped field. A field that names a cell kind (`ImmutableCell{T}`, …) contributes
 its parameter `T` — the kind wrapper is stripped, since this is the value-type
 vocabulary the typed (immutable / mutable) constructors and aliases are written in.
 """
-cell_struct_value_types(plan::CellStructPlan) =
+get_cell_struct_value_types(plan::CellStructPlan) =
     Any[_field_kind_type(t)[2] for t in plan.field_types]
 
 """
-    cell_struct_field_kinds(plan; default = :reactive) -> Vector{Symbol}
+    get_cell_struct_field_kinds(plan; default = :reactive) -> Vector{Symbol}
 
 Each field's cell kind — `:reactive` / `:immutable` / `:mutable`. A field that **names** a kind
 (`f::ImmutableCell{T}`) keeps it; every other field (bare `f`, plain `f::T`) takes `default`, the
 struct-level default the caller passes from a leading kind argument. `default = :reactive` (no
 leading kind) leaves the result exactly as before.
 """
-function cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reactive)
+function get_cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reactive)
     kinds = Symbol[]
     for t in plan.field_types
         k, _, explicit = _field_kind_type(t)
@@ -188,12 +188,12 @@ function cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reacti
 end
 
 """
-    cell_struct_trailing_default_count(plan) -> Int
+    get_cell_struct_trailing_default_count(plan) -> Int
 
 How many fields at the **end** of the declaration run all the way to the last one
 with a default — the suffix a positional constructor may omit.
 """
-function cell_struct_trailing_default_count(plan::CellStructPlan)
+function get_cell_struct_trailing_default_count(plan::CellStructPlan)
     n = 0
     for fname in Iterators.reverse(plan.field_names)
         haskey(plan.defaults, fname) || break
@@ -203,31 +203,31 @@ function cell_struct_trailing_default_count(plan::CellStructPlan)
 end
 
 """
-    cell_struct_required_count(plan) -> Int
+    get_cell_struct_required_count(plan) -> Int
 
 How many leading fields a positional constructor must be given: every field before
 the trailing run of defaulted ones.
 """
-cell_struct_required_count(plan::CellStructPlan) = length(plan.field_names) - cell_struct_trailing_default_count(plan)
+get_cell_struct_required_count(plan::CellStructPlan) = length(plan.field_names) - get_cell_struct_trailing_default_count(plan)
 
 """
-    cell_struct_positional_ctors(plan, target_name; each_arity = _ -> ()) -> Vector
+    build_cell_struct_positional_ctors(plan, target_name; each_arity = _ -> ()) -> Vector
 
 **Rule Y** — the positional analog of `@kwdef`: for a trailing run of defaulted
 fields, constructors `T(f₁..f_k)` that fill the omitted suffix with its defaults.
 
-Emitted only when at least one leading field is *required* (`cell_struct_required_count ≥ 1`),
+Emitted only when at least one leading field is *required* (`get_cell_struct_required_count ≥ 1`),
 so a zero-argument form is never generated — that signature belongs to the keyword
 constructor, and a struct whose fields all default is left to it.
 
 `each_arity(k)` is called after the arity-`k` constructor and its result appended,
 so a caller can emit a companion constructor for the same arity. A caller whose
-companion *only* makes sense next to a Rule Y form gets the `cell_struct_required_count ≥ 1`
+companion *only* makes sense next to a Rule Y form gets the `get_cell_struct_required_count ≥ 1`
 gate for free this way, rather than re-deriving it and getting it wrong.
 """
-function cell_struct_positional_ctors(plan::CellStructPlan, target_name; each_arity = _ -> ())
+function build_cell_struct_positional_ctors(plan::CellStructPlan, target_name; each_arity = _ -> ())
     n   = length(plan.field_names)
-    req = cell_struct_required_count(plan)
+    req = get_cell_struct_required_count(plan)
     ctors = Any[]
     req ≥ 1 || return ctors
     for k in req:(n - 1)

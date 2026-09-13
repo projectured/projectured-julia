@@ -45,7 +45,7 @@ Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set,
 Layer 12 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
 Layer 13 — projection/ ProjectionApi/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
 Layer 14 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
-Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
 Layer 16 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
 Layer 17 — editor/     the run_editor! loop + Playback
 ```
@@ -165,7 +165,7 @@ Each layer lives in its own folder under [main/](../../../package/ProjecturedKer
 | `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`) and the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`) |
 | `projection/` | the projection interface and infrastructure only — ProjectionApi, Intent, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
-| `llm/` | `LlmModule` — Llm, `stream_turn`/`tool_schema`, LlmMessage/LlmRequest, LlmEvent |
+| `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
 | `editor/` | Editor (the `run_editor!` loop), Playback |
 

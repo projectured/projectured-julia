@@ -79,7 +79,7 @@ rendering repaints only the caret.
 function replace_selection! end
 
 """
-    keeps_dormant_selection(document) -> Bool
+    has_dormant_selection(document) -> Bool
 
 Whether `document` keeps a selection the live one has left behind, instead of
 having it cleared.
@@ -99,7 +99,7 @@ branch below the divergence. The node itself is included because the two trees
 that need this put the keeper on opposite sides: a pane group sits below the
 divergence, while a tabbed pane **is** the divergence.
 """
-function keeps_dormant_selection end
+function has_dormant_selection end
 
 """
     get_stored_selection(document) -> reference or nothing

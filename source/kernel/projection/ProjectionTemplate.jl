@@ -30,7 +30,7 @@ module ProjectionTemplateModule
 using ..CellModule
 # This module does not name the concrete children-container type.
 # `make_children_container(...)` builds the container and
-# `children_container_type()` returns the concrete type for TypeReferenceStep
+# `get_children_container_type()` returns the concrete type for TypeReferenceStep
 # markers; a higher package registers both. This is the pressure that keeps the
 # template engine kernel-pure.
 using ..ChildrenContainerModule
@@ -787,7 +787,7 @@ function _atomic_backward(p, w, reference)
         # opaque ⇒ mirror the default mapper exactly (typed empty so the
         # strict-typing invariant holds on the whole-node case)
         reference isa EmptyReference && return _typed(w.intype)
-        return introduced_reference(p, w.intype, reference)
+        return make_introduced_reference(p, w.intype, reference)
     end
     core = reference
     core isa EmptyReference && return _typed(w.intype)                  # whole ⇒ ::In
@@ -802,7 +802,7 @@ function _atomic_backward(p, w, reference)
             return nothing
         end
         # any other output field is projection-introduced ⇒ wrap in our own step
-        return introduced_reference(p, w.intype, reference)
+        return make_introduced_reference(p, w.intype, reference)
     end
     return nothing
 end
@@ -831,7 +831,7 @@ function _node_forward(p, w, iomap, reference)
             inner = map_reference_forward(child.projection, child, after.tail)
             inner === nothing && return nothing
             return _prepend(inner, TypeReferenceStep(w.outtype), FieldReferenceStep(String(w.children_field)),
-                            TypeReferenceStep(children_container_type()), ElementReferenceStep(child_i))
+                            TypeReferenceStep(get_children_container_type()), ElementReferenceStep(child_i))
         end
     end
     return nothing
@@ -934,7 +934,7 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 # the render stage renders it transparently). A *deeper*
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReference &&
-                    return introduced_reference(slot.iomap.projection, intype, reference)
+                    return make_introduced_reference(slot.iomap.projection, intype, reference)
                 return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
@@ -1352,7 +1352,7 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperat
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
     iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
-    return ReplaceSelectionOperation(introduced_reference(p, iomap.input, op.path))
+    return ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, op.path))
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────

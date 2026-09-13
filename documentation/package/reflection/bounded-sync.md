@@ -56,7 +56,7 @@ to descend into a given child, and how many of a collection's elements to
 materialise.
 
 ```julia
-should_descend_sync(policy, depth, shadow_slot) -> Bool
+is_sync_descendable(policy, depth, shadow_slot) -> Bool
 sync_element_limit(policy, source, shadow) -> Int
 ```
 
@@ -153,9 +153,9 @@ The kernel consults three generics at every child, declared in
 
 | | |
 |---|---|
-| `should_descend_sync(policy, depth, slot)` | descend, or stop here? |
+| `is_sync_descendable(policy, depth, slot)` | descend, or stop here? |
 | `sync_element_limit(policy, source, shadow)` | how many elements to keep |
-| `unsynced_placeholder(policy, source, current)` | what stands where it stopped |
+| `make_unsynced_placeholder(policy, source, current)` | what stands where it stopped |
 
 `policy = nothing` answers "descend" and "keep them all" and so never reaches the
 third — an un-policed walk is exactly the walk it always was, and pays nothing

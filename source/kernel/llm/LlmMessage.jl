@@ -88,7 +88,7 @@ Everything one turn needs, and nothing that belongs to the backend:
 - `system`   — the system prompt.
 - `messages` — the conversation so far.
 - `tools`    — the tools the model may call. The adapter renders them with
-               `tool_schema`; a `Tool` carries no wire format itself.
+               `render_tool_schema`; a `Tool` carries no wire format itself.
 - `thinking` — ask for extended reasoning if this provider has it. A *request*,
                not a configuration: whether the model supports it, and what the
                provider's parameter for it looks like, is the adapter's business.

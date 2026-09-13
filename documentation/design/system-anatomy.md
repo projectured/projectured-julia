@@ -368,7 +368,7 @@ above it in this list:
                ProjectionTemplate, ProjectionReferenceStep
 14 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-15 llm         the LLM provider abstraction: Llm, stream_turn, tool_schema,
+15 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
 16 agent       the AI control surface: AgentServerModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)

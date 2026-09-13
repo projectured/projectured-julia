@@ -123,7 +123,7 @@ function test_document_macro()
     # constructor, which this struct also has (it declared defaults of its own) —
     # so `DmRuleY()` reaches *it*, and complains about the required keywords rather
     # than about there being no method. That is the collision Rule Y's
-    # `cell_struct_required_count ≥ 1` gate exists to avoid.
+    # `get_cell_struct_required_count ≥ 1` gate exists to avoid.
     @test DmRuleY(a = 1, b = 2).c == "c"
     @test_throws UndefKeywordError DmRuleY()
 end
@@ -152,7 +152,7 @@ end
 end
 
 @testset "Rule C emits its bracketed form exactly ONCE" begin
-    # Regression. When every field defaults (cell_struct_required_count == 0) the element-sugar
+    # Regression. When every field defaults (get_cell_struct_required_count == 0) the element-sugar
     # tail emits `T(::AbstractVector)`; when a field is required, the *companion* to
     # Rule Y's arity-k form emits that same signature. Emitting both would silently
     # redefine the method. No behavioural test would ever catch it — the duplicate
@@ -182,28 +182,28 @@ end
 @testset "the layout registry answers for every variant" begin
     # The point of the registry: a caller asks for a layout instead of naming one.
     # Both accessors are keyed on the family, so either variant answers the same.
-    @test document_cell_type(DmRuleY(1, 2))       === DmRuleY
-    @test document_cell_type(MDmRuleY(1, 2))    === DmRuleY
-    @test document_native_type(DmRuleY(1, 2))     === MDmRuleY
-    @test document_native_type(MDmRuleY(1, 2))  === MDmRuleY
+    @test get_document_cell_type(DmRuleY(1, 2))       === DmRuleY
+    @test get_document_cell_type(MDmRuleY(1, 2))    === DmRuleY
+    @test get_document_native_type(DmRuleY(1, 2))     === MDmRuleY
+    @test get_document_native_type(MDmRuleY(1, 2))  === MDmRuleY
     # The type-taking form, which is what the copy walk uses.
-    @test document_cell_type(MDmRuleY)          === DmRuleY
-    @test document_native_type(typeof(DmRuleY(1, 2))) === MDmRuleY
+    @test get_document_cell_type(MDmRuleY)          === DmRuleY
+    @test get_document_native_type(typeof(DmRuleY(1, 2))) === MDmRuleY
 
     # A hand-written document is its own cell layout and has no native one, so a
     # copy of one rebuilds exactly what it was.
-    @test document_cell_type(CellVector([]))   === CellVector
-    @test document_native_type(CellVector([])) === nothing
+    @test get_document_cell_type(CellVector([]))   === CellVector
+    @test get_document_native_type(CellVector([])) === nothing
 end
 
 @testset "the layout list says which layouts a schema emits" begin
     # The default list is what a declaration always emitted.
-    @test document_native_type(DmRuleY(1, 2)) === MDmRuleY
+    @test get_document_native_type(DmRuleY(1, 2)) === MDmRuleY
 
     # `[C]` emits no native layout at all, and the default accessor says so.
     @test !isdefined(@__MODULE__, :MDmCellOnly)
-    @test document_native_type(DmCellOnly(a = 1)) === nothing
-    @test document_cell_type(DmCellOnly(a = 1)) === DmCellOnly
+    @test get_document_native_type(DmCellOnly(a = 1)) === nothing
+    @test get_document_cell_type(DmCellOnly(a = 1)) === DmCellOnly
     # The cell layout is untouched by the list, so the schema still copies.
     @test copy_document(ReactiveCell, DmCellOnly(a = 1)) isa DmCellOnly
 
@@ -224,7 +224,7 @@ end
     # `I` emits the native struct that `M` does, and the only difference is the
     # one that matters to a value on a hot path: a `mutable struct` is never
     # isbits, however small its fields are.
-    @test document_native_type(IDmImmutableNative) === IDmImmutableNative
+    @test get_document_native_type(IDmImmutableNative) === IDmImmutableNative
     @test !ismutabletype(IDmImmutableNative)
     @test ismutabletype(MDmRuleY)
     @test isbitstype(IDmImmutableNative)
@@ -233,8 +233,8 @@ end
     # directly, and it copies into any cell kind.
     value = DmImmutableNative(7)
     @test value.a === 7
-    @test document_cell_type(value) === ACDmImmutableNative
-    @test document_schema_name(value) === :DmImmutableNative
+    @test get_document_cell_type(value) === ACDmImmutableNative
+    @test get_document_schema_name(value) === :DmImmutableNative
     @test copy_document(ReactiveCell, value) isa RCDmImmutableNative
     @test copy_document(ReactiveCell, value).a == 7
 end
@@ -251,7 +251,7 @@ end
     @test DmValue === DCDmValue
     @test isconcretetype(DmValue)
     @test isbitstype(DmValue)
-    @test document_cell_type(DmValue(2)) === ACDmValue
+    @test get_document_cell_type(DmValue(2)) === ACDmValue
     # A concrete parameterization has no constructor of its own, so the bare name
     # reaches the cell layout through the forwarding constructor. Rule Y, Rule C
     # and the keyword form all arrive there.
@@ -264,7 +264,7 @@ end
     @test DmNative === MDmNative
     @test !(getfield(DmNative(4), :a) isa AbstractCell)
     @test (n = DmNative(4); n.a = 9; n.a) == 9
-    @test document_cell_type(DmNative(4)) === ACDmNative
+    @test get_document_cell_type(DmNative(4)) === ACDmNative
     # Both layouts still answer one family, and a shadow of the native one is a
     # cell document.
     @test DmNative(4) isa ADmNative
@@ -273,11 +273,11 @@ end
 end
 
 @testset "a preset is @document with a fixed layout list" begin
-    @test document_native_type(DmViaPreset(a = 1)) === nothing
-    @test document_cell_type(DmViaPreset(a = 1)) === DmViaPreset
+    @test get_document_native_type(DmViaPreset(a = 1)) === nothing
+    @test get_document_cell_type(DmViaPreset(a = 1)) === DmViaPreset
     # The marker reached the expansion through the preset.
     @test getfield(DmPresetKinded(a = 1), :a) isa ImmutableCell{Int}
-    @test document_native_type(DmPresetKinded(a = 1)) === nothing
+    @test get_document_native_type(DmPresetKinded(a = 1)) === nothing
 end
 
 @testset "an explicit `selection` field overrides the injected default" begin

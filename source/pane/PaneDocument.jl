@@ -35,7 +35,7 @@ import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..PrimitiveModule: PrimitiveString
 import ..DocumentCoreModule: DocumentNothing
-import ..SelectionModule: keeps_dormant_selection
+import ..SelectionModule: has_dormant_selection
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        pane_tab_title_string, default_new_pane_tab,
@@ -267,8 +267,8 @@ end
 #
 # What they keep is dormant: still stored, still drawable, never acted on, and
 # live again the moment the focus comes back.
-keeps_dormant_selection(::PaneGroup) = true
-keeps_dormant_selection(::PaneTab) = true
-keeps_dormant_selection(::PaneSplit) = true
+has_dormant_selection(::PaneGroup) = true
+has_dormant_selection(::PaneTab) = true
+has_dormant_selection(::PaneSplit) = true
 
 end # module PaneModule

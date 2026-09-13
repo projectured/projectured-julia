@@ -46,7 +46,7 @@ import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
@@ -201,7 +201,7 @@ function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, o
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
@@ -269,7 +269,7 @@ function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op:
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
@@ -365,7 +365,7 @@ function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::Re
     flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     return ReplaceSelectionOperation(
-        introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
 end
 
 # ── Shared styles for the template rules ─────────────────────────────────────
@@ -670,7 +670,7 @@ for T in (:MathRowToSyntaxNode, :MathUnaryOperationToSyntaxNode,
         flat = _syntax_to_flat(iomap.output, op.path, SyntaxCompoundToText(), 0)
         flat < 0 && return nothing
         ReplaceSelectionOperation(
-            introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+            make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
     end
 end
 

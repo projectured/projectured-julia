@@ -59,7 +59,7 @@ for the selection mechanism.
 module ProjectionApiModule
 
 export print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
-       pure_print_document, pure_print_child
+       print_document_pure, print_child_pure
 
 """
     Projection
@@ -155,7 +155,7 @@ one place and call sites read as "recurse into this child".
 function print_child end
 
 """
-    pure_print_document(projection, recursion, input, ctx) -> output tree
+    print_document_pure(projection, recursion, input, ctx) -> output tree
 
 The **pure** forward half: a second interpreter of a projection that produces the
 projected *output document tree directly* — no iomap, no reactive cells, no
@@ -167,21 +167,21 @@ repeatedly (multi-page layout, serialization).
 Higher-order projections (Sequential / Recursive / TypeDispatching) thread it so a
 whole *pipeline* is pure; every concrete projection falls back to a snapshot of the
 reactive output (`copy_document(ImmutableCell, print_document(...).output[])`) — slower (it builds the
-reactive machinery first, then copies), but total, so `pure_print` works end-to-end
+reactive machinery first, then copies), but total, so `print_pure` works end-to-end
 for any pipeline. A genuinely fast per-projection interpreter is future work,
 justified only where a profile shows it pays (most render-stage projections are
 hand-written, not template-generated). See plan/pending/cell-kind-documents.md,
 Phase 6.
 """
-function pure_print_document end
+function print_document_pure end
 
 """
-    pure_print_child(recursion, input, ctx) -> output tree
+    print_child_pure(recursion, input, ctx) -> output tree
 
 Pure analogue of [`print_child`](@ref): recurse into a child
 through the whole pipeline, producing pure (immutable) output.
 """
-function pure_print_child end
+function print_child_pure end
 
 """
     read_intent(projection, recursion, change::Intent, iomap) -> Intent

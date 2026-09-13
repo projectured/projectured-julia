@@ -73,7 +73,7 @@ end
 
 function _refuse_declared_twice(entries::Vector{ApiEntry})
     source = Dict{Symbol,Module}()
-    for entry in entries, name in api_entry_names(entry)
+    for entry in entries, name in get_api_entry_names(entry)
         first_one = get(source, name, nothing)
         first_one === nothing && (source[name] = entry.module_; continue)
         error("Two modules give the name " * repr(name) * " to one model: " *

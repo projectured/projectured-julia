@@ -25,12 +25,12 @@ or IoMap vocabulary.
 
 `@iomap` and `@projection` are exactly `@cell_struct` plus their default
 supertype: they inject `<: IoMap` / `<: Projection` when none is written and
-delegate to the cell layer's assembler (`cell_struct_exprs`). `@document`
+delegate to the cell layer's assembler (`build_cell_struct_exprs`). `@document`
 generates its own kind-parameterized stem (see below), but shares the cell
 layer's codegen kit for everything that is not document-specific: the field
-parse (`cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
-the keyword-constructor builders (`cell_struct_kw_params`,
-`cell_struct_kwctor`), and **Rule Y** (`cell_struct_positional_ctors` — filling
+parse (`make_cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
+the keyword-constructor builders (`build_cell_struct_kw_params`,
+`build_cell_struct_kwctor`), and **Rule Y** (`build_cell_struct_positional_ctors` — filling
 a trailing run of defaults positionally is a rule about any cell struct, not
 about documents). `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
@@ -93,7 +93,7 @@ end
 |---|---|
 | `Foo{C1, …}` — the **stem** | The bare name. An immutable struct, one cell per field; every kind alias is a parameterization of it. |
 | `MFoo` — the **native layout** | A real `mutable struct` holding the declared value types directly. No cell box, so `getproperty` / `setproperty!` are the default `getfield` / `setfield!` — byte-for-byte the struct you would have written by hand. It gets the same Rule Y positional and keyword constructors as the stem. |
-| `AFoo` — the **family** | The abstract type both layouts subtype, so `document_family(T)` answers `AFoo` for either one and `x isa AFoo` covers both. |
+| `AFoo` — the **family** | The abstract type both layouts subtype, so `get_document_family(T)` answers `AFoo` for either one and `x isa AFoo` covers both. |
 
 The family sits between the stem and the supertype you wrote, so the domain
 dispatch you declared is unchanged — `JsonString <: JsonDocument` still holds,

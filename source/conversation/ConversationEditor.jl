@@ -44,7 +44,7 @@ import ..TextModule: TextBlock, TextString
 # `insertion_root` says a type is a domain's insertion, and `get_natural_format`
 # / `parse_natural_text` say that domain's key and how to read its text.
 import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natural_parser
-import ..ToolModule: execute_julia_code, last_evaluated_value
+import ..ToolModule: execute_julia_code, get_last_evaluated_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetLabel, Point2D
 import ..LayoutModule: VerticalLayout, Fill, Content
@@ -317,7 +317,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     # is kept as the result so it renders live; otherwise the text repr.
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
-    val = last_evaluated_value(set)
+    val = get_last_evaluated_value(set)
     result = val isa Document ? val : result_text(rstrip(output))
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result, is_error = is_err))

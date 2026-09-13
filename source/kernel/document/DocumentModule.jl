@@ -29,15 +29,15 @@ module DocumentModule
 using ..CellModule
 using ..CellStructModule
 
-export Document, copy_document, sync_document!, document_family,
-       document_cell_type, document_native_type, document_schema_name,
-       should_descend_sync, sync_element_limit, unsynced_placeholder, HiddenElements,
+export Document, copy_document, sync_document!, get_document_family,
+       get_document_cell_type, get_document_native_type, get_document_schema_name,
+       is_sync_descendable, sync_element_limit, make_unsynced_placeholder, HiddenElements,
        is_element_collection, is_walk_opaque, is_collection_field_type,
-       cell_layout_field_type, search_documents,
+       get_cell_layout_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export SelectionDocument, unwrap_selection
-export DocumentWalk, walk_document, string_predicate
+export DocumentWalk, walk_document, make_string_predicate
 
 include("DocumentInterface.jl")
 include("DocumentDefaults.jl")

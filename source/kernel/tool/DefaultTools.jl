@@ -54,7 +54,7 @@ function _api_types(set::ToolSet, mod::Module)
     isempty(set.api) && return all
     for entry in set.api
         entry.module_ === mod || continue
-        given = api_entry_names(entry)
+        given = get_api_entry_names(entry)
         return [pair for pair in all if first(pair) in given]
     end
     empty(all)

@@ -31,8 +31,8 @@ collection opts in with its own method.
 function is_element_collection end
 
 """
-    document_family(x) -> Type
-    document_family(::Type) -> Type
+    get_document_family(x) -> Type
+    get_document_family(::Type) -> Type
 
 The **family** a document belongs to: the identity used to decide whether two
 documents are the same document — including when they are two different *variant
@@ -42,14 +42,14 @@ wrapper (`Base.typename(T).wrapper`), so a plain type is its own family; the
 `@document` macro overrides it to the schema's **abstract family type**, so every
 variant of one schema answers the same family.
 """
-function document_family end
+function get_document_family end
 
 """
-    document_cell_type(x) -> Type
-    document_cell_type(::Type) -> Type
+    get_document_cell_type(x) -> Type
+    get_document_cell_type(::Type) -> Type
 
 The **cell layout** of a schema: the parametric struct whose fields hold cells.
-Together with [`document_native_type`](@ref) this is the layout registry — the way
+Together with [`get_document_native_type`](@ref) this is the layout registry — the way
 to ask for a layout without naming a type. Before it existed the only way to reach
 a layout was to write its name, which is why a caller that wanted the plain struct
 had to spell `MFoo`.
@@ -58,25 +58,25 @@ Takes any variant, because every variant of a schema subtypes its family. Defaul
 to the type's own name wrapper, so a hand-written document is its own cell layout
 and a copy of one rebuilds exactly what it was.
 """
-function document_cell_type end
+function get_document_cell_type end
 
 """
-    document_native_type(x) -> Type | Nothing
-    document_native_type(::Type) -> Type | Nothing
+    get_document_native_type(x) -> Type | Nothing
+    get_document_native_type(::Type) -> Type | Nothing
 
 The **native layout** of a schema: the plain struct whose fields hold the declared
 value types with no cell around them. The companion of
-[`document_cell_type`](@ref).
+[`get_document_cell_type`](@ref).
 
 Returns `nothing` when a schema has no native layout, which is the default and is
 what every hand-written document answers. A caller that builds a layout must
 handle `nothing` rather than assume the pair is always complete.
 """
-function document_native_type end
+function get_document_native_type end
 
 """
-    document_schema_name(x) -> Symbol
-    document_schema_name(::Type) -> Symbol
+    get_document_schema_name(x) -> Symbol
+    get_document_schema_name(::Type) -> Symbol
 
 The **schema's** own name — what the programmer wrote after `struct`. Every
 variant of one schema answers it, so it is the name to show a reader.
@@ -89,7 +89,7 @@ way reads as the layout rather than the thing.
 Defaults to `nameof(T)`, which is right for a hand-written document and for any
 schema that left its bare name where it was.
 """
-function document_schema_name end
+function get_document_schema_name end
 
 """
     is_walk_opaque(document) -> Bool
@@ -117,7 +117,7 @@ concrete collection type. Defaults to `false`.
 function is_collection_field_type end
 
 """
-    cell_layout_field_type(::Val{name}) -> Type | Nothing
+    get_cell_layout_field_type(::Val{name}) -> Type | Nothing
 
 The type a `@document` field declared with type `name` takes in the **cell**
 layout, when the reactive representation of a value differs from the plain one.
@@ -136,7 +136,7 @@ the document layer names no concrete collection type. The registered type must
 offer a `Type(::AbstractVector)` constructor, since that is how a raw value
 becomes one.
 """
-function cell_layout_field_type end
+function get_cell_layout_field_type end
 
 """
     copy_document(value)     -> value      # preserve every cell's kind
@@ -171,23 +171,23 @@ shadow's layout, which is what [`copy_document`](@ref) does for a kind.
 function sync_document! end
 
 """
-    should_descend_sync(policy, depth, slot) -> Bool
+    is_sync_descendable(policy, depth, slot) -> Bool
     sync_element_limit(policy, source, shadow) -> Int
-    unsynced_placeholder(policy, source, current) -> value
+    make_unsynced_placeholder(policy, source, current) -> value
 
 The **bound** on a sync or a copy. `sync_document!`/`copy_document` consult these
 at every child; the default policy (`nothing`) answers "descend", "take them all"
 and never reaches the third, so an un-policed walk is the whole walk.
 
 A policy that answers otherwise makes the walk stop, and
-`unsynced_placeholder` supplies what stands where it stopped — a marker the
+`make_unsynced_placeholder` supplies what stands where it stopped — a marker the
 policy's owner understands. That keeps the marker's *type* out of this layer:
 the walk knows only that something goes in the slot.
 
 `depth` is the child's depth (1 for a root's children). `slot` is what occupies
 it now — including a placeholder the policy itself put there, which is how a
 policy recognises "already stopped here" and how a consumer's request to go
-deeper reaches the walk. `unsynced_placeholder` likewise receives `current` so a
+deeper reaches the walk. `make_unsynced_placeholder` likewise receives `current` so a
 policy can hand back the placeholder already standing there rather than a fresh
 one, leaving the shadow's identity alone.
 
@@ -198,9 +198,9 @@ policy's own bookkeeping, not this layer's.
 
 Unbounded defaults in `DocumentDefaults.jl`.
 """
-function should_descend_sync end
+function is_sync_descendable end
 function sync_element_limit end
-function unsynced_placeholder end
+function make_unsynced_placeholder end
 
 """
     search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector

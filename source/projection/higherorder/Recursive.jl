@@ -9,7 +9,7 @@ step, enabling self-referential tree traversal.
 module RecursiveProjectionModule
 
 import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
-       pure_print_document
+       print_document_pure
 import ..IntentModule: Intent
 export RecursiveProjection
 
@@ -43,8 +43,8 @@ end
 
 # Pure: pass self as recursion so the child's pure recursion re-enters this
 # wrapper (symmetric with the reactive printer above).
-pure_print_document(rp::RecursiveProjection, recursion, input, ctx) =
-    pure_print_document(rp.child, rp, input, ctx)
+print_document_pure(rp::RecursiveProjection, recursion, input, ctx) =
+    print_document_pure(rp.child, rp, input, ctx)
 
 # RecursiveProjection is a transparent wrapper — it returns the inner
 # projection's IoMap directly, so input/output fields are already correct.

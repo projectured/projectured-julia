@@ -23,10 +23,10 @@ the projection's business.
 module DocumentReflectionModule
 
 import ..CellModule: Cell, ComputedCell, MutableCell
-import ..DocumentModule: Document, @document, document_schema_name
+import ..DocumentModule: Document, @document, get_document_schema_name
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: should_descend_sync, sync_element_limit, unsynced_placeholder,
+import ..DocumentModule: is_sync_descendable, sync_element_limit, make_unsynced_placeholder,
                          HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AUnsyncedDocument,
                             UnsyncedDocument, unsynced_marker, request_sync!
@@ -172,10 +172,10 @@ reflect_children(x) = collect(reflect_child_pairs(x))
 #
 # A document is the exception: every one of its type parameters is a cell kind,
 # so `ACSimulationRun{Cell, Cell, Cell, Cell, Cell}` says nothing a reader wants.
-# The **schema** name is what a reader wants, and `document_schema_name` answers
+# The **schema** name is what a reader wants, and `get_document_schema_name` answers
 # it for every layout — `nameof` would say which layout it was handed.
 function _kind_of(x)
-    x isa Document && return string(document_schema_name(typeof(x)))
+    x isa Document && return string(get_document_schema_name(typeof(x)))
     s = replace(string(typeof(x)), r"[A-Za-z_][A-Za-z0-9_!]*\." => "")
     length(s) <= 48 ? s : string(first(s, 45), "...")
 end
@@ -221,7 +221,7 @@ function _sync_reflection!(node, object, policy::SyncPolicy, depth::Int)
     node.value === nothing || (node.value = nothing)
 
     cur = node.children
-    if !should_descend_sync(policy, depth + 1, cur)
+    if !is_sync_descendable(policy, depth + 1, cur)
         cur isa AUnsyncedDocument || (node.children = _collapsed_marker(object))
         return node
     end
@@ -269,7 +269,7 @@ function _sync_reflected_children!(kids, object, policy::SyncPolicy, depth::Int)
     cur = length(kids) >= want ? kids[want] : nothing
     # The same placeholder the kernel walk would ask for, so a reflected tail and
     # a real collection's tail behave identically.
-    new = unsynced_placeholder(policy, HiddenElements(_Repeated(first_hidden), 1, ns - limit), cur)
+    new = make_unsynced_placeholder(policy, HiddenElements(_Repeated(first_hidden), 1, ns - limit), cur)
     new === cur && return kids
     length(kids) >= want ? (kids[want] = new) : push!(kids, new)
     kids

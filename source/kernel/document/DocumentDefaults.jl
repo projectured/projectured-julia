@@ -9,12 +9,12 @@ is_element_collection(value) = false
 is_walk_opaque(value) = false
 is_collection_field_type(::Val) = false
 # No substitution: a declared type is what the cell layout holds, unchanged.
-cell_layout_field_type(::Val) = nothing
+get_cell_layout_field_type(::Val) = nothing
 
 """
     HiddenElements(source, from, to)
 
-The elements a bounded walk is *not* keeping, handed to `unsynced_placeholder`
+The elements a bounded walk is *not* keeping, handed to `make_unsynced_placeholder`
 without copying them. An `AbstractVector`, so a policy can `length` it and look
 at one element for a label; a positional collection document is not `view`-able,
 which is why this exists rather than a `SubArray`.
@@ -30,30 +30,30 @@ Base.getindex(h::HiddenElements, i::Int) = h.source[h.from + i - 1]
 # The unbounded default: descend everywhere, keep every element, and so never
 # reach the third. A policy overriding these is what bounds a sync or a copy —
 # the walks in `DocumentSync.jl` / `DocumentCopy.jl` consult them at every child.
-should_descend_sync(policy, depth::Int, slot) = true
+is_sync_descendable(policy, depth::Int, slot) = true
 sync_element_limit(policy, source, shadow) = length(source)
-unsynced_placeholder(policy, source, current) =
-    error("unsynced_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
+make_unsynced_placeholder(policy, source, current) =
+    error("make_unsynced_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
 
 # A plain type is its own family — its type-name wrapper. `@document` overrides this
 # per schema so all variant layouts of one schema (the isbits stem, the native
 # mutable struct) answer the same abstract family type.
-document_family(x) = document_family(typeof(x))
-document_family(::Type{T}) where {T} = Base.typename(T).wrapper
+get_document_family(x) = get_document_family(typeof(x))
+get_document_family(::Type{T}) where {T} = Base.typename(T).wrapper
 
 # The layout registry. A plain type is its own cell layout and has no native one,
 # so a hand-written document copies into exactly what it was. `@document` overrides
 # both per schema, on the family, so either accessor takes any variant. The
 # `::Type{<:AFoo}` methods the macro emits are more specific than these, and
 # so win for every variant of a schema.
-document_cell_type(x) = document_cell_type(typeof(x))
-document_cell_type(::Type{T}) where {T} = Base.typename(T).wrapper
+get_document_cell_type(x) = get_document_cell_type(typeof(x))
+get_document_cell_type(::Type{T}) where {T} = Base.typename(T).wrapper
 
-document_native_type(x) = document_native_type(typeof(x))
-document_native_type(::Type{T}) where {T} = nothing
+get_document_native_type(x) = get_document_native_type(typeof(x))
+get_document_native_type(::Type{T}) where {T} = nothing
 
-document_schema_name(x) = document_schema_name(typeof(x))
-document_schema_name(::Type{T}) where {T} = nameof(T)
+get_document_schema_name(x) = get_document_schema_name(typeof(x))
+get_document_schema_name(::Type{T}) where {T} = nameof(T)
 
 """
 Maximum nesting depth printed by the generic document `show` before child

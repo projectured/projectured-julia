@@ -90,7 +90,7 @@ JsonObject(pairs::Pair{<:AbstractString}...) =
 
 # An object entry must stay a key/value pair — it is retyped through its value.
 _json_replaceable(doc, sel) =
-    !(try_evaluate_reference(doc, named_node_reference(sel)) isa Union{Nothing, JsonObjectEntry})
+    !(try_evaluate_reference(doc, normalize_named_node_reference(sel)) isa Union{Nothing, JsonObjectEntry})
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 

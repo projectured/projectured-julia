@@ -46,7 +46,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation,
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference, Position
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
-import ..ProjectionReferenceStepModule: introduced_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell
 
@@ -192,7 +192,7 @@ function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
     h = path.head
     h isa FieldReferenceStep || return nothing
     h.name == "value" ? op :
-        ReplaceSelectionOperation(introduced_reference(p, iomap.input, path))
+        ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the

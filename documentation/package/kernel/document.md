@@ -92,7 +92,7 @@ uniformly:
 Both walks are optionally **bounded**. A full walk per frame of an object with
 thousand-entry collections is wasted work, so `sync_document!` and
 `copy_document` take a `policy` and consult three generics at every child —
-`should_descend_sync`, `sync_element_limit`, `unsynced_placeholder` (declared in
+`is_sync_descendable`, `sync_element_limit`, `make_unsynced_placeholder` (declared in
 `DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
 `nothing` descends everywhere and keeps every element, so an un-policed walk is
 the walk described above and pays nothing for the option. This layer never names

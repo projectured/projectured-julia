@@ -38,7 +38,7 @@ include("Projection.jl")
 # uses. It is projection machinery, not per-domain content. It keeps two seams
 # open for a higher package:
 #   (a) constructive element-collection sites go through the children-container
-#       generic (make_children_container / children_container_type); a higher
+#       generic (make_children_container / get_children_container_type); a higher
 #       package registers the concrete methods.
 #   (b) the text-range-replace read_intent method lives in a higher package
 #       beside the primitive-op defaults.

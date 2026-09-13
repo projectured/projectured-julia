@@ -28,13 +28,13 @@ process never share a tool registry or evaluate into each other's namespace.
 """
 module ToolModule
 
-export Tool, Resource, ToolSet, ApiEntry, api_modules, api_entry_names,
+export Tool, Resource, ToolSet, ApiEntry, get_api_modules, get_api_entry_names,
        register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, register_resources!, list_resources, find_resource,
        read_resource,
        register_default_tools!,
        observe_evaluations!,
-       execute_julia_code, last_evaluated_value,
+       execute_julia_code, get_last_evaluated_value,
        list_guides, read_guide,
        list_modules, list_types, list_functions,
        read_module_documentation, read_type_documentation, read_function_documentation,

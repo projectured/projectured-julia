@@ -14,7 +14,7 @@
 # that walk.
 #
 # The walk is optionally **bounded**: `policy` is consulted at every child, and
-# where it says stop the slot gets `unsynced_placeholder` instead of a subtree.
+# where it says stop the slot gets `make_unsynced_placeholder` instead of a subtree.
 # The default policy (`nothing`) always descends, so an un-policed sync is
 # exactly the walk described above and pays nothing for the option. Bounding is
 # a parameter of this walk rather than a second walk beside it — a shadow of a
@@ -22,12 +22,12 @@
 
 # `true` when `a` and `b` are the same document IGNORING variant — a reactive
 # `RCFoo`, an immutable `ICFoo`, and the native mutable `MFoo` all answer `true`,
-# via `document_family` (the schema's abstract family type; for a plain type it
+# via `get_document_family` (the schema's abstract family type; for a plain type it
 # falls back to the name wrapper, so this is equivalent to the old wrapper test
 # everywhere except that it now also unifies the two struct layouts). The shape
 # test the sync makes before recursing into a slot: same document ⇒ sync in place,
 # different ⇒ rebuild it.
-is_same_document_type(a, b) = document_family(a) === document_family(b)
+is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
 
 # A source element rebuilt for a shadow of cell kind `K`: a document is copied in
 # that kind, a plain value passes through. Written into a shadow slot whose source
@@ -60,8 +60,8 @@ end
 # it was synced in place, or a placeholder already standing there is to be left
 # alone. The one place the bound is decided; both walks below share it.
 function _synced_child(cur, sv, K, policy, depth)
-    if !should_descend_sync(policy, depth, cur)
-        new = unsynced_placeholder(policy, sv, cur)
+    if !is_sync_descendable(policy, depth, cur)
+        new = make_unsynced_placeholder(policy, sv, cur)
         return new === cur ? nothing : new          # already stopped here: leave it be
     end
     cur isa Document && is_same_document_type(cur, sv) &&
@@ -128,7 +128,7 @@ function _fit_shadow_tail!(shadow, source, policy, limit::Int, ns::Int)
     end
     limit < ns || return shadow
     cur = length(shadow) >= want ? shadow[want] : nothing
-    new = unsynced_placeholder(policy, HiddenElements(source, limit + 1, ns), cur)
+    new = make_unsynced_placeholder(policy, HiddenElements(source, limit + 1, ns), cur)
     new === cur && return shadow
     length(shadow) >= want ? (shadow[want] = new) : push!(shadow, new)
     shadow

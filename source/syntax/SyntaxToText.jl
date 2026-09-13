@@ -32,7 +32,7 @@ import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, introduced_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..IoMapModule: SimpleIoMap, var"@iomap"
@@ -538,7 +538,7 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     field = _own_field(iomap, j)
     field !== nothing && return _own_span_path(node, field, c)
     flat = _text_elem_path_to_flat(elements, j, c)
-    return introduced_reference(p, node,
+    return make_introduced_reference(p, node,
                ConcreteReference(Position, PositionReferenceStep(flat), EmptyReference(Position)))
 end
 

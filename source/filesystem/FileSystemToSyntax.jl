@@ -30,7 +30,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
@@ -72,7 +72,7 @@ end
 #   ∅ / whole-file        ↔  the whole leaf                       (identity — same path)
 #   caret on the value    →  proj(p, ::SyntaxLeaf.value{k})       (introduced: no pre-image)
 # The value span is projection-introduced (derived basename), so a caret there names
-# the whole file (`is_introduced_reference` / `named_node_reference`) while carrying a
+# the whole file (`is_introduced_reference` / `normalize_named_node_reference`) while carrying a
 # bounded position for rendering and navigation — the established introduced-token
 # pattern (cf. XmlElementToSyntaxNode).
 function map_reference_forward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -86,7 +86,7 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
         ::SyntaxLeaf.value{k} => reference
     end
     caret === nothing && return reference
-    introduced_reference(p, iomap.input, caret)
+    make_introduced_reference(p, iomap.input, caret)
 end
 
 function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)

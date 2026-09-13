@@ -21,7 +21,7 @@ using ProjecturedOllama
 
 import ProjecturedKernel.ToolModule: Tool
 import ProjecturedKernel.LlmModule:
-    make_llm, default_llm_model, llm_backend_names, stream_turn, tool_schema,
+    make_llm, default_llm_model, get_llm_backend_names, stream_turn, render_tool_schema,
     LlmContent, LlmText, LlmThinking, LlmToolUse, LlmToolResult,
     LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop,

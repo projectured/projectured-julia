@@ -56,7 +56,7 @@ import ..OperationModule: replace_document, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           ElementReferenceStep, EmptyReference, Position, get_reference_node_type
-import ..ProjectionReferenceStepModule: introduced_reference, is_introduced_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..GestureBindingModule: GestureBinding
@@ -224,7 +224,7 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     h = path.head
     h isa FieldReferenceStep || return nothing
     h.name == "value" ? op :
-        ReplaceSelectionOperation(introduced_reference(p, iomap.input, path))
+        ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a

@@ -37,7 +37,7 @@ const _KNOWN_LAYOUTS   = (:C, :DC, :M, :I)
     _take_layout_list(args) -> (layouts::Tuple{Vararg{Symbol}}, rest)
 
 Pull the layout list out of a `@document` argument list, wherever it sits, and
-return it with the remaining arguments for [`cell_struct_macro_default`](@ref).
+return it with the remaining arguments for [`parse_cell_struct_macro_default`](@ref).
 The canonical order writes the field-kind marker first
 (`@document ImmutableCell [C] struct …`), but a list is recognised in any leading
 position, so no spelling of it is rejected.
@@ -52,11 +52,11 @@ function _take_layout_list(args)
         c in _KNOWN_LAYOUTS ||
             error("@document: `$c` is not a layout code. Use one of $(join(_KNOWN_LAYOUTS, ", ")).")
     end
-    # One schema has one native struct, because `document_native_type` gives one
+    # One schema has one native struct, because `get_document_native_type` gives one
     # answer. A schema that wanted both would have to say which one that is.
     (:M in codes && :I in codes) &&
         error("@document: a schema declares `M` or `I`, not both. They are two " *
-              "spellings of one native layout, and `document_native_type` names one.")
+              "spellings of one native layout, and `get_document_native_type` names one.")
     # `DC` asks for the cell layout too — it only moves the bare name inside it.
     (:C in codes || :DC in codes) ||
         error("@document: a layout list must include `C` or `DC` for now. A schema with " *
@@ -88,12 +88,12 @@ _declared_type_name(::Any) = nothing
 
 # What the CELL layout holds for a field, which is the declared type unless a
 # collection registered a reactive counterpart for it — see
-# `cell_layout_field_type`. The NATIVE layout never asks, so it keeps the plain
+# `get_cell_layout_field_type`. The NATIVE layout never asks, so it keeps the plain
 # type the programmer wrote.
 function _cell_value_types(plan)
-    map(cell_struct_value_types(plan)) do vt
+    map(get_cell_struct_value_types(plan)) do vt
         name = _declared_type_name(vt)
-        substitute = name === nothing ? nothing : cell_layout_field_type(Val(name))
+        substitute = name === nothing ? nothing : get_cell_layout_field_type(Val(name))
         substitute === nothing ? vt : substitute
     end
 end
@@ -151,8 +151,8 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     # `selection` field is such a field, so it follows `default` too. With no leading
     # kind (`default = :reactive`) and nothing annotated these are all `ReactiveCell{Any}`
     # and every path below reduces to the plain untyped-cell codegen.
-    kinds     = cell_struct_field_kinds(plan; default = default)
-    vts       = cell_struct_value_types(plan)
+    kinds     = get_cell_struct_field_kinds(plan; default = default)
+    vts       = get_cell_struct_value_types(plan)
     def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
     raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
                                            :($(def_types[i])($(arg_names[i])))
@@ -251,7 +251,7 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     n     = length(plan.field_names)
     # The CELL layout's value types, with any registered substitution applied.
     Tvals = _cell_value_types(plan)
-    kinds = cell_struct_field_kinds(plan; default = default)
+    kinds = get_cell_struct_field_kinds(plan; default = default)
     # A spelling is named from the **schema**, not from the cell layout's own type
     # name. The two differ when the bare name was bound elsewhere, and a spelling
     # of `Foo` must stay `RCFoo` rather than becoming `CRCFoo`.
@@ -310,17 +310,17 @@ this way leaves that signature to a struct that must hand-write one because it
 does more than fill fields (back-linking a draft, coercing its arguments). A
 struct with no fields of its own is the exception — it holds nothing but its
 selection, so there is no hand-written constructor to protect and `Foo()` must
-come from somewhere, which Rule Y cannot supply (`cell_struct_required_count == 0`).
+come from somewhere, which Rule Y cannot supply (`get_cell_struct_required_count == 0`).
 """
 function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
     (plan.n_programmer_defaults > 0 || plan.n_declared == 0) || return Any[]
-    kw_params = cell_struct_kw_params(plan.field_names, plan.defaults)
+    kw_params = build_cell_struct_kw_params(plan.field_names, plan.defaults)
     # The unprefixed one goes on the cell layout's own type name, not on the bare
     # name. When the bare name is bound to a spelling it reaches this method through
     # the forwarding constructor, and when it is bound to the native layout that
     # layout has a keyword constructor of its own.
     names = [plan.name, Symbol("IC", schema), Symbol("MC", schema)]
-    [cell_struct_kwctor(nm, plan.field_names, kw_params) for nm in names]
+    [build_cell_struct_kwctor(nm, plan.field_names, kw_params) for nm in names]
 end
 
 # The single collection field's position, or 0 when there is not exactly one. A
@@ -345,8 +345,8 @@ instead of the collection. Hence this companion. The two coexist: the
 `::AbstractVector` variant is more specific for a `Vector` argument, while a real
 collection value (a `Document`, not an `AbstractVector`) falls through to the raw
 form. Emitted only for an arity whose kept prefix actually reaches the collection
-slot; it is passed to `cell_struct_positional_ctors` as its `each_arity` hook,
-which is what ties it to Rule Y's own `cell_struct_required_count ≥ 1` gate.
+slot; it is passed to `build_cell_struct_positional_ctors` as its `each_arity` hook,
+which is what ties it to Rule Y's own `get_cell_struct_required_count ≥ 1` gate.
 """
 function _emit_collection_ctor_at(plan, k)
     p = _collection_slot(plan)
@@ -366,7 +366,7 @@ end
 defaults — the bracketed `Foo([a, b])` and the variadic `Foo(a, b)`.
 
 The bracketed "fill everything" form is emitted only when Rule Y did **not** run
-(`cell_struct_required_count == 0`, i.e. the collection itself defaults); otherwise
+(`get_cell_struct_required_count == 0`, i.e. the collection itself defaults); otherwise
 [`_emit_collection_ctor_at`](@ref) already produced that exact signature alongside
 the arity-`k` Rule Y form, and emitting it again would silently redefine it. The
 variadic never collides, so it is always emitted. Elements are typed `Document`
@@ -384,7 +384,7 @@ function _emit_collection_ctors(plan)
     all(haskey(defaults, f) for (i, f) in enumerate(fields) if i != p) || return Any[]
 
     ctors = Any[]
-    if cell_struct_required_count(plan) == 0
+    if get_cell_struct_required_count(plan) == 0
         cargs = Any[i == p ? :($(plan.field_types[p])(items)) : defaults[f]
                     for (i, f) in enumerate(fields)]
         push!(ctors, :($(plan.name)(items::AbstractVector) =
@@ -411,7 +411,7 @@ immutable one. The immutable layout is what a value on a hot path wants, because
 a `mutable struct` is never isbits, however small its fields are.
 """
 function _emit_native(plan, family, native; mutable::Bool)
-    vts = cell_struct_value_types(plan)
+    vts = get_cell_struct_value_types(plan)
     fields = Any[:($(plan.field_names[i])::$(vts[i])) for i in eachindex(plan.field_names)]
     # The native layout IS the programmer's struct, so it carries the programmer's
     # parameters and nothing else — no cell parameters, because it holds no cells.
@@ -505,8 +505,8 @@ constructors are the exception and need a default you declared yourself.
    (`Foo(callee, [args])`) or all default (`Foo([a, b])`, plus the variadic
    `Foo(a, b)` when the collection is the sole content).
 
-7. **The layout registry** — [`document_cell_type`](@ref) answers the stem and
-   [`document_native_type`](@ref) answers the native `mutable struct`, both keyed on
+7. **The layout registry** — [`get_document_cell_type`](@ref) answers the stem and
+   [`get_document_native_type`](@ref) answers the native `mutable struct`, both keyed on
    the family so either takes any variant. A caller asks for a layout through these
    rather than by naming a type, which is what lets `copy_document` rebuild a source
    into the layout its target needs instead of the layout the source happened to
@@ -538,9 +538,9 @@ function _document_expr(args)
     args = isempty(args) ? args :
            (map(_bare_kind, args[1:end-1])..., args[end])
     layouts, rest = _take_layout_list(args)
-    default, structdef = cell_struct_macro_default(rest)
+    default, structdef = parse_cell_struct_macro_default(rest)
     structdef.head === :struct || error("@document expects a struct definition")
-    plan = cell_struct_plan(structdef)
+    plan = make_cell_struct_plan(structdef)
 
     # Default the supertype to `Document` unless one is written explicitly, so
     # `@document struct Foo … end` means `struct Foo <: Document … end`. The
@@ -553,7 +553,7 @@ function _document_expr(args)
     # schema.
     #
     # `family` is an abstract type inserted between the cell layout and the
-    # supertype the programmer wrote; every layout subtypes it, so `document_family`
+    # supertype the programmer wrote; every layout subtypes it, so `get_document_family`
     # recognizes each variant of one schema as the same document even though the
     # layouts share no type wrapper.
     schema = plan.name
@@ -620,18 +620,18 @@ function _document_expr(args)
     # This is what lets a caller ask for a layout instead of naming one: before it,
     # the type name was the only way to reach a layout, and `copy_document` therefore
     # rebuilt whatever layout the source already had.
-    family_method    = :((::typeof($document_family))(::Type{<:$family}) = $family)
-    cell_type_method = :((::typeof($document_cell_type))(::Type{<:$family}) =
+    family_method    = :((::typeof($get_document_family))(::Type{<:$family}) = $family)
+    cell_type_method = :((::typeof($get_document_cell_type))(::Type{<:$family}) =
                              $(plan.name))
     # The schema's own name, for a label. `nameof` would answer the coded name of
     # whichever layout it was handed, and a schema that bound its bare name
     # elsewhere would then read as its layout rather than as itself.
-    schema_name_method = :((::typeof($document_schema_name))(::Type{<:$family}) =
+    schema_name_method = :((::typeof($get_document_schema_name))(::Type{<:$family}) =
                                $(QuoteNode(schema)))
 
     # The native layout, emitted only when the layout list asks for it. A schema
     # that leaves both `M` and `I` out has no native type at all, and the default
-    # `document_native_type` answers `nothing` for it — which is what a caller
+    # `get_document_native_type` answers `nothing` for it — which is what a caller
     # reads to find out.
     #
     # Native-layout constructors target the native's auto (all-args) ctor — the
@@ -641,12 +641,12 @@ function _document_expr(args)
     native_parts = Any[]
     if :M in layouts || :I in layouts
         push!(native_parts, _emit_native(plan, family, native; mutable = native_mutable))
-        append!(native_parts, cell_struct_positional_ctors(plan, native))
+        append!(native_parts, build_cell_struct_positional_ctors(plan, native))
         if plan.n_programmer_defaults > 0 || plan.n_declared == 0
-            push!(native_parts, cell_struct_kwctor(native, plan.field_names,
-                                cell_struct_kw_params(plan.field_names, plan.defaults)))
+            push!(native_parts, build_cell_struct_kwctor(native, plan.field_names,
+                                build_cell_struct_kw_params(plan.field_names, plan.defaults)))
         end
-        push!(native_parts, :((::typeof($document_native_type))(::Type{<:$family}) =
+        push!(native_parts, :((::typeof($get_document_native_type))(::Type{<:$family}) =
                                   $native))
         push!(native_parts, Expr(:export, native))
     end
@@ -690,7 +690,7 @@ function _document_expr(args)
              _emit_keyword_ctors(plan; schema = schema)...,
              # Rule Y (the cell layer's, generic over any cell struct), each arity
              # followed by its Rule C companion; then Rule C's element-sugar tail.
-             cell_struct_positional_ctors(plan, plan.name;
+             build_cell_struct_positional_ctors(plan, plan.name;
                                           each_arity = k -> _emit_collection_ctor_at(plan, k))...,
              _emit_collection_ctors(plan)...))
 end

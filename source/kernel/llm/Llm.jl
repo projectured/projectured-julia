@@ -8,7 +8,7 @@ provider's *configuration* — its API key, model name, endpoint, token budget �
 and implements two methods:
 
 - `stream_turn(llm, request; on_event)` — run one turn, emitting `LlmEvent`s.
-- `tool_schema(llm, tools)` — render `Tool`s into whatever shape this provider's
+- `render_tool_schema(llm, tools)` — render `Tool`s into whatever shape this provider's
   API wants for them.
 
 Configuration lives on the struct rather than in the call because it is not
@@ -37,7 +37,7 @@ protocol.
 function stream_turn end
 
 """
-    tool_schema(llm::Llm, tools::AbstractVector{Tool})
+    render_tool_schema(llm::Llm, tools::AbstractVector{Tool})
 
 Render `tools` into the shape this provider's API expects (for Anthropic, a
 JSON-Schema-shaped `Vector{Dict}`).
@@ -45,7 +45,7 @@ JSON-Schema-shaped `Vector{Dict}`).
 This is the provider adapter's job. A `Tool` itself describes its parameters
 abstractly and knows no wire format at all.
 """
-function tool_schema end
+function render_tool_schema end
 
 # ── Selecting a backend by name ──────────────────────────────────────────────
 # A backend lives in an opt-in package, so nothing here can name its type. The
@@ -80,8 +80,8 @@ make_llm(kind::Symbol; kwargs...) = make_llm(Val(kind); kwargs...)
 
 make_llm(::Val{K}; kwargs...) where {K} = error(
     "No LLM backend registered for :$(K). Loaded backends: " *
-    (isempty(llm_backend_names()) ? "none" :
-     join(map(n -> ":" * String(n), llm_backend_names()), ", ")) *
+    (isempty(get_llm_backend_names()) ? "none" :
+     join(map(n -> ":" * String(n), get_llm_backend_names()), ", ")) *
     ". Load the opt-in package that provides :$(K).")
 
 """
@@ -97,13 +97,13 @@ default_llm_model(::Val{K}) where {K} = error(
     "No LLM backend registered for :$(K); it has no default model.")
 
 """
-    llm_backend_names() -> Vector{Symbol}
+    get_llm_backend_names() -> Vector{Symbol}
 
 The backends whose packages are loaded, in alphabetical order. Read from the
 method table of `make_llm`, so a backend counts as available exactly when it can
 be built — there is nothing to register and nothing to forget to unregister.
 """
-function llm_backend_names()
+function get_llm_backend_names()
     out = Symbol[]
     for m in methods(make_llm)
         # The first argument type of a registered method is `Val{:name}`; the two

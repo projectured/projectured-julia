@@ -8,7 +8,7 @@
 #
 # The two arities also differ in **layout**. The plain form preserves it: a native
 # document copies into a native one. The kinded form targets the schema's cell
-# layout, read from `document_cell_type`, because a kind is a property of a cell
+# layout, read from `get_document_cell_type`, because a kind is a property of a cell
 # and a native tree has none. So a native source converts, which is what a shadow
 # needs.
 #
@@ -74,7 +74,7 @@ function _copy_elements(K, v::AbstractVector, policy, depth)
         push!(out, copy_document(K, v[i], policy, depth))
     end
     if limit < n
-        m = unsynced_placeholder(policy, HiddenElements(v, limit + 1, n), nothing)
+        m = make_unsynced_placeholder(policy, HiddenElements(v, limit + 1, n), nothing)
         # Wrapped exactly as a copied element would be — a slot-celled vector
         # (`Vector{Cell}`) cannot hold a bare document.
         push!(out, v[limit + 1] isa AbstractCell ?
@@ -111,7 +111,7 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
     # has cells; a native source therefore converts here rather than rebuilding
     # itself. Building through `Base.typename(T).wrapper` instead is what let a
     # native child land in a reactive shadow, where nothing could invalidate it.
-    base = document_cell_type(T)
+    base = get_document_cell_type(T)
     base === nothing &&
         error("copy_document: $(T) has no cell layout, so a $(K) copy of it is not a thing")
     Ts = _declared_value_types(base)
@@ -126,8 +126,8 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
         inner = raw isa AbstractCell ? raw[] : raw
         # A document-valued child faces the bound; anything else is a leaf or a
         # container the walk copies through.
-        v = inner isa Document && !should_descend_sync(policy, depth + 1, nothing) ?
-            unsynced_placeholder(policy, inner, nothing) :
+        v = inner isa Document && !is_sync_descendable(policy, depth + 1, nothing) ?
+            make_unsynced_placeholder(policy, inner, nothing) :
             copy_document(K, inner, policy, depth + 1)
         push!(args, all_cells || raw isa AbstractCell ?
                     K{_kinded_value_type(K, Ts, i, v)}(v) : v)
