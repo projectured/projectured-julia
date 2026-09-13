@@ -21,6 +21,35 @@ keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
 The bare walk skips `documentation/package/`, which its own roots cover. Without
 that, every slice guide would be listed twice under two names.
 """
+# The roots an application added, in the order it added them. A window built on
+# this editor has guides of its own — how to run a simulation, what a result
+# frame holds — and without them the only documentation a model can read is the
+# editor's own. Measured 2026-09-13: asked to plot a result, a model searched the
+# documentation and was answered with `CellVector` and `@document`.
+const _EXTRA_GUIDE_ROOTS = Tuple{String,String}[]
+
+"""
+    register_guide_root!(directory; prefix = "") -> Nothing
+
+Add a tree of markdown guides to what `search_documentation` reads and
+`resource://guide/…` names.
+
+`prefix` goes in front of every guide name found under it, so two applications
+may both have a guide called `getting-started`.
+
+**An application registers its own at load.** The editor's guides are about the
+editor; a window built on it has guides about the window, and a model that can
+read only the first has been handed a library about the wrong subject.
+"""
+function register_guide_root!(directory::AbstractString; prefix::AbstractString = "")
+    entry = (String(directory), String(prefix))
+    entry in _EXTRA_GUIDE_ROOTS && return nothing
+    push!(_EXTRA_GUIDE_ROOTS, entry)
+    # The index is built once and cached; a root added after that must be seen.
+    _GUIDE_INDEX[] = nothing
+    nothing
+end
+
 function _guide_roots()
     repo = joinpath(@__DIR__, "../../..")
     roots = Tuple{String,String}[(joinpath(repo, "documentation"), "")]
@@ -31,6 +60,7 @@ function _guide_roots()
             isdir(d) && push!(roots, (d, "$pkg/"))
         end
     end
+    append!(roots, _EXTRA_GUIDE_ROOTS)
     roots
 end
 
