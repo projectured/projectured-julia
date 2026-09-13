@@ -24,11 +24,11 @@ const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
-const CopyingProjectionModule = ProjecturedProjection.CopyingProjectionModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
-const PredicateDispatchingProjectionModule = ProjecturedProjection.PredicateDispatchingProjectionModule
-const IdentityProjectionModule = ProjecturedProjection.IdentityProjectionModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 

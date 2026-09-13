@@ -1,21 +1,8 @@
-"""
-    SortingProjectionModule
-
-Domain-independent projection that sorts the elements of a collection
-document by a configurable key function.
-"""
-module SortingProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-import ..IdentityProjectionModule: IdentityProjection
-export SortingProjection, SortingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Sorting.jl.
+#
+# Domain-independent projection that sorts the elements of a collection
+# document by a configurable key function.
 """
     SortingProjection(; by=identity, lt=isless, rev=false)
 
@@ -123,5 +110,3 @@ function map_reference_backward(p::SortingProjection, iomap::SortingIoMap, refer
         __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
-
-end # module

@@ -22,8 +22,8 @@ import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bo
 import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
 import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..PrimitiveModule: ReplaceNumberRangeOperation
 export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,

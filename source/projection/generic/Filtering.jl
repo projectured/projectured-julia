@@ -1,19 +1,8 @@
-"""
-    FilteringProjectionModule
-
-Domain-independent projection that restricts a collection document to the
-subset of elements matching a given predicate.
-"""
-module FilteringProjectionModule
-
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-export FilteringProjection, FilteringIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Filtering.jl.
+#
+# Domain-independent projection that restricts a collection document to the
+# subset of elements matching a given predicate.
 # `kept_indices` and `output` are computed cells for a reactive `CellVector`
 # input, so the IoMap keeps its identity while the kept subset tracks the input
 # (PAR-STABLE-IOMAP-IDENTITY); `iomap.kept_indices` reads the current vector.
@@ -81,5 +70,3 @@ function map_reference_backward(p::FilteringProjection, iomap::FilteringIoMap, r
         __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
-
-end # module

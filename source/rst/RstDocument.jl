@@ -65,8 +65,8 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenati
                        SyntaxDelimitation
 import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
                             get_filename
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
 import ..ProjectionTemplateModule: rule_print, template_read_intent
 import ..PrinterContextModule: with_property, get_property
@@ -110,7 +110,7 @@ import ..WidgetModule: InvokeActionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, is_element_reference_step
 export RstRootToVerticalLayout, RstSectionToVerticalLayout
-import ..ChainingProjectionModule: ChainingProjection
+import ..ProjectionAlgebraModule: ChainingProjection
 import ..LayoutModule: VerticalLayoutToGraphicsCanvas
 import ..NaturalModule: register_natural_graphics!
 export RstRoot, RstSection, RstParagraph, RstText, RstLiteral, RstEmphasis, RstStrong, RstRole, RstReference, RstSubstitutionReference, RstFootnoteReference, RstLiteralBlock, RstLineBlock, RstListItem, RstBulletList, RstEnumeratedList, RstDefinitionItem, RstDefinitionList, RstField, RstFieldList, RstBlockQuote, RstTransition, RstComment, RstTarget, RstSubstitutionDefinition, RstFootnote, RstTableCell, RstTableRow, RstGridTable, RstDirectiveOption, RstLiteralInclude, RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstInsertion

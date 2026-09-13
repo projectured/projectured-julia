@@ -56,7 +56,7 @@ import ..IntentModule: Intent
 import ..TextModule: TextBlock, TextString, TextNewline, TextGraphics, TextDocument, ReplaceTextRangeOperation, _lower_text_range
 import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
 import ..StyleModule: color_default, color_solarized_gray
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position, get_reference_node_type
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..TextRangeReferenceStepModule: TextRangeReferenceStep
@@ -82,8 +82,8 @@ import ..IoMapModule: SimpleIoMap, reconcile_child_iomap, reconcile_child_iomaps
 import ..ReferenceModule: ElementReferenceStep, FieldReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_property, get_property
 import ..TextToStringModule: TextToString
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
+import ..ProjectionAlgebraModule: ChainingProjection
+import ..ProjectionAlgebraModule: RecursiveProjection
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax

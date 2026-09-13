@@ -1,25 +1,15 @@
-"""
-    NestingProjectionModule
-
-A higher-order projection that applies the first element to the input,
-passing a new NestingProjection built from the remaining elements as the
-recursion argument. This lets the first element project the outer structure
-and delegate inner/nested content projection to the recursion.
-
-When the elements list is empty, falls back to the stored recursion
-(or the outer recursion if none was stored).
-
-Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
-"""
-module NestingProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..GestureBindingModule: GestureBinding
-export NestingProjection, NestingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/Nesting.jl.
+#
+# A higher-order projection that applies the first element to the input,
+# passing a new NestingProjection built from the remaining elements as the
+# recursion argument. This lets the first element project the outer structure
+# and delegate inner/nested content projection to the recursion.
+#
+# When the elements list is empty, falls back to the stored recursion
+# (or the outer recursion if none was stored).
+#
+# Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 # Transparent: `output` forwards the child iomap's output through a cell, so the
 # IoMap keeps its identity while the nested projection re-derives
 # (PAR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.
@@ -94,5 +84,3 @@ function map_reference_backward(np::NestingProjection, iomap::NestingIoMap, refe
         nothing
     end
 end
-
-end # module

@@ -1,20 +1,8 @@
-"""
-    ReversingProjectionModule
-
-Domain-independent projection that reverses the order of elements in a
-collection document.
-"""
-module ReversingProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: ChildrenIoMap, reconcile_child_iomaps
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-import ..IdentityProjectionModule: IdentityProjection
-export ReversingProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Reversing.jl.
+#
+# Domain-independent projection that reverses the order of elements in a
+# collection document.
 """
     ReversingProjection()
 
@@ -74,5 +62,3 @@ function map_reference_backward(p::ReversingProjection, iomap::ChildrenIoMap, re
         __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
-
-end # module

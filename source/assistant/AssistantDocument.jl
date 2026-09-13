@@ -46,7 +46,7 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference, FieldRef
                           annotate_reference_types, var"@reference", var"@reference_step",
                           var"@reference_case"
 import ..PrinterContextModule: make_child_context
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ConversationModule: ConversationConversation, ConversationDraft
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 import ..OperationModule: Operation, evaluate_operation

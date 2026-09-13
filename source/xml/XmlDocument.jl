@@ -26,7 +26,7 @@ import ..StyleModule: color_black, color_default, color_solarized_blue, color_so
                       color_solarized_cyan, color_solarized_yellow, color_solarized_gray
 import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
 import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,

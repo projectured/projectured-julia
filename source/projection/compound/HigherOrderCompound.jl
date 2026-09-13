@@ -1,15 +1,5 @@
-module HigherOrderCompoundModule
-
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..ReferenceDispatchingProjectionModule: ReferenceDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
-import ..IdentityProjectionModule: IdentityProjection
-import ..NestingProjectionModule: NestingProjection
-import ..ReferenceModule: Reference
-import ..ReferenceModule: var"@reference_case"
-
-export ApplyAtProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from compound/HigherOrderCompound.jl.
 """
     ApplyAtProjection(reference, projection)
 
@@ -30,6 +20,4 @@ function ApplyAtProjection(reference::Reference, projection)
         )
         __                   => IdentityProjection()
     end))
-end
-
 end

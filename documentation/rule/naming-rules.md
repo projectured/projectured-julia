@@ -106,9 +106,24 @@ and in `substrate` — which the slice folder separates.
 
 ## Files and modules
 
-- **Module = filename + `Module`.** `Clock.jl` defines `ClockModule`,
-  `ProjectionApi.jl` defines `ProjectionApiModule`. Grep-by-guess must work in
-  both directions — with no per-folder exceptions.
+- **One module per unit of architecture.** A slice declares one module, named
+  for the slice: every file under `source/json/` is a fragment of `JsonModule`,
+  and only one of them carries the `module` line. The kernel is layered rather
+  than sliced, so there a module belongs to a layer and its file is named for
+  it: `Clock.jl` declares `ClockModule`, `ProjectionApi.jl` declares
+  `ProjectionApiModule`. Grep-by-guess must work in both directions: a reader
+  who knows the slice knows the module, and a reader who has the module name
+  finds the one file that declares it.
+- **A fragment declares no module.** It opens with a comment saying which file
+  it came from and what part of the slice it is. Its imports and its exports
+  belong to the module file, because a module states what it needs and what it
+  offers in one place.
+- **One slice takes a name of its own.** `source/projection/` declares
+  `ProjectionAlgebraModule`, not `ProjectionModule`, because the kernel's
+  projection layer already declares that name and the kernel does not change.
+  The slice holds the domain-free projection algebra, so the module says so.
+  This is the only exception, and `test/suite/naming.jl` holds it in a list of
+  one.
 - **A module that owns a folder of fragments is `<Concept>Module.jl` itself.**
   A layer's primary module carries only its docstring, its export list, and its
   ordered `include`s (`DocumentModule.jl`, `BackendModule.jl`, `DeviceModule.jl`),
@@ -129,13 +144,14 @@ and in `substrate` — which the slice folder separates.
 
 ## Projections
 
-From a single stem derive all four names:
+From a single stem derive all three names. A projection has no module of its
+own: it is a fragment of its slice, so `JsonToSyntax` lives in `JsonModule` and
+`Copying` in `ProjectionAlgebraModule`.
 
 | artifact | name |
 |---|---|
 | file | `<Stem>.jl` |
 | type | `<Stem>Projection` |
-| module | `<Stem>ProjectionModule` |
 | iomap | `<Stem>IoMap` |
 
 The IO map carries no `Projection`, because an IO map belongs to a projection

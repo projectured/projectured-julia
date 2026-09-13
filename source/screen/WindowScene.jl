@@ -23,11 +23,11 @@
 #
 # It was written twice before it was written here, as `CampaignScene.jl` and
 # `QtenvWindowScene.jl` in omnet-julia, which differed only in their names.
-using ProjecturedProjection.ReferenceDispatchingProjectionModule: ReferenceDispatchingProjection
-using ProjecturedProjection.NestingProjectionModule: NestingProjection
-using ProjecturedProjection.IdentityProjectionModule: IdentityProjection
-using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
-using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: ReferenceDispatchingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
 
 
 """

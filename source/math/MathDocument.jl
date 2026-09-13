@@ -34,7 +34,7 @@ import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
                                    bound, project, collection
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference

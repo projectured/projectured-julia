@@ -1,31 +1,13 @@
-"""
-    CopyingProjectionModule
-
-Domain-independent copying projection. For CellVector inputs it creates
-per-element iomaps eagerly. For ListNode inputs it maps lazily — only the
-head is projected immediately; `prev`/`next` are reactive thunks that
-project on demand. For struct Documents it creates per-field iomaps for
-every non-selection field. Primitives are identity. The iomap stores all
-child iomaps so that map_reference_backward can delegate through them
-(enabling e.g. SortingProjection to remap indices).
-"""
-module CopyingProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, is_element_reference_step, head, tail
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
-import ..OperationModule: operation_reference, retarget_operation,
-                          operation_travels_unchanged, ReplaceReferencedValueOperation
-import ..SelectionModule: get_stored_selection
-
-export CopyingProjection, CopyingIoMap, make_copying_field_iomap, make_copying_element_iomap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Copying.jl.
+#
+# Domain-independent copying projection. For CellVector inputs it creates
+# per-element iomaps eagerly. For ListNode inputs it maps lazily — only the
+# head is projected immediately; `prev`/`next` are reactive thunks that
+# project on demand. For struct Documents it creates per-field iomaps for
+# every non-selection field. Primitives are identity. The iomap stores all
+# child iomaps so that map_reference_backward can delegate through them
+# (enabling e.g. SortingProjection to remap indices).
 struct CopyingProjection <: Projection end
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
@@ -320,5 +302,3 @@ end
 _needs_no_prefix(op) =
     op isa ReplaceReferencedValueOperation ? op.document !== nothing :
     operation_travels_unchanged(op)
-
-end # module

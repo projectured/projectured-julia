@@ -134,7 +134,9 @@ meets a hard case.
      which is one method, not two. They are `_keep_rows` and
      `_make_selection_operation` now.
 4. **The 11 slices with 10 or more.** Read each one before collapsing it. Two
-   of them should not be collapsed at all — see §4.2.
+   of them should not be collapsed at all — see §4.2. `projection` is **DONE
+   2026-09-13**: nineteen modules became `ProjectionAlgebraModule`, and the
+   two remaining are `graph` and `text`, which are for division.
 5. **The kernel does not change at all.** Its 31 modules across 17 layers stay
    as they are, including the seven of the `projection` layer. This is the
    user's decision, not a deferral, so nothing in the kernel is on this plan's
@@ -203,7 +205,9 @@ Do it as part of the clipboard slice's step.
 
 ## 5. Open questions this plan must answer
 
-1. **A slice whose name is also a kernel layer — ANSWERED.**
+1. **A slice whose name is also a kernel layer — ANSWERED, AND DONE
+   2026-09-13.** The name is in `documentation/rule/naming-rules.md` as the one
+   named exception, and `test/suite/naming.jl` holds it in a list of one.
    `source/projection/` would want `ProjectionModule`, which
    [Projection.jl](../../source/kernel/projection/Projection.jl) already
    declares for the kernel's projection layer. The user decided on 2026-09-12:
@@ -226,7 +230,7 @@ Do it as part of the clipboard slice's step.
    contradiction. The alternative, a rename of the slice and its package to
    `projections` and `ProjecturedProjections`, costs more and buys the same
    thing.
-2. **The projections table loses a row — FOLLOWS FROM THE DECISION.**
+2. **The projections table loses a row — DONE 2026-09-13.**
    [naming-rules.md](../../documentation/rule/naming-rules.md) derives four
    names from one stem, and one is `<Stem>ProjectionModule`. A projection no
    longer has a module of its own: it belongs to its slice's module, so

@@ -63,7 +63,7 @@ import ..StyleModule: StyleColor, color_default, color_solarized_gray, color_sol
                       color_solarized_orange, color_solarized_red
 import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
                                    bound, project, collection
 import ..ReferenceModule: ConcreteReference, PositionReferenceStep

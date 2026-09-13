@@ -9,7 +9,7 @@
 # package's. They were `ProjecturedWorkbenchExample`'s until stage 14 of
 # omnet-julia's build-programs plan, which is a package of 52 dependencies —
 # so a program could not drag without the whole example tier for two lines.
-using ProjecturedProjection.NestingProjectionModule: NestingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
 
 
 """

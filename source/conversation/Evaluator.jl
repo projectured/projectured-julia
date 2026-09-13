@@ -42,7 +42,7 @@ import ..OperationModule: ToggleCollapseOperation, Operation, ReplaceSelectionOp
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
 import ..EventModule: MousePress
 import ..CellModule: Cell, ComputedCell
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,

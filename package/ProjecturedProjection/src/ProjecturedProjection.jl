@@ -33,23 +33,5 @@ const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindi
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
 include("../../../source/projection/generic/Identity.jl")
-include("../../../source/projection/generic/Reversing.jl")
-include("../../../source/projection/generic/Constant.jl")
-include("../../../source/projection/higherorder/Chaining.jl")
-include("../../../source/projection/higherorder/TypeDispatching.jl")
-include("../../../source/projection/higherorder/Recursive.jl")
-include("../../../source/projection/higherorder/Switching.jl")
-include("../../../source/projection/higherorder/PredicateDispatching.jl")
-include("../../../source/projection/higherorder/ReferenceDispatching.jl")
-include("../../../source/projection/higherorder/Nesting.jl")
-include("../../../source/projection/higherorder/WindowInputUnwrapping.jl")
-include("../../../source/projection/generic/Focusing.jl")
-include("../../../source/projection/generic/Sorting.jl")
-include("../../../source/projection/generic/Filtering.jl")
-include("../../../source/projection/generic/Searching.jl")
-include("../../../source/projection/generic/Copying.jl")
-include("../../../source/projection/ReaderDefaults.jl")
-include("../../../source/projection/compound/HigherOrderCompound.jl")
-include("../../../source/projection/compound/GenericCompound.jl")
 
 end # module ProjecturedProjection

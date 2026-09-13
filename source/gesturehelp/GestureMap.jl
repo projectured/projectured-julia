@@ -59,8 +59,8 @@ import ..OperationModule: DoNothingOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
 import ..EventModule: KeyDown, KeyPress
 import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
+import ..ProjectionAlgebraModule: ChainingProjection
+import ..ProjectionAlgebraModule: RecursiveProjection
 import ..SyntaxModule: SyntaxToText
 import ..WordWrappingModule: WordWrapping
 import ..TextToGraphicsModule: TextToGraphics

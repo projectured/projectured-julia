@@ -48,7 +48,7 @@ import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_sol
                       color_solarized_green, color_solarized_magenta, color_solarized_gray,
                       color_solarized_violet
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
 import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,

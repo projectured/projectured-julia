@@ -79,7 +79,7 @@ import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, Rang
                           ElementReferenceStep, EmptyReference, is_element_reference_step
 import ..GraphicsModule: PointReferenceStep
 import ..OperationModule: reroot_operation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 import ..LayoutModule: LayoutDocument, LayoutConstraint, GridLayout, VerticalLayout, Content, allocate_axis, layout_min, layout_max,
                        layout_preferred, layout_weight

@@ -1,19 +1,10 @@
-"""
-    SwitchingProjectionModule
-
-A higher-order projection that holds a list of projections and delegates
-to the one selected by a reactive index cell. Writing the index cell
-reactively switches the active branch through the *same* iomap: the inner
-iomap is reconciled by index and the output re-derives, no re-print required.
-"""
-module SwitchingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..CellModule: Cell, ComputedCell
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
-export SwitchingProjection, SwitchingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/Switching.jl.
+#
+# A higher-order projection that holds a list of projections and delegates
+# to the one selected by a reactive index cell. Writing the index cell
+# reactively switches the active branch through the *same* iomap: the inner
+# iomap is reconciled by index and the output re-derives, no re-print required.
 # `inner_iomap` is reconciled by the (reactive) index and `output` forwards its
 # output through a cell, so writing `ap.index` swaps the branch through the same
 # iomap (PAR-STABLE-IOMAP-IDENTITY); `iomap.index` reads the current index.
@@ -90,5 +81,3 @@ end
 function map_reference_backward(::SwitchingProjection, iomap, reference)
     return nothing
 end
-
-end # module

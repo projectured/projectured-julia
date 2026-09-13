@@ -30,8 +30,8 @@ import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
                       color_solarized_gray, color_solarized_violet
 import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDelimitation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
@@ -72,7 +72,7 @@ import ..WidgetModule: InvokeActionOperation
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
                           EmptyReference, is_element_reference_step
 export MarkdownRootToVerticalLayout
-import ..ChainingProjectionModule: ChainingProjection
+import ..ProjectionAlgebraModule: ChainingProjection
 import ..LayoutModule: VerticalLayoutToGraphicsCanvas
 import ..NaturalModule: register_natural_graphics!
 export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion

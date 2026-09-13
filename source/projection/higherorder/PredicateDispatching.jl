@@ -1,18 +1,11 @@
-"""
-    PredicateDispatchingProjectionModule
-
-A higher-order projection that selects an inner projection based on
-user-supplied predicate functions applied to the input document. Each
-predicate is tested in order; the first one that returns true wins. This
-complements TypeDispatchingProjection for cases where type alone is not a
-sufficient discriminator.
-"""
-module PredicateDispatchingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-export PredicateDispatchingProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/PredicateDispatching.jl.
+#
+# A higher-order projection that selects an inner projection based on
+# user-supplied predicate functions applied to the input document. Each
+# predicate is tested in order; the first one that returns true wins. This
+# complements TypeDispatchingProjection for cases where type alone is not a
+# sufficient discriminator.
 """
     PredicateDispatchingProjection(pairs...)
 
@@ -73,5 +66,3 @@ end
 function map_reference_backward(::PredicateDispatchingProjection, iomap, reference)
     return nothing
 end
-
-end # module

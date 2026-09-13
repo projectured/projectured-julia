@@ -27,7 +27,7 @@ import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..GestureBindingModule: var"@gestures"
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..PrinterContextModule: make_child_context
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveToText
 

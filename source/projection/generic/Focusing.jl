@@ -1,24 +1,8 @@
-"""
-    FocusingProjectionModule
-
-Domain-independent projection that focuses on a specific sub-document by
-navigating into the input using a configurable reference path.
-"""
-module FocusingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, evaluate_reference, extend_reference, strip_reference_types
-import ..IoMapModule: SimpleIoMap
-import ..CellModule: Cell, ComputedCell
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-
-export FocusingProjection, ReplaceFocusPartOperation
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Focusing.jl.
+#
+# Domain-independent projection that focuses on a specific sub-document by
+# navigating into the input using a configurable reference path.
 """
     FocusingProjection(; part_type=Any, part=EmptyReference())
 
@@ -48,11 +32,11 @@ function print_document(p::FocusingProjection, recursion, input, ctx)
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)
-    _strip_prefix(p.part, strip_reference_types(reference))   # selections are canonical
+    _strip_prefix(strip_reference_types(reference), p.part)   # selections are canonical
 end
 
 function map_reference_backward(p::FocusingProjection, iomap, reference)
-    _concat_path(p.part, reference)
+    _concat(p.part, reference)
 end
 
 """
@@ -106,27 +90,6 @@ end
 read_intent(p::FocusingProjection, iomap::SimpleIoMap, event) =
     read_projection_gesture(p, iomap, event)
 
-function _concat_path(prefix::EmptyReference, suffix::Reference)
-    suffix
-end
-
-function _concat_path(prefix::ConcreteReference, suffix::Reference)
-    ConcreteReference(prefix.head, _concat_path(prefix.tail, suffix))
-end
-
-function _strip_prefix(::EmptyReference, path::Reference)
-    path
-end
-
-function _strip_prefix(::ConcreteReference, ::EmptyReference)
-    nothing
-end
-
-function _strip_prefix(prefix::ConcreteReference, path::ConcreteReference)
-    prefix.head == path.head || return nothing
-    _strip_prefix(prefix.tail, path.tail)
-end
-
 function _drop_last(path::ConcreteReference)
     tail = path.tail
     tail isa EmptyReference ? EmptyReference() : ConcreteReference(path.head, _drop_last(tail))
@@ -145,5 +108,3 @@ function _longest_prefix_of_type(document, sel::Reference, part_type)
     end
     best
 end
-
-end # module

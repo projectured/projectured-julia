@@ -1,23 +1,10 @@
-"""
-    ChainingProjectionModule
-
-Chains projections left-to-right for the printer and right-to-left for
-the reader. Intermediate IoMaps are stored so the reader can walk backwards
-through the chain, translating an event from the output domain back to the
-input domain one step at a time.
-"""
-module ChainingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
-       print_document_pure
-import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
-                       merge_collected_intents
-import ..GestureBindingModule: GestureBinding
-import ..IoMapModule: SimpleIoMap
-import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, AbstractCell, unwrap_cell
-export ChainingProjection, ChainingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/Chaining.jl.
+#
+# Chains projections left-to-right for the printer and right-to-left for
+# the reader. Intermediate IoMaps are stored so the reader can walk backwards
+# through the chain, translating an event from the output domain back to the
+# input domain one step at a time.
 # Each `step_iomaps` cell holds one stage's IoMap, recomputed (re-printed) when an
 # upstream stage's output changes *structurally*. `output` is a computed cell over the
 # LAST stage's raw output — exactly as the old eager Sequential threaded it
@@ -208,5 +195,3 @@ end
 function map_reference_backward(::ChainingProjection, iomap, reference)
     return nothing
 end
-
-end # module

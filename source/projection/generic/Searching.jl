@@ -1,28 +1,14 @@
-"""
-    SearchingProjectionModule
-
-Domain-independent projection that walks an arbitrary input document recursively
-and collects every object owning a field whose string value matches a `Regex`.
-The output is a flat `CellVector` of the matched objects, in pre-order. A seen
-set keyed by object identity makes the walk safe on cyclic or shared structure.
-
-Where `FilteringProjection` keeps a shallow subset of one collection's direct
-elements, `SearchingProjection` performs a deep recursive search of the whole
-document tree and gathers matches from anywhere inside it.
-"""
-module SearchingProjectionModule
-
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, AbstractCell, set_cell_function!, unwrap_cell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: Document
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
-                          strip_reference_types
-import ..ReferenceModule: var"@reference_case"
-export SearchingProjection, SearchingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from generic/Searching.jl.
+#
+# Domain-independent projection that walks an arbitrary input document recursively
+# and collects every object owning a field whose string value matches a `Regex`.
+# The output is a flat `CellVector` of the matched objects, in pre-order. A seen
+# set keyed by object identity makes the walk safe on cyclic or shared structure.
+#
+# Where `FilteringProjection` keeps a shallow subset of one collection's direct
+# elements, `SearchingProjection` performs a deep recursive search of the whole
+# document tree and gathers matches from anywhere inside it.
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 # `output` and `match_paths` derive from one reactive walk of the input tree, so
@@ -198,5 +184,3 @@ end
 _concat(::EmptyReference, t::Reference) = t
 _concat(p::ConcreteReference, t::Reference) =
     ConcreteReference(head(p), _concat(tail(p), t))
-
-end # module

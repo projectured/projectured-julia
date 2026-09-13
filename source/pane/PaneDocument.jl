@@ -94,7 +94,7 @@ import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
                       reconcile_child_iomap, reconcile_child_iomaps
 import ..CellModule: Cell, ComputedCell, set_cell_function!
 import ..DocumentModule: SelectionDocument
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
                           get_reference_node_type

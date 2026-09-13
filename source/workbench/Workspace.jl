@@ -31,7 +31,7 @@ import ..OperationModule: Operation
 import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory, make_filesystem_pathname
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, reconcile_child_iomaps
 import ..IoMapModule: IoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep
 import ..PrinterContextModule: make_child_context
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem

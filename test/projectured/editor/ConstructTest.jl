@@ -32,8 +32,8 @@ using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
 using ProjecturedKernel.EventPatternModule: EventPattern
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, ComputedCell
-using ProjecturedProjection.ChainingProjectionModule: ChainingProjection
-using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
+using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedText.TextToStringModule: TextToString
 using ProjecturedSyntax.SyntaxModule: SyntaxLeaf
 using ProjecturedDomain.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root

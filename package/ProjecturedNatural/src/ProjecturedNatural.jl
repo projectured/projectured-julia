@@ -26,9 +26,9 @@ using ProjecturedText
 using ProjecturedWidget
 
 const StyleModule = ProjecturedStyle.StyleModule
-const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
-const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
-const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const LayoutModule = ProjecturedLayout.LayoutModule
@@ -62,7 +62,7 @@ function __init__()
         (; measure) -> ProjecturedText.TextToStringModule.TextToString())
     NaturalModule.register_natural_notation!(
         ProjecturedText.TextModule.TextDocument, :text,
-        () -> ProjecturedProjection.IdentityProjectionModule.IdentityProjection())
+        () -> ProjecturedProjection.ProjectionAlgebraModule.IdentityProjection())
     nothing
 end
 

@@ -20,7 +20,7 @@ import ..SqlModule: SqlColumnDefinition, SqlCreateTableStatement,
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: ElementReferenceStep
 import ..PrinterContextModule: make_child_context, with_property, get_property
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,

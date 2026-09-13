@@ -20,7 +20,7 @@ import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_m
 import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
 import ..StyleModule: StyleText
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
 import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference

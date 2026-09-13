@@ -1,18 +1,10 @@
-"""
-    RecursiveProjectionModule
-
-A higher-order projection that passes itself as the recursion argument
-when calling its child. This lets node projections call back into the full
-pipeline for each child subtree without hard-coding any specific inner
-step, enabling self-referential tree traversal.
-"""
-module RecursiveProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
-       print_document_pure
-import ..IntentModule: Intent
-export RecursiveProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/Recursive.jl.
+#
+# A higher-order projection that passes itself as the recursion argument
+# when calling its child. This lets node projections call back into the full
+# pipeline for each child subtree without hard-coding any specific inner
+# step, enabling self-referential tree traversal.
 """
     RecursiveProjection(child)
 
@@ -64,5 +56,3 @@ end
 function map_reference_backward(::RecursiveProjection, iomap, reference)
     return nothing
 end
-
-end # module

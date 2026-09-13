@@ -35,7 +35,7 @@ const IntentModule = ProjecturedKernel.IntentModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 
 include("../../../source/pane/PaneDocument.jl")

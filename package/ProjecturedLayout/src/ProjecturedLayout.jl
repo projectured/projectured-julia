@@ -28,7 +28,7 @@ const EventPatternModule = ProjecturedKernel.EventPatternModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const OperationModule = ProjecturedKernel.OperationModule
 const FocusModule = ProjecturedFocus.FocusModule
-const TypeDispatchingProjectionModule = ProjecturedProjection.TypeDispatchingProjectionModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 

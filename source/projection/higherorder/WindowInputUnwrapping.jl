@@ -1,33 +1,23 @@
-"""
-    WindowInputUnwrappingProjectionModule
-
-A higher-order projection that strips the `WindowInput` off an input gesture
-before handing it to its inner projection's reader.
-
-The editor wraps every backend event in an `WindowInput` (window id + inner
-event) and threads it as the `Intent.gesture`. In the SDL pipeline the
-`ScreenToScreen` projection is the seam that unwraps `window_input.event` and re-roots
-the resulting operation under the window's `content`. A pipeline that has **no**
-screen/window layer — e.g. the `ConsoleBackend`'s `JsonToSyntax → SyntaxToText`
-chain, whose output is a bare `TextBlock` rooted at the domain document — still
-receives the wrapped window input from the editor but has nothing to unwrap it.
-
-`WindowInputUnwrappingProjection` is that missing seam in miniature: the printer is
-a transparent passthrough (its output is the inner projection's output, so the
-backend renders the `TextBlock` directly), and the reader replaces an
-`WindowInput` gesture with its inner `event` before delegating to the inner
-reader. No reference re-rooting is needed because there is no window/content
-nesting above the document.
-"""
-module WindowInputUnwrappingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..EventModule: WindowInput
-export WindowInputUnwrappingProjection, WindowInputUnwrappingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/WindowInputUnwrapping.jl.
+#
+# A higher-order projection that strips the `WindowInput` off an input gesture
+# before handing it to its inner projection's reader.
+#
+# The editor wraps every backend event in an `WindowInput` (window id + inner
+# event) and threads it as the `Intent.gesture`. In the SDL pipeline the
+# `ScreenToScreen` projection is the seam that unwraps `window_input.event` and re-roots
+# the resulting operation under the window's `content`. A pipeline that has **no**
+# screen/window layer — e.g. the `ConsoleBackend`'s `JsonToSyntax → SyntaxToText`
+# chain, whose output is a bare `TextBlock` rooted at the domain document — still
+# receives the wrapped window input from the editor but has nothing to unwrap it.
+#
+# `WindowInputUnwrappingProjection` is that missing seam in miniature: the printer is
+# a transparent passthrough (its output is the inner projection's output, so the
+# backend renders the `TextBlock` directly), and the reader replaces an
+# `WindowInput` gesture with its inner `event` before delegating to the inner
+# reader. No reference re-rooting is needed because there is no window/content
+# nesting above the document.
 # Transparent passthrough: `output` forwards the inner output through a cell so the
 # IoMap keeps its identity while `inner` re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WindowInputUnwrappingIoMap
@@ -73,5 +63,3 @@ map_reference_forward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwr
 
 map_reference_backward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
-
-end # module

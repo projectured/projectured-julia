@@ -361,7 +361,7 @@ function GraphToGraphics end
 # natural renderer as their recursion, so a vertex's content is whatever it is,
 # rendered the same way it would be anywhere else. That is what lets a diagram
 # node be a widget, or prose, or a table.
-import ..ChainingProjectionModule: ChainingProjection
+import ..ProjectionAlgebraModule: ChainingProjection
 import ..GraphModule: GraphGraph
 import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
 import ..NaturalModule: register_natural_graphics!

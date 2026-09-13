@@ -1,23 +1,20 @@
-"""
-    ReaderDefaultsModule
-
-Fragment of the projection layer's reader defaults — the Primitive-operation
-branches of `read_intent` that dispatch on the *IoMap*.
-
-The plain backward map of a `Replace…RangeOperation` is not here: it goes
-through the `operation_reference` / `retarget_operation` seam (see
-`primitive/Primitive.jl`), which the kernel's catch-all
-`read_intent(p, iomap, operation)` calls. A
-`read_intent(::Projection, iomap, ::Replace…RangeOperation)` method would be
-ambiguous with the catch-all reader that concrete projections define, because
-one is more specific in the projection and the other in the operation.
-
-What remains here needs a concrete IoMap type — the `ProjectionTemplate`
-`RuleIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
-needs over it.
-"""
-module ReaderDefaultsModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ReaderDefaults.jl.
+#
+# Fragment of the projection layer's reader defaults — the Primitive-operation
+# branches of `read_intent` that dispatch on the *IoMap*.
+#
+# The plain backward map of a `Replace…RangeOperation` is not here: it goes
+# through the `operation_reference` / `retarget_operation` seam (see
+# `primitive/Primitive.jl`), which the kernel's catch-all
+# `read_intent(p, iomap, operation)` calls. A
+# `read_intent(::Projection, iomap, ::Replace…RangeOperation)` method would be
+# ambiguous with the catch-all reader that concrete projections define, because
+# one is more specific in the projection and the other in the operation.
+#
+# What remains here needs a concrete IoMap type — the `ProjectionTemplate`
+# `RuleIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
+# needs over it.
 import ProjecturedKernel.ProjectionApiModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
@@ -25,8 +22,6 @@ import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
 import ProjecturedKernel.ProjectionReferenceStepModule: ProjectionReferenceStep
 import ProjecturedKernel.ReferenceModule: ConcreteReference
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..PrimitiveModule: ReplaceStringRangeOperation
 
 # Does the (input-domain) reference pass through any projection-introduced output?
 # A `ProjectionReferenceStep` step *anywhere* means that part of the path has no document
@@ -80,5 +75,3 @@ read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOpera
 # Disambiguation for RecursiveProjection over RuleIoMap.
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
-
-end # module

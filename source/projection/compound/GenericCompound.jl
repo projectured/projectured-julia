@@ -1,11 +1,5 @@
-module GenericCompoundModule
-
-import ..HigherOrderCompoundModule: ApplyAtProjection
-import ..SortingProjectionModule: SortingProjection
-import ..ReferenceModule: Reference
-
-export SortingAtProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from compound/GenericCompound.jl.
 """
     SortingAtProjection(reference, by)
 
@@ -14,5 +8,3 @@ Shorthand for `ApplyAtProjection(reference, SortingProjection(; by))`.
 """
 SortingAtProjection(reference::Reference, by) =
     ApplyAtProjection(reference, SortingProjection(; by))
-
-end

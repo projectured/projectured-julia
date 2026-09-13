@@ -42,7 +42,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
                           CompoundOperation
 import ..EventModule: KeyDown
 import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,

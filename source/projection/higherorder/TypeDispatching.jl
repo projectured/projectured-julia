@@ -1,19 +1,10 @@
-"""
-    TypeDispatchingProjectionModule
-
-A higher-order projection that selects an inner projection based on the
-runtime type of the input document. Enables polymorphic pipelines (e.g.
-handling both JSON and XML in one pass) without scattering type-case logic
-across individual projection methods.
-"""
-module TypeDispatchingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
-       print_document_pure
-import ..IntentModule: Intent
-import ..GestureBindingModule: GestureBinding
-export TypeDispatchingProjection
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/TypeDispatching.jl.
+#
+# A higher-order projection that selects an inner projection based on the
+# runtime type of the input document. Enables polymorphic pipelines (e.g.
+# handling both JSON and XML in one pass) without scattering type-case logic
+# across individual projection methods.
 """
     TypeDispatchingProjection(pairs...)
 
@@ -92,5 +83,3 @@ function map_reference_backward(::TypeDispatchingProjection, iomap, reference)
     # Mirror of map_reference_forward: delegate to the inner projection.
     map_reference_backward(iomap.projection, iomap, reference)
 end
-
-end # module

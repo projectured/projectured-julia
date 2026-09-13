@@ -8,8 +8,8 @@ import ProjecturedSql.SqlModule: SqlSelectStatement
 import ProjecturedSql.SqlModule: SqlToSyntax
 import ProjecturedSyntax.SyntaxModule: SyntaxToText
 import ProjecturedText.TextToStringModule: TextToString
-import ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
-import ProjecturedProjection.ChainingProjectionModule: ChainingProjection
+import ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
+import ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, execute_db_raw
 import ProjecturedKernel.IoMapModule: SimpleIoMap

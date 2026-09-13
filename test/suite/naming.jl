@@ -18,6 +18,17 @@
 # ============================================================================
 
 """
+A slice whose module does not take the slice's name, and why. The law derives
+the module from the slice, so an exception is written here with its cause
+rather than left to look like a violation nobody fixed.
+"""
+const _SLICE_MODULE_EXCEPTIONS = Dict(
+    # The kernel's projection layer already declares `ProjectionModule`, and the
+    # kernel does not change. The slice holds the domain-free projection
+    # algebra, so it says so. See `plan/pending/one-module-per-slice.md`.
+    "projection" => "ProjectionAlgebraModule")
+
+"""
     _slice_module(path) -> String
 
 The module a file's slice would declare. `source/json/JsonDocument.jl` gives
@@ -29,6 +40,7 @@ function _slice_module(root::AbstractString, path::AbstractString)
     length(parts) < 2 && return ""
     slice = parts[2]
     isempty(slice) && return ""
+    haskey(_SLICE_MODULE_EXCEPTIONS, slice) && return _SLICE_MODULE_EXCEPTIONS[slice]
     # The slice folder is lower case and the package carries the CamelCase, so
     # `filesystem` gives `FileSystem` and not `Filesystem`. Ask the package.
     packages = joinpath(root, "package")

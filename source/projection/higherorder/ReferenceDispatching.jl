@@ -1,21 +1,12 @@
-"""
-    ReferenceDispatchingProjectionModule
-
-A higher-order projection that selects an inner projection based on matching
-the current *reference path* argument against a list of known keys, with a
-mandatory default projection used when nothing matches. Each path is compared
-structurally (step values are read from their Cells). Complements
-PredicateDispatchingProjection for cases where the dispatch key is a concrete
-reference path.
-"""
-module ReferenceDispatchingProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from higherorder/ReferenceDispatching.jl.
+#
+# A higher-order projection that selects an inner projection based on matching
+# the current *reference path* argument against a list of known keys, with a
+# mandatory default projection used when nothing matches. Each path is compared
+# structurally (step values are read from their Cells). Complements
+# PredicateDispatchingProjection for cases where the dispatch key is a concrete
+# reference path.
 """
     ReferenceDispatchingProjection(default, pairs...)
     ReferenceDispatchingProjection(f::Function)
@@ -100,5 +91,3 @@ function map_reference_backward(::ReferenceDispatchingProjection, iomap::Referen
     proj = _dispatch_proj(iomap.projection, iomap.reference)
     return map_reference_backward(proj, iomap.inner_iomap, reference)
 end
-
-end # module

@@ -30,11 +30,11 @@ import ..StyleModule: StyleColor
 import ..StyleModule: font_logical_size
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionAlgebraModule: CopyingProjection
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
-import ..IdentityProjectionModule: IdentityProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: PredicateDispatchingProjection
+import ..ProjectionAlgebraModule: IdentityProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
 import ..OperationModule: ReplaceSelectionOperation
 import ..EventModule: MousePress

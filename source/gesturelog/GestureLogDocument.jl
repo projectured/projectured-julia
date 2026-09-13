@@ -55,8 +55,8 @@ import ..CellModule: Cell, ComputedCell
 import ..OperationModule: Operation
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
 import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ChainingProjectionModule: ChainingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
+import ..ProjectionAlgebraModule: ChainingProjection
+import ..ProjectionAlgebraModule: RecursiveProjection
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 import ..StyleModule: StyleColor
 import ..SyntaxModule: SyntaxToText

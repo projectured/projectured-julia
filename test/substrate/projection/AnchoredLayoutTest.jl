@@ -25,8 +25,8 @@ using ProjecturedKernel.ProjectionApiModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
 using ProjecturedKernel.ReferenceModule: var"@reference"
 using ProjecturedKernel.ReferenceModule: var"@reference_case"
-using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection
-using ProjecturedProjection.TypeDispatchingProjectionModule: TypeDispatchingProjection
+using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
 
 _al_measure(text, _font) = (length(text) * 10, 20)
 

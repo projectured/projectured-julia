@@ -114,9 +114,9 @@ import ..StyleModule: StyleColor, color_default, color_solarized_blue,
                       color_solarized_cyan
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TextModule: TextString
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..ChainingProjectionModule: ChainingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: RecursiveProjection
+import ..ProjectionAlgebraModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
                           PositionReferenceStep, EmptyReference
@@ -338,9 +338,9 @@ import ..StyleModule: StyleColor, color_default, color_solarized_blue,
                       color_solarized_cyan
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode
 import ..TextModule: TextString
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..RecursiveProjectionModule: RecursiveProjection
-import ..ChainingProjectionModule: ChainingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: RecursiveProjection
+import ..ProjectionAlgebraModule: ChainingProjection
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
                           PositionReferenceStep, EmptyReference

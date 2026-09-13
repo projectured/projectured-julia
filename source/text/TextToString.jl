@@ -14,7 +14,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent, map_refe
 import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
 import ..CellModule: Cell, ComputedCell
 import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionAlgebraModule: TypeDispatchingProjection
 import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, extend_reference
 import ..PrinterContextModule: make_child_context
 export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
