@@ -1,43 +1,25 @@
-"""
-    JuliaParserModule
-
-Parser for Julia source code. Converts Julia source text into a `JuliaDocument`
-tree from `JuliaModule`.
-
-Provides:
-- `parse_julia(text)` — parse a Julia string into a `JuliaDocument`
-- `parse_julia_file(path)` — read and parse a `.jl` file from disk
-
-The parser delegates lexing and grammar to Julia's own parser (`Meta.parseall`,
-backed by `JuliaSyntax`). A single recursive pass (`convert_expr`) walks the
-native `Expr`/literal tree and builds `JuliaDocument` nodes directly — there is
-no intermediate representation of our own.
-
-Some constructs the `Expr` AST collapses are mapped to a default:
-- `a ? b : c` parses identically to an `if`, so it becomes `JuliaIf` (never `JuliaTernary`).
-- `begin … end` parses to a block, so it becomes `JuliaBlock` (never `JuliaBegin`).
-
-Constructs with no node in the domain (short-circuit `&&`/`||`, `where`, keyword
-args, splats, broadcast, string interpolation) raise a
-clear error rather than being silently dropped.
-"""
-module JuliaParserModule
-
-import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
-    JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall,
-    JuliaMacroCall, JuliaConst, JuliaDocstring,
-    JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly,
-    JuliaAnonymousTypeAnnotation, JuliaEmpty,
-    JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
-    JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile,
-    JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction,
-    JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument,
-    JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
-    JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
-    JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration,
-    JuliaWhereParameters
-export parse_julia, parse_julia_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JuliaParser.jl.
+#
+# Parser for Julia source code. Converts Julia source text into a `JuliaDocument`
+# tree from `JuliaModule`.
+#
+# Provides:
+# - `parse_julia(text)` — parse a Julia string into a `JuliaDocument`
+# - `parse_julia_file(path)` — read and parse a `.jl` file from disk
+#
+# The parser delegates lexing and grammar to Julia's own parser (`Meta.parseall`,
+# backed by `JuliaSyntax`). A single recursive pass (`convert_expr`) walks the
+# native `Expr`/literal tree and builds `JuliaDocument` nodes directly — there is
+# no intermediate representation of our own.
+#
+# Some constructs the `Expr` AST collapses are mapped to a default:
+# - `a ? b : c` parses identically to an `if`, so it becomes `JuliaIf` (never `JuliaTernary`).
+# - `begin … end` parses to a block, so it becomes `JuliaBlock` (never `JuliaBegin`).
+#
+# Constructs with no node in the domain (short-circuit `&&`/`||`, `where`, keyword
+# args, splats, broadcast, string interpolation) raise a
+# clear error rather than being silently dropped.
 # ── Operator classification ───────────────────────────────────────────────────
 # Matches the operators the printer (`_julia_operator_string` / `JuliaToSyntax`)
 # knows how to render. Anything outside these sets falls through to `JuliaCall`,
@@ -604,5 +586,3 @@ function _convert_head(::Val{:function}, x::Expr)
                                             JuliaWhereParameters(type_parameters)
     return JuliaFunction(name, params, body, result_type, where_clause)
 end
-
-end # module

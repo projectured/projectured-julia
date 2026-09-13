@@ -40,9 +40,5 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
 end
 
 include("../../../source/julia/JuliaDocument.jl")
-include("../../../source/julia/JuliaParser.jl")
-include("../../../source/julia/JuliaInsertionToSyntax.jl")
-include("../../../source/julia/JuliaFile.jl")
-include("../../../source/julia/JuliaToSyntax.jl")
 
 end # module ProjecturedJulia

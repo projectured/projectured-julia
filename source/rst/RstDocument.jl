@@ -32,6 +32,90 @@ import ..DocumentModule: @document, @forward_vector_protocol
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 export RstDocument, set_cell_function!
+import ..CellModule: Cell
+import ..CollectionModule: CellVector
+export parse_rst, parse_rst_file
+import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward
+import ..ProjectionApiModule
+import ..ProjectionModule: var"@projection"
+import ..TextModule: TextString, make_hinted_text, TextGraphics
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
+                     font_dejavu_monospace_regular_20, font_ubuntu_regular_20,
+                     font_ubuntu_bold_20, font_ubuntu_italic_20, font_ubuntu_bold_36,
+                     font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18
+import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
+                      color_solarized_magenta, color_solarized_cyan,
+                      color_solarized_gray, color_solarized_violet,
+                      color_solarized_yellow, color_solarized_orange
+import ..StyleModule: StyleText
+import ..StyleModule: ImageFile
+import ..BackendModule: decode_image
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..PrinterContextModule: make_child_context
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
+                          EmptyReference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
+                       SyntaxDelimitation
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
+                            get_filename
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
+import ..ProjectionTemplateModule: rule_print, template_read_intent
+import ..PrinterContextModule: with_property, get_property
+import ..IntentModule: Intent
+export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
+       RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,
+       RstReferenceToSyntaxNode, RstSubstitutionReferenceToSyntaxLeaf,
+       RstFootnoteReferenceToSyntaxLeaf, RstParagraphToSyntaxNode,
+       RstLiteralBlockToSyntaxLeaf, RstLineBlockToSyntaxNode, RstListItemToSyntaxNode,
+       RstBulletListToSyntaxNode, RstEnumeratedListToSyntaxNode,
+       RstDefinitionItemToSyntaxNode, RstDefinitionListToSyntaxNode,
+       RstFieldToSyntaxNode, RstFieldListToSyntaxNode, RstBlockQuoteToSyntaxNode,
+       RstTransitionToSyntaxLeaf, RstCommentToSyntaxLeaf, RstTargetToSyntaxLeaf,
+       RstSubstitutionDefinitionToSyntaxNode, RstFootnoteToSyntaxNode,
+       RstTableCellToSyntaxNode, RstTableRowToSyntaxNode, RstGridTableToSyntaxNode,
+       RstDirectiveOptionToSyntaxNode, RstLiteralIncludeToSyntaxNode,
+       RstFigureToSyntaxNode, RstCodeBlockToSyntaxNode, RstImageToSyntaxNode,
+       RstVideoToSyntaxNode, RstAudioToSyntaxNode, RstAdmonitionToSyntaxNode,
+       RstToctreeToSyntaxNode, RstMathBlockToSyntaxLeaf, RstRawBlockToSyntaxLeaf,
+       RstRoleDefinitionToSyntaxNode, RstDirectiveToSyntaxNode, RstSectionToSyntaxNode,
+       RstRootToSyntaxNode, RstStyledTextToSyntaxLeaf, RstStyledInline,
+       RstStrongToStyledNode, RstEmphasisToStyledNode, RstRoleToStyledLeaf,
+       RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
+       RstLiteralIncludeToStyledLeaf, RstEnumeratedListToStyledNode,
+       RstToSyntax
+import ..NaturalModule: register_natural_syntax!
+import ..CellModule: Cell, AbstractCell
+import ..DocumentModule: @document
+import ..NaturalModule: register_natural_domain!, print_natural_text
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
+                            LoaderContext, register_file_document_type!,
+                            get_document_section, parse_marker_text, ReferenceStub
+export RstFile, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
+import ..CellModule: Cell, ComputedCell
+import ..LayoutModule: VerticalLayout
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
+                              read_intent, Projection
+import ..IoMapModule: SimpleIoMap
+import ..TextModule: TextBlock, TextString
+import ..WidgetModule: InvokeActionOperation
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReference, is_element_reference_step
+export RstRootToVerticalLayout, RstSectionToVerticalLayout
+import ..ChainingProjectionModule: ChainingProjection
+import ..LayoutModule: VerticalLayoutToGraphicsCanvas
+import ..NaturalModule: register_natural_graphics!
+export RstRoot, RstSection, RstParagraph, RstText, RstLiteral, RstEmphasis, RstStrong, RstRole, RstReference, RstSubstitutionReference, RstFootnoteReference, RstLiteralBlock, RstLineBlock, RstListItem, RstBulletList, RstEnumeratedList, RstDefinitionItem, RstDefinitionList, RstField, RstFieldList, RstBlockQuote, RstTransition, RstComment, RstTarget, RstSubstitutionDefinition, RstFootnote, RstTableCell, RstTableRow, RstGridTable, RstDirectiveOption, RstLiteralInclude, RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstInsertion
+
+
 
 abstract type RstDocument <: Document end
 
@@ -566,5 +650,36 @@ end
 # `RstFigure.path`, `RstLiteralInclude.path` and its slice bounds, and
 # `RstDirective.name`/`argument` — is a plain string, handled by the generic
 # splice.
+
+
+include("RstParser.jl")
+include("RstToSyntax.jl")
+include("RstFile.jl")
+include("RstToLayout.jl")
+
+
+# What this slice registers when it loads: the file extensions it owns, and
+# the natural notation it reads and writes.
+function __init__()
+    register_natural_syntax!(:rst, () -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
+
+    register_file_document_type!(".rst", RstFile)
+    # What this domain's natural notation is: the syntax rung, the format, and
+    # how to read it back. The `:graphics` rung — a page of blocks — is
+    # the call below it.
+    register_natural_domain!(RstDocument;
+                             rung      = :syntax,
+                             make      = () -> RstToSyntax(),
+                             format    = :rst,
+                             extension = ".rst",
+                             parse     = parse_rst)
+
+    register_natural_graphics!(:rst_page, (; measure) -> Pair{Type,Any}[
+        RstRoot    => ChainingProjection(RstRootToVerticalLayout(),
+                                         VerticalLayoutToGraphicsCanvas()),
+        RstSection => ChainingProjection(RstSectionToVerticalLayout(),
+                                         VerticalLayoutToGraphicsCanvas()),
+    ])
+end
 
 end # module

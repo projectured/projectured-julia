@@ -35,9 +35,5 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
 end
 
 include("../../../source/chart/ChartSampleReferenceStep.jl")
-include("../../../source/chart/ChartDocument.jl")
-include("../../../source/chart/ChartPlot.jl")
-include("../../../source/chart/ChartToChartPlot.jl")
-include("../../../source/chart/ChartPlotToGraphics.jl")
 
 end # module ProjecturedChart

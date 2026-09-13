@@ -10,6 +10,40 @@ The domain includes:
 """
 module JsonModule
 
+export entries
+export parse_json, parse_json_file
+import ..CellModule: Cell, ComputedCell
+import ..ProjectionApiModule: print_document, Projection
+import ..ProjectionModule: var"@projection"
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..TextModule: TextString, make_hinted_text
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
+import ..StyleModule: StyleText
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
+import ..PrimitiveModule: ReplaceNumberRangeOperation
+export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
+       JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
+       JsonObjectEntryToSyntaxNode,
+       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf,
+       JsonToSyntax
+import ..FileFormatModule: make_document_seed
+import ..NaturalModule: register_natural_domain!
+import ..DocumentModule: @document
+import ..ReferenceModule: Reference, ConcreteReference
+import ..CollectionModule: CellVector, ComputedCellVector
+import ..NaturalModule: print_natural_text
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
+                            parse_marker_text, ReferenceStub, LoaderContext,
+                            register_file_document_type!
+export JsonFile
+export JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonNothing, JsonInsertion, JsonObjectEntry
+
+
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -20,7 +54,6 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-export entries
 
 @domain Json
 
@@ -131,6 +164,25 @@ _json_entry_sort_key(entry) = entry isa JsonObjectEntry ? (0, entry.key) : (1, "
     nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
     nothing       => "Sort the entries by key" =>
         ReplaceReferencedValueOperation(doc, "entries", sort(doc.entries; by = _json_entry_sort_key))
+end
+
+
+include("JsonParser.jl")
+include("JsonToSyntax.jl")
+include("JsonFile.jl")
+
+
+# What this slice registers when it loads: the file extensions it owns, and
+# the natural notation it reads and writes.
+function __init__()
+    register_natural_domain!(JsonDocument;
+                             rung      = :syntax,
+                             make      = () -> JsonToSyntax(),
+                             format    = :json,
+                             extension = ".json",
+                             parse     = parse_json)
+
+    register_file_document_type!(".json", JsonFile)
 end
 
 end # module

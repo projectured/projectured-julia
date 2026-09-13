@@ -1,53 +1,29 @@
-"""
-    JuliaFileModule
-
-`JuliaFile`: a `FileDocument` whose `content` is a `JuliaDocument`
-(the projectured Julia AST from `JuliaModule`). Parse uses the
-existing `parse_julia`; emit runs the standard `JuliaToSyntax →
-SyntaxToText → TextToString` projection chain via `print_natural_text`.
-
-**Marker syntax in Julia source.** A cross-file reference reads as a
-call to a specially-named function:
-
-    pred_ref("<<file(\\"child.jl\\")>>")
-
-The projectured Julia parser doesn't handle macro syntax (`@ref …`)
-but does handle a plain call, so we use a call to an ordinary
-identifier `pred_ref` whose single argument is the full marker text
-string (`<<file(\"path\")>>`). Load walks the AST for
-`JuliaCall(JuliaIdentifier("pred_ref"), [JuliaString])` and rewrites
-each such call slot with a `ReferenceStub`. Emit is symmetric via
-the projection extension (see `JuliaToSyntax.jl`), so no pre-save
-AST mutation is required.
-
-**The `definition` marker function.** This module also registers the
-Julia domain's entry in the marker vocabulary:
-`definition(document, "name")` returns the one top-level definition of
-that name — see [`find_julia_definition`](@ref).
-"""
-module JuliaFileModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
-                      JuliaString, JuliaBlock, JuliaArray, JuliaTuple, JuliaBinaryOperation,
-                      JuliaUnaryOperation, JuliaIndex, JuliaFieldAccess, JuliaRange,
-                      JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator,
-                      JuliaWhile, JuliaReturn, JuliaTry, JuliaBegin, JuliaIf,
-                      JuliaFunction, JuliaLambda, JuliaTernary, JuliaConst,
-                      JuliaDocstring, JuliaMacroCall, JuliaStruct, JuliaAbstractType,
-                      JuliaSubtype, JuliaCurly
-import ..JuliaParserModule: parse_julia
-import ..NaturalModule: print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!, register_marker_function!,
-                            is_file_document
-
-export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JuliaFile.jl.
+#
+# `JuliaFile`: a `FileDocument` whose `content` is a `JuliaDocument`
+# (the projectured Julia AST from `JuliaModule`). Parse uses the
+# existing `parse_julia`; emit runs the standard `JuliaToSyntax →
+# SyntaxToText → TextToString` projection chain via `print_natural_text`.
+#
+# **Marker syntax in Julia source.** A cross-file reference reads as a
+# call to a specially-named function:
+#
+#     pred_ref("<<file(\\"child.jl\\")>>")
+#
+# The projectured Julia parser doesn't handle macro syntax (`@ref …`)
+# but does handle a plain call, so we use a call to an ordinary
+# identifier `pred_ref` whose single argument is the full marker text
+# string (`<<file(\"path\")>>`). Load walks the AST for
+# `JuliaCall(JuliaIdentifier("pred_ref"), [JuliaString])` and rewrites
+# each such call slot with a `ReferenceStub`. Emit is symmetric via
+# the projection extension (see `JuliaToSyntax.jl`), so no pre-save
+# AST mutation is required.
+#
+# **The `definition` marker function.** This module also registers the
+# Julia domain's entry in the marker vocabulary:
+# `definition(document, "name")` returns the one top-level definition of
+# that name — see [`find_julia_definition`](@ref).
 """
 The identifier used to encode a cross-file marker as a Julia call
 expression: `pred_ref("<<file(\\"path\\")>>")`.
@@ -234,11 +210,3 @@ _julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
 _julia_definition_names(doc) =
     String[n for n in (get_julia_definition_name(s) for s in _julia_toplevel_statements(doc))
              if n !== nothing]
-
-function __init__()
-    register_file_document_type!(".jl", JuliaFile)
-    register_marker_function!(:definition,
-                              (ctx, document, name) -> find_julia_definition(document, name))
-end
-
-end # module

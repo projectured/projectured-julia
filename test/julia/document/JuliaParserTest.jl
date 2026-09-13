@@ -10,7 +10,7 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaParserModule: parse_julia
+using ProjecturedJulia.JuliaModule: parse_julia
 using ProjecturedNatural.NaturalModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered

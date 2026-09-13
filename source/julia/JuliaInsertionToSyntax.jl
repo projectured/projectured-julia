@@ -1,57 +1,25 @@
-"""
-    JuliaInsertionToSyntaxModule
-
-The Julia domain's own insertion hole: the keyword scaffolds, the completion
-that drives their pale-green hint, and `JuliaInsertionToSyntaxLeaf`.
-
-`JuliaInsertion` is a text-buffer hole. Its editing, its commit and its
-navigation are reified as a document-level `@gestures JuliaInsertion` table, the
-way `@gestures PrimitiveString` reifies string char-editing. The projection is
-therefore **printer-only**: it renders the buffer plus a pale-green completion
-continuation, maps the `value{k}` char cursor, and carries no key-capturing
-reader, so raw input falls through to the gesture table — the single source of
-truth.
-
-Keyword-introduced constructs (`function`, `if`, …) do not parse as complete
-source on their own. Type one and commit it, and it expands into a **scaffold of
-holes** (nested `JuliaInsertion`s) with the first hole's char-cursor
-pre-selected. Everything else commits through `parse_julia`.
-
-The generic half of the mechanism — the shared insertion leaf, the completion
-policies and the `*Nothing` placeholder — lives in
-[`DocumentInsertionToSyntaxModule`](@ref), which knows no domain.
-"""
-module JuliaInsertionToSyntaxModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SelectionModule: with_selection
-import ..DomainModule: var"@insertion"
-import ..DocumentInsertionToSyntaxModule: insert_insertion_text_operation, delete_insertion_text_operation
-import ..JuliaModule: JuliaInsertion,
-                      JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
-                      JuliaBegin, JuliaReturn, JuliaBlock
-import ..JuliaParserModule: parse_julia
-import ..EventModule: KeyPress, KeyDown
-import ..GestureBindingModule: var"@gestures"
-import ..SyntaxModule: SyntaxLeaf
-import ..TextModule: TextString
-import ..StyleModule: StyleText
-import ..StyleModule: font_ubuntu_monospace_regular_20
-import ..StyleModule: color_solarized_green, color_solarized_red,
-                      color_completion_hint, color_default
-import ..OperationModule: replace_document, ReplaceSelectionOperation,
-                          SelectNextInsertionOperation, CompoundOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference, Position
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..ProjectionReferenceStepModule: make_introduced_reference
-import ..IoMapModule: SimpleIoMap
-import ..CellModule: Cell, ComputedCell
-
-export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JuliaInsertionToSyntax.jl.
+#
+# The Julia domain's own insertion hole: the keyword scaffolds, the completion
+# that drives their pale-green hint, and `JuliaInsertionToSyntaxLeaf`.
+#
+# `JuliaInsertion` is a text-buffer hole. Its editing, its commit and its
+# navigation are reified as a document-level `@gestures JuliaInsertion` table, the
+# way `@gestures PrimitiveString` reifies string char-editing. The projection is
+# therefore **printer-only**: it renders the buffer plus a pale-green completion
+# continuation, maps the `value{k}` char cursor, and carries no key-capturing
+# reader, so raw input falls through to the gesture table — the single source of
+# truth.
+#
+# Keyword-introduced constructs (`function`, `if`, …) do not parse as complete
+# source on their own. Type one and commit it, and it expands into a **scaffold of
+# holes** (nested `JuliaInsertion`s) with the first hole's char-cursor
+# pre-selected. Everything else commits through `parse_julia`.
+#
+# The generic half of the mechanism — the shared insertion leaf, the completion
+# policies and the `*Nothing` placeholder — lives in
+# [`DocumentInsertionToSyntaxModule`](@ref), which knows no domain.
 # ── Julia keyword scaffolds + completion ───────────────────────────────────────
 #
 # A partially-typed prefix of a keyword shows a pale-green completion
@@ -239,5 +207,3 @@ end
     KeyDown(:return;)    => "Commit hole"       => _julia_ins_commit(doc)
     KeyDown(:tab;)       => "Commit + next hole" => _julia_ins_tab(doc)
 end
-
-end # module

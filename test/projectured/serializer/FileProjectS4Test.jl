@@ -10,7 +10,7 @@ terminates.
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedJson.JsonFileModule
+using ProjecturedJson.JsonModule
 using ProjecturedJson.JsonModule
 
 _stub_at(obj::JsonObject, key::AbstractString) = begin

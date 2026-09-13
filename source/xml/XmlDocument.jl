@@ -11,6 +11,42 @@ The domain includes:
 """
 module XmlModule
 
+export parse_xml, parse_xml_file
+import ..CellModule: Cell, ComputedCell
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..ReferenceModule: ConcreteReference, PositionReferenceStep
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
+import ..OperationModule: ReplaceSelectionOperation
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..TextModule: TextString
+import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: color_black, color_default, color_solarized_blue, color_solarized_green,
+                      color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleModule: StyleText
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
+       XmlElementToSyntaxNode,
+       ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
+       XmlToSyntax
+import ..FileFormatModule: make_document_seed
+import ..NaturalModule: register_natural_domain!
+import ..CellModule: Cell, ComputedCell, AbstractCell
+import ..DocumentModule: @document
+import ..ReferenceModule: Reference
+import ..CollectionModule: CellVector, ComputedCellVector
+import ..NaturalModule: print_natural_text
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
+                            parse_marker_text, ReferenceStub, LoaderContext,
+                            register_file_document_type!
+export XmlFile, PRED_REF_ELEMENT_TAG
+export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
+
+
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -134,6 +170,25 @@ _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette.
     nothing                 => "Move to attribute name"  => move_to_field(doc, :value, :name)
+end
+
+
+include("XmlParser.jl")
+include("XmlToSyntax.jl")
+include("XmlFile.jl")
+
+
+# What this slice registers when it loads: the file extensions it owns, and
+# the natural notation it reads and writes.
+function __init__()
+    register_natural_domain!(XmlDocument;
+                             rung      = :syntax,
+                             make      = () -> XmlToSyntax(),
+                             format    = :xml,
+                             extension = ".xml",
+                             parse     = parse_xml)
+
+    register_file_document_type!(".xml", XmlFile)
 end
 
 end # module

@@ -11,9 +11,9 @@ an embed below the first title only reaches the widget renderer because
 using Test
 using ProjecturedKernel.CellModule: Cell, AbstractCell
 using ProjecturedSerialization.SerializationModule
-using ProjecturedRst.RstFileModule
+using ProjecturedRst.RstModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
-using ProjecturedRst.RstParserModule: parse_rst
+using ProjecturedRst.RstModule: parse_rst
 using ProjecturedNatural.NaturalModule: print_natural_text
 using ProjecturedNatural.NaturalModule: NaturalToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas

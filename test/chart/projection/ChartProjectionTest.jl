@@ -57,7 +57,7 @@ _chart_iomap(chart; kw...) = (p = _chart_projection(; kw...);
 _chart_layout(chart; kw...) = _chart_iomap(chart; kw...).step_iomaps[2][].geometry
 
 # The decimated pixel points of one series, as the renderer computes them.
-_line_points_of(g, index) = ChartPlotToGraphicsModule._series_points(g, index, g.chart.series[index])
+_line_points_of(g, index) = ChartModule._series_points(g, index, g.chart.series[index])
 
 # A canvas point on the first series' geometry but more than a marker's reach
 # from any of its samples, so a click there means "the series", not "a point".
@@ -65,8 +65,8 @@ function _series_hit_away_from_samples(g, pts)
     for k in 2:length(pts)
         x0, y0 = pts[k-1]; x1, y1 = pts[k]
         mx, my = (x0 + x1) ÷ 2, (y0 + y1) ÷ 2
-        ChartPlotToGraphicsModule._sample_hit(g, mx + g.plot_x, my + g.plot_y) === nothing &&
-            ChartPlotToGraphicsModule._series_hit(g, mx + g.plot_x, my + g.plot_y) !== nothing &&
+        ChartModule._sample_hit(g, mx + g.plot_x, my + g.plot_y) === nothing &&
+            ChartModule._series_hit(g, mx + g.plot_x, my + g.plot_y) !== nothing &&
             return (mx + g.plot_x, my + g.plot_y)
     end
     nothing
@@ -484,7 +484,7 @@ function test_chart_projection()
             @test g.strip_rows == Dict(1 => 3, 2 => 2, 3 => 1)
             view = resolve_view(ChartPlot(three))
             @test view.y_min < 0.6 && view.y_max > 3.4
-            bands = [ChartPlotToGraphicsModule._strip_band(g, i) for i in 1:3]
+            bands = [ChartModule._strip_band(g, i) for i in 1:3]
             @test issorted([b[1] for b in bands])          # series 1 highest on screen
             @test all(k -> bands[k][2] < bands[k+1][1], 1:2)   # and they do not overlap
 
@@ -518,8 +518,8 @@ function test_chart_projection()
             codes = [1, 1, 2, 2, 2, 3, 1, 2, 3, 3, 1]
             chart = Chart("m", [ChartStripSeries("a", t, codes; states=states)])
             g = _chart_layout(chart)
-            at(v) = round(Int, ChartPlotToGraphicsModule.to_pixel(g.xs, v))
-            band = ChartPlotToGraphicsModule._strip_band(g, 1)
+            at(v) = round(Int, ChartModule.to_pixel(g.xs, v))
+            band = ChartModule._strip_band(g, 1)
             row = (band[1] + band[2]) ÷ 2
 
             # A sample evaluates to its extent in the data and its state's name.
@@ -530,13 +530,13 @@ function test_chart_projection()
             @test get_chart_sample(chart.series[1], 11) == (10.0, 10.0, "IDLE")
 
             # A click picks the segment holding at that time, by raw index.
-            @test ChartPlotToGraphicsModule._sample_hit(g, at(2.5), row) == (1, 3)
-            @test ChartPlotToGraphicsModule._sample_hit(g, at(0.5), row) == (1, 1)
+            @test ChartModule._sample_hit(g, at(2.5), row) == (1, 3)
+            @test ChartModule._sample_hit(g, at(0.5), row) == (1, 1)
             # Drawn past the last sample, so clickable there too.
-            @test ChartPlotToGraphicsModule._sample_hit(g, at(10.1), row) == (1, 11)
+            @test ChartModule._sample_hit(g, at(10.1), row) == (1, 11)
             # Before the first sample nothing is drawn: that means the series.
-            @test ChartPlotToGraphicsModule._sample_hit(g, at(-0.2), row) === nothing
-            @test ChartPlotToGraphicsModule._series_hit(g, at(-0.2), row) == 1
+            @test ChartModule._sample_hit(g, at(-0.2), row) === nothing
+            @test ChartModule._series_hit(g, at(-0.2), row) == 1
 
             # An explicit end closes the strip early, and the empty band past it
             # means the series rather than its last sample.
@@ -544,22 +544,22 @@ function test_chart_projection()
                                                 [mod1(i, 3) for i in 1:21]; states=states),
                                ChartStripSeries("short", t, codes; states=states, x_end=10.0)])
             gp = _chart_layout(pair)
-            bandp = ChartPlotToGraphicsModule._strip_band(gp, 2)
+            bandp = ChartModule._strip_band(gp, 2)
             rowp = (bandp[1] + bandp[2]) ÷ 2
-            atp(v) = round(Int, ChartPlotToGraphicsModule.to_pixel(gp.xs, v))
-            @test ChartPlotToGraphicsModule._sample_hit(gp, atp(15.0), rowp) === nothing
-            @test ChartPlotToGraphicsModule._series_hit(gp, atp(15.0), rowp) == 2
-            @test ChartPlotToGraphicsModule._sample_hit(gp, atp(9.5), rowp) == (2, 10)
+            atp(v) = round(Int, ChartModule.to_pixel(gp.xs, v))
+            @test ChartModule._sample_hit(gp, atp(15.0), rowp) === nothing
+            @test ChartModule._series_hit(gp, atp(15.0), rowp) == 2
+            @test ChartModule._sample_hit(gp, atp(9.5), rowp) == (2, 10)
 
             # A click round-trips through both stages to a chart-rooted sample
             # reference: stage 1 peels its own step off on the way back.
             proj = _chart_projection()
             iomap = print_document(proj, proj, chart, PrinterContext())
             gg = iomap.step_iomaps[2][].geometry
-            band2 = ChartPlotToGraphicsModule._strip_band(gg, 1)
+            band2 = ChartModule._strip_band(gg, 1)
             op = read_intent(proj, iomap,
                              MousePress(:left,
-                                        round(Int, ChartPlotToGraphicsModule.to_pixel(gg.xs, 2.5)),
+                                        round(Int, ChartModule.to_pixel(gg.xs, 2.5)),
                                         (band2[1] + band2[2]) ÷ 2))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
@@ -586,14 +586,14 @@ function test_chart_projection()
                                 ChartStripSeries("a", t, codes; states=states)])
             gm = _chart_layout(mixed)
             pts = _line_points_of(gm, 1)
-            @test ChartPlotToGraphicsModule._sample_hit(gm, pts[5][1] + gm.plot_x,
+            @test ChartModule._sample_hit(gm, pts[5][1] + gm.plot_x,
                                                         pts[5][2] + gm.plot_y)[1] == 1
 
             # The readout names the state under the pointer instead of reading
             # the row number back as a value.
-            @test occursin("BUSY", ChartPlotToGraphicsModule._strip_readout(g, 2.5, row))
-            @test occursin("a", ChartPlotToGraphicsModule._strip_readout(g, 2.5, row))
-            @test ChartPlotToGraphicsModule._strip_readout(g, 2.5, g.plot_y + 1) === nothing
+            @test occursin("BUSY", ChartModule._strip_readout(g, 2.5, row))
+            @test occursin("a", ChartModule._strip_readout(g, 2.5, row))
+            @test ChartModule._strip_readout(g, 2.5, g.plot_y + 1) === nothing
         end
 
         @testset "strip legend" begin
@@ -609,7 +609,7 @@ function test_chart_projection()
             # colours and any one of them would misname the rest.
             own = filter(it -> it[1] != 0, items)
             @test [it[2] for it in own] == ["a", "b", "c"]
-            @test all(it -> it[3] == ChartPlotToGraphicsModule._STRIP_SWATCH, own)
+            @test all(it -> it[3] == ChartModule._STRIP_SWATCH, own)
             # ...and specifically not the colour the series cycle would give it.
             @test own[1][3] != get_series_color(nothing, 1, ChartStyle().color_cycle)
 
@@ -640,7 +640,7 @@ function test_chart_projection()
             bare = Chart("m", [ChartStripSeries("a", t, codes)])
             bare_items = _chart_layout(bare).legend.items
             @test length(bare_items) == 1
-            @test bare_items[1][3] == ChartPlotToGraphicsModule._STRIP_SWATCH
+            @test bare_items[1][3] == ChartModule._STRIP_SWATCH
 
             # A state entry names no series, so it neither toggles nor hovers —
             # a click on one means the legend, the way empty space in the box
@@ -1269,9 +1269,9 @@ function test_chart_scale()
             # every pointer move.
             g = _chart_layout(chart)
             @test haskey(g.strip_spans, 1)
-            @test ChartPlotToGraphicsModule._strip_spans(g, 1) === g.strip_spans[1]
+            @test ChartModule._strip_spans(g, 1) === g.strip_spans[1]
             # A series with no row contributes none, and asking is not an error.
-            @test ChartPlotToGraphicsModule._strip_spans(g, 99) == Tuple{Int,Int,Int}[]
+            @test ChartModule._strip_spans(g, 99) == Tuple{Int,Int,Int}[]
 
             # Zoomed in far enough that every segment is a pixel or more, each
             # one draws exactly — the fold is only what sub-pixel spans need.

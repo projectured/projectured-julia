@@ -90,8 +90,9 @@ meets a hard case.
      `PrimitiveModule` was already right, so its 49 references never moved.
 2. **The 15 slices with 1 to 3 internal edges. DONE 2026-09-13.** Forty-eight
    modules became fifteen.
-3. **The 16 slices with 4 to 9.** `style`, `workbench`, `conversation`, `screen`
-   and `sql` are **DONE 2026-09-13**: twenty-six modules became five.
+3. **The 16 slices with 4 to 9.** Ten are **DONE 2026-09-13**: `style`,
+   `workbench`, `conversation`, `screen`, `sql`, `json`, `xml`, `chart`,
+   `julia` and `rst`. Forty-four modules became ten.
 
    What these five taught:
 
@@ -108,6 +109,17 @@ meets a hard case.
    - **A fold leaves a duplicate `using`.** Three `using .XModule` lines that
      named three modules of one slice became three identical lines in
      `ProjecturedAssistant`.
+   - **An import can continue onto a second line, and two imports can share
+     one.** The first tool merged the headers line by line and dropped a
+     repeated continuation, which left `import ..ReferenceModule:` with no
+     names and `chart` unable to parse. The tool now merges whole statements.
+   - **A `__init__` per file is the common case, not the exception.** Four of
+     the five domain slices registered a file extension in one file and a
+     natural notation in another. Julia refuses the second definition, so each
+     slice now has one `__init__` at the end of its module file.
+   - **An include line can carry a trailing comment.** `ProjecturedJson` still
+     included `JsonFile.jl` at package level, where `@document` is not bound,
+     because the tool matched the call and not the line.
 4. **The 11 slices with 10 or more.** Read each one before collapsing it. Two
    of them should not be collapsed at all — see §4.2.
 5. **The kernel does not change at all.** Its 31 modules across 17 layers stay

@@ -1,29 +1,20 @@
-"""
-    ChartPlotModule
-
-The chart's presentation document: a `Chart` plus everything about *looking at*
-it — the zoom window, the pointer position, what is hovered, an in-progress
-drag.
-
-None of that is chart content. A saved chart should not remember where someone
-had scrolled to, and the same chart shown in two panes should be able to be
-zoomed differently in each. So the interaction state lives here, on a document
-the projection produces, and is excluded from serialization by construction —
-the same split `GraphLayout` makes against `GraphGraph`, and the reason
-`SyntaxNode.collapsed` sits on the projected syntax tree rather than on the JSON
-being projected.
-
-`ChartToChartPlot` builds one of these and keeps its identity across reprints,
-so the view survives a data change.
-"""
-module ChartPlotModule
-
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..ChartModule: ChartDocument
-
-export ChartView, get_chart_view, is_point_in_chart_view
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ChartPlot.jl.
+#
+# The chart's presentation document: a `Chart` plus everything about *looking at*
+# it — the zoom window, the pointer position, what is hovered, an in-progress
+# drag.
+#
+# None of that is chart content. A saved chart should not remember where someone
+# had scrolled to, and the same chart shown in two panes should be able to be
+# zoomed differently in each. So the interaction state lives here, on a document
+# the projection produces, and is excluded from serialization by construction —
+# the same split `GraphLayout` makes against `GraphGraph`, and the reason
+# `SyntaxNode.collapsed` sits on the projected syntax tree rather than on the JSON
+# being projected.
+#
+# `ChartToChartPlot` builds one of these and keeps its identity across reprints,
+# so the view survives a data change.
 """
     ChartView(x_min, x_max, y_min, y_max)
 
@@ -82,5 +73,3 @@ The plot's window, or `nothing` when it is auto-fitting. A convenience so
 readers do not reach through the cell by hand.
 """
 get_chart_view(plot::ChartPlot) = plot.view
-
-end # module

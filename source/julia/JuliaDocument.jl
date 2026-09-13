@@ -7,11 +7,84 @@ The Julia document domain — a Julia AST as reactive `Document`s. Leaves
 """
 module JuliaModule
 
+export _julia_operator_string
+export parse_julia, parse_julia_file
+import ..ProjectionApiModule: print_document, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..SelectionModule: with_selection
+import ..DomainModule: var"@insertion"
+import ..DocumentInsertionToSyntaxModule: insert_insertion_text_operation, delete_insertion_text_operation
+import ..EventModule: KeyPress, KeyDown
+import ..GestureBindingModule: var"@gestures"
+import ..SyntaxModule: SyntaxLeaf
+import ..TextModule: TextString
+import ..StyleModule: StyleText
+import ..StyleModule: font_ubuntu_monospace_regular_20
+import ..StyleModule: color_solarized_green, color_solarized_red,
+                      color_completion_hint, color_default
+import ..OperationModule: replace_document, ReplaceSelectionOperation,
+                          SelectNextInsertionOperation, CompoundOperation
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference, Position
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..ProjectionReferenceStepModule: make_introduced_reference
+import ..IoMapModule: SimpleIoMap
+import ..CellModule: Cell, ComputedCell
+export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
+import ..DocumentModule: @document
+import ..ReferenceModule: Reference
+import ..CollectionModule: CellVector, ComputedCellVector
+import ..NaturalModule: print_natural_text
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
+                            parse_marker_text, ReferenceStub, LoaderContext,
+                            register_file_document_type!, register_marker_function!,
+                            is_file_document
+export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
+import ..ProjectionApiModule: print_document, Projection
+import ..TextModule: TextString, make_hinted_text
+import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
+                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
+                      color_solarized_violet
+import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
+       JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
+       JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
+       JuliaBinaryOperationToSyntaxNode, JuliaUnaryOperationToSyntaxNode, JuliaCallToSyntaxNode,
+       JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode, JuliaDocstringToSyntaxNode,
+       JuliaAbstractTypeToSyntaxNode, JuliaStructToSyntaxNode,
+       JuliaSubtypeToSyntaxNode, JuliaCurlyToSyntaxNode,
+       JuliaAnonymousTypeAnnotationToSyntaxNode, JuliaEmptyToSyntaxLeaf,
+       JuliaTernaryToSyntaxNode, JuliaIndexToSyntaxNode, JuliaFieldAccessToSyntaxNode,
+       JuliaTupleToSyntaxNode, JuliaArrayToSyntaxNode, JuliaRangeToSyntaxNode,
+       JuliaTypeAnnotationToSyntaxNode,
+       JuliaAssignmentToSyntaxNode, JuliaForToSyntaxNode, JuliaForIteratorToSyntaxNode,
+       JuliaWhileToSyntaxNode, JuliaReturnToSyntaxNode,
+       JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
+       JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
+       JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
+       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefinitionToSyntaxNode,
+       JuliaSplatToSyntaxNode, JuliaBroadcastToSyntaxNode,
+       JuliaStringInterpolationToSyntaxNode, JuliaWhereToSyntaxNode,
+       JuliaComprehensionToSyntaxNode, JuliaDoToSyntaxNode, JuliaLetToSyntaxNode,
+       JuliaNamedTupleToSyntaxNode,
+       JuliaStringChunkToSyntaxLeaf, JuliaInterpolationToSyntaxNode,
+       JuliaFunctionDeclarationToSyntaxNode, JuliaWhereParametersToSyntaxNode,
+       ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
+       JuliaToSyntax
+import ..FileFormatModule: make_document_seed
+import ..NaturalModule: register_natural_domain!
+export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaConst, JuliaDocstring, JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly, JuliaAnonymousTypeAnnotation, JuliaEmpty, JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange, JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument, JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere, JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple, JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration, JuliaWhereParameters, JuliaInsertion
+
+
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
 using ..DomainModule
-export _julia_operator_string
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -581,6 +654,28 @@ function _julia_operator_string(op::Symbol)
     op === :(/=) && return "/="
     op === :(:) && return ":"
     return string(op)
+end
+
+
+include("JuliaParser.jl")
+include("JuliaInsertionToSyntax.jl")
+include("JuliaFile.jl")
+include("JuliaToSyntax.jl")
+
+
+# What this slice registers when it loads: the file extensions it owns, and
+# the natural notation it reads and writes.
+function __init__()
+    register_file_document_type!(".jl", JuliaFile)
+    register_marker_function!(:definition,
+                              (ctx, document, name) -> find_julia_definition(document, name))
+
+    register_natural_domain!(JuliaDocument;
+                             rung      = :syntax,
+                             make      = () -> JuliaToSyntax(),
+                             format    = :jl,
+                             extension = ".jl",
+                             parse     = parse_julia)
 end
 
 end # module

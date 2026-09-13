@@ -1,51 +1,30 @@
-"""
-    RstFileModule
-
-`RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
-projectured reStructuredText tree). Parse uses `parse_rst`; emit runs the
-standard `RstToSyntax(style=:source) → SyntaxToText → TextToString`
-projection chain through `print_natural_text`.
-
-This module also registers this domain's natural notation — the rung it starts
-at, the format, the extension and the parser — and `.rst` as a file document
-type, so `import_document` and `export_document` reach the slice by extension.
-
-**Marker syntax in RST.** A cross-file reference reads as a directive
-whose argument is the marker:
-
-    .. pred-ref:: <<file("child.json")>>
-
-The directive needs no parser rule: a name the parser does not know
-already becomes an `RstDirective` carrying its name and its argument,
-and emit writes it back as it was. Load walks the block tree for an
-`RstDirective` named `pred-ref` whose argument parses as a marker, and
-rewrites each into a `ReferenceStub`. Emit is symmetric through the
-projection (see `RstToSyntax.jl`).
-
-A marker written **in a line of prose** is not read yet: a block is
-what a marker stands for here, and the markdown slice's text-run
-splitting has no RST counterpart.
-"""
-module RstFileModule
-
-import ..CellModule: Cell, AbstractCell
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference
-import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRole,
-                    RstStrong, RstEmphasis, RstDirective, RstListItem, RstBulletList,
-                    RstEnumeratedList, RstDefinitionList, RstDefinitionItem,
-                    RstFieldList, RstField, RstBlockQuote, RstFootnote, RstAdmonition,
-                    RstGridTable, RstTableRow, RstTableCell
-import ..RstParserModule: parse_rst
-import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
-import ..NaturalModule: register_natural_domain!, print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            LoaderContext, register_file_document_type!,
-                            get_document_section, parse_marker_text, ReferenceStub
-
-export RstFile, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from RstFile.jl.
+#
+# `RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
+# projectured reStructuredText tree). Parse uses `parse_rst`; emit runs the
+# standard `RstToSyntax(style=:source) → SyntaxToText → TextToString`
+# projection chain through `print_natural_text`.
+#
+# This module also registers this domain's natural notation — the rung it starts
+# at, the format, the extension and the parser — and `.rst` as a file document
+# type, so `import_document` and `export_document` reach the slice by extension.
+#
+# **Marker syntax in RST.** A cross-file reference reads as a directive
+# whose argument is the marker:
+#
+#     .. pred-ref:: <<file("child.json")>>
+#
+# The directive needs no parser rule: a name the parser does not know
+# already becomes an `RstDirective` carrying its name and its argument,
+# and emit writes it back as it was. Load walks the block tree for an
+# `RstDirective` named `pred-ref` whose argument parses as a marker, and
+# rewrites each into a `ReferenceStub`. Emit is symmetric through the
+# projection (see `RstToSyntax.jl`).
+#
+# A marker written **in a line of prose** is not read yet: a block is
+# what a marker stands for here, and the markdown slice's text-run
+# splitting has no RST counterpart.
 """
     RstFile(filename, content)
 
@@ -178,18 +157,3 @@ function _section_titles(document, acc = String[])
     end
     acc
 end
-
-function __init__()
-    register_file_document_type!(".rst", RstFile)
-    # What this domain's natural notation is: the syntax rung, the format, and
-    # how to read it back. The `:graphics` rung — a page of blocks — is
-    # registered in `RstToLayout.jl`.
-    register_natural_domain!(RstDocument;
-                             rung      = :syntax,
-                             make      = () -> RstToSyntax(),
-                             format    = :rst,
-                             extension = ".rst",
-                             parse     = parse_rst)
-end
-
-end # module

@@ -10,7 +10,7 @@ using Test
 using ProjecturedKernel.CellModule
 using ProjecturedCollection.CollectionModule
 using ProjecturedSerialization.SerializationModule
-using ProjecturedXml.XmlFileModule
+using ProjecturedXml.XmlModule
 using ProjecturedXml.XmlModule
 
 function test_xml_file()

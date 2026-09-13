@@ -1,110 +1,39 @@
-"""
-    RstToSyntaxModule
-
-RST → SyntaxDocument projection with two presentations, selected by
-`RstToSyntax(; style)`:
-
-- `:source` (default) — colourised **raw reStructuredText**: underlined
-  section titles, `` ``literals`` ``, `` :ned:`roles` ``, `**bold**`,
-  `- ` bullets, `.. directive::` lines with their option lines. Every marker
-  is a text span, and every one-line field is editable. Written with
-  `@projection_template`, so the reader is derived from the wiring.
-- `:rendered` — **natural notation**, marker-free: large bold titles, real
-  bold and italic, a role as a coloured chip, a figure as the picture itself,
-  an admonition as a labelled box. Inline weight and colour cascade from a
-  container to its descendant text through an ambient `:rst_style` in the
-  printer context, the School A pattern `MarkdownToSyntax` uses.
-
-**Indentation is written, not computed.** Every compound here carries
-`indentation=0` and puts the indent into its own `open` and `sep` text. The
-alternative — the compound's `indentation` field — indents in units of the
-pipeline's `indent_size`, which `print_natural_text` fixes at two, and RST needs
-the indent of a directive body to be a width this slice chooses. Writing the
-spaces keeps emit under this file's control, and it works because a paragraph
-is one line: the parser joins a paragraph's source lines with a space.
-
-**Verbatim bodies emit through a closure, not through `bound`.** The body of a
-code block, a literal include, a literal block, a math block, a raw block and
-a comment is opaque multi-line text that must be indented under its marker.
-A `bound` leaf maps a text splice back by offset, and pre-indenting the render
-would shift every offset past the first line. So these six render through a
-plain computed `TextString`: correct on the page and correct on save, but not
-splice-editable in the source view. Every other field stays `bound`.
-"""
-module RstToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: Projection, print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from RstToSyntax.jl.
+#
+# RST → SyntaxDocument projection with two presentations, selected by
+# `RstToSyntax(; style)`:
+#
+# - `:source` (default) — colourised **raw reStructuredText**: underlined
+#   section titles, `` ``literals`` ``, `` :ned:`roles` ``, `**bold**`,
+#   `- ` bullets, `.. directive::` lines with their option lines. Every marker
+#   is a text span, and every one-line field is editable. Written with
+#   `@projection_template`, so the reader is derived from the wiring.
+# - `:rendered` — **natural notation**, marker-free: large bold titles, real
+#   bold and italic, a role as a coloured chip, a figure as the picture itself,
+#   an admonition as a labelled box. Inline weight and colour cascade from a
+#   container to its descendant text through an ambient `:rst_style` in the
+#   printer context, the School A pattern `MarkdownToSyntax` uses.
+#
+# **Indentation is written, not computed.** Every compound here carries
+# `indentation=0` and puts the indent into its own `open` and `sep` text. The
+# alternative — the compound's `indentation` field — indents in units of the
+# pipeline's `indent_size`, which `print_natural_text` fixes at two, and RST needs
+# the indent of a directive body to be a width this slice chooses. Writing the
+# spaces keeps emit under this file's control, and it works because a paragraph
+# is one line: the parser joins a paragraph's source lines with a space.
+#
+# **Verbatim bodies emit through a closure, not through `bound`.** The body of a
+# code block, a literal include, a literal block, a math block, a raw block and
+# a comment is opaque multi-line text that must be indented under its marker.
+# A `bound` leaf maps a text splice back by offset, and pre-indenting the render
+# would shift every offset past the first line. So these six render through a
+# plain computed `TextString`: correct on the page and correct on save, but not
+# splice-editable in the source view. Every other field stays `bound`.
 # The module binding itself, not only its names: the two macros below expand to
 # `ProjectionApiModule.print_document(...)` definitions, and the unescaped name
 # resolves in this module.
-import ..ProjectionApiModule
-import ..ProjectionModule: var"@projection"
-import ..RstModule: RstDocument, RstInsertion, RstText, RstLiteral, RstEmphasis, RstStrong,
-                    RstRole, RstReference, RstSubstitutionReference, RstFootnoteReference,
-                    RstParagraph, RstLiteralBlock, RstLineBlock, RstListItem, RstBulletList,
-                    RstEnumeratedList, RstDefinitionItem, RstDefinitionList, RstField,
-                    RstFieldList, RstBlockQuote, RstTransition, RstComment, RstTarget,
-                    RstSubstitutionDefinition, RstFootnote, RstTableCell, RstTableRow,
-                    RstGridTable, RstDirectiveOption, RstLiteralInclude, RstFigure,
-                    RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree,
-                    RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstSection,
-                    RstRoot
-import ..TextModule: TextString, make_hinted_text, TextGraphics
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20,
-                     font_dejavu_monospace_regular_20, font_ubuntu_regular_20,
-                     font_ubuntu_bold_20, font_ubuntu_italic_20, font_ubuntu_bold_36,
-                     font_ubuntu_bold_24, font_ubuntu_bold_22, font_ubuntu_bold_18
-import ..StyleModule: color_black, color_solarized_blue, color_solarized_green,
-                      color_solarized_magenta, color_solarized_cyan,
-                      color_solarized_gray, color_solarized_violet,
-                      color_solarized_yellow, color_solarized_orange
-import ..StyleModule: StyleText
-import ..StyleModule: ImageFile
-import ..BackendModule: decode_image
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep,
-                          EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
-                       SyntaxDelimitation
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
-                            get_filename
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
-import ..ProjectionTemplateModule: rule_print, template_read_intent
-import ..PrinterContextModule: with_property, get_property
-import ..IntentModule: Intent
 
-export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
-       RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,
-       RstReferenceToSyntaxNode, RstSubstitutionReferenceToSyntaxLeaf,
-       RstFootnoteReferenceToSyntaxLeaf, RstParagraphToSyntaxNode,
-       RstLiteralBlockToSyntaxLeaf, RstLineBlockToSyntaxNode, RstListItemToSyntaxNode,
-       RstBulletListToSyntaxNode, RstEnumeratedListToSyntaxNode,
-       RstDefinitionItemToSyntaxNode, RstDefinitionListToSyntaxNode,
-       RstFieldToSyntaxNode, RstFieldListToSyntaxNode, RstBlockQuoteToSyntaxNode,
-       RstTransitionToSyntaxLeaf, RstCommentToSyntaxLeaf, RstTargetToSyntaxLeaf,
-       RstSubstitutionDefinitionToSyntaxNode, RstFootnoteToSyntaxNode,
-       RstTableCellToSyntaxNode, RstTableRowToSyntaxNode, RstGridTableToSyntaxNode,
-       RstDirectiveOptionToSyntaxNode, RstLiteralIncludeToSyntaxNode,
-       RstFigureToSyntaxNode, RstCodeBlockToSyntaxNode, RstImageToSyntaxNode,
-       RstVideoToSyntaxNode, RstAudioToSyntaxNode, RstAdmonitionToSyntaxNode,
-       RstToctreeToSyntaxNode, RstMathBlockToSyntaxLeaf, RstRawBlockToSyntaxLeaf,
-       RstRoleDefinitionToSyntaxNode, RstDirectiveToSyntaxNode, RstSectionToSyntaxNode,
-       RstRootToSyntaxNode, RstStyledTextToSyntaxLeaf, RstStyledInline,
-       RstStrongToStyledNode, RstEmphasisToStyledNode, RstRoleToStyledLeaf,
-       RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
-       RstLiteralIncludeToStyledLeaf, RstEnumeratedListToStyledNode,
-       RstToSyntax
 
 const _MONO      = font_ubuntu_monospace_regular_20
 const _MONO_BOLD = font_ubuntu_monospace_bold_20
@@ -1236,9 +1165,8 @@ The directive name that tags a block as a cross-file marker:
 
     .. pred-ref:: <<file("path")>>
 
-It lives here rather than in `RstFileModule` because both the reader of a marker
-(the loader) and its writer (this projection) need the one name, and the loader
-is the later module of the two.
+It lives here rather than next to the loader because both the reader of a
+marker (the loader) and its writer (this projection) need the one name.
 """
 const PRED_REF_DIRECTIVE = "pred-ref"
 
@@ -1373,11 +1301,3 @@ _embedded_marker_directive(f::FileDocument) =
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalModule: register_natural_syntax!
-import ..RstModule: RstDocument
-
-function __init__()
-    register_natural_syntax!(:rst, () -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
-end
-
-end # module

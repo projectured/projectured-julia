@@ -8,7 +8,7 @@ marker into a `ReferenceStub` in the same slot.
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedJson.JsonFileModule
+using ProjecturedJson.JsonModule
 using ProjecturedJson.JsonModule
 
 # Access the underlying cell of a @document field so we can inspect a

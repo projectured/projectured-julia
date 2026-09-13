@@ -1,25 +1,18 @@
-"""
-    XmlParserModule
-
-A small recursive-descent XML parser. Converts XML source text into an
-`XmlElement` tree from `XmlModule`.
-
-Provides:
-- `parse_xml(text)` — parse an XML string into its root `XmlElement`
-- `parse_xml_file(path)` — read and parse a `.xml` file from disk
-
-Deliberately minimal: one root element, nested elements, attributes
-(`name="value"` or `name='value'`), text content, self-closing tags, and the
-common entity escapes. The XML declaration (`<?xml …?>`), comments (`<!-- … -->`),
-and `<!…>` declarations are skipped. Not namespace- or DTD-aware — enough to turn
-typed XML in the editor into a real document. Malformed input raises an error.
-"""
-module XmlParserModule
-
-import ..XmlModule: XmlDocument, XmlElement, XmlAttribute, XmlText
-
-export parse_xml, parse_xml_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from XmlParser.jl.
+#
+# A small recursive-descent XML parser. Converts XML source text into an
+# `XmlElement` tree from `XmlModule`.
+#
+# Provides:
+# - `parse_xml(text)` — parse an XML string into its root `XmlElement`
+# - `parse_xml_file(path)` — read and parse a `.xml` file from disk
+#
+# Deliberately minimal: one root element, nested elements, attributes
+# (`name="value"` or `name='value'`), text content, self-closing tags, and the
+# common entity escapes. The XML declaration (`<?xml …?>`), comments (`<!-- … -->`),
+# and `<!…>` declarations are skipped. Not namespace- or DTD-aware — enough to turn
+# typed XML in the editor into a real document. Malformed input raises an error.
 # ── Cursor over the source ─────────────────────────────────────────────────────
 
 mutable struct _Cur
@@ -165,5 +158,3 @@ end
 Read and parse a `.xml` file from disk.
 """
 parse_xml_file(path::AbstractString) = parse_xml(read(path, String))
-
-end # module

@@ -11,7 +11,7 @@ asked about instead of reaching every other document the session holds.
 using Test
 using ProjecturedSerialization.SerializationModule
 using ProjecturedMarkdown.MarkdownFileModule
-using ProjecturedJulia.JuliaFileModule
+using ProjecturedJulia.JuliaModule
 using ProjecturedSerialization.SerializationModule
 
 # One page, one marker at the named target.

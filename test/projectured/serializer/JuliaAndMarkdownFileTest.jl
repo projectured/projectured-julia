@@ -14,7 +14,7 @@ format's natural escape:
 using Test
 using ProjecturedKernel.CellModule
 using ProjecturedSerialization.SerializationModule
-using ProjecturedJulia.JuliaFileModule
+using ProjecturedJulia.JuliaModule
 using ProjecturedJulia.JuliaModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedMarkdown.MarkdownModule

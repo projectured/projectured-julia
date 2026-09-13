@@ -1,34 +1,10 @@
-"""
-    JsonToSyntaxModule
-
-JSON → SyntaxDocument projection. Maps each JSON value type to a matching
-syntax tree shape: null, bool, number, and string become leaves; arrays and
-objects become nodes that carry their quote, bracket, and brace delimiters and
-comma separators.
-"""
-module JsonToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..CopyingProjectionModule: CopyingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..PrimitiveModule: ReplaceNumberRangeOperation
-export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
-       JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
-       JsonObjectEntryToSyntaxNode,
-       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf,
-       JsonToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JsonToSyntax.jl.
+#
+# JSON → SyntaxDocument projection. Maps each JSON value type to a matching
+# syntax tree shape: null, bool, number, and string become leaves; arrays and
+# objects become nodes that carry their quote, bracket, and brace delimiters and
+# comma separators.
 # ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonNullToSyntaxLeaf
@@ -215,24 +191,9 @@ end
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # JSON's seams for import_document / export_document / read+write_document_file.
-import ..JsonParserModule: parse_json
-import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:json}) = JsonInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is
 # written in, the extension that names the format back, and how to read that text
 # in again. Runtime state, so `__init__` rather than a top-level call.
-import ..NaturalModule: register_natural_domain!
-import ..JsonModule: JsonDocument
-
-function __init__()
-    register_natural_domain!(JsonDocument;
-                             rung      = :syntax,
-                             make      = () -> JsonToSyntax(),
-                             format    = :json,
-                             extension = ".json",
-                             parse     = parse_json)
-end
-
-end # module

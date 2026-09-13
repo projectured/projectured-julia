@@ -1,59 +1,33 @@
-"""
-    XmlToSyntaxModule
-
-XML → SyntaxDocument projection, written with `@projection_template` (like
-`JsonToSyntax` / `JuliaToSyntax`). Each XML type is a builder that constructs the
-real Syntax output with `bound(…)` / `collection(…)` markers at the positions that
-need special wiring; the template engine (`ProjectionTemplate.jl`) records the
-wiring, strips the markers, and supplies reference mapping and the recursive reader
-generically. The authoring command set lives on the XML document types as
-`@gestures` (see `document/Xml.jl`); the template's reader delegates a raw gesture
-to `read_gesture`.
-
-The output node shape is unchanged:
-
-    SyntaxNode("", "", "", [                             ← element node
-      SyntaxLeaf(open="<", close=" "|"", bound(:tag)),   ← tag-name leaf
-      SyntaxNode(close=">", sep=" ", collection(:attrs) do a  ← attributes node
-        SyntaxNode(sep="=", [                            ← each attribute
-          SyntaxLeaf(bound(:name)),
-          SyntaxLeaf(open='"', close='"', bound(:value)),
-        ]) end),
-      SyntaxNode(collection(:children); indentation=1),  ← recursive child body
-      SyntaxLeaf(open="</", close=">", value=tag),        ← closing-tag leaf (display-only)
-    ])
-
-Internal nodes have no open delimiter, so SyntaxToText renders them inline. The space
-between the tag name and the first attribute is a reactive `close` on the tag leaf:
-`" "` when attributes are present, `""` otherwise. The closing tag renders the same
-`.tag` field (updated reactively) but is projection-introduced structure (no
-`bound`), so it carries no cursor and maps nothing back.
-"""
-module XmlToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReference, PositionReferenceStep
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..XmlModule: XmlDocument, XmlNothing, XmlInsertion, XmlText, XmlAttribute, XmlElement
-import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_black, color_default, color_solarized_blue, color_solarized_green,
-                      color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
-export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
-       XmlElementToSyntaxNode,
-       ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
-       XmlToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from XmlToSyntax.jl.
+#
+# XML → SyntaxDocument projection, written with `@projection_template` (like
+# `JsonToSyntax` / `JuliaToSyntax`). Each XML type is a builder that constructs the
+# real Syntax output with `bound(…)` / `collection(…)` markers at the positions that
+# need special wiring; the template engine (`ProjectionTemplate.jl`) records the
+# wiring, strips the markers, and supplies reference mapping and the recursive reader
+# generically. The authoring command set lives on the XML document types as
+# `@gestures` (see `document/Xml.jl`); the template's reader delegates a raw gesture
+# to `read_gesture`.
+#
+# The output node shape is unchanged:
+#
+#     SyntaxNode("", "", "", [                             ← element node
+#       SyntaxLeaf(open="<", close=" "|"", bound(:tag)),   ← tag-name leaf
+#       SyntaxNode(close=">", sep=" ", collection(:attrs) do a  ← attributes node
+#         SyntaxNode(sep="=", [                            ← each attribute
+#           SyntaxLeaf(bound(:name)),
+#           SyntaxLeaf(open='"', close='"', bound(:value)),
+#         ]) end),
+#       SyntaxNode(collection(:children); indentation=1),  ← recursive child body
+#       SyntaxLeaf(open="</", close=">", value=tag),        ← closing-tag leaf (display-only)
+#     ])
+#
+# Internal nodes have no open delimiter, so SyntaxToText renders them inline. The space
+# between the tag name and the first attribute is a reactive `close` on the tag leaf:
+# `" "` when attributes are present, `""` otherwise. The closing tag renders the same
+# `.tag` field (updated reactively) but is projection-introduced structure (no
+# `bound`), so it carries no cursor and maps nothing back.
 # ── XmlTextToSyntaxLeaf ─────────────────────────────────────────────────────
 #
 # A bound leaf: `.content{k}` edits map to the leaf's own `.value{k}` span.
@@ -234,24 +208,9 @@ end
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # XML's seams for import_document / export_document / read+write_document_file.
-import ..XmlParserModule: parse_xml
-import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:xml}) = XmlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is
 # written in, the extension that names the format back, and how to read that text
 # in again. Runtime state, so `__init__` rather than a top-level call.
-import ..NaturalModule: register_natural_domain!
-import ..XmlModule: XmlDocument
-
-function __init__()
-    register_natural_domain!(XmlDocument;
-                             rung      = :syntax,
-                             make      = () -> XmlToSyntax(),
-                             format    = :xml,
-                             extension = ".xml",
-                             parse     = parse_xml)
-end
-
-end # module

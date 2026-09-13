@@ -88,7 +88,7 @@ import ..ReferenceModule: ConcreteReference, PositionReferenceStep
 import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..OperationModule: ReplaceSelectionOperation
 import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..JuliaToSyntaxModule: JuliaToSyntax
+import ..JuliaModule: JuliaToSyntax
 
 export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
        ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,

@@ -1,35 +1,19 @@
-"""
-    ChartToChartPlotModule
-
-Chart → ChartPlot: the first stage of the chart pipeline, and a thin one. It
-wraps the semantic chart in the presentation document that carries the view
-window, the pointer, the hover and any in-progress drag, so the renderer
-downstream has one place to read all of it and the chart itself stays pure
-content.
-
-The `ChartPlot` is built once per projection setup and keeps its identity, so
-zooming survives a data change: replacing a column invalidates the geometry
-cells beneath it without disturbing the window someone had scrolled to.
-
-Selection peels exactly the one step this stage owns — `chart` — and hands the
-rest through unchanged, so a selection into a series or an axis round-trips
-through the whole pipeline (tutorial School A).
-"""
-module ChartToChartPlotModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ChartModule: Chart, ChartDocument, ChartNothing, ChartInsertion
-import ..ChartPlotModule: ChartPlot
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, EmptyReference,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-
-export ChartToChartPlot, ChartToChartPlotIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ChartToChartPlot.jl.
+#
+# Chart → ChartPlot: the first stage of the chart pipeline, and a thin one. It
+# wraps the semantic chart in the presentation document that carries the view
+# window, the pointer, the hover and any in-progress drag, so the renderer
+# downstream has one place to read all of it and the chart itself stays pure
+# content.
+#
+# The `ChartPlot` is built once per projection setup and keeps its identity, so
+# zooming survives a data change: replacing a column invalidates the geometry
+# cells beneath it without disturbing the window someone had scrolled to.
+#
+# Selection peels exactly the one step this stage owns — `chart` — and hands the
+# rest through unchanged, so a selection into a series or an axis round-trips
+# through the whole pipeline (tutorial School A).
 """
     ChartToChartPlot()
 
@@ -89,5 +73,3 @@ function map_reference_backward(::ChartToChartPlot, iomap, reference)
         __ => nothing
     end
 end
-
-end # module

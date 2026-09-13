@@ -1,77 +1,15 @@
-"""
-    JuliaToSyntaxModule
-
-Julia → SyntaxDocument projection. Maps each Julia expression type to a syntax
-tree with colorized tokens:
-- Identifiers in blue
-- Keywords (function, if, else, for, while, return, break, continue,
-  try, catch, finally, begin, end, in) in bold magenta
-- Operators (==, *, -, +, ::, etc.) in cyan
-- Integer, float, string and char literals in green
-- Booleans, nothing and symbols in bold magenta
-- Delimiters (parentheses, brackets, commas) in gray
-"""
-module JuliaToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..JuliaModule: JuliaDocument,
-                      JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool,
-                      JuliaNothing, JuliaSymbol, JuliaChar,
-                      JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaTernary,
-                      JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange,
-                      JuliaTypeAnnotation,
-                      JuliaAssignment, JuliaConst, JuliaDocstring,
-                      JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly,
-                      JuliaAnonymousTypeAnnotation, JuliaEmpty,
-                      JuliaFor, JuliaForIterator, JuliaWhile,
-                      JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin,
-                      JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition,
-                      JuliaInsertion,
-                      JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere,
-                      JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
-                      JuliaStringChunk, JuliaInterpolation,
-                      JuliaFunctionDeclaration, JuliaWhereParameters, _julia_operator_string
-import ..TextModule: TextString, make_hinted_text
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
-                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
-                      color_solarized_violet
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..JuliaInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
-import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
-
-export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
-       JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
-       JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
-       JuliaBinaryOperationToSyntaxNode, JuliaUnaryOperationToSyntaxNode, JuliaCallToSyntaxNode,
-       JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode, JuliaDocstringToSyntaxNode,
-       JuliaAbstractTypeToSyntaxNode, JuliaStructToSyntaxNode,
-       JuliaSubtypeToSyntaxNode, JuliaCurlyToSyntaxNode,
-       JuliaAnonymousTypeAnnotationToSyntaxNode, JuliaEmptyToSyntaxLeaf,
-       JuliaTernaryToSyntaxNode, JuliaIndexToSyntaxNode, JuliaFieldAccessToSyntaxNode,
-       JuliaTupleToSyntaxNode, JuliaArrayToSyntaxNode, JuliaRangeToSyntaxNode,
-       JuliaTypeAnnotationToSyntaxNode,
-       JuliaAssignmentToSyntaxNode, JuliaForToSyntaxNode, JuliaForIteratorToSyntaxNode,
-       JuliaWhileToSyntaxNode, JuliaReturnToSyntaxNode,
-       JuliaBreakToSyntaxLeaf, JuliaContinueToSyntaxLeaf,
-       JuliaTryToSyntaxNode, JuliaBeginToSyntaxNode,
-       JuliaIfToSyntaxNode, JuliaFunctionToSyntaxNode, JuliaBlockToSyntaxNode,
-       JuliaUsingToSyntaxNode, JuliaLambdaToSyntaxNode, JuliaModuleDefinitionToSyntaxNode,
-       JuliaSplatToSyntaxNode, JuliaBroadcastToSyntaxNode,
-       JuliaStringInterpolationToSyntaxNode, JuliaWhereToSyntaxNode,
-       JuliaComprehensionToSyntaxNode, JuliaDoToSyntaxNode, JuliaLetToSyntaxNode,
-       JuliaNamedTupleToSyntaxNode,
-       JuliaStringChunkToSyntaxLeaf, JuliaInterpolationToSyntaxNode,
-       JuliaFunctionDeclarationToSyntaxNode, JuliaWhereParametersToSyntaxNode,
-       ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
-       JuliaToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JuliaToSyntax.jl.
+#
+# Julia → SyntaxDocument projection. Maps each Julia expression type to a syntax
+# tree with colorized tokens:
+# - Identifiers in blue
+# - Keywords (function, if, else, for, while, return, break, continue,
+#   try, catch, finally, begin, end, in) in bold magenta
+# - Operators (==, *, -, +, ::, etc.) in cyan
+# - Integer, float, string and char literals in green
+# - Booleans, nothing and symbols in bold magenta
+# - Delimiters (parentheses, brackets, commas) in gray
 # ── JuliaIdentifierToSyntaxLeaf ─────────────────────────────────────────────
 
 # A standalone identifier is a *variable* reference — rendered in a distinct
@@ -1004,24 +942,9 @@ end
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
-import ..JuliaParserModule: parse_julia
-import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:jl}) = JuliaInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is
 # written in, the extension that names the format back, and how to read that text
 # in again. Runtime state, so `__init__` rather than a top-level call.
-import ..NaturalModule: register_natural_domain!
-import ..JuliaModule: JuliaDocument
-
-function __init__()
-    register_natural_domain!(JuliaDocument;
-                             rung      = :syntax,
-                             make      = () -> JuliaToSyntax(),
-                             format    = :jl,
-                             extension = ".jl",
-                             parse     = parse_julia)
-end
-
-end # module

@@ -1,49 +1,29 @@
-"""
-    RstToLayoutModule
-
-`RstRoot` / `RstSection` → `VerticalLayout` — the structural rewrap that
-makes an RST page a **stack of blocks** instead of one syntax tree, so
-each block renders in its own domain.
-
-It exists for the same reason `MarkdownToLayoutModule` does: an embedded
-document may belong to a domain that is *not* syntax-producible. A card
-around an embed is a widget, and a widget squeezed through a syntax tree
-would arrive as reflected text and would never see a click.
-
-RST needs one more rule than markdown does. A markdown page is flat — its
-headings are elements of the root — so rewrapping the root is enough. An
-RST section **owns** its blocks, so a root rewrap alone would leave every
-embed below the first title inside a syntax tree. `RstSectionToVerticalLayout`
-therefore stacks a section too: its title over its blocks.
-
-The rewrap does not transform the blocks (the subtrees are identical on
-both sides, just moved), so the reference maps only relocate the head.
-
-**The title is flat.** A section's title renders as one prose line in the
-title font, with whatever inline markup it carries flattened to its text.
-A selection therefore maps through a section's *blocks* but not into its
-title — which is what the syntax rule offers as well, and strictly less
-than the source view, where the whole section maps.
-"""
-module RstToLayoutModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..LayoutModule: VerticalLayout
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward,
-                              read_intent, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..RstModule: RstRoot, RstSection, RstText, RstLiteral, RstRole, RstStrong, RstEmphasis
-import ..RstToSyntaxModule: _title_font, _TITLE_COLOR
-import ..TextModule: TextBlock, TextString
-import ..StyleModule: StyleText
-import ..WidgetModule: InvokeActionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, is_element_reference_step
-
-export RstRootToVerticalLayout, RstSectionToVerticalLayout
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from RstToLayout.jl.
+#
+# `RstRoot` / `RstSection` → `VerticalLayout` — the structural rewrap that
+# makes an RST page a **stack of blocks** instead of one syntax tree, so
+# each block renders in its own domain.
+#
+# It exists for the same reason `MarkdownToLayoutModule` does: an embedded
+# document may belong to a domain that is *not* syntax-producible. A card
+# around an embed is a widget, and a widget squeezed through a syntax tree
+# would arrive as reflected text and would never see a click.
+#
+# RST needs one more rule than markdown does. A markdown page is flat — its
+# headings are elements of the root — so rewrapping the root is enough. An
+# RST section **owns** its blocks, so a root rewrap alone would leave every
+# embed below the first title inside a syntax tree. `RstSectionToVerticalLayout`
+# therefore stacks a section too: its title over its blocks.
+#
+# The rewrap does not transform the blocks (the subtrees are identical on
+# both sides, just moved), so the reference maps only relocate the head.
+#
+# **The title is flat.** A section's title renders as one prose line in the
+# title font, with whatever inline markup it carries flattened to its text.
+# A selection therefore maps through a section's *blocks* but not into its
+# title — which is what the syntax rule offers as well, and strictly less
+# than the source view, where the whole section maps.
 # ── RstRootToVerticalLayout ────────────────────────────────────────────────
 
 @projection struct RstRootToVerticalLayout
@@ -162,17 +142,3 @@ read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
 # two rows where markdown takes one: an RST section OWNS its blocks, so a root
 # rewrap alone would leave every embed below the first title inside a syntax
 # tree, where a card could not go.
-import ..ChainingProjectionModule: ChainingProjection
-import ..LayoutModule: VerticalLayoutToGraphicsCanvas
-import ..NaturalModule: register_natural_graphics!
-
-function __init__()
-    register_natural_graphics!(:rst_page, (; measure) -> Pair{Type,Any}[
-        RstRoot    => ChainingProjection(RstRootToVerticalLayout(),
-                                         VerticalLayoutToGraphicsCanvas()),
-        RstSection => ChainingProjection(RstSectionToVerticalLayout(),
-                                         VerticalLayoutToGraphicsCanvas()),
-    ])
-end
-
-end # module RstToLayoutModule

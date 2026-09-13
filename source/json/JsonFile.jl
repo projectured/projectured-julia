@@ -1,37 +1,20 @@
-"""
-    JsonFileModule
-
-`JsonFile`: a `FileDocument` whose `content` is a `JsonDocument`.
-Parse uses the existing `parse_json`; emit runs the existing
-`JsonToSyntax → SyntaxToText → TextToString` projection chain via
-`print_natural_text`.
-
-Cross-file references appear in JSON as **strings** whose whole value
-matches the marker regex (see `parse_marker_text`). A post-parse walk
-substitutes those strings with `ReferenceStub` values in the AST
-(reactive slot cells are `Any`-typed at runtime, so a stub sits
-happily in a `JsonObjectEntry.value` slot declared `Document`, or in a
-`JsonArray` element). Emit is symmetric — an extension of
-`JsonToSyntax` (in `JsonToSyntax.jl`) renders `ReferenceStub` and
-embedded `FileDocument` values as marker strings, so no pre-save
-mutation is required.
-"""
-module JsonFileModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference, ConcreteReference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
-                     JsonObject, JsonObjectEntry
-import ..JsonParserModule: parse_json
-import ..NaturalModule: print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!
-
-export JsonFile
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from JsonFile.jl.
+#
+# `JsonFile`: a `FileDocument` whose `content` is a `JsonDocument`.
+# Parse uses the existing `parse_json`; emit runs the existing
+# `JsonToSyntax → SyntaxToText → TextToString` projection chain via
+# `print_natural_text`.
+#
+# Cross-file references appear in JSON as **strings** whose whole value
+# matches the marker regex (see `parse_marker_text`). A post-parse walk
+# substitutes those strings with `ReferenceStub` values in the AST
+# (reactive slot cells are `Any`-typed at runtime, so a stub sits
+# happily in a `JsonObjectEntry.value` slot declared `Document`, or in a
+# `JsonArray` element). Emit is symmetric — an extension of
+# `JsonToSyntax` (in `JsonToSyntax.jl`) renders `ReferenceStub` and
+# embedded `FileDocument` values as marker strings, so no pre-save
+# mutation is required.
 """
     JsonFile(filename, content)
 
@@ -99,8 +82,3 @@ end
 
 # Register `.json` so `resolve!` picks JsonFile for a `<<file("x.json")>>`
 # marker. Done in `__init__` so the mutation survives precompilation.
-function __init__()
-    register_file_document_type!(".json", JsonFile)
-end
-
-end # module

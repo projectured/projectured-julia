@@ -1,49 +1,32 @@
-"""
-    RstParserModule
-
-A pragmatic reStructuredText parser. Converts RST source text into an
-`RstRoot` tree from `RstModule`.
-
-Provides:
-- `parse_rst(text)` — parse an RST string into an `RstRoot`
-- `parse_rst_file(path)` — read and parse a `.rst` file from disk
-
-Deliberately minimal (it is not docutils). It covers what the INET
-documentation uses. Block level: sections with any adornment character,
-paragraphs, literal blocks, line blocks, bullet and enumerated lists,
-definition lists, field lists, block quotes, grid tables, transitions,
-comments, targets, substitution definitions, footnotes, and directives.
-Inline level: `` ``literal`` ``, `` :role:`x` ``, `**strong**`, `*emphasis*`,
-`` `text <url>`_ ``, `|substitution|` and `[label]_`; anything unmatched
-degrades to literal text.
-
-**Indentation drives everything.** The parser works on a line vector that a
-region has already dedented to column zero. A construct that owns an indented
-body — a directive, a list item, a definition — hands that body back to the
-same block reader after dedenting it, so nesting needs no special case.
-
-**Sections resolve by order of first use.** RST gives no fixed meaning to an
-adornment character. The block reader emits a title marker carrying the
-character, and one pass afterwards assigns depths: a character already seen
-reopens its own depth, a new character opens one level deeper. That pass also
-turns the flat sequence into the tree the document wants.
-"""
-module RstParserModule
-
-import ..CellModule: Cell
-import ..CollectionModule: CellVector
-import ..RstModule: RstDocument, RstRoot, RstSection, RstParagraph, RstText, RstLiteral,
-                    RstEmphasis, RstStrong, RstRole, RstReference, RstSubstitutionReference,
-                    RstFootnoteReference, RstLiteralBlock, RstLineBlock, RstListItem,
-                    RstBulletList, RstEnumeratedList, RstDefinitionItem, RstDefinitionList,
-                    RstField, RstFieldList, RstBlockQuote, RstTransition, RstComment,
-                    RstTarget, RstSubstitutionDefinition, RstFootnote, RstTableCell,
-                    RstTableRow, RstGridTable, RstDirectiveOption, RstLiteralInclude,
-                    RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition,
-                    RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective
-
-export parse_rst, parse_rst_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from RstParser.jl.
+#
+# A pragmatic reStructuredText parser. Converts RST source text into an
+# `RstRoot` tree from `RstModule`.
+#
+# Provides:
+# - `parse_rst(text)` — parse an RST string into an `RstRoot`
+# - `parse_rst_file(path)` — read and parse a `.rst` file from disk
+#
+# Deliberately minimal (it is not docutils). It covers what the INET
+# documentation uses. Block level: sections with any adornment character,
+# paragraphs, literal blocks, line blocks, bullet and enumerated lists,
+# definition lists, field lists, block quotes, grid tables, transitions,
+# comments, targets, substitution definitions, footnotes, and directives.
+# Inline level: `` ``literal`` ``, `` :role:`x` ``, `**strong**`, `*emphasis*`,
+# `` `text <url>`_ ``, `|substitution|` and `[label]_`; anything unmatched
+# degrades to literal text.
+#
+# **Indentation drives everything.** The parser works on a line vector that a
+# region has already dedented to column zero. A construct that owns an indented
+# body — a directive, a list item, a definition — hands that body back to the
+# same block reader after dedenting it, so nesting needs no special case.
+#
+# **Sections resolve by order of first use.** RST gives no fixed meaning to an
+# adornment character. The block reader emits a title marker carrying the
+# character, and one pass afterwards assigns depths: a character already seen
+# reopens its own depth, a new character opens one level deeper. That pass also
+# turns the flat sequence into the tree the document wants.
 # ── Line helpers ──────────────────────────────────────────────────────────────
 
 # The characters that may underline a title or stand as a transition. Narrower
@@ -766,5 +749,3 @@ end
 Read and parse a `.rst` file from disk.
 """
 parse_rst_file(path::AbstractString) = parse_rst(read(path, String))
-
-end # module

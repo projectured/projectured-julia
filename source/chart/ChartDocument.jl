@@ -1,25 +1,22 @@
-"""
-    ChartModule
-
-The chart document domain: a `Chart` holds a list of data series, two axes, a
-legend and a style. This file is **pure semantic content** — everything here
-serializes. Transient view state (the zoom window, the hovered item, an
-in-progress drag) lives on `ChartPlot` in `ChartPlot.jl`, which is projection
-output, exactly as `GraphLayout` holds geometry outside `GraphGraph`.
-
-Series data is held as whole column vectors, one reactive cell per column: a
-column is bulk numeric leaf data, not navigable structure, so per-point cells
-would cost ~88 bytes each and buy nothing. Reassigning a column is what makes a
-chart repaint. Any `AbstractVector{<:Real}` works, so a data-frame column can be
-handed straight to a series without this package depending on DataFrames.
-
-Two axis families:
-- **XY** (`ChartAxis` on x) carries `ChartLineSeries`, `ChartScatterSeries`,
-  `ChartHistogramSeries` and `ChartStripSeries`, which may be mixed on one chart.
-- **Category** (`ChartCategoryAxis` on x) carries `ChartBarSeries`.
-"""
-module ChartModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ChartDocument.jl.
+#
+# The chart document domain: a `Chart` holds a list of data series, two axes, a
+# legend and a style. This file is **pure semantic content** — everything here
+# serializes. Transient view state (the zoom window, the hovered item, an
+# in-progress drag) lives on `ChartPlot` in `ChartPlot.jl`, which is projection
+# output, exactly as `GraphLayout` holds geometry outside `GraphGraph`.
+#
+# Series data is held as whole column vectors, one reactive cell per column: a
+# column is bulk numeric leaf data, not navigable structure, so per-point cells
+# would cost ~88 bytes each and buy nothing. Reassigning a column is what makes a
+# chart repaint. Any `AbstractVector{<:Real}` works, so a data-frame column can be
+# handed straight to a series without this package depending on DataFrames.
+#
+# Two axis families:
+# - **XY** (`ChartAxis` on x) carries `ChartLineSeries`, `ChartScatterSeries`,
+#   `ChartHistogramSeries` and `ChartStripSeries`, which may be mixed on one chart.
+# - **Category** (`ChartCategoryAxis` on x) carries `ChartBarSeries`.
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -30,24 +27,7 @@ using ..EventPatternModule
 using ..GestureBindingModule
 using ..DomainModule
 
-import ..StyleModule: StyleColor
-import ..PlotModule: default_color_cycle, default_symbol_cycle, get_series_color
-import ..PlotModule: compute_bin_values
-import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
-import ..ReferenceModule
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          ElementReferenceStep, EmptyReference,
-                          annotate_reference_types, concat_references,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
-                          insert_elements, delete_elements
 
-export ChartSeries, get_chart_series_family, get_chart_axis_family,
-       get_selected_series_index, move_series, remove_series,
-       collect_chart_parts, get_chart_part_index,
-       get_chart_sample, make_chart_sample_reference, get_selected_sample
 
 @domain Chart
 
@@ -653,5 +633,3 @@ end
         move_series(doc, get_selected_series_index(doc), get_selected_series_index(doc) + 1)
     KeyDown(:delete; alt) => "Remove the selected series" => remove_series(doc)
 end
-
-end # module

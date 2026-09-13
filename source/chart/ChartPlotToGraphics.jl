@@ -1,72 +1,27 @@
-"""
-    ChartPlotToGraphicsModule
-
-ChartPlot → Graphics: the chart renderer. Everything a chart shows — the plot
-frame, gridlines, ticks and their labels, the axis titles, the series geometry —
-is composed here out of the existing graphics primitives. There is no plotting
-library underneath and no rasterization step; a chart is vector output like
-every other projection, so it stays selectable and resolution-independent.
-
-**Layout.** One computed cell (`geometry`) derives the whole frame from the
-chart, the view window and the available size: the data ranges, the plot
-rectangle, the tick positions and their measured labels. Axis margins fall out
-of measuring the labels, so the two-pass measure-then-remeasure dance a
-retained-mode toolkit needs does not arise — the margins are just a cell that
-depends on the ticks.
-
-**Cost.** Series geometry goes through `ChartGeometry`'s decimation, so the
-number of graphics elements is bounded by the size of the plot rectangle rather
-than by the length of the columns. A million-sample series and a
-thousand-sample one produce the same amount of output at the same zoom.
-
-The plot area is a `GraphicsViewport` purely to clip; the data-to-pixel mapping
-is computed from the view window rather than carried as an affine transform, so
-zooming in re-derives ticks and decimation instead of magnifying pixels.
-"""
-module ChartPlotToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
-                      collect_chart_parts, get_chart_part_index,
-                      get_chart_sample, make_chart_sample_reference, get_selected_sample,
-                      ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
-                      ChartLineSeries, ChartScatterSeries, ChartBarSeries,
-                      ChartHistogramSeries, ChartStripSeries,
-                      get_chart_series_family, get_chart_axis_family,
-                      strip_state_name, strip_state_color
-import ..PlotModule: get_series_color, get_series_symbol, build_marker_polygon
-import ..ChartPlotModule: ChartPlot, ChartView
-import ..PlotModule: AxisScale, to_pixel, to_data,
-                              get_column_bounds, merge_bounds, pad_range,
-                              compute_nice_ticks, log_ticks, format_tick,
-                              get_visible_range, decimate_minmax, step_points, build_pins_segments,
-                              fold_scatter, fold_bins, strip_runs, fold_strips,
-                              label_step, compute_histogram_values,
-                              find_nearest_sample,
-                              compute_legend_layout, get_anchor_offset
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
-                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
-                         GraphicsViewport, layout_none
-import ..StyleModule: StyleColor,
-                      color_solarized_background_lighter, color_solarized_background_light,
-                      color_solarized_content_dark, color_solarized_content_darker,
-                      color_solarized_blue
-import ..StyleModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
-import ..IoMapModule: IoMap, var"@iomap"
-import ..EventModule: MousePress, MouseMove, MouseLeave, MouseDown, MouseUp,
-                      MouseScroll, KeyDown, KeyPress
-import ..OperationModule: Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation
-import ..ReferenceModule: get_reference_node_type, EmptyReference
-import ..ReferenceModule: var"@reference"
-import ..ReferenceModule: var"@reference_case"
-
-export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
-       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ChartPlotToGraphics.jl.
+#
+# ChartPlot → Graphics: the chart renderer. Everything a chart shows — the plot
+# frame, gridlines, ticks and their labels, the axis titles, the series geometry —
+# is composed here out of the existing graphics primitives. There is no plotting
+# library underneath and no rasterization step; a chart is vector output like
+# every other projection, so it stays selectable and resolution-independent.
+#
+# **Layout.** One computed cell (`geometry`) derives the whole frame from the
+# chart, the view window and the available size: the data ranges, the plot
+# rectangle, the tick positions and their measured labels. Axis margins fall out
+# of measuring the labels, so the two-pass measure-then-remeasure dance a
+# retained-mode toolkit needs does not arise — the margins are just a cell that
+# depends on the ticks.
+#
+# **Cost.** Series geometry goes through `ChartGeometry`'s decimation, so the
+# number of graphics elements is bounded by the size of the plot rectangle rather
+# than by the length of the columns. A million-sample series and a
+# thousand-sample one produce the same amount of output at the same zoom.
+#
+# The plot area is a `GraphicsViewport` purely to clip; the data-to-pixel mapping
+# is computed from the view window rather than carried as an affine transform, so
+# zooming in re-derives ticks and decimation instead of magnifying pixels.
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
 
@@ -1694,5 +1649,3 @@ function _scatter_points(g, s::ChartScatterSeries)
     out
 end
 _hit_points(g, ::Int, ::Any) = Tuple{Int,Int}[]
-
-end # module

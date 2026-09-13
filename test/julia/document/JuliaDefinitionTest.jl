@@ -9,8 +9,8 @@ declare a type rather than decorate one.
 """
 
 using Test
-using ProjecturedJulia.JuliaParserModule: parse_julia
-using ProjecturedJulia.JuliaFileModule: find_julia_definition
+using ProjecturedJulia.JuliaModule: parse_julia
+using ProjecturedJulia.JuliaModule: find_julia_definition
 using ProjecturedNatural.NaturalModule: print_natural_text
 
 # What the marker gets back when it asks a source file for one definition.

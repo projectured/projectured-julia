@@ -15,7 +15,7 @@ Four cases:
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedJson.JsonFileModule
+using ProjecturedJson.JsonModule
 using ProjecturedJson.JsonModule
 
 _s5_stub_at(obj::JsonObject, key::AbstractString) = begin

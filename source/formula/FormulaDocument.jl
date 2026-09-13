@@ -45,7 +45,7 @@ import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context
-import ..JuliaToSyntaxModule: JuliaToSyntax
+import ..JuliaModule: JuliaToSyntax
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
        FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
 export FormulaInsertion, FormulaReference

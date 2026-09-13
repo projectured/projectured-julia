@@ -1,37 +1,21 @@
-"""
-    XmlFileModule
-
-`XmlFile`: a `FileDocument` whose `content` is an `XmlDocument`
-(the projectured XML AST). Parse uses the existing `parse_xml`; emit
-runs the standard `XmlToSyntax → SyntaxToText → TextToString`
-projection chain via `print_natural_text`.
-
-**Marker syntax in XML.**
-
-    <pred:ref>&lt;&lt;file("child.xml")&gt;&gt;</pred:ref>
-
-The element's tag is `pred:ref` and its sole child is an `XmlText`
-whose content is the marker text (the `<<` and `>>` naturally
-survive the XML escape/unescape round-trip). Load walks the AST for
-elements with `tag == "pred:ref"` whose only child is a single text
-node, and rewrites each such slot into a `ReferenceStub`. Emit is
-symmetric via a projection extension (see `XmlToSyntax.jl`).
-"""
-module XmlFileModule
-
-import ..CellModule: Cell, ComputedCell, AbstractCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..XmlModule: XmlDocument, XmlElement, XmlText, XmlAttribute, XmlNothing
-import ..XmlParserModule: parse_xml
-import ..NaturalModule: print_natural_text
-import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!
-
-export XmlFile, PRED_REF_ELEMENT_TAG
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from XmlFile.jl.
+#
+# `XmlFile`: a `FileDocument` whose `content` is an `XmlDocument`
+# (the projectured XML AST). Parse uses the existing `parse_xml`; emit
+# runs the standard `XmlToSyntax → SyntaxToText → TextToString`
+# projection chain via `print_natural_text`.
+#
+# **Marker syntax in XML.**
+#
+#     <pred:ref>&lt;&lt;file("child.xml")&gt;&gt;</pred:ref>
+#
+# The element's tag is `pred:ref` and its sole child is an `XmlText`
+# whose content is the marker text (the `<<` and `>>` naturally
+# survive the XML escape/unescape round-trip). Load walks the AST for
+# elements with `tag == "pred:ref"` whose only child is a single text
+# node, and rewrites each such slot into a `ReferenceStub`. Emit is
+# symmetric via a projection extension (see `XmlToSyntax.jl`).
 """
 The XML tag identifying a cross-file marker element:
 
@@ -89,9 +73,3 @@ function _substitute_markers(node::XmlElement, ctx::LoaderContext)
     end
     node
 end
-
-function __init__()
-    register_file_document_type!(".xml", XmlFile)
-end
-
-end # module
