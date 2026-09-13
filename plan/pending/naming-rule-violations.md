@@ -851,7 +851,10 @@ These rows need a decision before the fix. Each one is a class, not one name.
     exported. Is the underscore a deliberate mark for a name that crosses files
     inside one package but is not part of the umbrella's surface, or must these
     lose the underscore or lose the `export`?
-30. **`PRED_REF` in four constants.** `PRED_REF_DIRECTIVE`,
+30. **`PRED_REF` in four constants — ANSWERED 2026-09-13: they keep `REF`.**
+    naming-rules.md now states that a constant holding a wire value spells the
+    value, because the abbreviation is the format's choice and not the code's.
+    The original question follows. `PRED_REF_DIRECTIVE`,
     `PRED_REF_ELEMENT_TAG`, `PRED_REF_FUNCTION_NAME` and `PRED_REF_LANGUAGE`
     shorten `reference`, but the abbreviation is the wire value itself: the
     literal text is `"pred-ref"`, `"pred:ref"` and `"pred_ref"`, which four file

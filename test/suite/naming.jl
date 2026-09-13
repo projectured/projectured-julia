@@ -139,10 +139,10 @@ known thing every run is a guard people stop reading, so an exemption is written
 here with its cause rather than left to accumulate.
 """
 const _ALLOWED = Dict(
-    # The abbreviation is the wire value itself: these constants hold the
-    # literal "pred-ref", "pred:ref" and "pred_ref" that four file formats look
-    # for. Renaming the constant alone would leave the value reading pred-ref.
-    # See `plan/pending/naming-rule-violations.md` section 9.30.
+    # A constant that holds a wire value spells the value, which
+    # `documentation/rule/naming-rules.md` states under the sanctioned compact
+    # forms. These four hold the literal "pred-ref", "pred:ref" and "pred_ref"
+    # that a user writes and the loader matches.
     "PRED_REF_DIRECTIVE" => "the wire value is literally pred-ref",
     "PRED_REF_ELEMENT_TAG" => "the wire value is literally pred:ref",
     "PRED_REF_FUNCTION_NAME" => "the wire value is literally pred_ref",

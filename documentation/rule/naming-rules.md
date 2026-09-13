@@ -341,6 +341,15 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   unambiguously as its one expansion (`ctor` for constructor, `expr` for
   expression). The bar is guessability in both directions: `ctor` clears it, a
   coined shortening of a domain word (`val`, `ref`, `op`) does not.
+- **A constant that holds a wire value spells the value.** The abbreviation is
+  then not the code's choice but the format's, and a name that expanded it would
+  disagree with what it holds. `PRED_REF_DIRECTIVE = "pred-ref"` keeps `REF`,
+  because `pred-ref` is what a user writes in a reStructuredText file and what
+  the loader matches when it reads one back. The same holds for
+  `PRED_REF_LANGUAGE`, `PRED_REF_ELEMENT_TAG` and `PRED_REF_FUNCTION_NAME`,
+  which carry `"pred-ref"`, `"pred:ref"` and `"pred_ref"` for Markdown, XML and
+  Julia. This is the same exemption a Base generic gets: a name that comes from
+  outside keeps its spelling.
 - This convention governs exported names. Local and argument names are
   outside its scope, though full words are encouraged there too
   (`context` over `ctx`).
