@@ -33,7 +33,7 @@ a `:horizontal` split stacks them. This is the Vim meaning of the two words.
 
 `WidgetSplitPane`'s own `orientation` names the opposite thing — the axis its
 children lay out along — so a `:vertical` `PaneSplit` prints a
-`WidgetSplitPane(:horizontal, …)`. `pane_split_axis` is that translation, and
+`WidgetSplitPane(:horizontal, …)`. `get_pane_split_axis` is that translation, and
 `PaneToWidget` is the only place it is applied.
 
 ### Focus is the selection
@@ -66,14 +66,14 @@ sit inside another document.
 
 | Edit | Generic form |
 |---|---|
-| `pane_open_tab_operation` | `insert_elements` plus the focus move |
-| `pane_close_tab_operation` | `delete_elements`, or a collapse write, plus the focus move |
-| `pane_split_operation` | `ReplaceReferencedValueOperation` writing a new `PaneSplit` at the group's slot |
-| `pane_move_tab_operation` | `MoveRangeOperation` plus the focus move |
-| `pane_drop_split_operation` | the split write, the move, and the focus move |
-| `pane_resize_operation` | one write of the weights |
-| `pane_focus_operation` | `ReplaceSelectionOperation` |
-| `pane_retarget_title_operation` | `ReplaceStringRangeOperation`, re-rooted |
+| `make_pane_open_tab_operation` | `insert_elements` plus the focus move |
+| `make_pane_close_tab_operation` | `delete_elements`, or a collapse write, plus the focus move |
+| `make_pane_split_operation` | `ReplaceReferencedValueOperation` writing a new `PaneSplit` at the group's slot |
+| `make_pane_move_tab_operation` | `MoveRangeOperation` plus the focus move |
+| `make_pane_drop_split_operation` | the split write, the move, and the focus move |
+| `make_pane_resize_operation` | one write of the weights |
+| `make_pane_focus_operation` | `ReplaceSelectionOperation` |
+| `make_pane_retarget_title_operation` | `ReplaceStringRangeOperation`, re-rooted |
 
 Two rules hold across all of them:
 
@@ -93,13 +93,13 @@ Two rules hold across all of them:
 group a rectangle in the unit square by one walk of the tree with its weights. No
 font, no measurement, and no backend takes part.
 
-- `pane_rectangles(tree)` / `pane_rectangle(tree, group)` / `pane_group_at(tree, x, y)`
-- `pane_neighbour_group(tree, group, direction)` — the group in `:left`,
+- `get_pane_rectangles(tree)` / `get_pane_rectangle(tree, group)` / `get_pane_group_at(tree, x, y)`
+- `get_pane_neighbour_group(tree, group, direction)` — the group in `:left`,
   `:right`, `:up`, or `:down`. A candidate must lie wholly past the edge and
   overlap on the other axis; the nearest wins, then the one that overlaps most.
-- `pane_next_group(tree, group; backward)` — the depth-first traversal order,
+- `get_pane_next_group(tree, group; backward)` — the depth-first traversal order,
   wrapping at both ends.
-- `pane_drop_zone(tree, x, y; strip, band)` — the group under a point and which
+- `get_pane_drop_zone(tree, x, y; strip, band)` — the group under a point and which
   part of it: `:strip`, `:center`, or one of the four edge bands.
 
 The rectangles are **proportional**: they ignore the few pixels a border and a
@@ -183,7 +183,7 @@ A drop on an edge band splits the landing group, and the tab that arrives may
 have been the last one in the group it left — which then goes away, and takes its
 parent split with it when that leaves one element. The drop is two structural
 writes whose paths each have to be named against the tree the other leaves
-behind, and `pane_drop_split_operation` names them by shape:
+behind, and `make_pane_drop_split_operation` names them by shape:
 
 | The source's parent | The writes |
 |---|---|

@@ -25,6 +25,6 @@ function make_pane_document_example()
     right = PaneSplit(:horizontal, [notes, scratch])
     tree = PaneTree(PaneSplit(:vertical, [left, right]; weights = [0.55, 0.45]))
     # Start with the focus in the first tab, so the layout opens showing it.
-    set_selection!(tree, pane_tab_reference(tree, left, 1))
+    set_selection!(tree, get_pane_tab_reference(tree, left, 1))
     tree
 end

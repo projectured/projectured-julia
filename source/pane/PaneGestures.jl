@@ -19,64 +19,64 @@ which answers with a generic operation.
 module PaneGesturesModule
 
 import ..GestureBindingModule: var"@gestures"
-import ..PaneModule: PaneTree, PaneGroup, PaneTab, default_new_pane_tab, pane_groups
-import ..PaneSurgeryModule: pane_focus, pane_focused_group, pane_focus_operation,
-                            pane_open_tab_operation, pane_close_tab_operation,
-                            pane_split_operation, pane_focus_title,
-                            pane_title_caret_operation, pane_retarget_title_operation,
-                            pane_shown_tab_index
+import ..PaneModule: PaneTree, PaneGroup, PaneTab, default_new_pane_tab, get_pane_groups
+import ..PaneSurgeryModule: get_pane_focus, get_pane_focused_group, make_pane_focus_operation,
+                            make_pane_open_tab_operation, make_pane_close_tab_operation,
+                            make_pane_split_operation, get_pane_focus_title,
+                            make_pane_title_caret_operation, make_pane_retarget_title_operation,
+                            get_pane_shown_tab_index
 import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyPress, KeyDown, ModifierKeys
 
 const _NO_MODIFIERS = ModifierKeys()
-import ..PaneGeometryModule: pane_neighbour_group, pane_next_group
+import ..PaneGeometryModule: get_pane_neighbour_group, get_pane_next_group
 
 # ── The rules' bodies ──────────────────────────────────────────────────────
 
 function _open_tab(tree::PaneTree)
-    group = pane_focused_group(tree)
+    group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    pane_open_tab_operation(tree, group, default_new_pane_tab())
+    make_pane_open_tab_operation(tree, group, default_new_pane_tab())
 end
 
 function _close_tab(tree::PaneTree)
-    focus = pane_focus(tree)
+    focus = get_pane_focus(tree)
     focus === nothing && return nothing
     group, index = focus
     index == 0 && return nothing            # an empty group has no tab to close
-    pane_close_tab_operation(tree, group, index)
+    make_pane_close_tab_operation(tree, group, index)
 end
 
 function _split(tree::PaneTree, orientation::Symbol, side::Symbol)
-    group = pane_focused_group(tree)
+    group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    pane_split_operation(tree, group, orientation, side, default_new_pane_tab())
+    make_pane_split_operation(tree, group, orientation, side, default_new_pane_tab())
 end
 
 function _move_focus(tree::PaneTree, direction::Symbol)
-    group = pane_focused_group(tree)
+    group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    target = pane_neighbour_group(tree, group, direction)
+    target = get_pane_neighbour_group(tree, group, direction)
     target === nothing && return nothing
-    pane_focus_operation(tree, target, pane_shown_tab_index(target))
+    make_pane_focus_operation(tree, target, get_pane_shown_tab_index(target))
 end
 
 function _traverse(tree::PaneTree, backward::Bool)
-    group = pane_focused_group(tree)
-    target = pane_next_group(tree, group; backward)
+    group = get_pane_focused_group(tree)
+    target = get_pane_next_group(tree, group; backward)
     (target === nothing || target === group) && return nothing
-    pane_focus_operation(tree, target, pane_shown_tab_index(target))
+    make_pane_focus_operation(tree, target, get_pane_shown_tab_index(target))
 end
 
 # The next or previous tab of the focused group, wrapping around.
 function _sibling_tab(tree::PaneTree, step::Int)
-    focus = pane_focus(tree)
+    focus = get_pane_focus(tree)
     focus === nothing && return nothing
     group, index = focus
     n = length(group.tabs)
     n == 0 && return nothing
     index == 0 && (index = 1)
-    pane_focus_operation(tree, group, mod1(index + step, n))
+    make_pane_focus_operation(tree, group, mod1(index + step, n))
 end
 
 # ── The tab title ──────────────────────────────────────────────────────────
@@ -89,30 +89,30 @@ end
 
 # Put the caret at the end of the focused tab's name.
 function _rename(tree::PaneTree)
-    focus = pane_focus(tree)
+    focus = get_pane_focus(tree)
     focus === nothing && return nothing
     group, index = focus
     index == 0 && return nothing
-    pane_title_caret_operation(tree, group, index)
+    make_pane_title_caret_operation(tree, group, index)
 end
 
 # Leave the title: the selection goes back to the tab it names.
 function _leave_title(tree::PaneTree)
-    found = pane_focus_title(tree)
+    found = get_pane_focus_title(tree)
     found === nothing && return nothing
-    pane_focus_operation(tree, found[1], found[2])
+    make_pane_focus_operation(tree, found[1], found[2])
 end
 
 # Hand one keystroke to the title document and re-root what it answers. The event
 # is rebuilt from the pattern's own bound fields, because a rule body sees those
 # and not the event object.
 function _title_edit(tree::PaneTree, event)
-    found = pane_focus_title(tree)
+    found = get_pane_focus_title(tree)
     found === nothing && return nothing
     group, index = found
     answer = read_gesture(group.tabs[index].title, event)
     answer === nothing && return nothing
-    pane_retarget_title_operation(tree, group, index, answer)
+    make_pane_retarget_title_operation(tree, group, index, answer)
 end
 
 # ── The table ──────────────────────────────────────────────────────────────

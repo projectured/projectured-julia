@@ -40,7 +40,7 @@ end
 
 # A point inside a group, given where in its rectangle to land (0..1 each way).
 function _point(tree, group, u, v)
-    r = pane_rectangle(tree, group)
+    r = get_pane_rectangle(tree, group)
     (round(Int, (r.x + u * r.w) * WIDTH), round(Int, (r.y + v * r.h) * HEIGHT))
 end
 
@@ -135,7 +135,7 @@ _indicator(iomap) = getfield(iomap, :step_iomaps)[][1][].output.elements[2]
     # Over the middle of a group: the whole group is the target.
     x, y = _point(tree, right, 0.5, 0.5)
     _feed!(editor, proj, iomap, MouseMove(x, y, :left, ModifierKeys()))
-    r = pane_rectangle(tree, right)
+    r = get_pane_rectangle(tree, right)
     @test _indicator(iomap).visible === true
     @test _indicator(iomap).position.x[] == round(Int, r.x * WIDTH)
     @test _indicator(iomap).width == round(Int, r.w * WIDTH)
@@ -187,7 +187,7 @@ end
     @test length(left.tabs) == 1
     @test length(right.tabs) == 2
     @test right.tabs[2] === moved              # the same object moved
-    @test pane_focus(tree) == (right, 2)
+    @test get_pane_focus(tree) == (right, 2)
 end
 
 @testset "a drop on an edge band splits the landing group" begin
@@ -207,7 +207,7 @@ end
     new_group = inner.elements[2]
     @test new_group.tabs[1] === moved
     @test length(left.tabs) == 1
-    @test pane_focus(tree) == (new_group, 1)
+    @test get_pane_focus(tree) == (new_group, 1)
 end
 
 @testset "a drop on a side band splits the other way" begin
@@ -241,7 +241,7 @@ end
     @test new_group.tabs[1] === moved
     @test length(left.tabs) == 1                # the tab it kept
     @test tree.root.elements[2] === right       # the other group did not move
-    @test pane_focus(tree) == (new_group, 1)
+    @test get_pane_focus(tree) == (new_group, 1)
 end
 
 @testset "a group with one tab can not split itself" begin
@@ -289,12 +289,12 @@ end
             moved = source.tabs[1]
             label = "\$kind/\$source_tabs/\$zone"
 
-            operation = pane_drop_split_operation(tree, source, 1, target, orientation, zone)
+            operation = make_pane_drop_split_operation(tree, source, 1, target, orientation, zone)
             @test operation !== nothing
             operation === nothing && continue
             evaluate_operation(editor, operation)
 
-            groups = pane_groups(tree)
+            groups = get_pane_groups(tree)
             landed = findfirst(g -> any(g.tabs[i] === moved for i in 1:length(g.tabs)), groups)
             @test landed !== nothing                          # the tab is somewhere
             landed === nothing && continue

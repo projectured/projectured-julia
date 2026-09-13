@@ -39,15 +39,15 @@ import ..ReferenceModule: var"@reference"
 import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
 import ..SelectionModule: get_selection, get_stored_selection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     pane_weights, pane_normalized_weights, pane_groups, pane_parent
+                     get_pane_weights, get_pane_normalized_weights, get_pane_groups, get_pane_parent
 
-export pane_path, pane_collection_path,
-       pane_focus, pane_focused_group, pane_focused_tab_index, pane_focus_title,
-       pane_shown_tab_index,
-       pane_tab_reference, pane_focus_operation,
-       pane_title_path, pane_title_caret_operation, pane_retarget_title_operation,
-       pane_open_tab_operation, pane_close_tab_operation, pane_split_operation,
-       pane_move_tab_operation, pane_drop_split_operation, pane_resize_operation,
+export get_pane_path, get_pane_collection_path,
+       get_pane_focus, get_pane_focused_group, get_pane_focused_tab_index, get_pane_focus_title,
+       get_pane_shown_tab_index,
+       get_pane_tab_reference, make_pane_focus_operation,
+       get_pane_title_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
+       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
+       make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,
        apply_pane_operation!
 
 # ── Path construction ──────────────────────────────────────────────────────
@@ -114,24 +114,24 @@ function _pairs_to(tree::PaneTree, node; from = nothing, to = nothing,
 end
 
 """
-    pane_path(tree, node) -> Reference | Nothing
+    get_pane_path(tree, node) -> Reference | Nothing
 
 The typed path from `tree` to `node`, or `nothing` when the node is not in the
 tree.
 """
-function pane_path(tree::PaneTree, node)
+function get_pane_path(tree::PaneTree, node)
     pairs = _pairs_to(tree, node)
     pairs === nothing ? nothing : _reference_from(pairs, node)
 end
 
 """
-    pane_collection_path(tree, owner, field) -> Reference | Nothing
+    get_pane_collection_path(tree, owner, field) -> Reference | Nothing
 
 The typed path to one of `owner`'s collection fields — `:tabs` of a group,
 `:elements` or `:weights` of a split. This is the path
 `insert_elements` / `delete_elements` splice against.
 """
-function pane_collection_path(tree::PaneTree, owner, field::Symbol)
+function get_pane_collection_path(tree::PaneTree, owner, field::Symbol)
     pairs = _pairs_to(tree, owner)
     pairs === nothing && return nothing
     push!(pairs, (owner, FieldReferenceStep(String(field))))
@@ -193,13 +193,13 @@ end
 # ── The focus ──────────────────────────────────────────────────────────────
 
 """
-    pane_focus(tree) -> (group, index) | Nothing
+    get_pane_focus(tree) -> (group, index) | Nothing
 
 The focused group and the 1-based index of the tab the selection names, or `0`
 for that index when the selection names the group itself. `nothing` when the
 selection is not inside the tree.
 """
-function pane_focus(tree::PaneTree)
+function get_pane_focus(tree::PaneTree)
     selection = get_selection(tree)
     selection === nothing && return nothing
     rest = _after_field(selection, "root")
@@ -209,12 +209,12 @@ function pane_focus(tree::PaneTree)
 end
 
 """
-    pane_focus_title(tree) -> (group, index) | Nothing
+    get_pane_focus_title(tree) -> (group, index) | Nothing
 
 The group and tab whose **title** the selection is inside, or `nothing` when it
 is anywhere else. This is what tells a rename from ordinary editing.
 """
-function pane_focus_title(tree::PaneTree)
+function get_pane_focus_title(tree::PaneTree)
     selection = get_selection(tree)
     selection === nothing && return nothing
     rest = _after_field(selection, "root")
@@ -228,34 +228,34 @@ function pane_focus_title(tree::PaneTree)
 end
 
 """
-    pane_focused_group(tree) -> PaneGroup | Nothing
+    get_pane_focused_group(tree) -> PaneGroup | Nothing
 
 The focused group, or `nothing` when the selection is not inside the tree.
 """
-function pane_focused_group(tree::PaneTree)
-    focus = pane_focus(tree)
+function get_pane_focused_group(tree::PaneTree)
+    focus = get_pane_focus(tree)
     focus === nothing ? nothing : focus[1]
 end
 
 """
-    pane_focused_tab_index(tree) -> Int
+    get_pane_focused_tab_index(tree) -> Int
 
 The 1-based index of the focused tab, or `0` when no tab is focused.
 """
-function pane_focused_tab_index(tree::PaneTree)
-    focus = pane_focus(tree)
+function get_pane_focused_tab_index(tree::PaneTree)
+    focus = get_pane_focus(tree)
     focus === nothing ? 0 : focus[2]
 end
 
 # ── The tab title ──────────────────────────────────────────────────────────
 
 """
-    pane_shown_tab_index(group) -> Int
+    get_pane_shown_tab_index(group) -> Int
 
 The tab a group shows: the one its own selection names, or its first. A group
 with no tab answers 0, which names the group itself.
 """
-function pane_shown_tab_index(group::PaneGroup)
+function get_pane_shown_tab_index(group::PaneGroup)
     isempty(group.tabs) && return 0
     # `get_stored_selection`, not `get_selection`: a group that lost the focus holds a
     # dormant selection, and the tab it shows is exactly what that selection names.
@@ -264,11 +264,11 @@ function pane_shown_tab_index(group::PaneGroup)
 end
 
 """
-    pane_title_path(tree, group, index) -> Reference | Nothing
+    get_pane_title_path(tree, group, index) -> Reference | Nothing
 
 The typed path to a tab's title document.
 """
-function pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
+function get_pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
     (1 <= index <= length(group.tabs)) || return nothing
     tab = group.tabs[index]
     pairs = _pairs_to(tree, group)
@@ -280,16 +280,16 @@ function pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
 end
 
 """
-    pane_title_caret_operation(tree, group, index[, position]) -> Operation | Nothing
+    make_pane_title_caret_operation(tree, group, index[, position]) -> Operation | Nothing
 
 Put the caret in a tab's title — which is the whole of what "rename" means here.
 There is no rename mode and no rename operation: the title is a text document, so
 the caret being in it *is* the editing state. `position` defaults to the end of
 the name.
 """
-function pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer,
+function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer,
                                     position = nothing)
-    path = pane_title_path(tree, group, index)
+    path = get_pane_title_path(tree, group, index)
     path === nothing && return nothing
     title = group.tabs[index].title
     at = position === nothing ? length(something(_title_text(title), "")) : Int(position)
@@ -301,16 +301,16 @@ _title_text(title::PrimitiveString) = title.value
 _title_text(::Any) = nothing
 
 """
-    pane_retarget_title_operation(tree, group, index, operation) -> Operation | Nothing
+    make_pane_retarget_title_operation(tree, group, index, operation) -> Operation | Nothing
 
 Re-root a title edit — an operation the title document built against its own
 vocabulary — onto the tree. This is what lets the tab name be edited by the very
 gestures that edit any other string, with no editing code of its own.
 """
-function pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer,
+function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer,
                                        operation)
     operation isa ReplaceStringRangeOperation || return nothing
-    path = pane_title_path(tree, group, index)
+    path = get_pane_title_path(tree, group, index)
     path === nothing && return nothing
     ReplaceStringRangeOperation(concat_references(path, operation.reference),
                                 operation.replacement)
@@ -347,39 +347,39 @@ function _head_index(path)
 end
 
 """
-    pane_tab_reference(tree, group, index) -> Reference | Nothing
+    get_pane_tab_reference(tree, group, index) -> Reference | Nothing
 
 The selection reference naming tab `index` of `group`, or the group itself when
 `index` is 0.
 """
-function pane_tab_reference(tree::PaneTree, group::PaneGroup, index::Integer)
-    index == 0 && return pane_path(tree, group)
+function get_pane_tab_reference(tree::PaneTree, group::PaneGroup, index::Integer)
+    index == 0 && return get_pane_path(tree, group)
     (1 <= index <= length(group.tabs)) || return nothing
     _element_path(tree, group, :tabs, index, group.tabs[index])
 end
 
 """
-    pane_focus_operation(tree, group, index) -> Operation | Nothing
+    make_pane_focus_operation(tree, group, index) -> Operation | Nothing
 
 Move the focus to tab `index` of `group` — the whole of what focusing is. An
 `index` of 0 focuses the group itself, which is what an empty group takes.
 """
-function pane_focus_operation(tree::PaneTree, group::PaneGroup, index::Integer)
-    reference = pane_tab_reference(tree, group, index)
+function make_pane_focus_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    reference = get_pane_tab_reference(tree, group, index)
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
 
 # ── Open a tab ─────────────────────────────────────────────────────────────
 
 """
-    pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
+    make_pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
 
 Insert `tab` into `group` at the 1-based `index` (the end by default) and focus
 it. One `insert_elements` splice with its cursor move.
 """
-function pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
+function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
                                  index = nothing)
-    tabs_path = pane_collection_path(tree, group, :tabs)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     n = length(group.tabs)
     at = index === nothing ? n + 1 : clamp(Int(index), 1, n + 1)
@@ -390,14 +390,14 @@ end
 # ── Close a tab ────────────────────────────────────────────────────────────
 
 """
-    pane_close_tab_operation(tree, group, index) -> Operation | Nothing
+    make_pane_close_tab_operation(tree, group, index) -> Operation | Nothing
 
 Remove tab `index` of `group`. When it is the group's last tab the group goes
 too: it is dropped from its parent split, or — when that split is left with one
 element — the split is replaced by its remaining sibling. An empty root group
 stays, because a tree always has a root.
 """
-function pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
     n > 1 && return _close_one_tab(tree, group, index, n)
@@ -405,7 +405,7 @@ function pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integ
 end
 
 function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Integer)
-    tabs_path = pane_collection_path(tree, group, :tabs)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     # The tab that takes the focus, named in the numbering that follows the
     # deletion: the next tab keeps this index, the last tab moves back one.
@@ -417,16 +417,16 @@ function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Int
 end
 
 function _close_group(tree::PaneTree, group::PaneGroup)
-    parent = pane_parent(tree, group)
+    parent = get_pane_parent(tree, group)
     parent === nothing && return nothing
     owner, k = parent
-    tabs_path = pane_collection_path(tree, group, :tabs)
+    tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     drop_tab = delete_elements(tabs_path, 0)
 
     # The root group stays, empty. The selection names the group itself.
     if owner === tree
-        cursor = pane_path(tree, group)
+        cursor = get_pane_path(tree, group)
         return CompoundOperation(Any[drop_tab, ReplaceSelectionOperation(cursor)])
     end
 
@@ -441,8 +441,8 @@ function _close_group(tree::PaneTree, group::PaneGroup)
         push!(pairs, (split.elements, ElementReferenceStep(at)))
         leaf = _focus_into!(neighbour, pairs)
         cursor = _reference_from(pairs, leaf)
-        elements_path = pane_collection_path(tree, split, :elements)
-        weights = pane_weights(split)
+        elements_path = get_pane_collection_path(tree, split, :elements)
+        weights = get_pane_weights(split)
         deleteat!(weights, k)
         writes = Any[drop_tab,
                      delete_elements(elements_path, k - 1),
@@ -465,7 +465,7 @@ end
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """
-    pane_split_operation(tree, group, orientation, side, tab) -> Operation | Nothing
+    make_pane_split_operation(tree, group, orientation, side, tab) -> Operation | Nothing
 
 Split `group` and put `tab` in the new pane. `orientation` is `:vertical` (the
 new pane sits beside) or `:horizontal` (it sits above or below); `side` is
@@ -477,19 +477,19 @@ this orientation the group is not wrapped — the new group joins the parent as 
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
 """
-function pane_split_operation(tree::PaneTree, group::PaneGroup, orientation::Symbol,
+function make_pane_split_operation(tree::PaneTree, group::PaneGroup, orientation::Symbol,
                               side::Symbol, tab::PaneTab)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
-    parent = pane_parent(tree, group)
+    parent = get_pane_parent(tree, group)
     parent === nothing && return nothing
     owner, k = parent
 
     # Flatten: join the parent instead of nesting a same-orientation split.
     if owner isa PaneSplit && owner.orientation === orientation
         at = before ? k : k + 1
-        elements_path = pane_collection_path(tree, owner, :elements)
-        weights = pane_weights(owner)
+        elements_path = get_pane_collection_path(tree, owner, :elements)
+        weights = get_pane_weights(owner)
         half = weights[k] / 2
         weights[k] = half
         insert!(weights, at, half)
@@ -522,7 +522,7 @@ end
 # ── Move a tab ─────────────────────────────────────────────────────────────
 
 """
-    pane_move_tab_operation(tree, source, source_index, target, target_index) -> Operation | Nothing
+    make_pane_move_tab_operation(tree, source, source_index, target, target_index) -> Operation | Nothing
 
 Move one tab from `source` to `target`. `target_index` names the slot the tab is
 inserted **before**, in the target's numbering as it stands now — which is what a
@@ -534,9 +534,9 @@ A move inside one group is a reorder. The tab's cell is relocated, so its conten
 keeps its iomap.
 
 When the move empties the source group, the group is closed the same way
-[`pane_close_tab_operation`](@ref) closes it.
+[`make_pane_close_tab_operation`](@ref) closes it.
 """
-function pane_move_tab_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
+function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
                                  target::PaneGroup, target_index::Integer)
     n = length(source.tabs)
     (1 <= source_index <= n) || return nothing
@@ -568,7 +568,7 @@ end
 # `target`'s `index`-th tab named against the tree those writes leave behind.
 function _collapse_writes(tree::PaneTree, group::PaneGroup, target::PaneGroup,
                           index::Integer, tab::PaneTab)
-    parent = pane_parent(tree, group)
+    parent = get_pane_parent(tree, group)
     parent === nothing && return nothing
     owner, k = parent
     owner === tree && return Any[]        # the root group stays, empty
@@ -576,8 +576,8 @@ function _collapse_writes(tree::PaneTree, group::PaneGroup, target::PaneGroup,
     split = owner::PaneSplit
     m = length(split.elements)
     if m > 2
-        elements_path = pane_collection_path(tree, split, :elements)
-        weights = pane_weights(split)
+        elements_path = get_pane_collection_path(tree, split, :elements)
+        weights = get_pane_weights(split)
         deleteat!(weights, k)
         # Every element after the dropped one moves back by one place.
         cursor = _shifted_tab_path(tree, split, k, target, index, tab)
@@ -619,7 +619,7 @@ end
 # ── Drop a tab on a group's edge ───────────────────────────────────────────
 
 """
-    pane_drop_split_operation(tree, source, source_index, target, orientation, side) -> Operation | Nothing
+    make_pane_drop_split_operation(tree, source, source_index, target, orientation, side) -> Operation | Nothing
 
 Split `target` and put `source`'s `source_index`-th tab in the new pane — what a
 drop on a group's edge band means. The tab keeps its identity: it is moved, not
@@ -643,7 +643,7 @@ other leaves behind. Four shapes, and each names its paths accordingly:
 its own pane. That is the first shape above, because a group that splits itself
 must keep a tab behind; the drop answers `nothing` when the tab is its last.
 """
-function pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
+function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
                                    target::PaneGroup, orientation::Symbol, side::Symbol)
     (1 <= source_index <= length(source.tabs)) || return nothing
     # A group that drops its only tab on its own edge changes nothing: the tab
@@ -683,7 +683,7 @@ function _drop_split_writes(tree::PaneTree, source::PaneGroup, target::PaneGroup
                (Any[write], Pair{Any,Any}[target => split])
     end
 
-    parent = pane_parent(tree, source)
+    parent = get_pane_parent(tree, source)
     parent === nothing && return (nothing, _NO_SUBSTITUTIONS)
     owner, k = parent
     # The root group is the only group there is, so there is no target to drop on.
@@ -712,9 +712,9 @@ function _drop_split_writes(tree::PaneTree, source::PaneGroup, target::PaneGroup
     # Three or more: the source is spliced out, and its weight with it.
     write = _slot_write(tree, target, split)
     write === nothing && return (nothing, _NO_SUBSTITUTIONS)
-    elements_path = pane_collection_path(tree, split_parent, :elements)
+    elements_path = get_pane_collection_path(tree, split_parent, :elements)
     elements_path === nothing && return (nothing, _NO_SUBSTITUTIONS)
-    weights = pane_weights(split_parent)
+    weights = get_pane_weights(split_parent)
     deleteat!(weights, k)
     writes = filter(!isnothing, Any[write, delete_elements(elements_path, k - 1),
                                     _write_weights(tree, split_parent, weights)])
@@ -728,12 +728,12 @@ end
 # ── Resize a split ─────────────────────────────────────────────────────────
 
 """
-    pane_resize_operation(tree, split, weights) -> Operation | Nothing
+    make_pane_resize_operation(tree, split, weights) -> Operation | Nothing
 
 Give `split` new child weights. The weights are normalized, so a caller can pass
 raw extents (the pixel sizes a splitter drag produced) and let this scale them.
 """
-function pane_resize_operation(tree::PaneTree, split::PaneSplit, weights::AbstractVector)
+function make_pane_resize_operation(tree::PaneTree, split::PaneSplit, weights::AbstractVector)
     length(weights) == length(split.elements) || return nothing
     _write_weights(tree, split, weights)
 end
@@ -742,15 +742,15 @@ end
 # depends on, so replacing the vector is simpler than splicing it, and it is the
 # only form that also works when the field was empty (equal weights).
 function _write_weights(tree::PaneTree, split::PaneSplit, weights::AbstractVector)
-    path = pane_collection_path(tree, split, :weights)
+    path = get_pane_collection_path(tree, split, :weights)
     path === nothing && return nothing
     ReplaceReferencedValueOperation(nothing, path,
-                                    CellVector(pane_normalized_weights(weights)))
+                                    CellVector(get_pane_normalized_weights(weights)))
 end
 
 # The write that puts `replacement` in the slot `node` occupies.
 function _slot_write(tree::PaneTree, node, replacement; subs = _NO_SUBSTITUTIONS)
-    parent = pane_parent(tree, node)
+    parent = get_pane_parent(tree, node)
     parent === nothing && return nothing
     owner, k = parent
     if owner === tree

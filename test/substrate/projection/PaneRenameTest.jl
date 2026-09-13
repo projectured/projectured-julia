@@ -28,50 +28,50 @@ function _seeded()
                               PaneTab("other", PrimitiveString(""))])
     tree = PaneTree(group)
     editor = _PaneRenameMockEditor(tree)
-    evaluate_operation(editor, pane_focus_operation(tree, group, 1))
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
     (tree, group, editor)
 end
 
 @testset "F2 puts the caret at the end of the name" begin
     tree, group, editor = _seeded()
-    @test pane_focus_title(tree) === nothing
+    @test get_pane_focus_title(tree) === nothing
     @test _press!(editor, KeyDown(:f2, ModifierKeys())) !== nothing
-    @test pane_focus_title(tree) == (group, 1)
+    @test get_pane_focus_title(tree) == (group, 1)
     # The caret sits after the last character, so typing appends.
     _type!(editor, "!")
-    @test pane_tab_title_string(group.tabs[1]) == "notes!"
+    @test get_pane_tab_title_string(group.tabs[1]) == "notes!"
 end
 
 @testset "typing edits the name and nothing else" begin
     tree, group, editor = _seeded()
     _press!(editor, KeyDown(:f2, ModifierKeys()))
     _type!(editor, " today")
-    @test pane_tab_title_string(group.tabs[1]) == "notes today"
+    @test get_pane_tab_title_string(group.tabs[1]) == "notes today"
     # The tab's content is untouched — the keys went to the name.
     @test group.tabs[1].content.value == "body"
-    @test pane_tab_title_string(group.tabs[2]) == "other"
+    @test get_pane_tab_title_string(group.tabs[2]) == "other"
 end
 
 @testset "backspace and delete work in the name" begin
     tree, group, editor = _seeded()
     _press!(editor, KeyDown(:f2, ModifierKeys()))
     _press!(editor, KeyDown(:backspace, ModifierKeys()))
-    @test pane_tab_title_string(group.tabs[1]) == "note"
+    @test get_pane_tab_title_string(group.tabs[1]) == "note"
     _press!(editor, KeyDown(:backspace, ModifierKeys()))
-    @test pane_tab_title_string(group.tabs[1]) == "not"
+    @test get_pane_tab_title_string(group.tabs[1]) == "not"
 end
 
 @testset "Escape leaves the name and the caret returns to the tab" begin
     tree, group, editor = _seeded()
     _press!(editor, KeyDown(:f2, ModifierKeys()))
-    @test pane_focus_title(tree) == (group, 1)
+    @test get_pane_focus_title(tree) == (group, 1)
     @test _press!(editor, KeyDown(:escape, ModifierKeys())) !== nothing
-    @test pane_focus_title(tree) === nothing
-    @test pane_focus(tree) == (group, 1)
+    @test get_pane_focus_title(tree) === nothing
+    @test get_pane_focus(tree) == (group, 1)
     # And typing no longer touches the name.
-    before = pane_tab_title_string(group.tabs[1])
+    before = get_pane_tab_title_string(group.tabs[1])
     _type!(editor, "x")
-    @test pane_tab_title_string(group.tabs[1]) == before
+    @test get_pane_tab_title_string(group.tabs[1]) == before
 end
 
 @testset "the pane chords still work while the caret is in a name" begin
@@ -86,23 +86,23 @@ end
     tree = PaneTree(PaneGroup(PaneTab[]))
     group = tree.root
     editor = _PaneRenameMockEditor(tree)
-    evaluate_operation(editor, pane_focus_operation(tree, group, 0))
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
     _press!(editor, KeyDown(:t, ModifierKeys(ctrl = true)))
-    @test pane_tab_title_string(group.tabs[1]) == "untitled"
+    @test get_pane_tab_title_string(group.tabs[1]) == "untitled"
 
     _press!(editor, KeyDown(:f2, ModifierKeys()))
     for _ in 1:length("untitled")
         _press!(editor, KeyDown(:backspace, ModifierKeys()))
     end
     _type!(editor, "readme")
-    @test pane_tab_title_string(group.tabs[1]) == "readme"
+    @test get_pane_tab_title_string(group.tabs[1]) == "readme"
 end
 
 @testset "F2 on an empty group does nothing" begin
     group = PaneGroup(PaneTab[])
     tree = PaneTree(group)
     editor = _PaneRenameMockEditor(tree)
-    evaluate_operation(editor, pane_focus_operation(tree, group, 0))
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
     @test _press!(editor, KeyDown(:f2, ModifierKeys())) === nothing
 end
 

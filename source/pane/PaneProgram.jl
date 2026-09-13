@@ -49,7 +49,7 @@ the whole of what a caller needs to know.
 # What else the model may write
 
 A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`,
-and this module exports none of them — [`pane_api`](@ref) declares them **by
+and this module exports none of them — [`make_pane_api`](@ref) declares them **by
 name** instead. A declaration is not an export, so each of those names still has
 exactly one owning module, and the program says them plainly.
 
@@ -81,24 +81,24 @@ import ..OperationModule: ReplaceReferencedValueOperation
 import ..SelectionModule: replace_selection!
 import ..PaneModule
 import ..PaneModule:
-    PaneTree, PaneSplit, PaneGroup, PaneTab, pane_groups, pane_tab_title_string,
-    pane_parent, pane_weights, pane_normalized_weights
-import ..PaneGeometryModule: pane_rectangles
+    PaneTree, PaneSplit, PaneGroup, PaneTab, get_pane_groups, get_pane_tab_title_string,
+    get_pane_parent, get_pane_weights, get_pane_normalized_weights
+import ..PaneGeometryModule: get_pane_rectangles
 # The pane package binds it, so a layout costs this package no dependency of its
 # own and the window's closure is what it was.
 import ..LayoutModule
 import ..LayoutModule: LayoutDocument
 import ..PaneSurgeryModule:
-    apply_pane_operation!, pane_focus, pane_focus_operation, pane_shown_tab_index,
-    pane_close_tab_operation, pane_move_tab_operation, pane_drop_split_operation,
-    pane_resize_operation
+    apply_pane_operation!, get_pane_focus, make_pane_focus_operation, get_pane_shown_tab_index,
+    make_pane_close_tab_operation, make_pane_move_tab_operation, make_pane_drop_split_operation,
+    make_pane_resize_operation
 
 export show_layout, get_referenced_value, replace_referenced_value!,
-       focus_pane, close_pane, move_pane, resize_pane,
-       get_window_tree, describe_pane_content, pane_api
+       focus_pane!, close_pane!, move_pane!, resize_pane!,
+       get_window_tree, describe_pane_content, make_pane_api
 
 """
-    pane_api() -> Vector
+    make_pane_api() -> Vector
 
 What a model needs declared to write the program [`show_layout`](@ref) prints:
 this module's verbs, and the borrowed names the program says.
@@ -107,7 +107,7 @@ The borrowed ones are listed **by name**. Their modules export far more than a
 layout needs, and a declared module puts every one of its exported names in the
 model's search — this module's own documentation says what that costs.
 """
-pane_api() = Any[
+make_pane_api() = Any[
     PaneProgramModule,
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
@@ -302,16 +302,16 @@ end
 # tree is the same object it was, whatever path now reaches it.
 
 _focused_tab(tree::PaneTree) = begin
-    focus = pane_focus(tree)
+    focus = get_pane_focus(tree)
     (focus === nothing || focus[2] == 0) ? nothing : focus[1].tabs[focus[2]]
 end
 
 _shown_tabs(tree::PaneTree) =
-    Any[group.tabs[pane_shown_tab_index(group)]
-        for group in pane_groups(tree) if length(group.tabs) > 0]
+    Any[group.tabs[get_pane_shown_tab_index(group)]
+        for group in get_pane_groups(tree) if length(group.tabs) > 0]
 
 function _restore_shown!(tree::PaneTree, shown)
-    for group in pane_groups(tree)
+    for group in get_pane_groups(tree)
         n = length(group.tabs)
         n == 0 && continue
         index = findfirst(i -> any(t -> t === group.tabs[i], shown), 1:n)
@@ -322,10 +322,10 @@ end
 
 function _restore_focus!(tree::PaneTree, focused)
     focused === nothing && return
-    for group in pane_groups(tree)
+    for group in get_pane_groups(tree)
         for i in 1:length(group.tabs)
             group.tabs[i] === focused || continue
-            apply_pane_operation!(tree, pane_focus_operation(tree, group, i))
+            apply_pane_operation!(tree, make_pane_focus_operation(tree, group, i))
             return
         end
     end
@@ -344,18 +344,18 @@ end
 # refused, with the count.
 
 """
-    focus_pane(editor; pane) -> Text
+    focus_pane!(editor; pane) -> Text
 
 Show `pane` and give it the focus, and answer the window's new program.
 """
-function focus_pane(editor; pane)
+function focus_pane!(editor; pane)
     tree = get_window_tree(editor)
     group, index = _pane_named(tree, pane)
-    _apply(editor, tree, pane_focus_operation(tree, group, index), "focus", pane)
+    _apply(editor, tree, make_pane_focus_operation(tree, group, index), "focus", pane)
 end
 
 """
-    close_pane(editor; pane) -> Text
+    close_pane!(editor; pane) -> Text
 
 Close `pane`, and answer the window's new program.
 
@@ -363,14 +363,14 @@ The group goes too when this was its last tab, and the split goes when that
 leaves it with one child. Closing is its own word because it destroys something:
 a rearrangement never does, and this always does.
 """
-function close_pane(editor; pane)
+function close_pane!(editor; pane)
     tree = get_window_tree(editor)
     group, index = _pane_named(tree, pane)
-    _apply(editor, tree, pane_close_tab_operation(tree, group, index), "close", pane)
+    _apply(editor, tree, make_pane_close_tab_operation(tree, group, index), "close", pane)
 end
 
 """
-    move_pane(editor; pane, next_to, side = "tab") -> Text
+    move_pane!(editor; pane, next_to, side = "tab") -> Text
 
 Move `pane` to `next_to`, and answer the window's new program.
 
@@ -378,16 +378,16 @@ Move `pane` to `next_to`, and answer the window's new program.
 the pane it lands on, and `"tab"` — the default — makes it another tab of the
 same group.
 """
-function move_pane(editor; pane, next_to, side = "tab")
+function move_pane!(editor; pane, next_to, side = "tab")
     tree = get_window_tree(editor)
     source, index = _pane_named(tree, pane)
     target, _ = _pane_named(tree, next_to)
     word = lowercase(String(side))
     operation = if word == "tab"
-        pane_move_tab_operation(tree, source, index, target, length(target.tabs) + 1)
+        make_pane_move_tab_operation(tree, source, index, target, length(target.tabs) + 1)
     else
         orientation, edge = _split_side(word)
-        pane_drop_split_operation(tree, source, index, target, orientation, edge)
+        make_pane_drop_split_operation(tree, source, index, target, orientation, edge)
     end
     _apply(editor, tree, operation, "move", pane)
 end
@@ -403,16 +403,16 @@ function _split_side(word::AbstractString)
 end
 
 """
-    resize_pane(editor; pane, fraction) -> Text
+    resize_pane!(editor; pane, fraction) -> Text
 
 Give `pane` that share of the space its split divides, and answer the window's
 new program. `fraction` is between 0 and 1, and what the other children of that
 split had is scaled to fit the rest.
 """
-function resize_pane(editor; pane, fraction)
+function resize_pane!(editor; pane, fraction)
     tree = get_window_tree(editor)
     group, _ = _pane_named(tree, pane)
-    parent = pane_parent(tree, group)
+    parent = get_pane_parent(tree, group)
     (parent !== nothing && parent[1] isa PaneSplit) ||
         throw(ArgumentError("The pane " * repr(String(pane)) *
                             " is not inside a split, so it already has the whole window."))
@@ -420,19 +420,19 @@ function resize_pane(editor; pane, fraction)
     share = Float64(fraction)
     (0 < share < 1) ||
         throw(ArgumentError("A share is between 0 and 1, and " * string(share) * " is not."))
-    weights = pane_normalized_weights(pane_weights(split))
+    weights = get_pane_normalized_weights(get_pane_weights(split))
     rest = 1.0 - weights[slot]
     scale = rest <= 0 ? 0.0 : (1.0 - share) / rest
     resized = Float64[i == slot ? share : weights[i] * scale for i in 1:length(weights)]
-    _apply(editor, tree, pane_resize_operation(tree, split, resized), "resize", pane)
+    _apply(editor, tree, make_pane_resize_operation(tree, split, resized), "resize", pane)
 end
 
 # The pane a title names, or a refusal that says what the window does hold.
 function _pane_named(tree::PaneTree, title)
     wanted = String(title)
     found = Tuple{PaneGroup,Int}[]
-    for group in pane_groups(tree), i in 1:length(group.tabs)
-        pane_tab_title_string(group.tabs[i]) == wanted && push!(found, (group, i))
+    for group in get_pane_groups(tree), i in 1:length(group.tabs)
+        get_pane_tab_title_string(group.tabs[i]) == wanted && push!(found, (group, i))
     end
     isempty(found) &&
         throw(ArgumentError("No pane is called " * repr(wanted) * ". The panes are: " *
@@ -444,7 +444,7 @@ function _pane_named(tree::PaneTree, title)
 end
 
 _pane_titles(tree::PaneTree) =
-    [pane_tab_title_string(tab) for group in pane_groups(tree) for tab in group.tabs]
+    [get_pane_tab_title_string(tab) for group in get_pane_groups(tree) for tab in group.tabs]
 
 # `PaneSurgery` answers `nothing` for an edit that does not apply, and a verb
 # that answered the unchanged window would look as though it had worked.
@@ -512,13 +512,13 @@ end
 _pad(s::AbstractString, width::Integer) = " " ^ max(0, width - length(s))
 
 # How much of the window each group has, as a percentage of each axis. It comes
-# from the weights alone — `pane_rectangles` walks the tree and divides the unit
+# from the weights alone — `get_pane_rectangles` walks the tree and divides the unit
 # square — so it needs no printed window and no measurement. A group that has all
 # of both axes says nothing, because "100% × 100%" on every line of a one-pane
 # window is noise.
 function _pane_shares(tree::PaneTree)
     shares = Dict{PaneGroup,String}()
-    for (group, rectangle) in pane_rectangles(tree)
+    for (group, rectangle) in get_pane_rectangles(tree)
         percent(value) = string(round(Int, 100 * value)) * "%"
         shares[group] = (rectangle.w >= 0.999 && rectangle.h >= 0.999) ? "" :
                         percent(rectangle.w) * " × " * percent(rectangle.h)
@@ -532,7 +532,7 @@ function _collect_panes!(panes::Vector{_Pane}, node, path::String, shares)
         for i in 1:length(node.tabs)
             tab = node.tabs[i]
             tab_path = path * ".tabs[" * string(i) * "]"
-            title = pane_tab_title_string(tab)
+            title = get_pane_tab_title_string(tab)
             push!(panes, _Pane(tab_path, title,
                                describe_pane_content(tab.content), share, tab, ""))
             _collect_cells!(panes, tab.content, tab_path, title)

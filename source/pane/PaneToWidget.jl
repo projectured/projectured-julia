@@ -11,7 +11,7 @@ panes:
 **The two orientation vocabularies meet here.** A `:vertical` `PaneSplit` — one
 with a vertical divider, so its children sit side by side — prints a
 `WidgetSplitPane(:horizontal, …)`, because the widget's symbol names the axis its
-children lay out along. `pane_split_axis` is the translation, and this module is
+children lay out along. `get_pane_split_axis` is the translation, and this module is
 the only place that applies it.
 
 **Weights become layout weights.** Each slot is wrapped in a `LayoutConstraint`
@@ -32,13 +32,13 @@ module PaneToWidgetModule
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..PaneModule: PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     pane_split_axis, pane_weights, pane_normalized_weights,
-                     pane_tab_title_string, default_new_pane_tab
-import ..PaneSurgeryModule: pane_focus_operation, pane_open_tab_operation,
-                            pane_close_tab_operation, pane_resize_operation,
-                            pane_move_tab_operation, pane_drop_split_operation,
-                            pane_focus, pane_shown_tab_index
-import ..PaneGeometryModule: pane_drop_zone, pane_zone_orientation, pane_rectangle
+                     get_pane_split_axis, get_pane_weights, get_pane_normalized_weights,
+                     get_pane_tab_title_string, default_new_pane_tab
+import ..PaneSurgeryModule: make_pane_focus_operation, make_pane_open_tab_operation,
+                            make_pane_close_tab_operation, make_pane_resize_operation,
+                            make_pane_move_tab_operation, make_pane_drop_split_operation,
+                            get_pane_focus, get_pane_shown_tab_index
+import ..PaneGeometryModule: get_pane_drop_zone, get_pane_zone_orientation, get_pane_rectangle
 import ..IntentModule: Intent
 import ..EventModule: MouseMove, MouseUp, MousePress
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
@@ -261,7 +261,7 @@ function _drop_indicator_rectangle(tree::PaneTree, available)
     state === nothing && return nothing
     target = state.target
     target === nothing && return nothing
-    r = pane_rectangle(tree, target)
+    r = get_pane_rectangle(tree, target)
     r === nothing && return nothing
     width, height = Int(available[1][]), Int(available[2][])
     (width <= 0 || height <= 0) && return nothing
@@ -304,7 +304,7 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
         (i, element) -> _recurse(recursion, element,
             make_child_context(ctx, split, (@reference_step elements), (@reference_step [i]))))
 
-    axis = pane_split_axis(split)
+    axis = get_pane_split_axis(split)
     # `axis` is what the widget calls its orientation: a vertical split lays its
     # children out horizontally.
     horizontal = axis === :horizontal
@@ -317,7 +317,7 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     pane = WidgetSplitPane(axis, Any[])
     set_cell_function!(pane, () -> begin
         iomaps = element_iomaps[]
-        weights = pane_normalized_weights(pane_weights(split))
+        weights = get_pane_normalized_weights(get_pane_weights(split))
         Any[_constrain(iomaps[i].output, horizontal,
                        i <= length(weights) ? weights[i] : 1.0, preferred)
             for i in eachindex(iomaps)]
@@ -385,7 +385,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     set_cell_function!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[(pane_tab_title_string(tabs[i]), entries[i].pane) for i in eachindex(entries)]
+        Any[(get_pane_tab_title_string(tabs[i]), entries[i].pane) for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
@@ -467,20 +467,20 @@ end
 # A tab click arrives as a ReplaceSelectionOperation now, which the generic
 # reader re-targets through `map_reference_backward` — its bare
 # `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`, the same path
-# `pane_focus_operation` used to build. No method of our own is needed.
+# `make_pane_focus_operation` used to build. No method of our own is needed.
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::CloseTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
-    pane_close_tab_operation(iomap.input, group, operation.tab_index)
+    make_pane_close_tab_operation(iomap.input, group, operation.tab_index)
 end
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::OpenTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
-    pane_open_tab_operation(iomap.input, group, p.new_tab())
+    make_pane_open_tab_operation(iomap.input, group, p.new_tab())
 end
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
@@ -544,9 +544,9 @@ function _focus_from_press(iomap::PaneTreeToWidgetIoMap, press)
     landing === nothing && return nothing
     group = landing[1]
     tree = iomap.input
-    focus = pane_focus(tree)
+    focus = get_pane_focus(tree)
     (focus !== nothing && focus[1] === group) && return nothing
-    pane_focus_operation(tree, group, pane_shown_tab_index(group))
+    make_pane_focus_operation(tree, group, get_pane_shown_tab_index(group))
 end
 
 # ── The drag ───────────────────────────────────────────────────────────────
@@ -588,15 +588,15 @@ function _drop_operation(tree::PaneTree, state)
     target = state.target
     target === nothing && return nothing
     source, index, zone = state.group, state.index, state.zone
-    orientation = pane_zone_orientation(zone)
+    orientation = get_pane_zone_orientation(zone)
     if orientation === nothing
         # The strip or the middle: the tab moves into the group, at its end.
         source === target && return nothing
-        return pane_move_tab_operation(tree, source, index, target,
+        return make_pane_move_tab_operation(tree, source, index, target,
                                        length(target.tabs) + 1)
     end
     # The zone names the side the new pane lands on.
-    pane_drop_split_operation(tree, source, index, target, orientation, zone)
+    make_pane_drop_split_operation(tree, source, index, target, orientation, zone)
 end
 
 # The group and zone under a pointer, or `nothing` when the layout has no
@@ -608,7 +608,7 @@ function _drop_target(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
     (width === nothing || height === nothing) && return nothing
     w, h = Int(width[]), Int(height[])
     (w <= 0 || h <= 0) && return nothing
-    pane_drop_zone(iomap.input, x / w, y / h; strip = _PANE_STRIP_PIXELS / h)
+    get_pane_drop_zone(iomap.input, x / w, y / h; strip = _PANE_STRIP_PIXELS / h)
 end
 
 # A splitter drag is a weight change. The widget computed two new pixel extents;
@@ -634,7 +634,7 @@ function _read_resize(tree::PaneTree, iomap::PaneTreeToWidgetIoMap,
     extents = Float64[Float64(widget.sizes[i]) for i in 1:n]
     extents[k] = Float64(operation.new_size_a)
     extents[k + 1] = Float64(operation.new_size_b)
-    pane_resize_operation(tree, split, extents)
+    make_pane_resize_operation(tree, split, extents)
 end
 
 # The pane node whose widget is `widget`. Only pane nodes are searched — a tab's

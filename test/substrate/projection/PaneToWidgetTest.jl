@@ -86,7 +86,7 @@ end
     pane = _layout(iomap)
     @test get_selection(pane) === nothing
 
-    _apply!(editor, pane_focus_operation(tree, group, 2))
+    _apply!(editor, make_pane_focus_operation(tree, group, 2))
     forwarded = get_selection(pane)
     @test forwarded !== nothing
     # The tabbed pane reads the index alone, so that is all that is forwarded.
@@ -103,7 +103,7 @@ end
     iomap = print_document(_pane_stage(), tree)
     split_pane = _layout(iomap)
 
-    _apply!(editor, pane_focus_operation(tree, right, 1))
+    _apply!(editor, make_pane_focus_operation(tree, right, 1))
     forwarded = get_selection(split_pane)
     @test forwarded.head.name == "elements"
     @test forwarded.tail.head.start == 1        # the second slot
@@ -116,7 +116,7 @@ end
     iomap = print_document(_pane_stage(), tree)
 
     for (group, index) in ((left, 1), (left, 2), (right, 1))
-        reference = pane_tab_reference(tree, group, index)
+        reference = get_pane_tab_reference(tree, group, index)
         image = map_reference_forward(iomap.projection, iomap, reference)
         @test image !== nothing
         @test map_reference_backward(iomap.projection, iomap, image) == reference
@@ -131,7 +131,7 @@ end
     # more. It must name the tab, not fail for want of a suffix.
     click = @reference ::WidgetComposite.elements::CellVector[1]::WidgetTabbedPane.selector_element_pairs::CellVector[2]::WidgetDocument
     @test map_reference_backward(iomap.projection, iomap, click) ==
-          pane_tab_reference(tree, group, 2)
+          get_pane_tab_reference(tree, group, 2)
 end
 
 @testset "a reference inside a tab's content maps into the content" begin

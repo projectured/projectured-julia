@@ -37,9 +37,9 @@ ctrl_alt(key) = KeyDown(key, ModifierKeys(ctrl = true, alt = true))
 # Rename whatever tab has the focus: into the name, clear it, type the new one.
 function rename!(name)
     press!(KeyDown(:f2, ModifierKeys()))
-    focus = pane_focus_title(tree)
+    focus = get_pane_focus_title(tree)
     focus === nothing && return false
-    for _ in 1:length(pane_tab_title_string(focus[1].tabs[focus[2]]))
+    for _ in 1:length(get_pane_tab_title_string(focus[1].tabs[focus[2]]))
         press!(KeyDown(:backspace, ModifierKeys()))
     end
     for c in name
@@ -74,7 +74,7 @@ end
 
 # A point inside a group, as a fraction of its own rectangle.
 function point(group, u, v)
-    r = pane_rectangle(tree, group)
+    r = get_pane_rectangle(tree, group)
     (round(Int, (r.x + u * r.w) * WIDTH), round(Int, (r.y + v * r.h) * HEIGHT))
 end
 
@@ -98,12 +98,12 @@ end
 @testset "the empty start state" begin
     @test tree.root isa PaneGroup
     @test isempty(tree.root.tabs)
-    @test pane_focus(tree) === nothing        # nothing is selected yet
+    @test get_pane_focus(tree) === nothing        # nothing is selected yet
 end
 
 @testset "the first focus comes from a gesture" begin
     press!(ctrl(:tab))
-    @test pane_focus(tree) == (tree.root, 0)  # the empty group itself
+    @test get_pane_focus(tree) == (tree.root, 0)  # the empty group itself
 end
 
 first_group = tree.root
@@ -112,7 +112,7 @@ first_group = tree.root
     press!(ctrl(:t))
     @test length(first_group.tabs) == 1
     @test rename!("a")
-    @test pane_tab_title_string(first_group.tabs[1]) == "a"
+    @test get_pane_tab_title_string(first_group.tabs[1]) == "a"
 end
 
 @testset "split to the right and name that one" begin
@@ -138,23 +138,23 @@ end
 
 @testset "move back to the left pane and split it too" begin
     press!(ctrl_alt(:left))
-    @test pane_focus(tree)[1] === first_group
+    @test get_pane_focus(tree)[1] === first_group
     press!(ctrl_shift(:backslash))
     @test rename!("c")
     assert_rendered!()
 end
 
 @testset "four panes, four names, two by two" begin
-    groups = pane_groups(tree)
+    groups = get_pane_groups(tree)
     @test length(groups) == 4
-    names = [pane_tab_title_string(g.tabs[1]) for g in groups]
+    names = [get_pane_tab_title_string(g.tabs[1]) for g in groups]
     @test sort(names) == ["a", "b", "c", "d"]
     # The left column holds a over c, the right one b over d.
     left, right = tree.root.elements[1], tree.root.elements[2]
     @test left isa PaneSplit && left.orientation === :horizontal
     @test right isa PaneSplit && right.orientation === :horizontal
-    @test pane_tab_title_string(left.elements[1].tabs[1]) == "a"
-    @test pane_tab_title_string(left.elements[2].tabs[1]) == "c"
+    @test get_pane_tab_title_string(left.elements[1].tabs[1]) == "a"
+    @test get_pane_tab_title_string(left.elements[2].tabs[1]) == "c"
 end
 
 @testset "drag a tab from one group into another" begin
@@ -175,27 +175,27 @@ end
     @test target.tabs[2] === moved       # the same tab, moved
     # Its group had nothing else in it, so the group went away with it.
     @test tree.root.elements[1] === first_group
-    @test length(pane_groups(tree)) == 3
+    @test length(get_pane_groups(tree)) == 3
     assert_rendered!()
 end
 
 @testset "close a group away" begin
     right = tree.root.elements[2]
     d_group = right.elements[2]
-    @test pane_tab_title_string(d_group.tabs[1]) == "d"
+    @test get_pane_tab_title_string(d_group.tabs[1]) == "d"
 
     # Focus it by clicking inside it, then close the tab. The click lands in the
     # middle of the pane: the tree's rectangles are proportional and ignore the
     # few pixels a border and a splitter take, so an edge is not a place to aim.
     x, y = point(d_group, 0.5, 0.5)
     press!(MousePress(:left, x, y, ModifierKeys()))
-    @test pane_focus(tree)[1] === d_group
+    @test get_pane_focus(tree)[1] === d_group
     press!(ctrl(:w))
 
-    @test length(pane_groups(tree)) == 2
+    @test length(get_pane_groups(tree)) == 2
     @test tree.root isa PaneSplit
     @test tree.root.elements[1] === first_group
-    names = [pane_tab_title_string(t) for g in pane_groups(tree) for t in g.tabs]
+    names = [get_pane_tab_title_string(t) for g in get_pane_groups(tree) for t in g.tabs]
     @test sort(names) == ["a", "b", "c"]
     assert_rendered!()
 end
@@ -205,13 +205,13 @@ end
     assert_rendered!()
     # The layout is two panes side by side, so a press in each half must land in
     # a different group.
-    left_group, right_group = pane_groups(tree)
+    left_group, right_group = get_pane_groups(tree)
     lx, ly = point(left_group, 0.5, 0.5)
     press!(MousePress(:left, lx, ly, ModifierKeys()))
-    @test pane_focus(tree)[1] === left_group
+    @test get_pane_focus(tree)[1] === left_group
     rx, ry = point(right_group, 0.5, 0.5)
     press!(MousePress(:left, rx, ry, ModifierKeys()))
-    @test pane_focus(tree)[1] === right_group
+    @test get_pane_focus(tree)[1] === right_group
 end
 
 end # testset

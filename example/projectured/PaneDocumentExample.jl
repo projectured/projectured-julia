@@ -23,7 +23,7 @@ function make_pane_json_document_example()
     right = PaneSplit(:horizontal, [notes, scratch])
     tree = PaneTree(PaneSplit(:vertical, [left, right]; weights = [0.65, 0.35]))
     # Start with the focus on the json tab, so the layout opens showing it.
-    set_selection!(tree, pane_tab_reference(tree, left, 1))
+    set_selection!(tree, get_pane_tab_reference(tree, left, 1))
     tree
 end
 

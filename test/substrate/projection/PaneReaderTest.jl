@@ -60,14 +60,14 @@ end
     proj = _chain()
     iomap = print_document(proj, tree)
 
-    wanted = pane_tab_reference(tree, group, 2)
+    wanted = get_pane_tab_reference(tree, group, 2)
     found = _sweep(proj, iomap)
     hits = [op for (_, op) in found
             if op isa ReplaceSelectionOperation && op.path == wanted]
     @test !isempty(hits)
 
     _apply!(editor, hits[1])
-    @test pane_focus(tree) == (group, 2)
+    @test get_pane_focus(tree) == (group, 2)
 end
 
 @testset "a close button closes its own tab" begin
@@ -96,8 +96,8 @@ end
     @test !isempty(opens)
     _apply!(editor, opens[1])
     @test length(group.tabs) == 2
-    @test pane_focus(tree) == (group, 2)
-    @test pane_tab_title_string(group.tabs[2]) == "untitled"
+    @test get_pane_focus(tree) == (group, 2)
+    @test get_pane_tab_title_string(group.tabs[2]) == "untitled"
 end
 
 @testset "the new-tab factory decides what a tab holds" begin
@@ -112,7 +112,7 @@ end
     opens = [op for (_, op) in _sweep(proj, iomap) if _is_insert(op)]
     @test !isempty(opens)
     _apply!(editor, opens[1])
-    @test pane_tab_title_string(group.tabs[2]) == "made to order"
+    @test get_pane_tab_title_string(group.tabs[2]) == "made to order"
 end
 
 @testset "a click in a tab's content places a caret in it" begin
@@ -124,7 +124,7 @@ end
     tree = PaneTree(group)
     # The focus, as a window opens with one: a tabbed pane routes a press to the
     # tab its selection names, and names none until something has been clicked.
-    set_selection!(tree, pane_tab_reference(tree, group, 1))
+    set_selection!(tree, get_pane_tab_reference(tree, group, 1))
     editor = _PaneReaderMockEditor(tree)
     proj = make_pane_projection_example(measure = _stub)
     # With an extent to divide, as a window gives one: a tabbed pane draws its
@@ -147,7 +147,7 @@ end
         _apply!(editor, caret)
         # The whole chain wrote it: the tree, the group, the tab and the string it
         # holds each hold their own share of the path.
-        @test pane_focus(tree) == (group, 1)
+        @test get_pane_focus(tree) == (group, 1)
         @test get_selection(group.tabs[1].content) !== nothing
     end
 end
@@ -193,8 +193,8 @@ end
     move = read_intent(proj, iomap, MouseMove(300, 150, :left, ModifierKeys()))
     @test move isa ReplaceReferencedValueOperation
     _apply!(editor, move)
-    @test pane_weights(tree.root)[1] > 0.6        # the left pane took the space
-    @test sum(pane_weights(tree.root)) ≈ 1.0
+    @test get_pane_weights(tree.root)[1] > 0.6        # the left pane took the space
+    @test sum(get_pane_weights(tree.root)) ≈ 1.0
 
     finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys()))
     @test finish isa EndSplitterDragOperation
@@ -233,13 +233,13 @@ end
     end
 
     @test _drag!(300)
-    after_first = pane_weights(tree.root)[1]
+    after_first = get_pane_weights(tree.root)[1]
     @test after_first > 0.7
 
     # The second drag moves the divider a little further right. If it anchored on
     # the first drag's measurements it would snap back towards the middle.
     @test _drag!(330)
-    after_second = pane_weights(tree.root)[1]
+    after_second = get_pane_weights(tree.root)[1]
     @test after_second > after_first
     @test after_second < after_first + 0.15
 end
@@ -268,8 +268,8 @@ end
     _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys())))
     _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, :left, ModifierKeys())))
     _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys())))
-    @test pane_weights(inner)[1] > 0.6              # the top pane took the space
-    @test pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
+    @test get_pane_weights(inner)[1] > 0.6              # the top pane took the space
+    @test get_pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
 end
 
 @testset "a drag on a split pane this tree did not print passes through" begin

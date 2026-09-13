@@ -38,10 +38,10 @@ import ..DocumentCoreModule: DocumentNothing
 import ..SelectionModule: has_dormant_selection
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
-       pane_tab_title_string, default_new_pane_tab,
-       pane_orientation_opposite, pane_split_axis,
-       pane_weight, pane_weights, pane_normalized_weights,
-       pane_groups, pane_parent
+       get_pane_tab_title_string, default_new_pane_tab,
+       get_pane_orientation_opposite, get_pane_split_axis,
+       get_pane_weight, get_pane_weights, get_pane_normalized_weights,
+       get_pane_groups, get_pane_parent
 
 # ── PaneDocument (abstract base) ───────────────────────────────────────────
 
@@ -92,11 +92,11 @@ stays on the tab.
 default_new_pane_tab() = PaneTab("untitled", DocumentNothing())
 
 """
-    pane_tab_title_string(tab) -> String
+    get_pane_tab_title_string(tab) -> String
 
 The tab's title as a plain string, whatever document carries it.
 """
-pane_tab_title_string(tab::PaneTab) = _title_string(tab.title)
+get_pane_tab_title_string(tab::PaneTab) = _title_string(tab.title)
 _title_string(title::PrimitiveString) = something(title.value, "")
 _title_string(title::AbstractString) = String(title)
 _title_string(title) = string(title)
@@ -158,29 +158,29 @@ end
 # ── Tree walks ─────────────────────────────────────────────────────────────
 
 """
-    pane_groups(tree) -> Vector{PaneGroup}
+    get_pane_groups(tree) -> Vector{PaneGroup}
 
 Every group of the tree, in the order a depth-first walk reaches them. This is
 the traversal order the Tab chord follows.
 """
-pane_groups(tree::PaneTree) = pane_groups(tree.root)
-pane_groups(group::PaneGroup) = PaneGroup[group]
-function pane_groups(split::PaneSplit)
+get_pane_groups(tree::PaneTree) = get_pane_groups(tree.root)
+get_pane_groups(group::PaneGroup) = PaneGroup[group]
+function get_pane_groups(split::PaneSplit)
     result = PaneGroup[]
     for i in 1:length(split.elements)
-        append!(result, pane_groups(split.elements[i]))
+        append!(result, get_pane_groups(split.elements[i]))
     end
     result
 end
-pane_groups(::Any) = PaneGroup[]
+get_pane_groups(::Any) = PaneGroup[]
 
 """
-    pane_parent(tree, node) -> (owner, index) | Nothing
+    get_pane_parent(tree, node) -> (owner, index) | Nothing
 
 The node that holds `node`: `(tree, 0)` for the root, or `(split, k)` for the
 `k`-th element of a split. `nothing` when the node is not in the tree.
 """
-function pane_parent(tree::PaneTree, node)
+function get_pane_parent(tree::PaneTree, node)
     node === tree.root && return (tree, 0)
     _parent_walk(tree.root, node)
 end
@@ -201,32 +201,32 @@ end
 # ── Orientation ────────────────────────────────────────────────────────────
 
 """
-    pane_orientation_opposite(orientation) -> Symbol
+    get_pane_orientation_opposite(orientation) -> Symbol
 
 `:vertical` ⇄ `:horizontal`.
 """
-pane_orientation_opposite(orientation::Symbol) =
+get_pane_orientation_opposite(orientation::Symbol) =
     orientation === :vertical ? :horizontal : :vertical
 
 """
-    pane_split_axis(split) -> Symbol
+    get_pane_split_axis(split) -> Symbol
 
 The axis a split's children lay out along, which is what `WidgetSplitPane` calls
 its orientation: a `:vertical` split lays its children out `:horizontal`ly. The
 one translation between the two vocabularies.
 """
-pane_split_axis(split::PaneSplit) = pane_orientation_opposite(split.orientation)
-pane_split_axis(orientation::Symbol) = pane_orientation_opposite(orientation)
+get_pane_split_axis(split::PaneSplit) = get_pane_orientation_opposite(split.orientation)
+get_pane_split_axis(orientation::Symbol) = get_pane_orientation_opposite(orientation)
 
 # ── Weights ────────────────────────────────────────────────────────────────
 
 """
-    pane_weights(split) -> Vector{Float64}
+    get_pane_weights(split) -> Vector{Float64}
 
 The split's weights, materialized. An empty `weights` field yields equal weights,
 so a caller never branches on the empty case.
 """
-function pane_weights(split::PaneSplit)
+function get_pane_weights(split::PaneSplit)
     n = length(split.elements)
     n == 0 && return Float64[]
     stored = split.weights
@@ -235,22 +235,22 @@ function pane_weights(split::PaneSplit)
 end
 
 """
-    pane_weight(split, index) -> Float64
+    get_pane_weight(split, index) -> Float64
 
 The weight of one child.
 """
-function pane_weight(split::PaneSplit, index::Integer)
-    ws = pane_weights(split)
+function get_pane_weight(split::PaneSplit, index::Integer)
+    ws = get_pane_weights(split)
     (1 <= index <= length(ws)) ? ws[index] : 0.0
 end
 
 """
-    pane_normalized_weights(weights) -> Vector{Float64}
+    get_pane_normalized_weights(weights) -> Vector{Float64}
 
 `weights` scaled to sum to 1.0. A zero or negative total falls back to equal
 weights, so a degenerate input can not make a pane vanish.
 """
-function pane_normalized_weights(weights::AbstractVector)
+function get_pane_normalized_weights(weights::AbstractVector)
     n = length(weights)
     n == 0 && return Float64[]
     total = sum(Float64, weights)

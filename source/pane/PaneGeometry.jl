@@ -14,10 +14,10 @@ growing down, matching the screen.
 module PaneGeometryModule
 
 import ..PaneModule: PaneTree, PaneSplit, PaneGroup, PaneTab,
-                     pane_groups, pane_weights, pane_normalized_weights
+                     get_pane_groups, get_pane_weights, get_pane_normalized_weights
 
-export pane_rectangles, pane_rectangle, pane_neighbour_group, pane_next_group,
-       pane_group_at, pane_drop_zone, pane_zone_orientation
+export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
+       get_pane_group_at, get_pane_drop_zone, get_pane_zone_orientation
 
 # Two edges that meet exactly must still read as "past each other", so every
 # comparison allows this much slack.
@@ -26,11 +26,11 @@ const _PANE_EPSILON = 1e-9
 # ── Rectangles ─────────────────────────────────────────────────────────────
 
 """
-    pane_rectangles(tree) -> Vector{Pair{PaneGroup, NamedTuple}}
+    get_pane_rectangles(tree) -> Vector{Pair{PaneGroup, NamedTuple}}
 
 Every group with its rectangle in the unit square, in traversal order.
 """
-function pane_rectangles(tree::PaneTree)
+function get_pane_rectangles(tree::PaneTree)
     result = Pair{PaneGroup, NamedTuple}[]
     _rectangle_walk!(tree.root, (x = 0.0, y = 0.0, w = 1.0, h = 1.0), result)
     result
@@ -40,7 +40,7 @@ _rectangle_walk!(group::PaneGroup, rectangle, result) = push!(result, group => r
 _rectangle_walk!(::Any, rectangle, result) = result
 
 function _rectangle_walk!(split::PaneSplit, rectangle, result)
-    weights = pane_normalized_weights(pane_weights(split))
+    weights = get_pane_normalized_weights(get_pane_weights(split))
     offset = 0.0
     for i in 1:length(split.elements)
         share = weights[i]
@@ -58,24 +58,24 @@ function _rectangle_walk!(split::PaneSplit, rectangle, result)
 end
 
 """
-    pane_rectangle(tree, group) -> NamedTuple | Nothing
+    get_pane_rectangle(tree, group) -> NamedTuple | Nothing
 
 The rectangle of one group, or `nothing` when it is not in the tree.
 """
-function pane_rectangle(tree::PaneTree, group::PaneGroup)
-    for (other, rectangle) in pane_rectangles(tree)
+function get_pane_rectangle(tree::PaneTree, group::PaneGroup)
+    for (other, rectangle) in get_pane_rectangles(tree)
         other === group && return rectangle
     end
     nothing
 end
 
 """
-    pane_group_at(tree, x, y) -> PaneGroup | Nothing
+    get_pane_group_at(tree, x, y) -> PaneGroup | Nothing
 
 The group whose rectangle holds the unit-square point `(x, y)`.
 """
-function pane_group_at(tree::PaneTree, x::Real, y::Real)
-    for (group, r) in pane_rectangles(tree)
+function get_pane_group_at(tree::PaneTree, x::Real, y::Real)
+    for (group, r) in get_pane_rectangles(tree)
         (r.x - _PANE_EPSILON <= x <= r.x + r.w + _PANE_EPSILON &&
          r.y - _PANE_EPSILON <= y <= r.y + r.h + _PANE_EPSILON) && return group
     end
@@ -85,7 +85,7 @@ end
 # ── The direction search ───────────────────────────────────────────────────
 
 """
-    pane_neighbour_group(tree, group, direction) -> PaneGroup | Nothing
+    get_pane_neighbour_group(tree, group, direction) -> PaneGroup | Nothing
 
 The group that lies in `direction` (`:left`, `:right`, `:up`, or `:down`) from
 `group`, or `nothing` when there is none.
@@ -96,12 +96,12 @@ that overlaps most, and then to the one nearest the top left. So a move right
 from a tall pane into a column of short panes lands on the one the pointer would
 expect — the one facing it most.
 """
-function pane_neighbour_group(tree::PaneTree, group::PaneGroup, direction::Symbol)
-    here = pane_rectangle(tree, group)
+function get_pane_neighbour_group(tree::PaneTree, group::PaneGroup, direction::Symbol)
+    here = get_pane_rectangle(tree, group)
     here === nothing && return nothing
     best = nothing
     best_key = nothing
-    for (other, there) in pane_rectangles(tree)
+    for (other, there) in get_pane_rectangles(tree)
         other === group && continue
         measure = _direction_measure(here, there, direction)
         measure === nothing && continue
@@ -145,7 +145,7 @@ _overlap(a, a_length, b, b_length) = min(a + a_length, b + b_length) - max(a, b)
 # ── Drop zones ─────────────────────────────────────────────────────────────
 
 """
-    pane_drop_zone(tree, x, y; strip = 0.0, band = 0.2) -> (group, zone) | Nothing
+    get_pane_drop_zone(tree, x, y; strip = 0.0, band = 0.2) -> (group, zone) | Nothing
 
 The group under the unit-square point `(x, y)`, and which part of it the point
 landed in:
@@ -162,10 +162,10 @@ landed in:
 A band wins over the centre, and the strip wins over everything, so the three
 never overlap.
 """
-function pane_drop_zone(tree::PaneTree, x::Real, y::Real; strip::Real = 0.0, band::Real = 0.2)
-    group = pane_group_at(tree, x, y)
+function get_pane_drop_zone(tree::PaneTree, x::Real, y::Real; strip::Real = 0.0, band::Real = 0.2)
+    group = get_pane_group_at(tree, x, y)
     group === nothing && return nothing
-    r = pane_rectangle(tree, group)
+    r = get_pane_rectangle(tree, group)
     (r === nothing || r.w <= 0 || r.h <= 0) && return nothing
     u = (x - r.x) / r.w
     v = (y - r.y) / r.h
@@ -180,27 +180,27 @@ function pane_drop_zone(tree::PaneTree, x::Real, y::Real; strip::Real = 0.0, ban
 end
 
 """
-    pane_zone_orientation(zone) -> Symbol | Nothing
+    get_pane_zone_orientation(zone) -> Symbol | Nothing
 
 The split a drop on `zone` makes: `:vertical` for a side band (the new pane sits
 beside), `:horizontal` for a top or bottom one (it sits above or below).
 `nothing` for a zone that moves rather than splits.
 """
-pane_zone_orientation(zone::Symbol) =
+get_pane_zone_orientation(zone::Symbol) =
     zone === :left || zone === :right ? :vertical :
     zone === :above || zone === :below ? :horizontal : nothing
 
 # ── Traversal ──────────────────────────────────────────────────────────────
 
 """
-    pane_next_group(tree, group; backward = false) -> PaneGroup | Nothing
+    get_pane_next_group(tree, group; backward = false) -> PaneGroup | Nothing
 
 The next group in traversal order, wrapping around at both ends. A `group` that
 is not in the tree answers the first group, so a traversal from nowhere starts at
 the beginning.
 """
-function pane_next_group(tree::PaneTree, group; backward::Bool = false)
-    groups = pane_groups(tree)
+function get_pane_next_group(tree::PaneTree, group; backward::Bool = false)
+    groups = get_pane_groups(tree)
     isempty(groups) && return nothing
     index = findfirst(other -> other === group, groups)
     index === nothing && return backward ? groups[end] : groups[1]

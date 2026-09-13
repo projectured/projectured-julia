@@ -33,7 +33,7 @@ function _seeded()
     group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
     tree = PaneTree(group)
     editor = _PaneGestureMockEditor(tree)
-    evaluate_operation(editor, pane_focus_operation(tree, group, 1))
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
     (tree, group, editor)
 end
 
@@ -41,8 +41,8 @@ end
     tree, group, editor = _seeded()
     @test _press!(editor, _ctrl(:t)) !== nothing
     @test length(group.tabs) == 3
-    @test pane_focus(tree) == (group, 3)
-    @test pane_tab_title_string(group.tabs[3]) == "untitled"
+    @test get_pane_focus(tree) == (group, 3)
+    @test get_pane_tab_title_string(group.tabs[3]) == "untitled"
 end
 
 @testset "Ctrl+W closes the focused tab" begin
@@ -59,7 +59,7 @@ end
     @test tree.root isa PaneSplit
     @test tree.root.orientation === :vertical
     @test tree.root.elements[1] === group
-    @test pane_focus(tree)[1] === tree.root.elements[2]
+    @test get_pane_focus(tree)[1] === tree.root.elements[2]
 end
 
 @testset "Ctrl+Shift+backslash splits horizontally, the new pane below" begin
@@ -74,43 +74,43 @@ end
     tree, group, editor = _seeded()
     _press!(editor, _ctrl(:backslash))             # a second group, on the right
     right = tree.root.elements[2]
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
 
     _press!(editor, _ctrl_alt(:left))
-    @test pane_focus(tree)[1] === group
+    @test get_pane_focus(tree)[1] === group
     _press!(editor, _ctrl_alt(:right))
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
     # Nothing lies further right, so the focus stays.
     _press!(editor, _ctrl_alt(:right))
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
     # Nothing lies above or below a side-by-side pair either.
     _press!(editor, _ctrl_alt(:up))
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
 end
 
 @testset "Ctrl+Tab traverses the groups and wraps around" begin
     tree, group, editor = _seeded()
     _press!(editor, _ctrl(:backslash))
     right = tree.root.elements[2]
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
 
     _press!(editor, _ctrl(:tab))
-    @test pane_focus(tree)[1] === group            # wrapped past the end
+    @test get_pane_focus(tree)[1] === group            # wrapped past the end
     _press!(editor, _ctrl(:tab))
-    @test pane_focus(tree)[1] === right
+    @test get_pane_focus(tree)[1] === right
     _press!(editor, _ctrl_shift(:tab))
-    @test pane_focus(tree)[1] === group
+    @test get_pane_focus(tree)[1] === group
 end
 
 @testset "Ctrl+PageDown and Ctrl+PageUp walk the tabs of the focused group" begin
     tree, group, editor = _seeded()
-    @test pane_focus(tree) == (group, 1)
+    @test get_pane_focus(tree) == (group, 1)
     _press!(editor, _ctrl(:page_down))
-    @test pane_focus(tree) == (group, 2)
+    @test get_pane_focus(tree) == (group, 2)
     _press!(editor, _ctrl(:page_down))
-    @test pane_focus(tree) == (group, 1)           # wrapped
+    @test get_pane_focus(tree) == (group, 1)           # wrapped
     _press!(editor, _ctrl(:page_up))
-    @test pane_focus(tree) == (group, 2)
+    @test get_pane_focus(tree) == (group, 2)
 end
 
 @testset "the chords still reach the pane with the caret inside a text document" begin
@@ -146,18 +146,18 @@ end
     @test _press!(editor, _ctrl(:backslash)) === nothing
     @test _press!(editor, _ctrl_alt(:right)) === nothing
     @test _press!(editor, _ctrl(:tab)) !== nothing
-    @test pane_focus(tree)[1] === tree.root
+    @test get_pane_focus(tree)[1] === tree.root
 end
 
 @testset "an empty group takes a new tab but has none to close" begin
     group = PaneGroup(PaneTab[])
     tree = PaneTree(group)
     editor = _PaneGestureMockEditor(tree)
-    evaluate_operation(editor, pane_focus_operation(tree, group, 0))
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
     @test _press!(editor, _ctrl(:w)) === nothing
     @test _press!(editor, _ctrl(:t)) !== nothing
     @test length(group.tabs) == 1
-    @test pane_focus(tree) == (group, 1)
+    @test get_pane_focus(tree) == (group, 1)
 end
 
 end # testset
