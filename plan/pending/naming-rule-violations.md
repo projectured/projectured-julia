@@ -340,7 +340,7 @@ Here either name can change, so each row states which one I propose and why.
 | [source/pdf/Pdf.jl](../../source/pdf/Pdf.jl) | `PdfBackendModule` | rename the file to `PdfBackend.jl`, or sanction `Backend`. See §9.10. | unsure |
 | [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | **no change.** The user decided on 2026-09-12 that the kernel keeps its modules as they are. See [one-module-per-slice.md](one-module-per-slice.md). | closed |
 | [source/repl/Repl.jl](../../source/repl/Repl.jl#L88) | `StatementScope` | a one-line `module StatementScope end` with no `Module` suffix. Its docstring says it exists only as a namespace for dynamic bindings and is never exported. Leave it and state the exemption, or rename it. See §9.12. | unsure |
-| [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardToAnyProjectionModule` | see §7 — the file holds two projection stems. | likely |
+| ~~source/clipboard/ClipboardToAny.jl~~ | — | **DONE 2026-09-13.** Split into `ClipboardSliceToAny.jl` and `ClipboardCollectionToAny.jl`, both fragments of `ClipboardModule`. | resolved |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `DraggingProjectionModule` | the module matches the file, but the file name bakes in `Projection`. See §7. | certain |
 
 ### 4.3 A second, undeclared name for a module — 29 alias lines
@@ -432,8 +432,8 @@ first two rows need no judgement.
 
 | name | file:line | proposed name | confidence |
 | --- | --- | --- | --- |
-| `ToggleClipboardSliceDisplayOperation` | [ClipboardToAny.jl:251](../../source/clipboard/ClipboardToAny.jl#L251) | `ToggleClipboardSliceOperation` | certain |
-| `ToggleClipboardCollectionDisplayOperation` | [ClipboardToAny.jl:267](../../source/clipboard/ClipboardToAny.jl#L267) | `ToggleClipboardCollectionOperation` | certain |
+| `ToggleClipboardSliceDisplayOperation` | [ClipboardSliceToAny.jl](../../source/clipboard/ClipboardSliceToAny.jl) | `ToggleClipboardSliceOperation` | certain |
+| `ToggleClipboardCollectionDisplayOperation` | [ClipboardCollectionToAny.jl](../../source/clipboard/ClipboardCollectionToAny.jl) | `ToggleClipboardCollectionOperation` | certain |
 
 ### 5.4 A coded document prefix on a hand-written type
 
@@ -464,7 +464,7 @@ sanction only `Api`, `IoMap`, the generated `I<Document>` prefix, `ctor` and
 | `RCV` (alias) | [CellVector.jl:89](../../source/collection/CellVector.jl#L89) | `ReactiveCellVector` | certain |
 | `EvalChild`, `EvalDoc`, `EvalLeaf`, `EvalBranch` | [ReferenceBuilderTest.jl:21,24](../../test/kernel/reference/ReferenceBuilderTest.jl#L21), [ReferenceEvalTest.jl:14,18](../../test/kernel/reference/ReferenceEvalTest.jl#L14) | `eval` is the rule's own named example | certain |
 | `_Cur` | [JsonParser.jl:25](../../source/json/JsonParser.jl#L25), [XmlParser.jl:25](../../source/xml/XmlParser.jl#L25) | `_Cursor`. The leading underscore marks it private, which may put it out of scope. | likely |
-| `WriteOsClipboardOperation` | [ClipboardToAny.jl:285](../../source/clipboard/ClipboardToAny.jl#L285) | `Os` may be the kind of well-known abbreviation the rule sanctions. Leave, or write `WriteOSClipboardOperation`. | unsure |
+| `WriteOsClipboardOperation` | [Clipboard.jl](../../source/clipboard/Clipboard.jl) | `Os` may be the kind of well-known abbreviation the rule sanctions. Leave, or write `WriteOSClipboardOperation`. | unsure |
 
 Two more are lower case where the rules and Julia both want CamelCase:
 `shared` twice in
@@ -620,7 +620,7 @@ single-stem domain projections (`HoverProbe`, `TooltipDecorator`,
 | `GestureHelpProjection`, `GestureHelpProjectionIoMap` | [GestureHelpDecorator.jl:76,95](../../source/gesturehelp/GestureHelpDecorator.jl#L76) | Same rule, same shape. | `GestureHelpDecoratorProjection`, `GestureHelpDecoratorProjectionIoMap` | certain |
 | `GestureLogRecordingProjection` | [GestureLogRecording.jl:43](../../source/gesturelog/GestureLogRecording.jl#L43) | The type, the module and the IO map agree on `GestureLogRecording`; the file says `Recorder`. | rename the file to `GestureLogRecording.jl` | certain |
 | `DraggingProjection` | [Dragging.jl:77](../../source/dragging/Dragging.jl#L77) | The file must be `<Stem>.jl`. This is the only stem file in the repository that bakes `Projection` into its own name. | rename the file to `Dragging.jl` | certain |
-| `ClipboardSliceToAnyProjection`, `ClipboardCollectionToAnyProjection` | [ClipboardToAny.jl:94,110](../../source/clipboard/ClipboardToAny.jl#L94) | The file and the module say `ClipboardToAny`, which is neither type's stem. | split into `ClipboardSliceToAny.jl` and `ClipboardCollectionToAny.jl`, one module each | likely |
+| `ClipboardSliceToAnyProjection`, `ClipboardCollectionToAnyProjection` | ~~ClipboardToAny.jl~~ | **DONE 2026-09-13.** Each type has its own file now. One module, not two: the slice is one module. | done | done |
 
 Both decorators keep `Decorator` in all four names rather than dropping it,
 because the sibling `TooltipDecoratorProjection` already does. That is the
@@ -1214,7 +1214,7 @@ Each row also rewrites the `include("…")` line that names the file.
 | --- | --- | --- |
 | `source/odbc/Odbc.jl`, now split into four files | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
-| [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **moved to [one-module-per-slice.md](one-module-per-slice.md) §4.1.** The split needs the slice to be one module first. |
+| ~~source/clipboard/ClipboardToAny.jl~~ | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **DONE 2026-09-13**, recorded in [one-module-per-slice.md](one-module-per-slice.md) §4.1. |
 
 ### 14.5 Module aliases to delete
 

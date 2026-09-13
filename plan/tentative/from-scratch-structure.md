@@ -378,8 +378,9 @@ decorator/                           layer 4 — projections over any document (
   DecoratorLayer.jl
   clipboard/
     Clipboard.jl
-    ClipboardToAny.jl
-    OsClipboard.jl
+    ClipboardSliceToAny.jl
+    ClipboardCollectionToAny.jl
+    Clipboard.jl
   tooltip/
     Tooltip.jl
     TooltipDecorator.jl

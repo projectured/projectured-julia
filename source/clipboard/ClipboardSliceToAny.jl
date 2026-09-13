@@ -1,42 +1,35 @@
 # ──────────────────────────────────────────────────────────────────────────
-# Folded in from ClipboardToAny.jl.
+# Folded in from ClipboardSliceToAny.jl.
 #
-# The internal-clipboard projection — Julia port of Lisp's `clipboard/slice->t`
-# and `clipboard/collection->t` (`source/projection/primitive/clipboard-to-t.lisp`).
+# The internal-clipboard slice projection — Julia port of Lisp's
+# `clipboard/slice->t` (`source/projection/primitive/clipboard-to-t.lisp`).
 #
-# Two projections sit on top of the `ClipboardSlice` / `ClipboardCollection`
-# documents:
+# `ClipboardSliceToAnyProjection` sits on a `ClipboardSlice` document and shows
+# either the wrapped `content` or the stored `slice`, toggled by `Ctrl+/`. Copy,
+# cut, note and paste gestures move the selected sub-document in and out of the
+# slice.
 #
-# - `ClipboardSliceToAnyProjection` shows either the wrapped `content` or the stored
-#   `slice`, toggled by `Ctrl+/`. Copy / cut / note / paste gestures move the
-#   selected sub-document in and out of the slice.
-# - `ClipboardCollectionToAnyProjection` shows either the wrapped `content` or the
-#   `elements` collection, toggled by `Ctrl+*`. `Ctrl+=` adds the selected object
-#   to the collection; `Ctrl+-` removes the selected element.
-#
-# Both delegate non-clipboard gestures into their `content` child reader and
-# re-root the returned operation under the `content` field (the School-A pattern —
-# delegate through the stored child IoMap, never re-walk by document type).
+# It delegates every non-clipboard gesture into its `content` child reader and
+# re-roots the returned operation under the `content` field. That is the School-A
+# pattern: delegate through the stored child IoMap, never re-walk by document
+# type.
 #
 # ## Display toggling
 #
-# The display flag is a `Cell`, and each projection's `output` is a derived cell over
-# it. Flipping the flag is a plain reactive cell write: the reactive
-# `ChainingProjection` re-pulls the changed output and re-prints only the downstream
-# stages, so the view switches with **no `editor.iomap` drop**.
+# The display flag is a `Cell`, and the projection's `output` is a derived cell
+# over it. To flip the flag is a plain reactive cell write: the reactive
+# `ChainingProjection` re-pulls the changed output and re-prints only the
+# downstream stages, so the view switches with no `editor.iomap` drop.
 #
-# ## OS-clipboard bridge (corresponds to the Lisp `#+nil` `xclip` branch)
+# ## OS-clipboard bridge
 #
-# `ClipboardSliceToAnyProjection` takes optional `to_text` / `from_text` converters.
-# When set, copy/cut/note mirror the copied sub-document out to the OS clipboard (via a
-# `WriteOsClipboardOperation`), and `Ctrl+V` falls back to the OS clipboard when the
-# internal slice is empty. The actual OS read/write goes through
-# [`ClipboardModule`](@ref) (shell-out to `xclip`/`xsel`/`wl-*`/`pb*`), which is
-# stubbable and degrades gracefully when no clipboard tool is present. With both
-# converters `nothing` (the default) there is no OS interaction — only the internal
-# clipboard, exactly as before.
-# ── Projections ─────────────────────────────────────────────────────────────
-
+# The projection takes optional `to_text` and `from_text` converters. When they
+# are set, copy, cut and note mirror the copied sub-document out to the OS
+# clipboard through a `WriteOsClipboardOperation`, and `Ctrl+V` falls back to the
+# OS clipboard when the internal slice is empty. The OS read and write go through
+# `Clipboard.jl`, which is stubbable and degrades to a no-op when the host has no
+# clipboard tool. With both converters `nothing`, the default, there is no OS
+# interaction at all.
 """
     ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing)
 
@@ -65,19 +58,6 @@ end
 ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from_text=nothing, text::Bool=false) =
     ClipboardSliceToAnyProjection(Cell(display_slice), to_text, from_text, text)
 
-"""
-    ClipboardCollectionToAnyProjection(; display_collection=false)
-
-Projects a `ClipboardCollection`. When `display_collection` is `false` the output
-is the projection of `content`; when `true` it is a `CellVector` of the projected
-`elements`.
-"""
-mutable struct ClipboardCollectionToAnyProjection <: Projection
-    display_collection::Cell   # reactive: flipping it switches content ↔ elements view
-end
-ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
-    ClipboardCollectionToAnyProjection(Cell(display_collection))
-
 # ── IoMaps ────────────────────────────────────────────────────────────────────
 
 @iomap struct ClipboardSliceToAnyIoMap
@@ -86,14 +66,6 @@ ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
     output::Any             # content or slice child output
     content_iomap::Any
     slice_iomap::Any        # iomap of the stored slice, or nothing
-end
-
-@iomap struct ClipboardCollectionToAnyIoMap
-    projection::ClipboardCollectionToAnyProjection
-    input::Any              # ClipboardCollection
-    output::Any             # content child output, or CellVector of element outputs
-    content_iomap::Any
-    element_iomaps::Any     # Vector of per-element child iomaps
 end
 
 # ── Printers ────────────────────────────────────────────────────────────────
@@ -113,23 +85,6 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     output = ComputedCell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
                             slice_iomap.output : content_iomap.output)
     ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap)
-end
-
-function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
-    content_iomap = print_child(recursion, input.content,
-                        make_child_context(ctx, FieldReferenceStep("content")))
-    # Reconcile the element children by identity so a structural edit to
-    # `elements` reuses surviving child iomaps (PAR-STABLE-IOMAP-IDENTITY).
-    element_iomaps = reconcile_child_iomaps(
-        () -> input.elements,
-        (i, x) -> print_child(recursion, x,
-            make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
-    # Reactive output (see the slice printer): a derived cell over the display flag,
-    # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
-    output = ComputedCell(() -> p.display_collection[] ?
-        CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
-        content_iomap.output)
-    ClipboardCollectionToAnyIoMap(p, input, output, content_iomap, element_iomaps)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
@@ -159,50 +114,6 @@ function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::Clipboar
     ConcreteReference(FieldReferenceStep(name), mapped)
 end
 
-function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
-    reference isa ConcreteReference || return reference
-    if iomap.projection.display_collection[]
-        h = head(reference)
-        (h isa FieldReferenceStep && h.name == "elements") || return nothing
-        rest = tail(reference)
-        rest isa ConcreteReference || return nothing
-        e = head(rest)
-        e isa RangeReferenceStep || return nothing
-        i = e.stop
-        ims = iomap.element_iomaps[]
-        (i < 1 || i > length(ims)) && return nothing
-        child = ims[i]
-        mapped = map_reference_forward(child.projection, child, tail(rest))
-        mapped === nothing && return nothing
-        ConcreteReference(e, mapped)
-    else
-        h = head(reference)
-        (h isa FieldReferenceStep && h.name == "content") || return nothing
-        child = iomap.content_iomap
-        map_reference_forward(child.projection, child, tail(reference))
-    end
-end
-
-function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
-    if iomap.projection.display_collection[]
-        reference isa ConcreteReference || return reference
-        e = head(reference)
-        e isa RangeReferenceStep || return nothing
-        i = e.stop
-        ims = iomap.element_iomaps[]
-        (i < 1 || i > length(ims)) && return nothing
-        child = ims[i]
-        mapped = map_reference_backward(child.projection, child, tail(reference))
-        mapped === nothing && return nothing
-        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(e, mapped))
-    else
-        child = iomap.content_iomap
-        mapped = map_reference_backward(child.projection, child, reference)
-        mapped === nothing && return nothing
-        ConcreteReference(FieldReferenceStep("content"), mapped)
-    end
-end
-
 # ── Operations ────────────────────────────────────────────────────────────────
 
 """
@@ -222,41 +133,6 @@ function evaluate_operation(editor, op::ToggleClipboardSliceOperation)
     # re-derives and the change propagates downstream through reactive Sequential.
     op.projection.display_slice[] = !op.projection.display_slice[]
 end
-
-"""
-    ToggleClipboardCollectionOperation(projection)
-
-Flip the `display_collection` `Cell` of a `ClipboardCollectionToAnyProjection`.
-A plain reactive cell write (see `ToggleClipboardSliceOperation`).
-"""
-struct ToggleClipboardCollectionOperation <: Operation
-    projection::ClipboardCollectionToAnyProjection
-end
-
-function evaluate_operation(editor, op::ToggleClipboardCollectionOperation)
-    # Reactive cell write only — NO editor.iomap drop.
-    op.projection.display_collection[] = !op.projection.display_collection[]
-end
-
-"""
-    WriteOsClipboardOperation(text)
-
-Side-effecting operation that writes `text` to the OS clipboard at evaluate time.
-It is appended to the copy/cut/note compound when the clipboard projection has a
-`to_text` converter, so a ProjecturEd copy is mirrored to the system clipboard.
-Best-effort: `write_os_clipboard!` degrades to a no-op (returns `false`) when no
-clipboard tool is available, so this never fails an edit.
-"""
-struct WriteOsClipboardOperation <: Operation
-    text::String
-end
-
-evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!(op.text); nothing)
-
-# ── Reader gesture helpers ─────────────────────────────────────────────────────
-
-_field_path(name::AbstractString) =
-    ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
 # Append an OS-clipboard mirror write to `ops` when the projection can serialize
 # `obj` to text (a `to_text` converter is set and yields a String). No-op otherwise.
@@ -327,16 +203,6 @@ function _text_clipboard_paste(p, input)
     op = make_text_insert_operation(content, str)
     op === nothing && return nothing
     _prefix_op(op, (FieldReferenceStep("content"),))
-end
-
-# The selected sub-document and its path, or (nothing, nothing) when there is no
-# usable (non-empty) selection.
-function _selected(input)
-    sel = input.selection
-    (sel === nothing || sel isa EmptyReference) && return nothing, nothing
-    obj = try_evaluate_reference(input, sel, missing)
-    obj === missing && return nothing, nothing
-    sel, obj
 end
 
 # Copy: store an independent deep copy of the selected object in the slice. The
@@ -435,34 +301,6 @@ function _clipboard_paste_copy(p, input)
     ])
 end
 
-# Add the selected object to the front of the collection (matches Lisp `push`).
-function _clipboard_collection_add(input)
-    _, obj = _selected(input)
-    obj isa Document || return nothing
-    insert_elements(_field_path("elements"), 0, Any[obj])
-end
-
-# Remove the selected element from the collection.
-function _clipboard_collection_remove(input)
-    idx = _elements_index(input.selection)
-    idx === nothing && return nothing
-    delete_elements(_field_path("elements"), idx)
-end
-
-# 0-based index of the element a selection path addresses, or nothing when the
-# path does not descend through `elements[i]`.
-function _elements_index(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h = path.head
-    (h isa FieldReferenceStep && h.name == "elements") || return nothing
-    rest = path.tail
-    rest isa ConcreteReference || return nothing
-    e = rest.head
-    e isa RangeReferenceStep || return nothing
-    e.start
-end
-
 # ── Readers ─────────────────────────────────────────────────────────────────
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that
@@ -514,81 +352,6 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
     Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
 end
 
-function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, iomap)
-    GestureBinding[
-        GestureBinding(KeyDownPattern(:asterisk, [:ctrl], nothing),
-            (doc, event) -> ToggleClipboardCollectionOperation(p),
-            (doc, sel) -> true, "Toggle collection", "clipboard", false, "Toggle collection"),
-        GestureBinding(KeyDownPattern(:equals, [:ctrl], nothing),
-            (doc, event) -> _clipboard_collection_add(doc),
-            (doc, sel) -> true, "Add to collection", "clipboard", false, "Add to collection"),
-        GestureBinding(KeyDownPattern(:minus, [:ctrl], nothing),
-            (doc, event) -> _clipboard_collection_remove(doc),
-            (doc, sel) -> true, "Remove from collection", "clipboard", false, "Remove from collection"),
-    ]
-end
-
-function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::Intent,
-                         iomap::ClipboardCollectionToAnyIoMap)
-    own = read_projection_gesture(p, iomap, change.gesture)
-    # Routing one gesture stops at the first answer; a collection takes both. The
-    # child's is prefixed with `content`, exactly as its operations are.
-    if change.gesture isa CollectIntents
-        cim = iomap.content_iomap
-        child = cim === nothing ? nothing :
-                read_intent(cim.projection, recursion, change, cim).operation
-        return Intent(change.gesture,
-                      merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(_prefix_op(child, (FieldReferenceStep("content"),)))))
-    end
-    own !== nothing && return Intent(change.gesture, own)
-    cim = iomap.content_iomap
-    inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
-end
-
 # 3-arg payload form (used by tests and any parent that hands a bare payload).
 read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
-read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
-# ── Operation re-rooting ───────────────────────────────────────────────────────
-# Prepend `steps` to the reference path carried by a delegated content operation,
-# so it is rooted at the clipboard document rather than at `content`.
-
-# Only a real collection merges; anything else a reader returned is not one.
-_collected_intents(op::CollectedIntentsOperation) = op
-_collected_intents(::Any) = nothing
-
-function _prefix_op(op, steps::Tuple)
-    op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa ReplaceStringRangeOperation
-        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceNumberRangeOperation
-        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceReferencedValueOperation
-        op.document === nothing ?
-            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
-    elseif op isa CompoundOperation
-        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
-    elseif op isa CollectedIntentsOperation
-        # Every seam that prefixes a compound must prefix a collection the same
-        # way, or the operations a listing carries arrive rooted one level too deep.
-        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
-                                          i.description, i.domain)
-                                   for i in op.intents])
-    else
-        op
-    end
-end
-
-function _prepend(steps::Tuple, path::Reference)
-    result = path
-    for step in reverse(steps)
-        result = ConcreteReference(step, result)
-    end
-    result
-end

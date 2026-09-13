@@ -13,10 +13,8 @@ The two that do not are `graph` and `text`, which §4.2 records as slices to
 divide rather than to fold. `source/` holds 107 modules, 29 of them the
 kernel's, where it held 45 multi-module slices when this plan was written.
 
-Three items are open:
+Two items are open:
 
-- **§4.1**, the split of `ClipboardToAny.jl` into one file per projection
-  stem, which this plan unblocked but did not do.
 - **§5.3**, what replaces the intra-slice guard.
 - **§5.4**, the namespace size, which only `text` raises and `text` is not
   folded.
@@ -195,28 +193,35 @@ done to it.
 
 Neither is on this plan's collapse list.
 
-### 4.1 One file split waits for this plan
+### 4.1 One file split waited for this plan — DONE 2026-09-13
 
-[ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) holds two
-projection stems, `ClipboardSliceToAnyProjection` and
-`ClipboardCollectionToAnyProjection`, under one module named for neither.
-[naming-rule-violations.md](naming-rule-violations.md) §7.1 asks for two files.
+`ClipboardToAny.jl` held two projection stems,
+`ClipboardSliceToAnyProjection` and `ClipboardCollectionToAnyProjection`, under
+one module named for neither. [naming-rule-violations.md](naming-rule-violations.md)
+§7.1 asked for two files, and the split waited for the collapse, because before
+it the file could not divide without a duplicate of every shared helper.
 
-The split waits for this plan, because today it would also split the module, and
-the file does not divide:
+The file is now
+[ClipboardSliceToAny.jl](../../source/clipboard/ClipboardSliceToAny.jl) (325
+lines) and
+[ClipboardCollectionToAny.jl](../../source/clipboard/ClipboardCollectionToAny.jl)
+(160 lines).
 
-- the two projection types and their two IO maps sit together, and
-  `print_document`, `map_reference_forward` and `map_reference_backward`
-  alternate between the stems through all 631 lines;
-- **16 private helpers serve both stems** — `_clipboard_copy`, `_clipboard_cut`,
-  `_clipboard_paste`, `_os_paste_document`, `_prefix_op`, `_prepend` and more;
-- `WriteOsClipboardOperation` belongs to neither stem.
+**The two stems divide cleanly.** A parser walk of all 45 top-level definitions
+found no helper called by both stems except five, and each stem's own helpers
+form a closed set. The plan's estimate of "16 private helpers serve both stems"
+was wrong: 12 serve the slice alone and 3 the collection alone.
 
-Splitting the module today means duplicating those 16 helpers or inventing a
-third module to hold them. Once the clipboard slice is one module, the two stems
-become two fragment files that share the helpers, and the split costs nothing.
+**The five that are genuinely shared, and `WriteOsClipboardOperation`, went to
+the module file**, which is the one file both stems already depend on. They are
+`_field_path`, `_selected`, `_collected_intents`, `_prefix_op` and `_prepend`.
+`WriteOsClipboardOperation` calls `write_os_clipboard!`, which lives there
+anyway.
 
-Do it as part of the clipboard slice's step.
+**`OsClipboard.jl` became [Clipboard.jl](../../source/clipboard/Clipboard.jl)**
+in the same step. A module file named for one part of its slice, while it also
+carries the slice's shared code, is a mismatch a reader has to hold in their
+head. Named for the slice, it has none.
 
 ## 5. Open questions this plan must answer
 

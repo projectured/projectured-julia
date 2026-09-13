@@ -1,11 +1,19 @@
 """
     ClipboardModule
 
-Access to the host operating system's clipboard, behind a stubbable indirection.
+The clipboard domain: a slice that holds one sub-document, a collection that
+holds many, the two projections that show them, and access to the host
+operating system's clipboard.
 
-The internal-clipboard projection ([`ClipboardModule`](@ref)) uses this
-to mirror a copy/cut out to the OS clipboard and to fall back to the OS clipboard when
-nothing is on the ProjecturEd clipboard.
+This file holds the OS access, because both projections mirror through it. It
+also holds `WriteOsClipboardOperation` and the helpers the two readers share.
+[ClipboardSliceToAny.jl](ClipboardSliceToAny.jl) and
+[ClipboardCollectionToAny.jl](ClipboardCollectionToAny.jl) hold one projection
+each.
+
+The OS access sits behind a stubbable indirection. A projection uses it to
+mirror a copy or a cut out to the OS clipboard, and to fall back to the OS
+clipboard when nothing is on the ProjecturEd one.
 
 The default backend shells out to the first available command-line tool
 (`xclip` / `xsel` on X11, `wl-paste`/`wl-copy` on Wayland, `pbpaste`/`pbcopy` on
@@ -148,7 +156,78 @@ end
 reset_os_clipboard_backend!() = set_os_clipboard_backend!()
 
 
+"""
+    WriteOsClipboardOperation(text)
+
+Side-effecting operation that writes `text` to the OS clipboard at evaluate time.
+It is appended to the copy/cut/note compound when the clipboard projection has a
+`to_text` converter, so a ProjecturEd copy is mirrored to the system clipboard.
+Best-effort: `write_os_clipboard!` degrades to a no-op (returns `false`) when no
+clipboard tool is available, so this never fails an edit.
+"""
+struct WriteOsClipboardOperation <: Operation
+    text::String
+end
+
+evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!(op.text); nothing)
+
+# ── Reader gesture helpers ─────────────────────────────────────────────────────
+
+_field_path(name::AbstractString) =
+    ConcreteReference(FieldReferenceStep(name), EmptyReference())
+
+# The selected sub-document and its path, or (nothing, nothing) when there is no
+# usable (non-empty) selection.
+function _selected(input)
+    sel = input.selection
+    (sel === nothing || sel isa EmptyReference) && return nothing, nothing
+    obj = try_evaluate_reference(input, sel, missing)
+    obj === missing && return nothing, nothing
+    sel, obj
+end
+
+# ── Operation re-rooting ───────────────────────────────────────────────────────
+# Prepend `steps` to the reference path carried by a delegated content operation,
+# so it is rooted at the clipboard document rather than at `content`.
+
+# Only a real collection merges; anything else a reader returned is not one.
+_collected_intents(op::CollectedIntentsOperation) = op
+_collected_intents(::Any) = nothing
+
+function _prefix_op(op, steps::Tuple)
+    op === nothing && return nothing
+    if op isa ReplaceSelectionOperation
+        ReplaceSelectionOperation(_prepend(steps, op.path))
+    elseif op isa ReplaceStringRangeOperation
+        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceNumberRangeOperation
+        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
+    elseif op isa ReplaceReferencedValueOperation
+        op.document === nothing ?
+            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
+    elseif op isa CompoundOperation
+        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
+    elseif op isa CollectedIntentsOperation
+        # Every seam that prefixes a compound must prefix a collection the same
+        # way, or the operations a listing carries arrive rooted one level too deep.
+        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
+                                          i.description, i.domain)
+                                   for i in op.intents])
+    else
+        op
+    end
+end
+
+function _prepend(steps::Tuple, path::Reference)
+    result = path
+    for step in reverse(steps)
+        result = ConcreteReference(step, result)
+    end
+    result
+end
+
 include("ClipboardDocument.jl")
-include("ClipboardToAny.jl")
+include("ClipboardSliceToAny.jl")
+include("ClipboardCollectionToAny.jl")
 
 end # module

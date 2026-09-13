@@ -10,7 +10,7 @@ projection pipeline works unchanged.
 
 It is structurally the same pattern as the clipboard
 ([`ClipboardModule`](../../../source/clipboard/Clipboard.jl) +
-[`ClipboardToAny.jl`](../../../source/clipboard/ClipboardToAny.jl)):
+[`ClipboardSliceToAny.jl`](../../../source/clipboard/ClipboardSliceToAny.jl)):
 a wrapper document holding a payload, and a projection that decides which child
 becomes the output and re-roots edits back into that child.
 

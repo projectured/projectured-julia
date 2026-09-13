@@ -131,7 +131,7 @@ transparent. Enabling them is two coordinated edits:
 
 - **Clipboard** — `ClipboardSlice` / `ClipboardCollection`
   (`package/clipboard/main/Clipboard.jl`) wrap `content`; `ClipboardSliceToAnyProjection` /
-  `ClipboardCollectionToAnyProjection` (`package/clipboard/main/ClipboardToAny.jl`) dispatch
+  `ClipboardCollectionToAnyProjection` (`source/clipboard/ClipboardCollectionToAny.jl`) dispatch
   on them. Ctrl+C/X/V/N + Ctrl+/ (slice display) / Ctrl+* (collection display).
   Generic over any content — wrap the structured editors (JSON/XML) where
   copying sub-documents is meaningful.
@@ -288,7 +288,7 @@ in the workbench example files.
 **⏳ OPEN (re-verified 2026-08-12):** No `ClipboardSlice` / `ClipboardCollection` wrapping in
 `make_workbench_document_example` and no dispatch entry in `combined_w2g`; no grep match for
 either symbol in `package/workbench/example/document/Workbench.jl` or `.../projection/Workbench.jl`.
-(The underlying projections exist at `package/clipboard/main/ClipboardToAny.jl`.)
+(The underlying projections exist at `source/clipboard/ClipboardCollectionToAny.jl`.)
 - Wrap the JSON and XML editor contents in `ClipboardSlice`
   (and/or a `ClipboardCollection` editor) in
   `make_workbench_document_example`.

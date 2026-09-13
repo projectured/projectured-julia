@@ -57,7 +57,7 @@ document holding a `content`/payload, and a projection that decides which child
 becomes the output and re-roots edits back into the chosen child. Versioning is
 "clipboard, but the payload is a list of timestamped value objects and the
 toggle is a selection criterion." Read
-[`package/clipboard/main/ClipboardToAny.jl`](../../source/clipboard/ClipboardToAny.jl)
+[`source/clipboard/ClipboardSliceToAny.jl`](../../source/clipboard/ClipboardSliceToAny.jl)
 and [`package/clipboard/main/Clipboard.jl`](../../source/clipboard/Clipboard.jl)
 before implementing — this plan mirrors them deliberately.
 
@@ -331,7 +331,7 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
    ("select_version criteria" testset).
 2. **✅ DONE (verified):** **`VersioningToAnyProjection`** — printer +
    forward/backward reference mapping + reader delegation/re-rooting, copied
-   structurally from `ClipboardToAny.jl`. Include + export.
+   structurally from `ClipboardSliceToAny.jl`. Include + export.
    Evidence: `package/versioning/main/VersioningToAny.jl` defines `print_document`,
    `map_reference_forward`/`map_reference_backward`, `projection_read` (via
    `get_projection_gesture_bindings` + `read_intent`) with `_create_version`/
@@ -395,6 +395,6 @@ export VersioningToAnyProjection, VersioningToAnyProjectionIoMap,
   `Versioning.jl` after `Collection.jl`.
 - `ReferenceModule`, `PrinterContextModule`, `IoMapApiModule`, `OperationModule`,
   `KeyboardModule`, `EventCaseModule`, `DocumentCopyModule` — same set
-  `ClipboardToAny.jl` imports.
+  `ClipboardSliceToAny.jl` imports.
 - No domain depends on versioning; it sits *above* every domain as an optional
   wrapper, so no existing document or projection needs changes.

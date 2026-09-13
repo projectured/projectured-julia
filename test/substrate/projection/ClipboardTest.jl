@@ -1,4 +1,4 @@
-function test_clipboard_to_any()
+function test_clipboard()
 
 # A reference path built from raw steps.
 cpath(steps...) = foldr((s, acc) -> ConcreteReference(s, acc), steps; init=EmptyReference())
@@ -347,4 +347,4 @@ end
     end
 end
 
-end # test_clipboard_to_any
+end # test_clipboard

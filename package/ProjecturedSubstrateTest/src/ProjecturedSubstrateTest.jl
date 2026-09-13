@@ -216,7 +216,7 @@ include("../../../test/substrate/projection/AnchoredLayoutTest.jl")
 # open/close state machine — both live in visual now and use only base/visual
 # fixtures (Primitive / Text / Screen), so this is their lowest test home.
 # (HoverProbe's tests stay in the umbrella: they wrap Json content.)
-include("../../../test/substrate/projection/ClipboardToAnyTest.jl")
+include("../../../test/substrate/projection/ClipboardTest.jl")
 include("../../../test/substrate/projection/TooltipProjectionTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).

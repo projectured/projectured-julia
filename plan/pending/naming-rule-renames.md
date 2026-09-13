@@ -71,7 +71,7 @@ verb, and none carries a banned abbreviation. I checked each of the three.
 | `chart_series_reference` | `get_chart_series_reference` | agreed |
 | `legend_item_rects` | `get_legend_item_rects` | agreed |
 
-**source/clipboard/OsClipboard.jl**
+**source/clipboard/Clipboard.jl**
 
 | old | new | status |
 | --- | --- | --- |
