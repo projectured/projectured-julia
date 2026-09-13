@@ -29,8 +29,8 @@ delegate to the cell layer's assembler (`build_cell_struct_exprs`). `@document`
 generates its own kind-parameterized stem (see below), but shares the cell
 layer's codegen kit for everything that is not document-specific: the field
 parse (`make_cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
-the keyword-constructor builders (`build_cell_struct_kw_params`,
-`build_cell_struct_kwctor`), and **Rule Y** (`build_cell_struct_positional_ctors` — filling
+the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
+`build_cell_struct_keyword_constructor`), and **Rule Y** (`build_cell_struct_positional_ctors` — filling
 a trailing run of defaults positionally is a rule about any cell struct, not
 about documents). `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct

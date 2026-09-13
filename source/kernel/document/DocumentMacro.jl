@@ -314,13 +314,13 @@ come from somewhere, which Rule Y cannot supply (`get_cell_struct_required_count
 """
 function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
     (plan.n_programmer_defaults > 0 || plan.n_declared == 0) || return Any[]
-    kw_params = build_cell_struct_kw_params(plan.field_names, plan.defaults)
+    kw_params = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
     # The unprefixed one goes on the cell layout's own type name, not on the bare
     # name. When the bare name is bound to a spelling it reaches this method through
     # the forwarding constructor, and when it is bound to the native layout that
     # layout has a keyword constructor of its own.
     names = [plan.name, Symbol("IC", schema), Symbol("MC", schema)]
-    [build_cell_struct_kwctor(nm, plan.field_names, kw_params) for nm in names]
+    [build_cell_struct_keyword_constructor(nm, plan.field_names, kw_params) for nm in names]
 end
 
 # The single collection field's position, or 0 when there is not exactly one. A
@@ -643,8 +643,8 @@ function _document_expr(args)
         push!(native_parts, _emit_native(plan, family, native; mutable = native_mutable))
         append!(native_parts, build_cell_struct_positional_ctors(plan, native))
         if plan.n_programmer_defaults > 0 || plan.n_declared == 0
-            push!(native_parts, build_cell_struct_kwctor(native, plan.field_names,
-                                build_cell_struct_kw_params(plan.field_names, plan.defaults)))
+            push!(native_parts, build_cell_struct_keyword_constructor(native, plan.field_names,
+                                build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)))
         end
         push!(native_parts, :((::typeof($get_document_native_type))(::Type{<:$family}) =
                                   $native))

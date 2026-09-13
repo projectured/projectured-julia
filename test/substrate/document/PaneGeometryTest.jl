@@ -95,10 +95,10 @@ end
 
 @testset "a point names the group under it" begin
     tree, left, top, bottom = _nested()
-    @test get_pane_group_at(tree, 0.25, 0.5) === left
-    @test get_pane_group_at(tree, 0.75, 0.25) === top
-    @test get_pane_group_at(tree, 0.75, 0.75) === bottom
-    @test get_pane_group_at(tree, 5.0, 0.5) === nothing
+    @test get_pane_group_at_point(tree, 0.25, 0.5) === left
+    @test get_pane_group_at_point(tree, 0.75, 0.25) === top
+    @test get_pane_group_at_point(tree, 0.75, 0.75) === bottom
+    @test get_pane_group_at_point(tree, 5.0, 0.5) === nothing
 end
 
 @testset "the traversal wraps around" begin

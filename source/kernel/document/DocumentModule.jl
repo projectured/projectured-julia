@@ -31,7 +31,7 @@ using ..CellStructModule
 
 export Document, copy_document, sync_document!, get_document_family,
        get_document_cell_type, get_document_native_type, get_document_schema_name,
-       is_sync_descendable, sync_element_limit, make_unsynced_placeholder, HiddenElements,
+       is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder, HiddenElements,
        is_element_collection, is_walk_opaque, is_collection_field_type,
        get_cell_layout_field_type, search_documents,
        @document, @document_preset,

@@ -26,7 +26,7 @@ export Pt, Rs, Rc, Ln,
        pt_nil, pt_zero, pt_radial, is_nil, is_zero, is_fully_specified,
        pt_length, pt_length_square, pt_distance, pt_normalize, pt_multiply,
        pt_reverse, convert_nan_to_zero, with_base_plane_projection, get_base_plane_length,
-       get_base_plane_length_square, get_base_plane_distance, get_base_plane_angle,
+       get_base_plane_squared_length, get_base_plane_distance, get_base_plane_angle,
        rotate_base_plane, transpose_base_plane, with_x, with_y, with_z,
        rs_nil, get_diagonal_length, get_area,
        rc_nil, rc_from_center_size, rc_left, rc_right, rc_top, rc_bottom,
@@ -97,7 +97,7 @@ convert_nan_to_zero(pt::Pt) = Pt(isnan(pt.x) ? 0.0 : pt.x,
 
 with_base_plane_projection(pt::Pt) = Pt(pt.x, pt.y, 0.0)
 get_base_plane_length(pt::Pt) = sqrt(pt.x^2 + pt.y^2)
-get_base_plane_length_square(pt::Pt) = pt.x^2 + pt.y^2
+get_base_plane_squared_length(pt::Pt) = pt.x^2 + pt.y^2
 get_base_plane_distance(a::Pt, b::Pt) = get_base_plane_length(a - b)
 get_base_plane_angle(pt::Pt) = atan(pt.y, pt.x)
 

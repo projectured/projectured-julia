@@ -93,7 +93,7 @@ Two rules hold across all of them:
 group a rectangle in the unit square by one walk of the tree with its weights. No
 font, no measurement, and no backend takes part.
 
-- `get_pane_rectangles(tree)` / `get_pane_rectangle(tree, group)` / `get_pane_group_at(tree, x, y)`
+- `get_pane_rectangles(tree)` / `get_pane_rectangle(tree, group)` / `get_pane_group_at_point(tree, x, y)`
 - `get_pane_neighbour_group(tree, group, direction)` — the group in `:left`,
   `:right`, `:up`, or `:down`. A candidate must lie wholly past the edge and
   overlap on the other axis; the nearest wins, then the one that overlaps most.

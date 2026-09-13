@@ -237,6 +237,20 @@ alongside it.
 **Every function name starts with a verb.** The subject is carried by
 dispatch, not by the name.
 
+**A name must read as English. Where a rule gives a phrase nobody would say,
+the English wins and the rule yields.** The shapes below are a guide to a name
+that reads, not a substitution to apply without looking at the result. Two
+names this repository got wrong by applying a rule and not reading it:
+`get_base_plane_length_square`, where "length square" is not English and the
+name is `get_base_plane_squared_length`; and `get_cell_kind_of`, which kept a
+dangling preposition the rules say to drop. Say the name out loud. If it is not
+a phrase a person would use, it is the wrong name.
+
+**A word that names the kind of thing produced goes last; a word that names the
+owner stays first.** A pager is a widget, so it is `make_pager_widget`. A
+selection belongs to a widget list, so it is `make_widget_list_selection`. The
+test is the same: which reads as English.
+
 **The verb follows the nature of the work.** Choose it by what the function
 does, not by what it returns:
 

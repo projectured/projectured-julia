@@ -38,7 +38,7 @@ been grown yet.
 # Where the walk lives
 
 Not here. `sync_document!` and `copy_document` take a policy and consult
-`is_sync_descendable` / `sync_element_limit` / `make_unsynced_placeholder` at every
+`is_descendable_for_sync` / `sync_element_limit` / `make_unsynced_placeholder` at every
 child; this module answers those three and supplies the marker. There is one
 traversal of each kind, in the kernel, and bounding is a parameter of it.
 
@@ -53,7 +53,7 @@ module BoundedSyncModule
 import ..CellModule: AbstractCell, Cell, ComputedCell
 import ..DocumentModule: Document, @document, sync_document!, copy_document,
                          is_element_collection,
-                         is_sync_descendable, sync_element_limit, make_unsynced_placeholder
+                         is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder
 import ..ReferenceModule: Reference
 
 export UnsyncedDocument, AUnsyncedDocument,
@@ -116,18 +116,18 @@ request_sync!(m::AUnsyncedDocument) = (m.requested = true; m)
     SyncPolicy
 
 Decides, per child, whether a bounded sync descends into it or leaves a marker.
-Implement [`is_sync_descendable`](@ref).
+Implement [`is_descendable_for_sync`](@ref).
 """
 abstract type SyncPolicy end
 
 """
-    is_sync_descendable(policy, depth, shadow_slot) -> Bool
+    is_descendable_for_sync(policy, depth, shadow_slot) -> Bool
 
 Whether to sync the child at `depth` (1 for a root's children). `shadow_slot` is
 what stands in that slot now — a marker, a document already materialised there,
 or `nothing` when the slot has yet to be grown.
 """
-function is_sync_descendable end
+function is_descendable_for_sync end
 
 """
     DepthPolicy(depth)
@@ -159,7 +159,7 @@ DepthPolicy(depth::Integer) = DepthPolicy(Int(depth), 32)
 DepthPolicy(; depth::Integer = 1, elements::Integer = 32) =
     DepthPolicy(Int(depth), Int(elements))
 
-is_sync_descendable(p::DepthPolicy, depth::Int, slot) =
+is_descendable_for_sync(p::DepthPolicy, depth::Int, slot) =
     slot isa AUnsyncedDocument ? slot.requested :
     slot isa Document                 ? true :
                                         depth <= p.depth
@@ -171,7 +171,7 @@ How many of a collection's `total` elements to materialise, given how many are
 `shown` there now and whether the tail marker has been `requested`. Returning
 `total` means no cap.
 
-Same shape as [`is_sync_descendable`](@ref) and for the same reason: what is
+Same shape as [`is_descendable_for_sync`](@ref) and for the same reason: what is
 already shown stays shown, and a request buys one more page rather than the whole
 tail.
 """

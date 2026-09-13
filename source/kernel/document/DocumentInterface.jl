@@ -171,7 +171,7 @@ shadow's layout, which is what [`copy_document`](@ref) does for a kind.
 function sync_document! end
 
 """
-    is_sync_descendable(policy, depth, slot) -> Bool
+    is_descendable_for_sync(policy, depth, slot) -> Bool
     sync_element_limit(policy, source, shadow) -> Int
     make_unsynced_placeholder(policy, source, current) -> value
 
@@ -198,7 +198,7 @@ policy's own bookkeeping, not this layer's.
 
 Unbounded defaults in `DocumentDefaults.jl`.
 """
-function is_sync_descendable end
+function is_descendable_for_sync end
 function sync_element_limit end
 function make_unsynced_placeholder end
 

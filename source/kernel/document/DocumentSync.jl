@@ -60,7 +60,7 @@ end
 # it was synced in place, or a placeholder already standing there is to be left
 # alone. The one place the bound is decided; both walks below share it.
 function _synced_child(cur, sv, K, policy, depth)
-    if !is_sync_descendable(policy, depth, cur)
+    if !is_descendable_for_sync(policy, depth, cur)
         new = make_unsynced_placeholder(policy, sv, cur)
         return new === cur ? nothing : new          # already stopped here: leave it be
     end

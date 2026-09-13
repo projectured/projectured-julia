@@ -67,23 +67,23 @@ function cell_struct_property_accessors(struct_name, cell_fields)
 end
 
 """
-    build_cell_struct_kw_params(field_names, default_map) -> Vector
+    build_cell_struct_keyword_parameters(field_names, default_map) -> Vector
 
 Build a keyword-constructor parameter list: a defaulted field becomes
 `field = default`, an undefaulted one a required keyword `field` (à la
 `Base.@kwdef`).
 """
-build_cell_struct_kw_params(field_names, default_map) =
+build_cell_struct_keyword_parameters(field_names, default_map) =
     [haskey(default_map, fname) ? Expr(:kw, fname, default_map[fname]) : fname
      for fname in field_names]
 
 """
-    build_cell_struct_kwctor(type_name, field_names, kw_params) -> Expr
+    build_cell_struct_keyword_constructor(type_name, field_names, kw_params) -> Expr
 
 Build a keyword constructor for `type_name` forwarding into its positional
 constructor, so value wrapping stays defined in exactly one place.
 """
-function build_cell_struct_kwctor(type_name, field_names, kw_params)
+function build_cell_struct_keyword_constructor(type_name, field_names, kw_params)
     # Built without a splat: `Expr(:call, x, xs...)` lowers to
     # `Core._apply_iterate` on the generic `Expr` constructor, which a
     # `--trim=safe` build cannot resolve. `append!` makes the same Expr.
@@ -143,8 +143,8 @@ function build_cell_struct_exprs(structdef; default::Symbol = :reactive)
     # without a default become required keywords, à la `Base.@kwdef`.
     extra = Any[]
     if !isempty(plan.defaults)
-        push!(extra, build_cell_struct_kwctor(plan.name, plan.field_names,
-                                        build_cell_struct_kw_params(plan.field_names, plan.defaults)))
+        push!(extra, build_cell_struct_keyword_constructor(plan.name, plan.field_names,
+                                        build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)))
     end
 
     Expr(:block, :(Base.@__doc__ $(plan.structdef)), getprop, setprop, extra...)
@@ -159,7 +159,7 @@ struct-level default (`ImmutableCell struct …` → `:immutable`); with no lead
 """
 function parse_cell_struct_macro_default(args)
     if length(args) == 2
-        k = args[1] isa Symbol ? get_cell_kind_of(args[1]) : nothing
+        k = args[1] isa Symbol ? get_cell_kind(args[1]) : nothing
         k === nothing && error("expected a cell kind (ImmutableCell / MutableCell / ReactiveCell) " *
                                "before `struct`, got `$(args[1])`")
         return (k, args[2])
@@ -197,7 +197,7 @@ macro cell_struct(args...)
 end
 
 # The kind constructor behind a cell's concrete type — the runtime companion of
-# `get_cell_kind_of` (which maps a kind *name*): a cell's kind lives in its type.
+# `get_cell_kind` (which maps a kind *name*): a cell's kind lives in its type.
 _cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _cell_kind(::Type{<:MutableCell})   = MutableCell
 _cell_kind(::Type{<:ImmutableCell}) = ImmutableCell

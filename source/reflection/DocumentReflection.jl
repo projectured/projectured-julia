@@ -26,7 +26,7 @@ import ..CellModule: Cell, ComputedCell, MutableCell
 import ..DocumentModule: Document, @document, get_document_schema_name
 import ..ReferenceModule: Reference
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: is_sync_descendable, sync_element_limit, make_unsynced_placeholder,
+import ..DocumentModule: is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder,
                          HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AUnsyncedDocument,
                             UnsyncedDocument, unsynced_marker, request_sync!
@@ -221,7 +221,7 @@ function _sync_reflection!(node, object, policy::SyncPolicy, depth::Int)
     node.value === nothing || (node.value = nothing)
 
     cur = node.children
-    if !is_sync_descendable(policy, depth + 1, cur)
+    if !is_descendable_for_sync(policy, depth + 1, cur)
         cur isa AUnsyncedDocument || (node.children = _collapsed_marker(object))
         return node
     end

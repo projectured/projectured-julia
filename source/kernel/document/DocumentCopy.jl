@@ -126,7 +126,7 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
         inner = raw isa AbstractCell ? raw[] : raw
         # A document-valued child faces the bound; anything else is a leaf or a
         # container the walk copies through.
-        v = inner isa Document && !is_sync_descendable(policy, depth + 1, nothing) ?
+        v = inner isa Document && !is_descendable_for_sync(policy, depth + 1, nothing) ?
             make_unsynced_placeholder(policy, inner, nothing) :
             copy_document(K, inner, policy, depth + 1)
         push!(args, all_cells || raw isa AbstractCell ?

@@ -135,13 +135,13 @@ _cell_kind_name(s::Symbol) =
     (s === :ReactiveCell || s === :Cell) ? :reactive : nothing
 
 """
-    get_cell_kind_of(sym) -> :reactive | :immutable | :mutable | nothing
+    get_cell_kind(sym) -> :reactive | :immutable | :mutable | nothing
 
 Map a cell-kind **name** (`:ImmutableCell`, `:MutableCell`, `:ReactiveCell`, `:Cell`) to its kind,
 or `nothing` when `sym` names no kind. Used to read a leading struct-level default
 kind (`ImmutableCell struct …`).
 """
-get_cell_kind_of(s::Symbol) = _cell_kind_name(s)
+get_cell_kind(s::Symbol) = _cell_kind_name(s)
 
 # `(kind, value_type, explicit)` for one declared field type (`nothing` = untyped field).
 # `explicit` is true iff the type NAMES a cell kind; an unannotated (`f`) or plain-typed (`f::T`)

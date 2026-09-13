@@ -39,7 +39,7 @@ import ..SelectionModule: has_dormant_selection
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        get_pane_tab_title_string, default_new_pane_tab,
-       get_pane_orientation_opposite, get_pane_split_axis,
+       get_opposite_pane_orientation, get_pane_split_axis,
        get_pane_weight, get_pane_weights, get_pane_normalized_weights,
        get_pane_groups, get_pane_parent
 
@@ -201,11 +201,11 @@ end
 # ── Orientation ────────────────────────────────────────────────────────────
 
 """
-    get_pane_orientation_opposite(orientation) -> Symbol
+    get_opposite_pane_orientation(orientation) -> Symbol
 
 `:vertical` ⇄ `:horizontal`.
 """
-get_pane_orientation_opposite(orientation::Symbol) =
+get_opposite_pane_orientation(orientation::Symbol) =
     orientation === :vertical ? :horizontal : :vertical
 
 """
@@ -215,8 +215,8 @@ The axis a split's children lay out along, which is what `WidgetSplitPane` calls
 its orientation: a `:vertical` split lays its children out `:horizontal`ly. The
 one translation between the two vocabularies.
 """
-get_pane_split_axis(split::PaneSplit) = get_pane_orientation_opposite(split.orientation)
-get_pane_split_axis(orientation::Symbol) = get_pane_orientation_opposite(orientation)
+get_pane_split_axis(split::PaneSplit) = get_opposite_pane_orientation(split.orientation)
+get_pane_split_axis(orientation::Symbol) = get_opposite_pane_orientation(orientation)
 
 # ── Weights ────────────────────────────────────────────────────────────────
 

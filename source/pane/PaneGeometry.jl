@@ -17,7 +17,7 @@ import ..PaneModule: PaneTree, PaneSplit, PaneGroup, PaneTab,
                      get_pane_groups, get_pane_weights, get_pane_normalized_weights
 
 export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
-       get_pane_group_at, get_pane_drop_zone, get_pane_zone_orientation
+       get_pane_group_at_point, get_pane_drop_zone, get_pane_zone_orientation
 
 # Two edges that meet exactly must still read as "past each other", so every
 # comparison allows this much slack.
@@ -70,11 +70,11 @@ function get_pane_rectangle(tree::PaneTree, group::PaneGroup)
 end
 
 """
-    get_pane_group_at(tree, x, y) -> PaneGroup | Nothing
+    get_pane_group_at_point(tree, x, y) -> PaneGroup | Nothing
 
 The group whose rectangle holds the unit-square point `(x, y)`.
 """
-function get_pane_group_at(tree::PaneTree, x::Real, y::Real)
+function get_pane_group_at_point(tree::PaneTree, x::Real, y::Real)
     for (group, r) in get_pane_rectangles(tree)
         (r.x - _PANE_EPSILON <= x <= r.x + r.w + _PANE_EPSILON &&
          r.y - _PANE_EPSILON <= y <= r.y + r.h + _PANE_EPSILON) && return group
@@ -163,7 +163,7 @@ A band wins over the centre, and the strip wins over everything, so the three
 never overlap.
 """
 function get_pane_drop_zone(tree::PaneTree, x::Real, y::Real; strip::Real = 0.0, band::Real = 0.2)
-    group = get_pane_group_at(tree, x, y)
+    group = get_pane_group_at_point(tree, x, y)
     group === nothing && return nothing
     r = get_pane_rectangle(tree, group)
     (r === nothing || r.w <= 0 || r.h <= 0) && return nothing

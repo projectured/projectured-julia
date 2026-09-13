@@ -56,7 +56,7 @@ to descend into a given child, and how many of a collection's elements to
 materialise.
 
 ```julia
-is_sync_descendable(policy, depth, shadow_slot) -> Bool
+is_descendable_for_sync(policy, depth, shadow_slot) -> Bool
 sync_element_limit(policy, source, shadow) -> Int
 ```
 
@@ -153,7 +153,7 @@ The kernel consults three generics at every child, declared in
 
 | | |
 |---|---|
-| `is_sync_descendable(policy, depth, slot)` | descend, or stop here? |
+| `is_descendable_for_sync(policy, depth, slot)` | descend, or stop here? |
 | `sync_element_limit(policy, source, shadow)` | how many elements to keep |
 | `make_unsynced_placeholder(policy, source, current)` | what stands where it stopped |
 

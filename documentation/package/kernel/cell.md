@@ -213,7 +213,7 @@ split. No supertype is injected; the struct keeps what the definition wrote.
 The macro is assembled by `build_cell_struct_exprs(structdef)`, which composes two
 module-internal expr-builders (`cell_struct_autowrap_ctor`,
 `cell_struct_property_accessors`) with the exported keyword/positional builders
-(`build_cell_struct_kw_params`, `build_cell_struct_kwctor`, `build_cell_struct_positional_ctors`)
+(`build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`)
 and the `CellStructPlan` parse — together the **composition seam for macro
 authors**: `@iomap` and `@projection` (projection layer) inject their default
 supertype and return `esc(build_cell_struct_exprs(structdef))` wholesale; `@document`
@@ -224,10 +224,10 @@ only `Cell` in scope; invoking `@cell_struct` itself (or a macro built on it)
 requires `using ..CellStructModule`. See [the macros guide](macros.md) for the
 full field-wrapping and `@document` codegen details.
 
-Public surface: `@cell_struct`, `build_cell_struct_exprs`, `build_cell_struct_kw_params`,
-`build_cell_struct_kwctor`, `build_cell_struct_positional_ctors`, `parse_cell_struct_macro_default`, and
+Public surface: `@cell_struct`, `build_cell_struct_exprs`, `build_cell_struct_keyword_parameters`,
+`build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`, `parse_cell_struct_macro_default`, and
 the `CellStructPlan` parse toolkit (`CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
-`retype_cell_struct_fields!`, `get_cell_struct_value_types`, `get_cell_struct_field_kinds`, `get_cell_kind_of`,
+`retype_cell_struct_fields!`, `get_cell_struct_value_types`, `get_cell_struct_field_kinds`, `get_cell_kind`,
 `get_cell_struct_required_count`, `get_cell_struct_trailing_default_count`). The expr-builders
 `cell_struct_autowrap_ctor` and `cell_struct_property_accessors` are
 module-internal.

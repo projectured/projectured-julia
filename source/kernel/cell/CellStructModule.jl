@@ -24,10 +24,10 @@ module CellStructModule
 
 using ..CellModule
 
-export var"@cell_struct", build_cell_struct_exprs, build_cell_struct_kw_params, build_cell_struct_kwctor,
+export var"@cell_struct", build_cell_struct_exprs, build_cell_struct_keyword_parameters, build_cell_struct_keyword_constructor,
        build_cell_struct_positional_ctors, parse_cell_struct_macro_default
 export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!, retype_cell_struct_fields!,
-       get_cell_struct_value_types, get_cell_struct_field_kinds, get_cell_kind_of, get_cell_struct_required_count, get_cell_struct_trailing_default_count,
+       get_cell_struct_value_types, get_cell_struct_field_kinds, get_cell_kind, get_cell_struct_required_count, get_cell_struct_trailing_default_count,
        get_cell_struct_kind
 
 include("CellStructPlan.jl")
