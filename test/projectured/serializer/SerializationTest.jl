@@ -66,7 +66,7 @@ function test_serialization()
         @testset "natural round-trip" begin
             # Clean data documents (no insertion placeholders).
             cases = [
-                (".json", jsonparse("""{"name":"ada","age":36,"tags":["x","y"],"ok":true,"nil":null}"""), JsonObject, true),
+                (".json", parse_json("""{"name":"ada","age":36,"tags":["x","y"],"ok":true,"nil":null}"""), JsonObject, true),
                 (".xml",  xmlparse("<a id=\"1\"><b>hi</b></a>"),                                          XmlElement, false),
                 (".sql",  sqlparse("SELECT * FROM persons"),                                              SqlSelectStatement, true),
                 (".jl",   juliaparse("function f(n)\n  n + 1\nend"),                                       JuliaFunction, true),
@@ -94,7 +94,7 @@ function test_serialization()
         @testset "export extension guard" begin
             # Writing one format's text under another known format's extension is
             # rejected, so a later import_document can't pick the wrong parser.
-            @test_throws Exception export_document(jsonparse("1"), tempname() * ".sql")
+            @test_throws Exception export_document(parse_json("1"), tempname() * ".sql")
         end
 
         @testset "operations" begin
@@ -105,19 +105,19 @@ function test_serialization()
             evaluate_operation(ed, SaveDocumentOperation(p))
             @test isfile(p)
 
-            ed2 = _SerEditor(jsonparse("0"), :stale)
+            ed2 = _SerEditor(parse_json("0"), :stale)
             evaluate_operation(ed2, LoadDocumentOperation(p))
             @test ed2.document isa JsonObject
             @test ed2.iomap === nothing
 
             # Natural export then import through editor operations.
-            clean = jsonparse("""{"k":[1,2,3]}""")
+            clean = parse_json("""{"k":[1,2,3]}""")
             ed3 = _SerEditor(clean, "live-iomap")
             q = tempname() * ".json"
             evaluate_operation(ed3, ExportDocumentOperation(q))
             @test isfile(q)
 
-            ed4 = _SerEditor(jsonparse("0"), :stale)
+            ed4 = _SerEditor(parse_json("0"), :stale)
             evaluate_operation(ed4, ImportDocumentOperation(q))
             @test ed4.document isa JsonObject
             @test ed4.iomap === nothing

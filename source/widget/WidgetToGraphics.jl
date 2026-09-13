@@ -53,10 +53,10 @@ import ..WidgetModule: WidgetDocument, WidgetInsertion, WidgetLabel, WidgetText,
                        OpenTabOperation, DragTabOperation,
                        StartSplitterDragOperation, ResizeSplitPaneOperation, EndSplitterDragOperation,
                        Action, InvokeActionOperation, matches_action_shortcut
-import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
+import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
 import ..ImageModule: ImageDocument
-import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, graphics_size
+import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, get_graphics_size
 import ..GeometryModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
                          apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
 import ..FontModule: StyleFont,
@@ -810,7 +810,7 @@ _reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Compute
 _p_measure(p) = hasproperty(p, :measure) ? p.measure : nothing
 
 _element_size(e, measure) =
-    measure === nothing ? graphics_size(e) : graphics_size(e, measure)
+    measure === nothing ? get_graphics_size(e) : get_graphics_size(e, measure)
 
 # `cap` is an overlay's context: given one, the extent is capped by what the
 # parent offered rather than allowed to run past it.
@@ -2005,8 +2005,8 @@ function _selected_composite_slot(w::WidgetComposite, n::Int)
     1 <= slot <= n ? slot : 0
 end
 
-# The focus walk (`first_focusable_path`, `last_focusable_path`,
-# `next_focusable_index`, `_focusable_path`) lives in `FocusModule`, which names no
+# The focus walk (`get_first_focusable_path`, `get_last_focusable_path`,
+# `get_next_focusable_index`, `_focusable_path`) lives in `FocusModule`, which names no
 # widget type, so the `LayoutToGraphics` reader shares it for Tab traversal.
 # `WidgetModule` answers its `is_focusable_document` trait for `FocusableWidget`.
 # The three walk functions are imported at the top of this file.
@@ -2035,7 +2035,7 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
     if i == 0
         # Selection is on me, not a child (∅), or I am the unselected root:
         # focus my first (last) leaf.
-        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        sub = reverse ? get_last_focusable_path(w) : get_first_focusable_path(w)
         return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
     end
     # Delegate to the selected child; an internal advance re-roots through me.
@@ -2045,9 +2045,9 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
         return reroot_operation(op, (FieldReferenceStep("elements"), RangeReferenceStep(slot - 1, slot)))
     end
     # Child declined: advance to my next focusable sibling, entering its first leaf.
-    j = next_focusable_index(w.elements, i, reverse)
+    j = get_next_focusable_index(w.elements, i, reverse)
     j == 0 && return nothing                      # no next sibling — I decline; parent advances.
-    sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
+    sub = reverse ? get_last_focusable_path(w.elements[j]) : get_first_focusable_path(w.elements[j])
     sub === nothing && return nothing
     ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
@@ -2563,7 +2563,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cim = inner_iomaps[i]
             cim.output isa GraphicsCanvas || continue
             slot = Int(slot_main[i][])
-            reach_w, reach_h = graphics_size(cim.output)
+            reach_w, reach_h = get_graphics_size(cim.output)
             cross = avail_cross === nothing ?
                     Int(main_axis === :x ? reach_h : reach_w) : cross_extent
             clip_w = main_axis === :x ? slot : cross
@@ -2783,7 +2783,7 @@ end
 
 # Tab traversal for a split pane (Stage 2), mirroring `_composite_tab` but with the
 # split's slot shape: slots live under `elements[i]`, optionally wrapped in a
-# `LayoutConstraint` (then the path walks through `.child`). `first_focusable_path`
+# `LayoutConstraint` (then the path walks through `.child`). `get_first_focusable_path`
 # descends through the LayoutConstraint's `child` field generically, so the advance
 # path is correct without special-casing; only the *delegate* re-rooting needs the
 # `.child` step (as the reader above does).
@@ -2792,7 +2792,7 @@ function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
     reverse = evt.modifiers.shift
     i = _selected_split_slot(w, n)
     if i == 0
-        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        sub = reverse ? get_last_focusable_path(w) : get_first_focusable_path(w)
         return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
     end
     deleg = _forward_split_event_slot(child_iomaps, evt, i)
@@ -2804,9 +2804,9 @@ function _split_tab(w::WidgetSplitPane, child_iomaps::Vector, evt)
                 (FieldReferenceStep("elements"), RangeReferenceStep(slot-1, slot))
         return reroot_operation(op, steps)
     end
-    j = next_focusable_index(w.elements, i, reverse)
+    j = get_next_focusable_index(w.elements, i, reverse)
     j == 0 && return nothing
-    sub = reverse ? last_focusable_path(w.elements[j]) : first_focusable_path(w.elements[j])
+    sub = reverse ? get_last_focusable_path(w.elements[j]) : get_first_focusable_path(w.elements[j])
     sub === nothing && return nothing
     ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(j - 1, j), sub)))
@@ -3018,7 +3018,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         idx = active == 0 ? 1 : active
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
         cim === nothing && return Any[]
-        reach_w, reach_h = graphics_size(cim.output)
+        reach_w, reach_h = get_graphics_size(cim.output)
         page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
         page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
         Any[GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy + sel_h)),
@@ -3681,7 +3681,7 @@ function _scroll_room(iomap)
     tx, ty = _inset_total(iomap.input)
     view_w = max(0, Int(out.w[]) - tx)
     view_h = max(0, Int(out.h[]) - ty)
-    content_w, content_h = graphics_size(content)
+    content_w, content_h = get_graphics_size(content)
     (max(0, Int(content_w) - view_w), max(0, Int(content_h) - view_h))
 end
 

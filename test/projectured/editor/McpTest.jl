@@ -247,7 +247,7 @@ end
 
 function test_print_object_options()
     @testset "print_object: newlines / indent / filter" begin
-        doc = jsonparse("[1, \"x\", true]")
+        doc = parse_json("[1, \"x\", true]")
 
         # default: multi-line, indented, default {} delimiters
         multi = print_object(doc)
@@ -282,7 +282,7 @@ end
 
 function test_search_object()
     @testset "search_references" begin
-        doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
+        doc = parse_json("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
 
         refs = search_references(doc, v -> v isa JsonNumber)
         @test length(refs) == 2
@@ -337,7 +337,7 @@ function test_search_object()
     end
 
     @testset "search_documents" begin
-        doc = jsonparse("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
+        doc = parse_json("{\"name\": \"Alice\", \"scores\": [10, 20], \"active\": true}")
 
         # returns the matching documents themselves
         nums = search_documents(doc, v -> v isa JsonNumber)

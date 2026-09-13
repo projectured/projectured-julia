@@ -10,7 +10,7 @@ bridges the two serializers and the domain insertion seeds:
 | natural   | `export_document`      | `import_document` | the domain's seed |
 
 Opening a *non-existent* file yields the extension's seed — the domain insertion
-placeholder registered on `new_document_seed` (`.json` → `JsonInsertion`, …), or a
+placeholder registered on `make_document_seed` (`.json` → `JsonInsertion`, …), or a
 `DocumentNothing` otherwise — so a new file starts as an editable seed that can be
 typed into and then saved. Used by the `WorkbenchEditor` save/reload keybindings
 and the file-editor registry.
@@ -26,7 +26,7 @@ import ..BinarySerializationModule: save_document, load_document
 import ..NaturalFormatModule: export_document, import_document
 import ..DocumentCoreModule: DocumentNothing
 
-export write_document_file, read_document_file, new_document_for, new_document_seed
+export write_document_file, read_document_file, make_document_for, make_document_seed
 
 const _BINARY_EXT = ".pdoc"
 
@@ -34,13 +34,13 @@ _ext(path::AbstractString) = lowercase(splitext(path)[2])
 _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 
 """
-    new_document_seed(::Val{ext}) -> Document
+    make_document_seed(::Val{ext}) -> Document
 
 The empty seed a non-existent file of extension `ext` opens as. Each source
-domain registers its insertion placeholder (`new_document_seed(::Val{:json}) =
+domain registers its insertion placeholder (`make_document_seed(::Val{:json}) =
 JsonInsertion()`); the default is a `DocumentNothing`.
 """
-new_document_seed(::Val) = DocumentNothing()
+make_document_seed(::Val) = DocumentNothing()
 
 """
     write_document_file(document, path) -> path
@@ -57,22 +57,22 @@ write_document_file(document::Document, path::AbstractString) =
 
 Read `path` into a document. When the file exists the format is chosen by
 extension (binary for `.pdoc`, natural otherwise). When it does not exist, return
-a fresh extension-appropriate seed (see [`new_document_for`](@ref)) so a new file
+a fresh extension-appropriate seed (see [`make_document_for`](@ref)) so a new file
 opens as an editable placeholder.
 """
 read_document_file(path::AbstractString) =
-    !isfile(path)             ? new_document_for(path) :
+    !isfile(path)             ? make_document_for(path) :
     _ext(path) == _BINARY_EXT ? load_document(path)    :
                                 import_document(path)
 
 """
-    new_document_for(path) -> Document
+    make_document_for(path) -> Document
 
 The empty seed a *non-existent* file of `path`'s extension should open as: the
 domain's insertion placeholder for a registered natural format, or a
-`DocumentNothing` otherwise (see [`new_document_seed`](@ref)). Typing into the
+`DocumentNothing` otherwise (see [`make_document_seed`](@ref)). Typing into the
 seed and saving creates the file.
 """
-new_document_for(path::AbstractString) = new_document_seed(Val(_ext_symbol(_ext(path))))
+make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
 
 end # module

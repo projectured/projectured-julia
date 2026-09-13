@@ -1261,11 +1261,11 @@ function _stroke_polyline!(renderer::Ptr{SDL_Renderer}, pts, wdt::Int,
         _stroke_polyline_dashed!(renderer, pts, w, r, g, b, a, on, off)
     end
     if end_arrow
-        tri = polyline_arrowhead(pts, arrow_size; at_end=true)
+        tri = build_polyline_arrowhead(pts, arrow_size; at_end=true)
         isempty(tri) || _fill_triangle!(renderer, tri, r, g, b, a)
     end
     if start_arrow
-        tri = polyline_arrowhead(pts, arrow_size; at_end=false)
+        tri = build_polyline_arrowhead(pts, arrow_size; at_end=false)
         isempty(tri) || _fill_triangle!(renderer, tri, r, g, b, a)
     end
 end

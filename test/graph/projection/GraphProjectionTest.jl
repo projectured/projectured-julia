@@ -424,9 +424,9 @@ end
                           width=2, end_arrow=true, arrow_size=8)
     @test length(pl.points) == 3
     @test pl.end_arrow == true
-    @test point_near_polyline(pl.points, 5, 0, 3)       # on the first segment
-    @test point_near_polyline(pl.points, 10, 5, 3)      # on the second segment
-    @test !point_near_polyline(pl.points, 50, 50, 3)    # far away
+    @test is_point_near_polyline(pl.points, 5, 0, 3)       # on the first segment
+    @test is_point_near_polyline(pl.points, 10, 5, 3)      # on the second segment
+    @test !is_point_near_polyline(pl.points, 50, 50, 3)    # far away
 
     # Spline tessellation passes through the input points (catmull-rom) and is a
     # superset polyline.
@@ -441,14 +441,14 @@ end
     @test bez[end] == (10.0, 0.0)
 
     # Arrowhead geometry: tip is the last point, three vertices returned.
-    head = polyline_arrowhead([(0, 0), (10, 0)], 8)
+    head = build_polyline_arrowhead([(0, 0), (10, 0)], 8)
     @test length(head) == 3
     @test head[1] == (10.0, 0.0)                        # tip at the end point
     # Base vertices straddle the line, `size` back from the tip.
     @test all(v -> v[1] < 10.0, head[2:3])
 
     # No-segment cases return empty.
-    @test isempty(polyline_arrowhead([(0, 0)], 8))
+    @test isempty(build_polyline_arrowhead([(0, 0)], 8))
 end
 
 @testset "GridEmbedding" begin

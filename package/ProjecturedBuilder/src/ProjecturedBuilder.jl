@@ -16,7 +16,7 @@
 # and no script to run:
 #
 #     using ProjecturedSdl, ProjecturedBuilder
-#     build_executable(workbench_app(SdlBackend))
+#     build_executable(make_workbench_app(SdlBackend))
 #
 # Generation (step 1) is separated from compilation (steps 2-3) so it can be
 # tested without the multi-minute `create_app`: call `build_executable(spec;

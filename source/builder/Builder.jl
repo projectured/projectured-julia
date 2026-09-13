@@ -1,5 +1,5 @@
 export BuildSpec, build_executable, render_app_config, write_app_config
-export default_json_app, workbench_app
+export default_json_app, make_workbench_app
 
 # The executable directory (`package/executable/`) — this package lives one level
 # below it, and every path the builder writes to is relative to it.
@@ -268,13 +268,13 @@ The v1 default: a JSON file editor with `backend` baked in. What `Build.jl` buil
 default_json_app(backend::Type) = BuildSpec(; backends = [backend])
 
 """
-    workbench_app(backend) -> BuildSpec
+    make_workbench_app(backend) -> BuildSpec
 
 The current shipping configuration: a workbench, multi-domain
 (json / xml / sql / julia) file editor with json the default/scratch domain and
 `backend` baked in. What `regenerate.sh` built.
 """
-workbench_app(backend::Type) = BuildSpec(; domain = :json,
+make_workbench_app(backend::Type) = BuildSpec(; domain = :json,
                                            domains = [:json, :xml, :sql, :julia],
                                            workbench = true,
                                            file_backed = true,

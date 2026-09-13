@@ -22,7 +22,7 @@ import ..DocumentModule: Document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep
-export first_focusable_path, last_focusable_path, next_focusable_index,
+export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document
 
 """
@@ -93,24 +93,24 @@ function _focusable_path(node, reverse::Bool, visited::Set{UInt}=Set{UInt}())
 end
 
 """
-    first_focusable_path(node) -> Reference
-    last_focusable_path(node)  -> Reference
+    get_first_focusable_path(node) -> Reference
+    get_last_focusable_path(node)  -> Reference
 
 The relative whole-element (∅) selection path to the first / last focusable
 document in `node`'s subtree, or `nothing` if there is none. A disabled widget
 is not focusable, so the walk skips it.
 """
-first_focusable_path(node) = _focusable_path(node, false)
-last_focusable_path(node)  = _focusable_path(node, true)
+get_first_focusable_path(node) = _focusable_path(node, false)
+get_last_focusable_path(node)  = _focusable_path(node, true)
 
 """
-    next_focusable_index(children, after::Int, reverse::Bool) -> Int
+    get_next_focusable_index(children, after::Int, reverse::Bool) -> Int
 
 The next slot after `after` (in `reverse` direction) among `children` whose
 subtree contains a focusable document; 0 if there is none. `children` is any
 1-indexed collection of child documents (a CellVector or Vector).
 """
-function next_focusable_index(children, after::Int, reverse::Bool)
+function get_next_focusable_index(children, after::Int, reverse::Bool)
     n = length(children)
     if reverse
         for j in (after - 1):-1:1

@@ -43,7 +43,7 @@ using ..ColorModule
 using ..FontModule
 using ..EventModule
 
-export ConsoleBackend, console_render
+export ConsoleBackend, render_console
 
 """
     ConsoleBackend(; io=stdout, input=stdin, ansi=true, clear=true)
@@ -206,13 +206,13 @@ _render_span!(::IO, ::ConsoleBackend, ::TextGraphics) = nothing
 _render_span!(::IO, ::ConsoleBackend, ::TextDocument) = nothing
 
 """
-    console_render(backend::ConsoleBackend, text::TextBlock)
+    render_console(backend::ConsoleBackend, text::TextBlock)
 
 Flatten `text`'s spans into a (optionally colored) character stream and write it
 to `backend.io` in a single flush. The selection highlight is expected to be
 already encoded in the span colors (by `SelectionInverting`).
 """
-function console_render(backend::ConsoleBackend, text::TextBlock)
+function render_console(backend::ConsoleBackend, text::TextBlock)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
     for (i, span) in enumerate(text.elements)
@@ -248,7 +248,7 @@ end
 Render the Text-domain output of the projection pipeline to the terminal.
 """
 BackendModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
-    console_render(backend, text)
+    render_console(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
 # and so produces a graphics/screen document instead of a `TextBlock`).

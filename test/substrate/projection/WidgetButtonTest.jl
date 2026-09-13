@@ -314,27 +314,27 @@ end
                           KeyDown(:space, ModifierKeys())) === nothing
 end
 
-# Stage 2, Step 2: first/last_focusable_path locate enabled interactive leaves as
+# Stage 2, Step 2: first/get_last_focusable_path locate enabled interactive leaves as
 # relative ∅ paths, skipping disabled ones, and recurse through containers.
-@testset "first/last_focusable_path find enabled leaves and skip disabled" begin
+@testset "first/get_last_focusable_path find enabled leaves and skip disabled" begin
     # A bare focusable leaf is its own whole-element (∅) selection.
-    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReference
+    @test get_first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReference
     # A disabled leaf has no focusable path.
-    @test first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A"; enabled=false)) === nothing
+    @test get_first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A"; enabled=false)) === nothing
     # A display-only widget has none either.
-    @test first_focusable_path(WidgetLabel(Point2D(0,0), "x")) === nothing
+    @test get_first_focusable_path(WidgetLabel(Point2D(0,0), "x")) === nothing
 
     comp = WidgetComposite(Point2D(0,0), Any[
         WidgetButton(Point2D(0,0), Point2D(80,30), "A"),
         WidgetButton(Point2D(0,0), Point2D(80,30), "B"; enabled=false),
         WidgetCheckbox(Point2D(0,0), true),
     ])
-    fp = first_focusable_path(comp)
+    fp = get_first_focusable_path(comp)
     @test fp isa ConcreteReference
     @test fp.head isa FieldReferenceStep && fp.head.name == "elements"
     @test fp.tail.head isa RangeReferenceStep && fp.tail.head.start == 0      # slot 1 (enabled button)
     @test fp.tail.tail isa EmptyReference
-    lp = last_focusable_path(comp)
+    lp = get_last_focusable_path(comp)
     @test lp.tail.head.start == 2                                         # slot 3 (checkbox); disabled slot 2 skipped
 
     # Nested: the first focusable descends into the child container.
@@ -342,7 +342,7 @@ end
         WidgetLabel(Point2D(0,0), "x"),                                   # skipped (not focusable)
         WidgetComposite(Point2D(0,0), Any[WidgetCheckbox(Point2D(0,0), false)]),
     ])
-    np = first_focusable_path(nested)
+    np = get_first_focusable_path(nested)
     @test np.head.name == "elements" && np.tail.head.start == 1          # outer slot 2
     @test np.tail.tail.head isa FieldReferenceStep && np.tail.tail.head.name == "elements"
     @test np.tail.tail.tail.head.start == 0                               # inner slot 1
@@ -355,12 +355,12 @@ end
 @testset "focus traversal terminates on a cyclic ListNode graph" begin
     a = ListNode("x"); b = ListNode("y")
     a.next = b; b.prev = a                                  # a ⇄ b (the prev/next cycle)
-    @test first_focusable_path(a) === nothing               # no focusable; terminates (was StackOverflow)
-    @test last_focusable_path(a)  === nothing
+    @test get_first_focusable_path(a) === nothing               # no focusable; terminates (was StackOverflow)
+    @test get_last_focusable_path(a)  === nothing
     # A focusable widget stored as a node's value is still reached (the walk doesn't loop).
     c = ListNode(WidgetButton(Point2D(0,0), Point2D(40,20), "OK")); d = ListNode("z")
     c.next = d; d.prev = c
-    @test first_focusable_path(c) isa ConcreteReference
+    @test get_first_focusable_path(c) isa ConcreteReference
 end
 
 # Stage 2, Step 3: distributed Tab traversal in the composite reader. Tab moves

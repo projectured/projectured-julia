@@ -5,8 +5,8 @@ A small recursive-descent JSON parser. Converts JSON source text into a
 `JsonDocument` tree from `JsonModule`.
 
 Provides:
-- `jsonparse(text)` — parse a JSON string into a `JsonDocument`
-- `jsonparse_file(path)` — read and parse a `.json` file from disk
+- `parse_json(text)` — parse a JSON string into a `JsonDocument`
+- `parse_json_file(path)` — read and parse a `.json` file from disk
 
 Deliberately minimal (objects, arrays, strings, numbers, `true`/`false`/`null`,
 the common backslash escapes including `\\uXXXX`). It is not a conformance-grade
@@ -18,7 +18,7 @@ module JsonParserModule
 import ..JsonModule: JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString,
                      JsonArray, JsonObject
 
-export jsonparse, jsonparse_file
+export parse_json, parse_json_file
 
 # ── Cursor over the source (1-based char vector — simple, not the fastest) ─────
 
@@ -151,12 +151,12 @@ end
 # ── Entry points ───────────────────────────────────────────────────────────────
 
 """
-    jsonparse(text) -> JsonDocument
+    parse_json(text) -> JsonDocument
 
 Parse a JSON string into a `JsonDocument`. Errors on malformed input or trailing
 characters.
 """
-function jsonparse(text::AbstractString)
+function parse_json(text::AbstractString)
     p = _Cur(collect(String(text)), 1)
     value = _value!(p)
     _skipws!(p)
@@ -165,10 +165,10 @@ function jsonparse(text::AbstractString)
 end
 
 """
-    jsonparse_file(path) -> JsonDocument
+    parse_json_file(path) -> JsonDocument
 
 Read and parse a `.json` file from disk.
 """
-jsonparse_file(path::AbstractString) = jsonparse(read(path, String))
+parse_json_file(path::AbstractString) = parse_json(read(path, String))
 
 end # module

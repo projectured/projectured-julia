@@ -63,7 +63,7 @@ import ..IoMapModule: IoMap, reconcile_child_iomaps, var"@iomap"
 import ..GestureBindingModule: GestureBinding
 import ..EventPatternModule: KeyDownPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-import ..OsClipboardModule: os_clipboard_read, os_clipboard_write
+import ..OsClipboardModule: read_os_clipboard, write_os_clipboard!
 
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
@@ -279,14 +279,14 @@ end
 Side-effecting operation that writes `text` to the OS clipboard at evaluate time.
 It is appended to the copy/cut/note compound when the clipboard projection has a
 `to_text` converter, so a ProjecturEd copy is mirrored to the system clipboard.
-Best-effort: `os_clipboard_write` degrades to a no-op (returns `false`) when no
+Best-effort: `write_os_clipboard!` degrades to a no-op (returns `false`) when no
 clipboard tool is available, so this never fails an edit.
 """
 struct WriteOsClipboardOperation <: Operation
     text::String
 end
 
-evaluate_operation(editor, op::WriteOsClipboardOperation) = (os_clipboard_write(op.text); nothing)
+evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!(op.text); nothing)
 
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
@@ -307,7 +307,7 @@ end
 # converter declines / errors. Used as the empty-slice paste fallback.
 function _os_paste_document(p)
     p.from_text === nothing && return nothing
-    text = os_clipboard_read()
+    text = read_os_clipboard()
     text === nothing && return nothing
     doc = try p.from_text(text) catch; nothing end
     doc isa Document ? doc : nothing
@@ -357,7 +357,7 @@ function _text_clipboard_paste(p, input)
     content = input.content
     content isa TextBlock || return nothing
     str = _slice_text(input.slice)                 # primary: the ProjecturEd clipboard
-    str === nothing && (str = os_clipboard_read())  # fallback: the OS clipboard
+    str === nothing && (str = read_os_clipboard())  # fallback: the OS clipboard
     str === nothing && return nothing
     op = make_text_insert_operation(content, str)
     op === nothing && return nothing

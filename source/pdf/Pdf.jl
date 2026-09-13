@@ -26,7 +26,7 @@ module PdfBackendModule
 import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
-                         _canvas_content_bounds, tessellate_spline, polyline_arrowhead
+                         _canvas_content_bounds, tessellate_spline, build_polyline_arrowhead
 import ..ColorModule: StyleColor
 import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
 import ..FontModule: StyleFont, font_logical_size
@@ -327,8 +327,8 @@ function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
               n2(ft[2][1]), " ", n2(ft[2][2]), " l ",
               n2(ft[3][1]), " ", n2(ft[3][2]), " l h f\n")
     end
-    end_arrow   && fill_tri(polyline_arrowhead(gpts, arrow_size; at_end=true))
-    start_arrow && fill_tri(polyline_arrowhead(gpts, arrow_size; at_end=false))
+    end_arrow   && fill_tri(build_polyline_arrowhead(gpts, arrow_size; at_end=true))
+    start_arrow && fill_tri(build_polyline_arrowhead(gpts, arrow_size; at_end=false))
 end
 
 function paint_polyline!(ctx, pl, ox, oy)

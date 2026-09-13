@@ -49,7 +49,7 @@ import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
 import ..OperationModule: ReplaceSelectionOperation
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
-       dbcatalog_marker_eligible
+       is_dbcatalog_marker_eligible
 
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
@@ -342,19 +342,19 @@ read_intent(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSele
 # Body nodes (keyword_body) have no `open` label. This lets us mark exactly the
 # collapsible named nodes — entities and keywords — while skipping body wrappers.
 """
-    dbcatalog_marker_eligible(node) -> Bool
+    is_dbcatalog_marker_eligible(node) -> Bool
 
 Predicate for `SyntaxToText(marker_eligible = …)` so the expand/collapse marker
 lands on entity nodes and keyword nodes (which carry a label in `open`), but not
 on body wrappers or column leaves.
 """
-dbcatalog_marker_eligible(::SyntaxLeaf) = false
+is_dbcatalog_marker_eligible(::SyntaxLeaf) = false
 # Eligibility keys off the label alone (a present, non-empty `open`): entity and keyword
 # nodes carry one, body/leaf nodes do not. Deliberately does NOT inspect
 # `node.children` — a keyword group's children are a lazy `CellVector` whose
 # length can't be read without forcing the database query, which would defeat
 # lazy expansion.
-dbcatalog_marker_eligible(node::SyntaxNode) =
+is_dbcatalog_marker_eligible(node::SyntaxNode) =
     node.open !== nothing && !isempty(node.open.content::AbstractString)
 
 # ── Compound constructor ──────────────────────────────────────────────────────

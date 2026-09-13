@@ -1005,8 +1005,8 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
 import ..JuliaParserModule: juliaparse
-import ..DocumentFileModule: new_document_seed
-new_document_seed(::Val{:jl}) = JuliaInsertion()
+import ..DocumentFileModule: make_document_seed
+make_document_seed(::Val{:jl}) = JuliaInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is

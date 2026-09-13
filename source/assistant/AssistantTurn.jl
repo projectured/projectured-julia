@@ -75,7 +75,7 @@ export register_draft_handlers!
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
-       build_messages, conversation_to_string, write_conversation,
+       build_messages, format_conversation, write_conversation,
        parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -569,13 +569,13 @@ _thinking_block(c::ConversationThinking) =
                  LlmThinking(_content_to_string(c.text), c.signature)
 
 """
-    conversation_to_string(conversation) -> String
+    format_conversation(conversation) -> String
 
 A plain, human-readable rendering of the whole conversation (for logging and as a
 non-API fallback): each turn labelled by role, each part rendered with its kind
 (prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
 """
-function conversation_to_string(conversation::ConversationConversation)
+function format_conversation(conversation::ConversationConversation)
     io = IOBuffer()
     for t in conversation.turns
         println(io, uppercasefirst(string(t.role)), ":")
@@ -599,7 +599,7 @@ end
     write_conversation(assistant_or_conversation, path) -> path
 
 Write the assistant's chat history to `path` as a readable transcript (the same
-rendering as `conversation_to_string`: `Role:` headers, prose / fenced source
+rendering as `format_conversation`: `Role:` headers, prose / fenced source
 blocks, `> code` / `= result` for tool calls, `∴` for thinking). Accepts a
 `Assistant` (uses its `.conversation`) or a `ConversationConversation`
 directly. Returns `path`.
@@ -608,7 +608,7 @@ write_conversation(a::Assistant, path::AbstractString) =
     write_conversation(a.conversation, path)
 
 function write_conversation(conversation::ConversationConversation, path::AbstractString)
-    write(path, conversation_to_string(conversation))
+    write(path, format_conversation(conversation))
     path
 end
 

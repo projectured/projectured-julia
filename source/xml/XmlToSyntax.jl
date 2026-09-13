@@ -235,8 +235,8 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # XML's seams for import_document / export_document / read+write_document_file.
 import ..XmlParserModule: xmlparse
-import ..DocumentFileModule: new_document_seed
-new_document_seed(::Val{:xml}) = XmlInsertion()
+import ..DocumentFileModule: make_document_seed
+make_document_seed(::Val{:xml}) = XmlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
 # One statement: the rung it starts at and how to build it, the format it is

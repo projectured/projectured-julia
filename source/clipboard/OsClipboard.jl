@@ -10,14 +10,14 @@ nothing is on the ProjecturEd clipboard.
 The default backend shells out to the first available command-line tool
 (`xclip` / `xsel` on X11, `wl-paste`/`wl-copy` on Wayland, `pbpaste`/`pbcopy` on
 macOS). All reads/writes are wrapped so a missing tool or a failed invocation
-degrades gracefully — `os_clipboard_read` returns `nothing` and `os_clipboard_write`
+degrades gracefully — `read_os_clipboard` returns `nothing` and `write_os_clipboard!`
 returns `false` rather than throwing. Headless CI has none of these tools (so the OS
 path is inert there); tests install an in-memory fake via
 [`set_os_clipboard_backend!`](@ref).
 """
 module OsClipboardModule
 
-export os_clipboard_read, os_clipboard_write, set_os_clipboard_backend!, reset_os_clipboard_backend!
+export read_os_clipboard, write_os_clipboard!, set_os_clipboard_backend!, reset_os_clipboard_backend!
 
 # First program name of a command, e.g. `xclip` for `xclip -selection clipboard -o`.
 _prog(cmd::Cmd) = first(cmd.exec)
@@ -81,20 +81,20 @@ const _READER = Ref{Function}(_default_read)
 const _WRITER = Ref{Function}(_default_write)
 
 """
-    os_clipboard_read() -> Union{String,Nothing}
+    read_os_clipboard() -> Union{String,Nothing}
 
 Return the OS clipboard's text, or `nothing` when no clipboard tool is available or
 the read fails.
 """
-os_clipboard_read()::Union{String,Nothing} = _READER[]()
+read_os_clipboard()::Union{String,Nothing} = _READER[]()
 
 """
-    os_clipboard_write(text) -> Bool
+    write_os_clipboard!(text) -> Bool
 
 Write `text` to the OS clipboard. Returns `true` on success, `false` when no
 clipboard tool is available or the write fails.
 """
-os_clipboard_write(text::AbstractString)::Bool = _WRITER[](text)
+write_os_clipboard!(text::AbstractString)::Bool = _WRITER[](text)
 
 """
     set_os_clipboard_backend!(; read=_default_read, write=_default_write)

@@ -611,7 +611,7 @@ function make_widget_focus_document_example()
         WidgetButton(Point2D(0, 0), Point2D(180, 44), "Disabled"; enabled=false),
         WidgetButton(Point2D(0, 0), Point2D(180, 44), "Last"),
     ]; gap=12)
-    sel = first_focusable_path(layout)
+    sel = get_first_focusable_path(layout)
     sel === nothing || set_selection!(layout, sel)
     layout
 end

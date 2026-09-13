@@ -16,7 +16,7 @@ function test_conversation_serialization()
             turn = ConversationTurn(:user, [
                 ConversationPart("hello"),
                 ConversationPart(juliaparse("2+2")),
-                ConversationPart(jsonparse("""{"a": 1}""")),
+                ConversationPart(parse_json("""{"a": 1}""")),
                 ConversationPart(xmlparse("<a/>")),
             ])
             msgs = build_messages(ConversationConversation([turn]))
@@ -167,12 +167,12 @@ function test_conversation_serialization()
             @test [m.role for m in build_messages(alone)] == [:assistant]
         end
 
-        @testset "conversation_to_string is readable" begin
+        @testset "format_conversation is readable" begin
             convo = ConversationConversation([
-                ConversationTurn(:user, [ConversationPart("hi"), ConversationPart(jsonparse("[1,2]"))]),
+                ConversationTurn(:user, [ConversationPart("hi"), ConversationPart(parse_json("[1,2]"))]),
                 ConversationTurn(:assistant, [ConversationPart("hello")]),
             ])
-            s = conversation_to_string(convo)
+            s = format_conversation(convo)
             @test occursin("User:", s) && occursin("Assistant:", s)
             @test occursin("```json", s) && occursin("hi", s) && occursin("hello", s)
         end

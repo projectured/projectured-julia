@@ -163,7 +163,7 @@ end
     tree = PaneTree(PaneSplit(:vertical, [left, right]))
     iomap = print_document(_chain(), tree)
     @test iomap.output isa GraphicsCanvas
-    @test graphics_size(iomap.output)[1] > 0
+    @test get_graphics_size(iomap.output)[1] > 0
 end
 
 # Every rectangle of a render, in the coordinates of the whole canvas. A viewport

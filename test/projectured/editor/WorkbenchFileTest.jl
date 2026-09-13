@@ -22,14 +22,14 @@ function test_workbench_file_keys()
     @testset "WorkbenchEditor file keybindings" begin
         @testset "format-by-extension IO" begin
             # A non-existent file opens as its extension's insertion seed.
-            @test new_document_for("x.json") isa JsonInsertion
-            @test new_document_for("x.xml")  isa XmlInsertion
-            @test new_document_for("x.sql")  isa SqlInsertion
-            @test new_document_for("x.jl")   isa JuliaInsertion
-            @test new_document_for("x.pdoc") isa DocumentNothing
+            @test make_document_for("x.json") isa JsonInsertion
+            @test make_document_for("x.xml")  isa XmlInsertion
+            @test make_document_for("x.sql")  isa SqlInsertion
+            @test make_document_for("x.jl")   isa JuliaInsertion
+            @test make_document_for("x.pdoc") isa DocumentNothing
             @test read_document_file(tempname() * ".json") isa JsonInsertion
 
-            doc = jsonparse("""{"k":1}""")
+            doc = parse_json("""{"k":1}""")
             pj = tempname() * ".json"
             write_document_file(doc, pj)
             @test occursin("\"k\"", read(pj, String))       # natural text
@@ -41,7 +41,7 @@ function test_workbench_file_keys()
         @testset "Ctrl+S saves, Ctrl+O reloads" begin
             path = tempname() * ".json"
             name = "a.json"
-            doc  = make_workbench_document(jsonparse("""{"a":1}"""); title=name, filename=path)
+            doc  = make_workbench_document(parse_json("""{"a":1}"""); title=name, filename=path)
             proj = make_workbench_projection()
             screen   = _build_window_scene(Any[doc], String[name]; width=800, height=600)
             composed = _multi_window_projection(Any[proj])

@@ -124,8 +124,8 @@ function test_console_backend()
         doc = make_json_document_example()
         proj = make_json_console_projection_example()
         out = print_document(proj, doc).output
-        plain = IOBuffer(); console_render(ConsoleBackend(; io=plain, ansi=false), out)
-        colored = IOBuffer(); console_render(ConsoleBackend(; io=colored, ansi=true, clear=false), out)
+        plain = IOBuffer(); render_console(ConsoleBackend(; io=plain, ansi=false), out)
+        colored = IOBuffer(); render_console(ConsoleBackend(; io=colored, ansi=true, clear=false), out)
         cs = String(take!(colored))
         @test occursin("\e[38;2;", cs)                                   # truecolor codes present
         @test replace(cs, r"\e\[[0-9;]*m" => "") == String(take!(plain)) # strip ⇒ plain
@@ -137,10 +137,10 @@ function test_console_backend()
         out = print_document(make_json_console_projection_example(), doc).output
         io = IOBuffer()
         backend = ConsoleBackend(; io=io, ansi=true, clear=true)
-        console_render(backend, out)
+        render_console(backend, out)
         @test position(io) > 0                       # first frame is written
         truncate(io, 0); seekstart(io)
-        console_render(backend, out)                 # identical frame
+        render_console(backend, out)                 # identical frame
         @test position(io) == 0                      # …is skipped (no flicker)
     end
 

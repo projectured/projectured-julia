@@ -41,7 +41,7 @@ works by: what is not loaded is not supported.
                              make      = () -> JsonToSyntax(),
                              format    = :json,
                              extension = ".json",
-                             parse     = jsonparse)
+                             parse     = parse_json)
 
 The four separate registrations below are what that calls, and a domain uses them
 directly for the cases the one call cannot cover: a second rung, a parser owned

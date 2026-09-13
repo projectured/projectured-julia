@@ -12,7 +12,7 @@ recursively-projected element outputs in a body SyntaxNode (indentation=2)
 as children[2], mirroring the Lisp file-system-to-syntax/indentation layout.
 
 When the downstream `SyntaxToText` is configured with expand/collapse markers,
-pass `marker_eligible = filesystem_marker_eligible` so the fold marker lands on
+pass `marker_eligible = is_filesystem_marker_eligible` so the fold marker lands on
 the directory header node (the name line) and not on the indented body wrapper.
 """
 module FileSystemToSyntaxModule
@@ -37,7 +37,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..PrinterContextModule: make_child_context
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
-       filesystem_marker_eligible
+       is_filesystem_marker_eligible
 
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
@@ -210,13 +210,13 @@ end
 #   • body has children         → non-empty: there is something to fold
 #
 """
-    filesystem_marker_eligible(node::SyntaxNode) -> Bool
+    is_filesystem_marker_eligible(node::SyntaxNode) -> Bool
 
 Predicate for `SyntaxToText(marker_eligible = …)` so the expand/collapse marker
 lands on a non-empty directory header node and never on its indented body
 wrapper. See [`FileSystemDirectoryToSyntaxNode`](@ref).
 """
-function filesystem_marker_eligible(node::SyntaxNode)
+function is_filesystem_marker_eligible(node::SyntaxNode)
     node.indentation == 0 || return false
     children = node.children
     length(children) >= 2 || return false

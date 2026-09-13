@@ -32,7 +32,7 @@ import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..IoMapModule: SimpleIoMap, IoMap, var"@iomap"
 import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, GraphicsText, GraphicsRect,
-                         graphics_size, layout_none
+                         get_graphics_size, layout_none
 import ..FontModule: StyleFont, make_style_font,
                      font_dejavu_sans_regular_20, font_dejavu_sans_italic_20
 import ..TrueTypeModule: font_ascent, font_descent, font_line_height, font_x_height,
@@ -167,7 +167,7 @@ end
 function _foreign_size(b)
     output = b.output
     output isa GraphicsCanvas && return (Int(output.w[]), Int(output.h[]))
-    output isa GraphicsDocument && return graphics_size(output)
+    output isa GraphicsDocument && return get_graphics_size(output)
     (0, 0)
 end
 

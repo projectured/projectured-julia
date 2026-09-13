@@ -80,7 +80,7 @@ function _word_chunks(text::AbstractString, n::Integer)
 end
 
 # Minimal JSON string literal (quotes included) for a tool-call argument. The
-# agent loop re-parses this with the project's `jsonparse`, which decodes the
+# agent loop re-parses this with the project's `parse_json`, which decodes the
 # standard backslash escapes, so a multi-line code block round-trips intact.
 function _json_string(s::AbstractString)
     io = IOBuffer()

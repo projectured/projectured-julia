@@ -34,13 +34,13 @@ _json_to_text(d::JsonObjectEntry) = _json_escape(d.key) * ": " * _json_to_text(d
 _json_to_text(d::JsonObject)      = "{" * join((_json_to_text(d.entries[i]) for i in 1:length(d.entries)), ", ") * "}"
 _json_to_text(d)                  = nothing
 
-# Parse OS-clipboard text into a JSON document. Valid JSON parses via `jsonparse`;
+# Parse OS-clipboard text into a JSON document. Valid JSON parses via `parse_json`;
 # anything else (plain external text) becomes a JsonString so paste still works.
 function _json_from_text(text)
     s = strip(text)
     isempty(s) && return nothing
     try
-        return jsonparse(s)
+        return parse_json(s)
     catch
         return JsonString(String(text))
     end

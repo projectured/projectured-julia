@@ -23,7 +23,7 @@ using ProjecturedSdl, ProjecturedBuilder     # julia --project=environment/all
 ### The two shipping configurations
 
 ```julia
-build_executable(workbench_app(SdlBackend))     # what ships: workbench, json/xml/sql/julia
+build_executable(make_workbench_app(SdlBackend))     # what ships: workbench, json/xml/sql/julia
 build_executable(default_json_app(SdlBackend))  # the v1 default: a plain JSON file editor
 ```
 

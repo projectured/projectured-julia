@@ -2,7 +2,7 @@
     JsonFileModule
 
 `JsonFile`: a `FileDocument` whose `content` is a `JsonDocument`.
-Parse uses the existing `jsonparse`; emit runs the existing
+Parse uses the existing `parse_json`; emit runs the existing
 `JsonToSyntax → SyntaxToText → TextToString` projection chain via
 `print_natural_text`.
 
@@ -24,7 +24,7 @@ import ..ReferenceModule: Reference, ConcreteReference
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
                      JsonObject, JsonObjectEntry
-import ..JsonParserModule: jsonparse
+import ..JsonParserModule: parse_json
 import ..NaturalNotationModule: print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
@@ -49,13 +49,13 @@ end
 # pre-emit AST mutation is needed.
 emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 
-# Load: parse the file with `jsonparse`, then substitute marker
+# Load: parse the file with `parse_json`, then substitute marker
 # strings with `ReferenceStub` values in the parsed tree in place.
 # The stubs carry `ctx` so `resolve!` later shares interned targets
 # with sibling stubs from the same load session.
 function populate_file!(f::JsonFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
-    ast = jsonparse(text)
+    ast = parse_json(text)
     ast = _substitute_markers(ast, ctx)
     getfield(f, :content)[] = ast
     f

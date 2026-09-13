@@ -8,7 +8,7 @@ function make_dbcatalog_projection_example(; measure=measure_truetype_text,
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
             collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
-            marker_eligible  = dbcatalog_marker_eligible)),
+            marker_eligible  = is_dbcatalog_marker_eligible)),
         TextToGraphics(measure=measure),
     )
 end
@@ -19,7 +19,7 @@ function make_dvdrental_dbcatalog_projection_example(; measure=measure_truetype_
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
             collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
-            marker_eligible  = dbcatalog_marker_eligible)),
+            marker_eligible  = is_dbcatalog_marker_eligible)),
         TextToGraphics(measure=measure),
     )
 end

@@ -49,23 +49,23 @@ end
     @test pg.border_width == 2
     @test pg.border_color == color_black
 
-    @test point_in_polygon(star, 50, 40)      # the body
-    @test point_in_polygon(star, 50, 5)       # inside the top arm
-    @test !point_in_polygon(star, 50, 80)     # the notch between the bottom arms
-    @test !point_in_polygon(star, 10, 10)     # outside, but inside the bounding box
+    @test is_point_in_polygon(star, 50, 40)      # the body
+    @test is_point_in_polygon(star, 50, 5)       # inside the top arm
+    @test !is_point_in_polygon(star, 50, 80)     # the notch between the bottom arms
+    @test !is_point_in_polygon(star, 10, 10)     # outside, but inside the bounding box
 
     canvas = GraphicsCanvas([pg])
     @test hit_element_at(canvas, 50, 40) == 0
     @test hit_element_at(canvas, 50, 80) === nothing
 
     # The extent is the outline padded by the border width.
-    @test graphics_size(pg) == (100, 92)
+    @test get_graphics_size(pg) == (100, 92)
 
     # `nothing` normalizes to a fully transparent border color.
     plain = GraphicsPolygon([(0, 0), (10, 0), (10, 10)])
     @test plain.border_width == 0
     @test plain.border_color.alpha == 0
-    @test graphics_size(plain) == (10, 10)
+    @test get_graphics_size(plain) == (10, 10)
 end
 
 @testset "IdentityProjection" begin

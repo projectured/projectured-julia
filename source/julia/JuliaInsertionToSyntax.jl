@@ -50,12 +50,12 @@ import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell
 
-export JuliaInsertionToSyntaxLeaf, julia_completion, julia_scaffold
+export JuliaInsertionToSyntaxLeaf, get_julia_completion, julia_scaffold
 
 # ── Julia keyword scaffolds + completion ───────────────────────────────────────
 #
 # A partially-typed prefix of a keyword shows a pale-green completion
-# continuation (see `julia_completion`), signalling it is committable as that
+# continuation (see `get_julia_completion`), signalling it is committable as that
 # keyword. Everything else commits by `juliaparse` (a complete sub-expression
 # such as `n == 0`).
 
@@ -91,12 +91,12 @@ function julia_scaffold(text::AbstractString)
 end
 
 """
-    julia_completion(text) -> String
+    get_julia_completion(text) -> String
 
 The pale-green continuation for a partially-typed keyword (`"fun"` → `"ction"`), or
 `""` when `text` is empty, already a full keyword, or matches no keyword prefix.
 """
-function julia_completion(text::AbstractString)
+function get_julia_completion(text::AbstractString)
     s = strip(text)
     isempty(s) && return ""
     for (kw, _) in _JULIA_KEYWORD_SCAFFOLDS
@@ -163,7 +163,7 @@ end
 function _julia_state(value::AbstractString)
     isempty(strip(value)) && return :empty
     julia_scaffold(value) === nothing || return :unambiguous
-    isempty(julia_completion(value)) || return :unambiguous
+    isempty(get_julia_completion(value)) || return :unambiguous
     parsed = try juliaparse(value); true catch; false end
     parsed ? :unambiguous : :invalid
 end
@@ -180,7 +180,7 @@ function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInse
                        ComputedCell(() -> _julia_typed_color(p, something(ins.value, ""))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, ins, SyntaxLeaf(typed;
-        close=TextString(() -> julia_completion(something(ins.value, "")), p.completion),
+        close=TextString(() -> get_julia_completion(something(ins.value, "")), p.completion),
         selection=getfield(ins, :selection)))
 end
 

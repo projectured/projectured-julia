@@ -23,7 +23,7 @@ AST mutation is required.
 **The `definition` marker function.** This module also registers the
 Julia domain's entry in the marker vocabulary:
 `definition(document, "name")` returns the one top-level definition of
-that name — see [`julia_definition`](@ref).
+that name — see [`find_julia_definition`](@ref).
 """
 module JuliaFileModule
 
@@ -46,7 +46,7 @@ import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_co
                             register_file_document_type!, register_marker_function!,
                             is_file_document
 
-export JuliaFile, PRED_REF_FUNCTION_NAME, julia_definition, julia_definition_name
+export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
 
 """
 The identifier used to encode a cross-file marker as a Julia call
@@ -158,7 +158,7 @@ _substitute_markers(n::JuliaLambda, ctx::LoaderContext)         = _substitute_ch
 # and reordering the file around it.
 
 """
-    julia_definition_name(node) -> String or nothing
+    get_julia_definition_name(node) -> String or nothing
 
 The name a top-level Julia definition introduces, or `nothing` for a
 statement that introduces none (a `using`, a bare call, …).
@@ -173,19 +173,19 @@ instead of wrapping a definition that carries one, so its first
 argument is the name: `@header Ipv4Header begin … end` is found under
 `"Ipv4Header"`.
 """
-julia_definition_name(::Any) = nothing
-julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
-julia_definition_name(n::JuliaStruct)       = _julia_header_name(n.header)
-julia_definition_name(n::JuliaAbstractType) = _julia_header_name(n.header)
-julia_definition_name(n::JuliaAssignment)   = _julia_header_name(n.target)
-julia_definition_name(n::JuliaConst)        = julia_definition_name(n.assignment)
-julia_definition_name(n::JuliaDocstring)    = julia_definition_name(n.subject)
+get_julia_definition_name(::Any) = nothing
+get_julia_definition_name(n::JuliaFunction)     = _julia_header_name(n.name)
+get_julia_definition_name(n::JuliaStruct)       = _julia_header_name(n.header)
+get_julia_definition_name(n::JuliaAbstractType) = _julia_header_name(n.header)
+get_julia_definition_name(n::JuliaAssignment)   = _julia_header_name(n.target)
+get_julia_definition_name(n::JuliaConst)        = get_julia_definition_name(n.assignment)
+get_julia_definition_name(n::JuliaDocstring)    = get_julia_definition_name(n.subject)
 
-function julia_definition_name(n::JuliaMacroCall)
+function get_julia_definition_name(n::JuliaMacroCall)
     args = getfield(n, :arguments)[]
     isempty(args) && return nothing
     subject = args[1] isa Cell ? args[1][] : args[1]
-    name = julia_definition_name(subject)
+    name = get_julia_definition_name(subject)
     # The inner definition names it where there is one. Where there is not, the
     # first argument is the name: a declaring macro takes the identifier it
     # introduces, and `@header Member <: Family` takes the left side of the `<:`
@@ -203,7 +203,7 @@ _julia_header_name(n::JuliaSubtype)    = _julia_header_name(n.lhs)
 _julia_header_name(n::JuliaCurly)      = _julia_header_name(n.callee)
 
 """
-    julia_definition(document, name) -> JuliaDocument
+    find_julia_definition(document, name) -> JuliaDocument
 
 The top-level definition called `name` in `document` (a `JuliaFile` or
 a parsed `JuliaDocument`). Errors when there is no such definition, and
@@ -212,12 +212,12 @@ the wrong half of a file, so it is not allowed. Method overloads of one
 function are the common case of that and must be embedded by wrapping
 them, not by name.
 """
-function julia_definition(document, name::AbstractString)
+function find_julia_definition(document, name::AbstractString)
     doc = is_file_document(document) ? get_file_content(document) : document
     doc isa JuliaDocument ||
         error("definition(…): expected a Julia document, got ", typeof(document))
     matches = Any[s for s in _julia_toplevel_statements(doc)
-                    if julia_definition_name(s) == String(name)]
+                    if get_julia_definition_name(s) == String(name)]
     isempty(matches) &&
         error("definition(…): no top-level definition named ", repr(String(name)),
               " — the file defines (", join(_julia_definition_names(doc), ", "), ")")
@@ -232,13 +232,13 @@ _julia_toplevel_statements(doc::JuliaBlock) =
 _julia_toplevel_statements(doc::JuliaDocument) = Any[doc]
 
 _julia_definition_names(doc) =
-    String[n for n in (julia_definition_name(s) for s in _julia_toplevel_statements(doc))
+    String[n for n in (get_julia_definition_name(s) for s in _julia_toplevel_statements(doc))
              if n !== nothing]
 
 function __init__()
     register_file_document_type!(".jl", JuliaFile)
     register_marker_function!(:definition,
-                              (ctx, document, name) -> julia_definition(document, name))
+                              (ctx, document, name) -> find_julia_definition(document, name))
 end
 
 end # module

@@ -45,7 +45,7 @@ import ..EventModule: MouseMove, MouseEnter, MouseLeave
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..EventModule: KeyDown
 # The generic focus walk, for the top-level Tab wrap-around rule.
-import ..FocusModule: first_focusable_path, last_focusable_path
+import ..FocusModule: get_first_focusable_path, get_last_focusable_path
 
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 
@@ -97,7 +97,7 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
         op = res isa Intent ? res.operation : res
         op === nothing || return res
         root = iomap.child_iomap.input
-        wrap = event.modifiers.shift ? last_focusable_path(root) : first_focusable_path(root)
+        wrap = event.modifiers.shift ? get_last_focusable_path(root) : get_first_focusable_path(root)
         return Intent(event, wrap === nothing ? nothing : ReplaceSelectionOperation(wrap))
     end
     event isa MouseMove || return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)

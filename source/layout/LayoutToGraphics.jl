@@ -29,7 +29,7 @@ import ..LayoutModule: HorizontalLayout, VerticalLayout, GridLayout, FlowLayout,
 import ..ConstraintSolverModule: SolverAnchor, SolverRelation, solve_constraint_layout,
                                  ConstraintSolver, FallbackConstraintSolver
 import ..CollectionModule: CellVector, ComputedCellVector
-import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, graphics_size, layout_none, hit_element_at
+import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, get_graphics_size, layout_none, hit_element_at
 import ..IoMapModule: SimpleIoMap, ChildrenIoMap, ContentIoMap, var"@iomap"
 import ..IoMapModule: IoMap
 import ..EventModule: MouseScroll, MousePress, MouseDown, MouseUp, MouseMove, MouseEnter, MouseLeave
@@ -44,7 +44,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..EventModule: KeyDown
 # The focus walk is generic and names no widget type, so layout containers share
 # Tab traversal with the widget readers without importing the widget domain.
-import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_index
+import ..FocusModule: get_first_focusable_path, get_last_focusable_path, get_next_focusable_index
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ReferenceModule: var"@reference", var"@reference_step"
 import ..PrinterContextModule: make_child_context, with_available_size, withhold_offer
@@ -271,7 +271,7 @@ function _layout_tab(w, entries::Vector, evt)
     reverse = evt.modifiers.shift
     i = _selected_layout_slot(w, n)
     if i == 0
-        sub = reverse ? last_focusable_path(w) : first_focusable_path(w)
+        sub = reverse ? get_last_focusable_path(w) : get_first_focusable_path(w)
         return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
     end
     deleg = _forward_layout_event_slot(entries, evt, i)
@@ -279,9 +279,9 @@ function _layout_tab(w, entries::Vector, evt)
         op, slot = deleg
         return _reroot_into_child(w, op, slot)
     end
-    j = next_focusable_index(w.children, i, reverse)
+    j = get_next_focusable_index(w.children, i, reverse)
     j == 0 && return nothing
-    sub = reverse ? last_focusable_path(w.children[j]) : first_focusable_path(w.children[j])
+    sub = reverse ? get_last_focusable_path(w.children[j]) : get_first_focusable_path(w.children[j])
     sub === nothing && return nothing
     _annotate_operation(w, ReplaceSelectionOperation(
         ConcreteReference(FieldReferenceStep("children"),
@@ -345,19 +345,19 @@ to the children that are canvases).
 # A child's intrinsic extent. A laid-out child is normally a `GraphicsCanvas`
 # (its `w`/`h` are the authored size). A bare graphics primitive
 # (`GraphicsCircle`, `GraphicsLine`, …) reports its size generically via
-# `graphics_size`, so it can be a layout child directly without being wrapped in
+# `get_graphics_size`, so it can be a layout child directly without being wrapped in
 # a sized canvas.
 function _child_w(cim)
     c = cim.output
     c isa GraphicsCanvas && return Int(c.w[])
-    c isa GraphicsDocument && return graphics_size(c)[1]
+    c isa GraphicsDocument && return get_graphics_size(c)[1]
     0
 end
 
 function _child_h(cim)
     c = cim.output
     c isa GraphicsCanvas && return Int(c.h[])
-    c isa GraphicsDocument && return graphics_size(c)[2]
+    c isa GraphicsDocument && return get_graphics_size(c)[2]
     0
 end
 
@@ -1794,11 +1794,11 @@ function _al_rect_of(node)
     x = hasproperty(node, :x) ? Int(node.x) : 0
     y = hasproperty(node, :y) ? Int(node.y) : 0
     # A node that states its own size says it exactly; for anything else
-    # `graphics_size` gives the extent measured *from the origin*, so the node's
+    # `get_graphics_size` gives the extent measured *from the origin*, so the node's
     # own size is what is left of that after its offset.
     (hasproperty(node, :w) && hasproperty(node, :h)) &&
         return (x, y, Int(node.w), Int(node.h))
-    ex, ey = graphics_size(node)
+    ex, ey = get_graphics_size(node)
     (x, y, max(0, Int(ex) - x), max(0, Int(ey) - y))
 end
 

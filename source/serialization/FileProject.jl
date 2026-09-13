@@ -191,7 +191,7 @@ parse it into the format-native content, wire any cross-file marker
 into `ReferenceStub`s carrying `ctx` so they can resolve later, and
 set `f`'s content field to the parsed value. Concrete types override
 this with their parser call — `TextFile` reads a raw string,
-`JsonFile` calls `jsonparse`, etc.
+`JsonFile` calls `parse_json`, etc.
 
 `f` is pre-created empty by `_load_into_context` and already
 registered in `ctx.intern` before `populate_file!` runs, so a cycle

@@ -4,7 +4,7 @@ function make_filesystem_projection_example(; measure=measure_truetype_text)
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
             collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
-            marker_eligible  = filesystem_marker_eligible)),
+            marker_eligible  = is_filesystem_marker_eligible)),
         TextToGraphics(measure=measure),
     )
 end

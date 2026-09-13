@@ -324,34 +324,34 @@ end
 # ── Marker eligibility tests ────────────────────────────────────────────────────
 
 function test_dbcatalog_marker_eligible(; show_detail=false)
-    @testset "dbcatalog_marker_eligible" begin
+    @testset "is_dbcatalog_marker_eligible" begin
         _with_real_db_catalog(show_detail=show_detail) do rdbms, db, schema, table, col
             p = RecursiveProjection(DbCatalogToSyntax())
 
             # Entity nodes should be eligible (non-empty open, has children)
             iomap1 = print_document(p, rdbms)
-            @test dbcatalog_marker_eligible(iomap1.output)
+            @test is_dbcatalog_marker_eligible(iomap1.output)
 
             # Keyword group nodes should be eligible (they carry a label).
             keyword = iomap1.output.children[1]
-            @test dbcatalog_marker_eligible(keyword)
+            @test is_dbcatalog_marker_eligible(keyword)
 
             # Same pattern for other entity levels
             iomap2 = print_document(p, db)
-            @test dbcatalog_marker_eligible(iomap2.output)
-            @test dbcatalog_marker_eligible(iomap2.output.children[1])
+            @test is_dbcatalog_marker_eligible(iomap2.output)
+            @test is_dbcatalog_marker_eligible(iomap2.output.children[1])
 
             iomap3 = print_document(p, schema)
-            @test dbcatalog_marker_eligible(iomap3.output)
-            @test dbcatalog_marker_eligible(iomap3.output.children[1])
+            @test is_dbcatalog_marker_eligible(iomap3.output)
+            @test is_dbcatalog_marker_eligible(iomap3.output.children[1])
 
             iomap4 = print_document(p, table)
-            @test dbcatalog_marker_eligible(iomap4.output)
-            @test dbcatalog_marker_eligible(iomap4.output.children[1])
+            @test is_dbcatalog_marker_eligible(iomap4.output)
+            @test is_dbcatalog_marker_eligible(iomap4.output.children[1])
 
             # Column leaf should NOT be eligible
             iomap5 = print_document(p, col)
-            @test !dbcatalog_marker_eligible(iomap5.output)
+            @test !is_dbcatalog_marker_eligible(iomap5.output)
         end
     end
 end
@@ -389,7 +389,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
                 RecursiveProjection(SyntaxToText(
                     expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
                     collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
-                    marker_eligible  = dbcatalog_marker_eligible)),
+                    marker_eligible  = is_dbcatalog_marker_eligible)),
                 TextToGraphics())
 
             # ── Test at the table level (entity + keyword) ──────────────

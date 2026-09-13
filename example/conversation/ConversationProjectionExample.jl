@@ -6,7 +6,7 @@
 # and still render (unknown types degrade to the reflective `Any` fallback). The
 # example-specific Julia/JSON/XML projections are kept as `extra` overrides to
 # preserve their established styling, and a bare graphics document passes straight
-# through so the layout sizes/places it (the generic graphics_size seam); prose,
+# through so the layout sizes/places it (the generic get_graphics_size seam); prose,
 # layouts, widgets, every other domain, and the `Any` backstop come from
 # `NaturalToGraphics`.
 _conversation_widget_graphics(; measure=measure_truetype_text) =
@@ -19,7 +19,7 @@ _conversation_widget_graphics(; measure=measure_truetype_text) =
         # source (Assistant `_block_text`/`_doc_source` use the source chain).
         MarkdownDocument => make_markdown_rendered_projection_example(measure=measure),
         # Pass a graphics document straight through; the layout sizes/places it
-        # via the generic graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
+        # via the generic get_graphics_size seam (so `GraphicsCircle(10,10,10)` shows).
         GraphicsDocument => IdentityProjection(),
     ])
 

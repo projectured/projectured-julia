@@ -24,8 +24,8 @@ import ..ColorModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference
 import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       set_cell_function!, hit_element_at, graphics_size, tessellate_spline, polyline_arrowhead,
-       point_near_polyline, point_in_polygon
+       set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
+       is_point_near_polyline, is_point_in_polygon
 
 abstract type GraphicsDocument <: Document end
 
@@ -351,13 +351,13 @@ function tessellate_spline(points::AbstractVector, kind::Symbol, segments::Integ
 end
 
 """
-    polyline_arrowhead(points, size; at_end=true) -> Vector{Tuple{Float64,Float64}}
+    build_polyline_arrowhead(points, size; at_end=true) -> Vector{Tuple{Float64,Float64}}
 
 The three vertices of a filled triangle arrowhead of `size` pixels at the end
 (`at_end=true`) or start of the polyline `points`, oriented along the adjacent
 segment. Returns an empty vector when there is no segment to orient along.
 """
-function polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bool=true)
+function build_polyline_arrowhead(points::AbstractVector, size::Real; at_end::Bool=true)
     n = length(points)
     n < 2 && return Tuple{Float64,Float64}[]
     if at_end
@@ -501,12 +501,12 @@ function _dist2_point_segment(px, py, ax, ay, bx, by)
 end
 
 """
-    point_near_polyline(points, x, y, tolerance) -> Bool
+    is_point_near_polyline(points, x, y, tolerance) -> Bool
 
 True when `(x, y)` is within `tolerance` pixels of any segment of the polyline
 `points` (a vector of `(x, y)`). Used for edge hit-testing.
 """
-function point_near_polyline(points::AbstractVector, x::Real, y::Real, tolerance::Real)
+function is_point_near_polyline(points::AbstractVector, x::Real, y::Real, tolerance::Real)
     n = length(points)
     n == 0 && return false
     n == 1 && return (x - points[1][1])^2 + (y - points[1][2])^2 <= tolerance^2
@@ -521,14 +521,14 @@ function point_near_polyline(points::AbstractVector, x::Real, y::Real, tolerance
 end
 
 """
-    point_in_polygon(points, x, y) -> Bool
+    is_point_in_polygon(points, x, y) -> Bool
 
 True when `(x, y)` lies inside the closed polygon `points` (a vector of
 `(x, y)`), by ray casting: a ray along `+x` crosses an odd number of edges.
 Concave outlines are handled; a point exactly on an edge may fall either way.
 Used for filled-shape hit-testing.
 """
-function point_in_polygon(points::AbstractVector, x::Real, y::Real)
+function is_point_in_polygon(points::AbstractVector, x::Real, y::Real)
     n = length(points)
     n < 3 && return false
     px = Float64(x); py = Float64(y)
@@ -655,14 +655,14 @@ function _hit_test_element(elem, x::Int, y::Int)
         hw = max(1, Int(elem.width))
         x >= lx - hw && x <= lx + lw + hw && y >= ly - hw && y <= ly + lh + hw
     elseif elem isa GraphicsPolyline
-        point_near_polyline(elem.points, x, y, max(3, Int(elem.width) + 2))
+        is_point_near_polyline(elem.points, x, y, max(3, Int(elem.width) + 2))
     elseif elem isa GraphicsPolygon
         # A filled shape claims its whole interior, unlike the stroked polyline
         # which only claims a tolerance band around its path.
-        point_in_polygon(elem.points, x, y)
+        is_point_in_polygon(elem.points, x, y)
     elseif elem isa GraphicsSpline
         pts = tessellate_spline(elem.points, elem.kind, elem.segments)
-        point_near_polyline(pts, x, y, max(3, Int(elem.width) + 2))
+        is_point_near_polyline(pts, x, y, max(3, Int(elem.width) + 2))
     elseif elem isa GraphicsCanvas
         # Delegate hit test into the nested canvas (coordinates relative to canvas origin)
         cx, cy = Int(elem.x), Int(elem.y)
@@ -759,12 +759,12 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
     # GraphicsFence and unknown types contribute nothing.
 end
 
-# Text-width fallback for `graphics_size`: this layer has no font backend, so a
+# Text-width fallback for `get_graphics_size`: this layer has no font backend, so a
 # bare `GraphicsText` contributes height (from its font) but no width.
 _zero_text_measure(_, _) = (0, 0)
 
 """
-    graphics_size(doc::GraphicsDocument[, measure]) -> (w, h)
+    get_graphics_size(doc::GraphicsDocument[, measure]) -> (w, h)
 
 The natural pixel extent of any graphics document, measured from the origin —
 the maximum x / y its content reaches. This lets a layout place a bare primitive
@@ -774,7 +774,7 @@ extent logic with the content-bounds machinery. `measure(text, font) -> (w, h)`
 sizes a `GraphicsText`; the default ignores text width (no font backend here), so
 pass a real `measure` when laying out bare text.
 """
-function graphics_size(doc::GraphicsDocument, measure = _zero_text_measure)
+function get_graphics_size(doc::GraphicsDocument, measure = _zero_text_measure)
     minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
     maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
     _bounds_elem!(doc, 0, 0, measure, minx, miny, maxx, maxy)
