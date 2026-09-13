@@ -66,37 +66,37 @@ end
 function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
     if iomap.projection.display_collection[]
-        h = head(reference)
+        h = get_reference_head(reference)
         (h isa FieldReferenceStep && h.name == "elements") || return nothing
-        rest = tail(reference)
+        rest = get_reference_tail(reference)
         rest isa ConcreteReference || return nothing
-        e = head(rest)
+        e = get_reference_head(rest)
         e isa RangeReferenceStep || return nothing
         i = e.stop
         ims = iomap.element_iomaps[]
         (i < 1 || i > length(ims)) && return nothing
         child = ims[i]
-        mapped = map_reference_forward(child.projection, child, tail(rest))
+        mapped = map_reference_forward(child.projection, child, get_reference_tail(rest))
         mapped === nothing && return nothing
         ConcreteReference(e, mapped)
     else
-        h = head(reference)
+        h = get_reference_head(reference)
         (h isa FieldReferenceStep && h.name == "content") || return nothing
         child = iomap.content_iomap
-        map_reference_forward(child.projection, child, tail(reference))
+        map_reference_forward(child.projection, child, get_reference_tail(reference))
     end
 end
 
 function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
     if iomap.projection.display_collection[]
         reference isa ConcreteReference || return reference
-        e = head(reference)
+        e = get_reference_head(reference)
         e isa RangeReferenceStep || return nothing
         i = e.stop
         ims = iomap.element_iomaps[]
         (i < 1 || i > length(ims)) && return nothing
         child = ims[i]
-        mapped = map_reference_backward(child.projection, child, tail(reference))
+        mapped = map_reference_backward(child.projection, child, get_reference_tail(reference))
         mapped === nothing && return nothing
         ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(e, mapped))
     else

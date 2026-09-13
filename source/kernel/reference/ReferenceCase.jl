@@ -842,12 +842,12 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound, terminal)
+        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, terminal)
         rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound, terminal)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.head($sp).type, $ty) ?
+                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
+                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
                         $rest_on_tail : _nomatch
                 else
                     ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
@@ -897,8 +897,8 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     ex = quote
         let $p = $path_ex
             if $p isa ReferenceModule.ConcreteReference
-                let $h = ReferenceModule.head($p),
-                    $t = ReferenceModule.tail($p)
+                let $h = ReferenceModule.get_reference_head($p),
+                    $t = ReferenceModule.get_reference_tail($p)
                     $step_success
                 end
             else
@@ -942,12 +942,12 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_above_match(:(ReferenceModule.tail($sp)), steps[2:end], success, bound, include_at)
+        rest_on_tail, b1 = _gen_above_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, include_at)
         rest_on_same, b2 = _gen_above_match(sp, steps[2:end], success, bound, include_at)
         ex = quote
             let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.head($sp).type, $ty) ?
+                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
+                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
                         $rest_on_tail : _nomatch
                 else
                     ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
@@ -984,8 +984,8 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
             if $p isa ReferenceModule.EmptyReference
                 $success
             elseif $p isa ReferenceModule.ConcreteReference
-                let $h = ReferenceModule.head($p),
-                    $t = ReferenceModule.tail($p)
+                let $h = ReferenceModule.get_reference_head($p),
+                    $t = ReferenceModule.get_reference_tail($p)
                     $step_match
                 end
             else

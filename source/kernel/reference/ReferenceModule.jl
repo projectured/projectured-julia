@@ -84,6 +84,8 @@ using ..DocumentModule
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
        RangeReferenceStep, Reference,
+       # a reference is a linked list, and these read its two ends
+       get_reference_head, get_reference_tail,
        # the step layout families: the A… stems carry the shared methods, the
        # M… variants are the plain values a simulator's hot path constructs
        ARangeReferenceStep, AFieldReferenceStep, ATypeReferenceStep,

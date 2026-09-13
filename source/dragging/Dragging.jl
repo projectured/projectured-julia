@@ -225,8 +225,8 @@ function _locate_collection_index(content, path::Reference)
     steps = Any[]
     cur = path
     while cur isa ConcreteReference
-        push!(steps, head(cur))
-        cur = tail(cur)
+        push!(steps, get_reference_head(cur))
+        cur = get_reference_tail(cur)
     end
     # Find the last element RangeReferenceStep.
     last_elem = 0
@@ -257,9 +257,9 @@ function map_reference_forward(::DraggingProjection, iomap::DraggingIoMap, refer
     # Skip canonical TypeReferenceStep checkpoints before reading the `content` step.
     reference = reference
     if reference isa ConcreteReference
-        h = head(reference)
+        h = get_reference_head(reference)
         if h isa FieldReferenceStep && h.name == "content"
-            return map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, tail(reference))
+            return map_reference_forward(iomap.inner_iomap.projection, iomap.inner_iomap, get_reference_tail(reference))
         end
         return nothing
     end

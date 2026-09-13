@@ -134,9 +134,9 @@ function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecor
     # Skip canonical TypeReferenceStep checkpoints before reading the `child` step.
     reference = reference
     if reference isa ConcreteReference
-        h = head(reference)
+        h = get_reference_head(reference)
         if h isa FieldReferenceStep && h.name == "child"
-            return map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, tail(reference))
+            return map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, get_reference_tail(reference))
         end
         # References into TooltipSource's other fields (content, style, id)
         # have no image in the output.

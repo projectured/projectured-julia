@@ -68,14 +68,14 @@ import ..ProjectionApiModule: print_document, map_reference_forward, map_referen
 export FilteringProjection, FilteringIoMap
 import ..CellModule: Cell, ComputedCell, AbstractCell, set_cell_function!, unwrap_cell
 import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, ElementReferenceStep, extend_reference, head, tail,
+                          FieldReferenceStep, ElementReferenceStep, extend_reference, get_reference_head, get_reference_tail,
                           strip_reference_types
 export SearchingProjection, SearchingIoMap
 import ..ProjectionApiModule: print_document, print_child, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, is_element_reference_step, head, tail
+                          ElementReferenceStep, is_element_reference_step, get_reference_head, get_reference_tail
 import ..PrinterContextModule: PrinterContext, make_child_context
 import ..CollectionModule: CellVector, ComputedCellVector, ListNode
 import ..OperationModule: operation_reference, retarget_operation,

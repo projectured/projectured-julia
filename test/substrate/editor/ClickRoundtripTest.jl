@@ -17,7 +17,7 @@
 #     ends by itself at the edge of the text.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.ReferenceModule: head, tail
+using ProjecturedKernel.ReferenceModule: get_reference_head, get_reference_tail
 using ProjecturedText.TextToGraphicsModule: TextToGraphicsIoMap, SegmentCoordinate
 
 # ── IoMap traversal helpers ────────────────────────────────────────────────
@@ -87,8 +87,8 @@ end
 # domain-level translation step somewhere in the chain.
 function _path_contains_projection_reference(path)
     while path isa ConcreteReference
-        head(path) isa ProjectionReferenceStep && return true
-        path = tail(path)
+        get_reference_head(path) isa ProjectionReferenceStep && return true
+        path = get_reference_tail(path)
     end
     false
 end

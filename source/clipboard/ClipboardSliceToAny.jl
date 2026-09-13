@@ -102,9 +102,9 @@ end
 function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
     name, child = _slice_active(iomap)
-    h = head(reference)
+    h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == name) || return nothing
-    map_reference_forward(child.projection, child, tail(reference))
+    map_reference_forward(child.projection, child, get_reference_tail(reference))
 end
 
 function map_reference_backward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, reference)

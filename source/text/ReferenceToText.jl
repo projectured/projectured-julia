@@ -27,7 +27,7 @@ import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
                           ReferenceStep, RangeReferenceStep, FieldReferenceStep,
                           TypeReferenceStep,
                           is_element_reference_step, is_position_reference_step,
-                          head, tail, evaluate_reference, extend_reference
+                          get_reference_head, get_reference_tail, evaluate_reference, extend_reference
 import ..GraphicsModule: PointReferenceStep
 import ..ProjectionReferenceStepModule: ProjectionReferenceStep
 import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
@@ -154,8 +154,8 @@ end
 
 function _emit_path_short!(spans::Vector{TextDocument}, p::ReferenceToText, path::ConcreteReference)
     path.type === nothing || _emit_type_short!(spans, p, path.type)
-    _emit_step_short!(spans, p, head(path))
-    t = tail(path)
+    _emit_step_short!(spans, p, get_reference_head(path))
+    t = get_reference_tail(path)
     if t isa EmptyReference
         t.type === nothing || _emit_type_short!(spans, p, t.type)
     else
@@ -302,9 +302,9 @@ function _walk_long!(lines::Vector{Vector{TextDocument}},
                      p::ReferenceToHumanReadableText,
                      path::ConcreteReference,
                      document, prefix::Reference, parent_type)
-    step = head(path)
+    step = get_reference_head(path)
     new_prefix = extend_reference(prefix, step)
-    t = tail(path)
+    t = get_reference_tail(path)
     if step isa TypeReferenceStep
         # Checkpoint: emit no line; carry its type to the next nav step.
         t isa EmptyReference || _walk_long!(lines, p, t, document, new_prefix, step.type)

@@ -90,16 +90,16 @@ end
 Base.isempty(::EmptyReference) = true
 Base.isempty(::ConcreteReference) = false
 
-head(p::ConcreteReference) = p.head
-tail(p::ConcreteReference) = p.tail
+get_reference_head(p::ConcreteReference) = p.head
+get_reference_tail(p::ConcreteReference) = p.tail
 
 Base.length(::EmptyReference) = 0
-Base.length(p::ConcreteReference) = 1 + length(tail(p))
+Base.length(p::ConcreteReference) = 1 + length(get_reference_tail(p))
 
 # ── Iteration ────────────────────────────────────────────────────────────
 
 Base.iterate(::EmptyReference) = nothing
-Base.iterate(p::ConcreteReference) = (head(p), tail(p))
+Base.iterate(p::ConcreteReference) = (get_reference_head(p), get_reference_tail(p))
 Base.iterate(::EmptyReference, ::Reference) = nothing
 Base.iterate(::ConcreteReference, rest::Reference) = iterate(rest)
 
@@ -117,8 +117,8 @@ end
 
 function Base.show(io::IO, p::ConcreteReference)
     p.type === nothing || _show_node_type(io, p.type)
-    show(io, head(p))
-    t = tail(p)
+    show(io, get_reference_head(p))
+    t = get_reference_tail(p)
     if t isa EmptyReference
         t.type === nothing || _show_node_type(io, t.type)
     else
@@ -133,7 +133,7 @@ Base.:(==)(a::EmptyReference,   b::EmptyReference)   = a.type === b.type
 Base.:(==)(::EmptyReference,   ::ConcreteReference) = false
 Base.:(==)(::ConcreteReference, ::EmptyReference)  = false
 Base.:(==)(a::ConcreteReference, b::ConcreteReference) =
-    a.type === b.type && head(a) == head(b) && tail(a) == tail(b)
+    a.type === b.type && get_reference_head(a) == get_reference_head(b) && get_reference_tail(a) == get_reference_tail(b)
 
 # A reference compares by value, so it hashes by value — which is what lets one
 # key a table. A record of what a build resolved, and a rule that names its
@@ -144,7 +144,7 @@ Base.:(==)(a::ConcreteReference, b::ConcreteReference) =
 # of the two agrees.
 Base.hash(r::EmptyReference, h::UInt) = hash(r.type, hash(:EmptyReference, h))
 Base.hash(r::ConcreteReference, h::UInt) =
-    hash(tail(r), hash(head(r), hash(r.type, hash(:ConcreteReference, h))))
+    hash(get_reference_tail(r), hash(get_reference_head(r), hash(r.type, hash(:ConcreteReference, h))))
 
 """
     is_reference_equal(a, b)
@@ -164,7 +164,7 @@ is_reference_prefix(::EmptyReference, ::EmptyReference) = false
 is_reference_prefix(::EmptyReference, ::ConcreteReference) = true
 is_reference_prefix(::ConcreteReference, ::EmptyReference) = false
 is_reference_prefix(a::ConcreteReference, b::ConcreteReference) =
-    a.type === b.type && head(a) == head(b) && is_reference_prefix(tail(a), tail(b))
+    a.type === b.type && get_reference_head(a) == get_reference_head(b) && is_reference_prefix(get_reference_tail(a), get_reference_tail(b))
 
 # ── Path construction helpers ────────────────────────────────────────────
 
@@ -188,7 +188,7 @@ function extend_reference(base::EmptyReference, steps...)
 end
 
 function extend_reference(base::ConcreteReference, steps...)
-    ConcreteReference(base.type, base.head, extend_reference(tail(base), steps...))
+    ConcreteReference(base.type, base.head, extend_reference(get_reference_tail(base), steps...))
 end
 
 """
@@ -205,9 +205,9 @@ This is the one canonical path-concatenation (vs `extend_reference`, which appen
 raw *steps*); readers/builders that splice whole paths route through it.
 """
 concat_references(a::ConcreteReference, b::Reference) =
-    ConcreteReference(a.type, a.head, concat_references(tail(a), b))
+    ConcreteReference(a.type, a.head, concat_references(get_reference_tail(a), b))
 concat_references(a::EmptyReference, b::ConcreteReference) =
-    b.type === nothing ? ConcreteReference(a.type, b.head, tail(b)) : b
+    b.type === nothing ? ConcreteReference(a.type, b.head, get_reference_tail(b)) : b
 concat_references(a::EmptyReference, b::EmptyReference) =
     EmptyReference(b.type === nothing ? a.type : b.type)
 

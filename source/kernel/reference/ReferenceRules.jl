@@ -350,9 +350,9 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     # path for a folded node (the type is a field, consuming no step) and past an
     # unfolded `TypeReferenceStep` *step* if one is present.
     if step isa PatStepType
-        if path isa ConcreteReference && head(path) isa TypeReferenceStep
-            return _type_step_matches(head(path).type, step.typeexpr) ?
-                   _consume(tail(path), rest, b, accept) : nothing
+        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
+            return _type_step_matches(get_reference_head(path).type, step.typeexpr) ?
+                   _consume(get_reference_tail(path), rest, b, accept) : nothing
         end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) ?
                _consume(path, rest, b, accept) : nothing
@@ -384,9 +384,9 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     end
 
     path isa ConcreteReference || return nothing
-    stepped = _match_step(head(path), step, b)
+    stepped = _match_step(get_reference_head(path), step, b)
     stepped === nothing && return nothing
-    _consume(tail(path), rest, stepped, accept)
+    _consume(get_reference_tail(path), rest, stepped, accept)
 end
 
 # Consume an interpolated path `sub` from the front of `path`, shape-only. The step walk
@@ -401,9 +401,9 @@ function _consume_path(path::Reference, sub)
     consumed = 0
     while stripped_sub isa ConcreteReference
         stripped_path isa ConcreteReference || return nothing
-        head(stripped_path) == head(stripped_sub) || return nothing
-        stripped_path = tail(stripped_path)
-        stripped_sub = tail(stripped_sub)
+        get_reference_head(stripped_path) == get_reference_head(stripped_sub) || return nothing
+        stripped_path = get_reference_tail(stripped_path)
+        stripped_sub = get_reference_tail(stripped_sub)
         consumed += 1
     end
     _drop_navigation_steps(path, consumed)
@@ -414,11 +414,11 @@ end
 function _drop_navigation_steps(path::Reference, n::Int)
     while n > 0
         path isa ConcreteReference || return nothing
-        head(path) isa TypeReferenceStep || (n -= 1)
-        path = tail(path)
+        get_reference_head(path) isa TypeReferenceStep || (n -= 1)
+        path = get_reference_tail(path)
     end
-    while path isa ConcreteReference && head(path) isa TypeReferenceStep
-        path = tail(path)
+    while path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
+        path = get_reference_tail(path)
     end
     path
 end
@@ -428,8 +428,8 @@ end
 function _navigation_length(path::Reference)
     n = 0
     while path isa ConcreteReference
-        head(path) isa TypeReferenceStep || (n += 1)
-        path = tail(path)
+        get_reference_head(path) isa TypeReferenceStep || (n += 1)
+        path = get_reference_tail(path)
     end
     n
 end
@@ -439,8 +439,8 @@ end
 function _take_leading_steps(path::Reference, n::Int)
     n == 0 && return EmptyReference(path.type)
     path isa ConcreteReference || return EmptyReference()
-    taken = head(path) isa TypeReferenceStep ? n : n - 1
-    ConcreteReference(path.type, head(path), _take_leading_steps(tail(path), taken))
+    taken = get_reference_head(path) isa TypeReferenceStep ? n : n - 1
+    ConcreteReference(path.type, get_reference_head(path), _take_leading_steps(get_reference_tail(path), taken))
 end
 
 """
@@ -483,9 +483,9 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     end
 
     if step isa PatStepType
-        if path isa ConcreteReference && head(path) isa TypeReferenceStep
-            return _type_step_matches(head(path).type, step.typeexpr) &&
-                   _match_above(tail(path), rest, b)
+        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
+            return _type_step_matches(get_reference_head(path).type, step.typeexpr) &&
+                   _match_above(get_reference_tail(path), rest, b)
         end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) &&
                _match_above(path, rest, b)
@@ -513,9 +513,9 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
 
     path isa EmptyReference && return true
     path isa ConcreteReference || return false
-    stepped = _match_step(head(path), step, b)
+    stepped = _match_step(get_reference_head(path), step, b)
     stepped === nothing && return false
-    _match_above(tail(path), rest, stepped)
+    _match_above(get_reference_tail(path), rest, stepped)
 end
 
 # Match one arm, answering `(bindings, leftover)` or `nothing`. The leftover is what a

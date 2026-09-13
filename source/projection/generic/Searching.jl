@@ -177,10 +177,10 @@ end
 _strip_prefix(ref::Reference, ::EmptyReference) = ref
 _strip_prefix(::EmptyReference, ::ConcreteReference) = nothing
 function _strip_prefix(ref::ConcreteReference, prefix::ConcreteReference)
-    head(ref) == head(prefix) || return nothing
-    _strip_prefix(tail(ref), tail(prefix))
+    get_reference_head(ref) == get_reference_head(prefix) || return nothing
+    _strip_prefix(get_reference_tail(ref), get_reference_tail(prefix))
 end
 
 _concat(::EmptyReference, t::Reference) = t
 _concat(p::ConcreteReference, t::Reference) =
-    ConcreteReference(head(p), _concat(tail(p), t))
+    ConcreteReference(get_reference_head(p), _concat(get_reference_tail(p), t))

@@ -79,7 +79,9 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `reference/ReferenceModule.jl`
   - 🔒 `reference/ReferenceInterface.jl`
   - ⬜ `reference/ReferenceStep.jl` (unsealed 2026-08-24: `@cell_struct` → `@document [C, M]`, the user's direction — re-audit before resealing)
-  - 🔒 `reference/ReferencePath.jl`
+  - ⬜ `reference/ReferencePath.jl` (unsealed 2026-09-14: `head` and `tail`
+    become `get_reference_head` and `get_reference_tail` and are exported, the
+    user's direction — re-audit before resealing)
   - ⬜ `reference/ReferenceEvaluation.jl`
   - 🔒 `reference/ReferenceSearch.jl`
   - ⬜ `reference/ReferenceSyntax.jl` (unsealed 2026-09-12: `xs[i, j]` counts

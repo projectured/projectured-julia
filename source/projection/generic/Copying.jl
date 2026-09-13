@@ -195,11 +195,11 @@ function _map_ref(fn, iomap::CopyingIoMap, reference)
     # Skip canonical TypeReferenceStep checkpoints before dispatching on the head's
     # navigation step (index vs. field); the child mapper re-canonicalizes.
     reference isa ConcreteReference || return reference
-    h = head(reference)
+    h = get_reference_head(reference)
     child_im = _child_iomap(iomap, h)
     child_im === missing && return reference   # names no child — identity
     child_im === nothing && return nothing     # names a child that is not there
-    mapped = fn(child_im.projection, child_im, tail(reference))
+    mapped = fn(child_im.projection, child_im, get_reference_tail(reference))
     mapped === nothing && return nothing
     # Copying preserves order and field names, so the step itself passes through.
     # A field step is rebuilt from its name: the child mapper re-canonicalizes the
@@ -272,9 +272,9 @@ end
 function _route_to_child(iomap::CopyingIoMap, payload)
     reference = operation_reference(payload)
     if reference isa ConcreteReference
-        child_im = _child_iomap(iomap, head(reference))
+        child_im = _child_iomap(iomap, get_reference_head(reference))
         _is_child(child_im) || return nothing
-        return (child_im, retarget_operation(payload, tail(reference)))
+        return (child_im, retarget_operation(payload, get_reference_tail(reference)))
     end
     step = _selection_step(iomap)
     step === nothing && return nothing
@@ -289,7 +289,7 @@ function _selection_step(iomap::CopyingIoMap)
     input = _unwrap(iomap.input)
     input isa Document || return nothing
     selection = get_stored_selection(input)
-    selection isa ConcreteReference ? head(selection) : nothing
+    selection isa ConcreteReference ? get_reference_head(selection) : nothing
 end
 
 # An answer this node must not prefix, because it carries its own root or it

@@ -12,9 +12,6 @@ using ..CellModule
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-# `head` and `tail` are not exported, so a bare `using` does not reach them.
-# See plan/pending/qualified-extension-sweep.md §2.
-import ..ReferenceModule: head, tail
 export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
        VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate, select_version
 using ..ProjectionApiModule

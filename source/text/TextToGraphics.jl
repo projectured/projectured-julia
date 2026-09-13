@@ -28,7 +28,7 @@ import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanv
 import ..StyleModule: ImageDocument
 import ..StyleModule: StyleFont, font_logical_size
 import ..StyleModule: StyleColor, color_black
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
+import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, get_reference_head, get_reference_tail
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
 import ..GraphicsModule: PointReferenceStep
 import ..ReferenceModule: var"@reference_case"
@@ -1009,10 +1009,10 @@ end
 # a fresh ReplaceSelectionOperation on the flat PositionReferenceStep domain.
 function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     path isa ConcreteReference || return nothing
-    h1 = head(path)
+    h1 = get_reference_head(path)
     h1 isa RangeReferenceStep || return nothing
     i  = h1.start + 1
-    rest = tail(path)
+    rest = get_reference_tail(path)
 
     # Adjust for highlight rects prepended before text segments
     hl_off = iomap.highlight_offset
@@ -1022,7 +1022,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     seg = coord_map[i]
 
     rest isa ConcreteReference || return nothing
-    h2 = head(rest)
+    h2 = get_reference_head(rest)
     h2 isa PointReferenceStep || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)

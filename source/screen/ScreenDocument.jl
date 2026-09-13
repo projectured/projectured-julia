@@ -24,9 +24,6 @@ using ..CellModule
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-# `head` and `tail` are not exported, so a bare `using` does not reach them.
-# See plan/pending/qualified-extension-sweep.md §2.
-import ..ReferenceModule: head, tail
 using ..OperationModule
 import ..OperationModule: evaluate_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,

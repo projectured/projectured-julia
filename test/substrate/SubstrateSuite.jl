@@ -6,6 +6,7 @@ same ledger the kernel keeps. See
 package the entry can go, and when it covers every package so can the parameter.
 """
 const _QUALIFIED_FILES = Dict(
+    "ProjecturedClipboard"     => Set(["Clipboard.jl"]),
     "ProjecturedCollection"    => Set(["CollectionDocument.jl"]),
     "ProjecturedComponent"     => Set(["ComponentDocument.jl"]),
     "ProjecturedDomain"        => Set(["DocumentCore.jl"]),
@@ -20,9 +21,11 @@ const _QUALIFIED_FILES = Dict(
     "ProjecturedPlot"          => Set(["PlotGeometry.jl"]),
     "ProjecturedPrimitive"     => Set(["PrimitiveDocument.jl"]),
     "ProjecturedReflection"    => Set(["BoundedSync.jl"]),
+    "ProjecturedScreen"        => Set(["ScreenDocument.jl"]),
     "ProjecturedSerialization" => Set(["BinarySerialization.jl"]),
     "ProjecturedStyle"         => Set(["Color.jl"]),
-    "ProjecturedTooltip"       => Set(["TooltipDocument.jl"]))
+    "ProjecturedTooltip"       => Set(["TooltipDocument.jl"]),
+    "ProjecturedVersioning"    => Set(["VersioningDocument.jl"]))
 
 """
     test_substrate_layering()

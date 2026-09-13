@@ -100,17 +100,17 @@ _wval(v) = Int(v isa Cell ? v[] : v)
 # re-rooted at `windows[i]` (coordinates accumulate, paths stay paths).
 function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     reference isa ConcreteReference || return reference
-    h = head(reference)
+    h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "windows") || return reference
-    rest1 = tail(reference)
+    rest1 = get_reference_tail(reference)
     rest1 isa ConcreteReference || return reference
-    elem = head(rest1)
+    elem = get_reference_head(rest1)
     elem isa RangeReferenceStep || return reference
     i = elem.stop                       # ElementReferenceStep(i) == RangeReferenceStep(i-1, i)
     ims = iomap.window_iomaps
     (i < 1 || i > length(ims)) && return nothing
     wim = ims[i]
-    mapped = fn(wim.projection, wim, tail(rest1))
+    mapped = fn(wim.projection, wim, get_reference_tail(rest1))
     mapped === nothing && return nothing
     mapped isa PointReferenceStep && return mapped
     ConcreteReference(FieldReferenceStep("windows"), ConcreteReference(elem, mapped))
@@ -122,10 +122,10 @@ end
 # resolver lands in screen space; a structural path is re-rooted at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return reference
-    h = head(reference)
+    h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
     cim = iomap.content_iomap
-    mapped = fn(cim.projection, cim, tail(reference))
+    mapped = fn(cim.projection, cim, get_reference_tail(reference))
     mapped === nothing && return nothing
     if mapped isa PointReferenceStep
         return PointReferenceStep(_wval(getfield(iomap.input, :x)) + Int(mapped.x[]),

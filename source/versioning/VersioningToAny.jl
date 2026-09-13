@@ -99,17 +99,17 @@ function map_reference_forward(::VersioningToAnyProjection, iomap::VersioningToA
     child === nothing && return nothing
     idx = iomap.index
     # Require the path to descend through versions[idx].value, stripping all three.
-    h = head(reference)
+    h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "versions") || return nothing
-    rest = tail(reference)
+    rest = get_reference_tail(reference)
     rest isa ConcreteReference || return nothing
-    e = head(rest)
+    e = get_reference_head(rest)
     (e isa RangeReferenceStep && e.start + 1 == idx) || return nothing
-    rest2 = tail(rest)
+    rest2 = get_reference_tail(rest)
     rest2 isa ConcreteReference || return nothing
-    f = head(rest2)
+    f = get_reference_head(rest2)
     (f isa FieldReferenceStep && f.name == "value") || return nothing
-    map_reference_forward(child.projection, child, tail(rest2))
+    map_reference_forward(child.projection, child, get_reference_tail(rest2))
 end
 
 function map_reference_backward(::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, reference)

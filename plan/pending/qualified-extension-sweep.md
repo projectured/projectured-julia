@@ -69,17 +69,20 @@ an import can spill onto:
 | `DOCUMENT_SHOW_MAX_DEPTH` | `DocumentModule` | widget |
 | `_canvas_content_bounds` | `GraphicsModule` | widget |
 
-**`head` and `tail` block three slices today.** Versioning, clipboard and screen
-walk a reference with them, and each keeps an `import ..ReferenceModule: head,
-tail` with a comment pointing here. They are not registered as migrated, because
-their headers still carry a name nothing extends.
+**`head` and `tail` — SETTLED 2026-09-14.** They are `get_reference_head` and
+`get_reference_tail` now, and `ReferenceModule` exports them, so a bare `using`
+reaches them. The user chose the rename over a plain export: the old names carry
+no verb, which PAR-NAMING-LAW requires of every function, and both were generic
+enough to invite the one collision the bare-`using` rule cannot survive.
 
-The choice is not only whether to export them. `head(p::ConcreteReference)`
-carries no verb, which PAR-NAMING-LAW requires of every function, and `head` and
-`tail` are generic enough to be worth a collision after a bare `using` puts them
-in every scope. So the options are to export them as they are, to rename them to
-`get_reference_head` and `get_reference_tail` and export those, or to give the
-four callers a different way to walk a reference. That decision is open.
+`source/kernel/reference/ReferencePath.jl` was unsealed for it, with the user's
+permission, and carries a note in `CLAUDE.md` to re-audit before resealing.
+
+The rename reached twelve files and then six more. The first pass renamed each
+slice's module file and missed its fragments, and the substrate suite said so:
+`UndefVarError: head not defined in ProjecturedScreen.ScreenModule`. A slice is
+one module across many files, so a rename inside one is a rename across all of
+them.
 
 Each one is either part of the owner's API, and the owner exports it, or it is
 not, and the reader stops reaching it. Three of them say which they are by their
