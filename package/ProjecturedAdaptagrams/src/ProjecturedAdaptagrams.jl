@@ -33,7 +33,7 @@ engine really placed it, so the substitution is visible rather than silent.
 module ProjecturedAdaptagrams
 
 import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
-                                                  supported_constraint_kinds,
+                                                  get_supported_constraint_kinds,
                                                   check_constraints, get_constraint_pins,
                                                   get_vertex_sizes, get_extent_transform,
                                                   layout_engine_name, layout_vertices

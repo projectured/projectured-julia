@@ -37,7 +37,7 @@ end
     @test Pt(1, 2, 3) * 2 == Pt(2, 4, 6)
     @test pt_multiply(Pt(2, 3, 4), Pt(10, 100, 1000)) == Pt(20, 300, 4000)
     @test get_diagonal_length(Rs(3, 4)) == 5
-    @test area(Rs(3, 4)) == 12
+    @test get_area(Rs(3, 4)) == 12
     @test rc_center(Rc(10, 20, 0, 40, 60)) == Pt(30, 50, 0)
     @test rc_right(Rc(10, 20, 0, 40, 60)) == 50
 
@@ -67,14 +67,14 @@ end
     for (a, b) in ((1, 2), (2, 3), (3, 1), (4, 5), (5, 6), (6, 4))
         add_edge!(component, LayoutEdge(made[a], made[b]))
     end
-    @test vertex_count(component) == 6
+    @test get_vertex_count(component) == 6
     @test get_edge_count(component) == 6
     @test find_vertex(component, 3) === made[3]
     @test index_of_vertex(component, made[4]) == 4
 
     calculate_connected_sub_components!(component)
     @test length(component.connected_sub_components) == 2
-    @test all(part -> vertex_count(part) == 3 && get_edge_count(part) == 3,
+    @test all(part -> get_vertex_count(part) == 3 && get_edge_count(part) == 3,
               component.connected_sub_components)
     @test made[1].connected_sub_component !== made[4].connected_sub_component
 
@@ -397,7 +397,7 @@ end
                                             extent = (30, 400), border = 20)
 
     # And the kinds it does not implement are refused by name.
-    @test supported_constraint_kinds(SpringEmbedderLayout()) == (:pin, :fixed_size, :cluster)
+    @test get_supported_constraint_kinds(SpringEmbedderLayout()) == (:pin, :fixed_size, :cluster)
     @test_throws ArgumentError layout_graph(SpringEmbedderLayout(), chain, sizes,
                                             [GraphConstraint(made[1], :align, :x)])
 end
@@ -577,7 +577,7 @@ end
     # And so is a kind nothing knows about.
     @test_throws ArgumentError layout_graph(engine, graph, sizes,
                                             [GraphConstraint(v1, :handstand, nothing)])
-    @test supported_constraint_kinds(GridEmbedding()) == (:pin, :fixed_size)
+    @test get_supported_constraint_kinds(GridEmbedding()) == (:pin, :fixed_size)
 end
 
 @testset "GraphToGraphLayout sizing + reactivity" begin

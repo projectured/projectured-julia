@@ -85,7 +85,7 @@ finds its place. It is OMNeT++'s `addAnchoredNode`, and `:pin` is its
 it does implement. That is deliberate: a caller cannot tell a satisfied pin from
 an ignored one by looking at the picture, so accepting and dropping a constraint
 is the worst of the three possible answers. Ask an engine what it takes with
-`supported_constraint_kinds`.
+`get_supported_constraint_kinds`.
 
 ## Determinism
 

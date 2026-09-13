@@ -91,7 +91,7 @@ AdaptagramsLayout(; ideal_length::Real=60.0, avoid_overlaps::Bool=true,
                       node_margin === nothing ? nothing : Float64(node_margin))
 
 """
-    supported_constraint_kinds(::AdaptagramsLayout)
+    get_supported_constraint_kinds(::AdaptagramsLayout)
 
 `:pin` and `:fixed_size`. The shim's `adaptagrams_layout` takes no constraint
 argument, so a pin is imposed on the way out rather than fed to libcola: the
@@ -100,7 +100,7 @@ placed where it was pinned. The contract holds — the vertex is where the calle
 asked — but the neighbours were placed without knowing it. Teaching libcola
 about pins means a wider C ABI, and that is not this plan's work.
 """
-supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :fixed_size)
+get_supported_constraint_kinds(::AdaptagramsLayout) = (:pin, :fixed_size)
 
 """
     effective_engine(engine, vertex_count) -> GraphLayoutEngine

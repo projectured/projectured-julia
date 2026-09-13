@@ -28,7 +28,7 @@ export Pt, Rs, Rc, Ln,
        pt_reverse, convert_nan_to_zero, with_base_plane_projection, get_base_plane_length,
        get_base_plane_length_square, get_base_plane_distance, get_base_plane_angle,
        rotate_base_plane, transpose_base_plane, with_x, with_y, with_z,
-       rs_nil, get_diagonal_length, area,
+       rs_nil, get_diagonal_length, get_area,
        rc_nil, rc_from_center_size, rc_left, rc_right, rc_top, rc_bottom,
        rc_center, rc_left_top, rc_right_top, rc_left_bottom, rc_right_bottom,
        rc_center_top, rc_center_bottom, rc_left_center, rc_right_center,
@@ -135,7 +135,7 @@ rs_nil() = Rs(NaN, NaN)
 is_nil(rs::Rs) = isnan(rs.width) && isnan(rs.height)
 is_fully_specified(rs::Rs) = !isnan(rs.width) && !isnan(rs.height)
 get_diagonal_length(rs::Rs) = sqrt(rs.width^2 + rs.height^2)
-area(rs::Rs) = rs.width * rs.height
+get_area(rs::Rs) = rs.width * rs.height
 
 # ── Rc ───────────────────────────────────────────────────────────────────────
 

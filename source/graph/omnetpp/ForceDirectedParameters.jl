@@ -33,12 +33,12 @@ import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, get_base_plane_l
                                convert_nan_to_zero, rc_from_center_size, rc_base_plane_distance,
                                is_nil, rs_nil
 import ..ForceDirectedParametersBaseModule: Variable, AbstractBody, AbstractForceProvider,
-                                            reinitialize!, apply_forces!, potential_energy,
-                                            class_name, set_embedding!,
+                                            reinitialize!, apply_forces!, get_potential_energy,
+                                            get_class_name, set_embedding!,
                                             get_position, assign_position!,
                                             get_velocity, add_force!, subtract_force!,
-                                            body_position, body_size, body_mass,
-                                            body_charge, body_variable
+                                            get_body_position, get_body_size, get_body_mass,
+                                            get_body_charge, get_body_variable
 
 export Body, RelativelyPositionedBody, WallBody, set_wall_position!, set_wall_variable!,
        ForceProviderConfig, AbstractElectricRepulsion, ElectricRepulsion,
@@ -137,19 +137,19 @@ function reinitialize!(body::AnyBody)
     nothing
 end
 
-body_position(body::Body) = get_position(body.variable)
-body_position(body::WallBody) = get_position(body.variable)
-body_position(body::RelativelyPositionedBody) =
+get_body_position(body::Body) = get_position(body.variable)
+get_body_position(body::WallBody) = get_position(body.variable)
+get_body_position(body::RelativelyPositionedBody) =
     get_position(body.variable) + body.relative_position
 
-body_variable(body::AnyBody) = body.variable
-body_size(body::AnyBody) = body.size
-body_mass(body::AnyBody) = body.mass
-body_charge(body::AnyBody) = body.charge
+get_body_variable(body::AnyBody) = body.variable
+get_body_size(body::AnyBody) = body.size
+get_body_mass(body::AnyBody) = body.mass
+get_body_charge(body::AnyBody) = body.charge
 
-class_name(::Body) = "Body"
-class_name(::RelativelyPositionedBody) = "RelativelyPositionedBody"
-class_name(::WallBody) = "WallBody"
+get_class_name(::Body) = "Body"
+get_class_name(::RelativelyPositionedBody) = "RelativelyPositionedBody"
+get_class_name(::WallBody) = "WallBody"
 
 # ── What every force provider carries ────────────────────────────────────────
 
@@ -202,15 +202,15 @@ function distance_and_vector(config::ForceProviderConfig, body1::AbstractBody, b
 end
 
 function standard_distance_and_vector(config::ForceProviderConfig, body1::AbstractBody, body2::AbstractBody)
-    pt1 = body_position(body1)
-    pt2 = body_position(body2)
+    pt1 = get_body_position(body1)
+    pt2 = get_body_position(body2)
     vector = pt1 - pt2
     distance = pt_length(vector)
     vector = vector / distance
 
     if config.point_like_distance == 0
-        rs1 = body_size(body1)
-        rs2 = body_size(body2)
+        rs1 = get_body_size(body1)
+        rs2 = get_body_size(body2)
         dx = abs(pt1.x - pt2.x)
         dy = abs(pt1.y - pt2.y)
         half = get_base_plane_length(vector) / 2
@@ -224,29 +224,29 @@ end
 
 function standard_horizontal_distance_and_vector(config::ForceProviderConfig,
                                                  body1::AbstractBody, body2::AbstractBody)
-    distance = body_position(body1).x - body_position(body2).x
+    distance = get_body_position(body1).x - get_body_position(body2).x
     vector = Pt(signum(distance), 0, 0)
     distance = abs(distance)
     if config.point_like_distance == 0
-        distance = max(0.0, distance - body_size(body1).width - body_size(body2).width)
+        distance = max(0.0, distance - get_body_size(body1).width - get_body_size(body2).width)
     end
     (vector, distance)
 end
 
 function standard_vertical_distance_and_vector(config::ForceProviderConfig,
                                                body1::AbstractBody, body2::AbstractBody)
-    distance = body_position(body1).y - body_position(body2).y
+    distance = get_body_position(body1).y - get_body_position(body2).y
     vector = Pt(0, signum(distance), 0)
     distance = abs(distance)
     if config.point_like_distance == 0
-        distance = max(0.0, distance - body_size(body1).height - body_size(body2).height)
+        distance = max(0.0, distance - get_body_size(body1).height - get_body_size(body2).height)
     end
     (vector, distance)
 end
 
 function slippery_distance_and_vector(::ForceProviderConfig, body1::AbstractBody, body2::AbstractBody)
-    rc1 = rc_from_center_size(body_position(body1), body_size(body1))
-    rc2 = rc_from_center_size(body_position(body2), body_size(body2))
+    rc1 = rc_from_center_size(get_body_position(body1), get_body_size(body1))
+    rc2 = rc_from_center_size(get_body_position(body2), get_body_size(body2))
     segment, distance = rc_base_plane_distance(rc1, rc2)
     vector = pt_normalize(convert_nan_to_zero(segment.begin_pt - segment.end_pt))
     (vector, distance)
@@ -273,7 +273,7 @@ for T in (:ElectricRepulsion, :VerticalElectricRepulsion, :HorizontalElectricRep
             linearity_distance::Float64
             max_distance::Float64
         end
-        class_name(::$T) = $(string(T))
+        get_class_name(::$T) = $(string(T))
     end
 end
 
@@ -317,7 +317,7 @@ function apply_forces!(provider::AbstractElectricRepulsion)
     else
         valid_force(provider.config,
                     parameters.electric_repulsion_coefficient *
-                    body_charge(provider.charge1) * body_charge(provider.charge2) /
+                    get_body_charge(provider.charge1) * get_body_charge(provider.charge2) /
                     distance / distance)
     end
 
@@ -327,15 +327,15 @@ function apply_forces!(provider::AbstractElectricRepulsion)
     end
 
     force = vector * power
-    add_force!(body_variable(provider.charge1), force)
-    subtract_force!(body_variable(provider.charge2), force)
+    add_force!(get_body_variable(provider.charge1), force)
+    subtract_force!(get_body_variable(provider.charge2), force)
     nothing
 end
 
-function potential_energy(provider::AbstractElectricRepulsion)
+function get_potential_energy(provider::AbstractElectricRepulsion)
     _, distance = repulsion_distance_and_vector(provider)
     provider.config.embedding.parameters.electric_repulsion_coefficient *
-        body_charge(provider.charge1) * body_charge(provider.charge2) / distance
+        get_body_charge(provider.charge1) * get_body_charge(provider.charge2) / distance
 end
 
 # ── Springs ──────────────────────────────────────────────────────────────────
@@ -357,7 +357,7 @@ for T in (:Spring, :VerticalSpring, :HorizontalSpring, :BasePlaneSpring)
             spring_coefficient::Float64
             repose_length::Float64
         end
-        class_name(::$T) = $(string(T))
+        get_class_name(::$T) = $(string(T))
     end
 end
 
@@ -410,7 +410,7 @@ get_spring_distance_and_vector(provider::VerticalSpring) =
 get_spring_distance_and_vector(provider::HorizontalSpring) =
     standard_horizontal_distance_and_vector(provider.config, provider.body1, provider.body2)
 function get_spring_distance_and_vector(provider::BasePlaneSpring)
-    vector = Pt(0, 0, body_position(provider.body1).z)
+    vector = Pt(0, 0, get_body_position(provider.body1).z)
     (vector, abs(vector.z))
 end
 
@@ -420,12 +420,12 @@ function apply_forces!(provider::AbstractSpring)
     power = valid_signed_force(provider.config, spring_coefficient(provider) * expansion)
     force = vector * power
 
-    provider.body1 === nothing || subtract_force!(body_variable(provider.body1), force)
-    provider.body2 === nothing || add_force!(body_variable(provider.body2), force)
+    provider.body1 === nothing || subtract_force!(get_body_variable(provider.body1), force)
+    provider.body2 === nothing || add_force!(get_body_variable(provider.body2), force)
     nothing
 end
 
-function potential_energy(provider::AbstractSpring)
+function get_potential_energy(provider::AbstractSpring)
     _, distance = get_spring_distance_and_vector(provider)
     expansion = distance - provider.repose_length
     spring_coefficient(provider) * expansion * expansion / 2
@@ -446,7 +446,7 @@ end
 LeastExpandedSpring(springs::Vector{<:AbstractSpring}) =
     LeastExpandedSpring(ForceProviderConfig(), collect(AbstractSpring, springs))
 
-class_name(::LeastExpandedSpring) = "LeastExpandedSpring"
+get_class_name(::LeastExpandedSpring) = "LeastExpandedSpring"
 
 function set_embedding!(provider::LeastExpandedSpring, embedding)
     provider.config.embedding = embedding
@@ -479,8 +479,8 @@ function least_expanded_spring(provider::LeastExpandedSpring)
 end
 
 apply_forces!(provider::LeastExpandedSpring) = apply_forces!(least_expanded_spring(provider))
-potential_energy(provider::LeastExpandedSpring) =
-    potential_energy(least_expanded_spring(provider))
+get_potential_energy(provider::LeastExpandedSpring) =
+    get_potential_energy(least_expanded_spring(provider))
 
 # ── Drag ─────────────────────────────────────────────────────────────────────
 
@@ -496,7 +496,7 @@ end
 
 Drag() = Drag(ForceProviderConfig())
 
-class_name(::Drag) = "Drag"
+get_class_name(::Drag) = "Drag"
 set_embedding!(provider::Drag, embedding) = (provider.config.embedding = embedding; nothing)
 reinitialize!(provider::Drag) = reinitialize_config!(provider.config)
 
@@ -510,6 +510,6 @@ function apply_forces!(provider::Drag)
     nothing
 end
 
-potential_energy(::Drag) = 0.0
+get_potential_energy(::Drag) = 0.0
 
 end # module

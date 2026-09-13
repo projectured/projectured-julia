@@ -31,7 +31,7 @@ module BasicSpringEmbedderLayoutModule
 
 import ..GraphModule: GraphGraph, GraphEdge
 import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
-                                  supported_constraint_kinds, check_constraints,
+                                  get_supported_constraint_kinds, check_constraints,
                                   get_constraint_pins, get_constraint_clusters,
                                   layout_vertices, get_vertex_sizes, get_straight_routes
 import ..LcgRandomModule: LcgRandom, draw_uniform01!
@@ -71,7 +71,7 @@ SpringEmbedderLayout(; default_edge_length::Real = 40, max_iterations::Integer =
                          Float64(repulsive_force), Float64(attraction_force),
                          Int32(seed))
 
-supported_constraint_kinds(::SpringEmbedderLayout) = (:pin, :fixed_size, :cluster)
+get_supported_constraint_kinds(::SpringEmbedderLayout) = (:pin, :fixed_size, :cluster)
 layout_engine_name(::SpringEmbedderLayout) = :spring_embedder
 
 # ── The layouter's own structures ────────────────────────────────────────────

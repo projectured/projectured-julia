@@ -25,7 +25,7 @@ import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, rc_left, rc_right, rc_top, rc
 export LayoutVertex, LayoutEdge, GraphComponent,
        add_vertex!, add_edge!, index_of_vertex, find_vertex, get_bounding_rectangle,
        calculate_spanning_tree!, calculate_connected_sub_components!,
-       vertex_count, get_edge_count
+       get_vertex_count, get_edge_count
 
 """
     LayoutVertex(pt, rs, identity = nothing)
@@ -90,7 +90,7 @@ end
 GraphComponent() =
     GraphComponent(LayoutVertex[], LayoutEdge[], nothing, LayoutVertex[], GraphComponent[])
 
-vertex_count(component::GraphComponent) = length(component.vertices)
+get_vertex_count(component::GraphComponent) = length(component.vertices)
 get_edge_count(component::GraphComponent) = length(component.edges)
 Base.isempty(component::GraphComponent) = isempty(component.vertices)
 

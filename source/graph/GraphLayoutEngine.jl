@@ -44,7 +44,7 @@ import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
 import ..GraphLayoutModule: GraphConstraint
 
 export GraphLayoutEngine, GridEmbedding, layout_graph, layout_engine_name,
-       supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
+       get_supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
        get_constraint_pins, get_constraint_fixed_sizes, get_constraint_clusters,
        layout_vertices, get_vertex_sizes,
        get_straight_routes, get_extent_transform, fit_into_extent!
@@ -79,14 +79,14 @@ const GRAPH_CONSTRAINT_KINDS =
     (:pin, :fixed_size, :cluster, :align, :same_rank, :min_separation)
 
 """
-    supported_constraint_kinds(engine) -> Tuple{Vararg{Symbol}}
+    get_supported_constraint_kinds(engine) -> Tuple{Vararg{Symbol}}
 
 The `GraphConstraint` kinds `engine` implements. Every engine answers this, and
 answers only kinds it really satisfies in its output.
 """
-function supported_constraint_kinds end
+function get_supported_constraint_kinds end
 
-supported_constraint_kinds(::GraphLayoutEngine) = ()
+get_supported_constraint_kinds(::GraphLayoutEngine) = ()
 
 """
     check_constraints(engine, constraints)
@@ -99,7 +99,7 @@ A caller cannot tell a satisfied pin from an ignored one by looking at the
 picture, so an engine must never accept a kind it drops.
 """
 function check_constraints(engine::GraphLayoutEngine, constraints)
-    supported = supported_constraint_kinds(engine)
+    supported = get_supported_constraint_kinds(engine)
     for constraint in constraints
         constraint isa GraphConstraint || throw(ArgumentError(
             "$(nameof(typeof(engine))): a layout constraint must be a " *
@@ -359,7 +359,7 @@ GridEmbedding(; node_sep::Integer=40, rank_sep::Integer=60,
                   columns === nothing ? nothing : Int(columns), direction,
                   Int(circle_max))
 
-supported_constraint_kinds(::GridEmbedding) = (:pin, :fixed_size)
+get_supported_constraint_kinds(::GridEmbedding) = (:pin, :fixed_size)
 layout_engine_name(::GridEmbedding) = :grid
 
 # How many columns the grid gets. Without an extent it is the caller's `columns`

@@ -32,22 +32,22 @@ module ForceDirectedGraphLayouterModule
 
 import ..GraphModule: GraphGraph, GraphEdge
 import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
-                                  supported_constraint_kinds, check_constraints,
+                                  get_supported_constraint_kinds, check_constraints,
                                   get_constraint_pins, get_constraint_clusters,
                                   layout_vertices, get_vertex_sizes, get_straight_routes
 import ..LcgRandomModule: LcgRandom, draw_uniform01!, draw_uniform!
 import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, pt_multiply,
-                               get_diagonal_length, area, rc_center
+                               get_diagonal_length, get_area, rc_center
 import ..GraphComponentModule: GraphComponent, LayoutVertex, LayoutEdge,
-                               add_vertex!, add_edge!, vertex_count,
+                               add_vertex!, add_edge!, get_vertex_count,
                                get_edge_count, get_bounding_rectangle,
                                calculate_spanning_tree!,
                                calculate_connected_sub_components!
 import ..ForceDirectedParametersBaseModule: Variable, PointConstrainedVariable, AbstractBody,
                                             get_position, assign_position!,
-                                            body_position, body_size, get_body_top,
+                                            get_body_position, get_body_size, get_body_top,
                                             get_body_bottom, get_body_left, get_body_right,
-                                            body_variable
+                                            get_body_variable
 import ..ForceDirectedParametersModule: Body, RelativelyPositionedBody, WallBody,
                                         set_wall_position!, set_wall_variable!,
                                         ElectricRepulsion, VerticalElectricRepulsion,
@@ -112,7 +112,7 @@ ForceDirectedLayout(; seed::Integer = 1, max_cycle::Integer = 1000,
     ForceDirectedLayout(Int32(seed), Int(max_cycle), Float64(max_calculation_time),
                         three_d, pre_embedding)
 
-supported_constraint_kinds(::ForceDirectedLayout) = (:pin, :fixed_size, :cluster)
+get_supported_constraint_kinds(::ForceDirectedLayout) = (:pin, :fixed_size, :cluster)
 layout_engine_name(::ForceDirectedLayout) = :force_directed
 
 # ── The layouter's own state ─────────────────────────────────────────────────
@@ -248,8 +248,8 @@ function add_edge_between!(state::ForceDirectedState, source_id::Int, target_id:
     # -1 means "use the expected edge length", which is only known later.
     spring = Spring(source, target, -1, len > 0 ? len : -1)
     add_force_provider!(state.embedding, spring)
-    source_vertex = vertex_for(state, body_variable(source))
-    target_vertex = vertex_for(state, body_variable(target))
+    source_vertex = vertex_for(state, get_body_variable(source))
+    target_vertex = vertex_for(state, get_body_variable(target))
     (source_vertex === nothing || target_vertex === nothing) && return nothing
     add_edge!(state.graph_component, LayoutEdge(source_vertex, target_vertex))
     nothing
@@ -266,11 +266,11 @@ function calculate_expected_measures!(state::ForceDirectedState)
 
     for body in bodies
         body isa WallBody && continue
-        length = get_diagonal_length(body_size(body))
+        length = get_diagonal_length(get_body_size(body))
         count += 1
         max_body_length = max(max_body_length, length)
         average_body_length += length
-        expected_size += area(body_size(body))
+        expected_size += get_area(get_body_size(body))
     end
     count == 0 && return nothing
 
@@ -441,7 +441,7 @@ function add_electric_repulsions!(state::ForceDirectedState)
     for i in 1:length(bodies), j in (i+1):length(bodies)
         body1 = bodies[i]; body2 = bodies[j]
         (body1 isa WallBody || body2 isa WallBody) && continue
-        variable1 = body_variable(body1); variable2 = body_variable(body2)
+        variable1 = get_body_variable(body1); variable2 = get_body_variable(body2)
         variable1 === variable2 && continue
 
         vertex1 = vertex_for(state, variable1)
@@ -490,7 +490,7 @@ function execute_pre_embedding!(state::ForceDirectedState)
     for child in state.graph_component.connected_sub_components
         calculate_spanning_tree!(child)
 
-        if vertex_count(child) == get_edge_count(child) + 1 || _rand01(state) < 0.5
+        if get_vertex_count(child) == get_edge_count(child) + 1 || _rand01(state) < 0.5
             embed_star_tree!(StarTreeEmbedding(child, state.expected_edge_length))
         else
             embed_heap!(HeapEmbedding(child, state.expected_edge_length))
@@ -523,8 +523,8 @@ function execute_pre_embedding!(state::ForceDirectedState)
     scaley = state.height / rc.rs.height
     for body in state.embedding.bodies
         body isa WallBody && continue
-        scalex = min(scalex, (state.width - state.border - body_size(body).width) / get_body_left(body))
-        scaley = min(scaley, (state.height - state.border - body_size(body).height) / get_body_top(body))
+        scalex = min(scalex, (state.width - state.border - get_body_size(body).width) / get_body_left(body))
+        scaley = min(scaley, (state.height - state.border - get_body_size(body).height) / get_body_top(body))
     end
 
     scale_embedding!(state, Pt(state.width > 0 && scalex > 0 ? scalex : 1,
@@ -579,7 +579,7 @@ _reinitialize_embedding!(state::ForceDirectedState) =
 node_position(state::ForceDirectedState, node_id::Int) =
     let body = find_node_body(state, node_id)
         body === nothing ? (0.0, 0.0) :
-            let pt = body_position(body); (pt.x, pt.y) end
+            let pt = get_body_position(body); (pt.x, pt.y) end
     end
 
 # ── The engine interface ─────────────────────────────────────────────────────

@@ -21,11 +21,11 @@ import ..LayoutGeometryModule: Pt, Rs, pt_zero, pt_length, is_fully_specified
 
 export ForceDirectedParameters, Variable, PointConstrainedVariable,
        AbstractBody, AbstractForceProvider,
-       reinitialize!, apply_forces!, potential_energy, class_name, set_embedding!,
+       reinitialize!, apply_forces!, get_potential_energy, get_class_name, set_embedding!,
        get_position, assign_position!, get_velocity, assign_velocity!,
-       get_acceleration, kinetic_energy, reset_force!, get_mass, set_mass!,
+       get_acceleration, get_kinetic_energy, reset_force!, get_mass, set_mass!,
        get_force, add_force!, subtract_force!,
-       body_position, body_size, body_mass, body_charge, body_variable,
+       get_body_position, get_body_size, get_body_mass, get_body_charge, get_body_variable,
        get_body_left, get_body_right, get_body_top, get_body_bottom, get_body_left_top
 
 """
@@ -118,7 +118,7 @@ get_acceleration(variable::Variable) =
     variable.point_constrained ? Pt(0, 0, variable.force.z) / variable.mass :
                                  variable.force / variable.mass
 
-function kinetic_energy(variable::Variable)
+function get_kinetic_energy(variable::Variable)
     speed = pt_length(variable.velocity)
     0.5 * variable.mass * speed * speed
 end
@@ -167,23 +167,23 @@ function reinitialize! end
 function apply_forces! end
 
 "The energy stored in this provider at the current positions."
-function potential_energy end
+function get_potential_energy end
 
 "The name the original prints in its debug output; kept so a trace reads alike."
-function class_name end
+function get_class_name end
 
 "The centre of the body."
-function body_position end
+function get_body_position end
 
-function body_size end
-function body_mass end
-function body_charge end
-function body_variable end
+function get_body_size end
+function get_body_mass end
+function get_body_charge end
+function get_body_variable end
 
-get_body_left(body::AbstractBody) = body_position(body).x - body_size(body).width / 2
-get_body_right(body::AbstractBody) = body_position(body).x + body_size(body).width / 2
-get_body_top(body::AbstractBody) = body_position(body).y - body_size(body).height / 2
-get_body_bottom(body::AbstractBody) = body_position(body).y + body_size(body).height / 2
-get_body_left_top(body::AbstractBody) = Pt(get_body_left(body), get_body_top(body), body_position(body).z)
+get_body_left(body::AbstractBody) = get_body_position(body).x - get_body_size(body).width / 2
+get_body_right(body::AbstractBody) = get_body_position(body).x + get_body_size(body).width / 2
+get_body_top(body::AbstractBody) = get_body_position(body).y - get_body_size(body).height / 2
+get_body_bottom(body::AbstractBody) = get_body_position(body).y + get_body_size(body).height / 2
+get_body_left_top(body::AbstractBody) = Pt(get_body_left(body), get_body_top(body), get_body_position(body).z)
 
 end # module

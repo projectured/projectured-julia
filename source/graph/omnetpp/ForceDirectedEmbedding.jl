@@ -34,12 +34,12 @@ import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_length, pt_distance,
                                pt_normalize
 import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
                                             AbstractBody, AbstractForceProvider,
-                                            reinitialize!, apply_forces!, potential_energy,
+                                            reinitialize!, apply_forces!, get_potential_energy,
                                             set_embedding!, get_position, assign_position!,
                                             get_velocity, assign_velocity!,
-                                            get_acceleration, kinetic_energy, reset_force!,
+                                            get_acceleration, get_kinetic_energy, reset_force!,
                                             set_mass!,
-                                            body_variable, body_mass,
+                                            get_body_variable, get_body_mass,
                                             get_body_left, get_body_right, get_body_top, get_body_bottom
 import ..ForceDirectedParametersModule: WallBody
 import ..LcgRandomModule: LcgRandom, draw_uniform01!
@@ -145,7 +145,7 @@ one variable; the variable is added once and carries the sum of their masses.
 function add_body!(embedding::ForceDirectedEmbedding, body::AbstractBody)
     push!(embedding.bodies, body)
     set_embedding!(body, embedding)
-    variable = body_variable(body)
+    variable = get_body_variable(body)
     if variable !== nothing && !any(v -> v === variable, embedding.variables)
         push!(embedding.variables, variable)
     end
@@ -159,10 +159,10 @@ function add_force_provider!(embedding::ForceDirectedEmbedding, provider::Abstra
 end
 
 total_kinetic_energy(embedding::ForceDirectedEmbedding) =
-    sum(kinetic_energy, embedding.variables; init = 0.0)
+    sum(get_kinetic_energy, embedding.variables; init = 0.0)
 
 total_potential_energy(embedding::ForceDirectedEmbedding) =
-    sum(potential_energy, embedding.force_providers; init = 0.0)
+    sum(get_potential_energy, embedding.force_providers; init = 0.0)
 
 "Clear every result of an earlier run and set the initial values."
 function reinitialize!(embedding::ForceDirectedEmbedding)
@@ -201,7 +201,7 @@ function reinitialize!(embedding::ForceDirectedEmbedding)
         embedding.vn[i] = get_velocity(variable)
         mass = 0.0
         for body in embedding.bodies
-            body_variable(body) === variable && (mass += body_mass(body))
+            get_body_variable(body) === variable && (mass += get_body_mass(body))
         end
         set_mass!(variable, mass)
         embedding.total_mass += mass

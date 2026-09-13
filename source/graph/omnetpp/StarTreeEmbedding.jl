@@ -20,7 +20,7 @@ it over `HeapEmbedding` whenever the component really is a tree.
 module StarTreeEmbeddingModule
 
 import ..LayoutGeometryModule: Pt, Rc, Cc, pt_zero, pt_distance,
-                               get_diagonal_length, area, get_base_plane_angle,
+                               get_diagonal_length, get_area, get_base_plane_angle,
                                rotate_base_plane, cc_intersect, cc_enclosing,
                                cc_center_top, cc_center_bottom, cc_left_center,
                                cc_right_center
@@ -136,7 +136,7 @@ function _rotate_center!(vertex::LayoutVertex)
         weight_point = pt_zero()
         total_area = 0.0
         for child in vertex.spanning_tree_children
-            child_area = area(child.rc.rs)
+            child_area = get_area(child.rc.rs)
             total_area += child_area
             weight_point = weight_point +
                 (child.star_tree_center + vertex.star_tree_circle_center) * child_area

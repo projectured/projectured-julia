@@ -17,7 +17,7 @@ module GraphLayoutChoiceModule
 
 import ..GraphModule: GraphGraph
 import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
-                                  layout_engine_name, supported_constraint_kinds,
+                                  layout_engine_name, get_supported_constraint_kinds,
                                   layout_vertices
 import ..BasicSpringEmbedderLayoutModule: SpringEmbedderLayout
 import ..ForceDirectedGraphLayouterModule: ForceDirectedLayout
@@ -109,8 +109,8 @@ function resolve_layout_engine(engine::DeferredLayout, vertex_count::Integer = 0
         factory(; orthogonal = engine.orthogonal)
 end
 
-supported_constraint_kinds(engine::DeferredLayout) =
-    supported_constraint_kinds(resolve_layout_engine(engine))
+get_supported_constraint_kinds(engine::DeferredLayout) =
+    get_supported_constraint_kinds(resolve_layout_engine(engine))
 
 layout_engine_name(engine::DeferredLayout) =
     layout_engine_name(resolve_layout_engine(engine))
