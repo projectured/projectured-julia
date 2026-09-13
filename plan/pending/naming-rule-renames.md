@@ -1,6 +1,6 @@
 # Every rename of the functions that do not start with a verb
 
-> **Kind:** plan · **Status:** pending · **Stands on:** [naming-rule-violations.md](naming-rule-violations.md) §14.9
+> **Kind:** plan · **Status:** applied 2026-09-13 · **Stands on:** [naming-rule-violations.md](naming-rule-violations.md) §14.9
 
 374 names, grouped by the file that defines them.
 
@@ -15,7 +15,11 @@ rather than the name. The `status` column says what came back:
 | `one pass only` | 5 | one pass named it and the other was told to skip it. Apply the name shown. |
 | `rule decides` | 4 | the passes differ, and one of them breaks a stated rule. The compliant name is shown. |
 
-Nothing here is applied yet.
+**Applied on 2026-09-13.** Every row below landed, except where the group
+that executed it overruled the name — about twenty rows, because this table was
+built before the user's verb rulings existed. Section 0.4 of
+[naming-rule-violations.md](naming-rule-violations.md) states the pattern, and
+each group's commit message names what it changed and why.
 
 **Two names appear twice on purpose.** `insert_row!` and `delete_row!` are each
 proposed for a pair: one in

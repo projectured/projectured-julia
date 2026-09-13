@@ -1,9 +1,103 @@
 # Fix the names that break the naming law
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
+> **Kind:** plan · **Status:** executed except the items of §0.3 · **Stands on:**
 > [naming-rules.md](../../documentation/rule/naming-rules.md),
 > [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
 > (`PAR-NAMING-LAW`), [division-terminology.md](../../documentation/rule/division-terminology.md)
+
+## 0. What was done — status as of 2026-09-13
+
+**The plan is executed, apart from the items §0.3 names.** 45 commits on branch
+`naming-law`, in the worktree `projectured-julia-naming`.
+
+### 0.1 What landed
+
+| work | count |
+| --- | --- |
+| function and constant renames | 385 |
+| type renames | 48 |
+| IO map renames | 23 |
+| file renames | 11 |
+| file splits | 2 of 3 |
+| module alias lines deleted | 29 |
+| layering guards added | 4 |
+| documentation headers added | 2 |
+| coverage artifacts removed | 19 |
+| corrections to renames this plan itself got wrong | 8 |
+
+`test_package_graph()` reported 728 pass and 2 fail at every step, which is what
+the same guard reports on `main`. Those two failures are pre-existing and
+concern domain edges, not names. Every group was verified by loading its
+packages and running the narrowest suite that covers it.
+
+### 0.2 The naming guard
+
+[test/suite/naming.jl](../../test/suite/naming.jl) is new, and `test_all()`
+calls `test_naming()` beside `test_tree()`. It checks a module name against its
+file and its slice, an alias no file declares, an abbreviation the rules ban,
+and a test package's entry point. It does not judge whether a verb fits the work
+or whether a name reads as English — a guard that guessed would be wrong often
+enough to be ignored.
+
+It found a real conflict on its first run: `ProjecturedDatabaseTest` had no
+`test_database()` because `test/odbc` held a live query test of that name. The
+odbc tests now say odbc, and the database package has its own entry point.
+
+### 0.3 What is still open
+
+| item | where |
+| --- | --- |
+| the clipboard file split | [one-module-per-slice.md](one-module-per-slice.md) §4.1 |
+| the 30 document module renames | cancelled; a slice becomes one module |
+| six module names that the slice collapse settles | allow-listed in the guard, with the reason |
+| the four `PRED_REF` constants | §9.30 — the abbreviation is the wire value |
+| `EVALUATION_HANDLER` is a process-wide global | §11.1 — a design finding, not a rename |
+| the stale block in `system-anatomy.md` | §8.3 |
+| whether the four `sdl_*` helpers should be exported at all | §14.11 of the appendix |
+
+### 0.4 What reading the code changed
+
+The merged list was built before the user's verb rulings existed, so it
+systematically under-used `find_`, `compute_`, `build_`, `collect_`, `convert_`
+and `format_`. Roughly twenty names were corrected during execution, and the
+pattern is worth keeping:
+
+- **A `get_` that was not a read.** `text_flat_to_elem` is a conversion, and its
+  own docstring says so. `math_metrics` scales a font and derives an x-height.
+  `nearest_sample` returns `nothing` when nothing is near.
+- **A slice word that said nothing, or one that was missing.** `syntax_opening`
+  returns `:opening_delimiter`, so it is `get_opening_delimiter`. The fsm
+  functions had dropped a prefix their own types carry, and `state` appears in
+  103 files outside that slice.
+- **A name that read as no English phrase.** `get_base_plane_length_square`,
+  `get_cell_kind_of`, `make_widget_pager`. This produced the rule at the head of
+  the Functions section: where a shape gives a phrase nobody would say, the
+  English wins and the rule yields.
+- **A generic name nobody could place.** `get_content` and `get_title` were
+  rejected outright and became `get_file_content` and `get_workbench_title`.
+
+Three names were left alone after reading them: `would_create_cycle` asks what
+an edge *would* do, `julia_main` is PackageCompiler's required symbol, and five
+`@projection_template` words are DSL vocabulary.
+
+### 0.5 The renamer
+
+[workspace/bin/julia-rename.jl](../../../bin/julia-rename.jl) does the renames
+with Julia's own parser rather than a text substitution. Running it on real code
+found three defects in it, each of which had produced or would have produced
+wrong output:
+
+1. `function f end` read as an ordinary reference rather than a definition.
+2. The left operand of an infix call sits where the function of a prefix call
+   sits, so `vertex_count >= LIMIT` read as a call and one run renamed a
+   parameter. That run was reverted whole.
+3. `Module.name` was skipped as a field access. 64 qualified calls in the
+   sequence chart slice were silently left behind by one pass.
+
+The lesson that outlived all three: **an `other` count can not be read without
+looking at what it is.** `kinetic_energy`'s single other reference had to move,
+`vertex_count`'s seven had to stay, and `truetype_measure_text`'s 135 all had to
+move.
 
 ## 1. What this plan is
 
@@ -274,7 +368,7 @@ The law gives a file one module. Two files in `source/` break it.
 
 | file | declares | fix | confidence |
 | --- | --- | --- | --- |
-| [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapterModule` (line 1), `ConnectionPoolModule` (251), `SqlToCellTableModule` (365), `DatabaseInstanceToDbCatalogModule` (415) | split into four files, each named for its module. Every module name is already correct, so only the split is needed. | certain |
+| `source/odbc/Odbc.jl`, now split into four files | `OdbcAdapterModule` (line 1), `ConnectionPoolModule` (251), `SqlToCellTableModule` (365), `DatabaseInstanceToDbCatalogModule` (415) | split into four files, each named for its module. Every module name is already correct, so only the split is needed. | certain |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `DraggingProjectionModule` (29), `DraggingWrapperModule` (307) | move the second module to `DraggingWrapper.jl` | certain |
 
 Three files under `test/` declare six fixture modules:
@@ -1081,7 +1175,7 @@ Each row also rewrites the `include("…")` line that names the file.
 
 | file | becomes | why |
 | --- | --- | --- |
-| [source/odbc/Odbc.jl](../../source/odbc/Odbc.jl) | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
+| `source/odbc/Odbc.jl`, now split into four files | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
 | [source/clipboard/ClipboardToAny.jl](../../source/clipboard/ClipboardToAny.jl) | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **moved to [one-module-per-slice.md](one-module-per-slice.md) §4.1.** The split needs the slice to be one module first. |
 
