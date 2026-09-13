@@ -13,9 +13,10 @@
 # than none. This checks only what is mechanical.
 #
 # **Static, and deliberately.** It reads directory entries, `module` lines and
-# `export` lists, and it parses each file to find the definitions two files of
-# one module state twice. It loads nothing, so it runs in well under a second
-# and cannot be fooled by what happens to be in a session.
+# `export` lists, and it parses each file to find a definition that collides
+# with another or shadows a generic it means to extend. It loads nothing, so it
+# runs in about a second and cannot be fooled by what happens to be in a
+# session.
 # ============================================================================
 
 """
@@ -343,13 +344,17 @@ end
 Every definition of `path`, as `(name, signature)`. A `const` takes the
 signature `a constant`, so two files that assign one cannot both be right.
 """
+const _DEFINITION_CACHE = Dict{String,Vector{Tuple{String,String}}}()
+
 function _definitions(root::AbstractString, path::AbstractString)
+    key = joinpath(root, path)
+    haskey(_DEFINITION_CACHE, key) && return _DEFINITION_CACHE[key]
     out = Tuple{String,String}[]
     text = read(joinpath(root, path), String)
     tree = try
         _JS.parseall(_JS.SyntaxNode, text; filename = path)
     catch
-        return out                                      # whether a file parses is another check
+        return _DEFINITION_CACHE[key] = out             # whether a file parses is another check
     end
     for node in _top_level(tree)
         node = _JS.kind(node) === _JS.K"doc" ? last(_JS.children(node)) : node
@@ -366,7 +371,7 @@ function _definitions(root::AbstractString, path::AbstractString)
             push!(out, (name, "a method taking (" * join(_argument_types(call), ", ") * ")"))
         end
     end
-    out
+    _DEFINITION_CACHE[key] = out
 end
 
 """
@@ -395,6 +400,111 @@ function duplicate_definition_violations(root::AbstractString)
     out
 end
 
+# ============================================================================
+# A definition that shadows instead of extending.
+#
+# After a bare `using ..XxxModule`, a plain `f(…) = …` for a name `XxxModule`
+# exports does **not** extend that generic. Julia defines a new `f` in the
+# calling module, the owner keeps its own methods, and every call through the
+# owner reaches the fallback. Measured on Julia 1.13: no warning, no error.
+#
+# So a file that adds a method to another module's generic must say so, either
+# by importing the name (`import ..XxxModule: f`) or by qualifying the
+# definition (`XxxModule.f(…) = …`). This check reads the third case, the one
+# that compiles and is wrong.
+# ============================================================================
+
+"""
+    _exported(root, files) -> Set{String}
+
+Every name a module's files export. An `export` list can continue onto an
+indented line, and a name can be written `var"@macro"`.
+"""
+function _exported(root::AbstractString, files)
+    out, open_statement = Set{String}(), false
+    for path in files, line in eachline(joinpath(root, path))
+        if open_statement
+            if startswith(line, " ") || startswith(line, "\t")
+                isempty(strip(line)) || (_collect_names!(out, line); continue)
+            end
+            open_statement = false
+        end
+        startswith(line, "export ") || continue
+        _collect_names!(out, line[length("export")+1:end])
+        open_statement = endswith(rstrip(line), ",")
+    end
+    out
+end
+
+"Add every identifier of a comma-separated list to `out`."
+function _collect_names!(out::Set{String}, text::AbstractString)
+    for name in split(text, ",")
+        name = strip(replace(name, "var\"" => "", "\"" => ""))
+        occursin(r"^@?[A-Za-z_][A-Za-z0-9_!]*$", name) && push!(out, name)
+    end
+    out
+end
+
+"""
+    _imported(root, files) -> Set{String}
+
+Every name a module's files import by name from a sibling. These are the names
+a file may extend without qualification, because `import` makes the binding the
+owner's.
+"""
+function _imported(root::AbstractString, files)
+    out, open_statement = Set{String}(), false
+    for path in files, line in eachline(joinpath(root, path))
+        if open_statement
+            if startswith(line, " ") || startswith(line, "\t")
+                isempty(strip(line)) || (_collect_names!(out, line); continue)
+            end
+            open_statement = false
+        end
+        m = match(r"^import \.\.[A-Za-z][A-Za-z0-9_]*\s*:(.*)$", line)
+        m === nothing && continue
+        _collect_names!(out, m.captures[1])
+        open_statement = endswith(rstrip(line), ",")
+    end
+    out
+end
+
+"""
+    shadowed_extension_violations(root) -> Vector{String}
+
+No module defines, unqualified and unimported, a name another module it names
+exports. Such a definition reads as an extension and is a new function.
+"""
+function shadowed_extension_violations(root::AbstractString)
+    files_of = _module_files(root)
+    exports = Dict(name => _exported(root, files) for (name, files) in files_of)
+    out = String[]
+    for (name, files) in sort(collect(files_of), by = first)
+        imported = _imported(root, files)
+        # the modules this one names, whatever the form
+        named = String[]
+        for path in files, line in eachline(joinpath(root, path))
+            m = match(r"^(?:using|import) \.\.([A-Za-z][A-Za-z0-9_]*)", line)
+            m === nothing || push!(named, m.captures[1])
+        end
+        unique!(named)
+        for path in files, (defined, _signature) in _definitions(root, path)
+            occursin(".", defined) && continue          # a qualified definition is the other form
+            defined in imported && continue             # imported, so the binding is the owner's
+            defined in get(exports, name, Set{String}()) && continue   # the module's own
+            for other in named
+                other == name && continue
+                defined in get(exports, other, Set{String}()) || continue
+                push!(out, "$path defines $defined, which $other exports and " *
+                           "$name does not import — the definition makes a new " *
+                           "function rather than extending $other.$defined")
+                break
+            end
+        end
+    end
+    out
+end
+
 """
     naming_violations(root) -> Vector{String}
 
@@ -404,7 +514,8 @@ reader can act on.
 naming_violations(root::AbstractString) =
     vcat(module_violations(root), alias_violations(root),
          abbreviation_violations(root), suite_violations(root),
-         duplicate_definition_violations(root))
+         duplicate_definition_violations(root),
+         shadowed_extension_violations(root))
 
 # Runnable on its own. It needs no environment and no dependency:
 #

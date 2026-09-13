@@ -58,6 +58,6 @@ end
 ProcessTerminal(kind::Symbol) = ProcessTerminal(Cell(kind), Cell(nothing))
 ProcessEdgeLabel(text::AbstractString) = ProcessEdgeLabel(Cell(String(text)), Cell(nothing))
 
-insertable(::Type{ProcessTerminal}) = false
-insertable(::Type{ProcessEdgeLabel}) = false
-insertable(::Type{ProcessDiagram}) = false
+DomainModule.insertable(::Type{ProcessTerminal}) = false
+DomainModule.insertable(::Type{ProcessEdgeLabel}) = false
+DomainModule.insertable(::Type{ProcessDiagram}) = false

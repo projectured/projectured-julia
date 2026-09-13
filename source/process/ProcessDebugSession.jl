@@ -72,7 +72,7 @@ using ..DomainModule
     previous_document::Any = nothing
 end
 
-insertable(::Type{ProcessDebugSession}) = false
+DomainModule.insertable(::Type{ProcessDebugSession}) = false
 
 """
     is_stale(session, model) -> Bool
