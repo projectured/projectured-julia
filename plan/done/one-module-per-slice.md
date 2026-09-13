@@ -13,10 +13,11 @@ The two that do not are `graph` and `text`, which §4.2 records as slices to
 divide rather than to fold. `source/` holds 107 modules, 29 of them the
 kernel's, where it held 45 multi-module slices when this plan was written.
 
-One item is open:
+**Nothing is open.** Every question §5 asks is answered, and §4.1's file split
+is done.
 
-- **§5.4**, the namespace size, which only `text` raises and `text` is not
-  folded.
+The division of `graph` and `text` is not this plan's work and has no plan yet.
+§4.2 holds the case for it and the numbers behind it.
 
 ## 1. The decision
 
@@ -273,9 +274,24 @@ head. Named for the slice, it has none.
    It examines 6788 definitions across 111 modules, 58 of them multi-file, in
    0.5 s. Each of the four real defects was fed back to it and each one is
    caught; a legitimate second method of a generic is not.
-4. **The namespace gets bigger.** `text` would hold 14 files of names in one
-   module. Check what that does to `names(TextModule)` and to the model-facing
-   tool surface before step 4.
+4. **The namespace gets bigger — ANSWERED 2026-09-13.** The question named
+   `text`, and `text` was never folded, so that case did not arise. Measured
+   over the 106 modules the tree holds: the median exports 16 names, and the
+   five largest are `JuliaModule` 516, `WidgetModule` 463, `RstModule` 416,
+   `SqlModule` 345 and `StyleModule` 336. `TextModule`, unfolded, exports 78.
+   A domain with many document types exports a name per type, and the collapse
+   moved those names rather than adding any.
+
+   Two of the three consumers are already covered. A collision between packages
+   raises `UndefVarError` on use, and `test/projectured/ExportCollisionTest.jl`
+   checks that dynamically across the whole package graph. The model-facing tool
+   surface is opt-in: no production code calls `declare_api!`, and it takes
+   `module => (:name, ...)` pairs so a caller need not hand a model a whole
+   module.
+
+   What is left is the judgement §4.2 already states: read a high count as a
+   slice doing too much, not as a reason to keep file modules. The division list
+   stays at `graph` and `text`, the user's decision on 2026-09-13.
 
 ## 6. What this cancels in the naming plan
 

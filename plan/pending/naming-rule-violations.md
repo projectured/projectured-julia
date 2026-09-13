@@ -49,8 +49,8 @@ Everything that does not wait on the slice collapse is done.
 
 | item | state |
 | --- | --- |
-| the clipboard file split | waits on [one-module-per-slice.md](one-module-per-slice.md) §4.1 |
-| six module names the slice collapse settles | waits; allow-listed in the guard with the reason |
+| the clipboard file split | **DONE 2026-09-13** — [one-module-per-slice.md](../done/one-module-per-slice.md) §4.1 |
+| six module names the slice collapse settles | four are settled; `ConsoleBackendModule` and `PdfBackendModule` wait for their own slice, allow-listed in the guard with the reason |
 | the 30 document module renames | cancelled — a slice becomes one module |
 | the four `PRED_REF` constants | **done** §9.30 — a constant that holds a wire value spells the value |
 | `EVALUATION_HANDLER` is a process-wide global | **done** §11.1 — two declared generics replace two `Ref`s |
@@ -272,7 +272,7 @@ No two files declare the same module name. That check came back empty.
 ### 4.1 Class A — a document file whose module drops `Document` (30 files) — CANCELLED
 
 **The user decided on 2026-09-12 that a module is one unit of architecture, not
-one file. See [one-module-per-slice.md](one-module-per-slice.md).** Under that
+one file. See [one-module-per-slice.md](../done/one-module-per-slice.md).** Under that
 rule `JsonModule` in `JsonDocument.jl` is correct, so none of these 30 is a
 violation and none is renamed. The 717 references stay as they are. The table
 below records what the old rule would have demanded, and nothing more.
@@ -314,7 +314,7 @@ name is the one to change.
 | [source/clipboard/ClipboardDocument.jl](../../source/clipboard/ClipboardDocument.jl) | `ClipboardModule` | `ClipboardDocumentModule` | 3 |
 | [source/component/ComponentDocument.jl](../../source/component/ComponentDocument.jl) | `ComponentModule` | `ComponentDocumentModule` | 2 |
 
-This class is closed. [one-module-per-slice.md](one-module-per-slice.md) holds
+This class is closed. [one-module-per-slice.md](../done/one-module-per-slice.md) holds
 the decision and the reasoning.
 
 ### 4.2 Class B — the module carries a word the file name does not (13 files)
@@ -338,7 +338,7 @@ Here either name can change, so each row states which one I propose and why.
 | [source/database/DatabaseAdapters.jl](../../source/database/DatabaseAdapters.jl) | `DatabaseModule` | rename the module to `DatabaseAdaptersModule`. The sibling `DatabaseDocument.jl` already declares `DatabaseDocumentModule`, so the bare name was free only by accident. | likely |
 | [source/console/Console.jl](../../source/console/Console.jl) | `ConsoleBackendModule` | rename the file to `ConsoleBackend.jl`, or sanction `Backend` as a qualifier. See §9.10. | unsure |
 | [source/pdf/Pdf.jl](../../source/pdf/Pdf.jl) | `PdfBackendModule` | rename the file to `PdfBackend.jl`, or sanction `Backend`. See §9.10. | unsure |
-| [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | **no change.** The user decided on 2026-09-12 that the kernel keeps its modules as they are. See [one-module-per-slice.md](one-module-per-slice.md). | closed |
+| [source/kernel/projection/GestureBindings.jl](../../source/kernel/projection/GestureBindings.jl) | `ProjectionGestureBindingsModule` | **no change.** The user decided on 2026-09-12 that the kernel keeps its modules as they are. See [one-module-per-slice.md](../done/one-module-per-slice.md). | closed |
 | [source/repl/Repl.jl](../../source/repl/Repl.jl#L88) | `StatementScope` | a one-line `module StatementScope end` with no `Module` suffix. Its docstring says it exists only as a namespace for dynamic bindings and is never exported. Leave it and state the exemption, or rename it. See §9.12. | unsure |
 | ~~source/clipboard/ClipboardToAny.jl~~ | — | **DONE 2026-09-13.** Split into `ClipboardSliceToAny.jl` and `ClipboardCollectionToAny.jl`, both fragments of `ClipboardModule`. | resolved |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `DraggingProjectionModule` | the module matches the file, but the file name bakes in `Projection`. See §7. | certain |
@@ -1176,7 +1176,7 @@ Every other table below is complete.
 
 The 30 module renames of §4.1 do not happen. A module is one unit of
 architecture, so `JsonModule` in `JsonDocument.jl` is the correct name. See
-[one-module-per-slice.md](one-module-per-slice.md).
+[one-module-per-slice.md](../done/one-module-per-slice.md).
 
 ### 14.2 Module renames that do not wait
 
@@ -1214,7 +1214,7 @@ Each row also rewrites the `include("…")` line that names the file.
 | --- | --- | --- |
 | `source/odbc/Odbc.jl`, now split into four files | `OdbcAdapter.jl`, `ConnectionPool.jl`, `SqlToCellTable.jl`, `DatabaseInstanceToDbCatalog.jl` | §4.4, four modules in one file. Every module name is already right. |
 | [source/dragging/Dragging.jl](../../source/dragging/Dragging.jl) | `Dragging.jl` plus `DraggingWrapper.jl` | §4.4 |
-| ~~source/clipboard/ClipboardToAny.jl~~ | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **DONE 2026-09-13**, recorded in [one-module-per-slice.md](one-module-per-slice.md) §4.1. |
+| ~~source/clipboard/ClipboardToAny.jl~~ | `ClipboardSliceToAny.jl`, `ClipboardCollectionToAny.jl` | **DONE 2026-09-13**, recorded in [one-module-per-slice.md](../done/one-module-per-slice.md) §4.1. |
 
 ### 14.5 Module aliases to delete
 
