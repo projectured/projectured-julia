@@ -102,6 +102,65 @@ function test_declared_api()
                        search.handler(nothing, Dict("query" => "toy_arrange")))
     end
 
+    # Half of a turn was a lookup pair: a search for the name, then a read for
+    # its documentation. These three cut the pair to one call, and they cut the
+    # round a miss used to cost.
+    @testset "a search answers in one round what took two" begin
+        set = ToolSet(; api = Module[ToyShaped])
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+        ask(query) = search.handler(nothing, Dict("query" => query))
+
+        # One clear hit answers the WHOLE documentation, not the signature and a
+        # locator to call next round.
+        answer = ask("toy_arrange")
+        @test occursin("the one API match", answer)
+        @test occursin("toy_arrange(window) -> String", answer)
+        # A sentence that lives below the signature, which the old answer cut.
+        @test occursin("person", answer)
+        # And it does not ask for another round.
+        @test !occursin("→ read full", answer)
+
+        # A query that matches several still lists them, one line each.
+        many = ask("toy")
+        @test occursin("API matches for", many)
+        @test occursin("→ read full", many)
+
+        # A plural is the same question as its singular. The verb is named
+        # `toy_arrange` and the docstring says "panes"; both spellings find it.
+        @test occursin("toy_arrange", ask("pane"))
+        @test occursin("toy_arrange", ask("panes"))
+
+        # **A stem may not claim a name.** A query scores against a NAME exactly
+        # as it was written, and against the prose in any of its forms. Let a
+        # stem claim a name and every verb holding the stem as a substring
+        # arrives first: measured, "stop runs" answered
+        # `run_simulations_in_conversation` before `stop_simulations`, because
+        # `run` is inside almost every verb of that module.
+        both = ToolSet(; api = Any[ToyApi, ToyShaped])
+        register_default_tools!(both)
+        wider = only([t for t in both.tools if t.name == "search_api"])
+        ask_both(query) = wider.handler(nothing, Dict("query" => query))
+
+        # `toy_count` is the one named for counting, whatever the prose says.
+        counted = ask_both("count toy")
+        @test occursin("toy_count", first(l for l in split(counted, "\n")
+                                          if startswith(l, "- **")))
+
+        # **A hit shows the name a caller writes.** A declared name arrives
+        # unqualified, so a hit that led with `Module.name` invited a caller to
+        # copy that shape and guess the module — measured, one did, and lost the
+        # turn to an `UndefVarError`. The module is context, after the name.
+        @test occursin("`toy_count` (in ToyApi)", counted)
+        @test !occursin("`ToyApi.toy_count`", counted)
+
+        # A miss says what there IS, in the round that asked.
+        missed = ask("xyzzy")
+        @test occursin("No API matches", missed)
+        @test occursin("What you may write", missed)
+        @test occursin("toy_arrange", missed)
+    end
+
     @testset "a declared module is what resolves" begin
         set = ToolSet(; api = Module[ToyApi])
         @test execute_julia_code(set, nothing, "toy_verb()") |> strip == "\"toy\""
@@ -133,6 +192,59 @@ function test_declared_api()
     @testset "a narrowed module keeps its own name" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
         @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
+    end
+
+    # Two packages own the same common word often enough that a surface would
+    # have to drop one of them. A rename is a declaration, not a wrapper: the
+    # owning module is untouched and there is one function, not two.
+    @testset "a declared name can be given another name" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb => :say_toy, :toy_count)])
+
+        # The model writes the name it was given.
+        @test strip(execute_julia_code(set, nothing, "say_toy()")) == "\"toy\""
+        # And the one that was not renamed is itself.
+        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2])")) == "2"
+        # The module's own word is not what this model writes.
+        @test occursin("UndefVarError", execute_julia_code(set, nothing, "toy_verb()"))
+
+        # It is findable and readable under the new name, and its documentation
+        # is still its own.
+        register_default_tools!(set)
+        search = only([t for t in set.tools if t.name == "search_api"])
+        @test occursin("say_toy", search.handler(nothing, Dict("query" => "say_toy")))
+        reader = only([t for t in set.tools if t.name == "read_function_documentation"])
+        answer = reader.handler(nothing, Dict("module_name" => "ToyApi",
+                                              "function_name" => "say_toy"))
+        @test !occursin("not found", answer)
+        @test !occursin("not one of the names", answer)
+
+        # The refusal reads the module's own name, so a rename of a name that is
+        # not there is still refused.
+        message = try
+            declare_api!(ToolSet(), [ToyApi => (:toy_missing => :anything,)])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("toy_missing", message)
+    end
+
+    # Half of what a turn spends is finding out what it may call. The signature
+    # lines are what a search hit shows anyway, so a prompt that carries them
+    # spends no round on the lookup.
+    @testset "the declaration renders as the lines a prompt carries" begin
+        text = describe_api(Any[ToyApi => (:toy_verb => :say_toy, :toy_count)])
+        @test occursin("ToyApi", text)
+        # The name the MODEL writes, with its signature on one line.
+        @test occursin("say_toy", text)
+        @test !occursin("toy_verb", text)
+        @test occursin("toy_count", text)
+        # One line each, and no prose: the paragraph under the signature stays
+        # where it is, one `read_function_documentation` away.
+        @test length(split(text, "\n")) == 3
+
+        # A name the declaration left out is not in it either.
+        @test !occursin("toy_count", describe_api(Any[ToyApi => (:toy_verb,)]))
     end
 
     @testset "a name its module does not have is refused" begin
@@ -251,18 +363,33 @@ function test_declared_api()
         end
     end
 
-    # The resources a declared set publishes are its own modules, and the guides
-    # are withheld: they describe the whole editor, and would send the model to
-    # read about a surface it cannot reach.
-    @testset "the resources are the declared modules, and no guides" begin
+    # The resources a declared set publishes are its own modules AND the guides.
+    #
+    # The guides were once withheld from a declared set, on the reasoning that
+    # they describe the whole editor and would send a model to read about a
+    # surface it cannot reach. That was wrong in one way and then wrong in
+    # another. `search_documentation` went on printing `resource://guide/…` for
+    # every hit it found, and `read_resource` could not resolve one, so a model
+    # told to read a guide spent a round on "Resource not found" — measured
+    # 2026-09-13. And an application registers guides of its own with
+    # `register_guide_root!`: prose about the window a declared surface belongs
+    # to, which is the documentation such a surface most wants.
+    #
+    # A declaration narrows the NAMES a model may write. It is not a reason to
+    # withhold the prose about how to write them.
+    @testset "the resources are the declared modules and the guides" begin
         set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
         uris = [r.uri for r in list_resources(set)]
         @test "resource://module/ToyApi" in uris
         @test "resource://modules" in uris
-        @test !any(u -> startswith(u, "resource://guide"), uris)
         @test occursin("ToyApi", read_resource(set, "resource://modules"))
         @test occursin("Answer the word", read_resource(set, "resource://module/ToyApi")) ||
               occursin("ToyApi", read_resource(set, "resource://module/ToyApi"))
+
+        # Every guide a search can name, a read can fetch.
+        guides = [u for u in uris if startswith(u, "resource://guide/")]
+        @test !isempty(guides)
+        @test !occursin("not found", read_resource(set, first(guides)))
 
         wide = register_default_tools!(ToolSet())
         wide_uris = [r.uri for r in list_resources(wide)]

@@ -52,11 +52,29 @@ owns; this says which of those names *this* model is given, and a name listed
 here arrives in the model's namespace unqualified. That is what lets a
 declaration hand out `PaneSplit` without any module re-exporting a name it does
 not own.
+
+**A name can be given another name.** An entry of `:describe => :summarize_frame`
+gives `DataFrames.describe` to the model as `summarize_frame`. Two packages own
+the same common word often enough that the surface would otherwise have to drop
+one of them: `describe` is `DataFrames`' per-column statistics *and* the one
+sentence a pane says about what it holds. A rename is a declaration, not a
+wrapper — `using M: describe as summarize_frame` is what the scratch module
+writes — so the owning module is untouched and there is one function, not two.
 """
 struct ApiEntry
     module_::Module
-    names::Union{Nothing,Vector{Symbol}}
+    names::Union{Nothing,Vector{Pair{Symbol,Symbol}}}
 end
+
+# A name given as itself, which is what most of them are.
+_api_name(name::Symbol) = name => name
+_api_name(pair::Pair) = Symbol(first(pair)) => Symbol(last(pair))
+_api_name(other) = error("A declared name is a symbol or a `name => alias` pair, and " *
+                         repr(other) * " is neither.")
+
+ApiEntry(module_::Module, names) =
+    ApiEntry(module_, names === nothing ? nothing :
+                      Pair{Symbol,Symbol}[_api_name(one) for one in names])
 
 # A declaration is a cache key — one search index per declared list — so two
 # entries that say the same thing must be the same key.
@@ -69,9 +87,18 @@ Base.hash(entry::ApiEntry, h::UInt) = hash(entry.names, hash(objectid(entry.modu
 The names one entry gives, whether it named them or took the module's exports.
 """
 get_api_entry_names(entry::ApiEntry) =
+    Symbol[last(pair) for pair in api_entry_bindings(entry)]
+
+"""
+    api_entry_bindings(entry) -> Vector{Pair{Symbol,Symbol}}
+
+The name each binding has in its own module, and the name the model writes. They
+differ only where a declaration renamed one.
+"""
+api_entry_bindings(entry::ApiEntry) =
     entry.names === nothing ?
-        [n for n in names(entry.module_)
-           if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
+        Pair{Symbol,Symbol}[n => n for n in names(entry.module_)
+                            if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
         entry.names
 
 # A declaration is written as modules and `module => names` pairs, and stored as
@@ -80,9 +107,26 @@ _api_entries(declaration) = ApiEntry[_api_entry(one) for one in declaration]
 
 _api_entry(entry::ApiEntry) = entry
 _api_entry(mod::Module) = ApiEntry(mod, nothing)
-_api_entry(pair::Pair{Module}) = ApiEntry(first(pair), collect(Symbol, last(pair)))
+_api_entry(pair::Pair{Module}) = ApiEntry(first(pair), collect(last(pair)))
 _api_entry(other) = error("A declared API is a module or a `module => names` pair, and " *
                           repr(other) * " is neither.")
+
+"""
+    api_source_name(api, module, name) -> Symbol
+
+The name `module` knows a model-facing `name` by. They are the same word unless a
+declaration renamed it, and a caller that looks a value up in the module needs
+this one rather than the word the model wrote.
+"""
+function api_source_name(api, mod::Module, name::Symbol)
+    for entry in api
+        entry.module_ === mod || continue
+        for (source, model) in api_entry_bindings(entry)
+            model === name && return source
+        end
+    end
+    name
+end
 
 """
     get_api_modules(set) -> Vector{Module}

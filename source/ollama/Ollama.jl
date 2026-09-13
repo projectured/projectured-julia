@@ -40,6 +40,12 @@ struct OllamaLlm <: Llm
     max_tokens::Int
     context::Int
     thinking::Union{Nothing,Bool}
+    # **What a repeatable run needs.** The server samples with its own defaults
+    # unless these are said, so two runs of one question are two answers and a
+    # test that compares them measures nothing. `nothing` sends neither and
+    # leaves the server as it was.
+    temperature::Union{Nothing,Float64}
+    seed::Union{Nothing,Int}
     # The answer of the capability question, kept per instance. Never a module
     # global: one process runs many editors, and each holds its own backend.
     thinking_answer::Ref{Union{Nothing,Bool}}
@@ -49,10 +55,14 @@ OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
             base_url::AbstractString = _OLLAMA_URL,
             max_tokens::Integer = 4096,
             context::Integer = 0,
-            thinking::Union{Nothing,Bool} = nothing) =
+            thinking::Union{Nothing,Bool} = nothing,
+            temperature::Union{Nothing,Real} = nothing,
+            seed::Union{Nothing,Integer} = nothing) =
     OllamaLlm(String(isempty(model) ? _DEFAULT_MODEL : model),
               String(rstrip(base_url, '/')),
               Int(max_tokens), Int(context), thinking,
+              temperature === nothing ? nothing : Float64(temperature),
+              seed === nothing ? nothing : Int(seed),
               Ref{Union{Nothing,Bool}}(nothing))
 
 # This package's registration on the kernel's factory seam. `api_key` is accepted
@@ -322,6 +332,8 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
     # model and its configuration — is the right one until somebody has a reason,
     # and an unasked-for `num_ctx` would take that away.
     llm.context > 0 && (options["num_ctx"] = llm.context)
+    llm.temperature === nothing || (options["temperature"] = llm.temperature)
+    llm.seed === nothing || (options["seed"] = llm.seed)
     body = Dict{String,Any}(
         "model"    => llm.model,
         "stream"   => true,
