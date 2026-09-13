@@ -836,7 +836,8 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
     alone = length(scored) == 1 || (best[1][1] >= 100 && scored[2][1][1] < 100)
     if alone && !isempty(best[2].full)
         io = IOBuffer()
-        println(io, "# `$(best[2].qualname)` — the one API match for $(repr(query))\n")
+        println(io, "# `", last(split(best[2].qualname, '.')),
+                    "` — the one API match for ", repr(query), "\n")
         println(io, best[2].full)
         rest = [e.qualname for (_, e) in scored[2:min(limit, length(scored))]]
         isempty(rest) ||
@@ -851,7 +852,16 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
         # together, and eight of those bury the verb the model came for.
         doc = isempty(e.doc) ? "(no documentation)" : first(split(e.doc, '\n'))
         length(doc) > 160 && (doc = first(doc, 157) * "…")
-        println(io, "- **$(e.kind)** `$(e.qualname)` — $doc")
+        # **The writable name first, the module after it.** A declared name
+        # arrives unqualified, and a hit that leads with `Module.name` invites a
+        # caller to copy that shape: measured 2026-09-13, a model read
+        # `CampaignVerbsModule.select_simulations!`, wrote
+        # `PaneProgramModule.select_simulations!`, and lost the turn to an
+        # `UndefVarError`. What is shown is now what works.
+        parts = split(e.qualname, '.')
+        name = last(parts)
+        where = length(parts) > 1 ? " (in " * join(parts[1:end-1], '.') * ")" : ""
+        println(io, "- **$(e.kind)** `$name`$where — $doc")
         println(io, "  → read full: `$(e.locator)`")
     end
     String(take!(io))

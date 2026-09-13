@@ -145,8 +145,14 @@ function test_declared_api()
         # `toy_count` is the one named for counting, whatever the prose says.
         counted = ask_both("count toy")
         @test occursin("toy_count", first(l for l in split(counted, "\n")
-                                          if occursin("`ToyApi.", l) ||
-                                             occursin("`ToyShaped.", l)))
+                                          if startswith(l, "- **")))
+
+        # **A hit shows the name a caller writes.** A declared name arrives
+        # unqualified, so a hit that led with `Module.name` invited a caller to
+        # copy that shape and guess the module — measured, one did, and lost the
+        # turn to an `UndefVarError`. The module is context, after the name.
+        @test occursin("`toy_count` (in ToyApi)", counted)
+        @test !occursin("`ToyApi.toy_count`", counted)
 
         # A miss says what there IS, in the round that asked.
         missed = ask("xyzzy")
