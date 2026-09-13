@@ -115,11 +115,16 @@ layout needs, and a declared module puts every one of its exported names in the
 model's search — this module's own documentation says what that costs.
 """
 pane_api() = Any[
-    # The verbs and not the module: `pane_api` builds this very list, and
-    # `describe_document` is the extension point the program writes its comments
-    # with — neither is a name a model has any use for.
+    # The verbs and not the module: `pane_api` builds this very list, and a model
+    # has no use for the function that builds its own surface.
+    #
+    # `describe_document` is here because it is two things at once — the
+    # extension point `show_layout` writes its comments with, and the sentence a
+    # caller asks about a value it holds: how far a set of runs has got, whether
+    # that set is in a pane or in a hand.
     PaneProgramModule => (:show_layout, :get_window_tree, :get_referenced_value,
-                          :replace_referenced_value!, :open_pane!, :focus_pane!),
+                          :replace_referenced_value!, :open_pane!, :focus_pane!,
+                          :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
