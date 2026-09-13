@@ -242,7 +242,8 @@ end
 The naming guard: every mechanical rule of
 `documentation/rule/naming-rules.md`, which `PAR-NAMING-LAW` makes an
 invariant. It checks a module name against its file and its slice, an alias no
-file declares, an abbreviation the rules ban, and a test package's entry point.
+file declares, an abbreviation the rules ban, a test package's entry point, and
+a definition two files of one module state twice.
 It does not judge whether a verb fits the work or whether a name reads as
 English — those need a person. It loads nothing and runs in well under a second.
 """

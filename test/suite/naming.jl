@@ -13,8 +13,9 @@
 # than none. This checks only what is mechanical.
 #
 # **Static, and deliberately.** It reads directory entries, `module` lines and
-# `export` lists. It loads nothing, so it runs in well under a second and cannot
-# be fooled by what happens to be in a session.
+# `export` lists, and it parses each file to find the definitions two files of
+# one module state twice. It loads nothing, so it runs in well under a second
+# and cannot be fooled by what happens to be in a session.
 # ============================================================================
 
 """
@@ -234,6 +235,166 @@ function suite_violations(root::AbstractString)
     out
 end
 
+# ============================================================================
+# One module, many files — the definitions that collide.
+#
+# A slice is one module now, so two files of one slice put their definitions in
+# one namespace. Two methods of one generic in two files is the design, not a
+# fault: that is what dispatch is for. What is a fault is a *conflicting*
+# definition — the same name with the same argument types, which is one method
+# and not two.
+#
+# Julia rejects some of these and accepts others without a word. It refuses a
+# method overwrite during precompilation, so a second `__init__` or a second
+# `_kind_label(content)` is loud. It accepts a `const` redefined to an equal
+# value in silence, and it accepts a second method whose arguments carry no
+# types as a plain overwrite of the first.
+# ============================================================================
+
+const _JS = Base.JuliaSyntax
+
+"""
+The names a module may define in several files, because every method dispatches
+on its own type. These are the projection interface and the operation seam: one
+generic, one method per projection or per operation.
+"""
+const _MANY_METHODS = Set([
+    "print_document", "print_child", "read_intent", "map_reference_forward",
+    "map_reference_backward", "evaluate_operation",
+    "get_projection_gesture_bindings"])
+
+"""
+    _module_files(root) -> Dict{String,Vector{String}}
+
+Every module, and the files its definitions live in. It follows `include` from
+the file that declares the module, and stops at a file that declares one of its
+own, so a layer's fragments and a slice's fragments are told apart.
+"""
+function _module_files(root::AbstractString)
+    declares = Dict{String,String}()                    # path -> module name
+    for tree in ("source", "test", "example"), path in _naming_files(root, tree)
+        m = match(r"(?m)^module\s+(\w+)\s*$", _naming_code(root, path))
+        m === nothing || (declares[path] = m.captures[1])
+    end
+    out = Dict{String,Vector{String}}()
+    for (path, name) in declares
+        files, queue = String[], [path]
+        while !isempty(queue)
+            current = pop!(queue)
+            current in files && continue
+            push!(files, current)
+            for inc in eachmatch(r"(?m)^\s*include\(\"([^\"]+)\"\)",
+                                 _naming_code(root, current))
+                target = normpath(joinpath(dirname(current), inc.captures[1]))
+                isfile(joinpath(root, target)) || continue
+                # a file that declares its own module is not this module's
+                (target != path && haskey(declares, target)) && continue
+                push!(queue, target)
+            end
+        end
+        out[name] = sort(files)
+    end
+    out
+end
+
+"""
+    _argument_types(call) -> Vector{String}
+
+The type each argument of a definition names, as written. An argument with no
+type reads `_`, because an untyped argument matches everything and two of them
+are one method.
+"""
+function _argument_types(call)
+    out = String[]
+    for (i, child) in enumerate(_JS.children(call))
+        i == 1 && continue                              # the function being defined
+        _JS.kind(child) === _JS.K"parameters" && continue  # keyword arguments do not dispatch
+        text = _JS.sourcetext(child)
+        m = match(r"::\s*([A-Za-z_][\w.{}, ]*)", text)
+        push!(out, m === nothing ? "_" : strip(m.captures[1]))
+    end
+    out
+end
+
+"The definitions a file states at the top level of its module."
+function _top_level(tree)
+    out = _JS.SyntaxNode[]
+    for node in _JS.children(tree)
+        # a docstring wraps what it documents, including a `module`
+        node = _JS.kind(node) === _JS.K"doc" ? last(_JS.children(node)) : node
+        if _JS.kind(node) === _JS.K"module"
+            # a module file states its definitions inside the block; a fragment
+            # states them at the top level, and both belong to the one module
+            for inner in _JS.children(node)
+                _JS.is_leaf(inner) && continue
+                _JS.kind(inner) === _JS.K"block" || continue
+                append!(out, _JS.children(inner))
+            end
+        else
+            push!(out, node)
+        end
+    end
+    out
+end
+
+"""
+    _definitions(root, path) -> Vector{Tuple{String,String}}
+
+Every definition of `path`, as `(name, signature)`. A `const` takes the
+signature `a constant`, so two files that assign one cannot both be right.
+"""
+function _definitions(root::AbstractString, path::AbstractString)
+    out = Tuple{String,String}[]
+    text = read(joinpath(root, path), String)
+    tree = try
+        _JS.parseall(_JS.SyntaxNode, text; filename = path)
+    catch
+        return out                                      # whether a file parses is another check
+    end
+    for node in _top_level(tree)
+        node = _JS.kind(node) === _JS.K"doc" ? last(_JS.children(node)) : node
+        kind = _JS.kind(node)
+        if kind === _JS.K"const"
+            m = match(r"^const\s+([A-Za-z_]\w*)", _JS.sourcetext(node))
+            m === nothing || push!(out, (m.captures[1], "a constant"))
+        elseif kind in (_JS.K"function", _JS.K"=")
+            call = first(_JS.children(node))
+            _JS.kind(call) === _JS.K"::" && (call = first(_JS.children(call)))
+            _JS.kind(call) === _JS.K"where" && (call = first(_JS.children(call)))
+            _JS.kind(call) === _JS.K"call" || continue
+            name = _JS.sourcetext(first(_JS.children(call)))
+            push!(out, (name, "a method taking (" * join(_argument_types(call), ", ") * ")"))
+        end
+    end
+    out
+end
+
+"""
+    duplicate_definition_violations(root) -> Vector{String}
+
+No module defines one signature in two of its files. Two methods of one generic
+are fine, and two methods that take the same types are one method: the second
+replaces the first, loudly for a function and silently for a `const`.
+"""
+function duplicate_definition_violations(root::AbstractString)
+    out = String[]
+    for (name, files) in sort(collect(_module_files(root)), by = first)
+        length(files) > 1 || continue
+        where = Dict{Tuple{String,String},Vector{String}}()
+        for path in files, definition in _definitions(root, path)
+            first(definition) in _MANY_METHODS && continue
+            push!(get!(where, definition, String[]), path)
+        end
+        for (definition, paths) in sort(collect(where), by = first)
+            unique_paths = unique(paths)
+            length(unique_paths) > 1 || continue
+            push!(out, "$name defines $(first(definition)) twice, as " *
+                       "$(last(definition)): " * join(unique_paths, " and "))
+        end
+    end
+    out
+end
+
 """
     naming_violations(root) -> Vector{String}
 
@@ -242,7 +403,8 @@ reader can act on.
 """
 naming_violations(root::AbstractString) =
     vcat(module_violations(root), alias_violations(root),
-         abbreviation_violations(root), suite_violations(root))
+         abbreviation_violations(root), suite_violations(root),
+         duplicate_definition_violations(root))
 
 # Runnable on its own. It needs no environment and no dependency:
 #

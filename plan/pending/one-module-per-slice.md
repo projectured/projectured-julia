@@ -13,9 +13,8 @@ The two that do not are `graph` and `text`, which §4.2 records as slices to
 divide rather than to fold. `source/` holds 107 modules, 29 of them the
 kernel's, where it held 45 multi-module slices when this plan was written.
 
-Two items are open:
+One item is open:
 
-- **§5.3**, what replaces the intra-slice guard.
 - **§5.4**, the namespace size, which only `text` raises and `text` is not
   folded.
 
@@ -258,9 +257,22 @@ head. Named for the slice, it has none.
    `ProjectionAlgebraModule`. Drop the module row and say the projection
    belongs to its slice. The remaining three names — file, type and IO map —
    still come from one stem.
-3. **What replaces the intra-slice guard.** Either accept the loss, or assert
-   something cheaper, such as that the slice module's `include` order is a valid
-   order for the code that runs at load time.
+3. **What replaces the intra-slice guard — ANSWERED, AND DONE 2026-09-13.**
+   Not an edge check. The 254 deleted `import ..XModule` lines caught a design
+   cycle, and Julia tolerates a cycle inside a module anyway, so little was
+   lost. What the collapse really risked is a definition two files of one module
+   state twice, and it happened four times: two `__init__`, `_kind_label`,
+   `_GAP` and `_KIND_STYLE`, and `_strip_prefix` with its arguments reversed.
+
+   `test/suite/naming.jl` now holds `duplicate_definition_violations(root)`. It
+   parses every file, groups them by the module whose `include` chain reaches
+   them, and reports a name two files state with the same signature. Two methods
+   of one generic are the design and pass; two methods that take the same types
+   are one method and fail. A `const` may be stated once.
+
+   It examines 6788 definitions across 111 modules, 58 of them multi-file, in
+   0.5 s. Each of the four real defects was fed back to it and each one is
+   caught; a legitimate second method of a generic is not.
 4. **The namespace gets bigger.** `text` would hold 14 files of names in one
    module. Check what that does to `names(TextModule)` and to the model-facing
    tool surface before step 4.
