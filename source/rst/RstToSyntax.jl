@@ -75,8 +75,8 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
                        SyntaxDelimitation
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
-                            filename
+import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
+                            get_filename
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, project
@@ -1355,7 +1355,7 @@ end
     SyntaxLeaf(TextString(_stub_marker_directive(s), p.style))
 
 _stub_marker_directive(stub::ReferenceStub) =
-    ".. " * PRED_REF_DIRECTIVE * ":: " * marker_text(stub)
+    ".. " * PRED_REF_DIRECTIVE * ":: " * format_marker_text(stub)
 
 # ── EmbeddedFileDocumentToRstSyntaxLeaf ─────────────────────────────────────
 
@@ -1368,7 +1368,7 @@ end
     SyntaxLeaf(TextString(_embedded_marker_directive(f), p.style))
 
 _embedded_marker_directive(f::FileDocument) =
-    ".. " * PRED_REF_DIRECTIVE * ":: " * file_marker_text(filename(f))
+    ".. " * PRED_REF_DIRECTIVE * ":: " * format_file_marker_text(get_filename(f))
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The

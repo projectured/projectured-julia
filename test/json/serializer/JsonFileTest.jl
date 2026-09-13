@@ -29,8 +29,8 @@ function test_json_file()
             @test isfile(joinpath(d, "root.json"))
             reloaded = load_project(JsonFile, "root.json", d)
             @test reloaded isa JsonFile
-            @test filename(reloaded) == "root.json"
-            @test content(reloaded) isa JsonObject
+            @test get_filename(reloaded) == "root.json"
+            @test get_file_content(reloaded) isa JsonObject
         finally
             rm(d; recursive=true, force=true)
         end
@@ -72,7 +72,7 @@ function test_json_file()
             root  = JsonFile("root.json",  JsonObject("child" => child))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            obj = content(reloaded)::JsonObject
+            obj = get_file_content(reloaded)::JsonObject
             entry = getfield(obj, :entries)[][1]
             slot = _slot(entry, :value)
             @test slot isa ReferenceStub
@@ -112,7 +112,7 @@ function test_json_file()
                                        "special" => JsonString("<<not a marker")))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            obj = content(reloaded)::JsonObject
+            obj = get_file_content(reloaded)::JsonObject
             entries = getfield(obj, :entries)[]
             @test _slot(entries[1], :value) isa JsonString
             @test _slot(entries[2], :value) isa JsonString

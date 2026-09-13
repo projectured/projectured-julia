@@ -26,7 +26,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..XmlModule: XmlDocument, XmlElement, XmlText, XmlAttribute, XmlNothing
 import ..XmlParserModule: xmlparse
 import ..NaturalNotationModule: print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!
 
@@ -48,7 +48,7 @@ const PRED_REF_ELEMENT_TAG = "pred:ref"
     content::XmlDocument = XmlNothing()
 end
 
-emit_text(f::XmlFile) = print_natural_text(content(f))
+emit_text(f::XmlFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::XmlFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)

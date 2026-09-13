@@ -41,7 +41,7 @@ import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
                       JuliaSubtype, JuliaCurly
 import ..JuliaParserModule: juliaparse
 import ..NaturalNotationModule: print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, register_marker_function!,
                             is_file_document
@@ -65,7 +65,7 @@ docstring for the `pred_ref(...)` marker convention.
     content::JuliaDocument = JuliaNothing()
 end
 
-emit_text(f::JuliaFile) = print_natural_text(content(f))
+emit_text(f::JuliaFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::JuliaFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
@@ -213,7 +213,7 @@ function are the common case of that and must be embedded by wrapping
 them, not by name.
 """
 function julia_definition(document, name::AbstractString)
-    doc = is_file_document(document) ? content(document) : document
+    doc = is_file_document(document) ? get_file_content(document) : document
     doc isa JuliaDocument ||
         error("definition(…): expected a Julia document, got ", typeof(document))
     matches = Any[s for s in _julia_toplevel_statements(doc)

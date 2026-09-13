@@ -35,9 +35,9 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
 import ..MarkdownParserModule: markdownparse
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
 import ..NaturalNotationModule: register_natural_domain!, print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
-                            register_file_document_type!, document_section,
+                            register_file_document_type!, get_document_section,
                             is_file_document
 
 export MarkdownFile, PRED_REF_LANGUAGE, markdown_section
@@ -62,7 +62,7 @@ module docstring for the fenced-block marker convention.
     content::MarkdownDocument = MarkdownRoot()
 end
 
-emit_text(f::MarkdownFile) = print_natural_text(content(f))
+emit_text(f::MarkdownFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::MarkdownFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
@@ -171,7 +171,7 @@ The returned root shares the page's own element objects, so what is embedded is
 the section itself and not a copy of it.
 """
 function markdown_section(document, title::AbstractString)
-    root = is_file_document(document) ? content(document) : document
+    root = is_file_document(document) ? get_file_content(document) : document
     root isa MarkdownRoot ||
         error("section(…): expected a markdown document, got ", typeof(document))
     wanted = strip(String(title))
@@ -232,10 +232,10 @@ end
 _heading_texts(elements) =
     String[_heading_text(e) for e in elements if e isa MarkdownHeading]
 
-# The `section` verb is one shared generic (`FileProjectModule.document_section`),
+# The `section` verb is one shared generic (`FileProjectModule.get_document_section`),
 # because the registry holds one function per verb name. Markdown adds its method
 # here; RST adds its own.
-document_section(root::MarkdownRoot, title::AbstractString) = markdown_section(root, title)
+get_document_section(root::MarkdownRoot, title::AbstractString) = markdown_section(root, title)
 
 function __init__()
     register_file_document_type!(".md",       MarkdownFile)

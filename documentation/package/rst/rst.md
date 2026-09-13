@@ -173,7 +173,7 @@ field is `bound`.
 `rst_section(document, title)` finds a section by the plain text of its title.
 Unlike the markdown counterpart it returns the node itself, because an RST
 section already owns its blocks. It is also the slice's method of
-`document_section`, the generic behind the `section(…)` marker verb, so
+`get_document_section`, the generic behind the `section(…)` marker verb, so
 `<<section(file("page.rst"), "Title")>>` embeds a section of a page.
 
 ## Embedding another document

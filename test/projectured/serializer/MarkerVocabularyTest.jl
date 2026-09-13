@@ -63,7 +63,7 @@ function test_marker_vocabulary()
             whole = evaluate_marker("file(\"steps.jl\")", ctx)
             part  = evaluate_marker("definition(file(\"steps.jl\"), \"LIMIT\")", ctx)
             # The fragment is a node *of* the interned file, not of a re-parse.
-            @test any(s -> s === part, getfield(content(whole), :statements)[])
+            @test any(s -> s === part, getfield(get_file_content(whole), :statements)[])
         finally
             rm(d; recursive=true, force=true)
         end
@@ -105,7 +105,7 @@ function test_marker_vocabulary()
 
             # The section IS the page's own elements, not a copy of them.
             page = evaluate_marker("file(\"page.md\")", ctx)
-            elements = collect(getfield(content(page), :elements)[])
+            elements = collect(getfield(get_file_content(page), :elements)[])
             section = evaluate_marker("section(file(\"page.md\"), \"Second\")", ctx)
             @test any(e -> e === collect(getfield(section, :elements)[])[1], elements)
 
@@ -128,7 +128,7 @@ function test_marker_vocabulary()
             resolve_stubs!(page)
 
             # Saving puts it back as it was written — inline, with no fence.
-            saved = print_natural_text(content(page))
+            saved = print_natural_text(get_file_content(page))
             @test occursin("The builder is <<definition(file(\"steps.jl\"), \"LIMIT\")>> and it runs.",
                            saved)
             @test !occursin("```", saved)
@@ -142,7 +142,7 @@ function test_marker_vocabulary()
         try
             write(joinpath(d, "page.md"), "A plain <<not a marker>> stays text.\n")
             page = load_project(MarkdownFile, "page.md", d)
-            saved = print_natural_text(content(page))
+            saved = print_natural_text(get_file_content(page))
             @test occursin("<<not a marker>>", saved)
         finally
             rm(d; recursive=true, force=true)

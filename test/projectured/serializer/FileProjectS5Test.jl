@@ -37,7 +37,7 @@ function test_file_project_s5()
             child_mt = mtime(joinpath(d, "child.json"))
             # Reload root — child stays unresolved.
             reloaded = load_project(JsonFile, "root.json", d)
-            @test !is_resolved(_s5_stub_at(content(reloaded), "c"))
+            @test !is_resolved(_s5_stub_at(get_file_content(reloaded), "c"))
             sleep(0.05)
             save_project!(reloaded, d)
             # Child was not in the loaded graph → not written.
@@ -54,7 +54,7 @@ function test_file_project_s5()
             root  = JsonFile("root.json",  JsonObject("c" => child))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            stub = _s5_stub_at(content(reloaded), "c")
+            stub = _s5_stub_at(get_file_content(reloaded), "c")
             resolve!(stub)   # child now in the loaded graph
             child_mt = mtime(joinpath(d, "child.json"))
             sleep(0.05)
@@ -72,7 +72,7 @@ function test_file_project_s5()
             root  = JsonFile("root.json",  JsonObject("c" => child))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            stub = _s5_stub_at(content(reloaded), "c")
+            stub = _s5_stub_at(get_file_content(reloaded), "c")
             resolved_child = resolve!(stub)
             # Mutate the child's content field.
             getfield(resolved_child, :content)[] = JsonString("updated")
@@ -126,7 +126,7 @@ function test_file_project_s5()
             child_mt = mtime(joinpath(d, "child.json"))
             reloaded = load_project(JsonFile, "root.json", d)
             # Modify a plain string entry so root's text changes.
-            entries = getfield(content(reloaded), :entries)[]
+            entries = getfield(get_file_content(reloaded), :entries)[]
             k_slot = getfield(entries[2], :value)[]
             getfield(k_slot, :value)[] = "v1"
             sleep(0.05)

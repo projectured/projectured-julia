@@ -40,7 +40,7 @@ function test_julia_and_markdown_file()
             @test read(joinpath(d, "root.jl"), String) == "f(1, 2)"
             reloaded = load_project(JuliaFile, "root.jl", d)
             @test reloaded isa JuliaFile
-            @test content(reloaded) isa JuliaCall
+            @test get_file_content(reloaded) isa JuliaCall
         finally
             rm(d; recursive=true, force=true)
         end
@@ -67,12 +67,12 @@ function test_julia_and_markdown_file()
             root  = JuliaFile("root.jl", JuliaCall(JuliaIdentifier("f"), Any[child]))
             save_project!(root, d)
             reloaded = load_project(JuliaFile, "root.jl", d)
-            call = content(reloaded)::JuliaCall
+            call = get_file_content(reloaded)::JuliaCall
             arg = _arg1(call)
             @test arg isa ReferenceStub
             resolved = resolve!(arg)
             @test resolved isa JuliaFile
-            @test filename(resolved) == "child.jl"
+            @test get_filename(resolved) == "child.jl"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -85,7 +85,7 @@ function test_julia_and_markdown_file()
             root  = JuliaFile("root.jl", JuliaCall(JuliaIdentifier("f"), Any[child, child]))
             save_project!(root, d)
             reloaded = load_project(JuliaFile, "root.jl", d)
-            call = content(reloaded)::JuliaCall
+            call = get_file_content(reloaded)::JuliaCall
             v = getfield(call, :arguments)[]
             s1 = v[1] isa AbstractCell ? v[1][] : v[1]
             s2 = v[2] isa AbstractCell ? v[2][] : v[2]
@@ -106,8 +106,8 @@ function test_julia_and_markdown_file()
                                                    Any[JuliaInteger(42)]))
             save_project!(root, d)
             reloaded = load_project(JuliaFile, "root.jl", d)
-            @test content(reloaded) isa JuliaCall
-            call = content(reloaded)::JuliaCall
+            @test get_file_content(reloaded) isa JuliaCall
+            call = get_file_content(reloaded)::JuliaCall
             @test call.callee isa JuliaIdentifier
             @test call.callee.name == "some_other_fn"
             @test _arg1(call) isa JuliaInteger
@@ -130,7 +130,7 @@ function test_julia_and_markdown_file()
             @test occursin("world", text)
             reloaded = load_project(MarkdownFile, "root.md", d)
             @test reloaded isa MarkdownFile
-            @test content(reloaded) isa MarkdownRoot
+            @test get_file_content(reloaded) isa MarkdownRoot
         finally
             rm(d; recursive=true, force=true)
         end
@@ -165,12 +165,12 @@ function test_julia_and_markdown_file()
                                                child]))
             save_project!(root, d)
             reloaded = load_project(MarkdownFile, "root.md", d)
-            elems = getfield(content(reloaded)::MarkdownRoot, :elements)[]
+            elems = getfield(get_file_content(reloaded)::MarkdownRoot, :elements)[]
             stubs = [e for e in elems if e isa ReferenceStub]
             @test length(stubs) == 1
             resolved = resolve!(stubs[1])
             @test resolved isa MarkdownFile
-            @test filename(resolved) == "child.md"
+            @test get_filename(resolved) == "child.md"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -183,7 +183,7 @@ function test_julia_and_markdown_file()
                                 MarkdownRoot([MarkdownCodeBlock("julia", "f(1)")]))
             save_project!(root, d)
             reloaded = load_project(MarkdownFile, "root.md", d)
-            elems = getfield(content(reloaded)::MarkdownRoot, :elements)[]
+            elems = getfield(get_file_content(reloaded)::MarkdownRoot, :elements)[]
             @test length(elems) == 1
             @test elems[1] isa MarkdownCodeBlock
         finally

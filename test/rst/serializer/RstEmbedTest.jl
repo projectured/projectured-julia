@@ -109,11 +109,11 @@ function test_rst_embed()
 
     @testset "a pred-ref directive loads as a marker" begin
         _re_project() do page, d
-            stub = _re_stub(content(page))
+            stub = _re_stub(get_file_content(page))
             @test stub isa ReferenceStub
-            @test marker_text(stub) == "<<file(\"data.json\")>>"
+            @test format_marker_text(stub) == "<<file(\"data.json\")>>"
             # It sits inside the section, where it was written.
-            section = collect(content(page).elements)[1]
+            section = collect(get_file_content(page).elements)[1]
             @test section isa RstSection
             @test any(e -> e isa ReferenceStub, collect(section.elements))
         end
@@ -121,17 +121,17 @@ function test_rst_embed()
 
     @testset "a directive that is not a marker stays a directive" begin
         _re_project("Title\n=====\n\n.. pred-ref:: not a marker\n") do page, d
-            @test _re_stub(content(page)) === nothing
-            section = collect(content(page).elements)[1]
+            @test _re_stub(get_file_content(page)) === nothing
+            section = collect(get_file_content(page).elements)[1]
             @test any(e -> e isa RstDirective, collect(section.elements))
         end
     end
 
     @testset "the page saves as its marker, forced or not" begin
         _re_project() do page, d
-            before = print_natural_text(content(page))
+            before = print_natural_text(get_file_content(page))
             resolve_stubs!(page)
-            after = print_natural_text(content(page))
+            after = print_natural_text(get_file_content(page))
             @test before == after
             @test occursin(".. pred-ref:: <<file(\"data.json\")>>", after)
             @test !occursin("\"a\"", after)
@@ -143,7 +143,7 @@ function test_rst_embed()
     @testset "a resolved embed is framed by a card titled after its file" begin
         _re_project() do page, d
             resolve_stubs!(page)
-            drawn = _re_texts(print_document(_re_renderer(), content(page)).output)
+            drawn = _re_texts(print_document(_re_renderer(), get_file_content(page)).output)
             @test _RE_CHEVRON * " data.json" in drawn   # the card's own header
             @test "a" in drawn                          # with the JSON key inside it
             # The prose around it is untouched, and the title still reads.
@@ -155,7 +155,7 @@ function test_rst_embed()
 
     @testset "an unforced embed draws its marker, with no card" begin
         _re_project() do page, d
-            drawn = _re_texts(print_document(_re_renderer(), content(page)).output)
+            drawn = _re_texts(print_document(_re_renderer(), get_file_content(page)).output)
             @test any(t -> occursin("<<file(\"data.json\")>>", t), drawn)
             @test !any(t -> occursin(_RE_CHEVRON, t), drawn)
         end
@@ -164,7 +164,7 @@ function test_rst_embed()
     @testset "a click through the card reaches the embedded document" begin
         _re_project() do page, d
             resolve_stubs!(page)
-            root = content(page)
+            root = get_file_content(page)
             iomap = print_document(_re_renderer(), root)
             x, y = _re_position(iomap.output, "a")     # the JSON key
             @test x >= 0
@@ -185,7 +185,7 @@ function test_rst_embed()
     @testset "a click on the card header folds the embed away" begin
         _re_project() do page, d
             resolve_stubs!(page)
-            iomap = print_document(_re_renderer(), content(page))
+            iomap = print_document(_re_renderer(), get_file_content(page))
             x, y = _re_position(iomap.output, _RE_CHEVRON * " data.json")
             op = read_intent(iomap.projection, iomap, MousePress(:left, x, y, ModifierKeys()))
             @test op isa ToggleCollapseOperation

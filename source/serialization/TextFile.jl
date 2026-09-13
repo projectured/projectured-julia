@@ -13,7 +13,7 @@ module TextFileModule
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: @document
 import ..ReferenceModule: Reference
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             register_file_document_type!
 
 export TextFile
@@ -32,7 +32,7 @@ extension routes here).
     content::String = ""
 end
 
-emit_text(f::TextFile) = content(f)
+emit_text(f::TextFile) = get_file_content(f)
 
 function populate_file!(f::TextFile, filename::AbstractString, ctx)
     getfield(f, :content)[] = read(joinpath(ctx.base_dir, filename), String)

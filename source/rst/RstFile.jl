@@ -40,9 +40,9 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRo
 import ..RstParserModule: rstparse
 import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
 import ..NaturalNotationModule: register_natural_domain!, print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             LoaderContext, register_file_document_type!,
-                            document_section, parse_marker_text, ReferenceStub
+                            get_document_section, parse_marker_text, ReferenceStub
 
 export RstFile, rst_section, rst_title_text, PRED_REF_DIRECTIVE
 
@@ -56,7 +56,7 @@ A file document whose `content` is an `RstDocument`.
     content::RstDocument = RstRoot()
 end
 
-emit_text(f::RstFile) = print_natural_text(content(f))
+emit_text(f::RstFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::RstFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
@@ -161,7 +161,7 @@ _elements_of(::Any)                = ()
 # The `section` verb is one shared generic; RST adds its method here, markdown
 # adds its own. A marker that names no section fails loudly rather than embed
 # nothing, which is what `rst_section` answers for a caller that wants to look.
-function document_section(document::Union{RstRoot,RstSection}, title::AbstractString)
+function get_document_section(document::Union{RstRoot,RstSection}, title::AbstractString)
     found = rst_section(document, title)
     found === nothing &&
         error("section(…): no title reads ", repr(title),

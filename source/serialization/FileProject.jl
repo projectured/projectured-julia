@@ -20,7 +20,7 @@ This module carries the pieces every format hooks into:
 - `is_file_document(x) :: Bool` — the trait predicate every driver
   check goes through. Default `false`; `true` for `FileDocument`
   subtypes; external types opt in with their own method.
-- `filename(f)` / `content(f)` — the interface accessors. Both work off
+- `get_filename(f)` / `get_file_content(f)` — the interface accessors. Both work off
   the two `@document`-generated cell fields.
 - `emit_text(f)` — the format's path-to-text. Concrete types override
   it (a plain leaf like `TextFile` returns its `content` directly; a
@@ -70,7 +70,7 @@ presentation package registers `realize`.
 Three properties every marker keeps:
 
 - **Verbatim source.** A stub stores the marker body exactly as
-  written, and `marker_text` re-emits it, so saving a file that was
+  written, and `format_marker_text` re-emits it, so saving a file that was
   loaded is byte-identical — the save path never re-prints an
   evaluated value.
 - **Interning.** Every call's value is cached in `ctx.intern` under
@@ -87,13 +87,13 @@ import ..CellModule: Cell, ComputedCell, ReactiveCell, unwrap_cell
 import ..DocumentModule: Document, search_documents
 
 export FileDocument, is_file_document,
-       filename, content, emit_text, populate_file!,
+       get_filename, get_file_content, emit_text, populate_file!,
        save_project!, load_project, ReferenceStub, resolve!, is_resolved,
        resolve_stubs!, LoaderContext,
-       register_file_document_type!, file_document_type,
-       register_marker_function!, marker_function, evaluate_marker,
+       register_file_document_type!, get_file_document_type,
+       register_marker_function!, get_marker_function, evaluate_marker,
        register_marker_type_resolver!,
-       marker_text, parse_marker_text, file_marker_text, document_section
+       format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
 
 # ── FileDocument: abstract type + is_file_document trait ──────────────────
 #
@@ -116,7 +116,7 @@ export FileDocument, is_file_document,
 
 A document that owns a text file. Every direct subtype declares two
 `@document` fields — `filename::String` and a format-native `content`
-— so `filename(f)` and `content(f)` work uniformly.
+— so `get_filename(f)` and `get_file_content(f)` work uniformly.
 
 The abstract type is one of *two* ways to opt in to the FileProject
 substrate; the other is the `is_file_document` trait (see below), for
@@ -153,7 +153,7 @@ lives at on disk. Default reads through the `filename` field's
 underlying reactive cell — works for any type that has one (both
 `FileDocument` subtypes and trait-based opt-ins).
 """
-filename(f) = unwrap_cell(getfield(f, :filename))
+get_filename(f) = unwrap_cell(getfield(f, :filename))
 
 """
     content(f) -> Any
@@ -168,7 +168,7 @@ its `children` + `version`) don't have a single `content` field and
 skip this method — their `emit_text` calls `print_natural_text` on the
 whole node directly.
 """
-content(f) = unwrap_cell(getfield(f, :content))
+get_file_content(f) = unwrap_cell(getfield(f, :content))
 
 """
     emit_text(f) -> String
@@ -278,16 +278,16 @@ function register_file_document_type!(extension::AbstractString, T::Type)
 end
 
 """
-    file_document_type(path::AbstractString) -> Type
+    get_file_document_type(path::AbstractString) -> Type
 
 Look up the concrete file-document type for `path` by its extension
 (case-insensitive). Errors if no format has claimed the extension —
 better a loud miss at resolve time than a silently-wrong parse.
 """
-function file_document_type(path::AbstractString)
+function get_file_document_type(path::AbstractString)
     ext = lowercase(splitext(path)[2])
     haskey(_FILE_DOCUMENT_TYPES, ext) && return _FILE_DOCUMENT_TYPES[ext]
-    error("file_document_type: no file document registered for extension ",
+    error("get_file_document_type: no file document registered for extension ",
           repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
 end
 
@@ -354,7 +354,7 @@ end
 Base.getproperty(stub::ReferenceStub, name::Symbol) =
     name === :resolved ? getfield(stub, :resolved)[] : getfield(stub, name)
 
-Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", marker_text(s), ")")
+Base.show(io::IO, s::ReferenceStub) = print(io, "ReferenceStub(", format_marker_text(s), ")")
 
 # Two stubs are equal when their marker source is — the context and the
 # resolved cell are load-session state, not identity.
@@ -470,7 +470,7 @@ function register_marker_function!(name::Symbol, f)
     previous = get(_MARKER_FUNCTIONS, name, nothing)
     # First registration wins, as it does for the natural-syntax table. Two
     # formats that both want one verb must share it through a generic (see
-    # `document_section`), because a silent overwrite makes the winner depend on
+    # `get_document_section`), because a silent overwrite makes the winner depend on
     # which `__init__` ran last, and the loser fails only at load time.
     if previous !== nothing && previous !== f
         @warn "register_marker_function!: the verb is already registered — keeping the first" name
@@ -481,31 +481,31 @@ function register_marker_function!(name::Symbol, f)
 end
 
 """
-    marker_function(name::Symbol) -> f or nothing
+    get_marker_function(name::Symbol) -> f or nothing
 
 The vocabulary entry for `name`, or `nothing` when the name is not
 registered.
 """
-marker_function(name::Symbol) = get(_MARKER_FUNCTIONS, name, nothing)
+get_marker_function(name::Symbol) = get(_MARKER_FUNCTIONS, name, nothing)
 
 marker_function_names() = sort!(String[String(k) for k in keys(_MARKER_FUNCTIONS)])
 
 """
-    marker_text(stub::ReferenceStub) -> String
+    format_marker_text(stub::ReferenceStub) -> String
 
 The stub's marker as it appears in a file: its verbatim source
 wrapped back in `<<`/`>>`.
 """
-marker_text(stub::ReferenceStub) = "<<" * getfield(stub, :source) * ">>"
+format_marker_text(stub::ReferenceStub) = "<<" * getfield(stub, :source) * ">>"
 
 """
-    file_marker_text(path::AbstractString) -> String
+    format_file_marker_text(path::AbstractString) -> String
 
 The whole-file marker naming `path` — `<<file("path")>>`. What a
 format's projection emits for a `FileDocument` embedded directly in
 its tree (as opposed to through a stub).
 """
-file_marker_text(path::AbstractString) = "<<file(" * repr(String(path)) * ")>>"
+format_file_marker_text(path::AbstractString) = "<<file(" * repr(String(path)) * ")>>"
 
 const _MARKER_OPEN  = "<<"
 const _MARKER_CLOSE = ">>"
@@ -564,7 +564,7 @@ end
 # A lower-case callee is one of the vocabulary functions: `file`, `definition`,
 # `realize`.
 function _call_marker_function(name::Symbol, e::Expr, ctx::LoaderContext, key::AbstractString)
-    f = marker_function(name)
+    f = get_marker_function(name)
     f === nothing &&
         error("marker: unknown function ", name, " in ", key,
               " — the vocabulary is (", join(marker_function_names(), ", "), ")")
@@ -728,7 +728,7 @@ function marker_file(ctx::LoaderContext, path)
     path isa AbstractString ||
         error("file(…): expected a path string, got ", typeof(path), " (", repr(path), ")")
     p = String(path)
-    _load_into_context(file_document_type(p), p, ctx; marker_key=_file_marker_key(p))
+    _load_into_context(get_file_document_type(p), p, ctx; marker_key=_file_marker_key(p))
 end
 
 # Normalised so `a.json` and `./a.json` intern as one target.
@@ -750,20 +750,20 @@ owns its blocks. One verb serves every format, because the marker registry holds
 one function per name and two formats registering `:section` would leave the
 winner to load order.
 """
-function document_section end
+function get_document_section end
 
-document_section(document, title::AbstractString) =
+get_document_section(document, title::AbstractString) =
     error("section(…): no section vocabulary for a ", typeof(document),
-          " — the format registers one by adding a `document_section` method")
+          " — the format registers one by adding a `get_document_section` method")
 
 # A marker naming a file gets the file; the section lives in its content.
-document_section(file::FileDocument, title::AbstractString) =
-    document_section(content(file), title)
+get_document_section(file::FileDocument, title::AbstractString) =
+    get_document_section(get_file_content(file), title)
 
 function marker_section(::LoaderContext, document, title)
     title isa AbstractString ||
         error("section(…): expected a title string, got ", typeof(title), " (", repr(title), ")")
-    document_section(document, String(title))
+    get_document_section(document, String(title))
 end
 
 function __init__()
@@ -811,7 +811,7 @@ end
 _reachable_files(root) = search_documents(root, is_file_document)
 
 function _save_one_file!(file, base_dir::AbstractString)
-    path = joinpath(base_dir, filename(file))
+    path = joinpath(base_dir, get_filename(file))
     parent = dirname(path)
     isempty(parent) || mkpath(parent)
     text = emit_text(file)

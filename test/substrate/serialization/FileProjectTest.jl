@@ -18,8 +18,8 @@ function test_file_project()
 
     @testset "FileDocument interface: filename + content" begin
         f = TextFile("hello.txt", "world")
-        @test filename(f) == "hello.txt"
-        @test content(f) == "world"
+        @test get_filename(f) == "hello.txt"
+        @test get_file_content(f) == "world"
         # subtype relationship
         @test f isa FileDocument
     end
@@ -58,8 +58,8 @@ function test_file_project()
             save_project!(TextFile("hello.txt", "world"), d)
             g = load_project(TextFile, "hello.txt", d)
             @test g isa TextFile
-            @test filename(g) == "hello.txt"
-            @test content(g) == "world"
+            @test get_filename(g) == "hello.txt"
+            @test get_file_content(g) == "world"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -113,7 +113,7 @@ function test_file_project()
                 write(io, "edited on disk")
             end
             g = load_project(TextFile, "h.txt", d)
-            @test content(g) == "edited on disk"
+            @test get_file_content(g) == "edited on disk"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -130,7 +130,7 @@ function test_file_project()
         try
             built = evaluate_marker("TextFile(\"page.txt\", \"hello\")", ctx)
             @test built isa TextFile
-            @test filename(built) == "page.txt"
+            @test get_filename(built) == "page.txt"
             # A type the resolver refuses is refused here, so a file cannot
             # build what it has no business building.
             @test_throws ErrorException evaluate_marker("NotOffered()", ctx)
@@ -158,7 +158,7 @@ function test_file_project()
         stub = ReferenceStub("file(\"child.json\")")
         @test stub isa FileProjectModule.ReferenceStub
         @test stub.source == "file(\"child.json\")"
-        @test marker_text(stub) == "<<file(\"child.json\")>>"
+        @test format_marker_text(stub) == "<<file(\"child.json\")>>"
         @test occursin("ReferenceStub", sprint(show, stub))
         # equality is by marker source
         @test ReferenceStub("file(\"child.json\")") == stub

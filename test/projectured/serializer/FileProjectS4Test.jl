@@ -33,12 +33,12 @@ function test_file_project_s4()
 
     # ── register / lookup FileDocument type by extension ────────────────
 
-    @testset "file_document_type dispatches by extension" begin
-        @test file_document_type("root.json") == JsonFile
+    @testset "get_file_document_type dispatches by extension" begin
+        @test get_file_document_type("root.json") == JsonFile
         # ".txt" is claimed by TextFile
-        @test file_document_type("readme.txt") <: FileDocument
+        @test get_file_document_type("readme.txt") <: FileDocument
         # An unknown extension routes to the "" fallback (TextFile)
-        @test file_document_type("Makefile") <: FileDocument
+        @test get_file_document_type("Makefile") <: FileDocument
     end
 
     # ── ReferenceStub state ─────────────────────────────────────────────
@@ -58,7 +58,7 @@ function test_file_project_s4()
             root  = JsonFile("root.json", JsonObject("a" => child, "b" => child))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            obj = content(reloaded)::JsonObject
+            obj = get_file_content(reloaded)::JsonObject
             stub_a = _stub_at(obj, "a")
             stub_b = _stub_at(obj, "b")
             @test stub_a isa ReferenceStub
@@ -67,7 +67,7 @@ function test_file_project_s4()
             ra = resolve!(stub_a)
             rb = resolve!(stub_b)
             @test ra isa JsonFile
-            @test filename(ra) == "child.json"
+            @test get_filename(ra) == "child.json"
             @test ra === rb             # shared identity via intern table
         finally
             rm(d; recursive=true, force=true)
@@ -83,7 +83,7 @@ function test_file_project_s4()
             root  = JsonFile("root.json",  JsonObject("c" => child))
             save_project!(root, d)
             reloaded = load_project(JsonFile, "root.json", d)
-            obj = content(reloaded)::JsonObject
+            obj = get_file_content(reloaded)::JsonObject
             stub = _stub_at(obj, "c")
             @test !is_resolved(stub)
             r1 = resolve!(stub)
@@ -110,14 +110,14 @@ function test_file_project_s4()
 
             loaded_a = load_project(JsonFile, "a.json", d)
             @test loaded_a isa JsonFile
-            @test filename(loaded_a) == "a.json"
+            @test get_filename(loaded_a) == "a.json"
 
-            stub_ab = _stub_at(content(loaded_a)::JsonObject, "to_b")
+            stub_ab = _stub_at(get_file_content(loaded_a)::JsonObject, "to_b")
             resolved_b = resolve!(stub_ab)
             @test resolved_b isa JsonFile
-            @test filename(resolved_b) == "b.json"
+            @test get_filename(resolved_b) == "b.json"
 
-            stub_ba = _stub_at(content(resolved_b)::JsonObject, "to_a")
+            stub_ba = _stub_at(get_file_content(resolved_b)::JsonObject, "to_a")
             resolved_a = resolve!(stub_ba)
             @test resolved_a === loaded_a   # cycle closes on the original A
         finally

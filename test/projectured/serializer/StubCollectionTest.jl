@@ -55,7 +55,7 @@ function test_stub_collection()
             page = evaluate_marker("file(\"page.md\")", ctx)
             resolve_stubs!(page; context = ctx)
             @test is_resolved(ctx.stubs[page][1])
-            @test content(ctx.stubs[page][1].resolved) == "one"
+            @test get_file_content(ctx.stubs[page][1].resolved) == "one"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -76,7 +76,7 @@ function test_stub_collection()
             middle = ctx.stubs[page][1].resolved
             @test middle isa MarkdownFile
             @test is_resolved(ctx.stubs[middle][1])
-            @test content(ctx.stubs[middle][1].resolved) == "deep"
+            @test get_file_content(ctx.stubs[middle][1].resolved) == "deep"
         finally
             rm(d; recursive=true, force=true)
         end

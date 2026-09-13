@@ -138,7 +138,7 @@ function test_markdown_embed()
 
     @testset "an unforced embed renders as its marker" begin
         _me_project() do page, d
-            text = _me_rendered_text(content(page))
+            text = _me_rendered_text(get_file_content(page))
             @test occursin("<<definition(file(\"steps.jl\"), \"packet_queue_step\")>>", text)
             @test occursin("Prose before.", text)
         end
@@ -147,7 +147,7 @@ function test_markdown_embed()
     @testset "a forced embed renders the embedded document, in its own domain" begin
         _me_project() do page, d
             resolve_stubs!(page)
-            text = _me_rendered_text(content(page))
+            text = _me_rendered_text(get_file_content(page))
             @test occursin("function packet_queue_step(x)", text)
             @test !occursin("<<definition", text)
             # The prose around it is untouched.
@@ -159,7 +159,7 @@ function test_markdown_embed()
     @testset "embedding a whole file shows the file's content" begin
         _me_project("Raw:\n\n```pred-ref\n<<file(\"data.json\")>>\n```\n") do page, d
             resolve_stubs!(page)
-            text = _me_rendered_text(content(page))
+            text = _me_rendered_text(get_file_content(page))
             @test occursin("\"a\"", text)
             @test !occursin("<<file", text)
         end
@@ -167,9 +167,9 @@ function test_markdown_embed()
 
     @testset "the save path stays by-marker, forced or not" begin
         _me_project() do page, d
-            before = print_natural_text(content(page))
+            before = print_natural_text(get_file_content(page))
             resolve_stubs!(page)
-            after = print_natural_text(content(page))
+            after = print_natural_text(get_file_content(page))
             @test before == after
             @test occursin("```pred-ref", after)
             @test occursin("<<definition(file(\"steps.jl\"), \"packet_queue_step\")>>", after)
@@ -184,7 +184,7 @@ function test_markdown_embed()
                 chain = ChainingProjection(RecursiveProjection(MarkdownToSyntax(style = style)),
                                            RecursiveProjection(SyntaxToText()),
                                            RecursiveProjection(TextToString()))
-                text = String(print_document(chain, content(page)).output)
+                text = String(print_document(chain, get_file_content(page)).output)
                 @test occursin("<<definition(", text)
             end
         end
@@ -193,7 +193,7 @@ function test_markdown_embed()
     @testset "the caret descends into the embed and maps back out" begin
         _me_project() do page, d
             resolve_stubs!(page)
-            md = content(page)
+            md = get_file_content(page)
             i  = _me_stub_index(md)
             @test i !== nothing
             # `.resolved` is the structural step into the embed; the tail is a
@@ -218,7 +218,7 @@ function test_markdown_embed()
 
     @testset "an unforced embed has no interior to project into" begin
         _me_project() do page, d
-            md = content(page)
+            md = get_file_content(page)
             i  = _me_stub_index(md)
             path = ConcreteReference(FieldReferenceStep("elements"),
                     ConcreteReference(RangeReferenceStep(i - 1, i),
@@ -239,7 +239,7 @@ function test_markdown_embed()
         # simulation card is a widget — squeezed through a syntax tree it would
         # arrive as reflected text, and would never see a click.
         _me_project() do page, d
-            md   = content(page)
+            md   = get_file_content(page)
             i    = _me_stub_index(md)
             stub = (e = collect(getfield(md, :elements)[])[i]; e isa Cell ? e[] : e)
             getfield(stub, :resolved)[] =
@@ -257,7 +257,7 @@ function test_markdown_embed()
 
     @testset "an unforced embed draws its marker in the page" begin
         _me_project() do page, d
-            drawn = _me_graphics_text(print_document(_me_renderer(), content(page)).output)
+            drawn = _me_graphics_text(print_document(_me_renderer(), get_file_content(page)).output)
             @test any(t -> occursin("<<definition(", t), drawn)
             @test any(t -> occursin("Prose after.", t), drawn)
             # No card around a marker: there is no document to frame yet.
@@ -272,7 +272,7 @@ function test_markdown_embed()
     @testset "a resolved embed is framed by a card titled after its file" begin
         _me_project(_ME_JSON_PAGE) do page, d
             resolve_stubs!(page)
-            drawn = _me_graphics_text(print_document(_me_renderer(), content(page)).output)
+            drawn = _me_graphics_text(print_document(_me_renderer(), get_file_content(page)).output)
             @test _ME_CHEVRON * " data.json" in drawn     # the card's own header
             @test "a" in drawn                            # with the JSON key inside it
             # One card, not two: the marker evaluates to a file document, which
@@ -283,10 +283,10 @@ function test_markdown_embed()
 
     @testset "the framed page still saves as its marker" begin
         _me_project(_ME_JSON_PAGE) do page, d
-            before = print_natural_text(content(page))
+            before = print_natural_text(get_file_content(page))
             resolve_stubs!(page)
-            print_document(_me_renderer(), content(page))   # render, cards and all
-            @test print_natural_text(content(page)) == before
+            print_document(_me_renderer(), get_file_content(page))   # render, cards and all
+            @test print_natural_text(get_file_content(page)) == before
             @test occursin("<<file(\"data.json\")>>", before)
         end
     end
@@ -294,7 +294,7 @@ function test_markdown_embed()
     @testset "a click through the card reaches the embedded document" begin
         _me_project(_ME_JSON_PAGE) do page, d
             resolve_stubs!(page)
-            md = content(page)
+            md = get_file_content(page)
             iomap = print_document(_me_renderer(), md)
             x, y = _me_text_position(iomap.output, "a")   # the JSON key
             @test x >= 0
@@ -318,7 +318,7 @@ function test_markdown_embed()
     @testset "a click on the card header folds the embed away" begin
         _me_project(_ME_JSON_PAGE) do page, d
             resolve_stubs!(page)
-            iomap = print_document(_me_renderer(), content(page))
+            iomap = print_document(_me_renderer(), get_file_content(page))
             x, y = _me_text_position(iomap.output, _ME_CHEVRON * " data.json")
             op = read_intent(iomap.projection, iomap, MousePress(:left, x, y, ModifierKeys()))
             @test op isa ToggleCollapseOperation

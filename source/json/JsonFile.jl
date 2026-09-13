@@ -26,7 +26,7 @@ import ..JsonModule: JsonDocument, JsonNothing, JsonString, JsonArray,
                      JsonObject, JsonObjectEntry
 import ..JsonParserModule: jsonparse
 import ..NaturalNotationModule: print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, content,
+import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!
 
@@ -47,7 +47,7 @@ end
 # The `ReferenceStub` case registered in `JsonToSyntax.jl` renders
 # stubs as marker strings when the projection walks over them, so no
 # pre-emit AST mutation is needed.
-emit_text(f::JsonFile) = print_natural_text(content(f))
+emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 
 # Load: parse the file with `jsonparse`, then substitute marker
 # strings with `ReferenceStub` values in the parsed tree in place.

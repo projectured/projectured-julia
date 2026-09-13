@@ -29,7 +29,7 @@ function test_xml_file()
             @test occursin("hi", text)
             reloaded = load_project(XmlFile, "root.xml", d)
             @test reloaded isa XmlFile
-            @test content(reloaded) isa XmlElement
+            @test get_file_content(reloaded) isa XmlElement
         finally
             rm(d; recursive=true, force=true)
         end
@@ -63,12 +63,12 @@ function test_xml_file()
             root = XmlFile("root.xml", root_el)
             save_project!(root, d)
             reloaded = load_project(XmlFile, "root.xml", d)
-            kids = getfield(content(reloaded)::XmlElement, :children)[]
+            kids = getfield(get_file_content(reloaded)::XmlElement, :children)[]
             u = kids[1] isa AbstractCell ? kids[1][] : kids[1]
             @test u isa ReferenceStub
             resolved = resolve!(u)
             @test resolved isa XmlFile
-            @test filename(resolved) == "child.xml"
+            @test get_filename(resolved) == "child.xml"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -83,7 +83,7 @@ function test_xml_file()
             root = XmlFile("root.xml", root_el)
             save_project!(root, d)
             reloaded = load_project(XmlFile, "root.xml", d)
-            kids = getfield(content(reloaded)::XmlElement, :children)[]
+            kids = getfield(get_file_content(reloaded)::XmlElement, :children)[]
             s1 = kids[1] isa AbstractCell ? kids[1][] : kids[1]
             s2 = kids[2] isa AbstractCell ? kids[2][] : kids[2]
             @test s1 isa ReferenceStub
@@ -105,7 +105,7 @@ function test_xml_file()
                                    XmlElement("inner", XmlDocument[XmlText("stuff")])])]))
             save_project!(root, d)
             reloaded = load_project(XmlFile, "root.xml", d)
-            kids = getfield(content(reloaded)::XmlElement, :children)[]
+            kids = getfield(get_file_content(reloaded)::XmlElement, :children)[]
             u = kids[1] isa AbstractCell ? kids[1][] : kids[1]
             @test u isa XmlElement
             @test u.tag == "pred:ref"

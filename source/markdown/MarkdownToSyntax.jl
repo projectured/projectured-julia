@@ -56,7 +56,7 @@ import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
@@ -654,7 +654,7 @@ end
 # A marker written in a line of prose goes back as it was found; one written as
 # a block of its own goes back in its fence.
 _stub_marker_fence(stub::ReferenceStub) =
-    stub.inline ? marker_text(stub) : "```pred-ref\n" * marker_text(stub) * "\n```"
+    stub.inline ? format_marker_text(stub) : "```pred-ref\n" * format_marker_text(stub) * "\n```"
 
 # ── EmbeddedFileDocumentToMarkdownSyntaxLeaf ────────────────────────────────
 
@@ -666,7 +666,7 @@ end
     SyntaxLeaf(TextString(_embedded_marker_fence(f), p.style))
 
 _embedded_marker_fence(f::FileDocument) =
-    "```pred-ref\n" * file_marker_text(filename(f)) * "\n```"
+    "```pred-ref\n" * format_file_marker_text(get_filename(f)) * "\n```"
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The

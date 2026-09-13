@@ -61,8 +61,8 @@ import ..LayoutModule: HorizontalLayout
 import ..OperationModule: ReplaceSelectionOperation
 import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text,
-                            content, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
+                            get_file_content, get_filename
 
 export ReferenceStubToSyntax, FileDocumentToSyntax, EmbedIoMap
 
@@ -121,7 +121,7 @@ function print_document(p::ReferenceStubToSyntax, recursion, stub::ReferenceStub
     output = ComputedCell(() -> begin
         iomap = printed[]
         iomap === nothing ?
-            _unforced_output(p, recursion, marker_text(stub), ctx) : iomap.output
+            _unforced_output(p, recursion, format_marker_text(stub), ctx) : iomap.output
     end)
     EmbedIoMap(p, stub, output, printed)
 end
@@ -174,12 +174,12 @@ end
 
 function print_document(p::FileDocumentToSyntax, recursion, file::FileDocument, ctx)
     child_ctx = make_child_context(ctx, FieldReferenceStep("content"))
-    printed = _embed_printed(p, recursion, () -> content(file),
-                             () -> String(filename(file)), child_ctx)
+    printed = _embed_printed(p, recursion, () -> get_file_content(file),
+                             () -> String(get_filename(file)), child_ctx)
     output = ComputedCell(() -> begin
         iomap = printed[]
         iomap === nothing ?
-            _unforced_output(p, recursion, file_marker_text(filename(file)), ctx) : iomap.output
+            _unforced_output(p, recursion, format_file_marker_text(get_filename(file)), ctx) : iomap.output
     end)
     EmbedIoMap(p, file, output, printed)
 end
@@ -268,7 +268,7 @@ _document_selection(value) =
 # "packet_queue_step")` is titled `packet_queue_step`. A marker that names
 # nothing keeps its own text, which is always true if not always short.
 function _embed_title(stub::ReferenceStub)
-    text = marker_text(stub)
+    text = format_marker_text(stub)
     last_name = nothing
     for match in eachmatch(r"\"([^\"]*)\"", text)
         name = match.captures[1]

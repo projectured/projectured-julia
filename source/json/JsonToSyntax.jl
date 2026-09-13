@@ -12,7 +12,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..FileProjectModule: FileDocument, ReferenceStub, marker_text, file_marker_text, filename
+import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -172,7 +172,7 @@ end
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
-_stub_marker_body(stub::ReferenceStub) = json_escape(marker_text(stub))
+_stub_marker_body(stub::ReferenceStub) = json_escape(format_marker_text(stub))
 
 # ── EmbeddedFileDocumentToJsonSyntaxLeaf ─────────────────────────────────────
 # A FileDocument embedded directly in a JSON AST (as opposed to referenced
@@ -190,7 +190,7 @@ end
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
-_embedded_marker_body(file::FileDocument) = json_escape(file_marker_text(filename(file)))
+_embedded_marker_body(file::FileDocument) = json_escape(format_file_marker_text(get_filename(file)))
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 

@@ -41,7 +41,7 @@ function test_marker_language()
 
     @testset "the stub keeps its source verbatim" begin
         stub = ReferenceStub("file( \"a.txt\" )")
-        @test marker_text(stub) == "<<file( \"a.txt\" )>>"
+        @test format_marker_text(stub) == "<<file( \"a.txt\" )>>"
     end
 
     @testset "file(…) loads through the context" begin
@@ -51,7 +51,7 @@ function test_marker_language()
             ctx = LoaderContext(d)
             f = evaluate_marker("file(\"a.txt\")", ctx)
             @test f isa TextFile
-            @test content(f) == "hello"
+            @test get_file_content(f) == "hello"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -83,7 +83,7 @@ function test_marker_language()
             ctx = LoaderContext(d)
             # A vocabulary function registered by a "domain": it receives the
             # already-evaluated inner value.
-            register_marker_function!(:_test_upcase, (c, doc) -> uppercase(content(doc)))
+            register_marker_function!(:_test_upcase, (c, doc) -> uppercase(get_file_content(doc)))
             @test evaluate_marker("_test_upcase(file(\"a.txt\"))", ctx) == "HELLO"
             @test haskey(ctx.intern, "file(\"a.txt\")")
             @test haskey(ctx.intern, "_test_upcase(file(\"a.txt\"))")
