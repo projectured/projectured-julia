@@ -12,7 +12,7 @@ and a caller is free to memoize them in a reactive cell.
 
 The scalability story lives here:
 
-- [`visible_range`](@ref) binary-searches an ascending column for the indices
+- [`get_visible_range`](@ref) binary-searches an ascending column for the indices
   overlapping the view window, so panning a huge series touches only what shows.
 - [`decimate_minmax`](@ref) collapses every run of samples landing on one pixel
   column to at most four points (first, min, max, last). The result is
@@ -23,13 +23,13 @@ The scalability story lives here:
 """
 module PlotGeometryModule
 
-export AxisScale, to_pixel, to_data, axis_span,
-       column_bounds, merge_bounds, pad_range,
-       nice_num, nice_ticks, log_ticks, format_tick,
-       visible_range, decimate_minmax, step_points, pins_segments,
-       fold_scatter, fold_bins, strip_runs, fold_strips, label_step, nearest_sample,
-       bin_values, histogram_values,
-       legend_layout, anchor_offset
+export AxisScale, to_pixel, to_data, get_axis_span,
+       get_column_bounds, merge_bounds, pad_range,
+       compute_nice_number, compute_nice_ticks, log_ticks, format_tick,
+       get_visible_range, decimate_minmax, step_points, build_pins_segments,
+       fold_scatter, fold_bins, strip_runs, fold_strips, label_step, find_nearest_sample,
+       compute_bin_values, compute_histogram_values,
+       compute_legend_layout, get_anchor_offset
 
 # Smallest positive value a log axis will map; below it the scale saturates
 # rather than diverging to -Inf.
@@ -86,22 +86,22 @@ function to_data(s::AxisScale, pixel::Real)
 end
 
 """
-    axis_span(scale) -> Float64
+    get_axis_span(scale) -> Float64
 
 The pixel length of the scale, always positive regardless of direction.
 """
-axis_span(s::AxisScale) = abs(s.p1 - s.p0)
+get_axis_span(s::AxisScale) = abs(s.p1 - s.p0)
 
 # ── Ranges ───────────────────────────────────────────────────────────────
 
 """
-    column_bounds(values) -> (lo, hi) | nothing
+    get_column_bounds(values) -> (lo, hi) | nothing
 
 The finite extent of a column, skipping `NaN`/`Inf`. Returns `nothing` when the
 column holds no finite value at all, which callers treat as "this series
 contributes no range".
 """
-function column_bounds(values)
+function get_column_bounds(values)
     lo = Inf; hi = -Inf
     @inbounds for v in values
         f = Float64(v)
@@ -162,13 +162,13 @@ end
 # ── Ticks ────────────────────────────────────────────────────────────────
 
 """
-    nice_num(x, round_it) -> Float64
+    compute_nice_number(x, round_it) -> Float64
 
 Heckbert's "nice number" from *Graphics Gems*: the 1/2/5/10 × 10ⁿ value nearest
 `x` (rounded when `round_it`, otherwise the next one up). This is what puts tick
 labels on round numbers instead of on whatever the data range happens to be.
 """
-function nice_num(x::Real, round_it::Bool)
+function compute_nice_number(x::Real, round_it::Bool)
     x = Float64(x)
     x <= 0 && return 1.0
     e = floor(log10(x))
@@ -182,19 +182,19 @@ function nice_num(x::Real, round_it::Bool)
 end
 
 """
-    nice_ticks(lo, hi, target) -> Vector{Float64}
+    compute_nice_ticks(lo, hi, target) -> Vector{Float64}
 
 Round tick positions covering `[lo, hi]`, aiming for about `target` of them.
 Returns the two endpoints for a degenerate range.
 """
-function nice_ticks(lo::Real, hi::Real, target::Integer=6)
+function compute_nice_ticks(lo::Real, hi::Real, target::Integer=6)
     lo = Float64(lo); hi = Float64(hi)
     (isfinite(lo) && isfinite(hi) && hi > lo) && target >= 1 || return Float64[lo, hi]
     # The interval comes straight from the range, not from Heckbert's rounded-up
     # span: he expands the axis out to whole ticks, and we clip ticks to the
     # range instead, so rounding the span first would leave the axis with a
     # third of the ticks that were asked for.
-    step = nice_num((hi - lo) / max(target - 1, 1), true)
+    step = compute_nice_number((hi - lo) / max(target - 1, 1), true)
     step > 0 || return Float64[lo, hi]
     first_tick = ceil(lo / step) * step
     ticks = Float64[]
@@ -262,7 +262,7 @@ end
 # ── Visible range and decimation ─────────────────────────────────────────
 
 """
-    visible_range(x, lo, hi; sorted=true) -> (i0, i1)
+    get_visible_range(x, lo, hi; sorted=true) -> (i0, i1)
 
 The index range of `x` overlapping `[lo, hi]`, extended one index each way so
 the segments entering and leaving the window still draw.
@@ -272,7 +272,7 @@ which is what makes panning a million-sample series cheap. Without it the whole
 column is in range and the caller relies on decimation alone to bound the work.
 Returns an empty range `(1, 0)` for an empty column.
 """
-function visible_range(x, lo::Real, hi::Real; sorted::Bool=true)
+function get_visible_range(x, lo::Real, hi::Real; sorted::Bool=true)
     n = length(x)
     n == 0 && return (1, 0)
     sorted || return (1, n)
@@ -366,12 +366,12 @@ function step_points(points::AbstractVector, mode::Symbol)
 end
 
 """
-    pins_segments(points, baseline) -> Vector{Tuple{Int,Int,Int}}
+    build_pins_segments(points, baseline) -> Vector{Tuple{Int,Int,Int}}
 
 Vertical stems from `baseline` (a pixel row) up to each point, as
 `(x, y_top, y_bottom)` triples — the "pins" draw style.
 """
-function pins_segments(points::AbstractVector, baseline::Integer)
+function build_pins_segments(points::AbstractVector, baseline::Integer)
     segs = Tuple{Int,Int,Int}[]
     for p in points
         x, y = p[1], p[2]
@@ -381,7 +381,7 @@ function pins_segments(points::AbstractVector, baseline::Integer)
 end
 
 """
-    nearest_sample(x, y, xs, ys, px, py, i0, i1; sorted=true, tolerance=8)
+    find_nearest_sample(x, y, xs, ys, px, py, i0, i1; sorted=true, tolerance=8)
       -> (index, distance) | nothing
 
 The sample nearest a pixel, or `nothing` when none is within `tolerance` pixels.
@@ -392,7 +392,7 @@ million-sample series costs the same as picking one out of a hundred. An
 unsorted column has no such shortcut and is scanned over the given index range,
 which the caller is expected to have bounded.
 """
-function nearest_sample(x, y, xs::AxisScale, ys::AxisScale, px::Real, py::Real,
+function find_nearest_sample(x, y, xs::AxisScale, ys::AxisScale, px::Real, py::Real,
                         i0::Integer, i1::Integer; sorted::Bool=true, tolerance::Real=8)
     n = min(length(x), length(y))
     i0 = max(i0, 1); i1 = min(i1, n)
@@ -628,7 +628,7 @@ end
 # ── Legend ───────────────────────────────────────────────────────────────
 
 """
-    legend_layout(sizes, horizontal, area_w, area_h; swatch, gap, line_gap, pad)
+    compute_legend_layout(sizes, horizontal, area_w, area_h; swatch, gap, line_gap, pad)
       -> (; cols, rows, col_w, row_h, box_w, box_h, shown, truncated)
 
 Pack legend entries of the given measured `(width, height)` text sizes into a
@@ -640,7 +640,7 @@ When the entries do not all fit, `shown` is how many are drawn and `truncated`
 says the caller should replace the last slot with an "and N more" line — which
 is why `shown` leaves room for it rather than filling the box.
 """
-function legend_layout(sizes::AbstractVector, horizontal::Bool,
+function compute_legend_layout(sizes::AbstractVector, horizontal::Bool,
                        area_w::Real, area_h::Real;
                        swatch::Integer=14, gap::Integer=6,
                        line_gap::Integer=4, pad::Integer=6)
@@ -674,13 +674,13 @@ function legend_layout(sizes::AbstractVector, horizontal::Bool,
 end
 
 """
-    anchor_offset(anchor, outer_w, outer_h, box_w, box_h) -> (dx, dy)
+    get_anchor_offset(anchor, outer_w, outer_h, box_w, box_h) -> (dx, dy)
 
 Where a box of `box_w × box_h` sits inside an `outer_w × outer_h` area for one
 of the eight compass anchors. `:north` centres horizontally and pins to the top,
 `:northeast` pins to both, and so on.
 """
-function anchor_offset(anchor::Symbol, outer_w::Real, outer_h::Real,
+function get_anchor_offset(anchor::Symbol, outer_w::Real, outer_h::Real,
                        box_w::Real, box_h::Real)
     free_w = max(Float64(outer_w) - box_w, 0.0)
     free_h = max(Float64(outer_h) - box_h, 0.0)
@@ -696,15 +696,15 @@ end
 # ── Histograms ───────────────────────────────────────────────────────────
 
 """
-    bin_values(values, nbins) -> (edges, counts)
+    compute_bin_values(values, nbins) -> (edges, counts)
 
 Bin a raw sample column into `nbins` equal-width bins over its finite extent,
 returning `nbins + 1` edges and `nbins` counts. A degenerate column gets a unit
 window so the histogram still has somewhere to draw.
 """
-function bin_values(values, nbins::Integer)
+function compute_bin_values(values, nbins::Integer)
     k = max(Int(nbins), 1)
-    b = column_bounds(values)
+    b = get_column_bounds(values)
     lo, hi = b === nothing ? (0.0, 1.0) : b
     hi <= lo && (hi = lo + 1.0)
     w = (hi - lo) / k
@@ -720,7 +720,7 @@ function bin_values(values, nbins::Integer)
 end
 
 """
-    histogram_values(edges, values, cumulative, density, total) -> Vector{Float64}
+    compute_histogram_values(edges, values, cumulative, density, total) -> Vector{Float64}
 
 The four histogram value transforms, as the cross product of two flags: raw
 counts, a density (count per unit bin width per total weight), a running sum,
@@ -729,7 +729,7 @@ and a CDF (running sum over total weight).
 `total` is the weight the density and CDF forms normalize by — pass the sum of
 the bin values plus any under/overflow so the CDF really reaches 1.
 """
-function histogram_values(edges::AbstractVector, values::AbstractVector,
+function compute_histogram_values(edges::AbstractVector, values::AbstractVector,
                           cumulative::Bool, density::Bool, total::Real=0.0)
     n = length(values)
     out = zeros(Float64, n)

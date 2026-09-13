@@ -62,7 +62,7 @@ import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
                                       get_arc_geometry, arc_height, split_arrow, get_arrow_route,
                                       decimate_events, deduplicate_arrow_coverage, get_band_intervals
 import ..PlotGeometryModule: AxisScale, to_pixel, to_data
-import ..PlotStyleModule: series_color, marker_polygon
+import ..PlotStyleModule: get_series_color, build_marker_polygon
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsSpline, GraphicsViewport, layout_none
@@ -409,7 +409,7 @@ _event_visible(chart, events, i::Integer) =
 
 _kind_color(kind, index::Integer, cycle, fallback) =
     kind === nothing ? fallback :
-        (kind.color === nothing ? series_color(nothing, index, cycle) : kind.color)
+        (kind.color === nothing ? get_series_color(nothing, index, cycle) : kind.color)
 
 # ── Elements ─────────────────────────────────────────────────────────────
 
@@ -608,7 +608,7 @@ function _band_color(band::SequenceChartBandSeries, value::Real, cycle)
     if colors !== nothing && 1 <= index <= length(colors)
         return colors[index]
     end
-    color = series_color(nothing, max(index, 1), cycle)
+    color = get_series_color(nothing, max(index, 1), cycle)
     StyleColor(color.red, color.green, color.blue, 0.45)
 end
 
@@ -737,7 +737,7 @@ function _mark!(out, symbol::Symbol, x::Int, y::Int, radius::Int, color)
     elseif symbol === :square
         push!(out, GraphicsRect(x - radius, y - radius, 2 * radius, 2 * radius, color))
     else
-        points = marker_polygon(symbol, x, y, radius)
+        points = build_marker_polygon(symbol, x, y, radius)
         if points === nothing
             push!(out, GraphicsCircle(x, y, radius, color))
         else

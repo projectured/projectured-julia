@@ -22,7 +22,7 @@ function test_plot_geometry()
             @test PlotGeometryModule.to_pixel(s, 10.0) ≈ 300.0
             @test PlotGeometryModule.to_pixel(s, 5.0) ≈ 200.0
             @test PlotGeometryModule.to_data(s, 200.0) ≈ 5.0
-            @test PlotGeometryModule.axis_span(s) ≈ 200.0
+            @test PlotGeometryModule.get_axis_span(s) ≈ 200.0
 
             # A y axis passes bottom as p0 and top as p1: no flip flag needed.
             y = PlotGeometryModule.AxisScale(0.0, 1.0, 300.0, 100.0)
@@ -41,10 +41,10 @@ function test_plot_geometry()
         end
 
         @testset "bounds and padding" begin
-            @test PlotGeometryModule.column_bounds([3.0, 1.0, 2.0]) == (1.0, 3.0)
-            @test PlotGeometryModule.column_bounds([NaN, 2.0, Inf]) == (2.0, 2.0)
-            @test PlotGeometryModule.column_bounds(Float64[]) === nothing
-            @test PlotGeometryModule.column_bounds([NaN, NaN]) === nothing
+            @test PlotGeometryModule.get_column_bounds([3.0, 1.0, 2.0]) == (1.0, 3.0)
+            @test PlotGeometryModule.get_column_bounds([NaN, 2.0, Inf]) == (2.0, 2.0)
+            @test PlotGeometryModule.get_column_bounds(Float64[]) === nothing
+            @test PlotGeometryModule.get_column_bounds([NaN, NaN]) === nothing
 
             @test PlotGeometryModule.merge_bounds((1.0, 2.0), (0.0, 5.0)) == (0.0, 5.0)
             @test PlotGeometryModule.merge_bounds(nothing, (0.0, 5.0)) == (0.0, 5.0)
@@ -62,11 +62,11 @@ function test_plot_geometry()
         end
 
         @testset "ticks" begin
-            @test PlotGeometryModule.nice_num(0.9, true) ≈ 1.0
-            @test PlotGeometryModule.nice_num(23.0, true) ≈ 20.0
-            @test PlotGeometryModule.nice_num(7.3, false) ≈ 10.0
+            @test PlotGeometryModule.compute_nice_number(0.9, true) ≈ 1.0
+            @test PlotGeometryModule.compute_nice_number(23.0, true) ≈ 20.0
+            @test PlotGeometryModule.compute_nice_number(7.3, false) ≈ 10.0
 
-            ticks = PlotGeometryModule.nice_ticks(0.0, 100.0, 6)
+            ticks = PlotGeometryModule.compute_nice_ticks(0.0, 100.0, 6)
             @test all(t -> t % 20 == 0, ticks)
             @test first(ticks) >= 0.0 && last(ticks) <= 100.0
             @test 3 <= length(ticks) <= 12
@@ -74,13 +74,13 @@ function test_plot_geometry()
             # Ticks are clipped to the range rather than expanding it, so the
             # count has to come out near the target instead of a third of it.
             for (lo, hi, target) in ((-1.08, 1.08, 5), (0.0, 2.16, 5), (0.0, 3.0, 7))
-                ts = PlotGeometryModule.nice_ticks(lo, hi, target)
+                ts = PlotGeometryModule.compute_nice_ticks(lo, hi, target)
                 @test length(ts) >= target - 2
             end
 
             # Every tick lands inside the requested range, whatever the range.
             for (lo, hi) in ((0.0, 1.0), (-5.0, 5.0), (1e-4, 3e-4), (0.0, 1e7))
-                ts = PlotGeometryModule.nice_ticks(lo, hi, 5)
+                ts = PlotGeometryModule.compute_nice_ticks(lo, hi, 5)
                 @test !isempty(ts)
                 @test all(t -> lo - 1e-9 <= t <= hi + 1e-9, ts)
             end
@@ -97,17 +97,17 @@ function test_plot_geometry()
 
         @testset "visible range" begin
             x = collect(0.0:1.0:100.0)
-            i0, i1 = PlotGeometryModule.visible_range(x, 10.0, 20.0)
+            i0, i1 = PlotGeometryModule.get_visible_range(x, 10.0, 20.0)
             # One index of slack each way so the entering/leaving segments draw.
             @test i0 <= 11 && i1 >= 21
             @test x[i0] <= 10.0 && x[i1] >= 20.0
 
             # Fully outside the data, on both sides.
-            i0, i1 = PlotGeometryModule.visible_range(x, 500.0, 600.0)
+            i0, i1 = PlotGeometryModule.get_visible_range(x, 500.0, 600.0)
             @test i1 - i0 <= 1
-            @test PlotGeometryModule.visible_range(Float64[], 0.0, 1.0) == (1, 0)
+            @test PlotGeometryModule.get_visible_range(Float64[], 0.0, 1.0) == (1, 0)
             # Unsorted columns cannot be searched, so the whole column is in range.
-            @test PlotGeometryModule.visible_range(x, 10.0, 20.0; sorted=false) == (1, length(x))
+            @test PlotGeometryModule.get_visible_range(x, 10.0, 20.0; sorted=false) == (1, length(x))
         end
 
         @testset "decimation is exact" begin
@@ -159,7 +159,7 @@ function test_plot_geometry()
             @test (5, 10) in mid && (5, 20) in mid
             @test PlotGeometryModule.step_points(pts, :linear) == pts
 
-            segs = PlotGeometryModule.pins_segments(pts, 30)
+            segs = PlotGeometryModule.build_pins_segments(pts, 30)
             @test length(segs) == 3
             @test all(s -> s[2] <= s[3], segs)
             @test segs[1] == (0, 10, 30)
@@ -252,22 +252,22 @@ function test_plot_geometry()
         end
 
         @testset "histograms" begin
-            edges, counts = PlotGeometryModule.bin_values([0.0, 1.0, 2.0, 3.0, 4.0], 4)
+            edges, counts = PlotGeometryModule.compute_bin_values([0.0, 1.0, 2.0, 3.0, 4.0], 4)
             @test length(edges) == 5 && length(counts) == 4
             @test sum(counts) == 5
             @test issorted(edges)
             # A constant column still produces a usable window.
-            e2, c2 = PlotGeometryModule.bin_values([7.0, 7.0, 7.0], 3)
+            e2, c2 = PlotGeometryModule.compute_bin_values([7.0, 7.0, 7.0], 3)
             @test length(e2) == 4 && sum(c2) == 3
 
             vals = [1.0, 2.0, 3.0, 4.0]
             edges = [0.0, 1.0, 2.0, 3.0, 4.0]
-            @test PlotGeometryModule.histogram_values(edges, vals, false, false) == vals
-            cum = PlotGeometryModule.histogram_values(edges, vals, true, false)
+            @test PlotGeometryModule.compute_histogram_values(edges, vals, false, false) == vals
+            cum = PlotGeometryModule.compute_histogram_values(edges, vals, true, false)
             @test cum == [1.0, 3.0, 6.0, 10.0]
-            cdf = PlotGeometryModule.histogram_values(edges, vals, true, true)
+            cdf = PlotGeometryModule.compute_histogram_values(edges, vals, true, true)
             @test cdf[end] ≈ 1.0 && issorted(cdf)
-            pdf = PlotGeometryModule.histogram_values(edges, vals, false, true)
+            pdf = PlotGeometryModule.compute_histogram_values(edges, vals, false, true)
             @test sum(pdf) ≈ 1.0    # unit bin widths, so the density sums to 1
         end
     end

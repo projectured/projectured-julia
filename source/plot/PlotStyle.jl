@@ -19,7 +19,7 @@ import ..ColorModule: StyleColor,
     color_solarized_magenta, color_solarized_yellow
 
 export default_color_cycle, default_symbol_cycle,
-       series_color, series_symbol, marker_polygon
+       get_series_color, get_series_symbol, build_marker_polygon
 
 # ── Colour and marker cycles ─────────────────────────────────────────────
 
@@ -49,25 +49,25 @@ default_symbol_cycle() = Symbol[:circle, :square, :triangle_up, :diamond, :plus,
                                 :star, :cross, :triangle_down, :pentagon, :dot]
 
 """
-    series_color(series, index, cycle) -> StyleColor
+    get_series_color(series, index, cycle) -> StyleColor
 
 A series' own `color`, or the `index`-th entry of the plot's color cycle when
 it left the field unset. Cycling is by position in the series list, so inserting
 a series shifts the colors after it — the same rule OMNeT++'s native charts use.
 """
-function series_color(color, index::Integer, cycle)
+function get_series_color(color, index::Integer, cycle)
     color === nothing || return color
     isempty(cycle) && return color_solarized_blue
     cycle[mod1(index, length(cycle))]
 end
 
 """
-    series_symbol(symbol, index, cycle) -> Symbol
+    get_series_symbol(symbol, index, cycle) -> Symbol
 
 The marker shape for a series: its own `symbol` unless that is `:cycle`, in
 which case the `index`-th entry of the style's symbol cycle.
 """
-function series_symbol(symbol::Symbol, index::Integer, cycle)
+function get_series_symbol(symbol::Symbol, index::Integer, cycle)
     symbol === :cycle || return symbol
     isempty(cycle) && return :circle
     cycle[mod1(index, length(cycle))]
@@ -90,12 +90,12 @@ function _star_polygon(x::Int, y::Int, r::Int)
 end
 
 """
-    marker_polygon(shape, x, y, r) -> Vector{Tuple{Int,Int}} | nothing
+    build_marker_polygon(shape, x, y, r) -> Vector{Tuple{Int,Int}} | nothing
 
 The outline of a filled marker shape, or `nothing` for a shape that is not a
 polygon.
 """
-function marker_polygon(shape::Symbol, x::Int, y::Int, r::Int)
+function build_marker_polygon(shape::Symbol, x::Int, y::Int, r::Int)
     shape === :diamond && return [(x, y - r), (x + r, y), (x, y + r), (x - r, y)]
     shape === :triangle_up && return _regular_polygon(x, y, r, 3)
     shape === :triangle_down && return _regular_polygon(x, y, r, 3, pi/2)

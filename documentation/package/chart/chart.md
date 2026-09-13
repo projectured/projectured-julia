@@ -159,7 +159,7 @@ A column is not addressable below itself — `series[1].y` names the whole colum
 — but an individual **sample** is, through a reference step rather than a child:
 
 ```julia
-chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)::Tuple
+make_chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)::Tuple
 ```
 
 `ChartSampleReferenceStep` is a `:structural` step naming a position inside an
@@ -177,7 +177,7 @@ Element indices are 1-based, as everywhere else in the repository.
 
 ## Selection
 
-`chart_parts(chart)` lists the selectable parts in reading order — title, x
+`collect_chart_parts(chart)` lists the selectable parts in reading order — title, x
 axis, y axis, legend, then one entry per series — and each is selected whole
 (an empty path at that node). The whole chart is the empty reference.
 

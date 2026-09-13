@@ -22,7 +22,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..ChartModule: ChartDocument
 
-export ChartView, chart_view_of, chart_view_contains
+export ChartView, get_chart_view, is_point_in_chart_view
 
 """
     ChartView(x_min, x_max, y_min, y_max)
@@ -49,11 +49,11 @@ ChartView(x_min::Real, x_max::Real, y_min::Real, y_max::Real) =
     ChartView(Float64(x_min), Float64(x_max), Float64(y_min), Float64(y_max))
 
 """
-    chart_view_contains(view, x, y) -> Bool
+    is_point_in_chart_view(view, x, y) -> Bool
 
 Whether a data point falls inside the window.
 """
-chart_view_contains(v::ChartView, x::Real, y::Real) =
+is_point_in_chart_view(v::ChartView, x::Real, y::Real) =
     v.x_min <= x <= v.x_max && v.y_min <= y <= v.y_max
 
 """
@@ -76,11 +76,11 @@ A chart together with how it is currently being looked at.
 end
 
 """
-    chart_view_of(plot) -> ChartView | nothing
+    get_chart_view(plot) -> ChartView | nothing
 
 The plot's window, or `nothing` when it is auto-fitting. A convenience so
 readers do not reach through the cell by hand.
 """
-chart_view_of(plot::ChartPlot) = plot.view
+get_chart_view(plot::ChartPlot) = plot.view
 
 end # module

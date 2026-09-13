@@ -271,7 +271,7 @@ A function does not take `make_` merely because it returns a fresh
 `NamedTuple` or `Vector`. Ask what the caller wants: a newly created object, or
 a value derived from state that already exists.
 
-**A trailing `of` or `for` is dropped.** `chart_view_of` is `get_chart_view`,
+**A trailing `of` or `for` is dropped.** `get_chart_view` is `get_chart_view`,
 and `dsn_for` is `get_dsn`.
 
 **An external side effect takes `!`**, even when nothing the caller passed is

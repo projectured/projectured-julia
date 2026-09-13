@@ -183,14 +183,14 @@ function test_chart_projection()
 
             # Each polygon marker has the vertex count its shape implies, and a
             # star is concave — which is the shape that needs a real polygon.
-            @test length(marker_polygon(:diamond, 0, 0, 4)) == 4
-            @test length(marker_polygon(:triangle_up, 0, 0, 4)) == 3
-            @test length(marker_polygon(:pentagon, 0, 0, 4)) == 5
-            @test length(marker_polygon(:hexagon, 0, 0, 4)) == 6
-            @test length(marker_polygon(:star, 0, 0, 8)) == 10
-            @test marker_polygon(:circle, 0, 0, 4) === nothing
+            @test length(build_marker_polygon(:diamond, 0, 0, 4)) == 4
+            @test length(build_marker_polygon(:triangle_up, 0, 0, 4)) == 3
+            @test length(build_marker_polygon(:pentagon, 0, 0, 4)) == 5
+            @test length(build_marker_polygon(:hexagon, 0, 0, 4)) == 6
+            @test length(build_marker_polygon(:star, 0, 0, 8)) == 10
+            @test build_marker_polygon(:circle, 0, 0, 4) === nothing
             # The four triangles point four different ways.
-            tips = [first(sort(marker_polygon(t, 0, 0, 6); by = p -> (p[2], p[1])))
+            tips = [first(sort(build_marker_polygon(t, 0, 0, 6); by = p -> (p[2], p[1])))
                     for t in (:triangle_up, :triangle_down, :triangle_left, :triangle_right)]
             @test length(unique(tips)) >= 3
             # Past the marker limit the individual points stop being distinct, so
@@ -509,7 +509,7 @@ function test_chart_projection()
             gh = _chart_layout(hidden)
             @test gh.strip_count == 1 && gh.strip_rows == Dict(2 => 1)
 
-            @test chart_series_family(three.series[1]) === :xy
+            @test get_chart_series_family(three.series[1]) === :xy
         end
 
         @testset "strip samples" begin
@@ -523,11 +523,11 @@ function test_chart_projection()
             row = (band[1] + band[2]) ÷ 2
 
             # A sample evaluates to its extent in the data and its state's name.
-            @test chart_sample(chart.series[1], 3) == (2.0, 3.0, "BUSY")
-            @test chart_sample(chart.series[1], 12) === nothing
+            @test get_chart_sample(chart.series[1], 3) == (2.0, 3.0, "BUSY")
+            @test get_chart_sample(chart.series[1], 12) === nothing
             # The last segment reports the data end, not the view edge: a
             # reference must not evaluate differently as someone zooms.
-            @test chart_sample(chart.series[1], 11) == (10.0, 10.0, "IDLE")
+            @test get_chart_sample(chart.series[1], 11) == (10.0, 10.0, "IDLE")
 
             # A click picks the segment holding at that time, by raw index.
             @test ChartPlotToGraphicsModule._sample_hit(g, at(2.5), row) == (1, 3)
@@ -563,14 +563,14 @@ function test_chart_projection()
                                         (band2[1] + band2[2]) ÷ 2))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
-            @test selected_sample(chart) == (1, 3)
+            @test get_selected_sample(chart) == (1, 3)
             # A sample still counts as its series for everything coarser.
-            @test selected_series_index(chart) == 1
+            @test get_selected_series_index(chart) == 1
             @test evaluate_reference(chart, op.path) == (2.0, 3.0, "BUSY")
             chart.selection = nothing
 
             # The selected segment is outlined where it is drawn.
-            chart.selection = chart_sample_reference(chart, 1, 3)
+            chart.selection = make_chart_sample_reference(chart, 1, 3)
             els = _series_elements(_chart_canvas(chart))
             @test count(e -> e isa GraphicsLine, els) >= 4
             # Hiding the series after selecting a sample draws nothing rather
@@ -611,7 +611,7 @@ function test_chart_projection()
             @test [it[2] for it in own] == ["a", "b", "c"]
             @test all(it -> it[3] == ChartPlotToGraphicsModule._STRIP_SWATCH, own)
             # ...and specifically not the colour the series cycle would give it.
-            @test own[1][3] != series_color(nothing, 1, ChartStyle().color_cycle)
+            @test own[1][3] != get_series_color(nothing, 1, ChartStyle().color_cycle)
 
             # The states are listed instead, in their own colours, and two
             # strips sharing a table share the entries rather than repeating.
@@ -621,7 +621,7 @@ function test_chart_projection()
             # which would read as though a shared table belonged to the first.
             @test [it[1] != 0 for it in items] ==
                   [true, true, true, false, false, false, false, false, false]
-            @test values[1][3] == series_color(nothing, 1, ChartStyle().color_cycle)
+            @test values[1][3] == get_series_color(nothing, 1, ChartStyle().color_cycle)
             @test values[1][3] != values[2][3]
             # Colour follows the code, so the first state of each table shares
             # one — which is exactly why a table of its own wants state_colors.
@@ -648,7 +648,7 @@ function test_chart_projection()
             proj = _chart_projection()
             iomap = print_document(proj, proj, chart, PrinterContext())
             plan = iomap.step_iomaps[2][].geometry.legend
-            rects = legend_item_rects(plan)
+            rects = get_legend_item_rects(plan)
             series_row = first(r for r in rects if r[1] != 0)
             value_row = first(r for r in rects if r[1] == 0)
 
@@ -675,7 +675,7 @@ function test_chart_projection()
             line = Chart("m", [ChartLineSeries("v", t, t)])
             line_items = _chart_layout(line).legend.items
             @test length(line_items) == 1
-            @test line_items[1][3] == series_color(nothing, 1, ChartStyle().color_cycle)
+            @test line_items[1][3] == get_series_color(nothing, 1, ChartStyle().color_cycle)
         end
 
         @testset "strip reactivity" begin
@@ -765,7 +765,7 @@ function test_chart_projection()
             iomap = print_document(proj, proj, chart, PrinterContext())
             plot = iomap.step_iomaps[1][].output
             plan = iomap.step_iomaps[2][].geometry.legend
-            index, ix, iy, iw, ih = first(legend_item_rects(plan))
+            index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
 
             # Clicking a legend item hides the series it stands for.
             op = read_intent(proj, iomap, MousePress(:left, ix + 2, iy + ih ÷ 2))
@@ -816,11 +816,11 @@ function test_chart_projection()
                              MousePress(:left, px + g.plot_x, py + g.plot_y))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
-            @test selected_sample(chart) !== nothing
+            @test get_selected_sample(chart) !== nothing
             # A sample still counts as its series for everything coarser —
             # navigation, the hover veil, the legend highlight.
-            @test selected_series_index(chart) == 1
-            @test chart_part_index(chart, op.path) == 5
+            @test get_selected_series_index(chart) == 1
+            @test get_chart_part_index(chart, op.path) == 5
 
             # A click on the series' geometry but away from any sample selects
             # the whole series instead.
@@ -839,21 +839,21 @@ function test_chart_projection()
 
             # A sample is named by a step on the series, not by descending into
             # the column: there is no per-sample document for a path to reach.
-            reference = chart_sample_reference(chart, 1, 5)
+            reference = make_chart_sample_reference(chart, 1, 5)
             @test is_fully_typed_reference(reference)
             @test evaluate_reference(chart, reference) == (4.0, 16.0)
             chart.selection = reference
-            @test selected_sample(chart) == (1, 5)
-            @test selected_series_index(chart) == 1
+            @test get_selected_sample(chart) == (1, 5)
+            @test get_selected_series_index(chart) == 1
 
             # Out of range names nothing rather than throwing.
-            @test chart_sample(chart.series[1], 999) === nothing
-            @test chart_sample(chart.series[1], 0) === nothing
+            @test get_chart_sample(chart.series[1], 999) === nothing
+            @test get_chart_sample(chart.series[1], 0) === nothing
 
             # Each series kind says what one of its samples is.
             hist = ChartHistogramSeries("h", [0.0, 1.0, 2.0], [3.0, 4.0])
-            @test chart_sample(hist, 2) == (1.0, 2.0, 4.0)
-            @test chart_sample(ChartBarSeries("b", [7.0, 8.0]), 2) == 8.0
+            @test get_chart_sample(hist, 2) == (1.0, 2.0, 4.0)
+            @test get_chart_sample(ChartBarSeries("b", [7.0, 8.0]), 2) == 8.0
 
             # The selected sample is drawn.
             plain = length(_series_elements(_chart_canvas(Chart("p", [ChartLineSeries("a", x, x .^ 2)]))))
@@ -873,7 +873,7 @@ function test_chart_projection()
             @test op isa ReplaceSelectionOperation
             @test elapsed < 0.5
             big.selection = op.path
-            picked = selected_sample(big)
+            picked = get_selected_sample(big)
             @test picked !== nothing
             @test abs(big_x[picked[2]] - 500.0) < 1.0
 
@@ -887,7 +887,7 @@ function test_chart_projection()
             op = read_intent(proj, iomap,
                 MousePress(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2))
             cloud.selection = op === nothing ? nothing : op.path
-            @test selected_sample(cloud) === nothing
+            @test get_selected_sample(cloud) === nothing
         end
 
         @testset "series reordering" begin
@@ -896,11 +896,11 @@ function test_chart_projection()
             second_label = String(chart.series[2].label)
 
             # Nothing selected, nothing to move.
-            @test selected_series_index(chart) == 0
+            @test get_selected_series_index(chart) == 0
             @test read_gesture(chart, KeyDown(:down, move_modifier)) === nothing
 
             chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
-            @test selected_series_index(chart) == 1
+            @test get_selected_series_index(chart) == 1
 
             op = read_gesture(chart, KeyDown(:down, move_modifier))
             @test op !== nothing
@@ -908,7 +908,7 @@ function test_chart_projection()
             @test String(chart.series[1].label) == second_label
             @test String(chart.series[2].label) == first_label
             # The selection follows the series that moved.
-            @test selected_series_index(chart) == 2
+            @test get_selected_series_index(chart) == 2
 
             op = read_gesture(chart, KeyDown(:up, move_modifier))
             _apply_to(chart, op)
@@ -1074,10 +1074,10 @@ function test_chart_projection()
         @testset "part navigation" begin
             chart = _line_chart()
             # Title, both axes, the legend, then one entry per series.
-            parts = chart_parts(chart)
+            parts = collect_chart_parts(chart)
             @test length(parts) == 4 + length(chart.series)
-            @test chart_part_index(chart, parts[1]) == 1
-            @test chart_part_index(chart, parts[end]) == length(parts)
+            @test get_chart_part_index(chart, parts[1]) == 1
+            @test get_chart_part_index(chart, parts[end]) == length(parts)
 
             ed = (; document = chart)
             # Ctrl+Home seeds a selection, which is what every navigation walk
@@ -1085,7 +1085,7 @@ function test_chart_projection()
             op = read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true)))
             @test op isa ReplaceSelectionOperation
             _apply_to(chart, op)
-            @test chart_part_index(chart, chart.selection) == 1
+            @test get_chart_part_index(chart, chart.selection) == 1
 
             # Right walks forward through every part and stops at the end.
             seen = Int[1]
@@ -1093,7 +1093,7 @@ function test_chart_projection()
                 op = read_gesture(chart, KeyDown(:right, no_modifier))
                 op === nothing && break
                 _apply_to(chart, op)
-                push!(seen, chart_part_index(chart, chart.selection))
+                push!(seen, get_chart_part_index(chart, chart.selection))
             end
             @test seen == collect(1:length(parts))
             @test read_gesture(chart, KeyDown(:right, no_modifier)) === nothing
@@ -1102,22 +1102,22 @@ function test_chart_projection()
             op = read_gesture(chart, KeyDown(:left, no_modifier))
             @test op !== nothing
             _apply_to(chart, op)
-            @test chart_part_index(chart, chart.selection) == length(parts) - 1
+            @test get_chart_part_index(chart, chart.selection) == length(parts) - 1
 
             _apply_to(chart, read_gesture(chart, KeyDown(:end, ModifierKeys(; ctrl=true))))
-            @test chart_part_index(chart, chart.selection) == length(parts)
+            @test get_chart_part_index(chart, chart.selection) == length(parts)
             _apply_to(chart, read_gesture(chart, KeyDown(:home, no_modifier)))
-            @test chart_part_index(chart, chart.selection) == 1
+            @test get_chart_part_index(chart, chart.selection) == 1
 
             # Tree navigation: out to the whole chart, and back in.
             _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
             @test chart.selection isa EmptyReference
-            @test chart_part_index(chart, chart.selection) == 0
+            @test get_chart_part_index(chart, chart.selection) == 0
             _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
-            @test chart_part_index(chart, chart.selection) == 1
+            @test get_chart_part_index(chart, chart.selection) == 1
             # Alt+Down/Up move between siblings.
             _apply_to(chart, read_gesture(chart, KeyDown(:down, alt_modifier)))
-            @test chart_part_index(chart, chart.selection) == 2
+            @test get_chart_part_index(chart, chart.selection) == 2
 
             # Ctrl+Alt+Home selects the whole chart, wherever the cursor was.
             _apply_to(chart, read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true, alt=true))))
@@ -1134,7 +1134,7 @@ function test_chart_projection()
 
         @testset "selection is drawn" begin
             chart = _line_chart()
-            parts = chart_parts(chart)
+            parts = collect_chart_parts(chart)
             ed = (; document = chart)
 
             plain = length(_flatten_elements(_chart_canvas(chart)))

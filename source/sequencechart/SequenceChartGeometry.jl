@@ -31,7 +31,7 @@ knows whether the chart is drawn horizontally or vertically.
 """
 module SequenceChartGeometryModule
 
-import ..PlotGeometryModule: AxisScale, to_pixel, to_data, nice_ticks, format_tick
+import ..PlotGeometryModule: AxisScale, to_pixel, to_data, compute_nice_ticks, format_tick
 
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
        get_timeline_coordinates, default_nonlinear_focus,
@@ -399,7 +399,7 @@ function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
     if mode === :time
         t_lo = convert_coordinate_to_time(times, coordinates, scale.lo)
         t_hi = convert_coordinate_to_time(times, coordinates, scale.hi)
-        for t in nice_ticks(t_lo, t_hi, count)
+        for t in compute_nice_ticks(t_lo, t_hi, count)
             c = time_to_coordinate(times, coordinates, t)
             (scale.lo <= c <= scale.hi) && push!(out, (c, Float64(t)))
         end

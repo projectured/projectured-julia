@@ -30,23 +30,23 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ChartModule: Chart, ChartNothing, ChartInsertion, ChartSeries,
-                      chart_parts, chart_part_index,
-                      chart_sample, chart_sample_reference, selected_sample,
+                      collect_chart_parts, get_chart_part_index,
+                      get_chart_sample, make_chart_sample_reference, get_selected_sample,
                       ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle,
                       ChartLineSeries, ChartScatterSeries, ChartBarSeries,
                       ChartHistogramSeries, ChartStripSeries,
-                      chart_series_family, chart_axis_family,
+                      get_chart_series_family, get_chart_axis_family,
                       strip_state_name, strip_state_color
-import ..PlotStyleModule: series_color, series_symbol, marker_polygon
+import ..PlotStyleModule: get_series_color, get_series_symbol, build_marker_polygon
 import ..ChartPlotModule: ChartPlot, ChartView
 import ..PlotGeometryModule: AxisScale, to_pixel, to_data,
-                              column_bounds, merge_bounds, pad_range,
-                              nice_ticks, log_ticks, format_tick,
-                              visible_range, decimate_minmax, step_points, pins_segments,
+                              get_column_bounds, merge_bounds, pad_range,
+                              compute_nice_ticks, log_ticks, format_tick,
+                              get_visible_range, decimate_minmax, step_points, build_pins_segments,
                               fold_scatter, fold_bins, strip_runs, fold_strips,
-                              label_step, histogram_values,
-                              nearest_sample,
-                              legend_layout, anchor_offset
+                              label_step, compute_histogram_values,
+                              find_nearest_sample,
+                              compute_legend_layout, get_anchor_offset
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsViewport, layout_none
@@ -65,7 +65,7 @@ import ..ReferenceModule: var"@reference"
 import ..ReferenceModule: var"@reference_case"
 
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
-       legend_item_rects, chart_part_reference, chart_series_reference
+       get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -97,7 +97,7 @@ _veiled(color::StyleColor, on::Bool) =
 # The colour a series draws in: its own or the cycle's, faded when some *other*
 # series is being hovered.
 function _draw_color(g, index::Int, own)
-    color = series_color(own, index, g.style.color_cycle)
+    color = get_series_color(own, index, g.style.color_cycle)
     _veiled(color, g.hovered_index != 0 && g.hovered_index != index)
 end
 
@@ -146,20 +146,20 @@ function _visible_series(chart::Chart)
     out
 end
 
-_series_x_bounds(s::ChartLineSeries) = column_bounds(s.x)
-_series_x_bounds(s::ChartScatterSeries) = column_bounds(s.x)
+_series_x_bounds(s::ChartLineSeries) = get_column_bounds(s.x)
+_series_x_bounds(s::ChartScatterSeries) = get_column_bounds(s.x)
 # A histogram spans its outermost edges, whatever the values do.
-_series_x_bounds(s::ChartHistogramSeries) = column_bounds(s.binedges)
+_series_x_bounds(s::ChartHistogramSeries) = get_column_bounds(s.binedges)
 # A strip reaches past its last sample when it is told where the trace ends.
 function _series_x_bounds(s::ChartStripSeries)
-    b = column_bounds(s.x)
+    b = get_column_bounds(s.x)
     (b === nothing || s.x_end === nothing) && return b
     (b[1], max(b[2], Float64(s.x_end)))
 end
 _series_x_bounds(::Any) = nothing
 
-_series_y_bounds(s::ChartLineSeries) = column_bounds(s.y)
-_series_y_bounds(s::ChartScatterSeries) = column_bounds(s.y)
+_series_y_bounds(s::ChartLineSeries) = get_column_bounds(s.y)
+_series_y_bounds(s::ChartScatterSeries) = get_column_bounds(s.y)
 # A strip has no y data of its own: which row it occupies depends on the other
 # strips, so the extent is contributed by `_data_bounds` over the whole set.
 _series_y_bounds(::Any) = nothing
@@ -168,7 +168,7 @@ _series_y_bounds(::Any) = nothing
 # the y extent has to be taken after the cumulative/density transform.
 function _series_y_bounds(s::ChartHistogramSeries)
     vals = _histogram_shown_values(s)
-    b = column_bounds(vals)
+    b = get_column_bounds(vals)
     b === nothing ? nothing : (min(b[1], 0.0), max(b[2], 0.0))
 end
 
@@ -182,7 +182,7 @@ folded into the normalizing total so a CDF really reaches 1.
 function _histogram_shown_values(s::ChartHistogramSeries)
     values = s.binvalues
     total = sum(Float64(v) for v in values; init=0.0) + s.underflows + s.overflows
-    histogram_values(s.binedges, values, s.cumulative, s.density, total)
+    compute_histogram_values(s.binedges, values, s.cumulative, s.density, total)
 end
 
 # Which row each visible strip occupies, as the y coordinate of its centre. The
@@ -192,7 +192,7 @@ function _strip_rows(series, chart::Chart)
     rows = Dict{Int,Int}()
     # A strip on a category chart is never drawn, so it gets no row either —
     # otherwise its band would still be clickable with nothing in it.
-    chart_axis_family(chart.x_axis) === :xy || return (rows, 0)
+    get_chart_axis_family(chart.x_axis) === :xy || return (rows, 0)
     indices = Int[i for (i, s) in series if s isa ChartStripSeries]
     k = length(indices)
     for (r, i) in enumerate(indices)
@@ -205,7 +205,7 @@ end
 # series live on a category axis, where x is the category index and y has to
 # include the baseline the bars grow from.
 function _data_bounds(series, chart::Chart)
-    if chart_axis_family(chart.x_axis) === :category
+    if get_chart_axis_family(chart.x_axis) === :category
         n = length(chart.x_axis.categories)
         yb = (chart.bar_baseline, chart.bar_baseline)
         if chart.bar_placement === :stacked
@@ -213,7 +213,7 @@ function _data_bounds(series, chart::Chart)
         else
             for (_, s) in series
                 s isa ChartBarSeries || continue
-                yb = merge_bounds(yb, column_bounds(s.values))
+                yb = merge_bounds(yb, get_column_bounds(s.values))
             end
         end
         return ((0.5, n + 0.5), yb)
@@ -278,7 +278,7 @@ function resolve_view(plot::ChartPlot)
     xb, yb = _data_bounds(series, chart)
     # A category axis is already exactly as wide as its slots; padding it would
     # push half a category of empty space in at each end.
-    x0, x1 = chart_axis_family(chart.x_axis) === :category ?
+    x0, x1 = get_chart_axis_family(chart.x_axis) === :category ?
         (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02)
     y0, y1 = _fit_range(yb, chart.y_axis, 0.08)
     ChartView(x0, x1, y0, y1)
@@ -290,7 +290,7 @@ end
 # the axis actually spans.
 function _axis_ticks(axis, lo::Real, hi::Real, span_px::Real)
     target = clamp(round(Int, span_px / _TICK_TARGET_PX), 2, 12)
-    (axis isa ChartAxis && axis.log) ? log_ticks(lo, hi) : nice_ticks(lo, hi, target)
+    (axis isa ChartAxis && axis.log) ? log_ticks(lo, hi) : compute_nice_ticks(lo, hi, target)
 end
 
 _tick_step(ticks) = length(ticks) >= 2 ? abs(ticks[2] - ticks[1]) : 0.0
@@ -379,7 +379,7 @@ function _legend_items(chart::Chart, series)
                 push!(states, (0, label, color))
             end
         else
-            push!(items, (index, _series_label(s), series_color(s.color, index, cycle)))
+            push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle)))
         end
     end
     append!(items, states)
@@ -401,7 +401,7 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
                  (legend.position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * _PAD : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * _PAD
-    box = legend_layout(sizes, horizontal, area_w, area_h;
+    box = compute_legend_layout(sizes, horizontal, area_w, area_h;
                         swatch=_SWATCH, gap=_LEGEND_GAP)
     (; position = legend.position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
@@ -415,32 +415,32 @@ function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, 
     plan === nothing && return nothing
     bw, bh = plan.box_w, plan.box_h
     if plan.position === :inside
-        dx, dy = anchor_offset(plan.anchor, plot_w - 2 * _PAD, plot_h - 2 * _PAD, bw, bh)
+        dx, dy = get_anchor_offset(plan.anchor, plot_w - 2 * _PAD, plot_h - 2 * _PAD, bw, bh)
         x, y = plot_x + _PAD + dx, plot_y + _PAD + dy
     elseif plan.position === :above
-        dx, _ = anchor_offset(plan.anchor, plot_w, bh, bw, bh)
+        dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
         x, y = plot_x + dx, top - bh - _PAD
     elseif plan.position === :below
-        dx, _ = anchor_offset(plan.anchor, plot_w, bh, bw, bh)
+        dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
         x, y = plot_x + dx, h - bottom + _PAD
     elseif plan.position === :left
-        _, dy = anchor_offset(plan.anchor, bw, plot_h, bw, bh)
+        _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
         x, y = _PAD, plot_y + dy
     else
-        _, dy = anchor_offset(plan.anchor, bw, plot_h, bw, bh)
+        _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
         x, y = w - right + _PAD, plot_y + dy
     end
     merge(plan, (; x, y))
 end
 
 """
-    legend_item_rects(legend) -> Vector{Tuple{Int,Int,Int,Int,Int}}
+    get_legend_item_rects(legend) -> Vector{Tuple{Int,Int,Int,Int,Int}}
 
 Each drawn legend item as `(series_index, x, y, w, h)` in canvas coordinates —
 what the printer draws into and what the reader hit-tests against, so the two
 can never disagree about where an item is.
 """
-function legend_item_rects(plan)
+function get_legend_item_rects(plan)
     out = Tuple{Int,Int,Int,Int,Int}[]
     plan === nothing && return out
     box = plan.box
@@ -469,7 +469,7 @@ function _legend_elements!(out, g)
                             border_width = plan.border ? 1 : 0,
                             border_color = plan.border ? _AXIS : nothing))
 
-    rects = legend_item_rects(plan)
+    rects = get_legend_item_rects(plan)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
         _, label, color = plan.items[k]
         cy = y + row_h ÷ 2
@@ -579,7 +579,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
 
     hovered_index = _reference_series_index(chart, plot.hovered)
     selected_index = _reference_series_index(chart, chart.selection)
-    selected_part = chart_part_index(chart, chart.selection)
+    selected_part = get_chart_part_index(chart, chart.selection)
     whole_selected = chart.selection isa EmptyReference
 
     measure_label = label -> p.measure(label, axis_font)
@@ -722,7 +722,7 @@ _dash_pattern(style::Symbol) =
 # primitives whose shape they already are.
 function _marker!(out, shape::Symbol, x::Int, y::Int, size::Int, color::StyleColor)
     r = max(size ÷ 2, 1)
-    polygon = marker_polygon(shape, x, y, r)
+    polygon = build_marker_polygon(shape, x, y, r)
     if polygon !== nothing
         push!(out, GraphicsPolygon(polygon, color))
     elseif shape === :circle
@@ -750,7 +750,7 @@ end
 function _line_points(g, s::ChartLineSeries)
     x, y = s.x, s.y
     (length(x) == 0 || length(y) == 0) && return Tuple{Int,Int}[]
-    i0, i1 = visible_range(x, g.view.x_min, g.view.x_max; sorted=s.sorted)
+    i0, i1 = get_visible_range(x, g.view.x_min, g.view.x_max; sorted=s.sorted)
     pts = decimate_minmax(x, y, g.xs, g.ys, i0, i1)
     ox, oy = g.plot_x, g.plot_y
     [(px - ox, py - oy) for (px, py) in pts]
@@ -764,7 +764,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
 
     if s.draw_style === :pins
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
-        for (x, ytop, ybot) in pins_segments(pts, baseline)
+        for (x, ytop, ybot) in build_pins_segments(pts, baseline)
             push!(out, GraphicsLine(x, ytop, x, ybot, color; width=max(s.line_width, 1),
                                     dash=_dash_pattern(s.line_style)))
         end
@@ -775,7 +775,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
                                         dash=_dash_pattern(s.line_style)))
     end
 
-    shape = series_symbol(s.symbol, index, style.symbol_cycle)
+    shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     # Markers only while they still read as individual points; past that they
     # merge into a smear and the line already carries the shape.
     if shape !== :none && length(pts) <= style.marker_limit
@@ -811,7 +811,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         return out
     end
 
-    shape = series_symbol(s.symbol, index, style.symbol_cycle)
+    shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
     shape === :none && return out
     seen = Set{Tuple{Int,Int}}()
     @inbounds for i in 1:n
@@ -1027,7 +1027,7 @@ function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
     x, values = s.x, s.values
     n = min(length(x), length(values))
     n >= 1 || return Tuple{Int,Int,Int}[]
-    i0, i1 = visible_range(x, view.x_min, view.x_max)
+    i0, i1 = get_visible_range(x, view.x_min, view.x_max)
     i1 = min(i1, n)
     i0 > i1 && return Tuple{Int,Int,Int}[]
     runs = strip_runs(values, i0, i1)
@@ -1099,7 +1099,7 @@ const _BAND_FILL = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x30 / 255)
 function _snap_point(g, lx::Int, ly::Int)
     best = nothing; best_d = _HIT_TOLERANCE^2 * 4
     for (index, s) in g.series
-        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        get_chart_series_family(s) === get_chart_axis_family(g.chart.x_axis) || continue
         for (px, py) in _hit_points(g, index, s)
             d = (px - lx)^2 + (py - ly)^2
             d <= best_d && (best_d = d; best = (index, px, py))
@@ -1122,17 +1122,17 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     # The selected sample, called out whether or not the pointer is near it.
     # Which callout is the series type's business, not the sample value's: a
     # histogram bin is a triple too, and rings nothing.
-    sample = selected_sample(g.chart)
+    sample = get_selected_sample(g.chart)
     if sample !== nothing
         series = g.chart.series[sample[1]]
         if series isa ChartStripSeries
             _selected_strip!(out, g, sample[1], series, sample[2])
         else
-            point = chart_sample(series, sample[2])
+            point = get_chart_sample(series, sample[2])
             if point isa Tuple && length(point) == 2
                 sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
-                color = series_color(series.color, sample[1], g.style.color_cycle)
+                color = get_series_color(series.color, sample[1], g.style.color_cycle)
                 push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
                                           border_width=2, border_color=_SELECTION_EDGE))
                 push!(out, GraphicsCircle(sx, sy, 3, color))
@@ -1160,7 +1160,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     end
 
     index, px, py = snapped
-    color = series_color(g.chart.series[index].color, index, g.style.color_cycle)
+    color = get_series_color(g.chart.series[index].color, index, g.style.color_cycle)
     push!(out, GraphicsCircle(px, py, 4, color; border_width=1, border_color=_PLOT_BACKGROUND))
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",
@@ -1177,7 +1177,7 @@ end
 
 # The selected segment, outlined where it is actually drawn: the span it folded
 # into if it folded, and out to the drawn end if it is the last one.
-# `chart_sample` keeps reporting the extent in the data, which does not move
+# `get_chart_sample` keeps reporting the extent in the data, which does not move
 # with the zoom, so the two deliberately differ.
 function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
     band = _strip_band(g, index)
@@ -1249,8 +1249,8 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
 
         # A series whose family does not match the x axis is a configuration
         # error, not a crash: it is left out and the frame still draws.
-        family = chart_axis_family(g.chart.x_axis)
-        drawable = [(i, s) for (i, s) in g.series if chart_series_family(s) === family]
+        family = get_chart_axis_family(g.chart.x_axis)
+        drawable = [(i, s) for (i, s) in g.series if get_chart_series_family(s) === family]
         series_out = Any[]
         if family === :category
             _bar_elements!(series_out, g, drawable)
@@ -1307,7 +1307,7 @@ function _legend_hit(g, x::Integer, y::Integer)
     plan = g.legend
     plan === nothing && return nothing
     _in_rect(x, y, plan.x, plan.y, plan.box_w, plan.box_h) || return nothing
-    for (index, ix, iy, iw, ih) in legend_item_rects(plan)
+    for (index, ix, iy, iw, ih) in get_legend_item_rects(plan)
         _in_rect(x, y, ix, iy, iw, ih) && return index
     end
     0    # inside the box but between items: consumed, but names no series
@@ -1324,13 +1324,13 @@ function _part_hit(g, x::Integer, y::Integer)
 end
 
 """
-    chart_part_reference(part, plot) -> Reference
+    get_chart_part_reference(part, plot) -> Reference
 
 The whole-element reference naming one part of the chart, in the reader's own
 (`ChartPlot`) domain. Stage 1 peels the `chart` step off on the way back, so
 what reaches the document is a plain `Chart` reference.
 """
-function chart_part_reference(part::Symbol, plot::ChartPlot)
+function get_chart_part_reference(part::Symbol, plot::ChartPlot)
     chart = plot.chart
     ct = get_reference_node_type(chart)
     part === :title && return @reference ::ChartPlot.chart::ct.title::String
@@ -1350,7 +1350,7 @@ function chart_part_reference(part::Symbol, plot::ChartPlot)
     @reference ::ChartPlot
 end
 
-function chart_series_reference(index::Integer, plot::ChartPlot)
+function get_chart_series_reference(index::Integer, plot::ChartPlot)
     chart = plot.chart
     ct = get_reference_node_type(chart)
     st = get_reference_node_type(chart.series[index])
@@ -1363,7 +1363,7 @@ end
 function chart_plot_sample_reference(plot::ChartPlot, series_index::Integer, sample_index::Integer)
     chart = plot.chart
     ct = get_reference_node_type(chart)
-    inner = chart_sample_reference(chart, series_index, sample_index)
+    inner = make_chart_sample_reference(chart, series_index, sample_index)
     @reference ::ChartPlot.chart::ct.^(inner)
 end
 
@@ -1398,17 +1398,17 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
             s = g.chart.series[index]
             return ReplaceReferencedValueOperation(s, "visible", !s.visible)
         elseif index isa Int
-            return ReplaceSelectionOperation(chart_part_reference(:legend, plot))
+            return ReplaceSelectionOperation(get_chart_part_reference(:legend, plot))
         end
         part = _part_hit(g, event.x, event.y)
-        part === nothing || return ReplaceSelectionOperation(chart_part_reference(part, plot))
+        part === nothing || return ReplaceSelectionOperation(get_chart_part_reference(part, plot))
         # A click on a data point selects the point; anywhere else on a series'
         # geometry selects the series.
         hit = _sample_hit(g, event.x, event.y)
         hit === nothing ||
             return ReplaceSelectionOperation(chart_plot_sample_reference(plot, hit[1], hit[2]))
         index = _series_hit(g, event.x, event.y)
-        index === nothing || return ReplaceSelectionOperation(chart_series_reference(index, plot))
+        index === nothing || return ReplaceSelectionOperation(get_chart_series_reference(index, plot))
     end
     nothing
 end
@@ -1555,7 +1555,7 @@ end
 function _hover_intent(g, plot::ChartPlot, x::Integer, y::Integer)
     ops = Operation[]
     index = _legend_hit(g, x, y)
-    hovered = index isa Int && index > 0 ? chart_series_reference(index, plot) : nothing
+    hovered = index isa Int && index > 0 ? get_chart_series_reference(index, plot) : nothing
     isequal(plot.hovered, hovered) ||
         push!(ops, ReplaceReferencedValueOperation(plot, "hovered", hovered))
 
@@ -1582,7 +1582,7 @@ function _series_hit(g, x::Integer, y::Integer)
     lx, ly = x - g.plot_x, y - g.plot_y
     best = nothing; best_d = _HIT_TOLERANCE^2
     for (index, s) in g.series
-        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        get_chart_series_family(s) === get_chart_axis_family(g.chart.x_axis) || continue
         for (px, py) in _hit_points(g, index, s)
             d = (px - lx)^2 + (py - ly)^2
             d <= best_d && (best_d = d; best = index)
@@ -1617,13 +1617,13 @@ function _sample_hit(g, x::Integer, y::Integer)
     _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
     best = nothing; best_d = Inf
     for (index, s) in g.series
-        chart_series_family(s) === chart_axis_family(g.chart.x_axis) || continue
+        get_chart_series_family(s) === get_chart_axis_family(g.chart.x_axis) || continue
         (s isa ChartLineSeries || s isa ChartScatterSeries) || continue
         sorted = s isa ChartLineSeries && s.sorted
         n = min(length(s.x), length(s.y))
         s isa ChartScatterSeries && n > g.style.scatter_fold_threshold && continue
-        i0, i1 = sorted ? visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
-        found = nearest_sample(s.x, s.y, g.xs, g.ys, x, y, i0, i1;
+        i0, i1 = sorted ? get_visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
+        found = find_nearest_sample(s.x, s.y, g.xs, g.ys, x, y, i0, i1;
                                sorted=sorted, tolerance=_HIT_TOLERANCE)
         found === nothing && continue
         found[2] < best_d && (best_d = found[2]; best = (index, found[1]))

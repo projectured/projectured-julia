@@ -31,8 +31,8 @@ using ..GestureBindingModule
 using ..DomainModule
 
 import ..ColorModule: StyleColor
-import ..PlotStyleModule: default_color_cycle, default_symbol_cycle, series_color
-import ..PlotGeometryModule: bin_values
+import ..PlotStyleModule: default_color_cycle, default_symbol_cycle, get_series_color
+import ..PlotGeometryModule: compute_bin_values
 import ..ChartSampleReferenceStepModule: ChartSampleReferenceStep
 import ..ReferenceModule
 import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
@@ -44,10 +44,10 @@ import ..ReferenceModule: var"@reference"
 import ..OperationModule: CompoundOperation, ReplaceSelectionOperation,
                           insert_elements, delete_elements
 
-export ChartSeries, chart_series_family, chart_axis_family,
-       selected_series_index, move_series, remove_series,
-       chart_parts, chart_part_index,
-       chart_sample, chart_sample_reference, selected_sample
+export ChartSeries, get_chart_series_family, get_chart_axis_family,
+       get_selected_series_index, move_series, remove_series,
+       collect_chart_parts, get_chart_part_index,
+       get_chart_sample, make_chart_sample_reference, get_selected_sample
 
 @domain Chart
 
@@ -248,7 +248,7 @@ Bin a raw sample column into `nbins` equal-width bins. Arity 2, so it never
 collides with the edges-and-values form above.
 """
 function ChartHistogramSeries(label::AbstractString, values::AbstractVector; nbins::Integer=20)
-    edges, counts = bin_values(values, nbins)
+    edges, counts = compute_bin_values(values, nbins)
     ChartHistogramSeries(String(label), edges, counts)
 end
 
@@ -351,7 +351,7 @@ function strip_state_color(series::ChartStripSeries, code, cycle)
     c = Int(code)
     own = series.state_colors
     own !== nothing && 1 <= c <= length(own) && return own[c]
-    series_color(nothing, c, cycle)
+    get_series_color(nothing, c, cycle)
 end
 
 # ── Chart ────────────────────────────────────────────────────────────────
@@ -389,32 +389,32 @@ end
 # ── Family traits ────────────────────────────────────────────────────────
 
 """
-    chart_series_family(series) -> :xy | :category | :unknown
+    get_chart_series_family(series) -> :xy | :category | :unknown
 
 Which axis family a series needs on x. The projection refuses to draw a series
 whose family does not match the chart's x axis, and renders a diagnostic in its
 place rather than throwing.
 """
-chart_series_family(::Any) = :unknown
-chart_series_family(::ChartLineSeries) = :xy
-chart_series_family(::ChartScatterSeries) = :xy
-chart_series_family(::ChartHistogramSeries) = :xy
-chart_series_family(::ChartStripSeries) = :xy
-chart_series_family(::ChartBarSeries) = :category
+get_chart_series_family(::Any) = :unknown
+get_chart_series_family(::ChartLineSeries) = :xy
+get_chart_series_family(::ChartScatterSeries) = :xy
+get_chart_series_family(::ChartHistogramSeries) = :xy
+get_chart_series_family(::ChartStripSeries) = :xy
+get_chart_series_family(::ChartBarSeries) = :category
 
 """
-    chart_axis_family(axis) -> :xy | :category | :unknown
+    get_chart_axis_family(axis) -> :xy | :category | :unknown
 
-The counterpart of [`chart_series_family`](@ref) for an x axis.
+The counterpart of [`get_chart_series_family`](@ref) for an x axis.
 """
-chart_axis_family(::Any) = :unknown
-chart_axis_family(::ChartAxis) = :xy
-chart_axis_family(::ChartCategoryAxis) = :category
+get_chart_axis_family(::Any) = :unknown
+get_chart_axis_family(::ChartAxis) = :xy
+get_chart_axis_family(::ChartCategoryAxis) = :category
 
 # ── Samples ──────────────────────────────────────────────────────────────
 
 """
-    chart_sample(series, index) -> value | nothing
+    get_chart_sample(series, index) -> value | nothing
 
 What the `index`-th sample of a series is: the `(x, y)` pair of a line or
 scatter point, the `(lower, upper, value)` of a histogram bin, the value of a
@@ -423,20 +423,20 @@ bar. `nothing` when the index is out of range.
 This is what a `ChartSampleReferenceStep` evaluates to — every reference in the
 tree descends to a value, and this is a sample's.
 """
-chart_sample(::Any, ::Integer) = nothing
+get_chart_sample(::Any, ::Integer) = nothing
 
-function chart_sample(s::Union{ChartLineSeries, ChartScatterSeries}, index::Integer)
+function get_chart_sample(s::Union{ChartLineSeries, ChartScatterSeries}, index::Integer)
     n = min(length(s.x), length(s.y))
     (1 <= index <= n) || return nothing
     (Float64(s.x[index]), Float64(s.y[index]))
 end
 
-function chart_sample(s::ChartBarSeries, index::Integer)
+function get_chart_sample(s::ChartBarSeries, index::Integer)
     (1 <= index <= length(s.values)) || return nothing
     Float64(s.values[index])
 end
 
-function chart_sample(s::ChartHistogramSeries, index::Integer)
+function get_chart_sample(s::ChartHistogramSeries, index::Integer)
     (1 <= index <= min(length(s.binvalues), length(s.binedges) - 1)) || return nothing
     (Float64(s.binedges[index]), Float64(s.binedges[index+1]), Float64(s.binvalues[index]))
 end
@@ -444,7 +444,7 @@ end
 # The extent evaluated here is the one in the data, not the one on screen: the
 # last segment is drawn out to the end of the view, but a reference must not
 # evaluate differently as someone zooms.
-function chart_sample(s::ChartStripSeries, index::Integer)
+function get_chart_sample(s::ChartStripSeries, index::Integer)
     n = min(length(s.x), length(s.values))
     (1 <= index <= n) || return nothing
     lower = Float64(s.x[index])
@@ -456,18 +456,18 @@ end
 # The step type is domain-agnostic; what a sample *is* depends on the series
 # holding it, so the evaluation lives here rather than in the step's own file.
 ReferenceModule.evaluate_reference_step(step::ChartSampleReferenceStep, document) =
-    chart_sample(document, step.index)
+    get_chart_sample(document, step.index)
 
 """
-    chart_sample_reference(chart, series_index, sample_index) -> Reference
+    make_chart_sample_reference(chart, series_index, sample_index) -> Reference
 
 The reference naming one sample of one series, fully typed.
 """
-function chart_sample_reference(chart::Chart, series_index::Integer, sample_index::Integer)
+function make_chart_sample_reference(chart::Chart, series_index::Integer, sample_index::Integer)
     # Built structurally rather than through the `@reference` DSL: the DSL reads
     # a lowercase `::t` as a runtime type and cannot then continue into an
     # extension step. Annotating against the chart fills in every node's type,
-    # including the sample's own, which is whatever `chart_sample` returns.
+    # including the sample's own, which is whatever `get_chart_sample` returns.
     annotate_reference_types(chart,
         ConcreteReference(FieldReferenceStep("series"),
             ConcreteReference(ElementReferenceStep(series_index),
@@ -476,12 +476,12 @@ function chart_sample_reference(chart::Chart, series_index::Integer, sample_inde
 end
 
 """
-    selected_sample(chart) -> (series_index, sample_index) | nothing
+    get_selected_sample(chart) -> (series_index, sample_index) | nothing
 
 Which sample the chart's selection names, or `nothing` when it names something
 coarser.
 """
-function selected_sample(chart::Chart)
+function get_selected_sample(chart::Chart)
     reference = chart.selection
     reference === nothing && return nothing
     n = length(chart.series)
@@ -512,13 +512,13 @@ _chart_series_reference(chart::Chart, index::Integer) =
             ConcreteReference(ElementReferenceStep(index), EmptyReference())))
 
 """
-    chart_parts(chart) -> Vector{Reference}
+    collect_chart_parts(chart) -> Vector{Reference}
 
 Every selectable part of a chart, in reading order: the title, the x axis, the
 y axis, the legend, then each series. Navigation walks this list, and the
 projection draws whichever entry is selected.
 """
-function chart_parts(chart::Chart)
+function collect_chart_parts(chart::Chart)
     parts = Reference[_chart_field_reference(chart, "title"),
                       _chart_field_reference(chart, "x_axis"),
                       _chart_field_reference(chart, "y_axis"),
@@ -530,12 +530,12 @@ function chart_parts(chart::Chart)
 end
 
 """
-    chart_part_index(chart, reference) -> Int
+    get_chart_part_index(chart, reference) -> Int
 
 Which part a reference points at (or into), or `0` for the whole chart and
 anything unrecognised.
 """
-function chart_part_index(chart::Chart, reference)
+function get_chart_part_index(chart::Chart, reference)
     reference === nothing && return 0
     n = length(chart.series)
     @reference_case reference begin
@@ -549,13 +549,13 @@ function chart_part_index(chart::Chart, reference)
 end
 
 """
-    selected_series_index(chart) -> Int
+    get_selected_series_index(chart) -> Int
 
 Which series the chart's selection points into, or `0`. The series list is both
 the draw order and the legend order, so this is what the reorder gestures act
 on.
 """
-function selected_series_index(chart::Chart)
+function get_selected_series_index(chart::Chart)
     reference = chart.selection
     reference === nothing && return 0
     @reference_case reference begin
@@ -567,9 +567,9 @@ end
 # Step to another part by offset, clamping at both ends. Returns nothing when
 # there is nowhere to go, which declines the gesture rather than consuming it.
 function _step_part(chart::Chart, offset::Integer)
-    parts = chart_parts(chart)
+    parts = collect_chart_parts(chart)
     isempty(parts) && return nothing
-    current = chart_part_index(chart, chart.selection)
+    current = get_chart_part_index(chart, chart.selection)
     # From the whole chart, a forward step enters the first part and a backward
     # step stays put.
     target = current == 0 ? (offset > 0 ? 1 : 0) : current + offset
@@ -579,7 +579,7 @@ function _step_part(chart::Chart, offset::Integer)
 end
 
 _select_part(chart::Chart, index::Integer) = begin
-    parts = chart_parts(chart)
+    parts = collect_chart_parts(chart)
     (1 <= index <= length(parts)) ? ReplaceSelectionOperation(parts[index]) : nothing
 end
 
@@ -617,7 +617,7 @@ Delete whichever series the selection points into, or nothing when it points
 somewhere else.
 """
 function remove_series(chart::Chart)
-    index = selected_series_index(chart)
+    index = get_selected_series_index(chart)
     index == 0 && return nothing
     delete_elements(_chart_field_reference(chart, "series"), index - 1; root=chart)
 end
@@ -628,9 +628,9 @@ end
 # reordering takes Ctrl+Shift so it collides with neither.
 @gestures Chart begin
     KeyDown(:home; ctrl) => "Select the first part" => _select_part(doc, 1)
-    KeyDown(:end; ctrl) => "Select the last part" => _select_part(doc, length(chart_parts(doc)))
+    KeyDown(:end; ctrl) => "Select the last part" => _select_part(doc, length(collect_chart_parts(doc)))
     KeyDown(:home;) => "Select the first part" => _select_part(doc, 1)
-    KeyDown(:end;) => "Select the last part" => _select_part(doc, length(chart_parts(doc)))
+    KeyDown(:end;) => "Select the last part" => _select_part(doc, length(collect_chart_parts(doc)))
     KeyDown(:left;) => "Select the previous part" => _step_part(doc, -1)
     KeyDown(:up;) => "Select the previous part" => _step_part(doc, -1)
     KeyDown(:right;) => "Select the next part" => _step_part(doc, 1)
@@ -638,9 +638,9 @@ end
 
     KeyDown(:home; ctrl, alt) => "Select the whole chart" => _select_whole(doc)
     KeyDown(:left; alt) => "Select the whole chart" =>
-        (chart_part_index(doc, doc.selection) == 0 ? nothing : _select_whole(doc))
+        (get_chart_part_index(doc, doc.selection) == 0 ? nothing : _select_whole(doc))
     KeyDown(:right; alt) => "Select the first part" =>
-        (chart_part_index(doc, doc.selection) == 0 ? _select_part(doc, 1) : nothing)
+        (get_chart_part_index(doc, doc.selection) == 0 ? _select_part(doc, 1) : nothing)
     KeyDown(:up; alt) => "Select the previous part" => _step_part(doc, -1)
     KeyDown(:down; alt) => "Select the next part" => _step_part(doc, 1)
 
@@ -648,9 +648,9 @@ end
     # guard: a block-level `when` would gate the navigation rules above as well,
     # and a per-rule guard sees only the event, not the document.
     KeyDown(:up; ctrl, shift) => "Move the selected series earlier" =>
-        move_series(doc, selected_series_index(doc), selected_series_index(doc) - 1)
+        move_series(doc, get_selected_series_index(doc), get_selected_series_index(doc) - 1)
     KeyDown(:down; ctrl, shift) => "Move the selected series later" =>
-        move_series(doc, selected_series_index(doc), selected_series_index(doc) + 1)
+        move_series(doc, get_selected_series_index(doc), get_selected_series_index(doc) + 1)
     KeyDown(:delete; alt) => "Remove the selected series" => remove_series(doc)
 end
 
