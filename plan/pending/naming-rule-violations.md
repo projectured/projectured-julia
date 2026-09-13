@@ -45,15 +45,17 @@ odbc tests now say odbc, and the database package has its own entry point.
 
 ### 0.3 What is still open
 
-| item | where |
+Everything that does not wait on the slice collapse is done.
+
+| item | state |
 | --- | --- |
-| the clipboard file split | [one-module-per-slice.md](one-module-per-slice.md) §4.1 |
-| the 30 document module renames | cancelled; a slice becomes one module |
-| six module names that the slice collapse settles | allow-listed in the guard, with the reason |
-| the four `PRED_REF` constants | §9.30 — the abbreviation is the wire value |
-| `EVALUATION_HANDLER` is a process-wide global | §11.1 — a design finding, not a rename |
-| the stale block in `system-anatomy.md` | §8.3 |
-| whether the four `sdl_*` helpers should be exported at all | §14.11 of the appendix |
+| the clipboard file split | waits on [one-module-per-slice.md](one-module-per-slice.md) §4.1 |
+| six module names the slice collapse settles | waits; allow-listed in the guard with the reason |
+| the 30 document module renames | cancelled — a slice becomes one module |
+| the four `PRED_REF` constants | **done** §9.30 — a constant that holds a wire value spells the value |
+| `EVALUATION_HANDLER` is a process-wide global | **done** §11.1 — two declared generics replace two `Ref`s |
+| the stale block in `system-anatomy.md` | **done** §8.3 — and seventeen stale file citations with it |
+| whether the four `sdl_*` helpers should be exported | **done** §11.2 — five exports came off, one stayed |
 
 ### 0.4 What reading the code changed
 
