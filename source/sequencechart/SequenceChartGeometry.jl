@@ -20,7 +20,7 @@ The middle stage is what makes a sequence chart different from a plot. Event
 times in a trace span orders of magnitude — microseconds between two protocol
 steps, seconds until the next timeout — and a linear axis can show one or the
 other but never both. So the mapping is pluggable
-([`timeline_coordinates`](@ref)): proportional to time, to an ordinal, one unit
+([`get_timeline_coordinates`](@ref)): proportional to time, to an ordinal, one unit
 per event, or the nonlinear compression that keeps every gap visible while
 preserving which gap is longer.
 
@@ -34,14 +34,14 @@ module SequenceChartGeometryModule
 import ..PlotGeometryModule: AxisScale, to_pixel, to_data, nice_ticks, format_tick
 
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
-       timeline_coordinates, default_nonlinear_focus,
-       time_to_coordinate, coordinate_to_time,
-       visible_event_range, visible_arrows,
-       flow_ticks, honest_tick_label, tick_common_prefix,
-       zero_time_spans, axis_cross_positions,
-       arc_geometry, split_arrow, arrow_route,
-       decimate_events, arrow_coverage_dedup,
-       band_intervals, event_ordinal
+       get_timeline_coordinates, default_nonlinear_focus,
+       time_to_coordinate, convert_coordinate_to_time,
+       get_visible_event_range, get_visible_arrows,
+       flow_ticks, get_honest_tick_label, tick_common_prefix,
+       get_zero_time_spans, get_axis_cross_positions,
+       get_arc_geometry, split_arrow, get_arrow_route,
+       decimate_events, deduplicate_arrow_coverage,
+       get_band_intervals, get_event_ordinal
 
 # ── The flow frame ───────────────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ end
 # ── The timeline mapping ─────────────────────────────────────────────────
 
 """
-    event_ordinal(ordinals, i) -> Float64
+    get_event_ordinal(ordinals, i) -> Float64
 
 The ordinal of event row `i`: the column's entry when the chart carries one,
 otherwise the row index itself.
@@ -123,7 +123,7 @@ that separates it from `:step`. Rows sharing an ordinal share one coordinate,
 which is how one occurrence appears on several lanes without occupying several
 slots.
 """
-event_ordinal(ordinals, i::Integer) =
+get_event_ordinal(ordinals, i::Integer) =
     ordinals === nothing || i > length(ordinals) ? Float64(i) : Float64(ordinals[i])
 
 """
@@ -143,7 +143,7 @@ function default_nonlinear_focus(times)
 end
 
 """
-    timeline_coordinates(times, ordinals, mode; focus=nothing, minimum=0.1) -> Vector{Float64}
+    get_timeline_coordinates(times, ordinals, mode; focus=nothing, minimum=0.1) -> Vector{Float64}
 
 The timeline coordinate of every event row — the middle stage of the coordinate
 pipeline, computed in one cumulative pass.
@@ -164,7 +164,7 @@ The four modes:
 Rows sharing an ordinal share a coordinate in every mode, so a duplicated
 occurrence costs no width.
 """
-function timeline_coordinates(times, ordinals, mode::Symbol;
+function get_timeline_coordinates(times, ordinals, mode::Symbol;
                               focus=nothing, minimum::Real=0.1)
     n = length(times)
     out = Vector{Float64}(undef, n)
@@ -180,9 +180,9 @@ function timeline_coordinates(times, ordinals, mode::Symbol;
     end
 
     if mode === :ordinal
-        o0 = event_ordinal(ordinals, 1)
+        o0 = get_event_ordinal(ordinals, 1)
         @inbounds for i in 1:n
-            out[i] = event_ordinal(ordinals, i) - o0
+            out[i] = get_event_ordinal(ordinals, i) - o0
         end
         return out
     end
@@ -191,9 +191,9 @@ function timeline_coordinates(times, ordinals, mode::Symbol;
     (isfinite(f) && f > 0) || (f = 1.0)
 
     out[1] = 0.0
-    previous_ordinal = event_ordinal(ordinals, 1)
+    previous_ordinal = get_event_ordinal(ordinals, 1)
     @inbounds for i in 2:n
-        ordinal = event_ordinal(ordinals, i)
+        ordinal = get_event_ordinal(ordinals, i)
         if ordinal == previous_ordinal
             # The same occurrence seen again: no new slot, no width.
             out[i] = out[i-1]
@@ -250,13 +250,13 @@ function time_to_coordinate(times, coordinates, t::Real; upper::Bool=false)
 end
 
 """
-    coordinate_to_time(times, coordinates, c) -> Float64
+    convert_coordinate_to_time(times, coordinates, c) -> Float64
 
 The inverse: what time a timeline coordinate stands for, interpolated inside the
 enclosing gap. Inside a zero-time region every coordinate maps to the one time
 the region holds, which is the honest answer.
 """
-function coordinate_to_time(times, coordinates, c::Real)
+function convert_coordinate_to_time(times, coordinates, c::Real)
     n = min(length(times), length(coordinates))
     n == 0 && return 0.0
     c = Float64(c)
@@ -273,13 +273,13 @@ end
 # ── Visible ranges ───────────────────────────────────────────────────────
 
 """
-    visible_event_range(coordinates, lo, hi) -> (i0, i1)
+    get_visible_event_range(coordinates, lo, hi) -> (i0, i1)
 
 The rows whose coordinates overlap `[lo, hi]`, one index wider each way so
 whatever enters and leaves the window still draws. A binary search: panning a
 long trace touches only what shows. Empty input gives the empty range `(1, 0)`.
 """
-function visible_event_range(coordinates, lo::Real, hi::Real)
+function get_visible_event_range(coordinates, lo::Real, hi::Real)
     n = length(coordinates)
     n == 0 && return (1, 0)
     i0 = searchsortedfirst(coordinates, Float64(lo))
@@ -288,7 +288,7 @@ function visible_event_range(coordinates, lo::Real, hi::Real)
 end
 
 """
-    visible_arrows(coordinates, sources, targets, lo, hi; horizon=0.0) -> Vector{Int}
+    get_visible_arrows(coordinates, sources, targets, lo, hi; horizon=0.0) -> Vector{Int}
 
 Which arrows can affect the window `[lo, hi]`, widened by `horizon`.
 
@@ -300,7 +300,7 @@ would erase the very connection the chart exists to show.
 The scan is linear in the arrow count, which suits this slice's bounded-document
 posture — a chart is windowed upstream before it is printed.
 """
-function visible_arrows(coordinates, sources, targets, lo::Real, hi::Real;
+function get_visible_arrows(coordinates, sources, targets, lo::Real, hi::Real;
                         horizon::Real=0.0)
     out = Int[]
     n = min(length(sources), length(targets))
@@ -321,7 +321,7 @@ end
 # ── Ticks ────────────────────────────────────────────────────────────────
 
 """
-    honest_tick_label(t, neighbourhood) -> String
+    get_honest_tick_label(t, neighbourhood) -> String
 
 The shortest decimal that still names this tick unambiguously at this zoom.
 
@@ -331,7 +331,7 @@ dressed as precision, so this rounds to the fewest digits that still land inside
 the neighbourhood. Zooming in lengthens the labels on its own, exactly as far as
 the extra resolution earns.
 """
-function honest_tick_label(t::Real, neighbourhood::Real)
+function get_honest_tick_label(t::Real, neighbourhood::Real)
     v = Float64(t)
     isfinite(v) || return string(v)
     n = abs(Float64(neighbourhood))
@@ -384,7 +384,7 @@ In `:time` mode the timeline is uniform, so the ticks are round numbers off the
 1-2-5 ladder and land wherever those numbers fall. In every other mode a round
 time has no fixed width, so the ticks are placed at even *pixel* intervals
 instead and each one is labelled with the time that happens to be there — which
-is why [`honest_tick_label`](@ref) exists.
+is why [`get_honest_tick_label`](@ref) exists.
 """
 function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
                     target_px::Real=100)
@@ -397,8 +397,8 @@ function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
     count = max(2, floor(Int, span / max(Float64(target_px), 1.0)) + 1)
 
     if mode === :time
-        t_lo = coordinate_to_time(times, coordinates, scale.lo)
-        t_hi = coordinate_to_time(times, coordinates, scale.hi)
+        t_lo = convert_coordinate_to_time(times, coordinates, scale.lo)
+        t_hi = convert_coordinate_to_time(times, coordinates, scale.hi)
         for t in nice_ticks(t_lo, t_hi, count)
             c = time_to_coordinate(times, coordinates, t)
             (scale.lo <= c <= scale.hi) && push!(out, (c, Float64(t)))
@@ -410,13 +410,13 @@ function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
     step > 0 || return out
     for k in 0:(count-1)
         c = scale.lo + k * step
-        push!(out, (c, coordinate_to_time(times, coordinates, c)))
+        push!(out, (c, convert_coordinate_to_time(times, coordinates, c)))
     end
     out
 end
 
 """
-    zero_time_spans(times, coordinates, lo, hi) -> Vector{(c0, c1)}
+    get_zero_time_spans(times, coordinates, lo, hi) -> Vector{(c0, c1)}
 
 The coordinate spans where the clock does not advance.
 
@@ -425,7 +425,7 @@ duration — so without marking them the picture lies. Shading them says "the
 distance you see here is ordering, not elapsed time", which is what makes a
 nonlinear timeline safe to read.
 """
-function zero_time_spans(times, coordinates, lo::Real, hi::Real)
+function get_zero_time_spans(times, coordinates, lo::Real, hi::Real)
     out = Tuple{Float64,Float64}[]
     n = min(length(times), length(coordinates))
     n < 2 && return out
@@ -450,7 +450,7 @@ end
 # ── Lane placement ───────────────────────────────────────────────────────
 
 """
-    axis_cross_positions(count, band_heights, cross_lo, cross_hi; spacing=nothing,
+    get_axis_cross_positions(count, band_heights, cross_lo, cross_hi; spacing=nothing,
                          minimum_spacing=14.0, offset=20.0) -> Vector{Float64}
 
 The cross-axis centre of every lane, in display order.
@@ -460,7 +460,7 @@ keeps a chart of any lane count filling its pane; pass a number to pin the
 spacing instead and let the lanes overflow into a scroll. A lane carrying a
 state band needs extra room, so its band height widens its slot.
 """
-function axis_cross_positions(count::Integer, band_heights, cross_lo::Real, cross_hi::Real;
+function get_axis_cross_positions(count::Integer, band_heights, cross_lo::Real, cross_hi::Real;
                               spacing=nothing, minimum_spacing::Real=14.0,
                               offset::Real=20.0)
     out = Float64[]
@@ -496,20 +496,20 @@ _band_height(heights, i::Integer) =
 # ── Arrow routing ────────────────────────────────────────────────────────
 
 """
-    arrow_route(route, same_lane) -> :direct | :arc
+    get_arrow_route(route, same_lane) -> :direct | :arc
 
 What shape an arrow takes. `:auto` draws an arc when both ends sit on one lane —
 a straight line there would be invisible, hidden inside the lane it runs along —
 and a direct line otherwise.
 """
-function arrow_route(route::Symbol, same_lane::Bool)
+function get_arrow_route(route::Symbol, same_lane::Bool)
     route === :direct && return :direct
     route === :arc && return :arc
     same_lane ? :arc : :direct
 end
 
 """
-    arc_geometry(flow0, flow1, cross, height) -> Vector{Tuple{Float64,Float64}}
+    get_arc_geometry(flow0, flow1, cross, height) -> Vector{Tuple{Float64,Float64}}
 
 Bezier control points for a same-lane arrow: a half-ellipse rising off the lane
 and returning to it, in `(flow, cross)` pairs, with the four-point cubic whose
@@ -519,7 +519,7 @@ The arc bulges toward *lower* cross coordinates — above the lane in a horizont
 chart — which is where there is room, since the lane's own events sit on the
 line itself.
 """
-function arc_geometry(flow0::Real, flow1::Real, cross::Real, height::Real)
+function get_arc_geometry(flow0::Real, flow1::Real, cross::Real, height::Real)
     f0 = Float64(flow0); f1 = Float64(flow1)
     c = Float64(cross); h = abs(Float64(height))
     handle = c - h * 4 / 3
@@ -603,7 +603,7 @@ function decimate_events(coordinates, axes, scale::AxisScale, i0::Integer, i1::I
 end
 
 """
-    arrow_coverage_dedup(candidates, flows, crosses, tolerance=1.0) -> Vector{Int}
+    deduplicate_arrow_coverage(candidates, flows, crosses, tolerance=1.0) -> Vector{Int}
 
 Thin a bundle of near-parallel arrows down to the pixels they actually cover.
 
@@ -615,7 +615,7 @@ its own right, not part of a bundle.
 
 `flows[k]` and `crosses[k]` are the `(from, to)` pixel pairs of candidate `k`.
 """
-function arrow_coverage_dedup(candidates, flows, crosses; tolerance::Real=1.0)
+function deduplicate_arrow_coverage(candidates, flows, crosses; tolerance::Real=1.0)
     out = Int[]
     covered = Dict{Int,Vector{Tuple{Int,Int}}}()
     tolerance = Float64(tolerance)
@@ -680,7 +680,7 @@ function _span_insert!(spans, lo::Int, hi::Int)
 end
 
 """
-    band_intervals(band_times, values, events, event_times, coordinates, lo, hi)
+    get_band_intervals(band_times, values, events, event_times, coordinates, lo, hi)
         -> Vector{(c0, c1, value, index)}
 
 The visible run of a lane's state band, as coordinate intervals.
@@ -695,7 +695,7 @@ stretched. Anchoring a sample to an event row instead skips that conversion, and
 that is the accurate way wherever several events share a time: the raw time
 names the whole zero-time region, while the state changed at one point inside it.
 """
-function band_intervals(band_times, values, events, event_times, coordinates,
+function get_band_intervals(band_times, values, events, event_times, coordinates,
                         lo::Real, hi::Real)
     out = Tuple{Float64,Float64,Float64,Int}[]
     n = min(length(band_times), length(values))

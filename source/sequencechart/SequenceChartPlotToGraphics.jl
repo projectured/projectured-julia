@@ -44,23 +44,23 @@ import ..SequenceChartModule: SequenceChart, SequenceChartNothing, SequenceChart
                               SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
                               SequenceChartBandSeries, SequenceChartEventKind,
                               SequenceChartArrowKind, SequenceChartStyle,
-                              event_count, arrow_count, axis_display_order,
-                              event_axis, event_kind, event_label,
-                              arrow_kind, arrow_label,
-                              arrow_source_axis, arrow_target_axis,
-                              band_state_name,
-                              event_reference, arrow_reference, band_reference,
-                              axis_reference, selected_event, selected_arrow
+                              get_event_count, get_arrow_count, get_axis_display_order,
+                              get_event_axis, get_event_kind, get_event_label,
+                              get_arrow_kind, get_arrow_label,
+                              get_arrow_source_axis, get_arrow_target_axis,
+                              get_band_state_name,
+                              get_event_reference, get_arrow_reference, get_band_reference,
+                              get_axis_reference, get_selected_event, get_selected_arrow
 import ..SequenceChartPlotModule: SequenceChartPlot, SequenceChartView
 import ..SequenceChartGeometryModule: FlowFrame, flow_point, flow_rect,
                                       frame_flow_span, frame_cross_span,
-                                      timeline_coordinates, default_nonlinear_focus,
-                                      time_to_coordinate, coordinate_to_time,
-                                      visible_event_range, visible_arrows,
-                                      flow_ticks, honest_tick_label, tick_common_prefix,
-                                      zero_time_spans, axis_cross_positions,
-                                      arc_geometry, arc_height, split_arrow, arrow_route,
-                                      decimate_events, arrow_coverage_dedup, band_intervals
+                                      get_timeline_coordinates, default_nonlinear_focus,
+                                      time_to_coordinate, convert_coordinate_to_time,
+                                      get_visible_event_range, get_visible_arrows,
+                                      flow_ticks, get_honest_tick_label, tick_common_prefix,
+                                      get_zero_time_spans, get_axis_cross_positions,
+                                      get_arc_geometry, arc_height, split_arrow, get_arrow_route,
+                                      decimate_events, deduplicate_arrow_coverage, get_band_intervals
 import ..PlotGeometryModule: AxisScale, to_pixel, to_data
 import ..PlotStyleModule: series_color, marker_polygon
 import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
@@ -80,8 +80,8 @@ import ..ReferenceModule: var"@reference"
 import ..ReferenceModule: var"@reference_case"
 
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
-       resolve_window, lane_cross_position,
-       event_hit, arrow_hit, band_hit, lane_hit, sequence_chart_reference
+       resolve_window, get_lane_cross_position,
+       find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference
 
 # ── Theme defaults ───────────────────────────────────────────────────────
 # A `nothing` style field means "whatever the theme says"; these are that.
@@ -147,10 +147,10 @@ end
 function _timeline(chart)
     chart isa SequenceChart || return nothing
     events = chart.events
-    n = event_count(events)
+    n = get_event_count(events)
     times = Float64[Float64(events.times[i]) for i in 1:n]
     timeline = chart.timeline
-    coordinates = timeline_coordinates(times, events.ordinals, timeline.mode;
+    coordinates = get_timeline_coordinates(times, events.ordinals, timeline.mode;
                                        focus=timeline.nonlinear_focus,
                                        minimum=timeline.nonlinear_minimum)
     (; times, coordinates)
@@ -216,7 +216,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     title = chart.title
     title_h = isempty(title) ? 0 : p.measure(title, title_font)[2] + _PAD ÷ 2
 
-    order = axis_display_order(chart)
+    order = get_axis_display_order(chart)
     labels = String[String(chart.axes[i].label) for i in order]
     label_sizes = Tuple{Int,Int}[p.measure(l, axis_font) for l in labels]
     label_w = isempty(label_sizes) ? 0 : maximum(sz[1] for sz in label_sizes)
@@ -255,7 +255,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
 
     # A lane carrying a band needs room for the strip as well as the line.
     band_heights = Float64[_lane_band_height(chart.axes[i]) for i in order]
-    lanes = axis_cross_positions(length(order), band_heights, cross_lo, cross_hi;
+    lanes = get_axis_cross_positions(length(order), band_heights, cross_lo, cross_hi;
                                  spacing=style.axis_spacing,
                                  minimum_spacing=_LANE_MIN_SPACING,
                                  offset=_LANE_OFFSET)
@@ -268,17 +268,17 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
 
     events = chart.events
     arrows = chart.arrows
-    i0, i1 = visible_event_range(coordinates, lo, hi)
+    i0, i1 = get_visible_event_range(coordinates, lo, hi)
     visible_events = decimate_events(coordinates, events.axes, scale, i0, i1;
                                      kinds=events.kinds,
                                      separation=max(style.event_radius, 1))
     # Only events whose kind is switched on, and whose lane exists.
     visible_events = Int[i for i in visible_events
-                         if _event_visible(chart, events, i) && haskey(lane_of, event_axis(events, i))]
+                         if _event_visible(chart, events, i) && haskey(lane_of, get_event_axis(events, i))]
 
     horizon = abs(flow_hi - flow_lo) * max(style.split_horizon_viewports, 1)
     horizon_coordinates = horizon / max(abs(scale.p1 - scale.p0), 1) * (hi - lo)
-    candidates = visible_arrows(coordinates, arrows.sources, arrows.targets, lo, hi;
+    candidates = get_visible_arrows(coordinates, arrows.sources, arrows.targets, lo, hi;
                                 horizon=horizon_coordinates)
     shapes = _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
                            candidates, horizon, style)
@@ -286,10 +286,10 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     ticks = flow_ticks(times, coordinates, scale, chart.timeline.mode;
                        target_px=_TICK_TARGET_PX)
     neighbourhood = _tick_neighbourhood(times, coordinates, scale, ticks)
-    raw_labels = String[honest_tick_label(t, neighbourhood) for (_, t) in ticks]
+    raw_labels = String[get_honest_tick_label(t, neighbourhood) for (_, t) in ticks]
     prefix, tick_labels = tick_common_prefix(raw_labels)
 
-    zero_spans = style.zero_time_shading ? zero_time_spans(times, coordinates, lo, hi) :
+    zero_spans = style.zero_time_shading ? get_zero_time_spans(times, coordinates, lo, hi) :
                                            Tuple{Float64,Float64}[]
 
     bands = _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
@@ -331,12 +331,12 @@ function _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
     n = length(coordinates)
 
     for k in candidates
-        kind = _arrow_kind_document(chart, arrow_kind(arrows, k))
+        kind = _arrow_kind_document(chart, get_arrow_kind(arrows, k))
         (kind === nothing || kind.visible) || continue
         source = Int(arrows.sources[k]); target = Int(arrows.targets[k])
         (1 <= source <= n && 1 <= target <= n) || continue
-        source_lane = arrow_source_axis(arrows, events, k)
-        target_lane = arrow_target_axis(arrows, events, k)
+        source_lane = get_arrow_source_axis(arrows, events, k)
+        target_lane = get_arrow_target_axis(arrows, events, k)
         (haskey(lane_of, source_lane) && haskey(lane_of, target_lane)) || continue
 
         f0 = to_pixel(scale, coordinates[source])
@@ -348,15 +348,15 @@ function _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
         push!(crosses, (c0, c1))
     end
 
-    surviving = arrow_coverage_dedup(kept, flows, crosses)
+    surviving = deduplicate_arrow_coverage(kept, flows, crosses)
     positions = Dict{Int,Int}(k => i for (i, k) in enumerate(kept))
 
     for k in surviving
         index = positions[k]
         f0, f1 = flows[index]
         c0, c1 = crosses[index]
-        kind = _arrow_kind_document(chart, arrow_kind(arrows, k))
-        route = arrow_route(kind === nothing ? :auto : kind.route, c0 == c1)
+        kind = _arrow_kind_document(chart, get_arrow_kind(arrows, k))
+        route = get_arrow_route(kind === nothing ? :auto : kind.route, c0 == c1)
         split = split_arrow(f0, f1, horizon, style.split_stub_px)
         height = route === :arc ?
             arc_height(Int(arrows.targets[k]) - Int(arrows.sources[k]), abs(c1 - c0) == 0 ?
@@ -377,7 +377,7 @@ function _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
         cross = lane_of[identity]
         for j in 1:length(axis.bands)
             band = axis.bands[j]
-            intervals = band_intervals(band.times, band.values, band.events,
+            intervals = get_band_intervals(band.times, band.values, band.events,
                                        times, coordinates, lo, hi)
             isempty(intervals) && continue
             push!(out, (; axis=identity, band=j, cross, intervals, document=band))
@@ -403,7 +403,7 @@ function _arrow_kind_document(chart, index::Integer)
 end
 
 _event_visible(chart, events, i::Integer) =
-    let kind = _event_kind_document(chart, event_kind(events, i))
+    let kind = _event_kind_document(chart, get_event_kind(events, i))
         kind === nothing || kind.visible
     end
 
@@ -590,7 +590,7 @@ function _band_elements!(out, g)
             push!(out, GraphicsRect(round(Int, x), round(Int, y),
                                     round(Int, w), round(Int, h), color))
             g.style.band_labels || continue
-            name = band_state_name(document, value)
+            name = get_band_state_name(document, value)
             isempty(name) && continue
             size = g.measure(name, g.axis_font)
             size[1] + 6 <= w || continue
@@ -642,7 +642,7 @@ function _arrow_elements!(out, g)
 end
 
 function _arc_elements!(out, g, shape, color, dash, head)
-    points = arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
+    points = get_arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
     placed = [(round(Int, x), round(Int, y))
               for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
     push!(out, GraphicsSpline(placed, color; kind=:bezier, width=g.style.arrow_width,
@@ -686,7 +686,7 @@ end
 
 function _arrow_label!(out, g, shape, color)
     g.style.arrow_labels || return out
-    label = arrow_label(g.chart.arrows, shape.index)
+    label = get_arrow_label(g.chart.arrows, shape.index)
     (label === nothing || isempty(label)) && return out
     mid_flow = (shape.f0 + shape.f1) / 2
     mid_cross = (shape.c0 + shape.c1) / 2
@@ -710,9 +710,9 @@ function _event_elements!(out, g)
     cycle = style.color_cycle
     radius = style.event_radius
     for i in g.visible_events
-        lane = event_axis(events, i)
+        lane = get_event_axis(events, i)
         haskey(g.lane_of, lane) || continue
-        kind_index = event_kind(events, i)
+        kind_index = get_event_kind(events, i)
         kind = _event_kind_document(g.chart, kind_index)
         color = _kind_color(kind, max(kind_index, 1), cycle, _EVENT)
         flow = to_pixel(g.scale, g.coordinates[i])
@@ -720,7 +720,7 @@ function _event_elements!(out, g)
         symbol = kind === nothing ? :circle : kind.symbol
         _mark!(out, symbol, round(Int, x), round(Int, y), radius, color)
         style.event_labels || continue
-        label = event_label(events, i)
+        label = get_event_label(events, i)
         (label === nothing || isempty(label)) && continue
         size = g.measure(label, g.axis_font)
         push!(out, GraphicsText(label, round(Int, x + radius + 2),
@@ -797,7 +797,7 @@ end
 
 function _event_ring!(out, g, row::Integer, color)
     (1 <= row <= length(g.coordinates)) || return out
-    lane = event_axis(g.chart.events, row)
+    lane = get_event_axis(g.chart.events, row)
     position = get(g.lane_of, lane, nothing)
     position === nothing && return out
     flow = to_pixel(g.scale, g.coordinates[row])
@@ -814,7 +814,7 @@ function _arrow_highlight!(out, g, row::Integer, color)
     for shape in g.shapes
         shape.index == row || continue
         if shape.route === :arc
-            points = arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
+            points = get_arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
             placed = [(round(Int, x), round(Int, y))
                       for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
             push!(out, GraphicsSpline(placed, color; kind=:bezier, width=3))
@@ -856,7 +856,7 @@ function _readout_elements!(out, g, plot)
     text_color = _or(g.style.tick_color, _TEXT)
 
     if gutter.cursor_readout && plot.cursor !== nothing
-        text = honest_tick_label(plot.cursor, _cursor_neighbourhood(g))
+        text = get_honest_tick_label(plot.cursor, _cursor_neighbourhood(g))
         size = g.measure(text, g.axis_font)
         flow = to_pixel(g.scale, time_to_coordinate(g.times, g.coordinates, plot.cursor))
         if g.vertical
@@ -874,11 +874,11 @@ function _readout_elements!(out, g, plot)
     end
 
     if gutter.range_readout
-        span = coordinate_to_time(g.times, g.coordinates, g.hi) -
-               coordinate_to_time(g.times, g.coordinates, g.lo)
-        text = string(honest_tick_label(coordinate_to_time(g.times, g.coordinates, g.lo),
+        span = convert_coordinate_to_time(g.times, g.coordinates, g.hi) -
+               convert_coordinate_to_time(g.times, g.coordinates, g.lo)
+        text = string(get_honest_tick_label(convert_coordinate_to_time(g.times, g.coordinates, g.lo),
                                         _cursor_neighbourhood(g)),
-                      " … Δ", honest_tick_label(span, _cursor_neighbourhood(g)))
+                      " … Δ", get_honest_tick_label(span, _cursor_neighbourhood(g)))
         size = g.measure(text, g.axis_font)
         push!(out, GraphicsText(text, round(Int, g.w - size[1] - _PAD),
                                 _PAD, g.axis_font, text_color))
@@ -891,8 +891,8 @@ end
 function _cursor_neighbourhood(g)
     pixels = abs(g.scale.p1 - g.scale.p0)
     pixels > 0 || return 0.0
-    t_lo = coordinate_to_time(g.times, g.coordinates, g.lo)
-    t_hi = coordinate_to_time(g.times, g.coordinates, g.hi)
+    t_lo = convert_coordinate_to_time(g.times, g.coordinates, g.lo)
+    t_hi = convert_coordinate_to_time(g.times, g.coordinates, g.hi)
     abs(t_hi - t_lo) / pixels / 2
 end
 
@@ -970,12 +970,12 @@ function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceCha
 end
 
 """
-    lane_cross_position(geometry, identity) -> Float64 | nothing
+    get_lane_cross_position(geometry, identity) -> Float64 | nothing
 
 Where a lane sits on the cross axis, by lane identity. Exposed because the
 reader hit-tests against the same positions the printer drew.
 """
-lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), nothing)
+get_lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), nothing)
 
 # A chart part is not a cursor position: there is nowhere in the canvas for a
 # selection to land, and no output element a reference should follow. Selection
@@ -1003,20 +1003,20 @@ end
 _in_body(g, x::Real, y::Real) = _in_rect(x, y, g.body_x, g.body_y, g.body_w, g.body_h)
 
 """
-    event_hit(geometry, plot, x, y) -> row | nothing
+    find_event_hit(geometry, plot, x, y) -> row | nothing
 
 Which occurrence is under a canvas point, within a few pixels. Only the events
 actually drawn are candidates, so a click can never select something that
 decimation left out.
 """
-function event_hit(g, plot, x::Real, y::Real)
+function find_event_hit(g, plot, x::Real, y::Real)
     flow, cross = _local_flow_cross(g, plot, x, y)
     events = g.chart.events
     tolerance = g.style.event_radius + 3
     best = nothing
     best_distance = Inf
     for i in g.visible_events
-        lane = event_axis(events, i)
+        lane = get_event_axis(events, i)
         position = get(g.lane_of, lane, nothing)
         position === nothing && continue
         ef = to_pixel(g.scale, g.coordinates[i])
@@ -1028,13 +1028,13 @@ function event_hit(g, plot, x::Real, y::Real)
 end
 
 """
-    arrow_hit(geometry, plot, x, y) -> row | nothing
+    find_arrow_hit(geometry, plot, x, y) -> row | nothing
 
 Which arrow is under a canvas point. Distance to the segment for a direct
 arrow, and to the chord for an arc — close enough at the tolerance a pointer
 works at, and far cheaper than sampling the curve.
 """
-function arrow_hit(g, plot, x::Real, y::Real)
+function find_arrow_hit(g, plot, x::Real, y::Real)
     flow, cross = _local_flow_cross(g, plot, x, y)
     best = nothing
     best_distance = Inf
@@ -1063,11 +1063,11 @@ function _segment_distance(px, py, x0, y0, x1, y1)
 end
 
 """
-    band_hit(geometry, plot, x, y) -> (axis, band, row) | nothing
+    find_band_hit(geometry, plot, x, y) -> (axis, band, row) | nothing
 
 Which state-band sample is under a canvas point.
 """
-function band_hit(g, plot, x::Real, y::Real)
+function find_band_hit(g, plot, x::Real, y::Real)
     flow, cross = _local_flow_cross(g, plot, x, y)
     for band in g.bands
         top = band.cross - _BAND_HEIGHT - 2
@@ -1082,12 +1082,12 @@ function band_hit(g, plot, x::Real, y::Real)
 end
 
 """
-    lane_hit(geometry, plot, x, y) -> identity | nothing
+    find_lane_hit(geometry, plot, x, y) -> identity | nothing
 
 Which lane a canvas point falls nearest, counting the label strip as part of the
 lane so a click on a name selects it.
 """
-function lane_hit(g, plot, x::Real, y::Real)
+function find_lane_hit(g, plot, x::Real, y::Real)
     _, cross = _local_flow_cross(g, plot, x, y)
     best = nothing
     best_distance = Inf
@@ -1122,19 +1122,19 @@ end
 # ── Reader ───────────────────────────────────────────────────────────────
 
 """
-    sequence_chart_reference(plot, inner) -> Reference
+    lift_sequence_chart_reference(plot, inner) -> Reference
 
 Lift a chart-rooted reference into the plot's own vocabulary, which is what the
 first stage then peels back off.
 """
-function sequence_chart_reference(plot::SequenceChartPlot, inner)
+function lift_sequence_chart_reference(plot::SequenceChartPlot, inner)
     inner === nothing && return nothing
     ct = get_reference_node_type(plot.chart)
     @reference ::SequenceChartPlot.chart::ct.^(inner)
 end
 
 _select(plot, inner) = begin
-    reference = sequence_chart_reference(plot, inner)
+    reference = lift_sequence_chart_reference(plot, inner)
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
 
@@ -1158,19 +1158,19 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     end
 
     if _in_body(g, x, y)
-        row = event_hit(g, plot, x, y)
-        row === nothing || return _select(plot, event_reference(chart, row))
-        arrow = arrow_hit(g, plot, x, y)
-        arrow === nothing || return _select(plot, arrow_reference(chart, arrow))
-        band = band_hit(g, plot, x, y)
-        band === nothing || return _select(plot, band_reference(chart, band...))
-        lane = lane_hit(g, plot, x, y)
-        lane === nothing || return _select(plot, axis_reference(chart, lane))
+        row = find_event_hit(g, plot, x, y)
+        row === nothing || return _select(plot, get_event_reference(chart, row))
+        arrow = find_arrow_hit(g, plot, x, y)
+        arrow === nothing || return _select(plot, get_arrow_reference(chart, arrow))
+        band = find_band_hit(g, plot, x, y)
+        band === nothing || return _select(plot, get_band_reference(chart, band...))
+        lane = find_lane_hit(g, plot, x, y)
+        lane === nothing || return _select(plot, get_axis_reference(chart, lane))
         return nothing
     end
 
     lane = _label_strip_lane(g, x, y)
-    lane === nothing || return _select(plot, axis_reference(chart, lane))
+    lane === nothing || return _select(plot, get_axis_reference(chart, lane))
     nothing
 end
 
@@ -1187,20 +1187,20 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
 
     hovered = nothing
     if _in_body(g, x, y)
-        row = event_hit(g, plot, x, y)
+        row = find_event_hit(g, plot, x, y)
         if row !== nothing
-            hovered = sequence_chart_reference(plot, event_reference(chart, row))
+            hovered = lift_sequence_chart_reference(plot, get_event_reference(chart, row))
         else
-            arrow = arrow_hit(g, plot, x, y)
+            arrow = find_arrow_hit(g, plot, x, y)
             arrow === nothing ||
-                (hovered = sequence_chart_reference(plot, arrow_reference(chart, arrow)))
+                (hovered = lift_sequence_chart_reference(plot, get_arrow_reference(chart, arrow)))
         end
     end
 
     cursor = nothing
     if _in_body(g, x, y) && chart.gutter.cursor_readout
         flow, _ = _local_flow_cross(g, plot, x, y)
-        cursor = coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
+        cursor = convert_coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
     end
 
     operations = Any[]

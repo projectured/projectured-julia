@@ -238,7 +238,7 @@ function test_sequencechart_projection()
             iomap = _sequencechart_iomap(_sc_chart())
             before = _geometry_of(iomap)
             plot = _plot_of(iomap)
-            plot.hovered = event_reference(plot.chart, 2)
+            plot.hovered = get_event_reference(plot.chart, 2)
             plot.cursor = 1.0
             @test _geometry_of(iomap) === before
 
@@ -324,17 +324,17 @@ function test_sequencechart_projection()
             # Aim at a drawn event, in canvas coordinates.
             row = first(g.visible_events)
             flow = to_pixel(g.scale, g.coordinates[row])
-            cross = g.lane_of[event_axis(chart.events, row)]
+            cross = g.lane_of[get_event_axis(chart.events, row)]
             x = round(Int, flow + g.body_x)
             y = round(Int, cross + g.body_y)
-            @test SCT.event_hit(g, plot, x, y) == row
+            @test SCT.find_event_hit(g, plot, x, y) == row
 
             # Well away from anything, nothing is hit.
-            @test SCT.event_hit(g, plot, x, round(Int, y + 40)) === nothing
+            @test SCT.find_event_hit(g, plot, x, round(Int, y + 40)) === nothing
 
             # A lane is hit along its line.
-            @test SCT.lane_hit(g, plot, round(Int, g.body_x + g.body_w / 2), y) ==
-                  event_axis(chart.events, row)
+            @test SCT.find_lane_hit(g, plot, round(Int, g.body_x + g.body_w / 2), y) ==
+                  get_event_axis(chart.events, row)
         end
 
         @testset "click selects" begin
@@ -347,7 +347,7 @@ function test_sequencechart_projection()
 
             row = first(g.visible_events)
             flow = to_pixel(g.scale, g.coordinates[row])
-            cross = g.lane_of[event_axis(chart.events, row)]
+            cross = g.lane_of[get_event_axis(chart.events, row)]
             press = MousePress(:left, round(Int, flow + g.body_x),
                                round(Int, cross + g.body_y), _sc_no_modifier)
             op = read_intent(projection, stage2, press)
@@ -357,11 +357,11 @@ function test_sequencechart_projection()
             # step it owns, so what reaches the document is chart-rooted.
             stage1 = iomap.step_iomaps[1][]
             inner = map_reference_backward(stage1.projection, stage1, op.path)
-            @test inner == event_reference(chart, row)
+            @test inner == get_event_reference(chart, row)
 
             # And that selection names the occurrence back.
             chart.selection = inner
-            @test selected_event(chart) == row
+            @test get_selected_event(chart) == row
         end
 
         @testset "double click clears the window" begin
@@ -411,7 +411,7 @@ function test_sequencechart_projection()
 
             row = first(g.visible_events)
             flow = to_pixel(g.scale, g.coordinates[row])
-            cross = g.lane_of[event_axis(chart.events, row)]
+            cross = g.lane_of[get_event_axis(chart.events, row)]
             move = MouseMove(round(Int, flow + g.body_x), round(Int, cross + g.body_y))
             op = read_intent(stage2.projection, stage2, move)
             @test op !== nothing
@@ -473,7 +473,7 @@ function test_sequencechart_projection()
             # A selected occurrence gets a ring rather than a recolour: the
             # mark's own colour carries its kind, and overwriting it would cost
             # the reader the thing they selected it to see.
-            plot.selection = sequence_chart_reference(plot, event_reference(chart, 2))
+            plot.selection = lift_sequence_chart_reference(plot, get_event_reference(chart, 2))
             with_selection = _sc_flatten(iomap.output)
             rings = [e for e in with_selection
                      if e isa GraphicsCircle && Int(e.border_width) > 0]
@@ -482,7 +482,7 @@ function test_sequencechart_projection()
 
             # Hovering an arrow re-strokes it thicker.
             plot.selection = nothing
-            plot.hovered = sequence_chart_reference(plot, arrow_reference(chart, 1))
+            plot.hovered = lift_sequence_chart_reference(plot, get_arrow_reference(chart, 1))
             hovered = _sc_flatten(iomap.output)
             @test any(e -> e isa GraphicsPolyline && Int(e.width) == 3, hovered)
         end
@@ -499,7 +499,7 @@ function test_sequencechart_projection()
                                         _sc_flatten(canvas))
             @test _ring_count(iomap.output) == 0
 
-            chart.selection = event_reference(chart, 2)
+            chart.selection = get_event_reference(chart, 2)
             @test _plot_of(iomap).selection !== nothing
             @test _ring_count(iomap.output) == 1
         end
@@ -549,13 +549,13 @@ function test_sequencechart_scale()
         @testset "a long trace draws in bounded output" begin
             iomap = _sequencechart_iomap(big; width=900, height=520)
             g = _geometry_of(iomap)
-            @test event_count(big.events) == 20_000
+            @test get_event_count(big.events) == 20_000
 
             # At most one mark per lane, per kind, per mark-radius of the
             # flow axis — the bound the decimation promises.
             @test length(g.visible_events) <=
                   8 * (g.body_w ÷ big.style.event_radius + 2)
-            @test length(g.visible_events) < event_count(big.events) ÷ 4
+            @test length(g.visible_events) < get_event_count(big.events) ÷ 4
 
             elements = _sc_flatten(iomap.output)
             @test length(elements) < 6_000
@@ -594,7 +594,7 @@ function test_sequencechart_scale()
             span = g.coordinates[11] - g.coordinates[1]
             plot.view = SequenceChartView(1, 0.0, span)
             zoomed = _geometry_of(iomap)
-            i0, i1 = visible_event_range(zoomed.coordinates, zoomed.lo, zoomed.hi)
+            i0, i1 = get_visible_event_range(zoomed.coordinates, zoomed.lo, zoomed.hi)
             @test length(zoomed.visible_events) == i1 - i0 + 1
         end
 
@@ -606,7 +606,7 @@ function test_sequencechart_scale()
             before = stage2.timeline
             plot = _plot_of(iomap)
             plot.view = SequenceChartView(1, 0.0, 5.0)
-            plot.hovered = event_reference(big, 5)
+            plot.hovered = get_event_reference(big, 5)
             @test stage2.timeline === before
 
             # Changing the data does redo it, since that is what it derives.
@@ -620,10 +620,10 @@ function test_sequencechart_scale()
             plot = _plot_of(iomap)
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
-            SCT.event_hit(g, plot, x, y)          # warm up
+            SCT.find_event_hit(g, plot, x, y)          # warm up
             elapsed = @elapsed for _ in 1:200
-                SCT.event_hit(g, plot, x, y)
-                SCT.arrow_hit(g, plot, x, y)
+                SCT.find_event_hit(g, plot, x, y)
+                SCT.find_arrow_hit(g, plot, x, y)
             end
             # Hit testing walks what is drawn, not what exists, so pointer
             # tracking stays interactive however long the trace is.
@@ -642,29 +642,29 @@ function test_sequencechart_selection()
     @testset "sequencechart selection" begin
         @testset "parts" begin
             chart = _sc_chart()
-            parts = sequence_chart_parts(chart)
+            parts = get_sequence_chart_parts(chart)
             # Title, three lanes, the two tables.
             @test length(parts) == 6
             for (index, part) in enumerate(parts)
-                @test sequence_chart_part_index(chart, part) == index
+                @test get_sequence_chart_part_index(chart, part) == index
             end
-            @test sequence_chart_part_index(chart, nothing) == 0
+            @test get_sequence_chart_part_index(chart, nothing) == 0
 
             # Parts follow the display order, not the listed one.
             chart.axis_order = [3, 1, 2]
-            reordered = sequence_chart_parts(chart)
-            @test reordered[2] == axis_reference(chart, 3)
+            reordered = get_sequence_chart_parts(chart)
+            @test reordered[2] == get_axis_reference(chart, 3)
         end
 
         @testset "row references evaluate to the row" begin
             chart = _sc_chart()
-            @test evaluate_reference(chart, event_reference(chart, 2)) ==
+            @test evaluate_reference(chart, get_event_reference(chart, 2)) ==
                   (1.0, 2, 0, "recv")
-            @test evaluate_reference(chart, arrow_reference(chart, 1)) ==
+            @test evaluate_reference(chart, get_arrow_reference(chart, 1)) ==
                   (1, 2, 0, "req")
             # Out of range is nothing, not an error: a reference can outlive the
             # rows it named.
-            @test evaluate_reference(chart, event_reference(chart, 99)) === nothing
+            @test evaluate_reference(chart, get_event_reference(chart, 99)) === nothing
         end
 
         @testset "arrow keys walk the parts" begin
@@ -673,11 +673,11 @@ function test_sequencechart_selection()
             op = read_gesture(chart, KeyDown(:right, _sc_no_modifier))
             @test op isa ReplaceSelectionOperation
             _sc_apply(chart, op)
-            @test sequence_chart_part_index(chart, chart.selection) == 1
+            @test get_sequence_chart_part_index(chart, chart.selection) == 1
 
             for expected in 2:6
                 _sc_apply(chart, read_gesture(chart, KeyDown(:down, _sc_no_modifier)))
-                @test sequence_chart_part_index(chart, chart.selection) == expected
+                @test get_sequence_chart_part_index(chart, chart.selection) == expected
             end
             # At the end there is nowhere to go, so the gesture is declined
             # rather than consumed.
@@ -686,19 +686,19 @@ function test_sequencechart_selection()
 
         @testset "arrow keys walk the trace once an event is selected" begin
             chart = _sc_chart()
-            chart.selection = event_reference(chart, 3)
+            chart.selection = get_event_reference(chart, 3)
             _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_no_modifier)))
-            @test selected_event(chart) == 4
+            @test get_selected_event(chart) == 4
             _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_no_modifier)))
-            @test selected_event(chart) == 3
+            @test get_selected_event(chart) == 3
         end
 
         @testset "shift walks one lane" begin
             # Events 1 and 6 are the client's; everything between is not.
             chart = _sc_chart()
-            chart.selection = event_reference(chart, 1)
+            chart.selection = get_event_reference(chart, 1)
             _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_shift)))
-            @test selected_event(chart) == 6
+            @test get_selected_event(chart) == 6
             @test read_gesture(chart, KeyDown(:right, _sc_shift)) === nothing
         end
 
@@ -706,25 +706,25 @@ function test_sequencechart_selection()
             # This is the move that makes a sequence chart a graph: not "what is
             # next to this" but "what caused it".
             chart = _sc_chart()
-            chart.selection = event_reference(chart, 4)
+            chart.selection = get_event_reference(chart, 4)
             _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_ctrl)))
-            @test selected_event(chart) == 3       # arrow 3 runs 3 → 4
+            @test get_selected_event(chart) == 3       # arrow 3 runs 3 → 4
 
             _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_ctrl)))
-            @test selected_event(chart) == 4
+            @test get_selected_event(chart) == 4
 
             # An occurrence nothing caused declines rather than jumping.
-            chart.selection = event_reference(chart, 1)
+            chart.selection = get_event_reference(chart, 1)
             @test read_gesture(chart, KeyDown(:left, _sc_ctrl)) === nothing
         end
 
         @testset "lanes reorder" begin
             chart = _sc_chart()
-            chart.selection = axis_reference(chart, 1)
+            chart.selection = get_axis_reference(chart, 1)
             op = read_gesture(chart, KeyDown(:down, ModifierKeys(; ctrl=true, shift=true)))
             @test op !== nothing
             _sc_apply(chart, op)
-            @test axis_display_order(chart) == [2, 1, 3]
+            @test get_axis_display_order(chart) == [2, 1, 3]
             # Only the permutation moved; the event table still names lanes by
             # identity.
             @test collect(chart.events.axes) == [1, 2, 3, 3, 2, 1]
@@ -737,8 +737,8 @@ function test_sequencechart_selection()
             _sc_apply(chart, delete_axis(chart, 3))
             @test length(chart.axes) == 2
             @test all(1 <= Int(a) <= 2 for a in chart.events.axes)
-            @test event_count(chart.events) == 4
-            n = event_count(chart.events)
+            @test get_event_count(chart.events) == 4
+            n = get_event_count(chart.events)
             @test all(1 <= Int(s) <= n && 1 <= Int(t) <= n
                       for (s, t) in zip(chart.arrows.sources, chart.arrows.targets))
         end
@@ -747,7 +747,7 @@ function test_sequencechart_selection()
             chart = _sc_chart()
             before = collect(chart.arrows.targets)
             _sc_apply(chart, insert_events(chart, 1, [-1.0], [1]))
-            @test event_count(chart.events) == 7
+            @test get_event_count(chart.events) == 7
             # Every arrow still points at the occurrence it always did, one row
             # further along.
             @test collect(chart.arrows.targets) == before .+ 1

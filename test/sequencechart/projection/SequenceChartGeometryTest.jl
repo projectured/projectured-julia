@@ -51,24 +51,24 @@ function test_sequencechart_geometry()
             times = _seq_times()
 
             # :time is the elapsed time itself, origin at the first event.
-            @test SCG.timeline_coordinates(times, nothing, :time) == [0.0, 1.0, 1.0, 1.0, 1.0e6]
+            @test SCG.get_timeline_coordinates(times, nothing, :time) == [0.0, 1.0, 1.0, 1.0, 1.0e6]
 
             # :step gives every event equal room; :ordinal agrees when the
             # ordinals are just the row numbers.
-            @test SCG.timeline_coordinates(times, nothing, :step) == [0.0, 1.0, 2.0, 3.0, 4.0]
-            @test SCG.timeline_coordinates(times, nothing, :ordinal) == [0.0, 1.0, 2.0, 3.0, 4.0]
+            @test SCG.get_timeline_coordinates(times, nothing, :step) == [0.0, 1.0, 2.0, 3.0, 4.0]
+            @test SCG.get_timeline_coordinates(times, nothing, :ordinal) == [0.0, 1.0, 2.0, 3.0, 4.0]
 
             # An upstream filter keeps the original numbers, so :ordinal shows a
             # hole where events were hidden and :step closes it up. This is the
             # documented difference between the two modes.
             ordinals = [1, 2, 3, 4, 100]
-            @test SCG.timeline_coordinates(times, ordinals, :ordinal) == [0.0, 1.0, 2.0, 3.0, 99.0]
-            @test SCG.timeline_coordinates(times, ordinals, :step) == [0.0, 1.0, 2.0, 3.0, 4.0]
+            @test SCG.get_timeline_coordinates(times, ordinals, :ordinal) == [0.0, 1.0, 2.0, 3.0, 99.0]
+            @test SCG.get_timeline_coordinates(times, ordinals, :step) == [0.0, 1.0, 2.0, 3.0, 4.0]
 
             # :nonlinear — a zero-length gap still gets the minimum share, and a
             # huge one saturates just under a full unit. Both stay visible,
             # which is the entire point of the mode.
-            c = SCG.timeline_coordinates(times, nothing, :nonlinear; minimum=0.1)
+            c = SCG.get_timeline_coordinates(times, nothing, :nonlinear; minimum=0.1)
             @test c[3] - c[2] ≈ 0.1
             @test c[4] - c[3] ≈ 0.1
             @test 0.9 < c[5] - c[4] <= 1.0
@@ -76,18 +76,18 @@ function test_sequencechart_geometry()
 
             # Monotone in every mode: later never draws earlier.
             for mode in (:time, :ordinal, :step, :nonlinear)
-                coordinates = SCG.timeline_coordinates(times, nothing, mode)
+                coordinates = SCG.get_timeline_coordinates(times, nothing, mode)
                 @test issorted(coordinates)
             end
 
             # Longer gap, more room — the ordering of gap lengths survives the
             # compression even though their ratio does not.
-            spread = SCG.timeline_coordinates([0.0, 1.0, 3.0, 100.0], nothing, :nonlinear)
+            spread = SCG.get_timeline_coordinates([0.0, 1.0, 3.0, 100.0], nothing, :nonlinear)
             @test (spread[3] - spread[2]) > (spread[2] - spread[1])
             @test (spread[4] - spread[3]) > (spread[3] - spread[2])
 
-            @test isempty(SCG.timeline_coordinates(Float64[], nothing, :nonlinear))
-            @test SCG.timeline_coordinates([5.0], nothing, :nonlinear) == [0.0]
+            @test isempty(SCG.get_timeline_coordinates(Float64[], nothing, :nonlinear))
+            @test SCG.get_timeline_coordinates([5.0], nothing, :nonlinear) == [0.0]
         end
 
         @testset "shared ordinals share a coordinate" begin
@@ -95,7 +95,7 @@ function test_sequencechart_geometry()
             times = [0.0, 0.0, 0.0, 1.0]
             ordinals = [1, 1, 1, 2]
             for mode in (:ordinal, :step, :nonlinear)
-                c = SCG.timeline_coordinates(times, ordinals, mode)
+                c = SCG.get_timeline_coordinates(times, ordinals, mode)
                 @test c[1] == c[2] == c[3]
                 @test c[4] > c[3]
             end
@@ -103,7 +103,7 @@ function test_sequencechart_geometry()
 
         @testset "time and coordinate conversion" begin
             times = _seq_times()
-            coordinates = SCG.timeline_coordinates(times, nothing, :nonlinear)
+            coordinates = SCG.get_timeline_coordinates(times, nothing, :nonlinear)
 
             @test SCG.time_to_coordinate(times, coordinates, 0.0) ≈ coordinates[1]
             @test SCG.time_to_coordinate(times, coordinates, 1.0e6) ≈ coordinates[5]
@@ -119,24 +119,24 @@ function test_sequencechart_geometry()
 
             # Round trip through the inverse, away from the ambiguous region.
             mid = (coordinates[4] + coordinates[5]) / 2
-            t = SCG.coordinate_to_time(times, coordinates, mid)
+            t = SCG.convert_coordinate_to_time(times, coordinates, mid)
             @test SCG.time_to_coordinate(times, coordinates, t) ≈ mid rtol=1e-9
 
             # Every coordinate inside a zero-time region reports that one time —
             # the honest answer, and why a window is not stored as a time pair.
             inside = (coordinates[2] + coordinates[4]) / 2
-            @test SCG.coordinate_to_time(times, coordinates, inside) ≈ 1.0
+            @test SCG.convert_coordinate_to_time(times, coordinates, inside) ≈ 1.0
         end
 
         @testset "window survives a mode switch" begin
             times = _seq_times()
-            from = SCG.timeline_coordinates(times, nothing, :nonlinear)
-            to = SCG.timeline_coordinates(times, nothing, :step)
+            from = SCG.get_timeline_coordinates(times, nothing, :nonlinear)
+            to = SCG.get_timeline_coordinates(times, nothing, :step)
 
             # A window over the quiet gap carries across by its endpoints' times.
             lo, hi = from[4], from[5]
-            t_lo = SCG.coordinate_to_time(times, from, lo)
-            t_hi = SCG.coordinate_to_time(times, from, hi)
+            t_lo = SCG.convert_coordinate_to_time(times, from, lo)
+            t_hi = SCG.convert_coordinate_to_time(times, from, hi)
             @test SCG.time_to_coordinate(times, to, t_lo; upper=true) ≈ to[4]
             @test SCG.time_to_coordinate(times, to, t_hi) ≈ to[5]
 
@@ -145,39 +145,39 @@ function test_sequencechart_geometry()
             # apart — carrying the window means falling back to the region's own
             # coordinate span, which is what the anchored view does.
             inner_lo, inner_hi = from[2], from[4]
-            @test SCG.coordinate_to_time(times, from, inner_lo) ==
-                  SCG.coordinate_to_time(times, from, inner_hi)
+            @test SCG.convert_coordinate_to_time(times, from, inner_lo) ==
+                  SCG.convert_coordinate_to_time(times, from, inner_hi)
             @test to[4] > to[2]      # the region still has width in the new mode
         end
 
         @testset "visible ranges" begin
             coordinates = [0.0, 1.0, 2.0, 3.0, 4.0]
-            @test SCG.visible_event_range(coordinates, 1.5, 2.5) == (2, 4)
-            @test SCG.visible_event_range(coordinates, -10.0, 10.0) == (1, 5)
-            @test SCG.visible_event_range(Float64[], 0.0, 1.0) == (1, 0)
+            @test SCG.get_visible_event_range(coordinates, 1.5, 2.5) == (2, 4)
+            @test SCG.get_visible_event_range(coordinates, -10.0, 10.0) == (1, 5)
+            @test SCG.get_visible_event_range(Float64[], 0.0, 1.0) == (1, 0)
 
             # An arrow crossing the window with *both* ends outside it is still
             # visible — it is the connection the reader is looking at. Selecting
             # by endpoint membership would erase exactly those.
             sources = [1, 1, 5]
             targets = [2, 5, 5]
-            visible = SCG.visible_arrows(coordinates, sources, targets, 1.8, 2.2)
+            visible = SCG.get_visible_arrows(coordinates, sources, targets, 1.8, 2.2)
             @test 2 in visible          # spans the window, neither end inside
             @test !(1 in visible)       # entirely left of it
             @test !(3 in visible)       # entirely right of it
 
             # The horizon widens candidacy: an arrow just outside still counts,
             # because a split arrow's stub has to be drawn from somewhere.
-            @test 1 in SCG.visible_arrows(coordinates, sources, targets, 1.8, 2.2; horizon=1.0)
+            @test 1 in SCG.get_visible_arrows(coordinates, sources, targets, 1.8, 2.2; horizon=1.0)
 
             # Out-of-range endpoints are dropped rather than throwing: a
             # half-written table renders what it can.
-            @test isempty(SCG.visible_arrows(coordinates, [99], [1], 0.0, 4.0))
+            @test isempty(SCG.get_visible_arrows(coordinates, [99], [1], 0.0, 4.0))
         end
 
         @testset "ticks" begin
             times = _seq_times()
-            coordinates = SCG.timeline_coordinates(times, nothing, :nonlinear)
+            coordinates = SCG.get_timeline_coordinates(times, nothing, :nonlinear)
             scale = SCG.AxisScale(coordinates[1], coordinates[end], 0.0, 600.0)
 
             ticks = SCG.flow_ticks(times, coordinates, scale, :nonlinear; target_px=100)
@@ -186,7 +186,7 @@ function test_sequencechart_geometry()
             @test all(scale.lo - 1e-9 <= c <= scale.hi + 1e-9 for (c, _) in ticks)
 
             # In :time mode the ticks are round numbers instead of round pixels.
-            linear = SCG.timeline_coordinates(times, nothing, :time)
+            linear = SCG.get_timeline_coordinates(times, nothing, :time)
             lscale = SCG.AxisScale(linear[1], linear[end], 0.0, 600.0)
             time_ticks = SCG.flow_ticks(times, linear, lscale, :time; target_px=100)
             @test length(time_ticks) >= 2
@@ -197,17 +197,17 @@ function test_sequencechart_geometry()
         @testset "honest tick labels" begin
             # A pixel stands for a span of time; printing more digits than that
             # span justifies is noise dressed as precision.
-            @test SCG.honest_tick_label(1.23456, 0.5) == "1"
-            @test SCG.honest_tick_label(1.23456, 0.005) == "1.23"
+            @test SCG.get_honest_tick_label(1.23456, 0.5) == "1"
+            @test SCG.get_honest_tick_label(1.23456, 0.005) == "1.23"
 
             # Zooming in earns digits, and only as many as it earns.
-            coarse = SCG.honest_tick_label(1.2345678, 0.1)
-            fine = SCG.honest_tick_label(1.2345678, 0.00001)
+            coarse = SCG.get_honest_tick_label(1.2345678, 0.1)
+            fine = SCG.get_honest_tick_label(1.2345678, 0.00001)
             @test length(fine) > length(coarse)
 
             # Whatever it prints must be inside the neighbourhood it was given.
             for neighbourhood in (1.0, 0.1, 0.001, 1e-6)
-                label = SCG.honest_tick_label(1.2345678, neighbourhood)
+                label = SCG.get_honest_tick_label(1.2345678, neighbourhood)
                 value = parse(Float64, label)
                 @test abs(value - 1.2345678) <= neighbourhood * 1.0000001
             end
@@ -228,53 +228,53 @@ function test_sequencechart_geometry()
 
         @testset "zero time spans" begin
             times = _seq_times()
-            coordinates = SCG.timeline_coordinates(times, nothing, :nonlinear)
-            spans = SCG.zero_time_spans(times, coordinates, -1.0, 100.0)
+            coordinates = SCG.get_timeline_coordinates(times, nothing, :nonlinear)
+            spans = SCG.get_zero_time_spans(times, coordinates, -1.0, 100.0)
             @test length(spans) == 1
             c0, c1 = spans[1]
             @test c0 ≈ coordinates[2] && c1 ≈ coordinates[4]
 
             # Under :time the same events have no width, so there is nothing to
             # shade — the shading exists to explain the other mappings.
-            linear = SCG.timeline_coordinates(times, nothing, :time)
-            @test isempty(SCG.zero_time_spans(times, linear, -1.0, 1e9))
+            linear = SCG.get_timeline_coordinates(times, nothing, :time)
+            @test isempty(SCG.get_zero_time_spans(times, linear, -1.0, 1e9))
 
             # Clipped to the window it was asked about.
-            clipped = SCG.zero_time_spans(times, coordinates, coordinates[3], 100.0)
+            clipped = SCG.get_zero_time_spans(times, coordinates, coordinates[3], 100.0)
             @test clipped[1][1] ≈ coordinates[3]
         end
 
         @testset "lane placement" begin
-            positions = SCG.axis_cross_positions(4, nothing, 0.0, 400.0)
+            positions = SCG.get_axis_cross_positions(4, nothing, 0.0, 400.0)
             @test length(positions) == 4
             @test issorted(positions)
             @test all(0.0 <= p <= 400.0 for p in positions)
 
             # Lanes divide the room between them, so a chart of any lane count
             # fills its pane.
-            wide = SCG.axis_cross_positions(4, nothing, 0.0, 800.0)
+            wide = SCG.get_axis_cross_positions(4, nothing, 0.0, 800.0)
             @test (wide[2] - wide[1]) > (positions[2] - positions[1])
 
             # A pinned spacing overrides that.
-            pinned = SCG.axis_cross_positions(4, nothing, 0.0, 800.0; spacing=30.0)
+            pinned = SCG.get_axis_cross_positions(4, nothing, 0.0, 800.0; spacing=30.0)
             @test pinned[2] - pinned[1] ≈ 30.0
 
             # A band widens its own lane's slot.
-            banded = SCG.axis_cross_positions(3, [0.0, 20.0, 0.0], 0.0, 400.0)
+            banded = SCG.get_axis_cross_positions(3, [0.0, 20.0, 0.0], 0.0, 400.0)
             @test banded[2] - banded[1] > banded[3] - banded[2]
 
-            @test isempty(SCG.axis_cross_positions(0, nothing, 0.0, 100.0))
+            @test isempty(SCG.get_axis_cross_positions(0, nothing, 0.0, 100.0))
         end
 
         @testset "arrow routing" begin
-            @test SCG.arrow_route(:auto, true) === :arc
-            @test SCG.arrow_route(:auto, false) === :direct
-            @test SCG.arrow_route(:direct, true) === :direct
-            @test SCG.arrow_route(:arc, false) === :arc
+            @test SCG.get_arrow_route(:auto, true) === :arc
+            @test SCG.get_arrow_route(:auto, false) === :direct
+            @test SCG.get_arrow_route(:direct, true) === :direct
+            @test SCG.get_arrow_route(:arc, false) === :arc
 
             # An arc starts and ends on the lane and bulges to one side, where
             # there is room — the lane itself is full of events.
-            points = SCG.arc_geometry(100.0, 200.0, 50.0, 15.0)
+            points = SCG.get_arc_geometry(100.0, 200.0, 50.0, 15.0)
             @test length(points) == 4
             @test points[1] == (100.0, 50.0)
             @test points[4] == (200.0, 50.0)
@@ -346,16 +346,16 @@ function test_sequencechart_geometry()
             candidates = collect(1:100)
             flows = [(50.0, 50.0) for _ in 1:100]
             crosses = [(20.0, 80.0) for _ in 1:100]
-            @test length(SCG.arrow_coverage_dedup(candidates, flows, crosses)) == 1
+            @test length(SCG.deduplicate_arrow_coverage(candidates, flows, crosses)) == 1
 
             # Different cross intervals are different marks, so they all stay.
             spread_crosses = [(20.0 + 5k, 80.0 + 5k) for k in 1:20]
-            @test length(SCG.arrow_coverage_dedup(collect(1:20),
+            @test length(SCG.deduplicate_arrow_coverage(collect(1:20),
                 [(50.0, 50.0) for _ in 1:20], spread_crosses)) == 20
 
             # An arrow with real width is a shape in its own right and is never
             # dropped into a bundle.
-            wide = SCG.arrow_coverage_dedup([1, 2], [(0.0, 300.0), (0.0, 300.0)],
+            wide = SCG.deduplicate_arrow_coverage([1, 2], [(0.0, 300.0), (0.0, 300.0)],
                                             [(20.0, 80.0), (20.0, 80.0)])
             @test length(wide) == 2
         end
@@ -365,7 +365,7 @@ function test_sequencechart_geometry()
             times = [0.0, 1.0, 2.0, 3.0, 4.0]
 
             # Sample-and-hold: a value paints from its own moment to the next.
-            intervals = SCG.band_intervals([0.0, 2.0], [1.0, 2.0], nothing,
+            intervals = SCG.get_band_intervals([0.0, 2.0], [1.0, 2.0], nothing,
                                            times, coordinates, -10.0, 10.0)
             @test length(intervals) == 2
             @test intervals[1][1] ≈ 0.0 && intervals[1][2] ≈ 2.0
@@ -374,22 +374,22 @@ function test_sequencechart_geometry()
 
             # A band time becomes a coordinate through the *event* timeline: the
             # band's own samples say nothing about where the axis is stretched.
-            stretched = SCG.timeline_coordinates(times, nothing, :step)
-            through = SCG.band_intervals([2.0], [1.0], nothing, times,
+            stretched = SCG.get_timeline_coordinates(times, nothing, :step)
+            through = SCG.get_band_intervals([2.0], [1.0], nothing, times,
                                          stretched, -10.0, 10.0)
             @test through[1][1] ≈ stretched[3]
 
             # Anchoring to an event row places an edge exactly, which a bare
             # time cannot do when several events share one instant.
             burst_times = [0.0, 5.0, 5.0, 5.0, 9.0]
-            burst = SCG.timeline_coordinates(burst_times, nothing, :nonlinear)
-            anchored = SCG.band_intervals([5.0], [1.0], [4], burst_times, burst, -10.0, 10.0)
+            burst = SCG.get_timeline_coordinates(burst_times, nothing, :nonlinear)
+            anchored = SCG.get_band_intervals([5.0], [1.0], [4], burst_times, burst, -10.0, 10.0)
             @test anchored[1][1] ≈ burst[4]
-            loose = SCG.band_intervals([5.0], [1.0], nothing, burst_times, burst, -10.0, 10.0)
+            loose = SCG.get_band_intervals([5.0], [1.0], nothing, burst_times, burst, -10.0, 10.0)
             @test loose[1][1] ≈ burst[2]     # the region's near edge, not row 4
 
             # Clipped to the window it was asked about.
-            @test isempty(SCG.band_intervals([0.0], [1.0], nothing, times,
+            @test isempty(SCG.get_band_intervals([0.0], [1.0], nothing, times,
                                              coordinates, 90.0, 100.0))
         end
     end

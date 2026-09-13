@@ -21,7 +21,7 @@ import ..DocumentModule: @document
 import ..ReferenceModule: Reference
 import ..SequenceChartModule: SequenceChartDocument
 
-export SequenceChartView, sequence_chart_view_of, view_contains
+export SequenceChartView, get_sequence_chart_view, view_contains
 
 """
     SequenceChartView(anchor, offset, span)
@@ -94,11 +94,11 @@ A sequence chart together with how it is currently being looked at.
 end
 
 """
-    sequence_chart_view_of(plot) -> SequenceChartView | nothing
+    get_sequence_chart_view(plot) -> SequenceChartView | nothing
 
 The plot's window, or `nothing` when it is fitting the whole trace. A
 convenience so readers do not reach through the cell by hand.
 """
-sequence_chart_view_of(plot::SequenceChartPlot) = plot.view
+get_sequence_chart_view(plot::SequenceChartPlot) = plot.view
 
 end # module
