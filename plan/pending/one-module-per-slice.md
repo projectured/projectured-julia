@@ -90,8 +90,8 @@ meets a hard case.
      `PrimitiveModule` was already right, so its 49 references never moved.
 2. **The 15 slices with 1 to 3 internal edges.**
 3. **The 16 slices with 4 to 9.**
-4. **The 11 slices with 10 or more**, hardest last: `graph` 39, `text` 25,
-   `process` 15, `syntax` 13, `pane` 12, `projection` 10.
+4. **The 11 slices with 10 or more.** Read each one before collapsing it. Two
+   of them should not be collapsed at all — see §4.2.
 5. **The kernel does not change at all.** Its 31 modules across 17 layers stay
    as they are, including the seven of the `projection` layer. This is the
    user's decision, not a deferral, so nothing in the kernel is on this plan's
@@ -99,8 +99,41 @@ meets a hard case.
 
 **Treat a high edge count as a list of slices to divide, not as a reason to keep
 file modules.** `graph` carries 39 internal edges across 17 modules and `text`
-25 across 14. Read that as those two slices doing too much. Consider dividing
-them into more slices before or instead of collapsing them.
+25 across 14. Read that as those two slices doing too much.
+
+### 4.2 `graph` is a division candidate, not a collapse candidate
+
+Reading it settles the question. Its 39 edges are not flat: they form a
+dependency graph four to five levels deep.
+
+    LayoutGeometry  <-  GraphComponent, ForceDirectedParametersBase,
+                        ForceDirectedParameters, HeapEmbedding, StarTreeEmbedding
+    GraphComponent  <-  HeapEmbedding, StarTreeEmbedding
+    ForceDirectedParametersBase <- ForceDirectedParameters
+    StarTreeEmbedding <- ForceDirectedGraphLayouter
+
+    GraphModule     <-  GraphLayoutEngine, GraphLayoutChoice,
+                        GraphToGraphLayout, GraphLayoutToGraphics
+    GraphLayout     <-  GraphLayoutEngine, GraphToGraphLayout, GraphLayoutToGraphics
+    GraphLayoutEngine <- GraphLayoutChoice, GraphToGraphLayout
+    GraphToGraphLayout <- GraphLayoutToGraphics
+
+And the two halves barely touch. `source/graph/omnetpp/` is a self-contained
+port of a C++ force-directed layout engine — geometry, a random generator, a
+component, the parameter families and two embeddings. It knows no document type.
+The only edge from the top level into it is `GraphLayoutChoice`, which picks a
+layouter.
+
+Collapsing the slice would merge a layout algorithm library with a document and
+its projections, and flatten a structure that is doing real work. **Divide it
+instead:** `source/graph/` keeps the documents and the projections, and
+`omnetpp/` becomes its own slice, plausibly its own package, since it depends on
+nothing above it.
+
+`text` at 25 edges across 14 modules wants the same reading before anything is
+done to it.
+
+Neither is on this plan's collapse list.
 
 ### 4.1 One file split waits for this plan
 
