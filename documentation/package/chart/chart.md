@@ -72,7 +72,7 @@ The projection is the two stages chained:
 
 ```julia
 ChainingProjection(ChartToChartPlot(),
-                   ChartPlotToGraphicsCanvas(measure=truetype_measure_text))
+                   ChartPlotToGraphicsCanvas(measure=measure_truetype_text))
 ```
 
 To put a chart inside another document — a workbench tab, a table cell — add one

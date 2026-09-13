@@ -11,8 +11,8 @@ import ..CellModule: Cell, ComputedCell
 export Inset, Point2D, inset_default,
        inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
-       AffineTransform, affine_identity, affine_translate, affine_scale,
-       affine_apply, affine_inverse, affine_is_axis_aligned
+       AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
+       apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
 
 # ── Inset ──────────────────────────────────────────────────────────────────
 
@@ -99,8 +99,8 @@ fields are plain `Float64` (not `Cell`s): a transform is a *value* that is
 swapped wholesale (like a `Point2D` written into `scroll_position`), so it is
 held inside a single `Cell` by whatever document carries it.
 
-Use [`affine_identity`](@ref), [`affine_translate`](@ref),
-[`affine_scale`](@ref) to build common cases and `∘` to compose
+Use [`affine_identity`](@ref), [`make_affine_translate`](@ref),
+[`make_affine_scale`](@ref) to build common cases and `∘` to compose
 (`A ∘ B` applies `B` first, then `A`).
 """
 struct AffineTransform
@@ -111,11 +111,11 @@ end
 const affine_identity = AffineTransform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
 "A pure translation by `(tx, ty)`."
-affine_translate(tx, ty) = AffineTransform(1.0, 0.0, 0.0, 1.0, Float64(tx), Float64(ty))
+make_affine_translate(tx, ty) = AffineTransform(1.0, 0.0, 0.0, 1.0, Float64(tx), Float64(ty))
 
 "A pure (possibly non-uniform) scale by `(sx, sy)` about the origin."
-affine_scale(sx, sy) = AffineTransform(Float64(sx), 0.0, 0.0, Float64(sy), 0.0, 0.0)
-affine_scale(s) = affine_scale(s, s)
+make_affine_scale(sx, sy) = AffineTransform(Float64(sx), 0.0, 0.0, Float64(sy), 0.0, 0.0)
+make_affine_scale(s) = make_affine_scale(s, s)
 
 """Compose two transforms: `(A ∘ B)` applies `B` first, then `A`."""
 function Base.:∘(A::AffineTransform, B::AffineTransform)
@@ -130,16 +130,16 @@ function Base.:∘(A::AffineTransform, B::AffineTransform)
 end
 
 """Apply `M` to the local point `(x, y)`; returns the screen `(x, y)` tuple."""
-affine_apply(M::AffineTransform, x, y) =
+apply_affine_transform(M::AffineTransform, x, y) =
     (M.a * x + M.c * y + M.e, M.b * x + M.d * y + M.f)
 
 """
-    affine_inverse(M) -> AffineTransform
+    compute_affine_inverse(M) -> AffineTransform
 
 The inverse transform (screen → local). Errors if `M` is singular
 (determinant zero).
 """
-function affine_inverse(M::AffineTransform)
+function compute_affine_inverse(M::AffineTransform)
     det = M.a * M.d - M.b * M.c
     det == 0 && error("AffineTransform is singular; cannot invert")
     ia = M.d / det
@@ -152,18 +152,18 @@ function affine_inverse(M::AffineTransform)
 end
 
 """
-    affine_is_axis_aligned(M) -> Bool
+    is_affine_axis_aligned(M) -> Bool
 
 `true` when `M` has no rotation/shear (off-diagonal terms zero), i.e. it is a
 pure translate+scale. The renderer fast path (`RenderSetScale` + baked offset)
 only applies in this case.
 """
-affine_is_axis_aligned(M::AffineTransform) = M.b == 0.0 && M.c == 0.0
+is_affine_axis_aligned(M::AffineTransform) = M.b == 0.0 && M.c == 0.0
 
 function Base.show(io::IO, M::AffineTransform)
     if M == affine_identity
         print(io, "AffineTransform(identity)")
-    elseif affine_is_axis_aligned(M)
+    elseif is_affine_axis_aligned(M)
         print(io, "AffineTransform(scale=(", M.a, ", ", M.d, "), translate=(", M.e, ", ", M.f, "))")
     else
         print(io, "AffineTransform(", M.a, ", ", M.b, ", ", M.c, ", ", M.d, ", ", M.e, ", ", M.f, ")")

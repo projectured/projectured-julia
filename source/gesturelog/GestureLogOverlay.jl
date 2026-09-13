@@ -32,7 +32,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 import ..ColorModule: StyleColor
 import ..SyntaxToTextModule: SyntaxToText
 import ..TextToGraphicsModule: TextToGraphics
-import ..TrueTypeModule: truetype_measure_text
+import ..TrueTypeModule: measure_truetype_text
 import ..PrinterContextModule: PrinterContext
 import ..GestureLogModule: GestureLog
 import ..GestureLogToSyntaxModule: GestureLogToSyntax
@@ -52,11 +52,11 @@ const GESTURE_LOG_BACKGROUND = StyleColor(0.0, 0.0, 0.0, 0.72)
 const _WIDTH_SLACK = 8
 
 """
-    make_gesture_log_content_projection(; measure = truetype_measure_text)
+    make_gesture_log_content_projection(; measure = measure_truetype_text)
 
 The chain that renders a `GestureLog` down to graphics.
 """
-make_gesture_log_content_projection(; measure = truetype_measure_text) =
+make_gesture_log_content_projection(; measure = measure_truetype_text) =
     ChainingProjection(GestureLogToSyntax(),
                        RecursiveProjection(SyntaxToText()),
                        TextToGraphics(measure = measure))

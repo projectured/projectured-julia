@@ -632,7 +632,7 @@ the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
   content (e.g. collection add/remove) still wins. Every edit is a single
   `ReplaceReferencedValueOperation(pane, "transform", M')`, like other widget edits; other
   events are forwarded to the content with the pointer mapped through
-  `affine_inverse(M)`, then re-rooted at `.content` exactly as the scroll pane.
+  `compute_affine_inverse(M)`, then re-rooted at `.content` exactly as the scroll pane.
 - **`transform` is transient view state** (like `scroll_position`) — not
   serialised.
 - **Renderer scope.** The SDL, web (`ctx.transform`), and PDF (`cm`) backends

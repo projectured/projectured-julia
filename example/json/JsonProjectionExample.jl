@@ -1,4 +1,4 @@
-function make_json_projection_example(; measure=truetype_measure_text)
+function make_json_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -30,7 +30,7 @@ function make_json_console_projection_example()
     )
 end
 
-function make_json_sorted_projection_example(; measure=truetype_measure_text)
+function make_json_sorted_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         SortingAtProjection((@reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::JsonObject.entries::CellVector), x -> x.key),
         RecursiveProjection(JsonToSyntax()),
@@ -39,7 +39,7 @@ function make_json_sorted_projection_example(; measure=truetype_measure_text)
     )
 end
 
-function make_json_null_projection_example(; measure=truetype_measure_text)
+function make_json_null_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         JsonNullToSyntaxLeaf(),
         SyntaxLeafToText(),
@@ -47,7 +47,7 @@ function make_json_null_projection_example(; measure=truetype_measure_text)
     )
 end
 
-function make_json_string_projection_example(; measure=truetype_measure_text)
+function make_json_string_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         JsonStringToSyntaxLeaf(),
         SyntaxLeafToText(),

@@ -156,7 +156,7 @@ function test_xml_override_gestures()
 
 chain = ChainingProjection(RecursiveProjection(XmlToSyntax()),
                            RecursiveProjection(SyntaxToText()),
-                           TextToGraphics(measure = truetype_measure_text))
+                           TextToGraphics(measure = measure_truetype_text))
 
 read_key(doc, sel, evt) = begin
     set_selection!(doc, sel)

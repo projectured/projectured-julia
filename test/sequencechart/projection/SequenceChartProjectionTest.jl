@@ -19,7 +19,7 @@ const SCT = SequenceChartPlotToGraphicsModule
 _sequencechart_projection(; width::Integer=900, height::Integer=520) =
     ChainingProjection(
         SequenceChartToSequenceChartPlot(),
-        SequenceChartPlotToGraphicsCanvas(measure=truetype_measure_text,
+        SequenceChartPlotToGraphicsCanvas(measure=measure_truetype_text,
                                           width=width, height=height))
 
 _sequencechart_iomap(chart; kw...) = (p = _sequencechart_projection(; kw...);

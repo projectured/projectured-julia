@@ -40,7 +40,7 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          _canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, polyline_arrowhead
 import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
-import ProjecturedStyle.GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ProjecturedStyle.GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
 import ProjecturedStyle.ColorModule: StyleColor
 import ProjecturedStyle.FontModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
                          _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,

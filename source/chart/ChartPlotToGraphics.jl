@@ -105,7 +105,7 @@ end
     ChartPlotToGraphicsCanvas(; measure, width=760, height=460)
 
 The chart renderer. `measure(text, font) -> (w, h)` is how tick and title text
-is sized; pass `truetype_measure_text` for a backend-free pipeline or
+is sized; pass `measure_truetype_text` for a backend-free pipeline or
 `sdl_measure_text` when running against a live SDL window.
 
 `width`/`height` are the fallback canvas size, used when the printer context

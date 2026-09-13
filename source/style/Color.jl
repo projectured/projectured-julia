@@ -10,7 +10,7 @@ import ..DocumentModule: Document
 import ..DocumentModule: @document
 
 export StyleColor, make_style_color,
-       color_equal, color_interpolate, color_lighten, color_darken,
+       is_color_equal, color_interpolate, color_lighten, color_darken,
        color_lighten_selection, color_darken_selection,
        color_default,
        color_black, color_white, color_red, color_green, color_blue,
@@ -1201,22 +1201,22 @@ const color_zomp                                    = _color(57, 167, 142)
 # ── API ───────────────────────────────────────────────────────────────────────
 
 """
-    color_equal(c1, c2) -> Bool
+    is_color_equal(c1, c2) -> Bool
 
 Return `true` if all four RGBA components of `c1` and `c2` are identical.
 """
-color_equal(c1::StyleColor, c2::StyleColor) =
+is_color_equal(c1::StyleColor, c2::StyleColor) =
     c1.alpha == c2.alpha && c1.red == c2.red && c1.green == c2.green && c1.blue == c2.blue
 
 """
-    color_equal_safe(c1, c2) -> Bool
+    is_color_equal_safe(c1, c2) -> Bool
 
-Like `color_equal`, but handles `nothing`: returns `true` only when both
+Like `is_color_equal`, but handles `nothing`: returns `true` only when both
 arguments are `nothing` or both are equal `StyleColor` values.
 """
-function color_equal_safe(c1, c2)
+function is_color_equal_safe(c1, c2)
     if c1 !== nothing && c2 !== nothing
-        color_equal(c1, c2)
+        is_color_equal(c1, c2)
     else
         c1 === c2
     end

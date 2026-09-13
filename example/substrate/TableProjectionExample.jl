@@ -5,8 +5,8 @@
 # is — so the examples are just `NaturalToGraphics` with the sans font the
 # workbench/table chrome uses. JSON/Primitive/Math cells render through the
 # shared syntax fabric (no word-wrap), as before.
-make_table_projection_example(; measure=truetype_measure_text) =
+make_table_projection_example(; measure=measure_truetype_text) =
     NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
 
-make_math_table_projection_example(; measure=truetype_measure_text) =
+make_math_table_projection_example(; measure=measure_truetype_text) =
     NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)

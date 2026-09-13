@@ -10,7 +10,7 @@
 # Gestures owned by the versioning projection (the rest fall through to JSON):
 #   Ctrl+Shift+S   snapshot the active value into a new (front) ObjectVersion
 #   Ctrl+Delete    delete the active version
-function make_versioning_projection_example(; measure=truetype_measure_text)
+function make_versioning_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             VersionedObject => VersioningToAnyProjection(),

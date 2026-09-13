@@ -23,7 +23,7 @@ function test_widget_transform_pane()
         @test M.a ≈ 1.1            # zoomed in by one step
         @test M.d ≈ 1.1
         # The point under the cursor stays fixed: M·(50,50) == (50,50).
-        @test all(affine_apply(M, 50.0, 50.0) .≈ (50.0, 50.0))
+        @test all(apply_affine_transform(M, 50.0, 50.0) .≈ (50.0, 50.0))
     end
 
     @testset "Ctrl+wheel zooms out below 1×" begin
@@ -37,7 +37,7 @@ function test_widget_transform_pane()
 
     @testset "zoom clamps at the maximum" begin
         doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
-                                    size=Point2D(200, 200), transform=affine_scale(4.0, 4.0))
+                                    size=Point2D(200, 200), transform=make_affine_scale(4.0, 4.0))
         proj  = _proj()
         iomap = print_document(proj, doc)
         # Already at ZOOM_MAX (4.0); a further zoom-in is a no-op.
@@ -85,7 +85,7 @@ function test_widget_transform_pane()
         op = read_intent(proj, iomap, KeyDown(:equals, ModifierKeys(ctrl=true)))
         @test op isa ReplaceReferencedValueOperation
         @test op.value.a ≈ 1.1
-        @test all(affine_apply(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
+        @test all(apply_affine_transform(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
     end
 
     @testset "Ctrl+- zooms out" begin
@@ -99,7 +99,7 @@ function test_widget_transform_pane()
 
     @testset "Ctrl+0 resets to the identity" begin
         doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
-                                    size=Point2D(200, 200), transform=affine_scale(2.0, 2.0))
+                                    size=Point2D(200, 200), transform=make_affine_scale(2.0, 2.0))
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true)))

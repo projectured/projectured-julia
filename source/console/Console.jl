@@ -156,7 +156,7 @@ _sgr_background(c::StyleColor) =
 # default (black). Default-black is only used for the empty boundary-marker
 # spans (zero-length content), and emitting it would paint black-on-dark on a
 # typical terminal — so map it to the terminal's own foreground (no code).
-_meaningful_foreground(c) = c isa StyleColor && !color_equal(c, color_default)
+_meaningful_foreground(c) = c isa StyleColor && !is_color_equal(c, color_default)
 
 # ── Rendering ────────────────────────────────────────────────────────────
 #

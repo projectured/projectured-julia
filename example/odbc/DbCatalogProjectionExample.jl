@@ -1,6 +1,6 @@
 # ── Text-based pipeline: Domain → Syntax → Text → Graphics ──────────────
 
-function make_dbcatalog_projection_example(; measure=truetype_measure_text,
+function make_dbcatalog_projection_example(; measure=measure_truetype_text,
                                              pool=OdbcConnectionPool())
     ChainingProjection(
         DatabaseInstanceToDbCatalog(pool),
@@ -13,7 +13,7 @@ function make_dbcatalog_projection_example(; measure=truetype_measure_text,
     )
 end
 
-function make_dvdrental_dbcatalog_projection_example(; measure=truetype_measure_text)
+function make_dvdrental_dbcatalog_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
@@ -37,7 +37,7 @@ end
 # `dvdrental_object_example`. The document stays a lazy `DatabaseInstance`
 # connection spec; `DatabaseInstanceToDbCatalog` opens the connection (through its
 # pool) only when the tree is first forced at print time.
-function make_dvdrental_object_projection_example(; measure=truetype_measure_text,
+function make_dvdrental_object_projection_example(; measure=measure_truetype_text,
                                                     pool=OdbcConnectionPool())
     ChainingProjection(
         DatabaseInstanceToDbCatalog(pool),

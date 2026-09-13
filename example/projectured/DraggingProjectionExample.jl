@@ -5,7 +5,7 @@
 # DraggingProjection's printer is transparent, so the array renders as usual; its
 # reader turns a press-drag-release into a MoveRangeOperation that reorders the
 # array's elements.
-function make_dragging_projection_example(; measure=truetype_measure_text)
+function make_dragging_projection_example(; measure=measure_truetype_text)
     NestingProjection(
         DraggingProjection();
         recursion = make_json_projection_example(measure=measure),

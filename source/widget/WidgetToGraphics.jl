@@ -57,8 +57,8 @@ import ..FocusModule: first_focusable_path, last_focusable_path, next_focusable_
 import ..CollectionModule: CellVector, ComputedCellVector, CollectionDocument, ListNode
 import ..ImageModule: ImageDocument
 import ..GraphicsModule: GraphicsDocument, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsCanvas, GraphicsViewport, GraphicsImage, hit_element_at, layout_none, layout_vertical, graphics_size
-import ..GeometryModule: AffineTransform, affine_identity, affine_translate, affine_scale,
-                         affine_apply, affine_inverse, affine_is_axis_aligned
+import ..GeometryModule: AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
+                         apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
 import ..FontModule: StyleFont,
                      font_ubuntu_regular_18, font_ubuntu_regular_20, font_ubuntu_bold_20
 import ..StyleTextModule: StyleText
@@ -3898,10 +3898,10 @@ end
 # Zoom about a viewport-space point: scale by `factor` keeping `(ax, ay)` fixed,
 # composed onto the existing matrix. `M' = T(a) ∘ S(f) ∘ T(-a) ∘ M`.
 _zoom_about(M::AffineTransform, factor, ax, ay) =
-    affine_translate(ax, ay) ∘ affine_scale(factor, factor) ∘ affine_translate(-ax, -ay) ∘ M
+    make_affine_translate(ax, ay) ∘ make_affine_scale(factor, factor) ∘ make_affine_translate(-ax, -ay) ∘ M
 
 # Pan: prepend a screen-space translation. `M' = T(dx, dy) ∘ M`.
-_pan_by(M::AffineTransform, dx, dy) = affine_translate(dx, dy) ∘ M
+_pan_by(M::AffineTransform, dx, dy) = make_affine_translate(dx, dy) ∘ M
 
 # One zoom step about `(ax, ay)`: `dir > 0` zooms in, `dir < 0` out. Returns the
 # `ReplaceReferencedValueOperation`, or `nothing` if the clamp leaves the scale unchanged
@@ -3942,8 +3942,8 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     content_iomap = iomap.content_iomap
     op = content_iomap === nothing ? nothing : @event_case evt begin
         MousePress(button, x, y) => begin
-            inv = affine_inverse(M)
-            lxf, lyf = affine_apply(inv, Float64(x - cox), Float64(y - coy))
+            inv = compute_affine_inverse(M)
+            lxf, lyf = apply_affine_transform(inv, Float64(x - cox), Float64(y - coy))
             read_intent(content_iomap.projection, content_iomap,
                              MousePress(button, round(Int, lxf), round(Int, lyf), evt.modifiers))
         end

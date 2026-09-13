@@ -349,20 +349,20 @@ _extend!(a::_DAcc, b) = (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
 
 function _bounds_of_elem(elem, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, truetype_measure_text, mnx, mny, mxx, mxy)
+    _bounds_elem!(elem, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, truetype_measure_text, mnx, mny, mxx, mxy)
+    _accumulate_bounds!(canvas, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_listnode(head::ListNode, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     for n in _list_nodes(head)
-        _bounds_elem!(n.value, ox, oy, truetype_measure_text, mnx, mny, mxx, mxy)
+        _bounds_elem!(n.value, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
     end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
@@ -713,7 +713,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 function BackendModule.initialize_backend!(backend::WebBackend)
-    # Text metrics come from the pure-Julia TrueType measurer (truetype_measure_text),
+    # Text metrics come from the pure-Julia TrueType measurer (measure_truetype_text),
     # so no SDL/SDL_ttf initialisation is needed — the web backend is SDL-free.
     backend.server = HTTP.listen!(backend.host, backend.port) do http
         if HTTP.WebSockets.isupgrade(http.message)
@@ -747,12 +747,12 @@ function BackendModule.quit_backend!(backend::WebBackend)
     return nothing
 end
 
-# `truetype_measure_text` already measures at the font-zoomed logical size (it reads
+# `measure_truetype_text` already measures at the font-zoomed logical size (it reads
 # `_FONT_ZOOM` via `font_logical_size`), so web layout reflows with Ctrl+Alt zoom
 # for free (no-op at the default font zoom). Web has no display-scale knob — full
 # zoom is the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
 BackendModule.measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
-    truetype_measure_text(text, font)
+    measure_truetype_text(text, font)
 
 # Non-blocking poll: hand back the next decoded event, or nothing.
 BackendModule.read_from_devices(backend::WebBackend, devices) =

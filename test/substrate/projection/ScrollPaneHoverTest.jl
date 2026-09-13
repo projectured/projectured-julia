@@ -15,7 +15,7 @@ function test_scroll_pane_hover()
         pane = WidgetScrollPane(list; size = Point2D(200, 200))
         projection = RecursiveProjection(TypeDispatchingProjection(
             WidgetToGraphics(font_ubuntu_monospace_regular_20;
-                             measure = truetype_measure_text).dispatch))
+                             measure = measure_truetype_text).dispatch))
         iomap = print_document(projection, pane)
 
         # The row a press resolves to is the reference standard: it was correct

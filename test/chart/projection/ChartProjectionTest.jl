@@ -14,7 +14,7 @@ using Test
 function _chart_projection(; width::Integer=760, height::Integer=460)
     ChainingProjection(
         ChartToChartPlot(),
-        ChartPlotToGraphicsCanvas(measure=truetype_measure_text,
+        ChartPlotToGraphicsCanvas(measure=measure_truetype_text,
                                   width=width, height=height))
 end
 
@@ -1277,7 +1277,7 @@ function test_chart_scale()
             # one draws exactly — the fold is only what sub-pixel spans need.
             plot = ChartPlot(chart)
             plot.view = ChartView(0.0, 0.1, 0.5, 1.5)
-            p = ChartPlotToGraphicsCanvas(measure=truetype_measure_text)
+            p = ChartPlotToGraphicsCanvas(measure=measure_truetype_text)
             zoomed = print_document(p, p, plot, PrinterContext()).output
             spans = filter(e -> e isa GraphicsRect, _series_elements(zoomed))
             visible = count(v -> 0.0 <= v <= 0.1, x)

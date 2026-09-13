@@ -28,13 +28,13 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLin
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _canvas_content_bounds, tessellate_spline, polyline_arrowhead
 import ..ColorModule: StyleColor
-import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
 import ..FontModule: StyleFont, font_logical_size
 # The TrueType parser + SDL-free measurer moved to TrueTypeModule (it is used by
 # the web backend and every projection example too, not just PDF). The PDF writer
 # still needs the parser internals for glyph embedding and text sizing.
 import ..TrueTypeModule: TrueTypeFont, _load_ttf, glyph_id, advance_1000, ascent_px,
-                         text_width, truetype_measure_text
+                         text_width, measure_truetype_text
 import ..ImageModule: ImageFile
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap
@@ -440,7 +440,7 @@ function paint_viewport!(ctx, vp, ox, oy)
     # The matrix is derived in PDF (bottom-up) space from the top-down transform:
     # output = (sx·P.x + Ex, sy·P.y + Fy), accounting for the per-element y-flip.
     M = vp.transform::AffineTransform
-    if M !== affine_identity && affine_is_axis_aligned(M) &&
+    if M !== affine_identity && is_affine_axis_aligned(M) &&
        !(M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0)
         sx, sy = M.a, M.d
         ex = vx * (1.0 - sx) + M.e
@@ -676,7 +676,7 @@ end
     write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
               width::Integer, height::Integer, paginate::Bool = false,
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = truetype_measure_text) -> ImageFile
+              measure = measure_truetype_text) -> ImageFile
 
 Low-level overload. Emit `canvas` as a vector PDF where each page is
 `width × height` points (1 pt == 1 logical px). Shapes become PDF paths, text
@@ -690,7 +690,7 @@ bands; `measure` is used to find the content height.
 function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
                    width::Integer, height::Integer, paginate::Bool = false,
                    background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = truetype_measure_text)
+                   measure = measure_truetype_text)
     ext = lowercase(splitext(filename)[2])
     ext == ".pdf" || error("write_pdf: unsupported format \"$ext\" (only .pdf is supported)")
 
@@ -710,7 +710,7 @@ end
               width=nothing, height=nothing, paginate::Bool = false,
               max_width::Integer = 1200, max_height::Integer = 800,
               background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = truetype_measure_text) -> ImageFile
+              measure = measure_truetype_text) -> ImageFile
 
 Run `print_document(projection, document)` to obtain a `GraphicsCanvas` and
 write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
@@ -742,7 +742,7 @@ function write_pdf(document, projection, filename::AbstractString;
                    max_width::Integer = 1200,
                    max_height::Integer = 800,
                    background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = truetype_measure_text)
+                   measure = measure_truetype_text)
     print_canvas = (aw, ah) -> begin
         ctx = PrinterContext(EmptyReference(), aw, ah, Dict{Symbol,Any}())
         iomap = print_document(projection, nothing, document, ctx)

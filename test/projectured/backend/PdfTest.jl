@@ -23,9 +23,9 @@ end
 
 @testset "write_pdf(document, projection, filename)" begin
     doc  = make_json_document_example()
-    proj = make_graphics_image_projection_example(measure=truetype_measure_text)
+    proj = make_graphics_image_projection_example(measure=measure_truetype_text)
     filename = tempname() * ".pdf"
-    img = write_pdf(doc, proj, filename; width=400, height=300, measure=truetype_measure_text)
+    img = write_pdf(doc, proj, filename; width=400, height=300, measure=measure_truetype_text)
     @test img isa ImageFile
     @test isfile(filename)
     @test filesize(filename) > 0
@@ -35,9 +35,9 @@ end
 
 @testset "write_pdf content-fit sizing (omitted axes)" begin
     doc  = make_json_document_example()
-    proj = make_graphics_image_projection_example(measure=truetype_measure_text)
+    proj = make_graphics_image_projection_example(measure=measure_truetype_text)
     filename = tempname() * ".pdf"
-    img = write_pdf(doc, proj, filename; measure=truetype_measure_text)   # no width/height
+    img = write_pdf(doc, proj, filename; measure=measure_truetype_text)   # no width/height
     @test img isa ImageFile
     @test _is_pdf(filename)
     rm(filename)
@@ -76,7 +76,7 @@ end
     doc  = make_json_document_example()
     filename = tempname() * ".pdf"
     proj = ChainingProjection(
-        make_graphics_image_projection_example(measure=truetype_measure_text),
+        make_graphics_image_projection_example(measure=measure_truetype_text),
         GraphicsCanvasToPdfFile(filename; width=400, height=300),
     )
     iomap = print_document(proj, doc)
@@ -126,7 +126,7 @@ end
 
 @testset "paginate=true document/projection overload" begin
     doc  = make_json_document_example()
-    proj = make_graphics_image_projection_example(measure=truetype_measure_text)
+    proj = make_graphics_image_projection_example(measure=measure_truetype_text)
     filename = tempname() * ".pdf"
     img = write_pdf(doc, proj, filename; paginate=true, width=300, height=120)
     @test img isa ImageFile

@@ -7,8 +7,8 @@ rasterizer, no display server, no SDL), so any projection pipeline can measure
 text for layout without a live backend.
 
 This machinery is format-neutral: the PDF backend uses it for both measurement
-and glyph embedding, the web backend uses `truetype_measure_text` for its
-metrics, and every projection example defaults `measure=truetype_measure_text`.
+and glyph embedding, the web backend uses `measure_truetype_text` for its
+metrics, and every projection example defaults `measure=measure_truetype_text`.
 It lives here next to `FontModule` (which owns `StyleFont` and the font-zoom
 sizing) rather than inside the PDF backend, which is only one of its consumers.
 """
@@ -16,7 +16,7 @@ module TrueTypeModule
 
 import ..FontModule: StyleFont, font_logical_size
 
-export truetype_measure_text, font_ascent, font_descent, font_line_height,
+export measure_truetype_text, font_ascent, font_descent, font_line_height,
        font_x_height, font_cap_height, font_glyph_bounds, font_file
 
 # ════════════════════════════════════════════════════════════════════════
@@ -287,7 +287,7 @@ end
 ascent_px(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 
 """
-    truetype_measure_text(text, font::StyleFont) -> (Int, Int)
+    measure_truetype_text(text, font::StyleFont) -> (Int, Int)
 
 Canonical SDL-free text measurer for layout. Returns `(width, height)` in logical
 pixels — both `Int`, matching `sdl_measure_text`'s contract so the same
@@ -302,7 +302,7 @@ which reads the reactive `_FONT_ZOOM` cell — exactly like `sdl_measure_text`
 This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
 A no-op at the default zoom (`font_logical_size == size`).
 """
-truetype_measure_text(text, font::StyleFont) =
+measure_truetype_text(text, font::StyleFont) =
     (round(Int, text_width(_load_ttf(font.filename), font_logical_size(font), String(text))),
      font_logical_size(font))
 
@@ -311,7 +311,7 @@ truetype_measure_text(text, font::StyleFont) =
 # ════════════════════════════════════════════════════════════════════════
 #
 # A measurer answers `(width, height)`, and the two measurers answer different
-# heights: `truetype_measure_text` gives the em size, `sdl_measure_text` gives
+# heights: `measure_truetype_text` gives the em size, `sdl_measure_text` gives
 # the rasterized one. Neither says where the baseline sits, so a caller that
 # aligns boxes on a baseline — a math typesetter — reads the font's own table
 # instead. Every function below answers in *logical* pixels at

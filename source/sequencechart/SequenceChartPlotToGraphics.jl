@@ -112,7 +112,7 @@ _or(value, fallback) = value === nothing ? fallback : value
     SequenceChartPlotToGraphicsCanvas(; measure, width=900, height=520)
 
 The sequence chart renderer. `measure(text, font) -> (w, h)` is how tick, lane
-and arrow text is sized; pass `truetype_measure_text` for a backend-free
+and arrow text is sized; pass `measure_truetype_text` for a backend-free
 pipeline or `sdl_measure_text` when running against a live SDL window.
 
 `width`/`height` are the fallback canvas size, used when the printer context

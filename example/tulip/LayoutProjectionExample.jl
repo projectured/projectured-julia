@@ -5,7 +5,7 @@
 # for the dependency-free `FallbackConstraintSolver`. Building the projection is
 # cheap; the LP solve happens lazily when the projection is printed.
 
-function make_constraint_layout_tulip_projection_example(; measure=truetype_measure_text)
+function make_constraint_layout_tulip_projection_example(; measure=measure_truetype_text)
     make_constraint_layout_projection_example(; measure=measure,
                                               solver=TulipConstraintSolver())
 end

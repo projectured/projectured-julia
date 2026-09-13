@@ -6,7 +6,7 @@ Project a tree of `HorizontalLayout` / `VerticalLayout` / `GridLayout` /
 nodes to their `…ToGraphicsCanvas` projections and any other document
 (widgets in this example) to `WidgetToGraphics`.
 """
-function make_layout_projection_example(; measure=truetype_measure_text)
+function make_layout_projection_example(; measure=measure_truetype_text)
     font = font_ubuntu_regular_20
     # Dark foreground — this example renders directly onto the backend's
     # default (light) background, without a `WidgetShell` to provide a
@@ -35,7 +35,7 @@ stack at the origin — a valid but unsolved layout). Pass a `TulipConstraintSol
 from the opt-in `ProjecturedTulip` package for real constraint solving; the
 `constraint_layout_tulip` example in `ProjecturedTulipExample` does exactly that.
 """
-function make_constraint_layout_projection_example(; measure=truetype_measure_text,
+function make_constraint_layout_projection_example(; measure=measure_truetype_text,
                                                    solver=FallbackConstraintSolver())
     font = font_ubuntu_regular_20
     ChainingProjection(

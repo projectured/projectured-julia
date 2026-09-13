@@ -874,7 +874,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     M = vp.transform::AffineTransform
     prev = _clip_current(renderer)
     if M === affine_identity || (M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0 &&
-                                 affine_is_axis_aligned(M))
+                                 is_affine_axis_aligned(M))
         # Fast path: identity transform — clip + draw exactly as before.
         box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
         SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))

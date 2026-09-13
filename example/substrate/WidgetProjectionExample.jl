@@ -3,7 +3,7 @@
 # through WidgetToGraphics. The light theme drives all colors, radius and
 # spacing — see WidgetTheme. Use this for every per-widget example whose content
 # is a plain string (label, checkbox, button, menu, composite, panes, …).
-function make_widget_projection_example(; measure=truetype_measure_text)
+function make_widget_projection_example(; measure=measure_truetype_text)
     w2g = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
     # Several examples stack their variants with a VerticalLayout instead of
     # hand-positioned WidgetComposite children, so the renderer dispatches layout
@@ -27,7 +27,7 @@ end
 # forwarding, adds the trigger-baked offset, and emits an `OpenWindowOperation` that
 # `WindowManager` turns into a real popup window. Each window's content renders
 # through the standard widget projection.
-function make_widget_popup_projection_example(; measure=truetype_measure_text)
+function make_widget_popup_projection_example(; measure=measure_truetype_text)
     widget_proj = make_widget_projection_example(; measure=measure)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         _is_window_content(ref) &&
@@ -63,7 +63,7 @@ end
 # also dispatch TextBlock through TextToGraphics. All caret navigation / text
 # editing then comes from TextToGraphics and the widget only maps the resulting
 # references backward (see make_widget_text_document_example).
-function make_widget_text_projection_example(; measure=truetype_measure_text)
+function make_widget_text_projection_example(; measure=measure_truetype_text)
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(

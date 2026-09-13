@@ -1,4 +1,4 @@
-function make_graphics_image_projection_example(; measure=truetype_measure_text)
+function make_graphics_image_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         RecursiveProjection(JsonToSyntax()),
         RecursiveProjection(SyntaxToText()),

@@ -121,7 +121,7 @@ _unsupported_message(document) =
 
 Build the natural projection: a recursive type-dispatching projection mapping
 almost any document to a `GraphicsCanvas`. `measure(text, font) -> (w, h)` is the
-text-measurement function (backend-supplied; e.g. `truetype_measure_text`).
+text-measurement function (backend-supplied; e.g. `measure_truetype_text`).
 
 - `font`    — base font for widget/text rendering.
 - `wrap`    — word-wrap prose (`TextDocument`). Structured syntax/code is always

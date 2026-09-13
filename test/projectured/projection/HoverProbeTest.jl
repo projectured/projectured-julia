@@ -62,8 +62,8 @@ function test_reference_inspector_text()
         # for a ReferenceInspector window) must bottom out in a GraphicsCanvas —
         # that is what the window reconciler requires.
         chain = ChainingProjection(ReferenceInspectorToText(),
-                                     WordWrapping(measure = truetype_measure_text),
-                                     TextToGraphics(measure = truetype_measure_text))
+                                     WordWrapping(measure = measure_truetype_text),
+                                     TextToGraphics(measure = measure_truetype_text))
         canvas = print_document(chain, ReferenceInspector(reference = ref, target = doc)).output
         @test canvas isa GraphicsCanvas
     end

@@ -115,7 +115,7 @@ end
 
     chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                RecursiveProjection(SyntaxToText()),
-                               TextToGraphics(measure = truetype_measure_text))
+                               TextToGraphics(measure = measure_truetype_text))
     n = JsonNumber(42)
     set_selection!(n, @reference(n, value{1}))
     @test read_intent(chain, print_document(chain, n), KeyPress('5')) isa ReplaceNumberRangeOperation

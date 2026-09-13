@@ -36,7 +36,7 @@ import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, GraphicsText, Graphic
 import ..FontModule: StyleFont, make_style_font,
                      font_dejavu_sans_regular_20, font_dejavu_sans_italic_20
 import ..TrueTypeModule: font_ascent, font_descent, font_line_height, font_x_height,
-                         font_glyph_bounds, truetype_measure_text
+                         font_glyph_bounds, measure_truetype_text
 import ..ColorModule: StyleColor, color_default, color_solarized_gray
 import ..MathModule: MathDocument, MathInsertion, MathVariable, MathSymbol, MathText,
                      MathSpace, MathRow, MathBinaryOperation, MathUnaryOperation,
@@ -195,7 +195,7 @@ end
 
 MathConfig(; font::StyleFont = font_dejavu_sans_regular_20,
              slanted::StyleFont = font_dejavu_sans_italic_20,
-             measure::Function = truetype_measure_text,
+             measure::Function = measure_truetype_text,
              ink::StyleColor = color_default,
              hint::StyleColor = color_solarized_gray) =
     MathConfig(font, slanted, measure, ink, hint)
@@ -1980,7 +1980,7 @@ the same wherever it appears.
 line (limits above and below a sum, a taller fraction) and `:text` sets it in a
 line of prose.
 """
-function MathToGraphics(; measure::Function = truetype_measure_text,
+function MathToGraphics(; measure::Function = measure_truetype_text,
                         font::StyleFont = font_dejavu_sans_regular_20,
                         slanted::StyleFont = font_dejavu_sans_italic_20,
                         style::Symbol = :display,

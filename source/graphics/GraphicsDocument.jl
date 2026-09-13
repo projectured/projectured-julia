@@ -22,7 +22,7 @@ import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionD
 import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_white, color_black
 import ..ReferenceModule: Reference
-import ..GeometryModule: AffineTransform, affine_identity, affine_is_axis_aligned
+import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_function!, hit_element_at, graphics_size, tessellate_spline, polyline_arrowhead,
        point_near_polyline, point_in_polygon
@@ -429,7 +429,7 @@ clip rectangle (local content space → viewport space). It defaults to the
 identity, so an ordinary scrolling viewport bakes its offset into the content
 canvas's origin as before and leaves `transform` alone. A `WidgetTransformPane`
 instead drives `transform` to zoom/pan its content. Backends honour the
-translate+scale subset (`affine_is_axis_aligned`); rotation/shear is future
+translate+scale subset (`is_affine_axis_aligned`); rotation/shear is future
 work.
 """
 @document struct GraphicsViewport <: GraphicsDocument

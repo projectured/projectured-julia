@@ -1,5 +1,5 @@
 
-function make_workbench_projection_example(; measure=truetype_measure_text)
+function make_workbench_projection_example(; measure=measure_truetype_text)
     font = font_ubuntu_regular_20
     # Dark text for the assistant input: the SDL backend renders on a light
     # (cream) background, so the pale `#eeeeee` that suits a dark theme is

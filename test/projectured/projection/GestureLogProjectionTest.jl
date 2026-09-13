@@ -18,7 +18,7 @@ function test_gesture_log()
     inner_syntax() = RecursiveProjection(JsonToSyntax())
     inner_graphics() = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                           RecursiveProjection(SyntaxToText()),
-                                          TextToGraphics(measure = truetype_measure_text))
+                                          TextToGraphics(measure = measure_truetype_text))
     mkarray() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
 
     @testset "the buffer keeps the newest entries and counts every record" begin

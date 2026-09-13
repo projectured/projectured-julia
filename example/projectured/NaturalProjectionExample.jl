@@ -3,5 +3,5 @@
 # here — that is the whole point. Paired with `make_natural_document_example`
 # (a mixed-domain CellVector) it shows one projection rendering several domains
 # and a collection combinator together.
-make_natural_projection_example(; measure=truetype_measure_text) =
+make_natural_projection_example(; measure=measure_truetype_text) =
     NaturalToGraphics(measure=measure)
