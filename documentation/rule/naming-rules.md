@@ -310,7 +310,10 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   `make_child_context`, `make_scripted_say`.
 - **Predicates start with `is_`** (`is_valid_reference`,
   `is_reference_equal`, `is_cell_up_to_date`) or are plain verbs that read as
-  questions at the call site (`matches(pattern, gesture)`).
+  questions at the call site (`matches(pattern, gesture)`,
+  `would_create_cycle(env, from, to)`). Keep the plain verb where `is_` would
+  change the meaning: `would_create_cycle` asks what adding an edge *would*
+  do, and `is_creating_cycle` would ask something else.
 - **Mutating functions end with `!`**: `insert_row!`, `pop_gesture!`,
   `record_performance!`. A name ending in `!` is an action, so it
   must start with a verb — a "mutating getter" like consuming a queue is a

@@ -23,9 +23,9 @@ import ..JuliaModule: JuliaDocument,
                       JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry,
                       JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
 
-export FormulaDocument, formula_result_text, wire_result!, resolve, column_letter, cell_name,
-       formula_references, formula_dependencies, would_create_cycle, topological_order,
-       formula_to_expr, evaluate_formula
+export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
+       get_formula_references, get_formula_dependencies, would_create_cycle, compute_topological_order,
+       convert_formula_to_expr, evaluate_formula
 
 abstract type FormulaDocument <: Document end
 
@@ -60,7 +60,7 @@ environment; see [`wire_result!`](@ref).
 end
 
 # Convenience: build a result document from a value.
-formula_result_text(s) = TextBlock(TextString(_value_string(s)))
+make_formula_result_text(s) = TextBlock(TextString(_value_string(s)))
 
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
@@ -69,7 +69,7 @@ _value_string(x) = string(x)
 # keywords) the @document macro can't generate. `name` may be a String or a Cell
 # (a derived thunk); the inner ctor passes a Cell through unchanged.
 function FormulaFormula(name, code::Document;
-                        result::Document = formula_result_text(""),
+                        result::Document = make_formula_result_text(""),
                         display_mode::Symbol = :both)
     name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
     FormulaFormula(name_cell, Cell(code), Cell(result), Cell(display_mode), Cell(nothing))
@@ -110,13 +110,13 @@ function resolve(env::FormulaEnvironment, name::AbstractString)
 end
 
 """
-    column_letter(col::Int) -> String
+    get_column_letter(col::Int) -> String
 
 The spreadsheet column label for 1-based `col`: `1 → "A"`, `26 → "Z"`,
 `27 → "AA"`, `28 → "AB"`, `52 → "AZ"`, `53 → "BA"`.
 """
-function column_letter(col::Integer)
-    col >= 1 || error("column_letter: col must be >= 1, got $col")
+function get_column_letter(col::Integer)
+    col >= 1 || error("get_column_letter: col must be >= 1, got $col")
     s = Char[]
     n = col
     while n > 0
@@ -133,14 +133,14 @@ end
 The A1-style name for a cell at 1-based `(col, row)`: `cell_name(1, 1) == "A1"`,
 `cell_name(2, 1) == "B1"`, `cell_name(27, 3) == "AA3"`.
 """
-cell_name(col::Integer, row::Integer) = column_letter(col) * string(row)
+get_cell_name(col::Integer, row::Integer) = get_column_letter(col) * string(row)
 
 """
-    formula_references(code) -> Vector{FormulaReference}
+    get_formula_references(code) -> Vector{FormulaReference}
 
 Walk the Julia body `code`, collecting every `FormulaReference` leaf.
 """
-function formula_references(code)
+function get_formula_references(code)
     refs = FormulaReference[]
     _collect_references!(refs, code)
     refs
@@ -169,13 +169,13 @@ function _collect_child!(refs, child)
 end
 
 """
-    formula_dependencies(formula) -> Vector{FormulaFormula}
+    get_formula_dependencies(formula) -> Vector{FormulaFormula}
 
 The distinct target formulas referenced (directly) by `formula.code`.
 """
-function formula_dependencies(formula::FormulaFormula)
+function get_formula_dependencies(formula::FormulaFormula)
     deps = FormulaFormula[]
-    for r in formula_references(formula.code)
+    for r in get_formula_references(formula.code)
         t = r.target
         if t isa FormulaFormula && !(t in deps)
             push!(deps, t)
@@ -189,7 +189,7 @@ end
 
 True if adding a reference `from → to` would close a cycle, i.e. if `to` can
 already reach `from` through the existing dependency graph (or `to === from`).
-DFS over `formula_dependencies`.
+DFS over `get_formula_dependencies`.
 """
 function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::FormulaFormula)
     from === to && return true
@@ -200,7 +200,7 @@ function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::F
         n === from && return true
         n in visited && continue
         push!(visited, n)
-        for d in formula_dependencies(n)
+        for d in get_formula_dependencies(n)
             push!(stack, d)
         end
     end
@@ -208,20 +208,20 @@ function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::F
 end
 
 """
-    topological_order(env) -> Vector{FormulaFormula}
+    compute_topological_order(env) -> Vector{FormulaFormula}
 
 A dependency-first ordering of `env`'s formulas (dependencies before dependents).
 Errors if the graph contains a cycle. Useful for batch evaluation and tests.
 """
-function topological_order(env::FormulaEnvironment)
+function compute_topological_order(env::FormulaEnvironment)
     order = FormulaFormula[]
     state = Dict{FormulaFormula,Int}()  # absent/0 = unvisited, 1 = in-progress, 2 = done
     function visit(n)
         s = get(state, n, 0)
         s == 2 && return
-        s == 1 && error("topological_order: cycle detected at $(n.name)")
+        s == 1 && error("compute_topological_order: cycle detected at $(n.name)")
         state[n] = 1
-        for d in formula_dependencies(n)
+        for d in get_formula_dependencies(n)
             visit(d)
         end
         state[n] = 2
@@ -255,14 +255,14 @@ end
 const _EVALUATING = Set{FormulaFormula}()
 
 """
-    formula_to_expr(code, env) -> Expr | literal
+    convert_formula_to_expr(code, env) -> Expr | literal
 
 Walk the Julia body `code` to a native Julia `Expr` (the inverse of
 `juliaparse`), mapping each `FormulaReference` to a `Symbol` bound to its
 target's name. The result is evaluated inside a `let` that binds those names to
 the targets' values.
 """
-formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
+convert_formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
 
 function _to_expr(node)
     if node isa FormulaReference
@@ -319,7 +319,7 @@ function _to_expr(node)
     elseif node isa JuliaAssignment
         return Expr(node.operator, _to_expr(node.target), _to_expr(node.value))
     else
-        error("formula_to_expr: unsupported node $(typeof(node))")
+        error("convert_formula_to_expr: unsupported node $(typeof(node))")
     end
 end
 
@@ -333,11 +333,11 @@ reactive dependency. A re-entry guard returns an error result on a cycle.
 """
 function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
     if formula in _EVALUATING
-        return formula_result_text("#CYCLE!")
+        return make_formula_result_text("#CYCLE!")
     end
     push!(_EVALUATING, formula)
     try
-        deps = formula_dependencies(formula)
+        deps = get_formula_dependencies(formula)
         # Bind each dependency name to its evaluated value. Reading dep.result
         # here is the reactive subscription that triggers recompute on change.
         bindings = Expr[]
@@ -345,12 +345,12 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
             val = _result_value(d.result)
             push!(bindings, Expr(:(=), Symbol(d.name), QuoteNode(val)))
         end
-        body = formula_to_expr(formula.code, env)
+        body = convert_formula_to_expr(formula.code, env)
         letex = Expr(:let, Expr(:block, bindings...), body)
         value = Core.eval(_formula_scratch_module(), letex)
-        return formula_result_text(value)
+        return make_formula_result_text(value)
     catch e
-        return formula_result_text("#ERROR! " * sprint(showerror, e))
+        return make_formula_result_text("#ERROR! " * sprint(showerror, e))
     finally
         delete!(_EVALUATING, formula)
     end

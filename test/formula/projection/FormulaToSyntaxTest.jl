@@ -9,19 +9,19 @@ end
 
 function test_formula_to_syntax()
 
-@testset "column_letter / cell_name boundaries" begin
-    @test column_letter(1) == "A"
-    @test column_letter(2) == "B"
-    @test column_letter(26) == "Z"
-    @test column_letter(27) == "AA"
-    @test column_letter(28) == "AB"
-    @test column_letter(52) == "AZ"
-    @test column_letter(53) == "BA"
-    @test column_letter(702) == "ZZ"
-    @test column_letter(703) == "AAA"
-    @test cell_name(1, 1) == "A1"
-    @test cell_name(2, 1) == "B1"
-    @test cell_name(27, 3) == "AA3"
+@testset "get_column_letter / cell_name boundaries" begin
+    @test get_column_letter(1) == "A"
+    @test get_column_letter(2) == "B"
+    @test get_column_letter(26) == "Z"
+    @test get_column_letter(27) == "AA"
+    @test get_column_letter(28) == "AB"
+    @test get_column_letter(52) == "AZ"
+    @test get_column_letter(53) == "BA"
+    @test get_column_letter(702) == "ZZ"
+    @test get_column_letter(703) == "AAA"
+    @test get_cell_name(1, 1) == "A1"
+    @test get_cell_name(2, 1) == "B1"
+    @test get_cell_name(27, 3) == "AA3"
 end
 
 @testset "FormulaReference renders target name, tracks renames" begin
@@ -82,7 +82,7 @@ end
     a2 = FormulaFormula("A2", FormulaReference(a1))   # A2 -> A1
     env = FormulaEnvironment([a1, a2])
 
-    @test formula_dependencies(a2) == FormulaFormula[a1]
+    @test get_formula_dependencies(a2) == FormulaFormula[a1]
     # Adding A1 -> A2 would close the cycle A1 -> A2 -> A1.
     @test would_create_cycle(env, a1, a2) == true
     # A self-reference is also a cycle.
@@ -117,12 +117,12 @@ end
     @test occursin("\n", rendered)
 end
 
-@testset "topological_order: dependencies before dependents" begin
+@testset "compute_topological_order: dependencies before dependents" begin
     a1 = FormulaFormula("A1", JuliaInteger(1))
     a2 = FormulaFormula("A2", FormulaReference(a1))
     a3 = FormulaFormula("A3", FormulaReference(a2))
     env = FormulaEnvironment([a3, a2, a1])
-    order = topological_order(env)
+    order = compute_topological_order(env)
     @test findfirst(==(a1), order) < findfirst(==(a2), order)
     @test findfirst(==(a2), order) < findfirst(==(a3), order)
 end
