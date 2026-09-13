@@ -26,7 +26,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
-using ProjecturedAssistant.AssistantTurnModule: _text_to_string, _run_agent_loop!,
+using ProjecturedAssistant.AssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
                                             _eval_form_doc
 import ProjecturedKernel.LlmModule: stream_turn,

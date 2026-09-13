@@ -36,7 +36,5 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
 end
 
 include("../../../source/yaml/YamlDocument.jl")
-include("../../../source/yaml/YamlParser.jl")
-include("../../../source/yaml/YamlToSyntax.jl")
 
 end # module ProjecturedYaml

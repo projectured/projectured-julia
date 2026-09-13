@@ -35,7 +35,5 @@ for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedNatural, Proje
 end
 
 include("../../../source/filesystem/FileSystemDocument.jl")
-include("../../../source/filesystem/FileSystemToSyntax.jl")
-include("../../../source/filesystem/FileSystemToWidget.jl")
 
 end # module ProjecturedFileSystem

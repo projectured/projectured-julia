@@ -1,83 +1,12 @@
-"""
-    AssistantTurnModule
-
-Operations, streaming orchestration, and message building for the
-in-editor AI chat surface. Glue between `WorkbenchModule.Assistant`, the
-editor's `ToolSet`, and the `LlmModule` provider seam.
-
-Submit flows:
-- `SubmitProseOperation(assistant)`  — append a user message from `assistant.input`,
-  clear the input, launch a streaming Claude turn on an `@async` task.
-- `SubmitJuliaOperation(assistant)`  — parse `assistant.input` as Julia, run it via
-  the editor's `execute_julia_code` tool, append the input/result message pair,
-  clear the input. No Claude call now; the next prose turn synthesizes the eval
-  into the conversation history.
-
-The tools come from `editor.tools` — the `ToolSet` that editor owns. Nothing here
-holds a registry of its own, so two editors in one process never share tools or
-evaluate code into each other's namespace.
-
-Internal helpers:
-- `build_messages(conversation)`  — walk the conversation history and produce
-  the `LlmMessage`s the provider seam takes.
-- `parse_markdown_blocks(text)`   — split a finished assistant text block into
-  parts: top-level fenced code blocks become live domain documents, prose runs
-  become real `MarkdownRoot` documents. Streaming-safe: invoked once per text
-  block, when it closes.
-"""
-module AssistantTurnModule
-
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule
-import ..ProjectionApiModule: read_intent
-import ..CellModule: Cell, ComputedCell
-import ..TextModule: TextBlock, TextString
-import ..PrimitiveModule: PrimitiveString
-import ..CollectionModule: CellVector, ComputedCellVector
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from AssistantTurn.jl.
 # The assistant names no source domain. What it needs of one — parse this
 # fenced block, render this document back to its own text — is the natural-format
 # seam, which every domain registers itself with. A domain that is not loaded
 # has no method there, and the fenced-text fallback below answers instead.
-import ..NaturalModule: parse_natural_text, has_natural_parser,
-                                make_natural_projection, get_natural_extension,
-                                print_natural_text
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
-                              ConversationThinking, make_conversation_thinking_part
-import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
-import ..AssistantModule: Assistant
-import ..AssistantToWidgetModule: AssistantToWidgetSplitPane,
-                                   AssistantToWidgetCard
-import ..EventModule: KeyDown
-import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
-                      register_default_tools!, execute_julia_code, get_last_evaluated_value
-import ..EventModule: KeyPress
-import ..EventPatternModule: var"@event_case"
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..AgentModule: Agent, run_turn!, AgentToolResult
-import ..LlmModule: Llm, stream_turn, make_llm, get_llm_backend_names,
-                     LlmRequest, LlmMessage, LlmContent,
-                     LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
-                     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
-                     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
-                     LlmRedactedThinkingBlock,
-                     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
-                     LlmTurnEnd, LlmFailure
-import ..DocumentModule: Document
-import ..ConversationModule: ConversationDraft
-import ..ConversationEditorModule: read_composer_gesture, resolve_composer_host_operation,
-                                    ComposerSubmitOperation, ComposerEvaluateOperation,
-                                    finalize_draft!, reset_draft!
 # Bare, to extend the composer's two generics by qualification below. That is
 # `PAR-QUALIFIED-EXTENSION`.
 using ..ConversationEditorModule
-export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
-       EvaluateDraftTurnOperation,
-       ClearInputOperation, ResetConversationOperation,
-       build_messages, format_conversation, write_conversation,
-       parse_markdown_blocks
 
 # ═══════════════════════════════════════════════════════════════════════
 # Operations
@@ -974,5 +903,3 @@ read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
 # turns the two the assistant owns into its own; the rest pass.
 read_intent(::AssistantToWidgetCard, iomap, op::Operation) =
     (a = iomap.input; a isa Assistant ? resolve_composer_host_operation(a, op) : op)
-
-end # module

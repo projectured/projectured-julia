@@ -1,33 +1,5 @@
-"""
-    FileSystemToWidgetModule
-
-FileSystem → WidgetDocument projection. Maps a whole file-system tree to a single
-[`WidgetTree`](@ref): the root directory becomes the one root node, each
-directory/file below it a nested [`WidgetTreeNode`](@ref) carrying a **dedicated
-icon** (an extension-derived glyph) plus its basename as the **text** label.
-
-    FileSystemDirectory → WidgetTreeNode(folder-icon, dirname, [child nodes…])
-    FileSystemFile      → WidgetTreeNode(type-icon,   filename)
-
-Selection maps in lockstep with the node layout: the root node is path `roots[1]`
-(file-system reference `∅`), and a node at file-system reference
-`elements[a].elements[b]…` is the tree node `roots[1].children[a].children[b]…`.
-The two reference mappers encode that correspondence and are the single source of
-truth reused by the printer's selection wiring and the generic reader.
-"""
-module FileSystemToWidgetModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
-import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
-import ..GestureBindingModule: GestureBinding
-import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference,
-                          is_element_reference_step
-export FileSystemToWidgetTree, FileSystemToWidget
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FileSystemToWidget.jl.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 struct FileSystemToWidgetTree <: Projection
@@ -54,11 +26,6 @@ function _fs_node(d::FileSystemDirectory)
     WidgetTreeNode(_fs_icon(d), _dir_name(d.pathname), children)
 end
 
-function _dir_name(pathname::AbstractString)
-    p = rstrip(pathname, '/')
-    isempty(p) && return "/"
-    basename(p)
-end
 
 # ── Printer ───────────────────────────────────────────────────────────────────
 
@@ -169,5 +136,3 @@ Projection mapping a file-system document to a single [`WidgetTree`](@ref) with 
 dedicated icon + text per item. Wrap in `RecursiveProjection` at the call site.
 """
 FileSystemToWidget() = FileSystemToWidgetTree()
-
-end # module

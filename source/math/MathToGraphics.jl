@@ -1,76 +1,5 @@
-"""
-    MathToGraphicsModule
-
-Math → `GraphicsCanvas`: the **two-dimensional** form of a formula. A fraction
-gets a horizontal rule with the numerator centered above it, a sum gets its
-limits above and below the sign, an exponent rises off the baseline, and a
-delimiter grows with what it holds.
-
-The slice typesets its own boxes. A formula is not a row of aligned widgets:
-every part has a width, an ascent above the baseline and a descent below it, and
-its parent places it from those three numbers. The generic layouts align by top,
-center or bottom, which cannot put a fraction on the baseline of the row that
-holds it, so this module places its children itself and wraps them in a
-`GraphicsCanvas` — the way `LayoutToGraphics` does internally.
-
-Every rule answers a [`MathIoMap`](@ref), which carries the three numbers as
-reactive cells beside the usual projection/input/output. A parent reads its
-children's cells to place them. `GridLayoutIoMap` is the precedent: an IO map
-may publish geometry so that a parent can place and decorate its child.
-
-The glyphs come from one family, DejaVu, which is the only vendored font that
-carries the whole math set — the signs, the Greek letters, the arrows and the
-delimiter extension pieces. A variable is set in the oblique face, everything
-else in the upright one, all in one ink color, the way a formula is printed.
-"""
-module MathToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: Document
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap, IoMap, var"@iomap"
-import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, GraphicsText, GraphicsRect,
-                         get_graphics_size, layout_none
-import ..FontModule: StyleFont, make_style_font,
-                     font_dejavu_sans_regular_20, font_dejavu_sans_italic_20
-import ..TrueTypeModule: font_ascent, font_descent, font_line_height, font_x_height,
-                         font_glyph_bounds, measure_truetype_text
-import ..ColorModule: StyleColor, color_default, color_solarized_gray
-import ..MathModule: MathDocument, MathInsertion, MathVariable, MathSymbol, MathText,
-                     MathSpace, MathRow, MathBinaryOperation, MathUnaryOperation,
-                     MathAssignment, MathParenthesized, MathFraction, MathScript,
-                     MathRadical, MathBigOperator, MathDifferential, MathDerivative,
-                     MathFunction, MathAccent, MathMatrix, MathCase, MathCases,
-                     get_math_operator_glyph, get_math_operator_class, get_math_symbol_glyph,
-                     get_math_big_operator_glyph, is_math_big_operator_text,
-                     get_math_delimiter_strings, is_math_accent_wide
-import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
-                          RangeReferenceStep, Reference, strip_reference_types,
-                          annotate_reference_types
-import ..GraphicsModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation, replace_document
-import ..OperationModule: reroot_operation
-import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPress
-import ..EventPatternModule: var"@event_case"
-import ..ReferenceModule: var"@reference_step"
-
-export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
-       make_math_to_graphics_dispatch,
-       MathVariableToGraphics, MathSymbolToGraphics, MathTextToGraphics,
-       MathSpaceToGraphics, MathInsertionToGraphics, MathNumberToGraphics,
-       MathRowToGraphics, MathBinaryOperationToGraphics,
-       MathUnaryOperationToGraphics, MathAssignmentToGraphics,
-       MathParenthesizedToGraphics, MathFractionToGraphics, MathScriptToGraphics,
-       MathRadicalToGraphics, MathBigOperatorToGraphics,
-       MathDifferentialToGraphics, MathDerivativeToGraphics,
-       MathFunctionToGraphics, MathAccentToGraphics, MathMatrixToGraphics,
-       MathCaseToGraphics, MathCasesToGraphics
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MathToGraphics.jl.
 # ════════════════════════════════════════════════════════════════════════════
 # The box protocol
 # ════════════════════════════════════════════════════════════════════════════
@@ -2036,11 +1965,5 @@ make_math_to_graphics_dispatch(; kwargs...) =
 # child of a formula re-enters the natural renderer — which is what lets a
 # formula hold an embedded document, and a number inside one render through the
 # shared primitive path and still land on the formula's baseline.
-import ..NaturalModule: register_natural_graphics!
 
-function __init__()
-    register_natural_graphics!(:math, (; measure) ->
-        make_math_to_graphics_dispatch(measure = measure))
-end
 
-end # module

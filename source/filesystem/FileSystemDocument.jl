@@ -13,6 +13,35 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 export FileSystemDocument, make_filesystem_pathname
+import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..TextModule: TextString
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
+import ..StyleTextModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
+import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..PrinterContextModule: make_child_context
+export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
+       is_filesystem_marker_eligible
+import ..NaturalModule: register_natural_syntax!
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
+import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
+import ..GestureBindingModule: GestureBinding
+import ..IoMapModule: SimpleIoMap
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference,
+                          is_element_reference_step
+export FileSystemToWidgetTree, FileSystemToWidget
+export FileSystemFile, FileSystemDirectory
+
+
 
 abstract type FileSystemDocument <: Document end
 
@@ -52,5 +81,9 @@ function make_filesystem_pathname(pathname::AbstractString)
         FileSystemFile(p)
     end
 end
+
+
+include("FileSystemToSyntax.jl")
+include("FileSystemToWidget.jl")
 
 end # module

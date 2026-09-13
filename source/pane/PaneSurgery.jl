@@ -31,7 +31,7 @@ import ..DocumentModule: Document
 import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
                           ReplaceSelectionOperation, insert_elements, delete_elements,
                           evaluate_operation
-import ..DraggingProjectionModule: MoveRangeOperation
+import ..DraggingModule: MoveRangeOperation
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
                           get_reference_node_type, concat_references, Position

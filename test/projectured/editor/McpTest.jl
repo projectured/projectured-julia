@@ -1,6 +1,6 @@
 using Test
 using ProjecturedKernel.ToolModule
-using ProjecturedAssistant.AssistantTurnModule: SubmitJuliaOperation, _eval_result
+using ProjecturedAssistant.AssistantModule: SubmitJuliaOperation, _eval_result
 
 function test_list_guides()
     @testset "list_guides" begin

@@ -1,50 +1,5 @@
-"""
-    AssistantToWidgetModule
-
-What the assistant looks like: a split pane of the transcript over the composer,
-and a card of the same two for a page that embeds one.
-
-Both were `WorkbenchToWidgetModule`'s, beside the IDE's shell, its navigator and
-its console. They moved with the document, so a program that wants an assistant
-pane draws one without carrying the shell.
-
-The layout tokens and the two helpers below are this module's own copies of the
-workbench's. They are literals and a step comparison; sharing them would mean one
-package reaching into another's private surface.
-"""
-module AssistantToWidgetModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..AssistantModule: Assistant, ASSISTANT_TITLE
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetSplitPane,
-                       WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset,
-                       inset_default
-import ..LayoutModule: VerticalLayout, LayoutConstraint
-import ..TextModule: TextBlock, TextString
-import ..FontModule: font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap, IoMap,
-                      reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationModule: Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation,
-                          reroot_operation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..EventModule: KeyDown, KeyPress
-import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference, FieldReferenceStep,
-                          RangeReferenceStep, ElementReferenceStep, PositionReferenceStep,
-                          get_reference_steps, extend_reference, try_evaluate_reference,
-                          annotate_reference_types, var"@reference", var"@reference_step",
-                          var"@reference_case"
-import ..PrinterContextModule: make_child_context
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ConversationModule: ConversationConversation, ConversationDraft
-
-export AssistantToWidgetSplitPane, AssistantToWidgetCard
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from AssistantToWidget.jl.
 # ── Layout tokens ───────────────────────────────────────────────────────────
 const _PAD5  = Inset(5, 5, 5, 5)
 const _WHITE = StyleColor(255, 255, 255, 255)
@@ -307,5 +262,3 @@ function _retarget_panel_op(p, iomap, op)
         return op
     end
 end
-
-end # module AssistantToWidgetModule

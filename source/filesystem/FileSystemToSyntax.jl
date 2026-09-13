@@ -1,44 +1,5 @@
-"""
-    FileSystemToSyntaxModule
-
-FileSystem → SyntaxDocument projection. Maps file-system nodes to syntax
-tree shapes:
-
-    FileSystemFile      → SyntaxLeaf  " <basename>"
-    FileSystemDirectory → SyntaxNode  " <dirname>"  (children indented 2)
-
-The directory printer places a name leaf as children[1] and wraps all
-recursively-projected element outputs in a body SyntaxNode (indentation=2)
-as children[2], mirroring the Lisp file-system-to-syntax/indentation layout.
-
-When the downstream `SyntaxToText` is configured with expand/collapse markers,
-pass `marker_eligible = is_filesystem_marker_eligible` so the fold marker lands on
-the directory header node (the name line) and not on the indented body wrapper.
-"""
-module FileSystemToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..FileSystemModule: FileSystemDocument, FileSystemFile, FileSystemDirectory
-import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..PrinterContextModule: make_child_context
-export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
-       is_filesystem_marker_eligible
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FileSystemToSyntax.jl.
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection struct FileSystemFileToSyntaxLeaf
@@ -244,11 +205,7 @@ end
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalModule: register_natural_syntax!
-import ..FileSystemModule: FileSystemDocument
 
 function __init__()
     register_natural_syntax!(:filesystem, () -> Pair{Type,Any}[FileSystemDocument => FileSystemToSyntax()])
 end
-
-end # module

@@ -35,7 +35,7 @@ import ..WorkbenchModule: WorkbenchDocument, WorkbenchWorkbench, WorkbenchPage,
                           WorkbenchOperator, WorkbenchSearcher, WorkbenchEvaluator,
                           WorkbenchEditor, get_workbench_title
 import ..AssistantModule: Assistant, ASSISTANT_TITLE
-import ..AssistantToWidgetModule: AssistantToWidgetSplitPane, AssistantToWidgetCard
+import ..AssistantModule: AssistantToWidgetSplitPane, AssistantToWidgetCard
 import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetShell, WidgetSplitPane, WidgetTabbedPane,
                        WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset, inset_default,
                        SelectTabOperation

@@ -1,69 +1,5 @@
-"""
-    MathToSyntaxModule
-
-Math → SyntaxDocument projection: the **linear** form of a formula, one line of
-text. It is the save path (`print_natural_text` runs it) and the plain-text view;
-`MathToGraphics` draws the two-dimensional one.
-
-A construct that has no plain-text form prints its LaTeX-like name, so the line
-stays unambiguous and a future LaTeX reader has something to read:
-`\\sqrt{x}`, `\\sum_{k=0}^{n} body`, `x_{i}^{2}`, `\\bar{x}`.
-
-Colorized tokens:
-- Variables in blue
-- Operators (+, -, *, /) in cyan
-- Parentheses in gray
-- Assignment (=) in yellow
-- Symbols in violet, function names in green
-- Numbers in magenta (via PrimitiveNumberToSyntaxLeaf)
-
-The rules added after the original five are `@projection_template` builders, so
-printing, reference mapping and the structural readers are generic. Each
-compound rule collapses an unmapped caret to a bounded flat offset
-(`_syntax_to_flat`), because a formula is full of projection-introduced chrome.
-"""
-module MathToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..MathModule: MathDocument, MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, _operator_string,
-                     MathSymbol, MathText, MathSpace, MathRow, MathUnaryOperation,
-                     MathFraction, MathScript, MathRadical, MathBigOperator,
-                     MathDifferential, MathDerivative, MathFunction, MathAccent,
-                     MathMatrix, MathCase, MathCases,
-                     get_math_operator_class, get_math_symbol_glyph, get_math_delimiter_strings,
-                     get_math_big_operator_name
-import ..PrimitiveModule: PrimitiveNumber
-import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveToSyntaxModule: PrimitiveNumberToSyntaxLeaf
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
-       MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
-       MathAssignmentToSyntaxNode, MathToSyntax,
-       MathSymbolToSyntaxLeaf, MathTextToSyntaxLeaf, MathSpaceToSyntaxLeaf,
-       MathRowToSyntaxNode, MathUnaryOperationToSyntaxNode,
-       MathFractionToSyntaxNode, MathScriptToSyntaxNode, MathRadicalToSyntaxNode,
-       MathBigOperatorToSyntaxNode, MathDifferentialToSyntaxNode,
-       MathDerivativeToSyntaxNode, MathFunctionToSyntaxNode,
-       MathAccentToSyntaxNode, MathMatrixToSyntaxNode,
-       MathCaseToSyntaxNode, MathCasesToSyntaxNode
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from MathToSyntax.jl.
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
@@ -706,11 +642,11 @@ end
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalModule: register_natural_syntax!
-import ..MathModule: MathDocument
 
+# One module, one `__init__`. The slice registers both of its natural-notation
+# seams here, because folding the modules folded their initialisers.
 function __init__()
     register_natural_syntax!(:math, () -> Pair{Type,Any}[MathDocument => MathToSyntax()])
+    register_natural_graphics!(:math, (; measure) ->
+        make_math_to_graphics_dispatch(measure = measure))
 end
-
-end # module

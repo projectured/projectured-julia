@@ -35,7 +35,5 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
 end
 
 include("../../../source/math/MathDocument.jl")
-include("../../../source/math/MathToSyntax.jl")
-include("../../../source/math/MathToGraphics.jl")
 
 end # module ProjecturedMath

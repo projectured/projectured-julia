@@ -6,6 +6,39 @@ scalars, block/flow sequences, ordered mappings.
 """
 module YamlModule
 
+export parse_yaml, parse_yaml_file
+import ..CellModule: Cell, ComputedCell
+import ..CollectionModule: CellVector, ComputedCellVector
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
+import ..TextModule: TextString, make_hinted_text
+import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..ColorModule: color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..CopyingProjectionModule: CopyingProjection
+import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
+import ..PrimitiveModule: ReplaceNumberRangeOperation, ReplaceStringRangeOperation
+import ..IoMapModule: ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep, RangeReferenceStep, EmptyReference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..PrinterContextModule: make_child_context
+import ..OperationModule: ReplaceSelectionOperation
+import ..OperationModule: reroot_operation
+import ..GestureBindingModule: read_gesture
+import ..EventModule: KeyPress, KeyDown
+export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
+       YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
+       YamlToSyntax
+import ..NaturalModule: register_natural_domain!, register_natural_parser!
+export YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString, YamlNothing, YamlInsertion, YamlSequence, YamlMapping, YamlMappingEntry
+
+
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
@@ -118,5 +151,9 @@ end
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, YamlMappingEntry)
     KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
 end
+
+
+include("YamlParser.jl")
+include("YamlToSyntax.jl")
 
 end # module

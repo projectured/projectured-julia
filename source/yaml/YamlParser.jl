@@ -1,34 +1,5 @@
-"""
-    YamlParserModule
-
-A small YAML parser. Converts YAML source text into a `YamlDocument` tree from
-`YamlModule`.
-
-Provides:
-- `parse_yaml(text)` — parse a YAML string into a `YamlDocument`
-- `parse_yaml_file(path)` — read and parse a `.yaml`/`.yml` file from disk
-
-Deliberately minimal — enough to turn typed/loaded YAML into a real document, not
-a conformance-grade parser. It supports:
-
-- **Block mappings** (`key: value`, nested by indentation) and **block sequences**
-  (`- item`, including sequences of mappings).
-- **Flow collections** `[a, b]` and `{a: 1}` (YAML is a JSON superset).
-- **Scalars**: plain, single-/double-quoted strings, integers, floats,
-  `true`/`false`, and `null`/`~`.
-- Line `# comments` and a single leading `---` document marker.
-
-Not supported (raises or misreads rather than guessing): multiple documents,
-anchors/aliases/tags, block scalars (`|`, `>`), and inline nested block sequences
-(`- - x`). Indentation must use spaces.
-"""
-module YamlParserModule
-
-import ..YamlModule: YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString,
-                     YamlSequence, YamlMapping
-
-export parse_yaml, parse_yaml_file
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from YamlParser.jl.
 # ── Line preprocessing ─────────────────────────────────────────────────────────
 
 # Strip a trailing `# comment` (one preceded by whitespace or at line start, and
@@ -333,5 +304,3 @@ end
 Read and parse a `.yaml`/`.yml` file from disk.
 """
 parse_yaml_file(path::AbstractString) = parse_yaml(read(path, String))
-
-end # module

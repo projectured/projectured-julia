@@ -105,7 +105,7 @@ export make_scrolling_document, make_introspection_document, make_clipboard_docu
 # Dragging's two wrapper helpers live in `ProjecturedDragging` now, where their
 # types are, so a program need not hold this package to drag. Re-exported here so
 # the gallery's own call sites keep working.
-using ProjecturedDragging.DraggingWrapperModule: make_dragging_document,
+using ProjecturedDragging.DraggingModule: make_dragging_document,
                                                  make_dragging_projection
 export make_dragging_document, make_shell_document, make_workbench_document
 export make_assistant_projection_example, make_navigator_projection_example, make_workbench_projection_example
