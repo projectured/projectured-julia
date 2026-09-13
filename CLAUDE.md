@@ -15,7 +15,7 @@ and the full audit-order inventory of `source/kernel/`.
 
 Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module / leaf) is defined in [documentation/rule/division-terminology.md](documentation/rule/division-terminology.md) — use those terms exactly. Before adding a package, read [documentation/rule/package-rules.md](documentation/rule/package-rules.md): it says what a package may depend on, and that a `@compile_workload` belongs only in a leaf.
 
-The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
+The canonical reading order for contributors is in [README.md](README.md) under **"Before you build something"**. A quick summary:
 
 0. [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md) — **how everything is named.** Read it before you write a name.
 1. [documentation/design/editor-concepts.md](documentation/design/editor-concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**

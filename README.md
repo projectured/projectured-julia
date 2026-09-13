@@ -1,37 +1,34 @@
 # ProjecturEd
 
-ProjecturEd is a generic-purpose projectional editor, reimplemented in Julia
-from [the original ProjecturEd](https://github.com/projectured/projectured).
-Documents are structured data — trees, ASTs, graphs — presented through
-bidirectional, composable projections: you edit the projection, and the edit is
-mapped back to the underlying data.
+A projectional editor, reimplemented in Julia from
+[the original ProjecturEd](https://github.com/projectured/projectured). A
+document is structured data — a tree, an AST, a graph. A projection renders it,
+and an edit on the projection is mapped back to the data.
 
 <img width="1595" alt="ProjecturEd workbench" src="asset/image/example/workbench.png">
 
-## Vision
+## What the design is for
 
-Three goals shape the design.
+**Editing through an AI.** The built-in AI conversation reads and changes both
+the document and the projection by running Julia against the live editor. You
+describe a change and it is applied as a structural operation, rather than as a
+sequence of keystrokes. The conversation is itself a ProjecturEd document, so
+the editor edits its own AI session with the machinery it uses for everything
+else.
 
-- **AI integration from the ground up.** A built-in AI conversation can read and
-  modify both the document and the projection by executing Julia against the
-  live editor. The intent is to move editing away from manual, keystroke- and
-  mouse-driven state manipulation: you describe a change and it is applied as a
-  structural operation. The conversation is itself a ProjecturEd document, so the
-  editor edits its own AI session with the same machinery it uses for your data.
-- **Expressiveness via composable documents and projections.** Documents are
-  built by nesting primitives, reactive collections, and other documents — any
-  field can hold another domain. Projections are composable functions over those
-  documents, so one document can be shown several ways and a single view can mix
-  domains. Both layers compose, which is what lets one mechanism cover JSON, XML,
-  source code, prose, tables, and graphics.
-- **Performance via lazy, incremental updates.** A pull-based reactive cell
-  system recomputes only what a change affects, and projections are evaluated
-  lazily, so the display updates incrementally as you edit. Because only the
-  parts of a document that are actually viewed get forced, the same mechanism
-  handles very large documents — and, with lazy structures like `ListNode` whose
-  neighbours are re-projected on demand, even conceptually infinite ones: you can
-  project a finite slice of an unbounded list and edit it without materialising
-  the whole thing.
+**Composition.** A document is built by nesting primitives, reactive
+collections and other documents; any field can hold another domain. A
+projection is a function over documents, and projections compose. One document
+can be shown several ways, and one view can mix domains. That is how a single
+mechanism covers JSON, XML, source code, prose, tables and graphics.
+
+**Lazy, incremental update.** A pull-based reactive cell system recomputes only
+what a change affects, and a projection is evaluated only where the screen
+pulls on it. A part of a document that nobody looks at costs nothing, so a very
+large document is an ordinary case. With a lazy structure such as `ListNode`,
+whose neighbours are re-projected on demand, an unbounded one is too: you
+project a finite slice of an infinite list and edit it without building the
+rest.
 
 ---
 
@@ -44,13 +41,12 @@ bound in scope. To run code yourself, press **Alt+Enter** to evaluate a Julia
 fragment directly. Either way the run is recorded in the conversation as a
 re-readable code execution.
 
-The conversation is a real ProjecturEd domain
-([Conversation.jl](source/conversation/Conversation.jl)): messages, streaming
-response blocks, and code executions are all structured documents, projected and
-selectable like everything else. The editor edits its own AI session with the
-same machinery it uses to edit your data.
+The conversation is a ProjecturEd domain
+([ConversationDocument.jl](source/conversation/ConversationDocument.jl)):
+messages, streaming response blocks and code executions are all structured
+documents, projected and selectable like everything else.
 
-Under the hood:
+The parts:
 
 - The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
   `Projectured` preloaded and `editor` bound — its handler lives in
@@ -62,25 +58,27 @@ Under the hood:
   share the editor's one tool set
   ([ToolSet.jl](source/kernel/tool/ToolSet.jl)), so an external MCP
   client can drive the editor too.
-- The assistant uses Claude (default `claude-opus-4-7`) when `ANTHROPIC_API_KEY`
-  is set, and a deterministic offline backend otherwise, so the example runs
-  without a key or a network connection.
+- The assistant uses Claude when `ANTHROPIC_API_KEY` is set, and a
+  deterministic offline backend otherwise, so the example runs without a key
+  and without a network connection. The default model is named in
+  [Anthropic.jl](source/anthropic/Anthropic.jl); an Ollama backend is in
+  [Ollama.jl](source/ollama/Ollama.jl).
 
-> **Status.** The assistant and the MCP bridge work end-to-end, but are new and
-> still evolving. Selection and cursor movement work across every domain;
-> character-level manual editing is the next milestone (see the
-> [Roadmap](documentation/requirement/delivery-roadmap.md)).
+> **Status.** The assistant and the MCP bridge work end to end, and both are
+> new. Selection and cursor movement work in every domain. Character type-in
+> and range editing work in the field-addressed domains; making them uniform
+> across every domain is the current work. See the
+> [roadmap](documentation/requirement/delivery-roadmap.md).
 
 ---
 
 ## How a keystroke round-trips
 
-Most editors store your work as a flat sequence of characters. ProjecturEd
-stores it as **structured data** — a tree, a graph, a typed AST — and presents
-it through *bidirectional projections* that translate between domains. The
-projection renders your data as something you can read and edit; the reverse
-projection maps each edit back into precise structural operations on the
-original data.
+Most editors store the work as a flat sequence of characters. ProjecturEd
+stores it as **structured data** — a tree, a graph, a typed AST — and shows it
+through *bidirectional projections* that translate between domains. The printer
+renders the data as something you can read and edit. The reader maps each edit
+back into structural operations on the original data.
 
 ```
         ┌─────────────┐    printer    ┌──────────────┐    printer    ┌────────────┐
@@ -94,16 +92,15 @@ projection's IO map, and the corresponding domain operation is applied to the
 original document. The document re-projects forward, and the screen updates
 incrementally via a pull-based reactive cell system.
 
-This is what makes *both* the human and the AI edits safe: there is no text to
-corrupt, only operations on a model.
+An edit is an operation on the model, never a change to a text buffer. That
+holds for a keystroke and for an edit the AI issues.
 
 ---
 
 ## Every field is a cell
 
-The vision above promises lazy, incremental updates. This section says how the
-editor keeps that promise, because the mechanism shapes every document type you
-write.
+The cell is what makes the update incremental. The mechanism shapes every
+document type you write, so it comes first.
 
 `@document` stores each field in a **cell** and generates the accessors, so the
 reactivity stays invisible in ordinary code:
@@ -135,19 +132,25 @@ default for every field:
 
 ```julia
 @projection struct JsonStringToSyntaxLeaf
-    quote_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{DStyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    value_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
-@document ImmutableCell struct StyleText   # a value document: no field is reactive
-    font::DStyleFont
-    color::DStyleColor
+@document ImmutableCell [DC] struct StyleText   # a value document: no field is reactive
+    font::StyleFont
+    color::StyleColor
+    selection::Nothing
 end
 ```
 
-Each type also gets kind aliases: `RFoo`, `MFoo`, and `IFoo` put every field in
-one kind, and `DFoo` names the default combination the bare constructor builds.
-`copy_document(doc)` copies a tree and keeps each cell's kind;
+The marker before `struct` sets the kind of every field. The list after it says
+what the bare name means: `[DC]` makes `StyleText` the concrete default
+spelling, which is what lets a `StyleText`-typed field inline.
+
+Each type also gets spelling aliases: `RCFoo`, `MCFoo` and `ICFoo` put every
+field in one kind, and `DCFoo` names the default combination the bare
+constructor builds. `copy_document(doc)` copies a tree and keeps each cell's
+kind;
 `copy_document(K, doc)` rebuilds the whole tree in kind `K`. That conversion is
 what makes the double-buffer pattern possible: edit a `MutableCell` document at
 full speed with no reactive overhead, then `sync_document!` it into a
@@ -169,18 +172,17 @@ a[] = 10                          # marks b invalid; b's thunk does NOT run
 b[]                               # 11 — the thunk runs now, because you asked for it
 ```
 
-Scale that from two cells to a whole projection pipeline and you get the two
-properties the editor lives on:
+The same rule scales from two cells to a whole projection pipeline, and it
+gives two properties:
 
 - **Consistency.** Every view is exactly what the current model projects to.
   There is no cache to invalidate by hand and no derived state that can drift.
 - **Cost follows attention.** One edited character invalidates a path of cells
-  and recomputes only the ones the screen pulls on. A subtree that is off-screen,
-  collapsed, or past the end of a lazy `ListNode` costs nothing at all — which is
-  why a very large, or even an unbounded, document is an ordinary case here.
+  and recomputes only the ones the screen pulls on. A subtree that is
+  off-screen, collapsed, or past the end of a lazy `ListNode` costs nothing.
 
-Deep pipelines are therefore affordable, and that is what lets projections stay
-small, pure, and composable — the subject of the next section.
+A deep pipeline is therefore affordable, which is what lets a projection stay
+small and pure.
 
 See the [reactive cells](documentation/package/kernel/cell.md) guide for the engine and its
 invariants, and the [macros](documentation/package/kernel/macros.md) guide for the codegen
@@ -190,7 +192,7 @@ behind `@document`, `@projection`, and `@iomap`.
 
 ## Composable data, composable projections
 
-Composition runs through both layers — and they meet in the middle.
+Both layers compose, and they meet in the middle.
 
 **Documents compose.** A document is built by nesting primitives, reactive
 collections (`CellVector`, `ListNode`), and other documents; any field can hold
@@ -199,19 +201,18 @@ chapters that hold paragraphs, lists, and embedded pictures; a `Conversation`
 holds messages that hold blocks that hold Julia and text documents. There is no
 privileged root type — you assemble domains out of smaller domains.
 
-**Projections compose.** The bidirectional projections are composable functions,
-which has non-obvious payoffs:
+**Projections compose.** A bidirectional projection is a function, and four
+things follow from that:
 
-- **Switch views, not files.** Edit a JSON object as a tree, then render the same
-  data as a widget form, a table, or source — no second representation to keep
-  in sync.
-- **Computed views for free.** Insert a sorting, filtering, or focusing
-  projection and you get a sorted / filtered / zoomed view *without touching the
-  model*. Undo removes the projection, not your data.
-- **Mixed-domain documents.** Where the two layers meet: a `NestingProjection`
-  embeds one domain inside another, so one document can nest JSON inside XML
-  inside styled prose — and every cursor position round-trips faithfully across
-  the boundaries.
+- **Several views of one document.** Edit a JSON object as a tree, then render
+  the same data as a widget form, a table, or source. There is no second
+  representation to keep in sync.
+- **Computed views.** Insert a sorting, filtering or focusing projection and
+  the view is sorted, filtered or zoomed without a change to the model.
+  Removing the projection removes the view, not the data.
+- **Mixed-domain documents.** A `NestingProjection` embeds one domain inside
+  another, so one document can nest JSON inside XML inside styled prose. Every
+  cursor position round-trips across the boundaries.
 - **Backend-agnostic rendering.** The pipeline emits an abstract
   `GraphicsCanvas`. SDL2 renders it in a native window and a web backend renders
   it in the browser (the editor runs in an HTTP/WebSocket server; the browser
@@ -227,29 +228,48 @@ projections](documentation/package/kernel/higher-order-projections.md) guides fo
 
 ## What works today
 
-| Domain | What it demonstrates |
-|---|---|
-| **JSON** | Full object/array/primitive tree editing with cursor and selection |
-| **XML** | Element/attribute tree, mixed with HTML-style namespaces |
-| **Text** | Styled multi-span text with word wrapping and line numbering |
-| **Syntax** | Generic S-expression intermediate; the glue between semantic domains and text |
-| **Graphics** | SDL2 render primitives; foundation for everything you see |
-| **Widget** | Labels, buttons, checkboxes, tabbed panes, scroll panes, split panes, toolbars |
-| **Workbench** | Full IDE shell: navigator, console, descriptor, operator, evaluator, assistant |
-| **Conversation** | The AI chat itself as a structured domain: messages, blocks, code executions |
-| **Table** | 2-D spreadsheet-style grid rendered directly to graphics |
-| **Book** | Structured prose: chapters, paragraphs, lists, embedded pictures |
-| **Math** | Algebraic expression trees (variable, binary op, parenthesised, assignment) |
-| **Julia** | Julia AST subset: identifier, integer, binary op, call, if, function, block |
-| **FileSystem** | Directory/file tree |
-| **Collection** | `CellVector` (reactive indexed vector) and `ListNode` (lazy doubly-linked list) |
+There are twenty domain packages. Each one owns its document types, its parser
+where it has a text syntax, and its projection.
 
-All domains support **selection** and **cursor movement** end-to-end. The SDL
-backend is the primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#web-backend)
+| Domain | What it holds |
+|---|---|
+| **JSON** | Object, array and primitive tree, with a parser and a file wrapper |
+| **YAML** | The same data model, with indentation syntax |
+| **XML** | Element and attribute tree |
+| **Markdown** | Block and inline documents, rendered or as source |
+| **RST** | reStructuredText sections and directives, rendered or as source |
+| **Book** | Structured prose: chapters, paragraphs, lists, embedded pictures |
+| **Math** | Algebraic expression trees: variable, binary operator, parenthesis, assignment |
+| **Julia** | A subset of the Julia AST: identifier, integer, binary operator, call, if, function, block |
+| **SQL** | Select, insert, update and create statements, with a parser |
+| **Database** | Database and instance documents, and the `make_database_adapter` seam |
+| **DbCatalog** | Schema, table and column documents; a catalog query becomes SQL |
+| **FileSystem** | Directory and file tree |
+| **Graph** | Vertices, edges and the layout document that holds their geometry |
+| **Chart** | Line, bar, histogram, scatter and strip plots |
+| **SequenceChart** | Events on timelines, and the arrows between them |
+| **Formula** | A spreadsheet cell formula whose expression is a Julia document |
+| **FSM** | States, transitions and the diagram that lays them out |
+| **Process** | A flowchart language: the step documents and the runtime that walks them |
+| **Conversation** | The AI chat as a domain: messages, blocks, code executions |
+| **Workbench** | The IDE shell: navigator, console, descriptor, operator, searcher, evaluator, assistant |
+
+The substrate under them carries what no single domain owns:
+
+| Package | What it holds |
+|---|---|
+| **Text** | Styled multi-span text, word wrapping, line numbering |
+| **Syntax** | The generic S-expression intermediate between a semantic domain and text |
+| **Graphics** | The render primitives every backend paints |
+| **Widget** | Labels, buttons, checkboxes, tabbed panes, scroll panes, split panes, toolbars, tables |
+| **Collection** | `CellVector`, a reactive indexed vector, and `ListNode`, a lazy doubly-linked list |
+
+Selection and cursor movement work in every domain. The SDL backend is the
+primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#web-backend)
 renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
-after `using ProjecturedWeb`). The in-editor
-AI assistant plus the MCP server are built in. Character-level manual editing is
-the next milestone (see the [Roadmap](documentation/requirement/delivery-roadmap.md)).
+after `using ProjecturedWeb`). The assistant and the MCP server are built in.
+Character type-in and range editing work in the field-addressed domains; the
+[roadmap](documentation/requirement/delivery-roadmap.md) has the rest.
 
 ### Screenshots
 
@@ -267,10 +287,11 @@ the next milestone (see the [Roadmap](documentation/requirement/delivery-roadmap
 
 **Prerequisites**
 
-- Julia 1.10+
-- SDL2 and SDL_ttf (for the SDL backend)
-- *(Optional)* `ANTHROPIC_API_KEY` to talk to real Claude in the assistant;
-  without it the assistant falls back to a deterministic offline backend.
+- Julia 1.11 or later. The `Project.toml` files use `[sources]` path
+  dependencies.
+- SDL2 and SDL_ttf, for the SDL backend.
+- `ANTHROPIC_API_KEY`, optional. Without it the assistant uses a deterministic
+  offline backend.
 
 ```sh
 git clone https://github.com/projectured/projectured-julia
@@ -320,16 +341,16 @@ name and an include list; the code it includes is `source/json/`, its suite is
 
 ## Guides
 
-Three reading tracks — pick the one that matches your goal.
+Three reading orders.
 
-### New here? Start with
+### Start here
 
 1. [Introduction](documentation/design/editor-derivation.md) — the engineer's introduction: every concept with its real code, how the concepts combine, and how to extrapolate what the system can do.
 2. [Concepts](documentation/design/editor-concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
 3. [Examples tour](documentation/guide/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
 4. [Getting started](documentation/guide/setup-guide.md) — prerequisites, setup, and the REPL helpers.
 
-### Building something? Read next
+### Before you build something
 
 5. [Architecture](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/rule/division-terminology.md) defines the division vocabulary (package / layer / slice / module).
 6. [Reactive cells](documentation/package/kernel/cell.md) — the `Cell` system that powers incrementality.
@@ -348,11 +369,14 @@ Three reading tracks — pick the one that matches your goal.
 - [Devices and backends](documentation/package/kernel/devices-and-backends.md) — the `Backend`/`Device` split.
 - [Static compilation](documentation/guide/static-compilation-guide.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
 - [Design decisions](documentation/design/architecture-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
-- [Selection deep dive](documentation/package/kernel/selection.md) — the full reference/selection mechanism with worked examples.
 
-### Per-domain guides
+### Per-slice guides
 
-[json](documentation/package/json/json.md) · [xml](documentation/package/xml/xml.md) · [rst](documentation/package/rst/rst.md) · [text](documentation/package/text/text.md) · [syntax](documentation/package/syntax/syntax.md) · [graphics](documentation/package/graphics/graphics.md) · [widget](documentation/package/widget/widget.md) · [workbench](documentation/package/workbench/workbench.md) · [collection](documentation/package/collection/collection.md)
+Domains: [json](documentation/package/json/json.md) · [xml](documentation/package/xml/xml.md) · [rst](documentation/package/rst/rst.md) · [math](documentation/package/math/math.md) · [graph](documentation/package/graph/graph-layout.md) · [chart](documentation/package/chart/chart.md) · [sequencechart](documentation/package/sequencechart/sequencechart.md) · [fsm](documentation/package/fsm/fsm.md) · [process](documentation/package/process/process.md) · [workbench](documentation/package/workbench/workbench.md)
+
+Substrate: [text](documentation/package/text/text.md) · [syntax](documentation/package/syntax/syntax.md) · [graphics](documentation/package/graphics/graphics.md) · [widget](documentation/package/widget/widget.md) · [pane](documentation/package/pane/pane.md) · [collection](documentation/package/collection/collection.md) · [versioning](documentation/package/versioning/versioning.md) · [bounded sync](documentation/package/reflection/bounded-sync.md)
+
+Tooling: [adaptagrams](documentation/package/adaptagrams/README.md) · [executable](documentation/package/executable/README.md)
 
 ### Working in the REPL
 
@@ -361,8 +385,9 @@ Three reading tracks — pick the one that matches your goal.
 
 ## Roadmap
 
-See [the roadmap](documentation/requirement/delivery-roadmap.md) for near-, medium-, and long-term plans.
-The three next priorities: character editing, mouse click-to-select, and undo/redo.
+See [the roadmap](documentation/requirement/delivery-roadmap.md) for the near,
+medium and long term. Four items are in progress: uniform character editing,
+click-to-select in every domain, undo and redo, and editable tables.
 
 ## Contributing
 
