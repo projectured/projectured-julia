@@ -14,74 +14,33 @@ assistant beside its own panes should not carry an IDE to get one.
 """
 module AssistantModule
 
-import ..CellModule: Cell, set_cell_function!
-import ..DocumentModule: Document, @document
-import ..PrimitiveModule: PrimitiveString
-import ..LlmModule: Llm
-import ..ReferenceModule: Reference
-import ..ConversationModule: ConversationConversation, ConversationDraft, ConversationPart
+using ..CellModule
+import ..CellModule: set_cell_function!
+using ..DocumentModule
+using ..PrimitiveModule
+using ..LlmModule
+using ..ReferenceModule
+using ..ConversationModule
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..WidgetModule: WidgetDocument, WidgetLabel, WidgetText, WidgetSplitPane,
-                       WidgetScrollPane, WidgetComposite, WidgetCard, Point2D, Inset,
-                       inset_default
-import ..LayoutModule: VerticalLayout, LayoutConstraint
-import ..TextModule: TextBlock, TextString
-import ..StyleModule: font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default
-import ..IoMapModule: SimpleIoMap, ContentIoMap, ChildrenIoMap, IoMap,
-                      reconcile_child_iomap, reconcile_child_iomaps, var"@iomap"
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..OperationModule: Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation,
-                          reroot_operation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..EventModule: KeyDown, KeyPress
-import ..GestureBindingModule: read_gesture
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference, FieldReferenceStep,
-                          RangeReferenceStep, ElementReferenceStep, PositionReferenceStep,
-                          get_reference_steps, extend_reference, try_evaluate_reference,
-                          annotate_reference_types, var"@reference", var"@reference_step",
-                          var"@reference_case"
-import ..PrinterContextModule: make_child_context
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ConversationModule: ConversationConversation, ConversationDraft
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..WidgetModule
+using ..LayoutModule
+using ..TextModule
+using ..StyleModule
+using ..IoMapModule
+using ..CollectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..EventModule
+using ..GestureBindingModule
+using ..PrinterContextModule
+using ..ProjectionAlgebraModule
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule
-import ..ProjectionApiModule: read_intent
-import ..CellModule: Cell, ComputedCell
-import ..NaturalModule: parse_natural_text, has_natural_parser,
-                                make_natural_projection, get_natural_extension,
-                                print_natural_text
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
-                              ConversationThinking, make_conversation_thinking_part
-import ..ConversationModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
-import ..EventModule: KeyDown
-import ..ToolModule: Tool, ToolSet, list_tools, call_tool,
-                      register_default_tools!, execute_julia_code, get_last_evaluated_value
-import ..EventModule: KeyPress
-import ..EventPatternModule: var"@event_case"
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..AgentModule: Agent, run_turn!, AgentToolResult
-import ..LlmModule: Llm, stream_turn, make_llm, get_llm_backend_names,
-                     LlmRequest, LlmMessage, LlmContent,
-                     LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
-                     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
-                     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
-                     LlmRedactedThinkingBlock,
-                     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
-                     LlmTurnEnd, LlmFailure
-import ..DocumentModule: Document
-import ..ConversationModule: ConversationDraft
-import ..ConversationModule: read_composer_gesture, resolve_composer_host_operation,
-                                    ComposerSubmitOperation, ComposerEvaluateOperation,
-                                    finalize_draft!, reset_draft!
+using ..NaturalModule
+using ..ToolModule
+using ..EventPatternModule
+using ..AgentModule
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,

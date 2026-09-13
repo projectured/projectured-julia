@@ -14,30 +14,18 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 module GraphicsModule
 
 export PointReferenceStep
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..StyleModule: StyleFont, font_logical_size
-import ..StyleModule: StyleColor, color_white, color_black
-import ..ReferenceModule: Reference
-import ..StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
+using ..DocumentModule
+using ..CollectionModule
+using ..StyleModule
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..StyleModule: StyleColor
-import ..StyleModule: font_logical_size
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ProjectionAlgebraModule: CopyingProjection
-import ..IoMapModule: SimpleIoMap
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionAlgebraModule: PredicateDispatchingProjection
-import ..ProjectionAlgebraModule: IdentityProjection
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
-import ..OperationModule: ReplaceSelectionOperation
-import ..EventModule: MousePress
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..OperationModule
+using ..EventModule
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 

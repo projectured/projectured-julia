@@ -7,6 +7,8 @@ function test_math_layering()
     main = get_package_source_root(ProjecturedMath)
     check_layering(main, pathof(ProjecturedMath);
                    name = "math",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["MathDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedMath; all = true)
                          if isdefined(ProjecturedMath, n) &&

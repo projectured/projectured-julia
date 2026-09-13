@@ -28,29 +28,21 @@ slice declares no operation of its own.
 """
 module PaneModule
 
-import ..CellModule: Cell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference
-import ..PrimitiveModule: PrimitiveString
-import ..DomainModule: DocumentNothing
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+using ..PrimitiveModule
+using ..DomainModule
+using ..SelectionModule
 import ..SelectionModule: has_dormant_selection
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        get_pane_tab_title_string, default_new_pane_tab,
        get_opposite_pane_orientation, get_pane_split_axis,
        get_pane_weight, get_pane_weights, get_pane_normalized_weights,
        get_pane_groups, get_pane_parent
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
-                          ReplaceSelectionOperation, insert_elements, delete_elements,
-                          evaluate_operation
-import ..DraggingModule: MoveRangeOperation
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, ElementReferenceStep, RangeReferenceStep,
-                          get_reference_node_type, concat_references, Position
-import ..ReferenceModule: var"@reference"
-import ..PrimitiveModule: PrimitiveString, ReplaceStringRangeOperation
-import ..SelectionModule: get_selection, get_stored_selection
+using ..OperationModule
+using ..DraggingModule
 export get_pane_path, get_pane_collection_path,
        get_pane_focus, get_pane_focused_group, get_pane_focused_tab_index, get_pane_focus_title,
        get_pane_shown_tab_index,
@@ -61,46 +53,20 @@ export get_pane_path, get_pane_collection_path,
        apply_pane_operation!
 export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
        get_pane_group_at_point, get_pane_drop_zone, get_pane_zone_orientation
-import ..ReferenceModule
-import ..ReferenceModule:
-    Reference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
-    evaluate_reference, strip_reference_types, get_reference_steps,
-    is_fully_typed_reference, annotate_reference_types, var"@reference"
-import ..OperationModule: ReplaceReferencedValueOperation
-import ..SelectionModule: replace_selection!
-import ..LayoutModule
-import ..LayoutModule: LayoutDocument
+using ..LayoutModule
 export show_layout, get_referenced_value, replace_referenced_value!,
        open_pane!, focus_pane!,
        get_window_tree, describe_document, get_document_title,
        pane_group_to_avoid, make_pane_api
-import ..GestureBindingModule: var"@gestures"
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyPress, KeyDown, ModifierKeys
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..EventModule: MouseMove, MouseUp, MousePress
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation
-import ..WidgetModule: SelectTabOperation, CloseTabOperation,
-                       OpenTabOperation, DragTabOperation,
-                       StartSplitterDragOperation, ResizeSplitPaneOperation,
-                       EndSplitterDragOperation
-import ..WidgetModule: WidgetDocument, WidgetSplitPane, WidgetTabbedPane,
-                       WidgetComposite, WidgetHighlight,
-                       Inset, Point2D
-import ..LayoutModule: LayoutConstraint
-import ..IoMapModule: IoMap, SimpleIoMap, var"@iomap",
-                      reconcile_child_iomap, reconcile_child_iomaps
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..DocumentModule: SelectionDocument
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          get_reference_node_type
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
+using ..GestureBindingModule
+using ..EventModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..WidgetModule
+using ..IoMapModule
+using ..ProjectionAlgebraModule
+using ..PrinterContextModule
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,

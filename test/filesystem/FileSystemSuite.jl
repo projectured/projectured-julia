@@ -7,6 +7,8 @@ function test_filesystem_layering()
     main = get_package_source_root(ProjecturedFileSystem)
     check_layering(main, pathof(ProjecturedFileSystem);
                    name = "filesystem",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["FileSystemDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFileSystem; all = true)
                          if isdefined(ProjecturedFileSystem, n) &&

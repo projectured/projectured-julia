@@ -7,6 +7,8 @@ function test_workbench_layering()
     main = get_package_source_root(ProjecturedWorkbench)
     check_layering(main, pathof(ProjecturedWorkbench);
                    name = "workbench",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["Workspace.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedWorkbench; all = true)
                          if isdefined(ProjecturedWorkbench, n) &&

@@ -11,41 +11,29 @@ The domain includes:
 """
 module BookModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export BookDocument
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..StyleModule: ImageFile
-import ..BackendModule: decode_image
-import ..GraphicsModule: GraphicsDocument
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
-                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
-import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..IoMapModule: ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
-                         Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference,
-                                        is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..PrinterContextModule: make_child_context
-import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
+using ..StyleModule
+using ..BackendModule
+using ..GraphicsModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..TextModule
+using ..SyntaxModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..PrinterContextModule
+using ..ProjectionTemplateModule
 export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
-import ..NaturalModule: register_natural_syntax!
+using ..NaturalModule
 export BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 
 

@@ -7,6 +7,8 @@ function test_book_layering()
     main = get_package_source_root(ProjecturedBook)
     check_layering(main, pathof(ProjecturedBook);
                    name = "book",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["BookDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedBook; all = true)
                          if isdefined(ProjecturedBook, n) &&

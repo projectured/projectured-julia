@@ -19,49 +19,29 @@ fills it and [`GestureLogOverlayProjection`](GestureLogOverlay.jl) shows it.
 """
 module GestureLogModule
 
-import ..CellModule: Cell
-import ..CollectionModule: CellVector
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference, strip_reference_types
-import ..EventModule: Event, ModifierKeys, KeyDown, KeyUp, KeyPress,
-                      MouseDown, MouseUp, MousePress, MouseMove, MouseScroll,
-                      WindowInput, get_modifier_keys
-import ..EventPatternModule: EventPattern, describe_event_pattern
-import ..OperationModule: Operation, DoNothingOperation, QuitEditorOperation,
-                          ReplaceSelectionOperation, ReplaceReferencedValueOperation,
-                          CompoundOperation, ToggleCollapseOperation,
-                          SelectNextInsertionOperation,
-                          AdjustZoomOperation, AdjustFontZoomOperation,
-                          operation_reference
+using ..CellModule
+using ..CollectionModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..EventModule
+using ..EventPatternModule
+using ..OperationModule
 export GestureLogEntry, GestureLog, record_gesture!, clear_gesture_log!,
        describe_gesture, describe_operation, default_gesture_log_filter
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..CollectionModule: ComputedCellVector
-import ..TextModule: TextString
-import ..StyleModule: font_dejavu_monospace_regular_16, font_dejavu_monospace_bold_16
-import ..StyleModule: color_gray159, color_gray223, color_solarized_cyan, color_solarized_gray
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..PrinterContextModule: PrinterContext
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..IoMapModule
+using ..TextModule
+using ..StyleModule
+using ..SyntaxModule
+using ..PrinterContextModule
 export GestureLogToSyntax
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
-                              map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..OperationModule: Operation
+using ..IntentModule
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..ProjectionAlgebraModule: RecursiveProjection
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..StyleModule: StyleColor
-import ..SyntaxModule: SyntaxToText
-import ..TextToGraphicsModule: TextToGraphics
-import ..StyleModule: measure_truetype_text
+using ..ProjectionAlgebraModule
+using ..GraphicsModule
+using ..TextToGraphicsModule
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
        make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
 

@@ -16,74 +16,41 @@ its pass-through branch.
 """
 module ProjectionAlgebraModule
 
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-import ..IntentModule: CollectIntents
-import ..DocumentModule: Document
-import ..GestureBindingModule: read_gesture
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure
+using ..IoMapModule
+using ..IntentModule
+using ..DocumentModule
+using ..GestureBindingModule
 export IdentityProjection
-import ..ProjectionApiModule: print_document, print_child, map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: ChildrenIoMap, reconcile_child_iomaps
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, extend_reference, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
+using ..CollectionModule
+using ..ReferenceModule
+using ..PrinterContextModule
 export ReversingProjection
 export ConstantProjection
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection,
-       print_document_pure
-import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
-                       merge_collected_intents
-import ..GestureBindingModule: GestureBinding
-import ..IoMapModule: IoMap, reconcile_child_iomap, var"@iomap"
-import ..CellModule: Cell, ComputedCell, AbstractCell, unwrap_cell
+using ..CellModule
 export ChainingProjection, ChainingIoMap
-import ..IntentModule: Intent
 export TypeDispatchingProjection
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection,
-       print_document_pure
 export RecursiveProjection
-import ..CellModule: Cell, ComputedCell
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
 export SwitchingProjection, SwitchingIoMap
 export PredicateDispatchingProjection
-import ..IoMapModule: IoMap, var"@iomap"
 export ReferenceDispatchingProjection, ReferenceDispatchingIoMap
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
 export NestingProjection, NestingIoMap
-import ..EventModule: WindowInput
+using ..EventModule
 export WindowInputUnwrappingProjection, WindowInputUnwrappingIoMap
-import ..ProjectionModule: var"@projection"
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, evaluate_reference, extend_reference, strip_reference_types
-import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
+using ..ProjectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..EventPatternModule
+using ..ProjectionGestureBindingsModule
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 export FocusingProjection, ReplaceFocusPartOperation
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomaps
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, extend_reference, get_reference_node_type
 export SortingProjection, SortingIoMap
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
 export FilteringProjection, FilteringIoMap
-import ..CellModule: Cell, ComputedCell, AbstractCell, set_cell_function!, unwrap_cell
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          FieldReferenceStep, ElementReferenceStep, extend_reference, get_reference_head, get_reference_tail,
-                          strip_reference_types
 export SearchingProjection, SearchingIoMap
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, is_element_reference_step, get_reference_head, get_reference_tail
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..OperationModule: operation_reference, retarget_operation,
-                          operation_travels_unchanged, ReplaceReferencedValueOperation
-import ..SelectionModule: get_stored_selection
+using ..SelectionModule
 export CopyingProjection, CopyingIoMap, make_copying_field_iomap, make_copying_element_iomap
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ReferenceModule: Reference
+using ..PrimitiveModule
 export ApplyAtProjection
 export SortingAtProjection
 

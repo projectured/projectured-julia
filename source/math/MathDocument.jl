@@ -15,35 +15,27 @@ A slot that can be absent holds `nothing` when it is absent and a
 """
 module MathModule
 
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..CollectionModule
+using ..DocumentModule
+using ..ReferenceModule
 export MathDocument, _operator_string, get_math_operator_glyph, get_math_operator_class,
        get_math_symbol_glyph, get_math_big_operator_glyph, get_math_big_operator_name,
        is_math_big_operator_text,
        get_math_delimiter_strings, is_math_accent_wide, MathSubscript, MathSuperscript
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..PrimitiveModule: PrimitiveNumber
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan, color_solarized_magenta, color_solarized_yellow, color_solarized_gray, color_solarized_violet, color_solarized_green
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap,
-                                   bound, project, collection
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, Position, RangeReferenceStep, FieldReferenceStep, Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxModule: PrimitiveNumberToSyntaxLeaf
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..PrimitiveModule
+using ..TextModule
+using ..StyleModule
+using ..SyntaxModule
+using ..ProjectionTemplateModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..ProjectionReferenceStepModule
+using ..PrinterContextModule
+using ..OperationModule
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode, MathToSyntax,
@@ -54,28 +46,10 @@ export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathDerivativeToSyntaxNode, MathFunctionToSyntaxNode,
        MathAccentToSyntaxNode, MathMatrixToSyntaxNode,
        MathCaseToSyntaxNode, MathCasesToSyntaxNode
-import ..NaturalModule: register_natural_syntax!
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap, IoMap, var"@iomap"
-import ..GraphicsModule: GraphicsCanvas, GraphicsDocument, GraphicsText, GraphicsRect,
-                         get_graphics_size, layout_none
-import ..StyleModule: StyleFont, make_style_font,
-                     font_dejavu_sans_regular_20, font_dejavu_sans_italic_20
-import ..StyleModule: font_ascent, font_descent, font_line_height, font_x_height,
-                         font_glyph_bounds, measure_truetype_text
-import ..StyleModule: StyleColor, color_default, color_solarized_gray
-import ..PrimitiveModule: PrimitiveNumber, PrimitiveString
-import ..PrinterContextModule: make_child_context, with_property, get_property
-import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
-                          RangeReferenceStep, Reference, strip_reference_types,
-                          annotate_reference_types
-import ..GraphicsModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation, replace_document
-import ..OperationModule: reroot_operation
-import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPress
-import ..EventPatternModule: var"@event_case"
-import ..ReferenceModule: var"@reference_step"
+using ..NaturalModule
+using ..GraphicsModule
+using ..EventModule
+using ..EventPatternModule
 export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
        make_math_to_graphics_dispatch,
        MathVariableToGraphics, MathSymbolToGraphics, MathTextToGraphics,
@@ -87,7 +61,6 @@ export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
        MathDifferentialToGraphics, MathDerivativeToGraphics,
        MathFunctionToGraphics, MathAccentToGraphics, MathMatrixToGraphics,
        MathCaseToGraphics, MathCasesToGraphics
-import ..NaturalModule: register_natural_graphics!
 export MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, MathSymbol, MathText
 
 
