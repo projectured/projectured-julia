@@ -364,7 +364,7 @@ function GraphToGraphics end
 import ..ChainingProjectionModule: ChainingProjection
 import ..GraphModule: GraphGraph
 import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
-import ..NaturalRegistryModule: register_natural_graphics!
+import ..NaturalModule: register_natural_graphics!
 
 function __init__()
     register_natural_graphics!(:graph, (; measure) -> Pair{Type,Any}[

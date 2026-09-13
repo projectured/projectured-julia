@@ -20,7 +20,7 @@ module FileFormatModule
 
 import ..DocumentModule: Document
 import ..OperationModule: Operation, evaluate_operation
-import ..NaturalNotationModule: get_natural_extension, get_natural_format,
+import ..NaturalModule: get_natural_extension, get_natural_format,
                                 has_natural_parser, parse_natural_text,
                                 print_natural_text
 export import_document, export_document,

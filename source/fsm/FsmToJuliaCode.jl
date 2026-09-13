@@ -65,7 +65,7 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaInteger, JuliaBool,
                       JuliaStruct, JuliaSubtype, JuliaFunction, JuliaTuple,
                       JuliaTypeAnnotation, JuliaFieldAccess, JuliaModuleDefinition,
                       JuliaUnaryOperation
-import ..NaturalNotationModule: print_natural_text
+import ..NaturalModule: print_natural_text
 
 export generate_component, generate_component_text, export_component,
        get_fsm_state_constant_name, get_fsm_field_name, dispatch_function_name,

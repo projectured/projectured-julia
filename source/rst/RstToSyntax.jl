@@ -1373,7 +1373,7 @@ _embedded_marker_directive(f::FileDocument) =
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
+import ..NaturalModule: register_natural_syntax!
 import ..RstModule: RstDocument
 
 function __init__()

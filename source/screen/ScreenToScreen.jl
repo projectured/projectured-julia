@@ -29,7 +29,7 @@ import ..EventModule: WindowInput
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
-import ..PointReferenceStepModule: PointReferenceStep
+import ..GraphicsModule: PointReferenceStep
 import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
 import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap, var"@iomap"
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation

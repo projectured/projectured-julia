@@ -45,8 +45,6 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const TextToStringModule = ProjecturedText.TextToStringModule
 
 include("../../../source/natural/NaturalNotation.jl")
-include("../../../source/natural/NaturalRegistry.jl")
-include("../../../source/natural/NaturalProjection.jl")
 
 # The two rungs this package can supply itself, because it names the text
 # package. `syntax → text` belongs to whoever can supply it, and is registered
@@ -58,11 +56,11 @@ include("../../../source/natural/NaturalProjection.jl")
 # that row carries the `wrap` option, which is a rendering choice and not part of
 # what the document is.
 function __init__()
-    NaturalNotationModule.register_natural_rung!(:text, :graphics,
+    NaturalModule.register_natural_rung!(:text, :graphics,
         (; measure) -> ProjecturedText.TextToGraphicsModule.TextToGraphics(measure = measure))
-    NaturalNotationModule.register_natural_rung!(:text, :string,
+    NaturalModule.register_natural_rung!(:text, :string,
         (; measure) -> ProjecturedText.TextToStringModule.TextToString())
-    NaturalNotationModule.register_natural_notation!(
+    NaturalModule.register_natural_notation!(
         ProjecturedText.TextModule.TextDocument, :text,
         () -> ProjecturedProjection.IdentityProjectionModule.IdentityProjection())
     nothing

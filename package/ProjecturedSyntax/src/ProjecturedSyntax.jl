@@ -22,8 +22,8 @@ using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
 const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
-const NaturalRegistryModule = ProjecturedNatural.NaturalRegistryModule
-const NaturalNotationModule = ProjecturedNatural.NaturalNotationModule
+const NaturalModule = ProjecturedNatural.NaturalModule
+const NaturalModule = ProjecturedNatural.NaturalModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const TextModule = ProjecturedText.TextModule

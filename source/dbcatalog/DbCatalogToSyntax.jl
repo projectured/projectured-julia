@@ -1,56 +1,5 @@
-"""
-    DbCatalogToSyntaxModule
-
-DbCatalog → SyntaxDocument projection. Maps the catalog hierarchy to syntax
-tree shapes with keyword grouping nodes:
-
-    DbCatalogRdbms    → entity " host:port" → keyword " Databases" → body
-    DbCatalogDatabase → entity " dbname"    → keyword " Schemas"   → body
-    DbCatalogSchema   → entity " schema"    → keyword " Tables"    → body
-    DbCatalogTable    → entity " table"     → keyword " Columns"   → body
-    DbCatalogColumn   → SyntaxLeaf " column::type"
-
-Each non-leaf entity node is collapsible and contains a single keyword child:
-  entity_node  (ind=-1, open=" name"):  collapsible, marker-eligible
-    keyword_node (ind=0,  open=" Keyword"): collapsible, marker-eligible
-      keyword_body (ind=-1, no label):    children = projected items
-
-Using `indentation = -1` avoids trailing newlines that create blank lines,
-while still rendering children with `\\n + indent`.
-
-Selection mapping (School A — delegate child tails through stored child IO maps):
-  Input:  <field>[i].rest        (e.g. databases[2].child_path)
-  Output: children[1].children[1].children[i].delegated(rest)
-The three levels correspond to: keyword_node → keyword_body → actual child.
-"""
-module DbCatalogToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
-                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
-import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_red, color_solarized_green, color_solarized_magenta
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, EmptyReference, Reference,
-                           ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
-                           FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..PrinterContextModule: make_child_context
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..OperationModule: ReplaceSelectionOperation
-export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
-       DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
-       is_dbcatalog_marker_eligible
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from DbCatalogToSyntax.jl.
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct DbCatalogColumnToSyntaxLeaf
@@ -368,5 +317,3 @@ function DbCatalogToSyntax()
         DbCatalogColumn     => DbCatalogColumnToSyntaxLeaf(),
     )
 end
-
-end # module

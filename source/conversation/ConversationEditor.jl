@@ -43,7 +43,7 @@ import ..TextModule: TextBlock, TextString
 # called, and how a typed source becomes a document are all asked of two seams:
 # `get_insertion_root` says a type is a domain's insertion, and `get_natural_format`
 # / `parse_natural_text` say that domain's key and how to read its text.
-import ..NaturalNotationModule: get_natural_format, parse_natural_text, has_natural_parser
+import ..NaturalModule: get_natural_format, parse_natural_text, has_natural_parser
 import ..ToolModule: execute_julia_code, get_last_evaluated_value
 import ..DocumentModule: Document
 import ..WidgetModule: WidgetCard, WidgetLabel, Point2D

@@ -1,50 +1,5 @@
-"""
-    DbCatalogToSqlModule
-
-DbCatalog → Sql (DDL) projection. Maps the catalog tree into **SQL DDL document
-nodes** built directly, so the existing SQL pipeline
-(`SqlToSyntax → SyntaxToText → TextToString`) turns the catalog into an
-executable `CREATE …` script:
-
-    DbCatalogColumn   → SqlColumnDefinition(name, data_type)
-    DbCatalogTable    → CREATE TABLE [schema.]table ( <column-def>, … )
-    DbCatalogSchema   → CREATE SCHEMA name;  +  one CREATE TABLE per table
-    DbCatalogDatabase → every schema's statements, flattened
-    DbCatalogRdbms    → every database's statements, flattened
-
-The DDL view is the compound `ChainingProjection(DbCatalogToSql(), SqlToSyntax())`
-(each stage wrapped in `RecursiveProjection`) — `SqlToSyntax` stays the single
-source of truth for SQL text. This projection **constructs the SQL documents
-directly** (not print-and-parse).
-
-The enclosing schema name is threaded down through the printer context (the
-`:sql_schema_name` property) so a table can schema-qualify its `CREATE TABLE`.
-
-Read-only: a serialiser for LLM consumption, not an editor view, so reference
-mapping / read support return `nothing`. The catalog child collections are lazy
-`CellVector`s, and recursing each child through `print_child`
-forces the whole subtree, so wrapping this in a `RecursiveProjection` fully walks
-the catalog.
-"""
-module DbCatalogToSqlModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..DbCatalogDocumentModule: DbCatalogDocument, DbCatalogRdbms, DbCatalogDatabase,
-                                  DbCatalogSchema, DbCatalogTable, DbCatalogColumn
-import ..SqlDocumentModule: SqlColumnDefinition, SqlCreateTableStatement,
-                            SqlCreateSchemaStatement, SqlStatementList,
-                            SqlTableName, SqlColumnName
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..ReferenceModule: ElementReferenceStep
-import ..PrinterContextModule: make_child_context, with_property, get_property
-
-export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
-       DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from DbCatalogToSql.jl.
 # Property key under which the enclosing schema name is threaded down the context.
 const SCHEMA_PROPERTY = :sql_schema_name
 
@@ -149,5 +104,3 @@ function DbCatalogToSql()
         DbCatalogColumn   => DbCatalogColumnToSql(),
     )
 end
-
-end # module

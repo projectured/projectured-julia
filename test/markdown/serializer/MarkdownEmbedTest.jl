@@ -29,8 +29,8 @@ using ProjecturedPrimitive.PrimitiveModule: ReplaceStringRangeOperation
 using ProjecturedKernel.ReferenceModule: ConcreteReference, FieldReferenceStep,
                                          RangeReferenceStep, EmptyReference
 using ProjecturedKernel.SelectionModule: set_selection!, get_selection
-using ProjecturedNatural.NaturalNotationModule: print_natural_text
-using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedNatural.NaturalModule: print_natural_text
+using ProjecturedNatural.NaturalModule: NaturalToGraphics
 using ProjecturedWidget.WidgetModule: WidgetButton
 using ProjecturedStyle.GeometryModule: Point2D
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas

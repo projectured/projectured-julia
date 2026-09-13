@@ -30,7 +30,7 @@ import ..FontModule: StyleFont, font_logical_size
 import ..ColorModule: StyleColor, color_black
 import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, head, tail
 import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..PointReferenceStepModule: PointReferenceStep
+import ..GraphicsModule: PointReferenceStep
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation

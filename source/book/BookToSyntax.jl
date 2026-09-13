@@ -1,60 +1,5 @@
-"""
-    BookToSyntaxModule
-
-Book → SyntaxDocument projection. Maps each Book node type to a matching
-syntax tree shape.
-
-The simple rules are written with `@projection_template` (like JsonToSyntax /
-XmlToSyntax): `BookInsertion` is an opaque placeholder leaf, `BookParagraph` a
-single `bound(:content)` leaf, and `BookPicture` a fixed-children node with a
-`bound(:title)` caption leaf and a `bound(:content)` figure leaf. The engine
-records the wiring, strips the markers, and derives the reference mappers and
-readers generically.
-
-`BookBook`, `BookChapter`, and `BookList` remain hand-written because their
-mapping cannot be expressed by the template markers — a conditional author leaf
-in front of a spliced collection (BookBook), a title leaf fusing numbering+title
-with a character offset (BookChapter), and a per-item bullet decorator wrapping
-each whole projected element (BookList); see the note above each. They map
-references by peeling the one step they own (title/author/numbering structural
-rewrites) and delegating each element tail through the stored child IO maps, so
-they do not dispatch on the element types — see the "Mapping references when the
-printer recurses" section of package/kernel/doc/projection-system.md.
-"""
-module BookToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ImageModule: ImageFile
-import ..BackendModule: decode_image
-import ..GraphicsModule: GraphicsDocument
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..BookModule: BookDocument, BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
-import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
-                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
-import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
-                         Reference, EmptyReference, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference,
-                                        is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
-import ..PrinterContextModule: make_child_context
-import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
-
-export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
-       BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from BookToSyntax.jl.
 # ── BookInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 #
 # Maps BookInsertion → SyntaxLeaf. "insert here" is a projection-introduced
@@ -664,11 +609,7 @@ end
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
-import ..NaturalRegistryModule: register_natural_syntax!
-import ..BookModule: BookDocument
 
 function __init__()
     register_natural_syntax!(:book, () -> Pair{Type,Any}[BookDocument => BookToSyntax()])
 end
-
-end # module

@@ -1,51 +1,5 @@
-"""
-    HoverProbeProjectionModule
-
-A higher-order projection that wraps a window's content projection and, on
-idle mouse motion, shows **the reference a single left-click would create at
-the pointer** in a secondary follower window.
-
-**Printer** — transparent: projects the wrapped document through `inner` and
-returns its output unchanged (so wrapping a document in the probe changes
-nothing visually). It remembers the inner iomap so the reader can reuse it.
-
-**Reader** — on a `MouseMove` it reverse-projects the pointer position by
-feeding a synthetic `MousePress(:left, x, y)` to the **inner** reader — the
-exact path a real click would take — and reads the would-be
-`ReplaceSelectionOperation.path` without committing it. It then drives a
-follower window (id `id`, `:tooltip` style) via `OpenWindowOperation` /
-`CloseWindowOperation`, which `WindowManagingProjection` applies:
-
-- over a clickable glyph → `OpenWindowOperation` carrying a
-  `ReferenceInspector(reference, target)` as content, positioned near the
-  pointer (`pointer()` + `offset`). Re-issuing the open with the same id
-  updates the window in place, so it follows the mouse and refreshes its text.
-- over dead space (the probe yields no `ReplaceSelectionOperation`) →
-  `CloseWindowOperation`.
-
-Every non-`MouseMove` event passes straight through to `inner`, so real
-clicks, keys, scroll, and drags select/edit normally — the probe never
-disturbs the document or its selection.
-
-`pointer` is injected (the SDL example wiring passes a closure over the
-backend's global mouse position) so this domain projection stays free of any
-backend dependency, the same way `TextToGraphics` takes its `measure`.
-"""
-module HoverProbeProjectionModule
-
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..EventModule: MouseMove, MousePress
-import ..OperationModule: ReplaceSelectionOperation
-import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
-import ..ReferenceInspectorDocumentModule: ReferenceInspector
-
-export HoverProbeProjection, HoverProbeIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from HoverProbe.jl.
 struct HoverProbeProjection <: Projection
     inner::Projection
     id::Symbol
@@ -140,5 +94,3 @@ map_reference_forward(::HoverProbeProjection, iomap::HoverProbeIoMap, reference)
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::HoverProbeProjection, iomap::HoverProbeIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
-
-end # module

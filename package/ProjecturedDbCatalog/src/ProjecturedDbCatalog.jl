@@ -35,7 +35,5 @@ for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedProjection, Pr
 end
 
 include("../../../source/dbcatalog/DbCatalogDocument.jl")
-include("../../../source/dbcatalog/DbCatalogToSql.jl")
-include("../../../source/dbcatalog/DbCatalogToSyntax.jl")
 
 end # module ProjecturedDbCatalog

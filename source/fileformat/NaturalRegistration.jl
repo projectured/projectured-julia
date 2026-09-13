@@ -8,10 +8,10 @@
 # to-graphics row — and only there: the save path goes through the bare ones and
 # stays by-marker.
 function __init__()
-    NaturalRegistryModule.register_natural_syntax!(
+    NaturalModule.register_natural_syntax!(
         SerializationModule.ReferenceStub => FileFormatModule.ReferenceStubToSyntax(),
         SerializationModule.FileDocument  => FileFormatModule.FileDocumentToSyntax())
-    NaturalRegistryModule.register_natural_graphics!(:fileformat, (; measure) -> Pair{Type,Any}[
+    NaturalModule.register_natural_graphics!(:fileformat, (; measure) -> Pair{Type,Any}[
         SerializationModule.ReferenceStub =>
             FileFormatModule.ReferenceStubToSyntax(unforced = :prose, wrap = :card),
         SerializationModule.FileDocument =>

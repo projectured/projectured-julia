@@ -38,7 +38,7 @@ import ..OperationModule: Operation
 import ..OperationModule: reroot_operation
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
     RangeReferenceStep, evaluate_reference, annotate_reference_types
-import ..PointReferenceStepModule: PointReferenceStep
+import ..GraphicsModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
                           CompoundOperation
 import ..EventModule: KeyDown

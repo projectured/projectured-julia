@@ -39,7 +39,7 @@ import ..RstModule: RstDocument, RstRoot, RstSection, RstText, RstLiteral, RstRo
                     RstGridTable, RstTableRow, RstTableCell
 import ..RstParserModule: parse_rst
 import ..RstToSyntaxModule: RstToSyntax, PRED_REF_DIRECTIVE
-import ..NaturalNotationModule: register_natural_domain!, print_natural_text
+import ..NaturalModule: register_natural_domain!, print_natural_text
 import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
                             LoaderContext, register_file_document_type!,
                             get_document_section, parse_marker_text, ReferenceStub

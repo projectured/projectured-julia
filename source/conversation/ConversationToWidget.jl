@@ -34,7 +34,7 @@ import ..ConversationModule: ConversationDocument, ConversationConversation,
 import ..EvaluatorModule: EvaluatorForm, get_evaluation_kind_label
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
-import ..NaturalNotationModule: get_natural_format
+import ..NaturalModule: get_natural_format
 import ..WidgetModule: WidgetDocument, WidgetCard, WidgetLabel,
                        WidgetScrollPane, Point2D, Inset, inset_default
 import ..LayoutModule: VerticalLayout, HorizontalLayout, LayoutConstraint, Fill, Content, Fixed

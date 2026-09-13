@@ -14,8 +14,8 @@ using ProjecturedSerialization.SerializationModule
 using ProjecturedRst.RstFileModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
 using ProjecturedRst.RstParserModule: parse_rst
-using ProjecturedNatural.NaturalNotationModule: print_natural_text
-using ProjecturedNatural.NaturalProjectionModule: NaturalToGraphics
+using ProjecturedNatural.NaturalModule: print_natural_text
+using ProjecturedNatural.NaturalModule: NaturalToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
 using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys

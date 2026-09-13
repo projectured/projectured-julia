@@ -13,7 +13,7 @@ import ProjecturedJson
 using ProjecturedJson.JsonFileModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
-using ProjecturedNatural.NaturalNotationModule: print_natural_text
+using ProjecturedNatural.NaturalModule: print_natural_text
 
 const _MV_SOURCE = """
 using Foo

@@ -164,7 +164,7 @@ read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
 # tree, where a card could not go.
 import ..ChainingProjectionModule: ChainingProjection
 import ..LayoutToGraphicsModule: VerticalLayoutToGraphicsCanvas
-import ..NaturalRegistryModule: register_natural_graphics!
+import ..NaturalModule: register_natural_graphics!
 
 function __init__()
     register_natural_graphics!(:rst_page, (; measure) -> Pair{Type,Any}[

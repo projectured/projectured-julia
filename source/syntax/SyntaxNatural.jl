@@ -34,8 +34,8 @@ import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, Insertion
 import ..PrimitiveModule: PrimitiveDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DomainModule: DocumentNothing
-import ..NaturalRegistryModule: get_natural_syntax_entries, register_natural_fallback!
-import ..NaturalNotationModule: register_natural_rung!
+import ..NaturalModule: get_natural_syntax_entries, register_natural_fallback!
+import ..NaturalModule: register_natural_rung!
 
 export make_natural_to_syntax_dispatch, register_syntax_fallback!
 

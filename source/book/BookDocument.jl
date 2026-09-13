@@ -17,6 +17,38 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 export BookDocument
+import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..ImageModule: ImageFile
+import ..BackendModule: decode_image
+import ..GraphicsModule: GraphicsDocument
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..TextModule: TextDocument, TextString, TextBlock, TextGraphics
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20, font_ubuntu_monospace_italic_20,
+                     font_ubuntu_bold_36, font_ubuntu_bold_24, font_ubuntu_italic_20
+import ..ColorModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_green, color_solarized_magenta, color_solarized_cyan, color_solarized_yellow, color_solarized_gray
+import ..StyleTextModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxDelimitation
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..IoMapModule: ChildrenIoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep,
+                         Reference, EmptyReference, extend_reference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference,
+                                        is_introduced_reference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..OperationModule: ReplaceSelectionOperation
+import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..SyntaxToTextModule: SyntaxCompoundToText, _syntax_to_flat
+import ..PrinterContextModule: make_child_context
+import ..ProjectionTemplateModule: var"@projection_template", bound, RuleIoMap
+export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
+       BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
+import ..NaturalModule: register_natural_syntax!
+export BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
+
+
 
 abstract type BookDocument <: Document end
 
@@ -89,5 +121,8 @@ end
 # Text-replace edits need no per-type method: `title`/`author`/`numbering` are
 # plain strings, and a paragraph's `content` is a `TextBlock` whose representation
 # locates and splices the right span.
+
+
+include("BookToSyntax.jl")
 
 end # module

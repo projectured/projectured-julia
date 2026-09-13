@@ -1,44 +1,5 @@
-"""
-    ReferenceInspectorToTextModule
-
-`ReferenceInspectorToText` — projects a `ReferenceInspector` document into a
-two-section `TextBlock`:
-
-1. a bold, colored **Compact** header, then the Julia-printed reference on one
-   colored line (delegated to `ReferenceToText`);
-2. a bold, colored **Human-readable** header, then the reverse-order English
-   narrative (delegated to `ReferenceToHumanReadableText`).
-
-Before rendering, the reference is annotated against the inspector's `target`
-document with `TypeReferenceStep` checkpoints (`annotate_reference_types`). Both
-sections render from that canonical reference, so the compact form shows the
-`::Type` steps and the human-readable form names each step's parent type from
-the embedded checkpoints.
-
-The two delegate projections own all per-step rendering; this projection stacks
-their outputs with section headers and blank lines, inside a reactive thunk so
-it refreshes when the inspector's `reference` cell changes.
-
-Display-only: `map_reference_forward`/`map_reference_backward` return `nothing`,
-so a click landing inside the rendered panel produces no operation.
-"""
-module ReferenceInspectorToTextModule
-
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, map_reference_forward,
-                              map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ReferenceInspectorDocumentModule: ReferenceInspector
-import ..ReferenceModule: ConcreteReference, annotate_reference_types
-import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
-import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
-import ..ColorModule: StyleColor, color_solarized_blue
-import ..PrinterContextModule: PrinterContext
-import ..IoMapModule: SimpleIoMap
-
-export ReferenceInspectorToText
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ReferenceInspectorToText.jl.
 """
     ReferenceInspectorToText(; font=font_ubuntu_monospace_regular_20,
                                header_font=font_liberation_sans_bold_30,
@@ -98,5 +59,3 @@ end
 
 map_reference_forward(::ReferenceInspectorToText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceInspectorToText, ::SimpleIoMap, _) = nothing
-
-end # module

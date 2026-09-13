@@ -1,48 +1,5 @@
-"""
-    NaturalRegistryModule
-
-The tables the **natural projection** is built from.
-
-`NaturalNotationModule` beside this one is where a domain declares its notation
-now. What is left here is the keyed-factory form, which a domain uses when one
-registration carries several rows, and the fallback — plus the two `*_entries`
-functions, which read both tables so a domain can move from one to the other on
-its own.
-
-The natural projection renders almost any document to graphics. To do that it
-needs one dispatch entry per domain — a `JsonDocument` goes to `JsonToSyntax`, a
-`GraphGraph` goes to the two graph stages — and a table that named every domain
-would put the renderer above all of them. So the renderer declares the tables
-and each domain fills in its own row, in a file it already has. This is the same
-seam `NaturalNotationModule` uses for natural text, one level up: a
-type key instead of an instance key.
-
-There are three tables. Two are the ways a domain becomes graphics:
-
-- **to-syntax** — the domain has a `*ToSyntax` projection and the shared
-  `Syntax → Text → Graphics` tail draws it. This is most domains.
-- **to-graphics** — the domain draws itself, because a page of blocks or a
-  diagram is not a syntax tree. These entries need the backend's text-measuring
-  function, so a domain registers a factory rather than a pair.
-
-The third is the **fallback**: what to draw for a document no row claimed. It is
-registered like the others and nothing registers it by default, so a renderer
-draws what it was taught and an error message for the rest. `ProjecturedSyntax`
-is what registers the reflection tail, and a session that never loads it never
-carries it.
-
-A row can be registered as a ready-made pair or as a factory. A factory runs on
-every table build, so each renderer gets its own projection instances; a pair is
-shared by every renderer that uses it. Pairs are registered first, so a domain
-that wants to override another domain's row can.
-"""
-module NaturalRegistryModule
-
-import ..NaturalNotationModule: register_natural_notation!, get_natural_entries
-
-export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
-       get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from NaturalRegistry.jl.
 # Ready-made rows. A row registered twice keeps the first, so a reload does not
 # stack duplicates.
 const _SYNTAX_PAIRS = Pair{Type,Any}[]
@@ -166,5 +123,3 @@ function get_natural_fallback_entries(; measure, font, wrap)
     end
     out
 end
-
-end # module

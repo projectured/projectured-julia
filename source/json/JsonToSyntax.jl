@@ -223,7 +223,7 @@ make_document_seed(::Val{:json}) = JsonInsertion()
 # One statement: the rung it starts at and how to build it, the format it is
 # written in, the extension that names the format back, and how to read that text
 # in again. Runtime state, so `__init__` rather than a top-level call.
-import ..NaturalNotationModule: register_natural_domain!
+import ..NaturalModule: register_natural_domain!
 import ..JsonModule: JsonDocument
 
 function __init__()

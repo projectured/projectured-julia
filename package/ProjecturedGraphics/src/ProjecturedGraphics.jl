@@ -33,7 +33,5 @@ const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
 include("../../../source/graphics/PointReferenceStep.jl")
-include("../../../source/graphics/GraphicsDocument.jl")
-include("../../../source/graphics/GraphicsCaching.jl")
 
 end # module ProjecturedGraphics

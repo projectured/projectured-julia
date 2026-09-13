@@ -1,35 +1,5 @@
-"""
-    GraphicsCachingModule
-
-GraphicsCanvas → GraphicsImage projection. Finite leaf canvases (no nested
-canvases, no infinite `ListNode`-backed element lists) are passed through
-`GraphicsCanvasToGraphicsImage` which will eventually rasterize them to a
-cached image. Non-leaf or infinite canvases are preserved as-is via
-`IdentityProjection` so that recursion can process their children.
-
-The reader performs mouse hit-testing: click coordinates are matched against
-canvas elements and translated into a pixel-offset selection path that
-upstream projection readers interpret as a character position.
-"""
-module GraphicsCachingModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport, hit_element_at
-import ..ColorModule: StyleColor
-import ..FontModule: font_logical_size
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode
-import ..CellModule: Cell, ComputedCell, set_cell_function!
-import ..CopyingProjectionModule: CopyingProjection
-import ..IoMapModule: SimpleIoMap
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
-import ..IdentityProjectionModule: IdentityProjection
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
-import ..PointReferenceStepModule: PointReferenceStep
-import ..OperationModule: ReplaceSelectionOperation
-import ..EventModule: MousePress
-export GraphicsCanvasToGraphicsImage, GraphicsCaching
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphicsCaching.jl.
 # ── Predicates ──────────────────────────────────────────────────────────────
 
 is_infinite_canvas(canvas::GraphicsCanvas) = canvas.elements isa ListNode
@@ -185,5 +155,3 @@ function GraphicsCaching(; render)
         Any => IdentityProjection(),
     )
 end
-
-end # module

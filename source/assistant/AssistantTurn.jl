@@ -38,7 +38,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 # fenced block, render this document back to its own text — is the natural-format
 # seam, which every domain registers itself with. A domain that is not loaded
 # has no method there, and the fenced-text fallback below answers instead.
-import ..NaturalNotationModule: parse_natural_text, has_natural_parser,
+import ..NaturalModule: parse_natural_text, has_natural_parser,
                                 make_natural_projection, get_natural_extension,
                                 print_natural_text
 import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference

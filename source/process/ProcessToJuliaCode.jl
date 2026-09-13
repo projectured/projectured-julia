@@ -53,7 +53,7 @@ import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
                       JuliaNothing, JuliaInteger, JuliaAssignment, JuliaNamedTuple,
                       JuliaTypeAnnotation
 import ..DocumentModule: search_documents
-import ..NaturalNotationModule: print_natural_text
+import ..NaturalModule: print_natural_text
 
 export realize_process, realize_process_text, export_process,
        PROCESS_INSTRUMENTATION_LEVELS, TRACE_PARAMETER_NAME

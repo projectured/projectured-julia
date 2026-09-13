@@ -11,13 +11,41 @@ descend), and registers its own `.point(x, y)` entries with the kernel
 `@reference` / `@reference_case` DSLs via the reference layer's
 `build_reference_step` / `match_reference_step` seams.
 """
-module PointReferenceStepModule
+module GraphicsModule
+
+export PointReferenceStep
+import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
+import ..DocumentModule: Document
+import ..DocumentModule: @document
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
+import ..FontModule: StyleFont, font_logical_size
+import ..ColorModule: StyleColor, color_white, color_black
+import ..ReferenceModule: Reference
+import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
+export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
+       set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
+       is_point_near_polyline, is_point_in_polygon
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
+import ..ColorModule: StyleColor
+import ..FontModule: font_logical_size
+import ..CollectionModule: CellVector, ComputedCellVector, ListNode
+import ..CellModule: Cell, ComputedCell, set_cell_function!
+import ..CopyingProjectionModule: CopyingProjection
+import ..IoMapModule: SimpleIoMap
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..PredicateDispatchingProjectionModule: PredicateDispatchingProjection
+import ..IdentityProjectionModule: IdentityProjection
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep
+import ..OperationModule: ReplaceSelectionOperation
+import ..EventModule: MousePress
+export GraphicsCanvasToGraphicsImage, GraphicsCaching
+export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
+
 
 using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export PointReferenceStep
 
 """
     PointReferenceStep(x, y)
@@ -48,7 +76,7 @@ end
 # ── DSL registrations ──────────────────────────────────────────────────────
 
 ReferenceModule.build_reference_step(::Val{:point}, xex, yex) =
-    :($(GlobalRef(PointReferenceStepModule, :PointReferenceStep))(Int($xex), Int($yex)))
+    :($(GlobalRef(GraphicsModule, :PointReferenceStep))(Int($xex), Int($yex)))
 
 function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
@@ -58,7 +86,7 @@ function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_
     inner2, bound2 = gen_value_match(yexpr, ypat, rest_success, bound)
     inner1, bound1 = gen_value_match(xexpr, xpat, inner2, bound2)
     ex = quote
-        if $hex isa $(GlobalRef(PointReferenceStepModule, :PointReferenceStep))
+        if $hex isa $(GlobalRef(GraphicsModule, :PointReferenceStep))
             $inner1
         else
             _nomatch
@@ -66,5 +94,9 @@ function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_
     end
     return ex, bound1
 end
+
+
+include("GraphicsDocument.jl")
+include("GraphicsCaching.jl")
 
 end # module

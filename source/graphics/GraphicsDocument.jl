@@ -1,32 +1,5 @@
-"""
-    GraphicsModule
-
-The graphics domain provides the final output stage before the SDL backend.
-Elements are positioned, styled render primitives. The canvas is itself a
-Document so the selection mechanism can descend into individual elements,
-enabling mouse hit-testing and element-level selection in the reader.
-
-The domain includes:
-- **Render primitives**: `GraphicsText` (text rendering), `GraphicsRect` (filled rectangles)
-- **Container types**: `GraphicsCanvas` (collection of graphics elements), `GraphicsViewport` (clipping viewport)
-- **Hit testing**: `hit_element_at` for mouse hit detection
-
-All fields are reactive Cells for automatic dependency tracking and incremental redraws.
-"""
-module GraphicsModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..FontModule: StyleFont, font_logical_size
-import ..ColorModule: StyleColor, color_white, color_black
-import ..ReferenceModule: Reference
-import ..GeometryModule: AffineTransform, affine_identity, is_affine_axis_aligned
-export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-       set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
-       is_point_near_polyline, is_point_in_polygon
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphicsDocument.jl.
 abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical
@@ -781,5 +754,3 @@ function get_graphics_size(doc::GraphicsDocument, measure = _zero_text_measure)
     maxx[] == typemin(Int) && return (0, 0)   # nothing drawn
     (max(Int(maxx[]), 0), max(Int(maxy[]), 0))
 end
-
-end # module

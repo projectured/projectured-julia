@@ -52,7 +52,7 @@ import ..PrinterContextModule: make_child_context, with_property, get_property
 import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep,
                           RangeReferenceStep, Reference, strip_reference_types,
                           annotate_reference_types
-import ..PointReferenceStepModule: PointReferenceStep
+import ..GraphicsModule: PointReferenceStep
 import ..OperationModule: ReplaceSelectionOperation, replace_document
 import ..OperationModule: reroot_operation
 import ..EventModule: MousePress, MouseDown, MouseUp, MouseMove, KeyDown, KeyPress
@@ -2036,7 +2036,7 @@ make_math_to_graphics_dispatch(; kwargs...) =
 # child of a formula re-enters the natural renderer — which is what lets a
 # formula hold an embedded document, and a number inside one render through the
 # shared primitive path and still land on the formula's baseline.
-import ..NaturalRegistryModule: register_natural_graphics!
+import ..NaturalModule: register_natural_graphics!
 
 function __init__()
     register_natural_graphics!(:math, (; measure) ->

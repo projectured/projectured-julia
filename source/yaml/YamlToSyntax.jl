@@ -303,7 +303,7 @@ end
 # asked the seam rather than the domain — the assistant's fenced code blocks, for
 # one — got nothing for it while JSON, XML, Julia and Markdown worked.
 import ..YamlParserModule: parse_yaml
-import ..NaturalNotationModule: register_natural_domain!, register_natural_parser!
+import ..NaturalModule: register_natural_domain!, register_natural_parser!
 
 function __init__()
     register_natural_domain!(YamlDocument;

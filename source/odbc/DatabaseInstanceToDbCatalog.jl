@@ -2,7 +2,7 @@ module DatabaseInstanceToDbCatalogModule
 
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
-import ProjecturedDbCatalog.DbCatalogDocumentModule: DbCatalogRdbms, DbCatalogDatabase,
+import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_catalog_schemas,
                          get_db_catalog_tables, get_db_catalog_columns

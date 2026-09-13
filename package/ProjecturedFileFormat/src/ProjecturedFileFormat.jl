@@ -23,8 +23,8 @@ using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
-const NaturalRegistryModule = ProjecturedNatural.NaturalRegistryModule
-const NaturalNotationModule = ProjecturedNatural.NaturalNotationModule
+const NaturalModule = ProjecturedNatural.NaturalModule
+const NaturalModule = ProjecturedNatural.NaturalModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const OperationModule = ProjecturedKernel.OperationModule
