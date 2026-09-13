@@ -69,9 +69,10 @@ import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
 import ..ConversationEditorModule: read_composer_gesture, resolve_composer_host_operation,
                                     ComposerSubmitOperation, ComposerEvaluateOperation,
-                                    finalize_draft!, reset_draft!,
-                                    SUBMIT_HANDLER, EVALUATION_HANDLER
-export register_draft_handlers!
+                                    finalize_draft!, reset_draft!
+# Bare, to extend the composer's two generics by qualification below. That is
+# `PAR-QUALIFIED-EXTENSION`.
+using ..ConversationEditorModule
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
@@ -355,30 +356,27 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
 end
 
 """
-    register_draft_handlers!()
+What a draft's two owned gestures mean when the draft belongs to an `Assistant`.
+ENTER submits the turn and ALT+ENTER evaluates it into one.
 
-Register what a draft's two owned gestures mean. The composer loads first and
-cannot name either operation, so it holds a `Ref` and this fills it: ENTER's
-submit becomes `SubmitDraftTurnOperation`, ALT+ENTER's evaluate becomes
-`EvaluateDraftTurnOperation`.
+These are methods and not a registration. The composer loads first and cannot
+name either operation, so it declares `make_submit_operation` and
+`make_evaluate_operation` and this module answers for its own type. Two hosts
+can therefore mean two different things at once, which a single mutable hook
+could not: it held one answer for the whole process and the last writer won.
 
-Called from the PACKAGE's `__init__`, and not written at top level. A `Ref` in
-another package's module is that package's, and writing it while this one
+A method also survives precompilation. The pair this replaces were `Ref`s in the
+composer's module, and writing another package's `Ref` while this one
 precompiles writes into an image that is thrown away — at run time the fresh
-image reads `nothing` and both gestures fall back to what the composer alone can
-do. The submit hook was written at top level and had exactly that fault; it went
-unnoticed because the assistant panel converted the submit itself, so only a
-draft rendered outside the panel ever saw the empty `Ref`.
-
-From the package's `__init__` rather than this module's: Julia calls `__init__`
-on a package's top-level module only, so a submodule that defines one has
-written a function nobody calls.
+image read `nothing` and both gestures fell back to what the composer alone can
+do. That is why they had to be filled from the package's `__init__`, and why a
+method needs no `__init__` at all.
 """
-function register_draft_handlers!()
-    SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
-    EVALUATION_HANDLER[]   = a -> EvaluateDraftTurnOperation(a)
-    nothing
-end
+ConversationEditorModule.make_submit_operation(assistant::Assistant) =
+    SubmitDraftTurnOperation(assistant)
+
+ConversationEditorModule.make_evaluate_operation(assistant::Assistant) =
+    EvaluateDraftTurnOperation(assistant)
 
 # ═══════════════════════════════════════════════════════════════════════
 # Code → a Julia document for an EvaluatorForm

@@ -924,7 +924,7 @@ hands it on by value, `TextToGraphics(measure = measure_sdl_text)`, and a
 generic can not be passed that way. It pairs with `measure_truetype_text`, and
 seven places outside the slice name it.
 
-## 11.1 A design finding this work uncovered — NOT A NAMING PROBLEM
+## 11.1 A design finding this work uncovered — FIXED 2026-09-13
 
 `EVALUATION_HANDLER` in
 [ConversationEditor.jl:751](../../source/conversation/ConversationEditor.jl#L751)
@@ -937,10 +937,19 @@ One `Ref` at module level means **one handler for the whole process**. Two
 editors, two assistants, or a test running beside real use all share it, and the
 last writer wins. There is no way to have two different handlers at once.
 
-The fix is to move the hook onto the thing it belongs to — a field on the
-assistant or the editor, so each instance carries its own. That is a refactor
-with its own before and after, and it is not a rename, so this plan only records
-it. The rename of the constant does not make the problem worse.
+**Fixed with a generic instead of a box.** The composer declares
+`make_submit_operation` and `make_evaluate_operation`, each defaulting to
+`nothing`, and the assistant adds a method for its own type by qualification —
+`PAR-QUALIFIED-EXTENSION`, which this repository already mandates. Both `Ref`s,
+`register_draft_handlers!()` and the package `__init__` that called it are gone.
+
+Two hosts can now mean two different things at once, which was the user's
+question. A second host type answers by defining its own method.
+
+The old shape also had a precompilation fault its own docstring recorded:
+writing another package's `Ref` while this one precompiles writes into an image
+that is thrown away, so the run-time image read `nothing`. That is why the
+registration had to happen in `__init__`, and a method needs none.
 
 The user raised this on 2026-09-13 when reviewing the conversation slice.
 

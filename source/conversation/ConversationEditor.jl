@@ -64,7 +64,7 @@ import ..IoMapModule: SimpleIoMap
 
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!,
-       SUBMIT_HANDLER, EVALUATION_HANDLER,
+       make_submit_operation, make_evaluate_operation,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -731,24 +731,41 @@ read_composer_gesture(draft::ConversationDraft, evt) =
 
 read_composer_gesture(::Any, ::Any) = nothing
 
-# Hook for turning the composer's `ComposerSubmitOperation` into a host-specific
-# submit operation. The live assistant panel registers `a -> SubmitDraftTurnOperation(a)`
-# here (it can't be referenced directly — module order: the composer loads first).
-const SUBMIT_HANDLER = Ref{Any}(nothing)
+"""
+    make_submit_operation(host) -> Operation or nothing
+
+What ENTER means for a draft that belongs to `host`. Declared here and answered
+by the host, because the composer loads first and cannot name the operation its
+host would build. A host adds a method by qualification, which is
+`PAR-QUALIFIED-EXTENSION`:
+
+    ConversationEditorModule.make_submit_operation(a::Assistant) =
+        SubmitDraftTurnOperation(a)
+
+The default answers `nothing`, which means this host owns no submit of its own
+and the composer keeps the operation it already has.
+"""
+function make_submit_operation end
+make_submit_operation(::Any) = nothing
 
 """
-    EVALUATION_HANDLER
+    make_evaluate_operation(host) -> Operation or nothing
 
-The same hook for ALT+ENTER. A standalone draft keeps the evaluated form as a
-part of itself, which is all a composer alone can do; a draft that belongs to an
+The same for ALT+ENTER. A standalone draft keeps the evaluated form as a part of
+itself, which is all a composer alone can do; a draft that belongs to an
 assistant wants the form and its result to leave the composer and become a turn,
 so that the next cell starts empty and the transcript holds the work.
 
 That is a notebook, and it is what `SubmitJuliaOperation` already did on the
 older string input. The composer cannot do it itself — a conversation is not its
-to push to — so the assistant registers `a -> EvaluateDraftTurnOperation(a)` here.
+to push to — so the host answers.
+
+Each host answers for its own type, so two hosts can mean two different things
+at once. A single mutable hook could not: it held one answer for the whole
+process, and the last writer won.
 """
-const EVALUATION_HANDLER = Ref{Any}(nothing)
+function make_evaluate_operation end
+make_evaluate_operation(::Any) = nothing
 
 # A press that reached this level found no text under it — a gap between the
 # cards, the padding around one. The caret goes to the composer as a whole,
@@ -795,10 +812,13 @@ keys itself, and has to arrive at the same answer this one does.
 """
 function resolve_composer_host_operation(assistant, op)
     assistant === nothing && return op
-    op isa ComposerSubmitOperation && SUBMIT_HANDLER[] !== nothing &&
-        return SUBMIT_HANDLER[](assistant)
-    op isa ComposerEvaluateOperation && EVALUATION_HANDLER[] !== nothing &&
-        return EVALUATION_HANDLER[](assistant)
+    if op isa ComposerSubmitOperation
+        made = make_submit_operation(assistant)
+        made === nothing || return made
+    elseif op isa ComposerEvaluateOperation
+        made = make_evaluate_operation(assistant)
+        made === nothing || return made
+    end
     op
 end
 
