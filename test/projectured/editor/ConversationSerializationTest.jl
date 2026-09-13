@@ -36,7 +36,7 @@ function test_conversation_serialization()
 
         @testset "user inline eval → single user text block" begin
             turn = ConversationTurn(:user, [
-                ConversationPart(EvaluatorForm(JuliaIdentifier("2+2"); result = result_text("4"))),
+                ConversationPart(EvaluatorForm(JuliaIdentifier("2+2"); result = make_evaluator_result_text("4"))),
             ])
             msgs = build_messages(ConversationConversation([turn]))
             @test length(msgs) == 1 && msgs[1].role === :user
@@ -50,7 +50,7 @@ function test_conversation_serialization()
                 ConversationTurn(:assistant, [ConversationPart("sure")]),
                 ConversationTurn(:assistant, [ConversationPart(
                     EvaluatorForm(JuliaIdentifier("2+2");
-                                  result = result_text("4"), tool_use_id = "tu_1"))]),
+                                  result = make_evaluator_result_text("4"), tool_use_id = "tu_1"))]),
             ])
             msgs = build_messages(convo)
             @test [m.role for m in msgs] == [:user, :assistant, :user]
@@ -73,7 +73,7 @@ function test_conversation_serialization()
                     ConversationTurn(:user, [ConversationPart("run it")]),
                     ConversationTurn(:assistant, [ConversationPart(
                         EvaluatorForm(_eval_form_doc(sent);
-                                      source = sent, result = result_text("ok"),
+                                      source = sent, result = make_evaluator_result_text("ok"),
                                       tool_use_id = "tu_1"))])])
                 only([c for m in build_messages(convo) for c in m.content
                       if c isa LlmToolUse]).input["code"]
@@ -91,7 +91,7 @@ function test_conversation_serialization()
                 ConversationTurn(:user, [ConversationPart("run it")]),
                 ConversationTurn(:assistant, [ConversationPart(
                     EvaluatorForm(JuliaIdentifier("2+2");
-                                  result = result_text("4"), tool_use_id = "tu_1"))])])
+                                  result = make_evaluator_result_text("4"), tool_use_id = "tu_1"))])])
             kept = only([c for m in build_messages(convo) for c in m.content
                          if c isa LlmToolUse])
             @test kept.input["code"] == "2+2"
@@ -101,12 +101,12 @@ function test_conversation_serialization()
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("run it")]),
                 ConversationTurn(:assistant, [
-                    thinking_part("Let me reason about this…"; signature = "sig_1"),
+                    make_conversation_thinking_part("Let me reason about this…"; signature = "sig_1"),
                     ConversationPart("I'll run it."),
                 ]),
                 ConversationTurn(:assistant, [ConversationPart(
                     EvaluatorForm(JuliaIdentifier("2+2");
-                                  result = result_text("4"), tool_use_id = "tu_1"))]),
+                                  result = make_evaluator_result_text("4"), tool_use_id = "tu_1"))]),
             ])
             msgs = build_messages(convo)
             @test [m.role for m in msgs] == [:user, :assistant, :user]
@@ -122,7 +122,7 @@ function test_conversation_serialization()
         @testset "redacted thinking block round-trips as data" begin
             convo = ConversationConversation([
                 ConversationTurn(:assistant, [
-                    thinking_part(""; redacted = true, data = "enc_abc"),
+                    make_conversation_thinking_part(""; redacted = true, data = "enc_abc"),
                     ConversationPart("done"),
                 ]),
             ])
@@ -138,7 +138,7 @@ function test_conversation_serialization()
         @testset "user turn drops stray thinking parts" begin
             convo = ConversationConversation([
                 ConversationTurn(:user, [
-                    thinking_part("should not be sent"),
+                    make_conversation_thinking_part("should not be sent"),
                     ConversationPart("hello"),
                 ]),
             ])

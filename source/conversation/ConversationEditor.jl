@@ -34,7 +34,7 @@ import ..OperationModule
 import ..ProjectionApiModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
-import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
+import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
 import ..ConversationToWidgetModule: FORMAT_LABELS, _is_code
 import ..DocumentCoreModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
@@ -62,9 +62,9 @@ import ..EventPatternModule: KeyDownPattern, KeyPressPattern
 import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 import ..IoMapModule: SimpleIoMap
 
-export ConversationComposerToWidget, composer_read, composer_host_op,
-       finalize_draft!, new_draft, reset_draft!,
-       SUBMIT_HANDLER, EVAL_HANDLER,
+export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
+       finalize_draft!, make_conversation_draft, reset_draft!,
+       SUBMIT_HANDLER, EVALUATION_HANDLER,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
@@ -318,7 +318,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     # `execute_julia_code` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
     val = get_last_evaluated_value(set)
-    result = val isa Document ? val : result_text(rstrip(output))
+    result = val isa Document ? val : make_evaluator_result_text(rstrip(output))
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result, is_error = is_err))
     push!(op.draft.parts, _new_typein())
@@ -352,11 +352,11 @@ end
 evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.draft); nothing)
 
 """
-    new_draft() -> ConversationDraft
+    make_conversation_draft() -> ConversationDraft
 
 A fresh empty user draft (one active text typein) for the composer.
 """
-new_draft() = ConversationDraft([_new_typein()])
+make_conversation_draft() = ConversationDraft([_new_typein()])
 
 """
     reset_draft!(draft)
@@ -413,7 +413,7 @@ const _GAP = 8
 # `ConversationToWidgetModule`'s, which draws the same tag on a committed part.
 _kind_label(::PrimitiveString)   = "text"
 _kind_label(::DocumentInsertion) = "insert"
-_kind_label(f::EvaluatorForm)    = eval_kind_label(f)
+_kind_label(f::EvaluatorForm)    = get_evaluation_kind_label(f)
 _kind_label(::TextBlock)          = "text"
 _kind_label(c)                   = _format_label(get_natural_format(typeof(c)))
 _format_label(::Nothing)         = "doc"
@@ -508,7 +508,7 @@ _committed_body(c) = c
 # `children[i].content.…`, and `content` is the card's own slot; a part that was
 # not a card would drop that step and the maps below would stop finding it.
 _part_chrome(content) =
-    content isa EvaluatorForm ? (:muted, eval_kind_label(content)) :
+    content isa EvaluatorForm ? (:muted, get_evaluation_kind_label(content)) :
     _is_code(content)         ? (:muted, _kind_label(content))     :
     (:plain, nothing)
 
@@ -642,7 +642,7 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    composer_read(draft, event) -> Operation | nothing
+    read_composer_gesture(draft, event) -> Operation | nothing
 
 Map a key gesture to a composer operation on `draft`, dispatching on the active
 (last) part's state. Shared by the composer projection and the live assistant
@@ -651,7 +651,7 @@ yields a `ComposerSubmitOperation`; the panel intercepts that to submit the draf
 into the conversation instead of merely normalizing it.
 """
 # The composer's gesture table, reified as `GestureBinding`s and dispatched on the
-# **active** (last) part's mode, so the very set that fires (`composer_read`, shared
+# **active** (last) part's mode, so the very set that fires (`read_composer_gesture`, shared
 # with the assistant panel) is the set the gesture-help window shows
 # (`get_projection_gesture_bindings`) — fire == show. Char insert + Backspace are shared by every
 # editable mode; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
@@ -726,10 +726,10 @@ end
 # composer projection and the live assistant panel (both route input keys to the draft);
 # a non-`ConversationDraft` first argument has no composer gestures. The draft carries
 # no selection of its own, so the precondition gets `nothing` for one.
-composer_read(draft::ConversationDraft, evt) =
+read_composer_gesture(draft::ConversationDraft, evt) =
     fire_gesture_bindings(_composer_bindings(draft), draft, nothing, evt)
 
-composer_read(::Any, ::Any) = nothing
+read_composer_gesture(::Any, ::Any) = nothing
 
 # Hook for turning the composer's `ComposerSubmitOperation` into a host-specific
 # submit operation. The live assistant panel registers `a -> SubmitDraftTurnOperation(a)`
@@ -737,7 +737,7 @@ composer_read(::Any, ::Any) = nothing
 const SUBMIT_HANDLER = Ref{Any}(nothing)
 
 """
-    EVAL_HANDLER
+    EVALUATION_HANDLER
 
 The same hook for ALT+ENTER. A standalone draft keeps the evaluated form as a
 part of itself, which is all a composer alone can do; a draft that belongs to an
@@ -748,7 +748,7 @@ That is a notebook, and it is what `SubmitJuliaOperation` already did on the
 older string input. The composer cannot do it itself — a conversation is not its
 to push to — so the assistant registers `a -> EvaluateDraftTurnOperation(a)` here.
 """
-const EVAL_HANDLER = Ref{Any}(nothing)
+const EVALUATION_HANDLER = Ref{Any}(nothing)
 
 # A press that reached this level found no text under it — a gap between the
 # cards, the padding around one. The caret goes to the composer as a whole,
@@ -771,13 +771,13 @@ function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, ::Mouse
 end
 
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
-    composer_read(iomap.input, evt)
+    read_composer_gesture(iomap.input, evt)
 
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
-    (d = iomap.input; composer_host_op(d.assistant, composer_read(d, evt)))
+    (d = iomap.input; resolve_composer_host_operation(d.assistant, read_composer_gesture(d, evt)))
 
 """
-    composer_host_op(assistant, op) -> op
+    resolve_composer_host_operation(assistant, op) -> op
 
 What an operation means once the draft it came from has an owner. With no owner
 (`assistant === nothing`) every operation stays as the composer made it; with
@@ -793,12 +793,12 @@ which knows the assistant whether or not the back-link was set.
 Public because a projection that renders a draft in its own surround reads the
 keys itself, and has to arrive at the same answer this one does.
 """
-function composer_host_op(assistant, op)
+function resolve_composer_host_operation(assistant, op)
     assistant === nothing && return op
     op isa ComposerSubmitOperation && SUBMIT_HANDLER[] !== nothing &&
         return SUBMIT_HANDLER[](assistant)
-    op isa ComposerEvaluateOperation && EVAL_HANDLER[] !== nothing &&
-        return EVAL_HANDLER[](assistant)
+    op isa ComposerEvaluateOperation && EVALUATION_HANDLER[] !== nothing &&
+        return EVALUATION_HANDLER[](assistant)
     op
 end
 

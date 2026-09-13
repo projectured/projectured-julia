@@ -23,7 +23,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 import ..TextModule: TextBlock, TextString
 
-export EvaluatorDocument, result_text, eval_kind_label
+export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label
 
 # ── Abstract base ────────────────────────────────────────────────────────────
 
@@ -67,21 +67,21 @@ EvaluatorForm(form::Document;
                   Cell(String(source)), Cell(nothing))
 
 """
-    eval_kind_label(name::AbstractString) -> "eval" | "resource" | "tool"
+    get_evaluation_kind_label(name::AbstractString) -> "eval" | "resource" | "tool"
 
 Classify a tool-call form's header label by the tool that produced it:
 `execute_julia_code` is an evaluation, `list_resources` / `read_resource`
 are resource reads, everything else is a generic tool call.
 """
-function eval_kind_label(name::AbstractString)
+function get_evaluation_kind_label(name::AbstractString)
     name == "execute_julia_code" && return "eval"
     (name == "list_resources" || name == "read_resource") && return "resource"
     return "tool"
 end
-eval_kind_label(f::EvaluatorForm) = eval_kind_label(f.tool_name)
+get_evaluation_kind_label(f::EvaluatorForm) = get_evaluation_kind_label(f.tool_name)
 
 # Convenience: build a result document from a plain output string.
-result_text(s::AbstractString) = TextBlock(TextString(String(s)))
+make_evaluator_result_text(s::AbstractString) = TextBlock(TextString(String(s)))
 
 # ── EvaluatorToplevel ────────────────────────────────────────────────────────
 

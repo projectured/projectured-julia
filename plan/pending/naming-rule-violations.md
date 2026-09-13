@@ -804,6 +804,26 @@ its head says why.
 - The kernel seal list in [CLAUDE.md](../../CLAUDE.md) names each file by path.
   A file rename in `source/kernel/` must rewrite that entry in the same commit.
 
+## 11.1 A design finding this work uncovered — NOT A NAMING PROBLEM
+
+`EVALUATION_HANDLER` in
+[ConversationEditor.jl:751](../../source/conversation/ConversationEditor.jl#L751)
+is a module-level mutable `Ref`:
+
+    const EVALUATION_HANDLER = Ref{Any}(nothing)
+    EVALUATION_HANDLER[] = a -> EvaluateDraftTurnOperation(a)   # set in AssistantTurn.jl
+
+One `Ref` at module level means **one handler for the whole process**. Two
+editors, two assistants, or a test running beside real use all share it, and the
+last writer wins. There is no way to have two different handlers at once.
+
+The fix is to move the hook onto the thing it belongs to — a field on the
+assistant or the editor, so each instance carries its own. That is a refactor
+with its own before and after, and it is not a rename, so this plan only records
+it. The rename of the constant does not make the problem worse.
+
+The user raised this on 2026-09-13 when reviewing the conversation slice.
+
 ## 12. Sealed kernel files
 
 The user gave permission on 2026-09-12 to open sealed files for this work. Only

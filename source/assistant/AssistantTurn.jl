@@ -45,8 +45,8 @@ import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceS
 import ..ReferenceModule: var"@reference_case"
 import ..ReferenceModule: var"@reference"
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart,
-                              ConversationThinking, thinking_part
-import ..EvaluatorModule: EvaluatorForm, result_text, eval_kind_label
+                              ConversationThinking, make_conversation_thinking_part
+import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
 import ..AssistantModule: Assistant
 import ..AssistantToWidgetModule: AssistantToWidgetSplitPane,
                                    AssistantToWidgetCard
@@ -67,10 +67,10 @@ import ..LlmModule: Llm, stream_turn, make_llm, get_llm_backend_names,
                      LlmTurnEnd, LlmFailure
 import ..DocumentModule: Document
 import ..ConversationModule: ConversationDraft
-import ..ConversationEditorModule: composer_read, composer_host_op,
+import ..ConversationEditorModule: read_composer_gesture, resolve_composer_host_operation,
                                     ComposerSubmitOperation, ComposerEvaluateOperation,
                                     finalize_draft!, reset_draft!,
-                                    SUBMIT_HANDLER, EVAL_HANDLER
+                                    SUBMIT_HANDLER, EVALUATION_HANDLER
 export register_draft_handlers!
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
@@ -249,7 +249,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     # A Document return value (e.g. a live SimulationTaskDocument) is embedded as
     # the result so it renders live; anything else falls back to its text repr.
     val = get_last_evaluated_value(set)
-    result = val isa Document ? val : result_text(output)
+    result = val isa Document ? val : make_evaluator_result_text(output)
     push!(a.conversation.turns,
           ConversationTurn(:user, [ConversationPart(
               EvaluatorForm(_eval_form_doc(code);
@@ -376,7 +376,7 @@ written a function nobody calls.
 """
 function register_draft_handlers!()
     SUBMIT_HANDLER[] = a -> SubmitDraftTurnOperation(a)
-    EVAL_HANDLER[]   = a -> EvaluateDraftTurnOperation(a)
+    EVALUATION_HANDLER[]   = a -> EvaluateDraftTurnOperation(a)
     nothing
 end
 
@@ -619,8 +619,8 @@ end
 # Resource reads (`list_resources` / `read_resource`) collapse by default —
 # they are lookup chatter, secondary to the answer, like thinking. Evaluations
 # (`execute_julia_code`) and other tool calls stay expanded. Keyed off
-# `eval_kind_label` so the resource/eval/tool classification stays single-sourced.
-_collapse_tool_default(tool_name::AbstractString) = eval_kind_label(tool_name) == "resource"
+# `get_evaluation_kind_label` so the resource/eval/tool classification stays single-sourced.
+_collapse_tool_default(tool_name::AbstractString) = get_evaluation_kind_label(tool_name) == "resource"
 
 # Build the backend this assistant names. Every real backend lives in an opt-in
 # package that the core stack does not depend on, so no type can be named here —
@@ -727,7 +727,7 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     # text repr. (The model still sees the textual tool_result, which
     # `build_messages` derives from this same result.)
     val = call.name == "execute_julia_code" ? get_last_evaluated_value(set) : nothing
-    result = val isa Document ? val : result_text(ev.output)
+    result = val isa Document ? val : make_evaluator_result_text(ev.output)
     push!(turn.parts, Cell(ConversationPart(
         EvaluatorForm(_eval_form_doc(String(code));
                       source      = String(code),
@@ -767,7 +767,7 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     elseif ev isa LlmThinkingStart
         # Collapsed by default — reasoning is verbose and secondary — unless the
         # assistant opts to keep thinking expanded (`collapse_thinking = false`).
-        part = thinking_part(""; collapsed = a.collapse_thinking)
+        part = make_conversation_thinking_part(""; collapsed = a.collapse_thinking)
         push!(turn.parts, Cell(part))
         state[:current_thinking] = part
 
@@ -783,7 +783,7 @@ function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
 
     elseif ev isa LlmRedactedThinkingBlock
         # Nothing streams; the opaque payload is all there is.
-        push!(turn.parts, Cell(thinking_part(""; redacted = true, data = ev.data)))
+        push!(turn.parts, Cell(make_conversation_thinking_part(""; redacted = true, data = ev.data)))
     end
     nothing
 end
@@ -922,7 +922,7 @@ end
 # Assistant input event handling
 # ═══════════════════════════════════════════════════════════════════════
 # The panel routes input key events to the composer on `assistant.draft` (the
-# message being composed). `composer_read` maps the gesture to a composer
+# message being composed). `read_composer_gesture` maps the gesture to a composer
 # operation on the draft turn; the panel intercepts the composer's
 # `ComposerSubmitOperation` (ENTER on a text typein) and turns it into a
 # `SubmitDraftTurnOperation`, which pushes the draft into the conversation and
@@ -946,14 +946,14 @@ end
 function read_intent(::AssistantToWidgetSplitPane,
                           iomap, evt::KeyPress)
     iomap.input isa Assistant || return nothing
-    composer_read(iomap.input.draft, evt)
+    read_composer_gesture(iomap.input.draft, evt)
 end
 
 function read_intent(::AssistantToWidgetSplitPane,
                           iomap, evt::KeyDown)
     iomap.input isa Assistant || return nothing
     a = iomap.input::Assistant
-    composer_host_op(a, composer_read(a.draft, evt))
+    resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt))
 end
 
 # ── the card ────────────────────────────────────────────────────────────
@@ -966,15 +966,15 @@ end
 
 read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
     (a = iomap.input; a isa Assistant ?
-        composer_host_op(a, composer_read(a.draft, evt)) : nothing)
+        resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
 read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
     (a = iomap.input; a isa Assistant ?
-        composer_host_op(a, composer_read(a.draft, evt)) : nothing)
+        resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
-# An operation the composer made below, said onward. `composer_host_op` is what
+# An operation the composer made below, said onward. `resolve_composer_host_operation` is what
 # turns the two the assistant owns into its own; the rest pass.
 read_intent(::AssistantToWidgetCard, iomap, op::Operation) =
-    (a = iomap.input; a isa Assistant ? composer_host_op(a, op) : op)
+    (a = iomap.input; a isa Assistant ? resolve_composer_host_operation(a, op) : op)
 
 end # module

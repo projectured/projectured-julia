@@ -31,7 +31,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..DocumentModule: Document
 import ..ConversationModule: ConversationDocument, ConversationConversation,
                               ConversationTurn, ConversationPart, ConversationThinking
-import ..EvaluatorModule: EvaluatorForm, eval_kind_label
+import ..EvaluatorModule: EvaluatorForm, get_evaluation_kind_label
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
 import ..NaturalNotationModule: get_natural_format
@@ -144,7 +144,7 @@ const CODE_FORMATS  = Set([:jl, :json, :xml])
 _is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
 
 function _kind_label(content)
-    content isa EvaluatorForm      && return eval_kind_label(content)
+    content isa EvaluatorForm      && return get_evaluation_kind_label(content)
     content isa ConversationThinking && return "thinking"
     content isa TextBlock           && return "text"
     key = get_natural_format(typeof(content))
@@ -266,7 +266,7 @@ _thinking_card(t::ConversationThinking, collapsed::Bool) =
 
 _eval_card(ef::EvaluatorForm, collapsed::Bool) =
     WidgetCard(Point2D(0, 0);
-               title = _tag(eval_kind_label(ef)),
+               title = _tag(get_evaluation_kind_label(ef)),
                content = _maybe_clip(_eval_body(ef), collapsed),
                variant = :muted)
 

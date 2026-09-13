@@ -15,7 +15,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..TextModule: TextBlock, TextString
 import ..ReferenceModule: Reference
 
-export ConversationDocument, thinking_part
+export ConversationDocument, make_conversation_thinking_part
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
 
@@ -67,10 +67,10 @@ ConversationThinking(text::AbstractString;
 
 # Convenience: a thinking part. Collapsed by default — reasoning is verbose and
 # secondary (see Stage 5 of the conversation-thinking plan).
-thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
+make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
     ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
 
-# Accessor mirroring EvaluatorModule.result_text / _eval_*.
+# Accessor mirroring EvaluatorModule.make_evaluator_result_text / _eval_*.
 _thinking_text(t::ConversationThinking) = t.text
 
 # ── ConversationTurn ──────────────────────────────────────────────────────────
