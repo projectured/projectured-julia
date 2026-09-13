@@ -84,19 +84,19 @@ function make_constraint_layout_document_example(; width=560, height=560)
 
     relations = [
         # Header pinned to the top-left corner of the container.
-        constrain(anchor(1, :left), :(==), anchor(0, :left)),
-        constrain(anchor(1, :top),  :(==), anchor(0, :top)),
+        constrain(make_layout_anchor(1, :left), :(==), make_layout_anchor(0, :left)),
+        constrain(make_layout_anchor(1, :top),  :(==), make_layout_anchor(0, :top)),
         # Sidebar pinned to the left, 8 px below the header.
-        constrain(anchor(2, :left), :(==), anchor(0, :left)),
-        constrain(anchor(2, :top),  :(==), anchor(1, :bottom) + 8),
+        constrain(make_layout_anchor(2, :left), :(==), make_layout_anchor(0, :left)),
+        constrain(make_layout_anchor(2, :top),  :(==), make_layout_anchor(1, :bottom) + 8),
         # Main panel to the right of the sidebar, aligned with its top.
-        constrain(anchor(3, :left), :(==), anchor(2, :right) + 8),
-        constrain(anchor(3, :top),  :(==), anchor(1, :bottom) + 8),
+        constrain(make_layout_anchor(3, :left), :(==), make_layout_anchor(2, :right) + 8),
+        constrain(make_layout_anchor(3, :top),  :(==), make_layout_anchor(1, :bottom) + 8),
         # Main panel fills to the container's right edge (drives size override).
-        constrain(anchor(3, :right), :(==), anchor(0, :right)),
+        constrain(make_layout_anchor(3, :right), :(==), make_layout_anchor(0, :right)),
         # Footer below the columns, softly centered horizontally.
-        constrain(anchor(4, :top),     :(==), anchor(2, :bottom) + 8),
-        constrain(anchor(4, :centerx), :(==), anchor(0, :centerx); strength=:weak),
+        constrain(make_layout_anchor(4, :top),     :(==), make_layout_anchor(2, :bottom) + 8),
+        constrain(make_layout_anchor(4, :centerx), :(==), make_layout_anchor(0, :centerx); strength=:weak),
     ]
 
     ConstraintLayout(children, relations; bounding_width=width, bounding_height=height)

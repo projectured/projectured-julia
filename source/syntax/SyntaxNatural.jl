@@ -34,7 +34,7 @@ import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, Insertion
 import ..PrimitiveModule: PrimitiveDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
 import ..DocumentCoreModule: DocumentNothing
-import ..NaturalRegistryModule: natural_syntax_entries, register_natural_fallback!
+import ..NaturalRegistryModule: get_natural_syntax_entries, register_natural_fallback!
 import ..NaturalNotationModule: register_natural_rung!
 
 export make_natural_to_syntax_dispatch, register_syntax_fallback!
@@ -55,7 +55,7 @@ can override another domain's row.
 """
 function make_natural_to_syntax_dispatch()
     vcat(
-        natural_syntax_entries(),
+        get_natural_syntax_entries(),
         Pair{Type,Any}[
             PrimitiveDocument  => PrimitiveToSyntax(),
             # The Text domain's `@domain` pair. Text has no `TextToSyntax` table

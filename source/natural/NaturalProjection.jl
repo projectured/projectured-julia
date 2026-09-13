@@ -82,8 +82,8 @@ import ..ColorModule: color_default
 import ..DocumentCoreModule: DocumentNothing
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap, get_iomap_output
-import ..NaturalRegistryModule: natural_syntax_entries, natural_graphics_entries,
-                                natural_fallback_entries, register_natural_syntax!,
+import ..NaturalRegistryModule: get_natural_syntax_entries, get_natural_graphics_entries,
+                                get_natural_fallback_entries, register_natural_syntax!,
                                 register_natural_graphics!, register_natural_fallback!
 
 export NaturalToGraphics,
@@ -148,7 +148,7 @@ function NaturalToGraphics(; measure::Function,
     # A fallback registers rows for exact types and, usually, one for `Any`. The
     # two go to different places in the table: the exact ones before this
     # package's abstract rows, the `Any` after them.
-    registered = natural_fallback_entries(measure = measure, font = font, wrap = wrap)
+    registered = get_natural_fallback_entries(measure = measure, font = font, wrap = wrap)
     specific = Pair{Type,Any}[p for p in registered if first(p) !== Any]
     tail     = Pair{Type,Any}[p for p in registered if first(p) === Any]
 
@@ -163,7 +163,7 @@ function NaturalToGraphics(; measure::Function,
         # every child re-enters *this* renderer — which is what lets a diagram
         # node be a widget, a page hold a live card, and a number inside a
         # formula render through the shared primitive path.
-        natural_graphics_entries(measure = measure),
+        get_natural_graphics_entries(measure = measure),
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the two abstract rows below — a
         # `TextInsertion` is a `TextDocument`, and prose is not what it is.

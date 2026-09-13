@@ -61,7 +61,7 @@ using ..ReferenceModule
 using ..DomainModule
 
 import ..CellModule: Cell
-import ..ProcessModule: ProcessDocument, process_nodes, node_at, node_index
+import ..ProcessModule: ProcessDocument, process_nodes, find_node_at_index, get_node_index
 import ..ProcessRuntimeModule: ProcessTrace, resume_process!, pause_process!,
                                stop_process!, set_process_breakpoints!
 
@@ -126,8 +126,8 @@ naming nothing (0, out of range, a node that has since moved) resolves to
 function set_process_position!(session::ProcessDebugSession, model, node, previous)
     session.node = Int(node)
     session.previous = Int(previous)
-    session.current = model === nothing ? nothing : node_at(model, Int(node))
-    session.previous_document = model === nothing ? nothing : node_at(model, Int(previous))
+    session.current = model === nothing ? nothing : find_node_at_index(model, Int(node))
+    session.previous_document = model === nothing ? nothing : find_node_at_index(model, Int(previous))
     session
 end
 
@@ -151,7 +151,7 @@ function sync_process_debug!(session::ProcessDebugSession, trace::ProcessTrace,
     # Documents down here, indices from here on: the runtime speaks positions,
     # and only the bridge knows the tree well enough to translate.
     model === nothing ||
-        set_process_breakpoints!(trace, Int[node_index(model, b) for b in session.breakpoints])
+        set_process_breakpoints!(trace, Int[get_node_index(model, b) for b in session.breakpoints])
 
     command = session.command
     if command !== :none

@@ -29,7 +29,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..DocumentModule: is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder,
                          HiddenElements
 import ..BoundedSyncModule: SyncPolicy, DepthPolicy, AUnsyncedDocument,
-                            UnsyncedDocument, unsynced_marker, request_sync!
+                            UnsyncedDocument, make_unsynced_marker, request_sync!
 import ..OperationModule: Operation, evaluate_operation
 
 export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
@@ -85,7 +85,7 @@ function evaluate_operation(editor, op::SetReflectedDisclosureOperation)
         if expanded
             node.children isa AUnsyncedDocument && request_sync!(node.children)
         elseif !(node.children isa AUnsyncedDocument)
-            node.children = unsynced_marker(node.children)
+            node.children = make_unsynced_marker(node.children)
         end
     end
 end

@@ -255,7 +255,7 @@ end
 
     # collapse: write a marker back over the node the request materialised
     parent = shadow.child.child                # depth 2; its child is the new depth 3
-    parent.child = unsynced_marker(parent.child)
+    parent.child = make_unsynced_marker(parent.child)
     sync_document!(shadow, source, DepthPolicy(2))
     @test sync_marker_depth(shadow) == before
 end
@@ -266,7 +266,7 @@ end
     shadow = bounded_shadow(source, 4)
     @test sync_marker_depth(shadow) == 5
 
-    shadow.child = unsynced_marker(shadow.child)   # collapse at depth 1, well inside
+    shadow.child = make_unsynced_marker(shadow.child)   # collapse at depth 1, well inside
     for _ in 1:3
         sync_document!(shadow, source, DepthPolicy(4))
         @test sync_marker_depth(shadow) == 1
@@ -291,7 +291,7 @@ end
     src = SyncPair(sync_chain(3), sync_chain(3))
     sh = bounded_shadow(src, 1)
     request_sync!(sh.left.child)
-    sh.left = unsynced_marker(sh.left)          # collapse the parent, request and all
+    sh.left = make_unsynced_marker(sh.left)          # collapse the parent, request and all
     sync_document!(sh, src, DepthPolicy(1))
     @test sh.left isa AUnsyncedDocument  # stays collapsed; the inner request is gone
 end

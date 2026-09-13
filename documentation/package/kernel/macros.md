@@ -222,7 +222,7 @@ Insert ⇄ Escape loop between placeholder and insertion. Not generated
 
 ```julia
 @insertion JsonString    = @with_selection JsonString("") value{0}
-@insertion JuliaFunction = julia_scaffold("function")
+@insertion JuliaFunction = make_julia_scaffold("function")
 ```
 
 The document a committed insertion of that candidate becomes — `@domain`'s

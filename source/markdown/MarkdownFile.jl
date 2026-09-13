@@ -3,7 +3,7 @@
 
 `MarkdownFile`: a `FileDocument` whose `content` is a
 `MarkdownDocument` (the projectured Markdown AST). Parse uses
-`markdownparse`; emit runs the standard `MarkdownToSyntax(style=:source)
+`parse_markdown`; emit runs the standard `MarkdownToSyntax(style=:source)
 → SyntaxToText → TextToString` projection chain via `print_natural_text`.
 This module also registers this domain's natural notation — the rung it starts
 at, the format, the extension and the parser — so `print_natural_text` works for
@@ -32,7 +32,7 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
                          MarkdownHeading, MarkdownCodeBlock, MarkdownQuote,
                          MarkdownList, MarkdownListItem, MarkdownEmphasis,
                          MarkdownStrong, MarkdownLink, MarkdownText
-import ..MarkdownParserModule: markdownparse
+import ..MarkdownParserModule: parse_markdown
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
 import ..NaturalNotationModule: register_natural_domain!, print_natural_text
 import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
@@ -40,7 +40,7 @@ import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_co
                             register_file_document_type!, get_document_section,
                             is_file_document
 
-export MarkdownFile, PRED_REF_LANGUAGE, markdown_section
+export MarkdownFile, PRED_REF_LANGUAGE, get_markdown_section
 
 """
 The info string that tags a fenced code block as a cross-file marker:
@@ -66,7 +66,7 @@ emit_text(f::MarkdownFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::MarkdownFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
-    ast = markdownparse(text)
+    ast = parse_markdown(text)
     ast = _substitute_markers(ast, ctx)
     getfield(f, :content)[] = ast
     f
@@ -157,7 +157,7 @@ _substitute_markers(n::MarkdownLink,      ctx::LoaderContext) = _visit_vector!(n
 # ── The `section` vocabulary function ──────────────────────────────────────
 
 """
-    markdown_section(document, title) -> MarkdownRoot
+    get_markdown_section(document, title) -> MarkdownRoot
 
 The section of `document` headed `title`: the heading itself and every block
 after it up to the next heading of the same or a higher level.
@@ -170,7 +170,7 @@ of a page. Duplicate headings error for the same reason.
 The returned root shares the page's own element objects, so what is embedded is
 the section itself and not a copy of it.
 """
-function markdown_section(document, title::AbstractString)
+function get_markdown_section(document, title::AbstractString)
     root = is_file_document(document) ? get_file_content(document) : document
     root isa MarkdownRoot ||
         error("section(…): expected a markdown document, got ", typeof(document))
@@ -235,7 +235,7 @@ _heading_texts(elements) =
 # The `section` verb is one shared generic (`FileProjectModule.get_document_section`),
 # because the registry holds one function per verb name. Markdown adds its method
 # here; RST adds its own.
-get_document_section(root::MarkdownRoot, title::AbstractString) = markdown_section(root, title)
+get_document_section(root::MarkdownRoot, title::AbstractString) = get_markdown_section(root, title)
 
 function __init__()
     register_file_document_type!(".md",       MarkdownFile)
@@ -249,7 +249,7 @@ function __init__()
                              make      = () -> MarkdownToSyntax(),
                              format    = :md,
                              extension = ".md",
-                             parse     = markdownparse)
+                             parse     = parse_markdown)
 end
 
 end # module

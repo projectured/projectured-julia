@@ -36,11 +36,11 @@ include("../../../source/odbc/DatabaseInstanceToDbCatalog.jl")
 # Re-export and export public symbols at the package top level so consumers can
 # `using ProjecturedOdbc` and name these types directly.
 using .OdbcAdapterModule: OdbcDatabaseAdapter
-using .ConnectionPoolModule: OdbcConnectionPool, with_connection, dsn_for, close_pool!
+using .ConnectionPoolModule: OdbcConnectionPool, with_connection, get_dsn, close_pool!
 using .SqlToCellTableModule: SqlToCellTable
 using .DatabaseInstanceToDbCatalogModule: DatabaseInstanceToDbCatalog
 
-export OdbcDatabaseAdapter, OdbcConnectionPool, with_connection, dsn_for, close_pool!,
+export OdbcDatabaseAdapter, OdbcConnectionPool, with_connection, get_dsn, close_pool!,
        SqlToCellTable,
        DatabaseInstanceToDbCatalog
 

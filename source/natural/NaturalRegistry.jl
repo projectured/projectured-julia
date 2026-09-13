@@ -41,7 +41,7 @@ module NaturalRegistryModule
 import ..NaturalNotationModule: register_natural_notation!, get_natural_entries
 
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
-       natural_syntax_entries, natural_graphics_entries, natural_fallback_entries
+       get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
 
 # Ready-made rows. A row registered twice keeps the first, so a reload does not
 # stack duplicates.
@@ -120,12 +120,12 @@ function register_natural_fallback!(key::Symbol, factory)
 end
 
 """
-    natural_syntax_entries() -> Vector{Pair{Type,Any}}
+    get_natural_syntax_entries() -> Vector{Pair{Type,Any}}
 
 Every registered to-syntax row: the ready-made ones first, then what the
 factories build now.
 """
-function natural_syntax_entries()
+function get_natural_syntax_entries()
     out = Pair{Type,Any}[e for e in _SYNTAX_PAIRS]
     for (_, factory) in _SYNTAX_FACTORIES
         for pr in factory()
@@ -137,11 +137,11 @@ function natural_syntax_entries()
 end
 
 """
-    natural_graphics_entries(; measure) -> Vector{Pair{Type,Any}}
+    get_natural_graphics_entries(; measure) -> Vector{Pair{Type,Any}}
 
 Every registered to-graphics row, built now against `measure`.
 """
-function natural_graphics_entries(; measure)
+function get_natural_graphics_entries(; measure)
     out = Pair{Type,Any}[]
     for (_, factory) in _GRAPHICS_FACTORIES
         for pr in factory(; measure = measure)
@@ -153,11 +153,11 @@ function natural_graphics_entries(; measure)
 end
 
 """
-    natural_fallback_entries(; measure, font, wrap) -> Vector{Pair{Type,Any}}
+    get_natural_fallback_entries(; measure, font, wrap) -> Vector{Pair{Type,Any}}
 
 Every registered fallback row, built now. Empty when nothing registered one.
 """
-function natural_fallback_entries(; measure, font, wrap)
+function get_natural_fallback_entries(; measure, font, wrap)
     out = Pair{Type,Any}[]
     for (_, factory) in _FALLBACK_FACTORIES
         for pr in factory(; measure = measure, font = font, wrap = wrap)

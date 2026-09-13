@@ -2,7 +2,7 @@ function test_process_document()
 @testset "ProcessDocuments" begin
 
 # ── nodes ────────────────────────────────────────────────────────────────
-step = ProcessStep("prepare"; action = juliaparse("x = encode(frame)"))
+step = ProcessStep("prepare"; action = parse_julia("x = encode(frame)"))
 @test step.description == "prepare"
 @test step.action !== nothing
 step.description = "encode"
@@ -13,13 +13,13 @@ informal = ProcessStep("binary exponential backoff")
 @test informal.action === nothing
 
 # A code-only step has an empty description rather than a missing one.
-code_only = ProcessStep(""; action = juliaparse("attempts += 1"))
+code_only = ProcessStep(""; action = parse_julia("attempts += 1"))
 @test code_only.description == ""
 
 @test ProcessBreak() isa ProcessDocument
 @test ProcessContinue() isa ProcessDocument
 @test ProcessReturn().value === nothing
-@test ProcessReturn(juliaparse(":sent")).value !== nothing
+@test ProcessReturn(parse_julia(":sent")).value !== nothing
 
 # ── structure ────────────────────────────────────────────────────────────
 sequence = ProcessSequence([step, informal])
@@ -28,20 +28,20 @@ sequence = ProcessSequence([step, informal])
 push!(sequence.steps, code_only)
 @test length(sequence.steps) == 3
 
-decision = ProcessDecision(juliaparse("carrier_free()");
+decision = ProcessDecision(parse_julia("carrier_free()");
                            then_branch = ProcessSequence([ProcessBreak()]))
 @test decision.condition !== nothing
 @test decision.else_branch === nothing            # no else branch at all
 
-loop = ProcessWhile(juliaparse("attempts < 4"); body = ProcessSequence([decision]))
+loop = ProcessWhile(parse_julia("attempts < 4"); body = ProcessSequence([decision]))
 @test loop.condition !== nothing
 
-foreach_node = ProcessForeach(juliaparse("item"), juliaparse("queue");
+foreach_node = ProcessForeach(parse_julia("item"), parse_julia("queue");
                               body = ProcessSequence([code_only]))
 @test foreach_node.variable !== nothing
 @test foreach_node.iterable !== nothing
 
-model = ProcessModel("transmit"; parameters = [juliaparse("frame")],
+model = ProcessModel("transmit"; parameters = [parse_julia("frame")],
                      body = ProcessSequence([sequence, loop]))
 @test model.name == "transmit"
 @test length(model.parameters) == 1
@@ -61,33 +61,33 @@ nodes = process_nodes(model)
 
 # index ↔ node round-trip, by identity
 for (index, node) in enumerate(nodes)
-    @test node_index(model, node) == index
-    @test node_at(model, index) === node
+    @test get_node_index(model, node) == index
+    @test find_node_at_index(model, index) === node
 end
-@test node_index(model, ProcessStep("stranger")) == 0
-@test node_at(model, 0) === nothing
-@test node_at(model, length(nodes) + 1) === nothing
+@test get_node_index(model, ProcessStep("stranger")) == 0
+@test find_node_at_index(model, 0) === nothing
+@test find_node_at_index(model, length(nodes) + 1) === nothing
 
 # A placeholder is a node — dropping it would shift every later index.
 placeholder = ProcessInsertion()
 push!(sequence.steps, placeholder)
-@test node_index(model, placeholder) > 0
+@test get_node_index(model, placeholder) > 0
 @test length(process_nodes(model)) == length(nodes) + 1
 pop!(sequence.steps)
 
 # ── bodies ───────────────────────────────────────────────────────────────
-@test isempty(body_steps(nothing))
-@test length(body_steps(ProcessSequence([step]))) == 1
-@test body_steps(step) == Any[step]                # a bare node is a one-node body
+@test isempty(get_body_steps(nothing))
+@test length(get_body_steps(ProcessSequence([step]))) == 1
+@test get_body_steps(step) == Any[step]                # a bare node is a one-node body
 
 # ── executability ────────────────────────────────────────────────────────
 @test !is_executable(model)                        # `informal` has no action
-@test informal in unrefined_nodes(model)
-informal.action = juliaparse("sleep(backoff())")
+@test informal in get_unrefined_nodes(model)
+informal.action = parse_julia("sleep(backoff())")
 @test is_executable(model)
 
 bare_decision = ProcessDecision(nothing)
-@test bare_decision in unrefined_nodes(bare_decision)
+@test bare_decision in get_unrefined_nodes(bare_decision)
 
 # ── insertion kit ────────────────────────────────────────────────────────
 @test ProcessNothing() isa ProcessDocument

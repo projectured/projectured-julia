@@ -120,8 +120,8 @@ end
     session = ProcessDebugSession()
     diagram.session = session
 
-    at(node, from = 0) = set_process_position!(session, model, node_index(model, node),
-                                               from == 0 ? 0 : node_index(model, from))
+    at(node, from = 0) = set_process_position!(session, model, get_node_index(model, node),
+                                               from == 0 ? 0 : get_node_index(model, from))
 
     loop = model.body.steps[2]
     at(loop)

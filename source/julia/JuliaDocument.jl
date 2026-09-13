@@ -21,7 +21,7 @@ abstract type JuliaDocument <: Document end
 
 """
 A placeholder holding Julia source text being typed; committed (e.g. on Enter)
-by parsing `value` with `juliaparse` into a real `JuliaDocument`.
+by parsing `value` with `parse_julia` into a real `JuliaDocument`.
 """
 @document struct JuliaInsertion <: JuliaDocument
     value::String = ""

@@ -44,7 +44,7 @@ function make_markdown_document_example()
             ])]),
         ]),
         MarkdownHeading(2, [MarkdownText("Example")]),
-        MarkdownCodeBlock("julia", "doc = markdownparse(\"# Hi\")\nrender(doc)"),
+        MarkdownCodeBlock("julia", "doc = parse_markdown(\"# Hi\")\nrender(doc)"),
         MarkdownQuote([MarkdownParagraph([
             MarkdownText("Editing acts on the projection and maps back to the domain."),
         ])]),

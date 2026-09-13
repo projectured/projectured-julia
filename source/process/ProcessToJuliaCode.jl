@@ -36,7 +36,7 @@ An **unrefined** node — a step with no action, a decision or loop with no
 condition — realizes to `error("unrefined …")` rather than to nothing: an
 informal box that silently did nothing would be a process that lies about what
 it does. [`is_executable`](@ref) is the check to run *before* realizing;
-`unrefined_nodes` says which boxes are still prose.
+`get_unrefined_nodes` says which boxes are still prose.
 
 Step descriptions do not survive into realized code — the julia domain has no
 comment node — so the notation and the diagram are where the prose lives.
@@ -46,7 +46,7 @@ module ProcessToJuliaCodeModule
 import ..ProcessModule: ProcessModel, ProcessSequence, ProcessStep, ProcessDecision,
                         ProcessWhile, ProcessForeach, ProcessBreak, ProcessContinue,
                         ProcessReturn, ProcessNothing, ProcessInsertion,
-                        body_steps, process_nodes, unrefined_nodes, is_executable
+                        get_body_steps, process_nodes, get_unrefined_nodes, is_executable
 import ..JuliaModule: JuliaDocument, JuliaIdentifier, JuliaString, JuliaCall,
                       JuliaBlock, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
                       JuliaReturn, JuliaBreak, JuliaContinue, JuliaFunction,
@@ -235,7 +235,7 @@ probe reaches every iteration.
 function realize_body(body, realization::_Realization = _realization(nothing, :none);
                       leading = JuliaDocument[])
     statements = JuliaDocument[leading...]
-    for node in body_steps(body)
+    for node in get_body_steps(body)
         append!(statements, realize_node(node, realization))
     end
     JuliaBlock(statements)

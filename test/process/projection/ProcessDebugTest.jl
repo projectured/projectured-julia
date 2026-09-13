@@ -106,7 +106,7 @@ end
     hand = loop.body.steps[2]
     tally = loop.body.steps[3]
     done = model.body.steps[3]
-    index(node) = node_index(model, node)
+    index(node) = get_node_index(model, node)
 
     order, run = _visited(model, Any[7, nothing]; context = _drain_context(:ProcessOrderProbe))
 
@@ -137,7 +137,7 @@ end
     sync_process_debug!(session, run.trace, model)
 
     @test session.status === :finished
-    @test session.node == node_index(model, model.body.steps[3])
+    @test session.node == get_node_index(model, model.body.steps[3])
     @test session.current === model.body.steps[3]              # resolved for the views
     @test session.step_count == run.trace.step_count
 
@@ -177,7 +177,7 @@ end
     session.command = :continue
     sync_process_debug!(session, run.trace, model)
     _wait_until(() -> run.trace.paused)
-    @test run.trace.node == node_index(model, hand)
+    @test run.trace.node == get_node_index(model, hand)
     @test run.trace.step_count > 1
 
     session.command = :continue
@@ -262,7 +262,7 @@ end
     # *text*: the highlight is a style swap, so no caret offset moves.
     @test plain == live
 
-    set_process_position!(session, model, node_index(model, hand), 0)
+    set_process_position!(session, model, get_node_index(model, hand), 0)
     @test _text(ProcessToSyntax(session = session)) == plain
 
     # A node's whole keyword chrome takes the live colour: one leaf for a bare
@@ -270,7 +270,7 @@ end
     @test _colored(_syntax(ProcessToSyntax()), color_solarized_orange) == 0
     @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 2
 
-    set_process_position!(session, model, node_index(model, model.body.steps[2]), 0)
+    set_process_position!(session, model, get_node_index(model, model.body.steps[2]), 0)
     @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 1
 
     # A breakpoint colours its own keyword, in its own colour.

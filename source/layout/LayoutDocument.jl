@@ -20,7 +20,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector, ComputedCellVector
 import ..ReferenceModule: Reference
 
-export LayoutDocument, FormLayout, LayoutExpr, anchor, constrain, allocate_axis, layout_min,
+export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis, layout_min,
        layout_max, layout_preferred, layout_weight,
        SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
@@ -734,7 +734,7 @@ LayoutAnchor(child::Integer, edge::Symbol) =
 DSL convenience for [`LayoutAnchor`](@ref). `anchor(0, edge)` refers to the
 parent container.
 """
-anchor(child::Integer, edge::Symbol) = LayoutAnchor(child, edge)
+make_layout_anchor(child::Integer, edge::Symbol) = LayoutAnchor(child, edge)
 
 """
     LayoutRelation(terms; op, constant, strength)

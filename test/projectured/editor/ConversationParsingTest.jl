@@ -1,7 +1,7 @@
 # Stage 5 — LLM response → documents.
 # parse_markdown_blocks splits a finished assistant text block into ConversationParts:
 # julia/json/xml fenced blocks become real parsed documents; every run of prose is
-# parsed by the project's own markdownparse into a real MarkdownRoot (headings /
+# parsed by the project's own parse_markdown into a real MarkdownRoot (headings /
 # **bold** / inline `code` become structure, not flat text); unknown/malformed fenced
 # blocks fall back to fenced text.
 

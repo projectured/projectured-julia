@@ -15,7 +15,7 @@ function test_conversation_serialization()
         @testset "multi-part user turn → one message, fenced blocks joined" begin
             turn = ConversationTurn(:user, [
                 ConversationPart("hello"),
-                ConversationPart(juliaparse("2+2")),
+                ConversationPart(parse_julia("2+2")),
                 ConversationPart(parse_json("""{"a": 1}""")),
                 ConversationPart(xmlparse("<a/>")),
             ])

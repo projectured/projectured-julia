@@ -5,8 +5,8 @@ Parser for Julia source code. Converts Julia source text into a `JuliaDocument`
 tree from `JuliaModule`.
 
 Provides:
-- `juliaparse(text)` — parse a Julia string into a `JuliaDocument`
-- `juliaparse_file(path)` — read and parse a `.jl` file from disk
+- `parse_julia(text)` — parse a Julia string into a `JuliaDocument`
+- `parse_julia_file(path)` — read and parse a `.jl` file from disk
 
 The parser delegates lexing and grammar to Julia's own parser (`Meta.parseall`,
 backed by `JuliaSyntax`). A single recursive pass (`convert_expr`) walks the
@@ -36,7 +36,7 @@ import ..JuliaModule: JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, Ju
     JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple,
     JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration,
     JuliaWhereParameters
-export juliaparse, juliaparse_file
+export parse_julia, parse_julia_file
 
 # ── Operator classification ───────────────────────────────────────────────────
 # Matches the operators the printer (`_julia_operator_string` / `JuliaToSyntax`)
@@ -54,14 +54,14 @@ const COMPOUND_ASSIGNMENTS = Set{Symbol}([:(+=), :(-=), :(*=), :(/=)])
 # ── Entry points ──────────────────────────────────────────────────────────────
 
 """
-    juliaparse(text::AbstractString) -> JuliaDocument
+    parse_julia(text::AbstractString) -> JuliaDocument
 
 Parse a Julia source string into a `JuliaDocument` tree.
 
 Top-level source with several statements becomes a `JuliaBlock`; a single
 expression is returned bare.
 """
-function juliaparse(text::AbstractString)
+function parse_julia(text::AbstractString)
     parsed = Meta.parseall(String(text))
     # `parseall` always wraps in `Expr(:toplevel, …)` interleaved with
     # `LineNumberNode`s. Flatten: one real statement → bare, otherwise a block.
@@ -71,12 +71,12 @@ function juliaparse(text::AbstractString)
 end
 
 """
-    juliaparse_file(path::AbstractString) -> JuliaDocument
+    parse_julia_file(path::AbstractString) -> JuliaDocument
 
 Read a Julia source file from disk and parse it into a `JuliaDocument` tree.
 """
-function juliaparse_file(path::AbstractString)
-    juliaparse(read(path, String))
+function parse_julia_file(path::AbstractString)
+    parse_julia(read(path, String))
 end
 
 # ── Core recursive conversion ─────────────────────────────────────────────────
@@ -336,7 +336,7 @@ _convert_head(::Val{:block}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 
 # `a; b` written on ONE line parses to a `:toplevel` *nested* inside the outer
 # one, so a semicolon-separated statement group reaches here instead of being
-# flattened by `juliaparse`'s own top-level handling. It means exactly what a
+# flattened by `parse_julia`'s own top-level handling. It means exactly what a
 # `:block` means — a sequence of statements — and converts the same way.
 _convert_head(::Val{:toplevel}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 

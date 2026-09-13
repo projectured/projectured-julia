@@ -35,7 +35,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, evaluate_reference,
                           get_reference_steps, strip_reference_types
 
-export ObjectField, object_field_value, object_field_name
+export ObjectField, get_object_field_value, get_object_field_name
 
 """
     ObjectField(object, path::Reference)
@@ -44,7 +44,7 @@ export ObjectField, object_field_value, object_field_name
 One field of one object. `object` is the root and stays fixed; `path` addresses
 the value from that root.
 
-The value is [`object_field_value`](@ref), and the write is
+The value is [`get_object_field_value`](@ref), and the write is
 `ReplaceReferencedValueOperation(object, path, value)`.
 
 There is deliberately **no label field**. The widget projection emits a bare
@@ -68,22 +68,22 @@ ObjectField(object, field::AbstractString) =
     ObjectField(object, ConcreteReference(FieldReferenceStep(String(field)), EmptyReference()))
 
 """
-    object_field_value(field::ObjectField)
+    get_object_field_value(field::ObjectField)
 
 The value `field` names. Read it inside a cell — a printer that reads it outside
 one freezes at the value of the first render.
 """
-object_field_value(field::ObjectField) = evaluate_reference(field.object, field.path)
+get_object_field_value(field::ObjectField) = evaluate_reference(field.object, field.path)
 
 """
-    object_field_name(field::ObjectField) -> String | Nothing
+    get_object_field_name(field::ObjectField) -> String | Nothing
 
 The name of the last step of the path, for a projection that wants to label the
 value. `nothing` when the last step is not a field step, because an element step
 has no name a reader would want. Type checkpoints are stripped first, so the
 answer does not depend on whether the path carries them.
 """
-function object_field_name(field::ObjectField)
+function get_object_field_name(field::ObjectField)
     steps = get_reference_steps(strip_reference_types(field.path))
     isempty(steps) && return nothing
     last_step = steps[end]

@@ -24,13 +24,13 @@ _of_text_ref(cs, ce) = ConcreteReference(FieldReferenceStep("content"),
     @test f.object === srv
     @test f.path.head == FieldReferenceStep("name")
     @test f.path.tail isa EmptyReference
-    @test object_field_value(f) == "gateway"
-    @test object_field_name(f) == "name"
+    @test get_object_field_value(f) == "gateway"
+    @test get_object_field_name(f) == "name"
 
     # An element step names no field, so there is no label to derive from it.
     element = ObjectField(srv, _of_tag_path(2))
-    @test object_field_value(element) == "beta"
-    @test object_field_name(element) === nothing
+    @test get_object_field_value(element) == "beta"
+    @test get_object_field_name(element) === nothing
 
 end # @testset
 
@@ -139,8 +139,8 @@ end # @testset
     app = make_nested_object_to_widget_document_example()
     p = ObjectFieldToWidget()
     f = ObjectField(app, Reference(FieldReferenceStep("window"), FieldReferenceStep("title")))
-    @test object_field_value(f) == "Main"
-    @test object_field_name(f) == "title"
+    @test get_object_field_value(f) == "Main"
+    @test get_object_field_name(f) == "title"
 
     iomap = print_document(p, f)
     op = read_intent(p, iomap, ReplaceStringRangeOperation(_of_text_ref(4, 4), "!"))
@@ -158,9 +158,9 @@ end # @testset
     # Rows 1 and 2 name the SAME field of DIFFERENT objects. That is what
     # ObjectToWidget can not express: it takes one root.
     @test fields[1].object !== fields[2].object
-    @test object_field_name(fields[1]) == object_field_name(fields[2]) == "name"
-    @test object_field_value(fields[1]) == "gateway"
-    @test object_field_value(fields[2]) == "laptop"
+    @test get_object_field_name(fields[1]) == get_object_field_name(fields[2]) == "name"
+    @test get_object_field_value(fields[1]) == "gateway"
+    @test get_object_field_value(fields[2]) == "laptop"
 
     # The projection replaces each ObjectField with its control and copies the
     # labels through untouched.

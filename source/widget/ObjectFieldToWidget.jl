@@ -64,7 +64,7 @@ import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
                           FieldReferenceStep, RangeReferenceStep
 import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..ObjectFieldModule: ObjectField, object_field_value
+import ..ObjectFieldModule: ObjectField, get_object_field_value
 # The value classification, the type coercion, the character-range edit and the
 # end-caret path are `ObjectToWidget`'s and are used unchanged. One control looks
 # and behaves the same whether a form or a reflected object produced it, so a
@@ -116,7 +116,7 @@ print_document(p::ObjectFieldToWidget, field::ObjectField) =
 # cell: every control below binds its content to a thunk, so a write to the
 # object repaints it (PAR-REACTIVE-PRINTER).
 function _control(p::ObjectFieldToWidget, field::ObjectField)
-    value = object_field_value(field)
+    value = get_object_field_value(field)
     for (T, make) in p.controls
         value isa T && return make(p, field)
     end
@@ -126,8 +126,8 @@ function _control(p::ObjectFieldToWidget, field::ObjectField)
 end
 
 function _checkbox(p::ObjectFieldToWidget, field::ObjectField)
-    control = WidgetCheckbox(Point2D(0, 0), object_field_value(field))
-    set_cell_function!(getfield(control, :content), () -> object_field_value(field))
+    control = WidgetCheckbox(Point2D(0, 0), get_object_field_value(field))
+    set_cell_function!(getfield(control, :content), () -> get_object_field_value(field))
     control
 end
 
@@ -143,12 +143,12 @@ end
 # nobody has clicked wants it and what `ObjectToWidget` pins it to.
 function _text_control(p::ObjectFieldToWidget, field::ObjectField)
     ts = TextString("", p.style)
-    set_cell_function!(getfield(ts, :content), () -> _as_string(object_field_value(field)))
+    set_cell_function!(getfield(ts, :content), () -> _as_string(get_object_field_value(field)))
     tt = TextBlock(ts)
     set_cell_function!(getfield(tt, :selection), () -> begin
         inside = _caret_in_content(getfield(field, :selection)[])
         inside === nothing ?
-            _end_cursor(length(_as_string(object_field_value(field)))) : inside
+            _end_cursor(length(_as_string(get_object_field_value(field)))) : inside
     end)
     WidgetText(Point2D(0, 0), tt)
 end
@@ -171,9 +171,9 @@ function _caret_in_content(selection)
 end
 
 function _read_only_label(p::ObjectFieldToWidget, field::ObjectField)
-    control = WidgetLabel(Point2D(0, 0), _as_string(object_field_value(field)))
+    control = WidgetLabel(Point2D(0, 0), _as_string(get_object_field_value(field)))
     set_cell_function!(getfield(control, :content),
-                       () -> _as_string(object_field_value(field)))
+                       () -> _as_string(get_object_field_value(field)))
     control
 end
 
@@ -190,7 +190,7 @@ function read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap,
     op.document === iomap.output || return op
     field = iomap.input
     ReplaceReferencedValueOperation(field.object, field.path,
-                                    _coerce(object_field_value(field), op.value))
+                                    _coerce(get_object_field_value(field), op.value))
 end
 
 # A text edit arrives as a character range rooted at this stage's output. The
@@ -203,7 +203,7 @@ function read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap,
     term = _terminal_range(op.reference)
     term === nothing && return op
     field = iomap.input
-    current = object_field_value(field)
+    current = get_object_field_value(field)
     edited = _apply_range(_as_string(current), term.start, term.stop, op.replacement)
     ReplaceReferencedValueOperation(field.object, field.path, _coerce(current, edited))
 end

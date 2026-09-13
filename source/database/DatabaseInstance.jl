@@ -8,7 +8,7 @@ names a reachable database (database/host/port) together with the
 It carries no live connection and no adapter — it is a pure value document.
 Projections that need to talk to the database (e.g. `DatabaseInstanceToDbCatalog`,
 `SqlToCellTable`) take a connection pool as a parameter and build the actual
-ODBC DSN from this instance via `ConnectionPoolModule.dsn_for`.
+ODBC DSN from this instance via `ConnectionPoolModule.get_dsn`.
 """
 module DatabaseInstanceDocumentModule
 

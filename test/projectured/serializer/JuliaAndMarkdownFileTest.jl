@@ -1,6 +1,6 @@
 """
 S6 tests — `JuliaFile` and `MarkdownFile` round-trip via the
-existing projectured parsers (`juliaparse`, `markdownparse`) and the
+existing projectured parsers (`parse_julia`, `parse_markdown`) and the
 `print_natural_text` projection pipeline. Cross-file markers use each
 format's natural escape:
 

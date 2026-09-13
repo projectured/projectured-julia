@@ -9,18 +9,18 @@ declare a type rather than decorate one.
 """
 
 using Test
-using ProjecturedJulia.JuliaParserModule: juliaparse
+using ProjecturedJulia.JuliaParserModule: parse_julia
 using ProjecturedJulia.JuliaFileModule: find_julia_definition
 using ProjecturedNatural.NaturalNotationModule: print_natural_text
 
 # What the marker gets back when it asks a source file for one definition.
 _definition_text(source::AbstractString, name::AbstractString) =
-    strip(print_natural_text(find_julia_definition(juliaparse(source), name)))
+    strip(print_natural_text(find_julia_definition(parse_julia(source), name)))
 
 # Whether the file offers a definition by that name at all.
 _offers(source::AbstractString, name::AbstractString) =
     try
-        find_julia_definition(juliaparse(source), name)
+        find_julia_definition(parse_julia(source), name)
         true
     catch
         false

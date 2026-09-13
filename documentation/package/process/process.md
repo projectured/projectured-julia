@@ -53,7 +53,7 @@ instead of a translation.
 derived from the nesting rather than stored, so a subtree copies structurally
 with no alias fix-up — the limitation `fsm` records for machines does not arise.
 
-A body field may be `nothing`, which means an empty body; `body_steps` is what
+A body field may be `nothing`, which means an empty body; `get_body_steps` is what
 normalizes it. Only `ProcessDecision.else_branch` distinguishes *absent* (no
 else branch at all) from *empty*.
 
@@ -63,7 +63,7 @@ A step with a `description` and no `action` is **unrefined**: a specification
 box that says what happens without yet saying how. That is the reason this is a
 domain and not a flowchart projection over Julia function bodies.
 
-- `unrefined_nodes(model)` — the nodes still waiting for code: a step with no
+- `get_unrefined_nodes(model)` — the nodes still waiting for code: a step with no
   action, a decision or `while` with no condition, a `foreach` with no variable
   or iterable.
 - `is_executable(model)` — whether that list is empty.
@@ -78,7 +78,7 @@ does.
 children, children left to right — and a node's 1-based index in that vector is
 the **one position vocabulary** the whole domain shares: realized code reports
 it, a breakpoint names one, and both views resolve it back with
-`node_at` / `node_index`.
+`node_at` / `get_node_index`.
 
 Every node is indexed, sequences and placeholders included, so the mapping is
 total. A placeholder counts because a document being edited is a legal

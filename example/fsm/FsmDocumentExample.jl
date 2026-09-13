@@ -8,10 +8,10 @@
 # it references lives in its own `helpers`.
 #
 # Embedded guards and actions are real Julia subtrees, written here as source
-# and parsed once (`juliaparse`) rather than hand-assembled node by node.
+# and parsed once (`parse_julia`) rather than hand-assembled node by node.
 
 # Atomic documents for the catalog.
-make_fsm_variable_document_example()   = FsmVariable("num_retries"; default = juliaparse("0"))
+make_fsm_variable_document_example()   = FsmVariable("num_retries"; default = parse_julia("0"))
 make_fsm_timer_document_example()      = FsmTimer("tx_timer")
 make_fsm_event_document_example()      = FsmEvent("UPPER_PACKET")
 make_fsm_state_document_example()      = FsmState("IDLE")
@@ -40,20 +40,20 @@ function make_fsm_toggle_document_example()
     blink = FsmTimer("blink_timer")
 
     off = FsmState("OFF")
-    on = FsmState("ON"; entry = juliaparse("m.blinks = m.blinks + 1"))
+    on = FsmState("ON"; entry = parse_julia("m.blinks = m.blinks + 1"))
 
     push!(off.transitions, FsmTransition(trigger = pressed, target = on))
     # A stay: count the press without leaving the state.
     push!(on.transitions, FsmTransition(trigger = pressed,
-                                        action = juliaparse("m.blinks = m.blinks + 1")))
+                                        action = parse_julia("m.blinks = m.blinks + 1")))
     push!(on.transitions, FsmTransition(trigger = blink,
-                                        guard = juliaparse("m.blinks > 3"),
+                                        guard = parse_julia("m.blinks > 3"),
                                         target = off))
 
     machine = FsmMachine("Toggle"; initial = off, states = [off, on])
 
     FsmComponent("Toggle";
-        variables = [FsmVariable("blinks"; type = juliaparse("Int"), default = juliaparse("0"))],
+        variables = [FsmVariable("blinks"; type = parse_julia("Int"), default = parse_julia("0"))],
         timers = [blink],
         events = [pressed],
         machines = [machine])
@@ -94,17 +94,17 @@ function make_fsm_tcp_document_example()
 
     # ── states ───────────────────────────────────────────────────────────
     init         = FsmState("INIT")
-    closed       = FsmState("CLOSED"; entry = juliaparse("cancel_all_timers!(ctx, m)"))
+    closed       = FsmState("CLOSED"; entry = parse_julia("cancel_all_timers!(ctx, m)"))
     listen       = FsmState("LISTEN")
     syn_sent     = FsmState("SYN_SENT")
     syn_rcvd     = FsmState("SYN_RCVD")
-    established  = FsmState("ESTABLISHED"; entry = juliaparse("connection_established!(ctx, m)"))
+    established  = FsmState("ESTABLISHED"; entry = parse_julia("connection_established!(ctx, m)"))
     close_wait   = FsmState("CLOSE_WAIT")
     last_ack     = FsmState("LAST_ACK")
     fin_wait_1   = FsmState("FIN_WAIT_1")
     fin_wait_2_s = FsmState("FIN_WAIT_2")
     closing      = FsmState("CLOSING")
-    time_wait    = FsmState("TIME_WAIT"; entry = juliaparse("schedule_timer!(ctx, 2 * MSL, m.module_id, m.msl2_timer, expire_msl2)"))
+    time_wait    = FsmState("TIME_WAIT"; entry = parse_julia("schedule_timer!(ctx, 2 * MSL, m.module_id, m.msl2_timer, expire_msl2)"))
 
     states = [init, closed, listen, syn_sent, syn_rcvd, established,
               close_wait, last_ack, fin_wait_1, fin_wait_2_s, closing, time_wait]
@@ -113,65 +113,65 @@ function make_fsm_tcp_document_example()
 
     # INIT — the two OPEN commands.
     tr(init, trigger = open_active,
-             action = juliaparse("select_initial_seq_num!(m); send_syn!(ctx, m); start_conn_estab_timer!(ctx, m)"),
+             action = parse_julia("select_initial_seq_num!(m); send_syn!(ctx, m); start_conn_estab_timer!(ctx, m)"),
              target = syn_sent)
-    tr(init, trigger = open_passive, action = juliaparse("m.active = false"), target = listen)
+    tr(init, trigger = open_passive, action = parse_julia("m.active = false"), target = listen)
 
     # LISTEN — a SYN opens the connection; a CLOSE just tears the socket down.
     tr(listen, trigger = rcv_syn,
-               action = juliaparse("accept_syn!(ctx, m, payload); send_syn_ack!(ctx, m)"),
+               action = parse_julia("accept_syn!(ctx, m, payload); send_syn_ack!(ctx, m)"),
                target = syn_rcvd)
     tr(listen, trigger = close, target = closed)
 
     # SYN_SENT — the two handshake outcomes plus the establishment timeout.
     tr(syn_sent, trigger = rcv_syn_ack,
-                 action = juliaparse("accept_syn!(ctx, m, payload); send_ack!(ctx, m)"),
+                 action = parse_julia("accept_syn!(ctx, m, payload); send_ack!(ctx, m)"),
                  target = established)
     tr(syn_sent, trigger = rcv_syn,
-                 action = juliaparse("accept_syn!(ctx, m, payload); send_syn_ack!(ctx, m)"),
+                 action = parse_julia("accept_syn!(ctx, m, payload); send_syn_ack!(ctx, m)"),
                  target = syn_rcvd)
     tr(syn_sent, trigger = conn_estab,
-                 action = juliaparse("indicate_timed_out!(ctx, m)"),
+                 action = parse_julia("indicate_timed_out!(ctx, m)"),
                  target = closed)
     tr(syn_sent, trigger = rcv_rst, target = closed)
 
     # SYN_RCVD — the acceptable-ACK guard, and the timeout whose *target*
     # depends on extended state: an active open closes, a passive one goes
     # back to listening.
-    tr(syn_rcvd, trigger = rcv_ack, guard = juliaparse("ack_acceptable(m, payload)"),
+    tr(syn_rcvd, trigger = rcv_ack, guard = parse_julia("ack_acceptable(m, payload)"),
                  target = established)
-    tr(syn_rcvd, trigger = rcv_ack, action = juliaparse("send_rst!(ctx, m, payload)"))
-    tr(syn_rcvd, trigger = conn_estab, guard = juliaparse("m.active"),
-                 action = juliaparse("indicate_timed_out!(ctx, m)"), target = closed)
+    tr(syn_rcvd, trigger = rcv_ack, action = parse_julia("send_rst!(ctx, m, payload)"))
+    tr(syn_rcvd, trigger = conn_estab, guard = parse_julia("m.active"),
+                 action = parse_julia("indicate_timed_out!(ctx, m)"), target = closed)
     tr(syn_rcvd, trigger = conn_estab, target = listen)
     tr(syn_rcvd, trigger = close,
-                 action = juliaparse("send_fin!(ctx, m)"), target = fin_wait_1)
+                 action = parse_julia("send_fin!(ctx, m)"), target = fin_wait_1)
 
     # ESTABLISHED — data flows; only the two closes move the machine.
-    tr(established, trigger = send, action = juliaparse("send_data!(ctx, m, payload)"))
+    tr(established, trigger = send, action = parse_julia("send_data!(ctx, m, payload)"))
     tr(established, trigger = rcv_fin,
-                    action = juliaparse("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
+                    action = parse_julia("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
                     target = close_wait)
-    tr(established, trigger = close, action = juliaparse("send_fin!(ctx, m)"), target = fin_wait_1)
-    tr(established, trigger = rcv_rst, action = juliaparse("indicate_reset!(ctx, m)"), target = closed)
+    tr(established, trigger = close, action = parse_julia("send_fin!(ctx, m)"), target = fin_wait_1)
+    tr(established, trigger = rcv_rst, action = parse_julia("indicate_reset!(ctx, m)"), target = closed)
 
     # Passive close.
-    tr(close_wait, trigger = close, action = juliaparse("send_fin!(ctx, m)"), target = last_ack)
+    tr(close_wait, trigger = close, action = parse_julia("send_fin!(ctx, m)"), target = last_ack)
     tr(last_ack, trigger = rcv_ack, target = closed)
 
     # Active close — the three-way race of FIN_WAIT_1.
     tr(fin_wait_1, trigger = rcv_fin_ack,
-                   action = juliaparse("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
+                   action = parse_julia("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
                    target = time_wait)
     tr(fin_wait_1, trigger = rcv_fin,
-                   action = juliaparse("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
+                   action = parse_julia("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
                    target = closing)
     tr(fin_wait_1, trigger = rcv_ack,
-                   action = juliaparse("start_fin_wait_2_timer!(ctx, m)"),
+                   action = parse_julia("start_fin_wait_2_timer!(ctx, m)"),
                    target = fin_wait_2_s)
 
     tr(fin_wait_2_s, trigger = rcv_fin,
-                     action = juliaparse("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
+                     action = parse_julia("m.rcv_nxt = m.rcv_nxt + 1; send_ack!(ctx, m)"),
                      target = time_wait)
     tr(fin_wait_2_s, trigger = fin_wait_2, target = closed)
 
@@ -181,7 +181,7 @@ function make_fsm_tcp_document_example()
     # Every state answers ABORT.
     for s in states
         s === closed || tr(s, trigger = abort,
-                              action = juliaparse("send_rst!(ctx, m, payload)"), target = closed)
+                              action = parse_julia("send_rst!(ctx, m, payload)"), target = closed)
     end
 
     # `:ignore` — RFC 793 leaves most (state, event) pairs unlisted, and INET's
@@ -189,20 +189,20 @@ function make_fsm_tcp_document_example()
     machine = FsmMachine("Connection"; initial = init, states = states, on_unhandled = :ignore)
 
     variables = [
-        FsmVariable("module_id"; type = juliaparse("Int"), default = juliaparse("0")),
-        FsmVariable("active"; type = juliaparse("Bool"), default = juliaparse("true")),
-        FsmVariable("snd_una"; type = juliaparse("Int"), default = juliaparse("0")),
-        FsmVariable("snd_nxt"; type = juliaparse("Int"), default = juliaparse("0")),
-        FsmVariable("rcv_nxt"; type = juliaparse("Int"), default = juliaparse("0")),
-        FsmVariable("fin_ack_rcvd"; type = juliaparse("Bool"), default = juliaparse("false")),
+        FsmVariable("module_id"; type = parse_julia("Int"), default = parse_julia("0")),
+        FsmVariable("active"; type = parse_julia("Bool"), default = parse_julia("true")),
+        FsmVariable("snd_una"; type = parse_julia("Int"), default = parse_julia("0")),
+        FsmVariable("snd_nxt"; type = parse_julia("Int"), default = parse_julia("0")),
+        FsmVariable("rcv_nxt"; type = parse_julia("Int"), default = parse_julia("0")),
+        FsmVariable("fin_ack_rcvd"; type = parse_julia("Bool"), default = parse_julia("false")),
     ]
 
     helpers = [
-        juliaparse("const MSL = 120.0"),
+        parse_julia("const MSL = 120.0"),
         # The event-distillation seam: raw segment → symbolic event. Stateful
         # by nature — the same arriving FIN is RCV_FIN or RCV_FIN_ACK
         # depending on what has already been acknowledged.
-        juliaparse("""
+        parse_julia("""
                    function analyse_segment(m, seg)
                        if seg.rst
                            return RCV_RST
@@ -225,7 +225,7 @@ function make_fsm_tcp_document_example()
                        return IGNORE
                    end
                    """),
-        juliaparse("ack_acceptable(m, seg) = m.snd_una <= seg.ack && seg.ack <= m.snd_nxt"),
+        parse_julia("ack_acceptable(m, seg) = m.snd_una <= seg.ack && seg.ack <= m.snd_nxt"),
     ]
 
     FsmComponent("TcpConnection";

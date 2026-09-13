@@ -38,7 +38,7 @@ import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
 import ..IoMapModule: SimpleIoMap, reconcile_child_iomap
 import ..ReferenceModule: FieldReferenceStep, get_reference_steps, strip_reference_types
 import ..PrinterContextModule: PrinterContext, make_child_context
-import ..ObjectFieldModule: ObjectField, object_field_value, object_field_name
+import ..ObjectFieldModule: ObjectField, get_object_field_value, get_object_field_name
 
 export ObjectFieldToSyntax
 
@@ -55,7 +55,7 @@ of a form wants.
 end
 
 function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, ctx)
-    name = object_field_name(field)
+    name = get_object_field_name(field)
     # The value's path from THIS document is `object` followed by the field's own
     # path, so a child reference stays valid against the ObjectField.
     child_ctx = ctx === nothing ? ctx :
@@ -64,7 +64,7 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
     # `reconcile_child_iomap` reads the value inside the reconcile, so a write to
     # the object repaints the value and the child io map keeps its identity when
     # the value is merely edited (PAR-STABLE-IOMAP-IDENTITY).
-    inner = reconcile_child_iomap(() -> object_field_value(field),
+    inner = reconcile_child_iomap(() -> get_object_field_value(field),
                                   v -> print_child(recursion, v, child_ctx))
     ind = p.newlines ? 1 : 0
     output = ComputedCell(() -> begin

@@ -62,7 +62,7 @@ import ..ProcessModule: ProcessDocument, ProcessModel, ProcessSequence, ProcessS
                         ProcessDecision, ProcessWhile, ProcessForeach,
                         ProcessBreak, ProcessContinue, ProcessReturn,
                         ProcessNothing, ProcessInsertion,
-                        process_nodes, node_at, body_steps
+                        process_nodes, find_node_at_index, get_body_steps
 import ..ProcessDiagramModule: ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
 import ..ProcessToSyntaxModule: ProcessToSyntax, ProcessBreakToSyntaxLeaf,
                                 ProcessContinueToSyntaxLeaf, ProcessReturnToSyntaxNode
@@ -241,16 +241,16 @@ function _build_flowchart(model)
         vertex = vertex_for(node)
         vertex === nothing && return next
         if node isa ProcessDecision
-            then_entry = emit_sequence(body_steps(node.then_branch), next, loop)
+            then_entry = emit_sequence(get_body_steps(node.then_branch), next, loop)
             else_entry = node.else_branch === nothing ? next :
-                         emit_sequence(body_steps(node.else_branch), next, loop)
+                         emit_sequence(get_body_steps(node.else_branch), next, loop)
             edge!(vertex, then_entry, "yes")
             edge!(vertex, else_entry, "no")
         elseif node isa ProcessWhile
-            edge!(vertex, emit_sequence(body_steps(node.body), vertex, (vertex, next)), "yes")
+            edge!(vertex, emit_sequence(get_body_steps(node.body), vertex, (vertex, next)), "yes")
             edge!(vertex, next, "no")
         elseif node isa ProcessForeach
-            edge!(vertex, emit_sequence(body_steps(node.body), vertex, (vertex, next)), "next")
+            edge!(vertex, emit_sequence(get_body_steps(node.body), vertex, (vertex, next)), "next")
             edge!(vertex, next, "done")
         elseif node isa ProcessBreak
             loop === nothing || edge!(vertex, loop[2])
@@ -264,7 +264,7 @@ function _build_flowchart(model)
         vertex
     end
 
-    body = model isa ProcessModel ? body_steps(model.body) : Any[]
+    body = model isa ProcessModel ? get_body_steps(model.body) : Any[]
     edge!(start, emit_sequence(body, stop, nothing))
 
     (vertices = Any[start; middle; stop], edges = edges, pairs = pairs)

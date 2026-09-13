@@ -258,7 +258,7 @@ const _EVALUATING = Set{FormulaFormula}()
     convert_formula_to_expr(code, env) -> Expr | literal
 
 Walk the Julia body `code` to a native Julia `Expr` (the inverse of
-`juliaparse`), mapping each `FormulaReference` to a `Symbol` bound to its
+`parse_julia`), mapping each `FormulaReference` to a `Symbol` bound to its
 target's name. The result is evaluated inside a `let` that binds those names to
 the targets' values.
 """

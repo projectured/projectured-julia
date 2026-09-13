@@ -52,8 +52,8 @@ using ..DomainModule
 
 import ..CellModule: Cell
 
-export process_children, process_nodes, node_index, node_at, body_steps,
-       unrefined_nodes, is_executable
+export process_children, process_nodes, get_node_index, find_node_at_index, get_body_steps,
+       get_unrefined_nodes, is_executable
 
 @domain Process
 
@@ -230,12 +230,12 @@ function _collect_process_nodes!(result, node::ProcessDocument)
 end
 
 """
-    node_index(root, node) -> Int
+    get_node_index(root, node) -> Int
 
 `node`'s 1-based index in `root`'s document order, by identity; 0 when it is
 not in the tree.
 """
-function node_index(root, node)
+function get_node_index(root, node)
     for (index, candidate) in enumerate(process_nodes(root))
         candidate === node && return index
     end
@@ -248,19 +248,19 @@ end
 The node `index` names, or `nothing` when the index is out of range — which is
 what a stale position looks like, and why this returns rather than throws.
 """
-function node_at(root, index)
+function find_node_at_index(root, index)
     nodes = process_nodes(root)
     (index < 1 || index > length(nodes)) ? nothing : nodes[index]
 end
 
 """
-    body_steps(body) -> Vector{Any}
+    get_body_steps(body) -> Vector{Any}
 
 The nodes of a body. `nothing` is an empty body and a `ProcessSequence` is its
 steps; anything else is a one-node body, so a branch that holds a bare node
 still renders and still runs.
 """
-body_steps(body) =
+get_body_steps(body) =
     body === nothing ? Any[] :
     body isa ProcessSequence ? Any[step for step in body.steps] :
     Any[body]
@@ -268,14 +268,14 @@ body_steps(body) =
 # ── Executability ────────────────────────────────────────────────────────
 
 """
-    unrefined_nodes(root) -> Vector{Any}
+    get_unrefined_nodes(root) -> Vector{Any}
 
 The nodes that have no code behind them yet: a step with no action, a
 decision or `while` with no condition, a `foreach` with no variable or no
 iterable. A model with none is executable; realization reports the rest rather
 than emitting something that silently does nothing.
 """
-function unrefined_nodes(root)
+function get_unrefined_nodes(root)
     result = Any[]
     for node in process_nodes(root)
         if node isa ProcessStep
@@ -296,7 +296,7 @@ end
 
 Whether every node of `root` has been refined into code.
 """
-is_executable(root) = isempty(unrefined_nodes(root))
+is_executable(root) = isempty(get_unrefined_nodes(root))
 
 # ── Insertion factories ──────────────────────────────────────────────────
 # Only the types with a required field need one; everything else is zero-arg

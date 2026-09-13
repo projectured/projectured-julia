@@ -10,12 +10,12 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaParserModule: juliaparse
+using ProjecturedJulia.JuliaParserModule: parse_julia
 using ProjecturedNatural.NaturalNotationModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.
-_julia_round_trip(source::AbstractString) = strip(print_natural_text(juliaparse(source)))
+_julia_round_trip(source::AbstractString) = strip(print_natural_text(parse_julia(source)))
 
 function test_julia_parser()
 @testset "Julia: ordinary source round-trips" begin

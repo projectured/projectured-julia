@@ -58,7 +58,7 @@ import ..ReferenceModule: Reference
 
 export UnsyncedDocument, AUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,
-       unsynced_size, unsynced_marker, request_sync!
+       unsynced_size, make_unsynced_marker, request_sync!
 
 # ── the marker ────────────────────────────────────────────────────────────────
 
@@ -88,13 +88,13 @@ unsynced_size(x) = is_element_collection(x) ? length(x) :
                    (x isa Document ? fieldcount(typeof(x)) - 1 : -1)
 
 """
-    unsynced_marker(document) -> UnsyncedDocument
+    make_unsynced_marker(document) -> UnsyncedDocument
 
 A marker standing in for `document`. Write one into a shadow slot to **collapse**
 what is there: the next sync sees an un-requested marker and leaves it alone, so
 the subtree is dropped and stays dropped until someone asks for it again.
 """
-unsynced_marker(source) = UnsyncedDocument(string(nameof(typeof(source))),
+make_unsynced_marker(source) = UnsyncedDocument(string(nameof(typeof(source))),
                                            unsynced_size(source), false)
 
 """
@@ -225,7 +225,7 @@ copy_document(K::Type{<:AbstractCell}, doc::Document, policy::SyncPolicy) =
 # already-placed marker is handed straight back and the shadow keeps its identity
 # — the kernel writes only when this returns something new.
 make_unsynced_placeholder(::SyncPolicy, source, current) =
-    current isa AUnsyncedDocument ? current : unsynced_marker(source)
+    current isa AUnsyncedDocument ? current : make_unsynced_marker(source)
 
 # A tail placeholder reports how many elements are behind it, not the child count
 # of whichever one happens to stand first.

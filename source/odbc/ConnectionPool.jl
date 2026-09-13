@@ -4,7 +4,7 @@ import ProjecturedDatabase.DatabaseModule: connect_db!, close_db!, is_db_alive
 import ..OdbcAdapterModule: OdbcDatabaseAdapter
 import ProjecturedDatabase.DatabaseInstanceDocumentModule: DatabaseInstance
 
-export OdbcConnectionPool, with_connection, dsn_for, close_pool!
+export OdbcConnectionPool, with_connection, get_dsn, close_pool!
 
 # ── OdbcConnectionPool ──────────────────────────────────────────────────────────
 
@@ -25,13 +25,13 @@ OdbcConnectionPool(; driver::AbstractString="{PostgreSQL Unicode}",
 # ── DSN derivation ──────────────────────────────────────────────────────────────
 
 """
-    dsn_for(pool, inst::DatabaseInstance) -> String
+    get_dsn(pool, inst::DatabaseInstance) -> String
 
 Build the ODBC connection string for `inst` using the pool's driver. Adapters
 are bucketed by this DSN, so two `DatabaseInstance`s that resolve to the same
 DSN share connections.
 """
-function dsn_for(pool::OdbcConnectionPool, inst::DatabaseInstance)::String
+function get_dsn(pool::OdbcConnectionPool, inst::DatabaseInstance)::String
     "Driver=$(pool.driver);Server=$(inst.host);Port=$(inst.port);" *
     "Database=$(inst.database);Uid=$(inst.credentials.user);Pwd=$(inst.credentials.password);"
 end
@@ -74,7 +74,7 @@ return the adapter to the pool. On error the connection is discarded (closed)
 rather than returned, so a broken connection is never reused.
 """
 function with_connection(f, pool::OdbcConnectionPool, inst::DatabaseInstance)
-    dsn = dsn_for(pool, inst)
+    dsn = get_dsn(pool, inst)
     a = _checkout(pool, dsn)
     ok = false
     try

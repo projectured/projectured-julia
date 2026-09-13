@@ -1004,7 +1004,7 @@ end
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
-import ..JuliaParserModule: juliaparse
+import ..JuliaParserModule: parse_julia
 import ..DocumentFileModule: make_document_seed
 make_document_seed(::Val{:jl}) = JuliaInsertion()
 
@@ -1021,7 +1021,7 @@ function __init__()
                              make      = () -> JuliaToSyntax(),
                              format    = :jl,
                              extension = ".jl",
-                             parse     = juliaparse)
+                             parse     = parse_julia)
 end
 
 end # module

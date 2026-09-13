@@ -292,7 +292,7 @@ function test_document_insertion()
             @test leaf.value.font_color == color_solarized_green  # parses
         end
 
-        @testset "JuliaInsertion commits source via juliaparse" begin
+        @testset "JuliaInsertion commits source via parse_julia" begin
             ji = JuliaInsertion("factorial(5)")
             ji.selection = _ins_vpath(length("factorial(5)"))
             jproj = JuliaInsertionToSyntaxLeaf()

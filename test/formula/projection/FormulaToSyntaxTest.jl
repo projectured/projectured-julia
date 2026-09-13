@@ -25,7 +25,7 @@ function test_formula_to_syntax()
 end
 
 @testset "FormulaReference renders target name, tracks renames" begin
-    target = FormulaFormula("A1", juliaparse("10"); display_mode=:code)
+    target = FormulaFormula("A1", parse_julia("10"); display_mode=:code)
     ref = FormulaReference(target)
     f2s = RecursiveProjection(FormulaToSyntax())
 
@@ -41,7 +41,7 @@ end
 
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
-    env = FormulaEnvironment([FormulaFormula("A1", juliaparse("2 + 3"))])
+    env = FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))])
     f = env.formulas[1]
 
     f.display_mode = :code
@@ -59,8 +59,8 @@ end
 end
 
 @testset "evaluation: A2 = A1 + B1, reactive recompute" begin
-    a1code = juliaparse("10")  # a JuliaInteger
-    b1code = juliaparse("5")
+    a1code = parse_julia("10")  # a JuliaInteger
+    b1code = parse_julia("5")
     a1 = FormulaFormula("A1", a1code)
     b1 = FormulaFormula("B1", b1code)
     a2 = FormulaFormula("A2", JuliaBinaryOperation(:+, FormulaReference(a1), FormulaReference(b1)))
@@ -108,8 +108,8 @@ end
 @testset "FormulaEnvironment renders one formula per line" begin
     f2s = RecursiveProjection(FormulaToSyntax())
     env = FormulaEnvironment([
-        FormulaFormula("A1", juliaparse("1"); display_mode=:result),
-        FormulaFormula("B1", juliaparse("2"); display_mode=:result),
+        FormulaFormula("A1", parse_julia("1"); display_mode=:result),
+        FormulaFormula("B1", parse_julia("2"); display_mode=:result),
     ])
     rendered = render(print_document(f2s, env).output)
     @test occursin("1", rendered)

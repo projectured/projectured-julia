@@ -1,4 +1,4 @@
-export McpServer, mcp_start!, mcp_stop!, mcp_tools, mcp_resources
+export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
 
 # Generic system prompt for MCP clients (domain-free). A richer, app-specific
 # prompt can be supplied by the caller via `make_agent_server(:mcp, editor;
@@ -51,15 +51,15 @@ end
 # Agent control-surface factory methods: the editor loop drives the MCP server
 # through the generic AgentServerModule interface without naming `McpServer`.
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
-start_agent_server!(mcp::McpServer) = mcp_start!(mcp)
-stop_agent_server!(mcp::McpServer) = mcp_stop!(mcp)
+start_agent_server!(mcp::McpServer) = start_mcp!(mcp)
+stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)
 
 """
-    mcp_start!(mcp::McpServer) -> McpServer
+    start_mcp!(mcp::McpServer) -> McpServer
 
 Launch the MCP server as an async task (HTTP transport on port 9876).
 """
-function mcp_start!(mcp::McpServer)
+function start_mcp!(mcp::McpServer)
     for tool in _make_tools(mcp.editor)
         register!(mcp.server, tool)
     end
@@ -79,11 +79,11 @@ function mcp_start!(mcp::McpServer)
 end
 
 """
-    mcp_stop!(mcp::McpServer) -> McpServer
+    stop_mcp!(mcp::McpServer) -> McpServer
 
 Stop the MCP server.
 """
-function mcp_stop!(mcp::McpServer)
+function stop_mcp!(mcp::McpServer)
     try
         stop!(mcp.server)
     catch e
@@ -97,14 +97,14 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    mcp_tools(editor, tools) -> Vector{MCPTool}
+    render_mcp_tools(editor, tools) -> Vector{MCPTool}
 
 Render the given tools into the `MCPTool` shape the MCP server expects, binding
 each handler to `editor`. This is the MCP half of the same job `ProjecturedAnthropic`
 does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
 """
-function mcp_tools(editor, tools::AbstractVector{Tool})
+function render_mcp_tools(editor, tools::AbstractVector{Tool})
     out = MCPTool[]
     for t in tools
         params = ToolParameter[
@@ -133,12 +133,12 @@ function mcp_tools(editor, tools::AbstractVector{Tool})
 end
 
 """
-    mcp_resources(resources) -> Vector{MCPResource}
+    render_mcp_resources(resources) -> Vector{MCPResource}
 
 Render the given resources as `MCPResource` objects whose data providers return
 `TextResourceContents` carrying the body.
 """
-function mcp_resources(resources::AbstractVector{Resource})
+function render_mcp_resources(resources::AbstractVector{Resource})
     out = MCPResource[]
     for r in resources
         let res = r
@@ -162,10 +162,10 @@ end
 # server serves exactly the tools of the editor it is bound to.
 function _make_tools(editor)
     register_default_tools!(editor.tools)
-    mcp_tools(editor, list_tools(editor.tools))
+    render_mcp_tools(editor, list_tools(editor.tools))
 end
 
 function _make_resources(editor)
     register_default_tools!(editor.tools)
-    mcp_resources(list_resources(editor.tools))
+    render_mcp_resources(list_resources(editor.tools))
 end

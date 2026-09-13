@@ -510,7 +510,7 @@ function _mvp_test_scripted_builders()
         @test reply.role === :assistant
         @test any(p -> p.content isa ConversationThinking, reply.parts)
         ef = first(p.content for p in reply.parts if p.content isa EvaluatorForm)
-        # The tool payload is `juliaparse`d into a JuliaDocument and re-rendered
+        # The tool payload is `parse_julia`d into a JuliaDocument and re-rendered
         # for display, which normalizes user whitespace/operator spacing (e.g.
         # `1+1` -> `1 + 1`, multi-statement input becomes an indented block).
         # Fidelity is up to the parse/render round-trip: the tool code that

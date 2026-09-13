@@ -45,7 +45,7 @@ end
 
     # A condition-only transition opens with its guard, no trigger part.
     c = FsmState("C")
-    push!(c.transitions, FsmTransition(guard = juliaparse("m.ready"), target = c))
+    push!(c.transitions, FsmTransition(guard = parse_julia("m.ready"), target = c))
     @test occursin("when m.ready -> C", _render(c))
 end
 
@@ -103,7 +103,7 @@ end
 # one line; that parses to a `:toplevel` nested inside the outer one, which the
 # parser used to reject outright.
 @testset "semicolon statement groups parse" begin
-    block = juliaparse("a!(m); b!(m)")
+    block = parse_julia("a!(m); b!(m)")
     @test block isa JuliaBlock
     @test length(block.statements) == 2
 end

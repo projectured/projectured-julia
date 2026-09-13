@@ -72,19 +72,19 @@ end
     # A while loop with a break, an else branch, and an early return — the control flow a
     # sequence of steps cannot express.
     classify = ProcessModel("classify";
-        parameters = [juliaparse("n")],
+        parameters = [parse_julia("n")],
         body = ProcessSequence([
-            ProcessStep(""; action = juliaparse("seen = 0")),
-            ProcessWhile(juliaparse("true");
+            ProcessStep(""; action = parse_julia("seen = 0")),
+            ProcessWhile(parse_julia("true");
                 body = ProcessSequence([
-                    ProcessDecision(juliaparse("seen >= n");
+                    ProcessDecision(parse_julia("seen >= n");
                         then_branch = ProcessSequence([ProcessBreak()]),
                         else_branch = ProcessSequence([
-                            ProcessStep(""; action = juliaparse("seen = seen + 1"))])),
-                    ProcessDecision(juliaparse("seen == 7");
-                        then_branch = ProcessSequence([ProcessReturn(juliaparse(":lucky"))])),
+                            ProcessStep(""; action = parse_julia("seen = seen + 1"))])),
+                    ProcessDecision(parse_julia("seen == 7");
+                        then_branch = ProcessSequence([ProcessReturn(parse_julia(":lucky"))])),
                 ])),
-            ProcessReturn(juliaparse("seen")),
+            ProcessReturn(parse_julia("seen")),
         ]))
 
     text = realize_process_text(classify)
@@ -102,7 +102,7 @@ end
     # An unrefined step throws rather than passing silently.
     unrefined = ProcessModel("unrefined";
         body = ProcessSequence([ProcessStep("think about it"),
-                                ProcessReturn(juliaparse(":done"))]))
+                                ProcessReturn(parse_julia(":done"))]))
     umod = _load_realized(unrefined, :ProcessUnrefinedProbe)
     @test_throws Exception Base.invokelatest(_binding(umod, :unrefined))
 end

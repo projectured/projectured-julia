@@ -133,9 +133,9 @@ function _fsm_semantics_component()
     ping = FsmEvent("PING")
     stop = FsmEvent("STOP")
 
-    idle = FsmState("IDLE"; entry = juliaparse("m.entries = m.entries + 1"))
-    busy = FsmState("BUSY"; entry = juliaparse("m.entries = m.entries + 1"))
-    done = FsmState("DONE"; entry = juliaparse("""
+    idle = FsmState("IDLE"; entry = parse_julia("m.entries = m.entries + 1"))
+    busy = FsmState("BUSY"; entry = parse_julia("m.entries = m.entries + 1"))
+    done = FsmState("DONE"; entry = parse_julia("""
         m.entries = m.entries + 1
         fsm_defer!(m.fsm_probe, () -> begin
             m.deferred_runs = m.deferred_runs + 1
@@ -147,13 +147,13 @@ function _fsm_semantics_component()
     # BUSY: PING stays and counts (with the payload when there is one); STOP is
     # ignored; GO moves on to DONE.
     push!(busy.transitions, FsmTransition(trigger = ping,
-        action = juliaparse("m.count = m.count + payload")))
+        action = parse_julia("m.count = m.count + payload")))
     push!(busy.transitions, FsmTransition(trigger = stop))
     push!(busy.transitions, FsmTransition(trigger = go, target = done))
     # DONE: a condition-only transition, which fires in the same dispatch that
     # landed here — the cascade.
-    push!(done.transitions, FsmTransition(guard = juliaparse("m.ready"),
-        action = juliaparse("m.deferred_at_entry = m.deferred_runs"),
+    push!(done.transitions, FsmTransition(guard = parse_julia("m.ready"),
+        action = parse_julia("m.deferred_at_entry = m.deferred_runs"),
         target = idle))
 
     machine = FsmMachine("Probe"; initial = idle, states = [idle, busy, done])
@@ -163,11 +163,11 @@ function _fsm_semantics_component()
         # the component says so itself, exactly as a real one names the
         # simulator's runtime module.
         usings = [JuliaUsing(:using, "..ProbeRuntime")],
-        variables = [FsmVariable("count"; type = juliaparse("Int"), default = juliaparse("0")),
-                     FsmVariable("entries"; type = juliaparse("Int"), default = juliaparse("0")),
-                     FsmVariable("ready"; type = juliaparse("Bool"), default = juliaparse("false")),
-                     FsmVariable("deferred_runs"; type = juliaparse("Int"), default = juliaparse("0")),
-                     FsmVariable("deferred_at_entry"; type = juliaparse("Int"), default = juliaparse("0"))],
+        variables = [FsmVariable("count"; type = parse_julia("Int"), default = parse_julia("0")),
+                     FsmVariable("entries"; type = parse_julia("Int"), default = parse_julia("0")),
+                     FsmVariable("ready"; type = parse_julia("Bool"), default = parse_julia("false")),
+                     FsmVariable("deferred_runs"; type = parse_julia("Int"), default = parse_julia("0")),
+                     FsmVariable("deferred_at_entry"; type = parse_julia("Int"), default = parse_julia("0"))],
         events = [go, ping, stop],
         machines = [machine])
 end

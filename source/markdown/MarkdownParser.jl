@@ -5,8 +5,8 @@ A small, pragmatic Markdown parser. Converts Markdown source text into a
 `MarkdownRoot` tree from `MarkdownModule`.
 
 Provides:
-- `markdownparse(text)` — parse a Markdown string into a `MarkdownRoot`
-- `markdownparse_file(path)` — read and parse a `.md` file from disk
+- `parse_markdown(text)` — parse a Markdown string into a `MarkdownRoot`
+- `parse_markdown_file(path)` — read and parse a `.md` file from disk
 
 Deliberately minimal (it is not CommonMark-conformant). Block level: ATX headings
 (`#`…`######`), fenced code blocks (```` ``` ````), thematic breaks
@@ -23,7 +23,7 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownHeading, Markdo
                          MarkdownListItem, MarkdownText, MarkdownCode, MarkdownEmphasis,
                          MarkdownStrong, MarkdownLink, MarkdownImage
 
-export markdownparse, markdownparse_file
+export parse_markdown, parse_markdown_file
 
 # ── Inline parsing (character-level over a `Vector{Char}`) ─────────────────────
 
@@ -178,22 +178,22 @@ end
 # ── Entry points ───────────────────────────────────────────────────────────────
 
 """
-    markdownparse(text) -> MarkdownRoot
+    parse_markdown(text) -> MarkdownRoot
 
 Parse a Markdown string into a `MarkdownRoot`. Never errors: unrecognised or
 malformed constructs degrade to plain paragraphs / literal text.
 """
-function markdownparse(text::AbstractString)
+function parse_markdown(text::AbstractString)
     normalized = replace(String(text), "\r\n" => "\n", "\r" => "\n")
     lines = String.(split(normalized, '\n'))
     MarkdownRoot(_parse_blocks(lines))
 end
 
 """
-    markdownparse_file(path) -> MarkdownRoot
+    parse_markdown_file(path) -> MarkdownRoot
 
 Read and parse a `.md` file from disk.
 """
-markdownparse_file(path::AbstractString) = markdownparse(read(path, String))
+parse_markdown_file(path::AbstractString) = parse_markdown(read(path, String))
 
 end # module

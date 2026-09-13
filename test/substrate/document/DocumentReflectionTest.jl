@@ -138,7 +138,7 @@ end
     sync_reflection!(n, obj, policy)
     @test reflect_kid(n, 2).children isa CellVector
 
-    reflect_kid(n, 2).children = unsynced_marker(reflect_kid(n, 2).children)
+    reflect_kid(n, 2).children = make_unsynced_marker(reflect_kid(n, 2).children)
     for _ in 1:3
         sync_reflection!(n, obj, policy)
         @test reflect_kid(n, 2).children isa AUnsyncedDocument

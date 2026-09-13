@@ -15,7 +15,7 @@ truth.
 Keyword-introduced constructs (`function`, `if`, …) do not parse as complete
 source on their own. Type one and commit it, and it expands into a **scaffold of
 holes** (nested `JuliaInsertion`s) with the first hole's char-cursor
-pre-selected. Everything else commits through `juliaparse`.
+pre-selected. Everything else commits through `parse_julia`.
 
 The generic half of the mechanism — the shared insertion leaf, the completion
 policies and the `*Nothing` placeholder — lives in
@@ -32,7 +32,7 @@ import ..DocumentInsertionToSyntaxModule: insert_insertion_text_operation, delet
 import ..JuliaModule: JuliaInsertion,
                       JuliaFunction, JuliaIf, JuliaWhile, JuliaFor, JuliaForIterator,
                       JuliaBegin, JuliaReturn, JuliaBlock
-import ..JuliaParserModule: juliaparse
+import ..JuliaParserModule: parse_julia
 import ..EventModule: KeyPress, KeyDown
 import ..GestureBindingModule: var"@gestures"
 import ..SyntaxModule: SyntaxLeaf
@@ -50,13 +50,13 @@ import ..ProjectionReferenceStepModule: make_introduced_reference
 import ..IoMapModule: SimpleIoMap
 import ..CellModule: Cell, ComputedCell
 
-export JuliaInsertionToSyntaxLeaf, get_julia_completion, julia_scaffold
+export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 
 # ── Julia keyword scaffolds + completion ───────────────────────────────────────
 #
 # A partially-typed prefix of a keyword shows a pale-green completion
 # continuation (see `get_julia_completion`), signalling it is committable as that
-# keyword. Everything else commits by `juliaparse` (a complete sub-expression
+# keyword. Everything else commits by `parse_julia` (a complete sub-expression
 # such as `n == 0`).
 
 # Each scaffold pre-selects its first hole's own char cursor (`…value{0}`, the buffer
@@ -77,12 +77,12 @@ const _JULIA_KEYWORD_SCAFFOLDS = Tuple{String,Function}[
 ]
 
 """
-    julia_scaffold(text) -> Document | nothing
+    make_julia_scaffold(text) -> Document | nothing
 
 The keyword scaffold for `text` when it exactly names a keyword-introduced construct
 (cursor pre-placed on the first hole), else `nothing`.
 """
-function julia_scaffold(text::AbstractString)
+function make_julia_scaffold(text::AbstractString)
     s = strip(text)
     for (kw, make) in _JULIA_KEYWORD_SCAFFOLDS
         s == kw && return make()
@@ -108,21 +108,21 @@ end
 # The keyword scaffolds double as insertion *candidates*: `julia function`
 # committed from a DocumentInsertion (or `function` by name inside a Julia
 # scope) builds the same scaffold-of-holes the keyword commit does.
-@insertion JuliaFunction = julia_scaffold("function")
-@insertion JuliaIf       = julia_scaffold("if")
-@insertion JuliaWhile    = julia_scaffold("while")
-@insertion JuliaFor      = julia_scaffold("for")
-@insertion JuliaBegin    = julia_scaffold("begin")
-@insertion JuliaReturn   = julia_scaffold("return")
+@insertion JuliaFunction = make_julia_scaffold("function")
+@insertion JuliaIf       = make_julia_scaffold("if")
+@insertion JuliaWhile    = make_julia_scaffold("while")
+@insertion JuliaFor      = make_julia_scaffold("for")
+@insertion JuliaBegin    = make_julia_scaffold("begin")
+@insertion JuliaReturn   = make_julia_scaffold("return")
 
 # Commit a Julia hole: a keyword prefix expands to its scaffold; otherwise parse the
 # buffer as complete source. Partial / invalid non-keyword source can't commit.
 function _julia_commit(value::AbstractString)
     isempty(strip(value)) && return nothing
-    scaffold = julia_scaffold(value)
+    scaffold = make_julia_scaffold(value)
     scaffold === nothing || return scaffold
     try
-        juliaparse(value)
+        parse_julia(value)
     catch
         nothing
     end
@@ -162,9 +162,9 @@ end
 # complete source, red when it can commit neither way, neutral when empty.
 function _julia_state(value::AbstractString)
     isempty(strip(value)) && return :empty
-    julia_scaffold(value) === nothing || return :unambiguous
+    make_julia_scaffold(value) === nothing || return :unambiguous
     isempty(get_julia_completion(value)) || return :unambiguous
-    parsed = try juliaparse(value); true catch; false end
+    parsed = try parse_julia(value); true catch; false end
     parsed ? :unambiguous : :invalid
 end
 
@@ -195,7 +195,7 @@ function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::Repl
         ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
 end
 
-# Commit the buffer via `_julia_commit` (keyword scaffold or `juliaparse`); the
+# Commit the buffer via `_julia_commit` (keyword scaffold or `parse_julia`); the
 # rerooted `∅` targets this hole, so a nested hole is replaced in place and the
 # cursor lands on the committed value's own selection (a scaffold's first hole).
 _julia_ins_commit(ins) =
@@ -219,9 +219,9 @@ function _julia_ins_tab(ins)
     value = something(ins.value, "")
     isempty(strip(value)) &&
         return SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)
-    scaffold = julia_scaffold(value)
+    scaffold = make_julia_scaffold(value)
     scaffold === nothing || return replace_document(EmptyReference(), scaffold)
-    parsed = try juliaparse(value) catch; nothing end
+    parsed = try parse_julia(value) catch; nothing end
     parsed === nothing && return nothing
     commit = replace_document(EmptyReference(), parsed)
     CompoundOperation(Any[commit.operations...,

@@ -172,7 +172,7 @@ make_insertion_document(::Type{T}) where {T} = T()
 
 """
     @insertion JsonString = @with_selection JsonString("") value{0}
-    @insertion JuliaFunction = julia_scaffold("function")
+    @insertion JuliaFunction = make_julia_scaffold("function")
 
 The document a committed insertion of `JsonString` becomes: one
 `make_insertion_document` method, emitted fully qualified, so a domain declares

@@ -45,7 +45,7 @@ end
 
 An ordinary `Document`, so it flows through printers, references and operations
 like anything else. `request_sync!(marker)` sets the flag;
-`unsynced_marker(document)` builds one, which is how you **collapse** — write a
+`make_unsynced_marker(document)` builds one, which is how you **collapse** — write a
 marker over a subtree and the next sync leaves it alone, so the shadow shrinks
 again and a long inspection session does not accumulate the whole model.
 

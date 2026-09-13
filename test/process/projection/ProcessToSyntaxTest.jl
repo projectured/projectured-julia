@@ -49,13 +49,13 @@ end
 # ── else branches ────────────────────────────────────────────────────────
 @testset "else" begin
     # No else branch at all: the keyword does not appear.
-    without = _render(ProcessDecision(juliaparse("ready");
+    without = _render(ProcessDecision(parse_julia("ready");
                                       then_branch = ProcessSequence([ProcessBreak()])))
     @test occursin("if ready", without)
     @test !occursin("else", without)
 
     # With one, `else` sits on its own line between the two indented bodies.
-    with = _render(ProcessDecision(juliaparse("ready");
+    with = _render(ProcessDecision(parse_julia("ready");
                                    then_branch = ProcessSequence([ProcessBreak()]),
                                    else_branch = ProcessSequence([ProcessContinue()])))
     @test occursin("\nelse", with)
@@ -96,7 +96,7 @@ end
 # The printer reads document cells inside cells, so an edit shows up in a
 # re-render of the same projection rather than needing a fresh one.
 @testset "reactive" begin
-    step = ProcessStep("first"; action = juliaparse("f()"))
+    step = ProcessStep("first"; action = parse_julia("f()"))
     model = ProcessModel("m"; body = ProcessSequence([step]))
     projection = ChainingProjection(RecursiveProjection(ProcessToSyntax()),
                                     RecursiveProjection(SyntaxToText()),
