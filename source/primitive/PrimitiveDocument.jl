@@ -7,15 +7,12 @@ is stored in a reactive Cell so changes are tracked.
 """
 module PrimitiveModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..SelectionModule: clear_selection!, set_selection!
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: splice_string, splice_value!, splice_number
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          ReferenceStep, FieldReferenceStep, RangeReferenceStep, evaluate_reference,
-                          strip_reference_types, get_reference_steps
+using ..CellModule
+using ..DocumentModule
+using ..SelectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation, reroot_operation, operation_reference, retarget_operation
+using ..ReferenceModule
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 export ObjectField, get_object_field_value, get_object_field_name
 
@@ -242,8 +239,6 @@ end
 # prepend the container's steps onto that reference. Every path-bearing
 # operation type must add a method here; missing methods fall through to
 # the catch-all in `operation/Rerooting.jl` and are returned unchanged.
-import ..OperationModule: reroot_operation, reroot_reference,
-                          operation_reference, retarget_operation
 
 reroot_operation(op::ReplaceStringRangeOperation, steps::Tuple) =
     ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)

@@ -50,30 +50,24 @@ internals, which the module boundary forbids. The hooks are the honest shape.
 """
 module ReflectionModule
 
-import ..CellModule: AbstractCell, Cell, ComputedCell
-import ..DocumentModule: Document, @document, sync_document!, copy_document,
-                         is_element_collection,
-                         is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder
+using ..ReferenceModule
 export UnsyncedDocument, AUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,
        get_unsynced_size, make_unsynced_marker, request_sync!
-import ..CellModule: Cell, ComputedCell, MutableCell
-import ..DocumentModule: Document, @document, get_document_schema_name
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..DocumentModule: is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder,
-                         HiddenElements
-import ..OperationModule: Operation, evaluate_operation
+using ..CollectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
 export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
        reflect_document, sync_reflection!,
        reflect_child_count, reflect_child_pairs, reflect_children,
        is_reflection_leaf, get_reflection_value
-import ..ProjectionApiModule: print_document, read_intent, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
-import ..OperationModule: ReplaceReferencedValueOperation, ReplaceSelectionOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent
+using ..IoMapModule
+using ..WidgetModule
 export ReflectionToWidget
 
 

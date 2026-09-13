@@ -7,29 +7,22 @@ forms (compact + human narrative).
 """
 module InspectorModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..ProjectionApiModule: print_document, map_reference_forward,
-                              map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: ConcreteReference, annotate_reference_types
-import ..ReferenceToTextModule: ReferenceToText, ReferenceToHumanReadableText
-import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_liberation_sans_bold_30
-import ..StyleModule: StyleColor, color_solarized_blue
-import ..PrinterContextModule: PrinterContext
-import ..IoMapModule: SimpleIoMap
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, read_intent
+using ..ProjectionModule
+using ..ReferenceToTextModule
+using ..TextModule
+using ..StyleModule
+using ..PrinterContextModule
+using ..IoMapModule
 export ReferenceInspectorToText
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward,
-                              Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..EventModule: MouseMove, MousePress
-import ..OperationModule: ReplaceSelectionOperation
-import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
+using ..IntentModule
+using ..EventModule
+using ..OperationModule
+using ..ScreenModule
 export HoverProbeProjection, HoverProbeIoMap
 export ReferenceInspector
 

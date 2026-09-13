@@ -22,11 +22,10 @@ slot's dependents, not the entire collection.
 """
 module CollectionModule
 
-import ..CellModule: Cell, ComputedCell, Computed, AbstractCell, ReactiveCell, ImmutableCell, MutableCell, set_cell_function!, set_cell_value!, unwrap_cell, copy_cell_as
-import ..DocumentModule: Document, copy_document,
-       is_element_collection, is_collection_field_type, get_cell_layout_field_type,
-       @document, @forward_protocol
-import ..ReferenceModule: Reference, RangeReferenceStep
+using ..CellModule
+using ..DocumentModule
+import ..DocumentModule: copy_document, is_element_collection, is_collection_field_type, get_cell_layout_field_type
+using ..ReferenceModule
 import ..OperationModule: child_reference_steps
 import ..ChildrenContainerModule: make_children_container, get_children_container_type
 export CollectionDocument, CellVector, ComputedCellVector, CellMatrix, CellTable, ListNode,

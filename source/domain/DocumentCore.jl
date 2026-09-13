@@ -11,22 +11,16 @@ binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
 """
 module DomainModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document, @document
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
 export DocumentBase
-import ..EventPatternModule
-import ..GestureBindingModule
-import ..DocumentModule: Document, var"@document", get_document_family
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, ElementReferenceStep, PositionReferenceStep,
-                          extend_reference, concat_references, annotate_reference_types,
-                          get_reference_node_type, try_evaluate_reference
-import ..SelectionModule: with_selection, get_selection
-import ..ProjectionReferenceStepModule: normalize_named_node_reference
-import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
-import ..EventPatternModule: KeyDownPattern
+using ..EventPatternModule
+using ..GestureBindingModule
+import ..GestureBindingModule: get_document_gesture_bindings_own
+using ..SelectionModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
 export var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
        get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,

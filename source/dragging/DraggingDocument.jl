@@ -6,23 +6,18 @@ reorder region. Actual gesture interpretation lives in `DraggingProjection`.
 """
 module DraggingModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document, @document
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
 export DraggingDocument
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap", reconcile_child_iomap
-import ..CollectionModule: CellVector, ComputedCellVector, get_cell_at
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          RangeReferenceStep, FieldReferenceStep, is_element_reference_step, evaluate_reference,
-                          head, tail
-import ..OperationModule: ReplaceSelectionOperation
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: reroot_operation
-import ..EventModule: MouseDown, MouseUp, MouseMove, MousePress
-import ..EventModule: ModifierKeys
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..IoMapModule
+using ..CollectionModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..EventModule
 export DraggingProjection, DraggingIoMap, MoveRangeOperation
 export make_dragging_document, make_dragging_projection
 export DraggingState

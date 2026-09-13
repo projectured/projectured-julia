@@ -7,17 +7,16 @@ anchor. The `TooltipDecoratorProjection` reader watches events on it and emits
 """
 module TooltipModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
 
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
-import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
-import ..OperationModule: Operation
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..IoMapModule
+using ..ScreenModule
+using ..OperationModule
 export TooltipSource
 export TooltipDecoratorProjection, TooltipDecoratorIoMap
 

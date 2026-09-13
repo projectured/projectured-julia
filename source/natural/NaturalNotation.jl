@@ -49,10 +49,10 @@ by a package that does not own the printer, or a rung that belongs to no domain.
 """
 module NaturalModule
 
-import ..DocumentModule: Document
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..ProjectionAlgebraModule: RecursiveProjection
+using ..DocumentModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document
+using ..ProjectionAlgebraModule
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
        register_natural_parser!, register_natural_rung!,
        make_natural_projection, get_natural_extension, get_natural_format,
@@ -60,19 +60,15 @@ export register_natural_domain!, register_natural_notation!, register_natural_fo
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
-import ..StyleModule: font_ubuntu_monospace_regular_20
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..WidgetModule: WidgetToGraphics
-import ..LayoutModule: LayoutToGraphics, VerticalLayoutToGraphicsCanvas
-import ..LayoutModule: CellVectorToVerticalLayout
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..TextToGraphicsModule: TextToGraphics
-import ..WordWrappingModule: WordWrapping
-import ..TextModule: TextDocument, TextBlock, TextString
-import ..StyleModule: StyleText
-import ..StyleModule: color_default
-import ..DomainModule: DocumentNothing
-import ..IoMapModule: SimpleIoMap, get_iomap_output
+using ..StyleModule
+using ..WidgetModule
+using ..LayoutModule
+using ..CollectionModule
+using ..TextToGraphicsModule
+using ..WordWrappingModule
+using ..TextModule
+using ..DomainModule
+using ..IoMapModule
 export NaturalToGraphics,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
 

@@ -22,12 +22,11 @@ layout, so it is a *same-version* persistence format, not an interchange format.
 """
 module SerializationModule
 
-import ..CellModule: Cell, ComputedCell, ReactiveCell
-import ..DocumentModule: Document
-import ..OperationModule: Operation, evaluate_operation
+using ..CellModule
+using ..DocumentModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
-import ..CellModule: Cell, ComputedCell, ReactiveCell, unwrap_cell
-import ..DocumentModule: Document, search_documents
 export FileDocument, is_file_document,
        get_filename, get_file_content, emit_text, populate_file!,
        save_project!, load_project, ReferenceStub, resolve!, is_resolved,
@@ -36,9 +35,7 @@ export FileDocument, is_file_document,
        register_marker_function!, get_marker_function, evaluate_marker,
        register_marker_type_resolver!,
        format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
+using ..ReferenceModule
 export TextFile
 
 
