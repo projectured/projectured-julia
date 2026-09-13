@@ -9,7 +9,7 @@ terminates.
 """
 
 using Test
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedJson.JsonFileModule
 using ProjecturedJson.JsonModule
 

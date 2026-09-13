@@ -9,12 +9,34 @@ The load/save/import/export document operations live with the serializers:
 binary `Save`/`LoadDocumentOperation` in `BinarySerializationModule`, natural
 `Export`/`ImportDocumentOperation` in `NaturalFormatModule`.
 """
-module DocumentCoreModule
+module DomainModule
 
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: Document, @document
 import ..ReferenceModule: Reference
 export DocumentBase
+import ..EventPatternModule
+import ..GestureBindingModule
+import ..DocumentModule: Document, var"@document", get_document_family
+import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
+                          EmptyReference, ElementReferenceStep, PositionReferenceStep,
+                          extend_reference, concat_references, annotate_reference_types,
+                          get_reference_node_type, try_evaluate_reference
+import ..SelectionModule: with_selection, get_selection
+import ..ProjectionReferenceStepModule: normalize_named_node_reference
+import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
+import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
+import ..EventPatternModule: KeyDownPattern
+export var"@domain", var"@insertion",
+       get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
+       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
+       get_insertion_names, get_insertion_candidates, complete_insertion, name_completion,
+       resolve_insertion,
+       insert_document_operation, append_insertion_operation, move_to_field,
+       replace_selected_document
+export DocumentNothing, DocumentInsertion
+
+
 
 # ── DocumentBase (abstract) ───────────────────────────────────────────────────
 
@@ -79,5 +101,8 @@ DocumentReference(path::Reference; selection=nothing) =
 # The load/save/import/export document operations now live with the serializers
 # (see the module docstring): binary in `BinarySerializationModule`, natural in
 # `NaturalFormatModule`.
+
+
+include("Domain.jl")
 
 end # module

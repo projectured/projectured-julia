@@ -2075,7 +2075,7 @@ SqlInsertionToSyntaxLeaf() =
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.
 import ..SqlDocumentModule: SqlDocument
-import ..DocumentFileModule: make_document_seed
+import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:sql}) = SqlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────

@@ -48,7 +48,7 @@ import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOpera
 import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
 import ..CellModule: Cell, ComputedCell
 import ..DocumentModule: Document
-import ..DocumentCoreModule: DocumentNothing
+import ..DomainModule: DocumentNothing
 import ..DocumentModule: copy_document
 import ..SelectionModule: clear_selection!
 import ..ClipboardModule: ClipboardSlice, ClipboardCollection

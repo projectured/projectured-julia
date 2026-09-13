@@ -10,7 +10,7 @@ an embed below the first title only reaches the widget renderer because
 
 using Test
 using ProjecturedKernel.CellModule: Cell, AbstractCell
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedRst.RstFileModule
 using ProjecturedRst.RstModule: RstRoot, RstSection, RstDirective
 using ProjecturedRst.RstParserModule: parse_rst

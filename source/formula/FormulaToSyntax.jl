@@ -1,55 +1,5 @@
-"""
-    FormulaToSyntaxModule
-
-Formula → Syntax projection, composed with the Julia projection so a formula
-body (a mix of `JuliaDocument` nodes and `FormulaReference`s) renders through one
-shared `recursion`:
-
-- `FormulaReference` → `SyntaxLeaf` whose value is `() -> reference.target.name`,
-  coloured as a link. Reactive, so it tracks renames.
-- `FormulaFormula` → `SyntaxNode` with three layouts selected by the formula's
-  `display_mode` cell (`:code` / `:result` / `:both`).
-- `FormulaEnvironment` → `SyntaxNode`, one formula per line.
-
-Mappers follow the School-A peel-and-delegate pattern (see the tutorial and
-package/kernel/doc/projection-system.md): each node peels the one step it owns and delegates
-the tail through the stored child IO maps. `FormulaToSyntax()` merges the Julia
-type-dispatch table with the Formula entries into a single
-`TypeDispatchingProjection` (callers wrap it once in `RecursiveProjection`, as
-with `JuliaToSyntax`).
-"""
-module FormulaToSyntaxModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..FormulaModule: FormulaDocument, FormulaInsertion, FormulaReference,
-                        FormulaFormula, FormulaEnvironment
-import ..TextModule: TextString
-import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
-                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
-                      color_solarized_violet
-import ..StyleTextModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..IoMapModule: IoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep,
-                          RangeReferenceStep, FieldReferenceStep,
-                          Reference, EmptyReference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..PrinterContextModule: make_child_context
-import ..JuliaToSyntaxModule: JuliaToSyntax
-
-export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
-       FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from FormulaToSyntax.jl.
 # ── Leaf helpers ─────────────────────────────────────────────────────────────
 
 _empty(font) = TextString("", font, color_default)
@@ -287,5 +237,3 @@ function FormulaToSyntax()
     push!(pairs, FormulaEnvironment  => FormulaEnvironmentToSyntaxNode())
     TypeDispatchingProjection(pairs)
 end
-
-end # module

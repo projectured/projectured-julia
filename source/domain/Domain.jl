@@ -1,32 +1,5 @@
-"""
-    DomainModule
-
-What a document domain *is* — the concept the domain package's JSON, XML, SQL,
-Julia, … are instances of. Two halves:
-
-1. **The `@domain` macro** — generates a document domain's whole kit from one
-   line: the abstract root (`JsonDocument`), the empty placeholder
-   (`JsonNothing`), the typed-name insertion buffer (`JsonInsertion`), the
-   Insert-key gesture that turns the placeholder into the insertion, and the
-   insertion *traits* that anchor everything below.
-
-2. **Reflection-based completion** — the candidate list for an insertion is
-   *computed* from the document type tree (`get_insertion_candidates`, memoized on
-   the world counter so a newly defined `@document` type is completable the
-   moment its `struct` is evaluated), the accepted names are *derived* from the
-   type name (`get_insertion_names`: the capitalized type name `JsonString` and the
-   lowercase human-readable form `json string`; prefix-free inside a domain
-   scope), and construction goes through *dispatch* (`make_insertion_document`,
-   zero-arg fallback + per-type cursor/scaffold overrides written with
-   `@insertion`). Nothing is listed or registered.
-
-`complete_insertion` classifies a typed prefix (`:empty` / `:invalid` /
-`:unambiguous` / `:ambiguous`) and computes the completion continuation;
-`resolve_insertion` maps a typed name to the committable type (exact name or
-alias first, then an unambiguous prefix).
-"""
-module DomainModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from Domain.jl.
 # `subtypes` WITHOUT InteractiveUtils.
 #
 # `InteractiveUtils` is the REPL's introspection stdlib — `@which`, `@edit`,
@@ -70,27 +43,7 @@ end
 
 subtypes(x::Type; world::UInt = Base.get_world_counter()) =
     _subtypes_in!(Base.loaded_modules_array(), x, world)
-import ..EventPatternModule
-import ..GestureBindingModule
-import ..DocumentModule: Document, var"@document", get_document_family
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference, ElementReferenceStep, PositionReferenceStep,
-                          extend_reference, concat_references, annotate_reference_types,
-                          get_reference_node_type, try_evaluate_reference
-import ..SelectionModule: with_selection, get_selection
-import ..ProjectionReferenceStepModule: normalize_named_node_reference
-import ..OperationModule: replace_document, insert_elements, ReplaceSelectionOperation
-import ..GestureBindingModule: GestureBinding, get_document_gesture_bindings_own
-import ..EventPatternModule: KeyDownPattern
-import ..DocumentCoreModule: DocumentNothing, DocumentInsertion
 
-export var"@domain", var"@insertion",
-       get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
-       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
-       get_insertion_names, get_insertion_candidates, complete_insertion, name_completion,
-       resolve_insertion,
-       insert_document_operation, append_insertion_operation, move_to_field,
-       replace_selected_document
 
 # ── Traits ────────────────────────────────────────────────────────────────────
 #
@@ -637,5 +590,3 @@ macro domain(name, opts...)
     ))
     out
 end
-
-end # module

@@ -22,10 +22,36 @@ import ..JuliaModule: JuliaDocument,
                       JuliaTypeAnnotation, JuliaAssignment, JuliaForIterator, JuliaFor,
                       JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry,
                       JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, _julia_operator_string
-
 export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_references, get_formula_dependencies, would_create_cycle, compute_topological_order,
        convert_formula_to_expr, evaluate_formula
+import ..ProjectionApiModule: print_document, print_child, read_intent,
+                              map_reference_forward, map_reference_backward, Projection
+import ..ProjectionModule: var"@projection"
+import ..TextModule: TextString
+import ..FontModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
+import ..ColorModule: StyleColor, color_default, color_solarized_blue, color_solarized_cyan,
+                      color_solarized_green, color_solarized_magenta, color_solarized_gray,
+                      color_solarized_violet
+import ..StyleTextModule: StyleText
+import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
+import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
+import ..IoMapModule: SimpleIoMap, ChildrenIoMap
+import ..IoMapModule: IoMap
+import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep,
+                          RangeReferenceStep, FieldReferenceStep,
+                          Reference, EmptyReference
+import ..ProjectionReferenceStepModule: ProjectionReferenceStep
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference", var"@reference_step"
+import ..PrinterContextModule: make_child_context
+import ..JuliaToSyntaxModule: JuliaToSyntax
+export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
+       FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
+export FormulaInsertion, FormulaReference
+
+
+
 
 abstract type FormulaDocument <: Document end
 
@@ -389,5 +415,8 @@ function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
     set_cell_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
     formula
 end
+
+
+include("FormulaToSyntax.jl")
 
 end # module

@@ -79,7 +79,7 @@ import ..WordWrappingModule: WordWrapping
 import ..TextModule: TextDocument, TextBlock, TextString
 import ..StyleTextModule: StyleText
 import ..ColorModule: color_default
-import ..DocumentCoreModule: DocumentNothing
+import ..DomainModule: DocumentNothing
 import ..ProjectionApiModule: print_document, Projection
 import ..IoMapModule: SimpleIoMap, get_iomap_output
 import ..NaturalRegistryModule: get_natural_syntax_entries, get_natural_graphics_entries,

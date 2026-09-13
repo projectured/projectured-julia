@@ -1,70 +1,5 @@
-"""
-    VersioningToAnyProjectionModule
-
-The version-elimination projection — the direct analogue of
-`ClipboardSliceToAnyProjection` (`ClipboardToAnyProjectionModule`).
-
-`VersioningToAnyProjection` sits on top of a `VersionedObject` document. Its
-printer selects one `ObjectVersion` according to the document's `criterion`
-(`select_version`) and projects that version's **value object** in place of the
-wrapper — so the output is a plain, non-versioned document and the wrapper
-vanishes. Because the elimination is purely structural and recurses through
-`print_child`, nested `VersionedObject`s inside a selected value
-resolve automatically, each by its own criterion.
-
-The reader delegates non-versioning gestures into the selected value's child
-reader and re-roots the returned operation under `versions[idx].value` (the
-School-A pattern — delegate through the stored child IoMap, never re-walk by
-document type). Own gestures snapshot a new version
-(`insert_elements` on `versions`) or remove the active one (`delete_elements`) —
-the same standard, universally-rerooted sequence splices the clipboard uses;
-`SetVersionCriterionOperation` switches the active criterion.
-
-## Criterion swapping
-
-`criterion` lives on the document as a `Cell`, and the printer defers
-`select_version` into a derived `selection_cell`, so `SetVersionCriterionOperation`
-is a plain reactive cell write: the new version is selected and re-printed and the
-reactive `ChainingProjection` re-pulls the output downstream, with **no
-`editor.iomap` drop** (mirroring `ToggleClipboardSliceOperation`).
-
-## Empty / no-match
-
-When `select_version` returns `nothing` (an empty `versions` list, or a
-criterion that matches no version) the printer emits a `DocumentNothing`,
-mirroring `ClipboardSlice`'s empty-slice fallback. The reference maps and the
-delegating reader then have no child to descend into and decline.
-"""
-module VersioningToAnyProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
-                       merge_collected_intents
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
-                          insert_elements, delete_elements, CompoundOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentCoreModule: DocumentNothing
-import ..DocumentModule: copy_document
-import ..SelectionModule: clear_selection!
-import ..VersioningModule: VersionedObject, ObjectVersion, VersionProperties,
-                          VersionCriterion, VersionCriterionLatest, select_version
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          evaluate_reference, head, tail
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap, var"@iomap"
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
-
-export VersioningToAnyProjection, VersioningToAnyIoMap,
-       SetVersionCriterionOperation
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from VersioningToAny.jl.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """
@@ -284,5 +219,3 @@ function _prepend(steps::Tuple, path::Reference)
     end
     result
 end
-
-end # module

@@ -11,7 +11,7 @@ path) renders only the marker.
 
 using Test
 using ProjecturedKernel.CellModule: Cell
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedMarkdown.MarkdownFileModule
 using ProjecturedMarkdown.MarkdownModule: MarkdownDocument, MarkdownRoot
 using ProjecturedMarkdown.MarkdownToSyntaxModule: MarkdownToSyntax

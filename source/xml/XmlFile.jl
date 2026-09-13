@@ -26,7 +26,7 @@ import ..CollectionModule: CellVector, ComputedCellVector
 import ..XmlModule: XmlDocument, XmlElement, XmlText, XmlAttribute, XmlNothing
 import ..XmlParserModule: parse_xml
 import ..NaturalNotationModule: print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!
 

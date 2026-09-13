@@ -18,7 +18,7 @@ module WorkbenchFileModule
 
 import ..OperationModule: Operation, evaluate_operation
 import ..WorkbenchModule: WorkbenchEditor
-import ..DocumentFileModule: write_document_file, read_document_file
+import ..FileFormatModule: write_document_file, read_document_file
 import ..EventModule: KeyDown
 import ..GestureBindingModule: var"@gestures"
 

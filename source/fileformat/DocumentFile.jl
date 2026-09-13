@@ -1,37 +1,8 @@
-"""
-    DocumentFileModule
-
-Format-by-extension file I/O — the single "read/write a document file" seam that
-bridges the two serializers and the domain insertion seeds:
-
-| extension | write | read (exists) | read (missing) |
-|-----------|-------|---------------|----------------|
-| `.pdoc`   | binary `save_document` | `load_document` | `DocumentNothing` |
-| natural   | `export_document`      | `import_document` | the domain's seed |
-
-Opening a *non-existent* file yields the extension's seed — the domain insertion
-placeholder registered on `make_document_seed` (`.json` → `JsonInsertion`, …), or a
-`DocumentNothing` otherwise — so a new file starts as an editable seed that can be
-typed into and then saved. Used by the `WorkbenchEditor` save/reload keybindings
-and the file-editor registry.
-
-Sits in `visual` beside [`NaturalFormatModule`](@ref) (the natural half needs the
-visual text printers); the binary half calls up to `base`'s
-[`BinarySerializationModule`](@ref).
-"""
-module DocumentFileModule
-
-import ..DocumentModule: Document
-import ..BinarySerializationModule: save_document, load_document
-import ..NaturalFormatModule: export_document, import_document
-import ..DocumentCoreModule: DocumentNothing
-
-export write_document_file, read_document_file, make_document_for, make_document_seed
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from DocumentFile.jl.
 const _BINARY_EXT = ".pdoc"
 
 _ext(path::AbstractString) = lowercase(splitext(path)[2])
-_ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 
 """
     make_document_seed(::Val{ext}) -> Document
@@ -74,5 +45,3 @@ domain's insertion placeholder for a registered natural format, or a
 seed and saving creates the file.
 """
 make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
-
-end # module

@@ -34,7 +34,7 @@ import ..DocumentModule: @document
 import ..CollectionModule: CellVector
 import ..ReferenceModule: Reference
 import ..PrimitiveModule: PrimitiveString
-import ..DocumentCoreModule: DocumentNothing
+import ..DomainModule: DocumentNothing
 import ..SelectionModule: has_dormant_selection
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,

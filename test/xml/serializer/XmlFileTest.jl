@@ -9,7 +9,7 @@ so the marker round-trips cleanly.
 using Test
 using ProjecturedKernel.CellModule
 using ProjecturedCollection.CollectionModule
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedXml.XmlFileModule
 using ProjecturedXml.XmlModule
 

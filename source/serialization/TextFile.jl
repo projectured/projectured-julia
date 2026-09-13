@@ -1,23 +1,5 @@
-"""
-    TextFileModule
-
-The simplest concrete `FileDocument`: `TextFile`, whose `content` is a
-raw `String`. Emit is the identity (write `content` unchanged); load
-reads the file as a `String`. No parser, no printer, no projection —
-this is the fallback for a file the driver doesn't know a format for,
-and the smallest possible test target for the `save_project!` /
-`load_project` driver.
-"""
-module TextFileModule
-
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
-                            register_file_document_type!
-
-export TextFile
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextFile.jl.
 """
     TextFile(filename, content)
 
@@ -44,9 +26,4 @@ end
 # extension registers itself on top. Registered in `__init__` so the
 # mutation survives precompilation (Julia does not preserve state
 # built up by top-level statements across the precompile boundary).
-function __init__()
-    register_file_document_type!("",     TextFile)
-    register_file_document_type!(".txt", TextFile)
-end
 
-end # module

@@ -9,8 +9,8 @@ consulted only when a stub is resolved.
 """
 
 using Test
-using ProjecturedSerialization.FileProjectModule
-using ProjecturedSerialization.TextFileModule
+using ProjecturedSerialization.SerializationModule
+using ProjecturedSerialization.SerializationModule
 
 function test_marker_language()
 @testset "Marker language: restricted Julia in <<…>>" begin

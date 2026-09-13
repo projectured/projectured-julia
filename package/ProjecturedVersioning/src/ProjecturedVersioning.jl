@@ -23,7 +23,7 @@ const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IntentModule = ProjecturedKernel.IntentModule
 const OperationModule = ProjecturedKernel.OperationModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
-const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
+const DomainModule = ProjecturedDomain.DomainModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
@@ -32,6 +32,5 @@ const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
 include("../../../source/versioning/VersioningDocument.jl")
-include("../../../source/versioning/VersioningToAny.jl")
 
 end # module ProjecturedVersioning

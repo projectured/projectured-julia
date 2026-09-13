@@ -81,8 +81,8 @@ using ProjecturedReflection.BoundedSyncModule
 using ProjecturedReflection.DocumentReflectionModule
 using ProjecturedKernel.DocumentModule: get_cell_struct_kind
 using ProjecturedVersioning.VersioningModule
-using ProjecturedVersioning.VersioningToAnyProjectionModule: VersioningToAnyProjection
-using ProjecturedDomain.DocumentCoreModule: DocumentNothing
+using ProjecturedVersioning.VersioningModule: VersioningToAnyProjection
+using ProjecturedDomain.DomainModule: DocumentNothing
 using ProjecturedKernel.IntentModule: Intent
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation
 using ProjecturedProjection.RecursiveProjectionModule: RecursiveProjection

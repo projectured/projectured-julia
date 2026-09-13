@@ -16,16 +16,45 @@ selection and collapse are not represented, and a document carrying an *insertio
 placeholder* has no valid natural-text form, so its export will not re-parse.
 Round-trip on real data documents; not on editor scaffolding.
 """
-module NaturalFormatModule
+module FileFormatModule
 
 import ..DocumentModule: Document
 import ..OperationModule: Operation, evaluate_operation
 import ..NaturalNotationModule: get_natural_extension, get_natural_format,
                                 has_natural_parser, parse_natural_text,
                                 print_natural_text
-
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation
+import ..SerializationModule: save_document, load_document
+import ..DomainModule: DocumentNothing
+export write_document_file, read_document_file, make_document_for, make_document_seed
+import ..CellModule: Cell, ComputedCell
+import ..CollectionModule: ComputedCellVector
+import ..ProjectionApiModule: Projection, print_document, print_child,
+                              map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: var"@projection"
+import ..IoMapModule: IoMap, var"@iomap"
+import ..PrinterContextModule: make_child_context
+import ..ReferenceModule: FieldReferenceStep, EmptyReference, ConcreteReference
+import ..ReferenceModule: var"@reference_case"
+import ..ReferenceModule: var"@reference"
+import ..SyntaxModule: SyntaxLeaf
+import ..TextModule: TextString, TextBlock
+import ..StyleTextModule: StyleText
+import ..FontModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
+import ..ColorModule: color_solarized_gray
+import ..GeometryModule: Point2D
+import ..LayoutModule: HorizontalLayout
+import ..OperationModule: ReplaceSelectionOperation
+import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel
+import ..PrimitiveModule: ReplaceStringRangeOperation
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
+                            get_file_content, get_filename
+export ReferenceStubToSyntax, FileDocumentToSyntax, EmbedIoMap
+export export_document
+
+
+
 
 _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 
@@ -97,5 +126,9 @@ function evaluate_operation(editor, op::ImportDocumentOperation)
     editor.document = import_document(op.path)
     editor.iomap = nothing
 end
+
+
+include("DocumentFile.jl")
+include("EmbedToSyntax.jl")
 
 end # module

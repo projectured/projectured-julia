@@ -50,7 +50,7 @@ const StyleTextModule = ProjecturedStyle.StyleTextModule
 const TextToStringModule = ProjecturedText.TextToStringModule
 const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
 const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
-const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
+const DomainModule = ProjecturedDomain.DomainModule
 const DomainModule = ProjecturedDomain.DomainModule
 const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 

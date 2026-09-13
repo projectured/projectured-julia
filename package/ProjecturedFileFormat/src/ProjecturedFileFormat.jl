@@ -32,8 +32,8 @@ const ChainingProjectionModule = ProjecturedProjection.ChainingProjectionModule
 const RecursiveProjectionModule = ProjecturedProjection.RecursiveProjectionModule
 const SyntaxToTextModule = ProjecturedSyntax.SyntaxToTextModule
 const TextToStringModule = ProjecturedText.TextToStringModule
-const BinarySerializationModule = ProjecturedSerialization.BinarySerializationModule
-const DocumentCoreModule = ProjecturedDomain.DocumentCoreModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
+const DomainModule = ProjecturedDomain.DomainModule
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
@@ -49,11 +49,9 @@ const GeometryModule = ProjecturedStyle.GeometryModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
-const FileProjectModule = ProjecturedSerialization.FileProjectModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/fileformat/NaturalFormat.jl")
-include("../../../source/fileformat/DocumentFile.jl")
-include("../../../source/fileformat/EmbedToSyntax.jl")
 include("../../../source/fileformat/NaturalRegistration.jl")
 
 

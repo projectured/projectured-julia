@@ -44,7 +44,7 @@ import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..JuliaInsertionToSyntaxModule: JuliaInsertionToSyntaxLeaf
 import ..ProjectionTemplateModule: var"@projection_template", bound, project, collection
-import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
@@ -1005,7 +1005,7 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # Julia's seams for import_document / export_document / read+write_document_file.
 import ..JuliaParserModule: parse_julia
-import ..DocumentFileModule: make_document_seed
+import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:jl}) = JuliaInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────

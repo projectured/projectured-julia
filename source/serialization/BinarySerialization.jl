@@ -20,14 +20,30 @@ portable, human-readable format use the natural import/export
 (`NaturalFormatModule`). The binary format is tied to the in-memory struct
 layout, so it is a *same-version* persistence format, not an interchange format.
 """
-module BinarySerializationModule
+module SerializationModule
 
 import ..CellModule: Cell, ComputedCell, ReactiveCell
 import ..DocumentModule: Document
 import ..OperationModule: Operation, evaluate_operation
+export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
+import ..CellModule: Cell, ComputedCell, ReactiveCell, unwrap_cell
+import ..DocumentModule: Document, search_documents
+export FileDocument, is_file_document,
+       get_filename, get_file_content, emit_text, populate_file!,
+       save_project!, load_project, ReferenceStub, resolve!, is_resolved,
+       resolve_stubs!, LoaderContext,
+       register_file_document_type!, get_file_document_type,
+       register_marker_function!, get_marker_function, evaluate_marker,
+       register_marker_type_resolver!,
+       format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
+import ..CellModule: Cell, ComputedCell
+import ..DocumentModule: @document
+import ..ReferenceModule: Reference
+export TextFile
+
+
 using Serialization
 
-export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 
 # ── Cell: serialize the value only ─────────────────────────────────────────
 #
@@ -139,5 +155,9 @@ function evaluate_operation(editor, op::LoadDocumentOperation)
     editor.document = load_document(op.path)
     editor.iomap = nothing
 end
+
+
+include("FileProject.jl")
+include("TextFile.jl")
 
 end # module

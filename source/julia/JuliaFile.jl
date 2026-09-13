@@ -41,7 +41,7 @@ import ..JuliaModule: JuliaDocument, JuliaNothing, JuliaCall, JuliaIdentifier,
                       JuliaSubtype, JuliaCurly
 import ..JuliaParserModule: parse_julia
 import ..NaturalNotationModule: print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, register_marker_function!,
                             is_file_document

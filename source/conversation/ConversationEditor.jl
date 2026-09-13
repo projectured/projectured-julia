@@ -36,7 +36,7 @@ import ..ProjectionApiModule: print_document, read_intent,
 import ..ConversationModule: ConversationConversation, ConversationTurn, ConversationPart, ConversationDraft
 import ..EvaluatorModule: EvaluatorForm, make_evaluator_result_text, get_evaluation_kind_label
 import ..ConversationToWidgetModule: FORMAT_LABELS, _is_code
-import ..DocumentCoreModule: DocumentInsertion
+import ..DomainModule: DocumentInsertion
 import ..PrimitiveModule: PrimitiveString
 import ..TextModule: TextBlock, TextString
 # The composer names no source domain. Which kinds it offers, what each is

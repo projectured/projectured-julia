@@ -33,7 +33,7 @@ import ..PrimitiveToSyntaxModule: PrimitiveToSyntax
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..PrimitiveModule: PrimitiveDocument
 import ..TextModule: TextDocument, TextNothing, TextInsertion
-import ..DocumentCoreModule: DocumentNothing
+import ..DomainModule: DocumentNothing
 import ..NaturalRegistryModule: get_natural_syntax_entries, register_natural_fallback!
 import ..NaturalNotationModule: register_natural_rung!
 

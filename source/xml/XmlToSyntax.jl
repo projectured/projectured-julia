@@ -48,7 +48,7 @@ import ..StyleTextModule: StyleText
 import ..SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..ProjectionTemplateModule: var"@projection_template", bound, collection, RuleIoMap
-import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
        XmlElementToSyntaxNode,
        ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
@@ -235,7 +235,7 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # XML's seams for import_document / export_document / read+write_document_file.
 import ..XmlParserModule: parse_xml
-import ..DocumentFileModule: make_document_seed
+import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:xml}) = XmlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────

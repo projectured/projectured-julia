@@ -13,7 +13,7 @@ format's natural escape:
 
 using Test
 using ProjecturedKernel.CellModule
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedJulia.JuliaFileModule
 using ProjecturedJulia.JuliaModule
 using ProjecturedMarkdown.MarkdownFileModule

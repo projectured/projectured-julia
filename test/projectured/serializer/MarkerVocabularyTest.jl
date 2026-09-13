@@ -7,7 +7,7 @@ byte of the file that names it.
 """
 
 using Test
-using ProjecturedSerialization.FileProjectModule
+using ProjecturedSerialization.SerializationModule
 using ProjecturedJulia.JuliaFileModule
 import ProjecturedJson
 using ProjecturedJson.JsonFileModule

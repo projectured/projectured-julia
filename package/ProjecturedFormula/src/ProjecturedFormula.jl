@@ -34,6 +34,5 @@ for _src in (ProjecturedCollection, ProjecturedJulia, ProjecturedKernel, Project
 end
 
 include("../../../source/formula/FormulaDocument.jl")
-include("../../../source/formula/FormulaToSyntax.jl")
 
 end # module ProjecturedFormula

@@ -45,7 +45,7 @@ import ..DocumentModule: Document
 import ..GestureBindingModule: read_gesture
 import ..EventModule: KeyPress, KeyDown, ModifierKeys
 import ..EventModule: MousePress
-import ..DocumentCoreModule: DocumentInsertion, DocumentNothing
+import ..DomainModule: DocumentInsertion, DocumentNothing
 import ..DomainModule: get_insertion_root, get_nothing_document, get_insertion_names,
                        get_insertion_candidates, complete_insertion, name_completion,
                        resolve_insertion,

@@ -35,7 +35,7 @@ import ..MarkdownModule: MarkdownDocument, MarkdownRoot, MarkdownParagraph,
 import ..MarkdownParserModule: parse_markdown
 import ..MarkdownToSyntaxModule: MarkdownToSyntax
 import ..NaturalNotationModule: register_natural_domain!, print_natural_text
-import ..FileProjectModule: FileDocument, emit_text, populate_file!, get_file_content,
+import ..SerializationModule: FileDocument, emit_text, populate_file!, get_file_content,
                             parse_marker_text, ReferenceStub, LoaderContext,
                             register_file_document_type!, get_document_section,
                             is_file_document

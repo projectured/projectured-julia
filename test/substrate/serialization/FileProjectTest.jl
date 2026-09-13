@@ -9,9 +9,9 @@ recreation after external deletion.
 """
 
 using Test
-using ProjecturedSerialization.FileProjectModule
-using ProjecturedSerialization.TextFileModule
-using ProjecturedSerialization.FileProjectModule: register_marker_type_resolver!
+using ProjecturedSerialization.SerializationModule
+using ProjecturedSerialization.SerializationModule
+using ProjecturedSerialization.SerializationModule: register_marker_type_resolver!
 
 function test_file_project()
 @testset "FileProject: TextFile round-trip" begin
@@ -156,7 +156,7 @@ function test_file_project()
 
     @testset "ReferenceStub: constructor and printing" begin
         stub = ReferenceStub("file(\"child.json\")")
-        @test stub isa FileProjectModule.ReferenceStub
+        @test stub isa SerializationModule.ReferenceStub
         @test stub.source == "file(\"child.json\")"
         @test format_marker_text(stub) == "<<file(\"child.json\")>>"
         @test occursin("ReferenceStub", sprint(show, stub))

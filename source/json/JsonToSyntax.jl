@@ -12,7 +12,7 @@ import ..CellModule: Cell, ComputedCell
 import ..ProjectionApiModule: print_document, Projection
 import ..ProjectionModule: var"@projection"
 import ..JsonModule: JsonDocument, JsonNothing, JsonInsertion, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonObjectEntry
-import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text, get_filename
 import ..DocumentInsertionToSyntaxModule: DomainInsertionToSyntaxLeaf, InsertionNothingToSyntaxLeaf
 import ..TextModule: TextString, make_hinted_text
 import ..FontModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
@@ -216,7 +216,7 @@ end
 # ── Natural-format registration ─────────────────────────────────────────────
 # JSON's seams for import_document / export_document / read+write_document_file.
 import ..JsonParserModule: parse_json
-import ..DocumentFileModule: make_document_seed
+import ..FileFormatModule: make_document_seed
 make_document_seed(::Val{:json}) = JsonInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────

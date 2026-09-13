@@ -9,12 +9,12 @@
 # stays by-marker.
 function __init__()
     NaturalRegistryModule.register_natural_syntax!(
-        FileProjectModule.ReferenceStub => EmbedToSyntaxModule.ReferenceStubToSyntax(),
-        FileProjectModule.FileDocument  => EmbedToSyntaxModule.FileDocumentToSyntax())
+        SerializationModule.ReferenceStub => FileFormatModule.ReferenceStubToSyntax(),
+        SerializationModule.FileDocument  => FileFormatModule.FileDocumentToSyntax())
     NaturalRegistryModule.register_natural_graphics!(:fileformat, (; measure) -> Pair{Type,Any}[
-        FileProjectModule.ReferenceStub =>
-            EmbedToSyntaxModule.ReferenceStubToSyntax(unforced = :prose, wrap = :card),
-        FileProjectModule.FileDocument =>
-            EmbedToSyntaxModule.FileDocumentToSyntax(unforced = :prose, wrap = :card)])
+        SerializationModule.ReferenceStub =>
+            FileFormatModule.ReferenceStubToSyntax(unforced = :prose, wrap = :card),
+        SerializationModule.FileDocument =>
+            FileFormatModule.FileDocumentToSyntax(unforced = :prose, wrap = :card)])
     nothing
 end

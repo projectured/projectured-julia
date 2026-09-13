@@ -75,7 +75,7 @@ import ..OperationModule: ReplaceSelectionOperation
 import ..PrimitiveModule: ReplaceStringRangeOperation
 import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxConcatenation,
                        SyntaxDelimitation
-import ..FileProjectModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
+import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
                             get_filename
 import ..TypeDispatchingProjectionModule: TypeDispatchingProjection
 import ..CopyingProjectionModule: CopyingProjection
