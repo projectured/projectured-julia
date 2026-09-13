@@ -1,34 +1,5 @@
-"""
-    TooltipDecoratorProjectionModule
-
-A higher-order projection that dispatches on `TooltipSource` documents.
-
-**Printer** — transparent: projects `source.child` through the outer
-recursion and returns its output. The `TooltipSource` itself contributes
-nothing to the visual output.
-
-**Reader** — runs a small per-source state machine each time it sees an
-event. The `trigger` callback decides whether the tooltip should
-currently be visible; transitions emit `OpenWindowOperation` /
-`CloseWindowOperation`, which bubble up to `WindowManagingProjection`.
-
-State (arm-time / is-open) is held per `source.id` on the projection
-instance, so a single decorator instance can handle multiple sibling
-sources independently.
-"""
-module TooltipDecoratorProjectionModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep, head, tail
-import ..TooltipDocumentModule: TooltipSource
-import ..ScreenDocumentModule: OpenWindowOperation, CloseWindowOperation
-import ..OperationModule: Operation
-
-export TooltipDecoratorProjection, TooltipDecoratorIoMap
-
+# ────────────────────────────────────────────────────────────────────────────
+# Folded in from TooltipDecorator.jl.
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct TooltipDecoratorIoMap
@@ -164,5 +135,3 @@ function map_reference_backward(::TooltipDecoratorProjection, iomap::TooltipDeco
     inner === nothing && return nothing
     ConcreteReference(FieldReferenceStep("child"), inner)
 end
-
-end # module

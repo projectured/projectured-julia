@@ -22,6 +22,5 @@ const ScreenDocumentModule = ProjecturedScreen.ScreenDocumentModule
 const OperationModule = ProjecturedKernel.OperationModule
 
 include("../../../source/tooltip/TooltipDocument.jl")
-include("../../../source/tooltip/TooltipDecorator.jl")
 
 end # module ProjecturedTooltip
