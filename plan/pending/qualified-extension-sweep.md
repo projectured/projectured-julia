@@ -53,16 +53,33 @@ That is why 1397 lines sit in only 74 files.
 ## 2. One blocker: fourteen names reach past an export list
 
 A bare `using` brings only what a module exports, so a file that imports a name
-its owner does not export stops compiling. There are 14, measured against the
-loaded modules rather than the source:
+its owner does not export stops compiling. There are **25**, measured against
+the loaded modules rather than the source, and counting the continuation lines
+an import can spill onto:
 
 | name | from | reached by |
 | --- | --- | --- |
-| `TrueTypeFont`, `_load_ttf`, `advance_1000`, `ascent_px`, `glyph_id` | `StyleModule` | `source/pdf/Pdf.jl` |
-| `rule_print`, `template_read_intent` | `ProjectionTemplateModule` | `source/rst/RstDocument.jl` |
-| `head`, `tail` | `ReferenceModule` | `source/text/TextToGraphics.jl`, `source/tooltip/TooltipDocument.jl` |
-| `DOCUMENT_SHOW_MAX_DEPTH` | `DocumentModule` | `source/widget/WidgetDocument.jl` |
-| `_forward_descend`, `_shift_child_image` | `LayoutModule` | `source/widget/WidgetDocument.jl` |
+| name | from | files |
+| --- | --- | --- |
+| `head`, `tail` | `ReferenceModule` | 4 each — versioning, clipboard, screen, text |
+| `TrueTypeFont`, `_load_ttf`, `advance_1000`, `ascent_px`, `glyph_id`, `text_width` | `StyleModule` | pdf |
+| `SpanPath`, `_flat_base`, `_flat_caret_ref`, `_flat_cursor_coord`, `_is_structural_selection` | `TextModule` | widget |
+| `rule_print`, `template_read_intent` | `ProjectionTemplateModule` | rst |
+| `_forward_descend`, `_shift_child_image` | `LayoutModule` | widget |
+| `DOCUMENT_SHOW_MAX_DEPTH` | `DocumentModule` | widget |
+| `_canvas_content_bounds` | `GraphicsModule` | widget |
+
+**`head` and `tail` block three slices today.** Versioning, clipboard and screen
+walk a reference with them, and each keeps an `import ..ReferenceModule: head,
+tail` with a comment pointing here. They are not registered as migrated, because
+their headers still carry a name nothing extends.
+
+The choice is not only whether to export them. `head(p::ConcreteReference)`
+carries no verb, which PAR-NAMING-LAW requires of every function, and `head` and
+`tail` are generic enough to be worth a collision after a bare `using` puts them
+in every scope. So the options are to export them as they are, to rename them to
+`get_reference_head` and `get_reference_tail` and export those, or to give the
+four callers a different way to walk a reference. That decision is open.
 
 Each one is either part of the owner's API, and the owner exports it, or it is
 not, and the reader stops reaching it. Three of them say which they are by their

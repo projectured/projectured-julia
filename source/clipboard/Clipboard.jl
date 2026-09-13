@@ -26,33 +26,29 @@ path is inert there); tests install an in-memory fake via
 module ClipboardModule
 
 export read_os_clipboard, write_os_clipboard!, set_os_clipboard_backend!, reset_os_clipboard_backend!
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+# `head` and `tail` are not exported, so a bare `using` does not reach them.
+# See plan/pending/qualified-extension-sweep.md §2.
+import ..ReferenceModule: head, tail
 export ClipboardDocument
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
-                       merge_collected_intents
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, replace_document,
-                          insert_elements, delete_elements, CompoundOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation, PrimitiveString
-import ..DomainModule: DocumentNothing
-import ..DocumentModule: copy_document
-import ..SelectionModule: clear_selection!
-import ..TextModule: TextBlock, TextString, get_selection_substring, make_text_insert_operation
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          evaluate_reference, try_evaluate_reference, head, tail,
-                          strip_reference_types
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap, reconcile_child_iomaps, var"@iomap"
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..PrimitiveModule
+using ..DomainModule
+using ..SelectionModule
+using ..TextModule
+using ..PrinterContextModule
+using ..IoMapModule
+using ..GestureBindingModule
+using ..EventPatternModule
+using ..ProjectionGestureBindingsModule
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
        ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,

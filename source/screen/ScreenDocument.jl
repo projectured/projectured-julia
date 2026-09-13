@@ -20,37 +20,29 @@ translates one into a document mutation — typically removing the matching
 """
 module ScreenModule
 
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
-import ..OperationModule: Operation, evaluate_operation
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+# `head` and `tail` are not exported, so a bare `using` does not reach them.
+# See plan/pending/qualified-extension-sweep.md §2.
+import ..ReferenceModule: head, tail
+using ..OperationModule
+import ..OperationModule: evaluate_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CellModule: Cell, ComputedCell
-import ..EventModule: WindowResize, WindowClose, WindowDefocus
-import ..EventModule: WindowInput
-import ..OperationModule: CompoundOperation
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..IoMapModule
+using ..EventModule
 export WindowManagingProjection, WindowManagingIoMap
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep, head, tail
-import ..GraphicsModule: PointReferenceStep
-import ..PrinterContextModule: PrinterContext, make_child_context, with_available_size
-import ..IoMapModule: IoMap, reconcile_child_iomaps, reconcile_child_iomap, var"@iomap"
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation, CompoundOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
+using ..GraphicsModule
+using ..PrinterContextModule
+using ..PrimitiveModule
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-import ..CollectionModule: CellVector
-import ..ReferenceModule: var"@reference", is_reference_equal, strip_reference_types,
-                          EmptyReference
-import ..BackendModule: get_display_size
-import ..EditorModule: run_editor!
+using ..BackendModule
+using ..EditorModule
 export make_window_scene, make_window_scene_projection, run_window_editor
 export ScreenDocument, WindowDocument
 

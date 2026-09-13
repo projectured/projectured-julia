@@ -8,40 +8,25 @@ No global state — constructors are plain wrappers with no side effects.
 """
 module DbCatalogModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export DbCatalogDocument
-import ..SqlModule: SqlColumnDefinition, SqlCreateTableStatement,
-                            SqlCreateSchemaStatement, SqlStatementList,
-                            SqlTableName, SqlColumnName
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IoMapModule: SimpleIoMap
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ReferenceModule: ElementReferenceStep
-import ..PrinterContextModule: make_child_context, with_property, get_property
+using ..SqlModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IoMapModule
+using ..ProjectionAlgebraModule
+using ..PrinterContextModule
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
        DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_red, color_solarized_green, color_solarized_magenta
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, EmptyReference, Reference,
-                           ElementReferenceStep, PositionReferenceStep, RangeReferenceStep,
-                           FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep, make_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..PrinterContextModule: make_child_context
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..OperationModule: ReplaceSelectionOperation
+using ..ProjectionModule
+using ..TextModule
+using ..StyleModule
+using ..SyntaxModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        is_dbcatalog_marker_eligible

@@ -18,38 +18,29 @@ Round-trip on real data documents; not on editor scaffolding.
 """
 module FileFormatModule
 
-import ..DocumentModule: Document
-import ..OperationModule: Operation, evaluate_operation
-import ..NaturalModule: get_natural_extension, get_natural_format,
-                                has_natural_parser, parse_natural_text,
-                                print_natural_text
+using ..DocumentModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..NaturalModule
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation
-import ..SerializationModule: save_document, load_document
-import ..DomainModule: DocumentNothing
+using ..SerializationModule
+using ..DomainModule
 export write_document_file, read_document_file, make_document_for, make_document_seed
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: ComputedCellVector
-import ..ProjectionApiModule: Projection, print_document, print_child,
-                              map_reference_forward, map_reference_backward, read_intent
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: IoMap, var"@iomap"
-import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: FieldReferenceStep, EmptyReference, ConcreteReference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..SyntaxModule: SyntaxLeaf
-import ..TextModule: TextString, TextBlock
-import ..StyleModule: StyleText
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_dejavu_monospace_regular_20
-import ..StyleModule: color_solarized_gray
-import ..StyleModule: Point2D
-import ..LayoutModule: HorizontalLayout
-import ..OperationModule: ReplaceSelectionOperation
-import ..WidgetModule: InvokeActionOperation, WidgetCard, WidgetLabel
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..SerializationModule: FileDocument, ReferenceStub, format_marker_text, format_file_marker_text,
-                            get_file_content, get_filename
+using ..CellModule
+using ..CollectionModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..IoMapModule
+using ..PrinterContextModule
+using ..ReferenceModule
+using ..SyntaxModule
+using ..TextModule
+using ..StyleModule
+using ..LayoutModule
+using ..WidgetModule
+using ..PrimitiveModule
 export ReferenceStubToSyntax, FileDocumentToSyntax, EmbedIoMap
 export export_document
 

@@ -9,28 +9,20 @@ module SqlModule
 
 export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
 export parse_sql_text, parse_sql_file
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..SyntaxModule: InsertionToSyntaxLeaf, parse_completion,
-                                          InsertionNothingToSyntaxLeaf
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_default, color_solarized_blue, color_solarized_green
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode, SyntaxSeparation, SyntaxNavigation
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..IoMapModule: ChildrenIoMap
-import ..ProjectionTemplateModule: var"@projection_template", RuleIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, FieldReferenceStep, EmptyReference
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..SyntaxModule: SyntaxCompoundToText, _syntax_to_flat
-import ..PrinterContextModule: make_child_context
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..SyntaxModule
+using ..TextModule
+using ..StyleModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..ProjectionTemplateModule
+using ..ReferenceModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
+using ..PrinterContextModule
 export SqlInsertionToSyntaxLeaf,
        SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
@@ -47,7 +39,7 @@ export SqlInsertionToSyntaxLeaf,
        SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
        SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode, SqlToSyntax
 import ..FileFormatModule: make_document_seed
-import ..NaturalModule: register_natural_domain!
+using ..NaturalModule
 export SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause, SqlNothing, SqlDocument
 
 

@@ -20,57 +20,37 @@ is evaluated against that document's current selection):
 """
 module GestureHelpModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
-import ..GestureBindingModule: GestureBinding
-import ..IntentModule: Intent, CollectedIntentsOperation
-import ..EventPatternModule: describe_event_pattern
+using ..CellModule
+using ..DocumentModule
+using ..ReferenceModule
+using ..GestureBindingModule
+using ..IntentModule
+using ..EventPatternModule
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
-import ..CellModule: Cell
-import ..DocumentModule: var"@document"
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          RangeReferenceStep, EmptyReference
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
-import ..ProjectionApiModule: print_document, Projection
-import ..ProjectionModule: var"@projection"
-import ..IoMapModule: SimpleIoMap
-import ..TextModule: TextString
-import ..StyleModule: font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray, color_default
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..PrinterContextModule: PrinterContext
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..IoMapModule
+using ..TextModule
+using ..StyleModule
+using ..SyntaxModule
+using ..PrinterContextModule
 export GestureMapToSyntax
-import ..StyleModule: font_dejavu_monospace_regular_20, font_dejavu_monospace_bold_20
-import ..StyleModule: color_solarized_blue, color_solarized_green, color_solarized_gray,
-                      color_solarized_violet, color_default
 export CommandPaletteToSyntax
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward,
-                              map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents
-import ..IoMapModule: IoMap, var"@iomap"
-import ..CollectionModule: ComputedCellVector
-import ..OperationModule: Operation
-import ..OperationModule: DoNothingOperation
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, ElementReferenceStep
-import ..EventModule: KeyDown, KeyPress
-import ..EventPatternModule: KeyDownPattern, matches_event_pattern
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..ProjectionAlgebraModule: RecursiveProjection
-import ..SyntaxModule: SyntaxToText
-import ..WordWrappingModule: WordWrapping
-import ..TextToGraphicsModule: TextToGraphics
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-import ..StyleModule: color_solarized_background_lighter, color_solarized_blue
+using ..CollectionModule
+using ..OperationModule
+using ..EventModule
+using ..ProjectionAlgebraModule
+using ..WordWrappingModule
+using ..TextToGraphicsModule
+using ..GraphicsModule
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
        make_command_palette_projection
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ScreenModule: OpenWindowOperation, CloseWindowOperation
+using ..ScreenModule
 export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
        HELP_GESTURE, is_help_gesture
 export GestureMap

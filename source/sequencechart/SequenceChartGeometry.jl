@@ -36,7 +36,7 @@ knows whether the chart is drawn horizontally or vertically.
 """
 module SequenceChartModule
 
-import ..PlotModule: AxisScale, to_pixel, to_data, compute_nice_ticks, format_tick
+using ..PlotModule
 export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
        get_timeline_coordinates, default_nonlinear_focus,
        time_to_coordinate, convert_coordinate_to_time,
@@ -47,14 +47,8 @@ export FlowFrame, flow_point, flow_rect, frame_flow_span, frame_cross_span,
        decimate_events, deduplicate_arrow_coverage,
        get_band_intervals, get_event_ordinal
 export SequenceChartRowReferenceStep
-import ..PlotModule: default_color_cycle
-import ..ReferenceModule
-import ..ReferenceModule: Reference, ConcreteReference, FieldReferenceStep,
-                          ElementReferenceStep, EmptyReference,
-                          annotate_reference_types, get_reference_node_type
-import ..ReferenceModule: var"@reference_case"
-import ..OperationModule: CompoundOperation, ReplaceReferencedValueOperation,
-                          ReplaceSelectionOperation
+using ..ReferenceModule
+using ..OperationModule
 export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
        SequenceChartBandSeries, SequenceChartEventKind, SequenceChartArrowKind,
        SequenceChartTimeline, SequenceChartGutter, SequenceChartStyle, SequenceChart,
@@ -67,32 +61,17 @@ export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
        get_selected_event, get_selected_arrow, get_selected_axis_index,
        get_event_row, get_arrow_row, get_band_row,
        get_next_event_on_lane, get_arrow_from_event, get_arrow_into_event
-import ..DocumentModule: @document
-import ..ReferenceModule: Reference
+using ..DocumentModule
 export SequenceChartView, get_sequence_chart_view, view_contains
-import ..CellModule: Cell, ComputedCell
-import ..ProjectionApiModule: print_document, map_reference_forward,
-                              map_reference_backward, Projection
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: get_reference_node_type
-import ..ReferenceModule: var"@reference"
+using ..CellModule
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, read_intent
+using ..IoMapModule
 export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..PlotModule: AxisScale, to_pixel, to_data
-import ..PlotModule: get_series_color, build_marker_polygon
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsLine, GraphicsText,
-                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
-                         GraphicsSpline, GraphicsViewport, layout_none
-import ..StyleModule: StyleColor,
-                      color_solarized_background_lighter, color_solarized_background_light,
-                      color_solarized_content_dark, color_solarized_content_darker,
-                      color_solarized_blue
-import ..StyleModule: StyleFont, font_ubuntu_regular_14, font_ubuntu_bold_16
-import ..EventModule: MousePress, MouseMove, MouseLeave, MouseScroll
-import ..OperationModule: Operation, ReplaceSelectionOperation,
-                          ReplaceReferencedValueOperation, CompoundOperation
+using ..CollectionModule
+using ..GraphicsModule
+using ..StyleModule
+using ..EventModule
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
        resolve_window, get_lane_cross_position,
        find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference

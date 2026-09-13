@@ -7,6 +7,8 @@ function test_dbcatalog_layering()
     main = get_package_source_root(ProjecturedDbCatalog)
     check_layering(main, pathof(ProjecturedDbCatalog);
                    name = "dbcatalog",
+                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
+                   qualified_files = Set(["DbCatalogDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedDbCatalog; all = true)
                          if isdefined(ProjecturedDbCatalog, n) &&

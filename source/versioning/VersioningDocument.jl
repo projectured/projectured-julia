@@ -8,32 +8,29 @@ value with `VersionProperties` (when/who/where). Elimination happens through
 """
 module VersioningModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
+# `head` and `tail` are not exported, so a bare `using` does not reach them.
+# See plan/pending/qualified-extension-sweep.md §2.
+import ..ReferenceModule: head, tail
 export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
        VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate, select_version
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent, CollectIntents, CollectedIntentsOperation,
-                       merge_collected_intents
-import ..OperationModule: Operation, evaluate_operation
-import ..OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation,
-                          insert_elements, delete_elements, CompoundOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceNumberRangeOperation
-import ..DomainModule: DocumentNothing
-import ..DocumentModule: copy_document
-import ..SelectionModule: clear_selection!
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference,
-                          FieldReferenceStep, RangeReferenceStep, ElementReferenceStep,
-                          evaluate_reference, head, tail
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..IoMapModule: IoMap, var"@iomap"
-import ..GestureBindingModule: GestureBinding
-import ..EventPatternModule: KeyDownPattern
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings, read_projection_gesture
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..IntentModule
+using ..OperationModule
+import ..OperationModule: evaluate_operation
+using ..PrimitiveModule
+using ..DomainModule
+using ..SelectionModule
+using ..PrinterContextModule
+using ..IoMapModule
+using ..GestureBindingModule
+using ..EventPatternModule
+using ..ProjectionGestureBindingsModule
+import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
 export VersioningToAnyProjection, VersioningToAnyIoMap,
        SetVersionCriterionOperation
 export VersionedObject, ObjectVersion

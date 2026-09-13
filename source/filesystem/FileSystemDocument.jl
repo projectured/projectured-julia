@@ -7,37 +7,28 @@ their `pathname` as identity.
 """
 module FileSystemModule
 
-import ..CellModule: Cell, ComputedCell
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 export FileSystemDocument, make_filesystem_pathname
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextString
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_bold_20
-import ..StyleModule: StyleColor, color_black, color_default, color_solarized_blue, color_solarized_red
-import ..StyleModule: StyleText
-import ..SyntaxModule: SyntaxDocument, SyntaxLeaf, SyntaxNode
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, extend_reference
-import ..ProjectionReferenceStepModule: make_introduced_reference, is_introduced_reference
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..PrinterContextModule: make_child_context
+using ..ProjectionApiModule
+import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+using ..TextModule
+using ..StyleModule
+using ..SyntaxModule
+using ..ProjectionAlgebraModule
+using ..IoMapModule
+using ..ProjectionReferenceStepModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..PrinterContextModule
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        is_filesystem_marker_eligible
-import ..NaturalModule: register_natural_syntax!
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, Projection
-import ..WidgetModule: WidgetTree, WidgetTreeNode, Point2D
-import ..GestureBindingModule: GestureBinding
-import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference,
-                          is_element_reference_step
+using ..NaturalModule
+using ..WidgetModule
+using ..GestureBindingModule
 export FileSystemToWidgetTree, FileSystemToWidget
 export FileSystemFile, FileSystemDirectory
 
