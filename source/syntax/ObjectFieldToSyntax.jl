@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ObjectFieldToSyntax.jl.
+# Fragment of `SyntaxModule`.
 #
 # Projects an [`ObjectField`](@ref) — one field of one object — to the field node
 # `ObjectNodeToSyntaxNode` builds inline for each field of a struct:

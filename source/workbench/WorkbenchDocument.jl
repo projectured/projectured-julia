@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WorkbenchDocument.jl.
+# Fragment of `WorkbenchModule`.
 #
 # The workbench document domain — the IDE shell. A `WorkbenchWorkbench` holds
 # four `WorkbenchPage`s (navigation/editing/information/control), each hosting

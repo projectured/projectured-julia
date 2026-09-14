@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PrimitiveToSyntax.jl.
+# Fragment of `SyntaxModule`.
 #
 # PrimitiveDocument → SyntaxLeaf projection. Converts `PrimitiveBool`,
 # `PrimitiveNumber`, and `PrimitiveString` into `SyntaxLeaf` nodes

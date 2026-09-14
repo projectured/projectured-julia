@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GestureMapToSyntax.jl.
+# Fragment of `GestureHelpModule`.
 #
 # Projects a [`GestureMap`](../../document/GestureMap.jl) onto a `SyntaxNode` for
 # display: one line per gesture row, grouped under a heading per domain, reusing the

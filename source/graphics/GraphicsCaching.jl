@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphicsCaching.jl.
+# Fragment of `GraphicsModule`.
 #
 # GraphicsCanvas → GraphicsImage projection. Finite leaf canvases (no nested
 # canvases, no infinite `ListNode`-backed element lists) are passed through

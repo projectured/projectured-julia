@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WidgetToGraphics.jl.
+# Fragment of `WidgetModule`.
 #
 # WidgetDocument → GraphicsCanvas projection. One projection struct per widget
 # document type, composed via `TypeDispatchingProjection(...)` through the

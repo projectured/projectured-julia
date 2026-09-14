@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FormulaToSyntax.jl.
+# Fragment of `FormulaModule`.
 #
 # Formula → Syntax projection, composed with the Julia projection so a formula
 # body (a mix of `JuliaDocument` nodes and `FormulaReference`s) renders through one

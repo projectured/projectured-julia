@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Copying.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent copying projection. For CellVector inputs it creates
 # per-element iomaps eagerly. For ListNode inputs it maps lazily — only the

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/LayoutGeometry.jl.
+# Fragment of `GraphModule`.
 #
 # The geometry the ported layouters are written in, from OMNeT++'s
 # `src/layout/geometry.h`: a three-dimensional point `Pt`, a size `Rs`, a

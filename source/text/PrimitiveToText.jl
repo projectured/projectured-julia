@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PrimitiveToText.jl.
+# Fragment of `TextModule`.
 #
 # PrimitiveDocument → TextBlock projection. Converts `PrimitiveBool`,
 # `PrimitiveNumber`, and `PrimitiveString` directly into a single-span

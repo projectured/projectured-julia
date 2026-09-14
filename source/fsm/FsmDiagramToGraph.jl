@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FsmDiagramToGraph.jl.
+# Fragment of `FsmModule`.
 #
 # FsmDiagram → GraphGraph: the state diagram. One vertex per state, one directed
 # edge per transition that has a target, and the two graph highlights derived from

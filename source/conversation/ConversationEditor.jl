@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ConversationEditor.jl.
+# Fragment of `ConversationModule`.
 #
 # The **user-message composer** (Stage 3b): editing a draft `ConversationDraft`
 # part by part, growing it left-to-right and always ending on an active text

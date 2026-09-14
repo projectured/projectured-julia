@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextDocument.jl.
+# Fragment of `TextModule`.
 #
 # The text domain bridges the structural (syntax tree) and visual (graphics) domains.
 # Text is stored as a flat sequence of spans, each with its own reactive style and color.

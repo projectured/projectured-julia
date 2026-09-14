@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from Dragging.jl.
+# Fragment of `DraggingModule`.
 #
 # A higher-order projection that dispatches on `DraggingState` documents and adds
 # drag-and-drop reordering to the wrapped `content`.

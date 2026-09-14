@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessRuntime.jl.
+# Fragment of `ProcessModule`.
 #
 # The probe runtime realized code calls — **plain Julia**. No `@document`, no
 # cells, no ProjecturEd: a realized process must stay runnable outside the

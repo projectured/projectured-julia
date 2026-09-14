@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/Recursive.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that passes itself as the recursion argument
 # when calling its child. This lets node projections call back into the full

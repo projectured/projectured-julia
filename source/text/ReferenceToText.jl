@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ReferenceToText.jl.
+# Fragment of `TextModule`.
 #
 # Reference → TextBlock projections. Two projections render a `Reference`
 # (the linked-list path defined in `ReferenceModule`) as a `TextBlock`

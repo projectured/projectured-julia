@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextFirstLine.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. Keeps only the **first visual line** of a `TextBlock`:
 # the span prefix up to the first line break, where a break is either

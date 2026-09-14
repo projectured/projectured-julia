@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ClipboardCollectionToAny.jl.
+# Fragment of `ClipboardModule`.
 #
 # The internal-clipboard collection projection — Julia port of Lisp's
 # `clipboard/collection->t` (`source/projection/primitive/clipboard-to-t.lisp`).

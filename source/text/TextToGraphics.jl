@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextToGraphics.jl.
+# Fragment of `TextModule`.
 #
 # Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
 # left-to-right and breaks the line at a `TextLine` element, at an explicit

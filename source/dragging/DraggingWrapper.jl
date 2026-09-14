@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DraggingWrapper.jl.
+# Fragment of `DraggingModule`.
 #
 # ── Applying the wrapper ────────────────────────────────────────────────────
 #

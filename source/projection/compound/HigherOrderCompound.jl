@@ -1,5 +1,5 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from compound/HigherOrderCompound.jl.
+# Fragment of `ProjectionAlgebraModule`.
+#
 """
     ApplyAtProjection(reference, projection)
 

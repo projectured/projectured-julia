@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ObjectToSyntax.jl.
+# Fragment of `SyntaxModule`.
 #
 # Object → SyntaxDocument projection. Reflects any Julia value into a nested
 # syntax tree using runtime type information. Structs produce a SyntaxNode

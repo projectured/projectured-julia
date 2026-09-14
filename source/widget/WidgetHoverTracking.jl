@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WidgetHoverTracking.jl.
+# Fragment of `WidgetModule`.
 #
 # A **generic** higher-order projection that turns raw pointer motion into
 # `MouseEnter` / `MouseLeave` crossings and lets the widgets themselves decide

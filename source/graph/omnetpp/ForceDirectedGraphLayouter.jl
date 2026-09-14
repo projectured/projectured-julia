@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/ForceDirectedGraphLayouter.jl.
+# Fragment of `GraphModule`.
 #
 # `ForceDirectedLayout`, the port of OMNeT++'s
 # `src/layout/forcedirectedgraphlayouter.cc`.

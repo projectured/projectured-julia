@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessDebug.jl.
+# Fragment of `ProcessModule`.
 #
 # Running a realized process **under the debugger**: realize it with probes,
 # load it, start it on its own task, and hand back the trace the bridge reads.

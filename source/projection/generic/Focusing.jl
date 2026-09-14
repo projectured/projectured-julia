@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Focusing.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that focuses on a specific sub-document by
 # navigating into the input using a configurable reference path.

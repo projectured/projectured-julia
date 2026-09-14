@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ChartPlotToGraphics.jl.
+# Fragment of `ChartModule`.
 #
 # ChartPlot → Graphics: the chart renderer. Everything a chart shows — the plot
 # frame, gridlines, ticks and their labels, the axis titles, the series geometry —

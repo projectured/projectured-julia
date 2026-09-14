@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from AssistantTurn.jl.
+# Fragment of `AssistantModule`.
 #
 # Operations, streaming orchestration, and message building for the
 # in-editor AI chat surface. Glue between `WorkbenchModule.Assistant`, the

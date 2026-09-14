@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SyntaxToText.jl.
+# Fragment of `SyntaxModule`.
 #
 # Syntax → Text projection. Each `SyntaxNode` transforms only its own single level —
 # marker, delimiters, separators, newline/indent decoration — and projects every

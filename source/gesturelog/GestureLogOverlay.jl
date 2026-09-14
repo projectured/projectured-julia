@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GestureLogOverlay.jl.
+# Fragment of `GestureLogModule`.
 #
 # A decorator that draws the [`GestureLog`](GestureLogDocument.jl) as a panel over the
 # content of a window.

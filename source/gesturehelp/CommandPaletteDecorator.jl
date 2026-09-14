@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CommandPaletteDecorator.jl.
+# Fragment of `GestureHelpModule`.
 #
 # The decorator that opens the **command palette** over a content pipeline, modelled
 # on [`GestureHelpDecoratorProjection`](GestureHelpDecorator.jl).

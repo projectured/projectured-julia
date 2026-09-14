@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphLayoutChoice.jl.
+# Fragment of `GraphModule`.
 #
 # Which engine a caller gets when it names none, and when that is decided.
 #

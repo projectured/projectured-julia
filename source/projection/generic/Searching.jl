@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Searching.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that walks an arbitrary input document recursively
 # and collects every object owning a field whose string value matches a `Regex`.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphicsDocument.jl.
+# Fragment of `GraphicsModule`.
 #
 # The graphics domain provides the final output stage before the SDL backend.
 # Elements are positioned, styled render primitives. The canvas is itself a

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CollectionToSyntax.jl.
+# Fragment of `SyntaxModule`.
 #
 # Collection → Syntax projection. Handles `CellVector` and `ListNode`
 # as top-level collection documents, mapping each element through recursion.

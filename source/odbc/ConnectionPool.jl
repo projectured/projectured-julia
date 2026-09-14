@@ -1,5 +1,5 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ConnectionPool.jl.
+# Fragment of `OdbcModule`.
+#
 import ProjecturedDatabase.DatabaseModule: connect_db!, close_db!, is_db_alive
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 

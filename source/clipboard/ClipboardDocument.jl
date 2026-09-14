@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ClipboardDocument.jl.
+# Fragment of `ClipboardModule`.
 #
 # Clipboard document types — a `ClipboardSlice` (content + slice reference) and
 # a `ClipboardCollection` (content + sequence of elements).

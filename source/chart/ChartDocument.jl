@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ChartDocument.jl.
+# Fragment of `ChartModule`.
 #
 # The chart document domain: a `Chart` holds a list of data series, two axes, a
 # legend and a style. This file is **pure semantic content** — everything here

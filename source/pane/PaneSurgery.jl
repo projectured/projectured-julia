@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PaneSurgery.jl.
+# Fragment of `PaneModule`.
 #
 # The pane-tree edits, and the paths they are expressed against.
 #

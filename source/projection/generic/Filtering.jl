@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Filtering.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that restricts a collection document to the
 # subset of elements matching a given predicate.

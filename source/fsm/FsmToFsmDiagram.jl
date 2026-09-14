@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FsmToFsmDiagram.jl.
+# Fragment of `FsmModule`.
 #
 # FsmMachine → FsmDiagram: the first stage of the diagram pipeline, and a thin
 # one. It wraps the machine in the presentation document that carries the live

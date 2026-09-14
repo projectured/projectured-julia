@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/ReferenceDispatching.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that selects an inner projection based on matching
 # the current *reference path* argument against a list of known keys, with a

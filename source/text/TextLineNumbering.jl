@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextLineNumbering.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. Prepends a reactive line-number prefix to every
 # line in the input TextBlock. Lines are delimited by TextNewline elements;

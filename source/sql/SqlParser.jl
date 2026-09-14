@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SqlParser.jl.
+# Fragment of `SqlModule`.
 #
 # Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
 # from `SqlModule`. Two statement families are recognised:

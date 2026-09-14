@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/Switching.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that holds a list of projections and delegates
 # to the one selected by a reactive index cell. Writing the index cell

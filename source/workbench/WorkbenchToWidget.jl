@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WorkbenchToWidget.jl.
+# Fragment of `WorkbenchModule`.
 #
 # WorkbenchDocument → WidgetDocument projection. Maps the workbench document
 # hierarchy to a widget tree.

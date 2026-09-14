@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GestureHelpDecorator.jl.
+# Fragment of `GestureHelpModule`.
 #
 # A content-level decorator that opens the **gesture-help window** on the help
 # gesture (F1), modelled on [`TooltipDecoratorProjection`](TooltipDecorator.jl).

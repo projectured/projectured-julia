@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/HeapEmbedding.jl.
+# Fragment of `GraphModule`.
 #
 # A planar embedding for one connected component, from OMNeT++'s
 # `src/layout/heapembedding.cc`.

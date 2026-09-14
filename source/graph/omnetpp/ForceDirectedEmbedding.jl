@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/ForceDirectedEmbedding.jl.
+# Fragment of `GraphModule`.
 #
 # The solver, from OMNeT++'s `src/layout/forcedirectedembedding.cc`.
 #

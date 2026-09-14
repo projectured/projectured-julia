@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WordWrapping.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. Pixel-accurate word wrapping: splits a TextString into
 # sub-spans at word boundaries and inserts `TextNewline` elements where a word

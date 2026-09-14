@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FsmDiagram.jl.
+# Fragment of `FsmModule`.
 #
 # The state machine **diagram's presentation document** — what a machine looks
 # like on screen, as opposed to what it is.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TooltipDecorator.jl.
+# Fragment of `TooltipModule`.
 #
 # A higher-order projection that dispatches on `TooltipSource` documents.
 #

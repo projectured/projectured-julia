@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessToProcessDiagram.jl.
+# Fragment of `ProcessModule`.
 #
 # ProcessModel → ProcessDiagram: the first stage of the flowchart pipeline, and
 # a thin one. It wraps the model in the presentation document that carries the

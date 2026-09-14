@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FileSystemToWidget.jl.
+# Fragment of `FileSystemModule`.
 #
 # FileSystem → WidgetDocument projection. Maps a whole file-system tree to a single
 # [`WidgetTree`](@ref): the root directory becomes the one root node, each

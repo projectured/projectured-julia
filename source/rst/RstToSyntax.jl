@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from RstToSyntax.jl.
+# Fragment of `RstModule`.
 #
 # RST → SyntaxDocument projection with two presentations, selected by
 # `RstToSyntax(; style)`:

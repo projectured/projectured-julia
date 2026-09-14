@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PaneGestures.jl.
+# Fragment of `PaneModule`.
 #
 # The keyboard, as a reified [`@gestures`](@ref) table on `PaneTree`.
 #

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JuliaToSyntax.jl.
+# Fragment of `JuliaModule`.
 #
 # Julia → SyntaxDocument projection. Maps each Julia expression type to a syntax
 # tree with colorized tokens:

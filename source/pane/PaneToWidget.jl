@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PaneToWidget.jl.
+# Fragment of `PaneModule`.
 #
 # PaneDocument → WidgetDocument. The layout tree becomes split panes and tabbed
 # panes:

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MathToSyntax.jl.
+# Fragment of `MathModule`.
 #
 # Math → SyntaxDocument projection: the **linear** form of a formula, one line of
 # text. It is the save path (`print_natural_text` runs it) and the plain-text view;

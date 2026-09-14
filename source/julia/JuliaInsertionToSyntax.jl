@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JuliaInsertionToSyntax.jl.
+# Fragment of `JuliaModule`.
 #
 # The Julia domain's own insertion hole: the keyword scaffolds, the completion
 # that drives their pale-green hint, and `JuliaInsertionToSyntaxLeaf`.

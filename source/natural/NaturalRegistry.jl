@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from NaturalRegistry.jl.
+# Fragment of `NaturalModule`.
 #
 # The tables the **natural projection** is built from.
 #

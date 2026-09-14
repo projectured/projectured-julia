@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GestureLogToSyntax.jl.
+# Fragment of `GestureLogModule`.
 #
 # Projects a [`GestureLog`](GestureLogDocument.jl) onto a `SyntaxNode` for display: one
 # line per entry, newest line first, so the newest line always sits at the same

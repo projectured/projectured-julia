@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MathToGraphics.jl.
+# Fragment of `MathModule`.
 #
 # Math → `GraphicsCanvas`: the **two-dimensional** form of a formula. A fraction
 # gets a horizontal rule with the numerator centered above it, a sum gets its

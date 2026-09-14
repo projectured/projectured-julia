@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PaneProgram.jl.
+# Fragment of `PaneModule`.
 #
 # **The window's layout, as something a language model can read and change.**
 #

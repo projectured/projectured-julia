@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GestureLogRecording.jl.
+# Fragment of `GestureLogModule`.
 #
 # A transparent decorator that records what the reader chain below it decides.
 #

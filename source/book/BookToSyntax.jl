@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from BookToSyntax.jl.
+# Fragment of `BookModule`.
 #
 # Book → SyntaxDocument projection. Maps each Book node type to a matching
 # syntax tree shape.

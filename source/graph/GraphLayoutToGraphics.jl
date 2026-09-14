@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphLayoutToGraphics.jl.
+# Fragment of `GraphModule`.
 #
 # GraphLayout → Graphics projection. Draws each `VertexLayout` as a node box (a
 # rounded `GraphicsRect` outline at `(x, y, w, h)`) with the vertex's projected

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SequenceChartToSequenceChartPlot.jl.
+# Fragment of `SequenceChartModule`.
 #
 # SequenceChart → SequenceChartPlot: the first stage of the sequence chart
 # pipeline, and a thin one. It wraps the semantic chart in the presentation

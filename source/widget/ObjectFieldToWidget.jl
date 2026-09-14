@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ObjectFieldToWidget.jl.
+# Fragment of `WidgetModule`.
 #
 # Projects an [`ObjectField`](@ref) — one field of one object — to the **bare
 # control** that displays and edits it.

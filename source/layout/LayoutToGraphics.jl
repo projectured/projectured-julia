@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from LayoutToGraphics.jl.
+# Fragment of `LayoutModule`.
 #
 # Projections from layout documents (`HorizontalLayout`, `VerticalLayout`,
 # `GridLayout`, `FlowLayout`, `StackLayout`) to `GraphicsCanvas`.

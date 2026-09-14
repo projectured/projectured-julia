@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from YamlParser.jl.
+# Fragment of `YamlModule`.
 #
 # A small YAML parser. Converts YAML source text into a `YamlDocument` tree from
 # `YamlModule`.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TrueType.jl.
+# Fragment of `StyleModule`.
 #
 # A minimal read-only TrueType parser and the SDL-free text measurer built on it.
 # Reads advance widths straight from a font's own `hmtx` table (pure Julia — no

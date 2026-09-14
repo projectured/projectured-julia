@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ChartPlot.jl.
+# Fragment of `ChartModule`.
 #
 # The chart's presentation document: a `Chart` plus everything about *looking at*
 # it — the zoom window, the pointer position, what is hovered, an in-progress

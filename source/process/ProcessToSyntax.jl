@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessToSyntax.jl.
+# Fragment of `ProcessModule`.
 #
 # Process → Syntax projection: the **natural notation**, the primary edit
 # surface of the process domain.

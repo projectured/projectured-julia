@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MarkdownToSyntax.jl.
+# Fragment of `MarkdownModule`.
 #
 # Markdown → SyntaxDocument projection with two presentations, selected by
 # `MarkdownToSyntax(; style)`:

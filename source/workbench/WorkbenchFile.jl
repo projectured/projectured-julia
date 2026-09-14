@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WorkbenchFile.jl.
+# Fragment of `WorkbenchModule`.
 #
 # File keybindings for a `WorkbenchEditor` tab: **Ctrl+S** saves the tab's
 # `content` to its `filename`, **Ctrl+O** reloads it. The on-disk format is chosen

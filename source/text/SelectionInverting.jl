@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SelectionInverting.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. Bakes the input `TextBlock`'s own selection into the
 # spans as **inverse video** — swapping `font_color` ↔ `fill_color` over the

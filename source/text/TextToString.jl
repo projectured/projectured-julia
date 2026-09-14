@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextToString.jl.
+# Fragment of `TextModule`.
 #
 # TextBlock → String projection. Flattens a sequence of styled text spans into
 # a plain Julia String by concatenating each span's content. TextString spans

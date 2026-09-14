@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from XmlParser.jl.
+# Fragment of `XmlModule`.
 #
 # A small recursive-descent XML parser. Converts XML source text into an
 # `XmlElement` tree from `XmlModule`.

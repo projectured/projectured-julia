@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SequenceChartPlotToGraphics.jl.
+# Fragment of `SequenceChartModule`.
 #
 # SequenceChartPlot → Graphics: the sequence chart renderer. Lanes, the
 # occurrences on them, the arrows between those, the state bands, and the time

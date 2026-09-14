@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/LcgRandom.jl.
+# Fragment of `GraphModule`.
 #
 # The layouters' own random number generator, ported from OMNeT++'s
 # `src/common/lcgrandom.h` and `.cc`.

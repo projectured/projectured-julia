@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ReflectionToWidget.jl.
+# Fragment of `ReflectionModule`.
 #
 # A `ReflectedNode` tree rendered as a [`WidgetTree`](@ref), where clicking a
 # chevron drives the **bounded sync** rather than merely hiding a row.

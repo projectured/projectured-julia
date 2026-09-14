@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ReferenceInspectorToText.jl.
+# Fragment of `InspectorModule`.
 #
 # `ReferenceInspectorToText` — projects a `ReferenceInspector` document into a
 # two-section `TextBlock`:

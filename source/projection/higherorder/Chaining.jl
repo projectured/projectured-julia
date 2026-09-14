@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/Chaining.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Chains projections left-to-right for the printer and right-to-left for
 # the reader. Intermediate IoMaps are stored so the reader can walk backwards

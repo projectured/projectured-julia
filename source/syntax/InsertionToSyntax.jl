@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from InsertionToSyntax.jl.
+# Fragment of `SyntaxModule`.
 #
 # The insert-by-typing mechanism, ported from the Common Lisp ProjecturEd
 # `document-to-syntax.lisp` — now with the live completion hint and green/red

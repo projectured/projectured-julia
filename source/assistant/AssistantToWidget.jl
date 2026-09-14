@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from AssistantToWidget.jl.
+# Fragment of `AssistantModule`.
 #
 # What the assistant looks like: a split pane of the transcript over the composer,
 # and a card of the same two for a page that embeds one.

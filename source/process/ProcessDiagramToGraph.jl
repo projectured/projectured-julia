@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessDiagramToGraph.jl.
+# Fragment of `ProcessModule`.
 #
 # ProcessDiagram → GraphGraph: the flowchart. The structured tree is walked once
 # into vertices and edges, so the stock `GraphToGraphLayout →

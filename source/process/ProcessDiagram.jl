@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessDiagram.jl.
+# Fragment of `ProcessModule`.
 #
 # The flowchart's **presentation document** — what a process looks like on
 # screen, as opposed to what it is.

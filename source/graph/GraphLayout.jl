@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphLayout.jl.
+# Fragment of `GraphModule`.
 #
 # Geometry layer for the graph domain: `VertexLayout` places a `GraphVertex`;
 # `EdgeLayout` routes a `GraphEdge`; `GraphLayout` bundles them with

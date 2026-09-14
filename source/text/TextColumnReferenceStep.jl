@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextColumnReferenceStep.jl.
+# Fragment of `TextModule`.
 #
 # The `TextColumnReferenceStep` step type — a reference step representing a
 # flat character-range **column box** in the text domain (`start` / `stop` are

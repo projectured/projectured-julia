@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextHighlighting.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. The "highlight all" of a search box: keeps every line of
 # a `TextBlock` and paints a background swatch behind the regex matches by setting

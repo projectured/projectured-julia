@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/PredicateDispatching.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that selects an inner projection based on
 # user-supplied predicate functions applied to the input document. Each

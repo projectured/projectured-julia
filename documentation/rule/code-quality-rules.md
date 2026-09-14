@@ -98,15 +98,20 @@ The word list in the shared policy catches only some of them. Measured in
 
 | Form | Example | Count |
 | --- | --- | ---: |
-| A banner that names the file's own past | `# Folded in from JsonParser.jl.` | 166 |
+| A banner that names the file's own past | `# Folded in from JsonParser.jl.` | 0, was 166 |
 | A past tense about the code | `# ProjecturedNatural used to hold this` | 25 |
 | A statement of what is gone | `# … a sign that no longer …` | 13 |
 | A rename record | `# … renamed from …` | 6 |
 | The narrow word list | `previously`, `now we` | 3 |
 
-The banner is the one that got through. `# Folded in from JsonParser.jl.` sat at
-the top of `JsonParser.jl`, named the file it already was, and used none of the
-banned words. There are 166 of them.
+The banner was the one that got through. `# Folded in from JsonParser.jl.` sat
+at the top of `JsonParser.jl`, named the file it already was, and used none of
+the banned words. There were 166 of them, and they are gone: each now opens with
+the module that owns the fragment.
+
+The other four forms need a reader, not a grep. 47 lines still match, and some
+are legitimate: in `# Used to size an output to the content`, `used to` means
+*is used to*.
 
 A check, not a verdict:
 
@@ -187,11 +192,12 @@ reason is the signal the steward watches.
 | Files over 500 lines, generated file excluded | 61 |
 | File names that carry a schedule instead of a subject | 0 |
 
-**The 51 is an undercount.** The command behind it looks for eight words. It
-does not see `# Folded in from …`, which is a banner and not a sentence, and
-`source/` holds 166 of those. Counting the forms in section 2, history in a
-comment stands at about 210 lines, not 51. The size of the four largest files
-is the other weak point.
+**The 51 was an undercount.** The command behind it looks for eight words. It
+did not see `# Folded in from …`, which is a banner and not a sentence, and
+`source/` held 166 of those — so history in a comment stood at about 210 lines,
+not 51. The banners are gone. 47 lines still match the word list, and a reader
+has to judge each one. The size of the four largest files is the other weak
+point.
 
 ## 6. Where this repository differs from the other two
 

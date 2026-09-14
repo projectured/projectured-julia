@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from StyleText.jl.
+# Fragment of `StyleModule`.
 #
 # Combined text style value type. A `StyleText` bundles the two values needed to
 # draw a run of text — a [`StyleFont`](@ref) and a [`StyleColor`](@ref) — so a

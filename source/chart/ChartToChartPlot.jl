@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ChartToChartPlot.jl.
+# Fragment of `ChartModule`.
 #
 # Chart → ChartPlot: the first stage of the chart pipeline, and a thin one. It
 # wraps the semantic chart in the presentation document that carries the view

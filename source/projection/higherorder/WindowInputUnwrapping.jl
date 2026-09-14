@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/WindowInputUnwrapping.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that strips the `WindowInput` off an input gesture
 # before handing it to its inner projection's reader.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from Image.jl.
+# Fragment of `StyleModule`.
 #
 # The image document domain. Provides file-backed and memory-backed image
 # documents. Both subtypes share the abstract `ImageDocument` base.

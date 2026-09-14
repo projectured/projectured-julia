@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FsmToJuliaCode.jl.
+# Fragment of `FsmModule`.
 #
 # Code generation: an `FsmComponent` → a complete, runnable Julia module, built
 # as a `JuliaDocument` tree and written out through the ordinary

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphToGraphLayout.jl.
+# Fragment of `GraphModule`.
 #
 # Graph → GraphLayout projection. The chicken-and-egg step: **sizing precedes
 # placement.**

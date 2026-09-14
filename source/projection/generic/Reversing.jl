@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Reversing.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that reverses the order of elements in a
 # collection document.

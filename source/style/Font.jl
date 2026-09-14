@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from Font.jl.
+# Fragment of `StyleModule`.
 #
 # Font style value type and named font constants. Fonts are identified by a
 # file path and a point size.

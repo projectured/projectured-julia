@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from RstToLayout.jl.
+# Fragment of `RstModule`.
 #
 # `RstRoot` / `RstSection` → `VerticalLayout` — the structural rewrap that
 # makes an RST page a **stack of blocks** instead of one syntax tree, so

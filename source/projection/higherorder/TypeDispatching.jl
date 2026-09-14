@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/TypeDispatching.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that selects an inner projection based on the
 # runtime type of the input document. Enables polymorphic pipelines (e.g.

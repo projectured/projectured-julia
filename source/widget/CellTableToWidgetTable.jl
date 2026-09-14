@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CellTableToWidgetTable.jl.
+# Fragment of `WidgetModule`.
 #
 # Projection: `CellTable` → `WidgetTable`.
 #

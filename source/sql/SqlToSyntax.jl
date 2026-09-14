@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SqlToSyntax.jl.
+# Fragment of `SqlModule`.
 #
 # SQL → SyntaxDocument projection. Renders a `SqlSelectStatement` as a syntax tree.
 #

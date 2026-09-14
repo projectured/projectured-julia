@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SequenceChartRowReferenceStep.jl.
+# Fragment of `SequenceChartModule`.
 #
 # The `SequenceChartRowReferenceStep` step type — a reference step naming one row
 # of a sequence chart's columnar table.

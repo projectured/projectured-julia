@@ -1,5 +1,5 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from compound/GenericCompound.jl.
+# Fragment of `ProjectionAlgebraModule`.
+#
 """
     SortingAtProjection(reference, by)
 

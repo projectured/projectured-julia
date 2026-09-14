@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WidgetPopupResolver.jl.
+# Fragment of `WidgetModule`.
 #
 # A content-level seam that turns an anchor-relative [`OpenPopupOperation`] into an
 # absolute [`OpenWindowOperation`]. It wraps the window's content projection, so it

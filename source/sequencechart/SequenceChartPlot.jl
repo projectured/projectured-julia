@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SequenceChartPlot.jl.
+# Fragment of `SequenceChartModule`.
 #
 # The sequence chart's presentation document: a `SequenceChart` plus everything
 # about *looking at* one — the window onto the timeline, where the pointer is,

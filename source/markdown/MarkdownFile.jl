@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MarkdownFile.jl.
+# Fragment of `MarkdownModule`.
 #
 # `MarkdownFile`: a `FileDocument` whose `content` is a
 # `MarkdownDocument` (the projectured Markdown AST). Parse uses

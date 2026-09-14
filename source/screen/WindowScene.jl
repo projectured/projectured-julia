@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WindowScene.jl.
+# Fragment of `ScreenModule`.
 #
 # ── One window on one document, and the loop that drives it ─────────────────
 #

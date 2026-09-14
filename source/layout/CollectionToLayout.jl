@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CollectionToLayout.jl.
+# Fragment of `LayoutModule`.
 #
 # `CellVector → VerticalLayout` — a structural rewrap so a collection renders as a
 # stack of independent graphics blocks rather than collapsing to one syntax tree.

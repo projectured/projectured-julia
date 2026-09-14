@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from GraphLayoutEngine.jl.
+# Fragment of `GraphModule`.
 #
 # A swappable interface for graph placement + edge routing. `GridEmbedding`
 # (pure Julia) places without simulating, so nothing downstream is blocked. The

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ConversationDocument.jl.
+# Fragment of `ConversationModule`.
 #
 # The conversation document domain — an AI chat session (including in-flight
 # streaming) as a `Document`, so selection/projections/editing compose with the

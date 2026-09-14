@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/ForceDirectedParametersBase.jl.
+# Fragment of `GraphModule`.
 #
 # The vocabulary the force-directed embedding is written in, from OMNeT++'s
 # `src/layout/forcedirectedparametersbase.h`: the parameter block, the `Variable`

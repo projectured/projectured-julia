@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Constant.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A projection that always returns a fixed output regardless
 # of the input. Useful for injecting constant documents into a projection

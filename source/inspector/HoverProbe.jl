@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from HoverProbe.jl.
+# Fragment of `InspectorModule`.
 #
 # A higher-order projection that wraps a window's content projection and, on
 # idle mouse motion, shows **the reference a single left-click would create at

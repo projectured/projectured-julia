@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from Geometry.jl.
+# Fragment of `StyleModule`.
 #
 # Reactive geometry primitives shared across document domains. Provides
 # `Inset` (spacing descriptor for margin, border, padding) and `Point2D`

@@ -1,5 +1,5 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SqlToCellTable.jl.
+# Fragment of `OdbcModule`.
+#
 import ProjecturedKernel.CellModule: Cell, ComputedCell
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,

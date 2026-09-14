@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ScreenToScreen.jl.
+# Fragment of `ScreenModule`.
 #
 # The screen-domain projection. `ScreenToScreen` owns *all* structural knowledge
 # of the screen domain — `ScreenDocument` and `WindowDocument` — so that the

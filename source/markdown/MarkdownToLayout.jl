@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MarkdownToLayout.jl.
+# Fragment of `MarkdownModule`.
 #
 # `MarkdownRoot → VerticalLayout` — the structural rewrap that makes a
 # markdown page a **stack of blocks** instead of one syntax tree, so each

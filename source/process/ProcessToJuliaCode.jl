@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessToJuliaCode.jl.
+# Fragment of `ProcessModule`.
 #
 # **Realization**: a `ProcessModel` → a runnable Julia function, built as a
 # `JuliaDocument` tree and written out through the ordinary `print_natural_text`

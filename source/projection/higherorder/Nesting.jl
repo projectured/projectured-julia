@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from higherorder/Nesting.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # A higher-order projection that applies the first element to the input,
 # passing a new NestingProjection built from the remaining elements as the

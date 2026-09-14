@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ConstraintSolver.jl.
+# Fragment of `LayoutModule`.
 #
 # The constraint-layout solver **seam**. Defines the plain data interchange types
 # (`SolverAnchor`, `SolverRelation`), the abstract `ConstraintSolver`, the

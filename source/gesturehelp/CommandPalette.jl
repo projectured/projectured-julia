@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CommandPalette.jl.
+# Fragment of `GestureHelpModule`.
 #
 # The document behind the **command palette**: a type-in field over a list of the
 # commands available where the user is. The user types a few characters, the list

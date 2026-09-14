@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DbCatalogToSyntax.jl.
+# Fragment of `DbCatalogModule`.
 #
 # DbCatalog → SyntaxDocument projection. Maps the catalog hierarchy to syntax
 # tree shapes with keyword grouping nodes:

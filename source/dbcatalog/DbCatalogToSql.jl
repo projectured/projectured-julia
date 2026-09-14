@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DbCatalogToSql.jl.
+# Fragment of `DbCatalogModule`.
 #
 # DbCatalog → Sql (DDL) projection. Maps the catalog tree into **SQL DDL document
 # nodes** built directly, so the existing SQL pipeline

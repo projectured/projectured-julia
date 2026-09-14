@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from CommandPaletteToSyntax.jl.
+# Fragment of `GestureHelpModule`.
 #
 # Projects a [`CommandPalette`](CommandPalette.jl) onto a `SyntaxNode` for display:
 # the type-in line, then one line per matching command, reusing the existing

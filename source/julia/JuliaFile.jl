@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JuliaFile.jl.
+# Fragment of `JuliaModule`.
 #
 # `JuliaFile`: a `FileDocument` whose `content` is a `JuliaDocument`
 # (the projectured Julia AST from `JuliaModule`). Parse uses the

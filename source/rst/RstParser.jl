@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from RstParser.jl.
+# Fragment of `RstModule`.
 #
 # A pragmatic reStructuredText parser. Converts RST source text into an
 # `RstRoot` tree from `RstModule`.

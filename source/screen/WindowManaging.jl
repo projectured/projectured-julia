@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WindowManaging.jl.
+# Fragment of `ScreenModule`.
 #
 # A higher-order projection that wraps the `ScreenDocument` case of the
 # type dispatcher in the main pipeline. Its printer is a passthrough to

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/ForceDirectedParameters.jl.
+# Fragment of `GraphModule`.
 #
 # The bodies and the forces, from OMNeT++'s
 # `src/layout/forcedirectedparameters.h`.

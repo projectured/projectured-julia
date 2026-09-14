@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextFiltering.jl.
+# Fragment of `TextModule`.
 #
 # Text → Text projection. The `grep` of the projection stack: keeps only the
 # lines of a `TextBlock` whose text matches a regex, dropping the rest. Lines are

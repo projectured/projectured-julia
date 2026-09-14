@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from Domain.jl.
+# Fragment of `DomainModule`.
 #
 # What a document domain *is* — the concept the domain package's JSON, XML, SQL,
 # Julia, … are instances of. Two halves:

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SequenceChartDocument.jl.
+# Fragment of `SequenceChartModule`.
 #
 # The sequence chart document domain: lanes with occurrences on them, arrows
 # between those occurrences, and a mapping from time to a readable axis.

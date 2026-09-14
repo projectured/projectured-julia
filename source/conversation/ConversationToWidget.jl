@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ConversationToWidget.jl.
+# Fragment of `ConversationModule`.
 #
 # ConversationDocument → WidgetDocument projection — a vertical list of chat
 # bubbles:

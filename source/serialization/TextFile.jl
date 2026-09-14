@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextFile.jl.
+# Fragment of `SerializationModule`.
 #
 # The simplest concrete `FileDocument`: `TextFile`, whose `content` is a
 # raw `String`. Emit is the identity (write `content` unchanged); load

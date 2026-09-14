@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FileSystemToSyntax.jl.
+# Fragment of `FileSystemModule`.
 #
 # FileSystem → SyntaxDocument projection. Maps file-system nodes to syntax
 # tree shapes:

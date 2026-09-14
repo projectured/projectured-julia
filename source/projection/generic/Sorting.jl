@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from generic/Sorting.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that sorts the elements of a collection
 # document by a configurable key function.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from XmlFile.jl.
+# Fragment of `XmlModule`.
 #
 # `XmlFile`: a `FileDocument` whose `content` is an `XmlDocument`
 # (the projectured XML AST). Parse uses the existing `parse_xml`; emit

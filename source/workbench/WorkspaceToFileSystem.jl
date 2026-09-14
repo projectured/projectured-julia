@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from WorkspaceToFileSystem.jl.
+# Fragment of `WorkbenchModule`.
 #
 # Workspace → FileSystem projection. Maps workspace documents to file-system
 # documents:

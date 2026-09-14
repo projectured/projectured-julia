@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from NaturalProjection.jl.
+# Fragment of `NaturalModule`.
 #
 # The **natural projection**: one generic factory, [`NaturalToGraphics`](@ref),
 # that projects *almost any* document to a `GraphicsCanvas` — recursively and

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ReaderDefaults.jl.
+# Fragment of `ProjectionAlgebraModule`.
 #
 # Fragment of the projection layer's reader defaults — the Primitive-operation
 # branches of `read_intent` that dispatch on the *IoMap*.

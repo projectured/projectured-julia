@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from MarkdownParser.jl.
+# Fragment of `MarkdownModule`.
 #
 # A small, pragmatic Markdown parser. Converts Markdown source text into a
 # `MarkdownRoot` tree from `MarkdownModule`.

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ObjectToWidget.jl.
+# Fragment of `WidgetModule`.
 #
 # Generic, reflection-driven projection from an arbitrary object to a widget
 # **form** that displays and edits the object's reactive parameters. It walks the

@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DocumentReflection.jl.
+# Fragment of `ReflectionModule`.
 #
 # A bounded shadow of an **arbitrary Julia object** — a live simulation engine, a
 # model, anything that is not a `Document` and never will be.

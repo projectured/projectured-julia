@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from SyntaxNatural.jl.
+# Fragment of `SyntaxModule`.
 #
 # What the natural renderer draws with when nothing else claimed a document: the
 # shared to-syntax fabric, and the `Syntax → Text → Graphics` tail that turns it

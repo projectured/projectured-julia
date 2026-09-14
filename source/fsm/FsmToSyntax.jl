@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FsmToSyntax.jl.
+# Fragment of `FsmModule`.
 #
 # Fsm → Syntax projection: the **natural notation**, the primary edit surface of
 # the state machine domain.

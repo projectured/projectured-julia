@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/GraphComponent.jl.
+# Fragment of `GraphModule`.
 #
 # The graph algorithms both ported layouters read, from OMNeT++'s
 # `src/layout/graphcomponent.h` and `.cc`: a vertex, an edge, and the component

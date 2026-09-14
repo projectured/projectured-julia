@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from omnetpp/BasicSpringEmbedderLayout.jl.
+# Fragment of `GraphModule`.
 #
 # `SpringEmbedderLayout`, the port of OMNeT++'s
 # `src/layout/basicspringembedderlayout.cc`.

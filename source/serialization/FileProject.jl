@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from FileProject.jl.
+# Fragment of `SerializationModule`.
 #
 # Save/load a ProjecturEd document graph as a set of text files that git
 # can version the ordinary way. Every node that should live in its own

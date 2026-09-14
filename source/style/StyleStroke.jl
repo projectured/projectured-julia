@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from StyleStroke.jl.
+# Fragment of `StyleModule`.
 #
 # Combined stroke style value type. A `StyleStroke` bundles the values that
 # describe a drawn line or outline — a [`StyleColor`](@ref), a `width`, and an

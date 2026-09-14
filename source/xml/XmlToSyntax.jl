@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from XmlToSyntax.jl.
+# Fragment of `XmlModule`.
 #
 # XML → SyntaxDocument projection, written with `@projection_template` (like
 # `JsonToSyntax` / `JuliaToSyntax`). Each XML type is a builder that constructs the

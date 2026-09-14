@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from RstFile.jl.
+# Fragment of `RstModule`.
 #
 # `RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
 # projectured reStructuredText tree). Parse uses `parse_rst`; emit runs the

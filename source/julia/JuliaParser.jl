@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JuliaParser.jl.
+# Fragment of `JuliaModule`.
 #
 # Parser for Julia source code. Converts Julia source text into a `JuliaDocument`
 # tree from `JuliaModule`.

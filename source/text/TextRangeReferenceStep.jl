@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from TextRangeReferenceStep.jl.
+# Fragment of `TextModule`.
 #
 # The `TextRangeReferenceStep` step type — a reference step representing a flat
 # character range / caret in the text domain (`start` / `stop` are 0-based

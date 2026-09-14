@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from PaneGeometry.jl.
+# Fragment of `PaneModule`.
 #
 # Where the groups of a pane tree sit, and which one lies in a given direction.
 #

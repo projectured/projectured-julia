@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from EmbedToSyntax.jl.
+# Fragment of `FileFormatModule`.
 #
 # The two rules that make a **cross-file embed** part of the shared
 # to-syntax fabric, so a document spliced into another one by a marker

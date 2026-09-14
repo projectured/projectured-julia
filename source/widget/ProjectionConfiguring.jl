@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProjectionConfiguring.jl.
+# Fragment of `WidgetModule`.
 #
 # A higher-order projection that wraps an inner ("parameter") projection and
 # extends its output with an editable control bar for the inner projection's

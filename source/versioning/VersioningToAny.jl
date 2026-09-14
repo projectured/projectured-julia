@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from VersioningToAny.jl.
+# Fragment of `VersioningModule`.
 #
 # The version-elimination projection — the direct analogue of
 # `ClipboardSliceToAnyProjection` (`ClipboardModule`).

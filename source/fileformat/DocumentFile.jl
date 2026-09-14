@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DocumentFile.jl.
+# Fragment of `FileFormatModule`.
 #
 # Format-by-extension file I/O — the single "read/write a document file" seam that
 # bridges the two serializers and the domain insertion seeds:

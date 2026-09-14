@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from ProcessDebugSession.jl.
+# Fragment of `ProcessModule`.
 #
 # Where a realized process **is**, as a document — the one thing both views read
 # to draw the live position, and the one thing the UI writes to drive execution.

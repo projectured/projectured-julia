@@ -1,5 +1,5 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from DatabaseInstanceToDbCatalog.jl.
+# Fragment of `OdbcModule`.
+#
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,

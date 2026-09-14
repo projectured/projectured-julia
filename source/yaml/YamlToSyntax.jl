@@ -1,5 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from YamlToSyntax.jl.
+# Fragment of `YamlModule`.
 #
 # YAML → SyntaxDocument projection. Maps each YAML value type to a matching syntax
 # tree shape: null, bool, number, and string scalars become leaves; sequences and
