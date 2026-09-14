@@ -310,7 +310,7 @@ the include in the layer file. Do not split.
 - [ ] `GestureBindings.jl` → `ProjectionGestureBindingsModule.jl`, code 8
 - [ ] ~~`ProjectionApi.jl` → `ProjectionApiModule.jl`~~ — superseded. The
   contract becomes a fragment of `ProjectionModule`. See
-  [projection-layer-is-one-module.md](projection-layer-is-one-module.md).
+  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
 
 ### Batch 8 — the kernel, split
 
@@ -325,14 +325,14 @@ includes the old one.
 - [ ] `projection/PrinterContext.jl`, code 54
 - [ ] `binding/GestureBinding.jl`, code 68
 - [ ] `projection/Projection.jl`, code 69 — done by
-  [projection-layer-is-one-module.md](projection-layer-is-one-module.md),
+  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md),
   which gives the layer its `ProjectionModule.jl` head.
 - [ ] `gesture/GestureRecognizer.jl`, code 107
 - [ ] `editor/Editor.jl`, code 131
 - [ ] `event/EventPattern.jl`, code 213
 - [ ] ~~`projection/ProjectionTemplate.jl`~~ — superseded. It becomes a
   fragment of `ProjectionModule`. See
-  [projection-layer-is-one-module.md](projection-layer-is-one-module.md).
+  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
 
 ## What ends the campaign
 
