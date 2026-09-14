@@ -384,31 +384,48 @@ anything else.
 
 **Every slice is done: 50 of 50.**
 
-### Batch 7 — the kernel, rename only
+### Batch 7 — the kernel, rename only (done)
 
 These four declare open generics and nothing else. `git mv` the file. Change
 the include in the layer file. Do not split.
 
-- [ ] `AgentServer.jl` → `AgentServerModule.jl`, code 7
+- [x] `AgentServer.jl` → `AgentServerModule.jl`
 
 Three of this batch's four are done. `ChildrenContainer.jl`,
 `GestureBindings.jl` and `ProjectionApi.jl` are fragments of `ProjectionModule`
 now. See
 [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
 
-### Batch 8 — the kernel, split
+### Batch 8 — the kernel (done)
 
 The layer file `<Layer>Layer.jl` includes the new head file, and the head file
 includes the old one.
 
-- [ ] `clock/Clock.jl`, code 23
-- [ ] `operation/Intent.jl`, code 25
-- [ ] `cell/PerformanceCounter.jl`, code 27
-- [ ] `editor/Playback.jl`, code 54
-- [ ] `binding/GestureBinding.jl`, code 68
-- [ ] `gesture/GestureRecognizer.jl`, code 107
-- [ ] `editor/Editor.jl`, code 131
-- [ ] `event/EventPattern.jl`, code 213
+- [x] `binding/GestureBinding.jl` — **split**. It has a second fragment.
+- [x] `clock/Clock.jl` → `ClockModule.jl` — renamed
+- [x] `operation/Intent.jl` → `IntentModule.jl` — renamed
+- [x] `cell/PerformanceCounter.jl` → `PerformanceCounterModule.jl` — renamed
+- [x] `editor/Playback.jl` → `PlaybackModule.jl` — renamed
+- [x] `gesture/GestureRecognizer.jl` → `GestureRecognizerModule.jl` — renamed
+- [x] `editor/Editor.jl` → `EditorModule.jl` — renamed
+- [x] `event/EventPattern.jl` → `EventPatternModule.jl` — renamed
+
+**Seven renames, one split — and the kernel decided it, not a threshold.** The
+plan said to split these eight and rename only the four tiny ones. Then I
+counted the includes of the 13 kernel head files that already had the right
+shape: **every one carries two or more.** Not one exists for a module with a
+single fragment. So the rule is not a line count — it is whether the head has a
+list to give:
+
+> Split when the module has two or more fragments. Rename when it has one.
+
+`GestureBinding` has two fragments, so it splits. The other seven have one each,
+so the file that names the module keeps the code, with the head at its top. That
+also matches `AgentServerModule.jl` from batch 7.
+
+A slice still splits at one fragment, and that exception keeps its reason:
+`<Slice>Document.jl` is written law in `naming-rules.md`, so the fragment's name
+carries meaning a kernel fragment's does not.
 
 Four more are done. `ProjectionReferenceStep.jl`, `PrinterContext.jl`,
 `Projection.jl` and `ProjectionTemplate.jl` are fragments of `ProjectionModule`
@@ -430,11 +447,13 @@ The prize is a guard that states the law in one sentence.
   `TooltipHead.jl` gives:
   `source/tooltip/TooltipHead.jl declares module TooltipModule; the file that
   names it is TooltipHeadModule.jl`.
-- [ ] Update the module inventory in
-  [documentation/design/system-anatomy.md](../../documentation/design/system-anatomy.md).
-- [ ] Fix four stale references to `plan/pending/one-module-per-slice.md`. That
-  plan is in `plan/done/`. They are in `test/suite/naming.jl` lines 30, 102 and
-  167, and `source/projection/generic/Identity.jl` line 11.
+- [x] Record the law in
+  [system-anatomy.md](../../documentation/design/system-anatomy.md), beside the
+  four-level division rule. The module inventory itself needed no change: it
+  names fragments like `JsonDocument.jl`, and those still hold what it says.
+- [x] Fix the stale references to `plan/pending/one-module-per-slice.md`. Three
+  went with the guard's slice machinery; the fourth was in the projection
+  algebra's docstring.
 
 ## Decisions
 

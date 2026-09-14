@@ -7,4 +7,4 @@
 # This is the first layer that sees an event *and* a document: a binding maps an
 # input pattern to an operation in a document's own reference vocabulary, so it
 # imports the event, document, and operation layers.
-include("GestureBinding.jl")
+include("GestureBindingModule.jl")

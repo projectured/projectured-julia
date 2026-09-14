@@ -125,8 +125,18 @@ inside a package, which the kernel alone declares; **slice** = vertical split
 of a single layer by feature, which is now a kernel-only notion; **module** =
 namespace/import surface. Files sit below all four levels as readability
 boundaries only: fragments (0-module files that share their aggregator's
-namespace) let a module split across files with zero API cost. See
-[terminology.md](../rule/division-terminology.md) for the definitions and
+namespace) let a module split across files with zero API cost.
+
+**A module is declared in the file that names it.** `JsonModule` lives in
+`JsonModule.jl` and `CellModule` in `CellModule.jl`, without exception, and
+`module_violations` in [test/suite/naming.jl](../../test/suite/naming.jl)
+reports any file that breaks it. A module with several fragments keeps that file
+for the head alone — the docstring, the header, the ordered includes and
+`__init__`. A module with one fragment keeps its code there, because a head
+listing one include gives a reader nothing. All 15 head files of the kernel
+carry two or more includes.
+
+See [terminology.md](../rule/division-terminology.md) for the definitions and
 [architecture-rules.md](../rule/architecture-rules.md) for the durable division
 rules.
 

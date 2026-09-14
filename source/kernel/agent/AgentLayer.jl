@@ -12,5 +12,5 @@
 #
 # Neither knows about MCP, and neither knows about any particular model: what an
 # agent may *do* is the tool layer, and how it *speaks* is the llm layer, both below.
-include("AgentServer.jl")
+include("AgentServerModule.jl")
 include("AgentModule.jl")

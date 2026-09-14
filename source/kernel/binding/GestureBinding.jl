@@ -1,76 +1,7 @@
-"""
-    GestureBindingModule
+# Fragment of `GestureBindingModule` — `GestureBinding`, one rule pairing a
+# gesture with what it produces, and the table a document or a projection
+# answers with.
 
-Reified **gesture → operation** bindings. A `GestureBinding` is a piece of *data*
-that can both **fire** an operation and be **inspected** (how the gesture is
-written, what it does, whether it currently applies), so the very same declaration
-that handles a key both edits the document and can be listed to a user.
-
-The pieces:
-
-- **`GestureBinding`** — an `EventPattern` (what input fires it, and how it is
-  described) + `operation(document, event) -> Operation | Nothing` (build the edit)
-  + `applicable(document, selection) -> Bool` (an *event-independent* state
-  precondition) + a human `description` + a `domain` tag + an optional `name`.
-  The pattern is **optional**: a binding with no pattern has no gesture at all,
-  and only its name reaches it — see [`fire_named_gesture_binding`](@ref).
-- **Registry** keyed by document type, with supertype inheritance:
-  `get_document_gesture_bindings(T)` collects `T`'s own bindings plus every
-  supertype's, so a declaration on an abstract document type covers its subtypes for
-  free. The own bindings live in `get_document_gesture_bindings_own(::Type{T})`
-  *methods* (not a mutable table) so they survive precompilation.
-- **`@gestures DocumentType begin … end`** — the declarative authoring form
-  ([`Gestures.jl`](Gestures.jl), a fragment of this module). It emits the
-  `get_document_gesture_bindings_own` method holding the reified table. Firing is
-  then a *single generic interpreter* ([`read_bound_gesture`](@ref), wired into
-  [`read_gesture`](@ref)) that walks that very table — so what *fires* is provably
-  the set that is *shown*.
-"""
-module GestureBindingModule
-
-using ..EventModule
-using ..EventPatternModule
-using ..DocumentModule
-using ..IntentModule
-
-export GestureBinding,
-       get_document_gesture_bindings, get_document_gesture_bindings_own,
-       get_instance_gesture_bindings, get_applicable_gesture_bindings,
-       fire_gesture_bindings, fire_named_gesture_binding,
-       collect_binding_intents,
-       read_gesture, read_bound_gesture,
-       var"@gestures", var"@gesture_set"
-
-"""
-    GestureBinding(pattern, operation, applicable, description, domain,
-                   override = false, name = nothing)
-
-One reified gesture → operation rule.
-
-- `pattern::Union{EventPattern,Nothing}` — what input fires it (and how it is
-  described). `nothing` means the binding has **no gesture**: no key and no click
-  reaches it, and only its `name` does. That is what a command is — an operation
-  the user runs by name, from the same table every gesture lives in.
-- `operation::Function` — `(document, event) -> Operation | Nothing`, builds the edit
-  in the document's own reference vocabulary. May return `nothing` for a finer,
-  event-dependent guard that the precondition cannot express.
-- `applicable::Function` — `(document, selection) -> Bool`, an *event-independent*
-  state precondition. This is what greys a row out when the bindings are listed.
-- `description::String` — human text for *what the binding does*.
-- `domain::String` — a tag (usually the document type name) for grouping.
-- `override::Bool` — whether the binding claims its key even when an *output* layer
-  has already turned it into an operation. The reader runs last-to-first, so by
-  default a printable key the text layer absorbed as a character edit never reaches
-  the document's gestures — which is what makes JSON's `,` a literal comma inside a
-  string without a guard. A binding whose key can never be text in its own context
-  sets this (XML's `<` inside a tag name inserts a child element). See
-  [`fire_gesture_bindings`](@ref).
-- `name::Union{String,Nothing}` — the name a user types to run the binding by
-  name, or `nothing` when the binding has none. `@gestures` fills it in only when
-  the author wrote a description **and** the rule binds no pattern variable, so
-  the operation closure does not read the event. A binding with no name is
-  reachable by its gesture alone.
-"""
 struct GestureBinding
     pattern::Union{EventPattern,Nothing}
     operation::Function
@@ -318,7 +249,3 @@ function get_applicable_gesture_bindings(document, bindings)
     selection = getfield(document, :selection)[]
     GestureBinding[b for b in bindings if b.applicable(document, selection)]
 end
-
-include("Gestures.jl")   # the @gestures / @gesture_set authoring DSL
-
-end # module

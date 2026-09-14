@@ -4,4 +4,4 @@ include("OperationModule.jl")
 # the operation it became. Its second half IS an operation, and the binding layer
 # above must build one, so it belongs here rather than with the projection
 # interface it used to sit beside.
-include("Intent.jl")
+include("IntentModule.jl")

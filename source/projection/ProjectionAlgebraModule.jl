@@ -7,11 +7,11 @@ projections, and the IoMap-typed reader defaults. None of these owns a
 document; each operates over any input by structure.
 
 The module takes a name of its own rather than the slice's, because the
-kernel's projection layer already declares `ProjectionModule`. See
-`plan/pending/one-module-per-slice.md`.
+kernel's projection layer already declares `ProjectionModule`.
 
-This file holds `IdentityProjection`: a projection that returns the input as
-the output without copying, which a predicate-dispatching projection uses as
+The fragments below hold `IdentityProjection`: a projection that returns the
+input as the output without copying, which a predicate-dispatching projection
+uses as
 its pass-through branch.
 """
 module ProjectionAlgebraModule

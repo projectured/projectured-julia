@@ -1,2 +1,2 @@
 # ── Gesture layer — recognising gestures in the event stream ───────────────
-include("GestureRecognizer.jl")
+include("GestureRecognizerModule.jl")
