@@ -1,18 +1,12 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JsonParser.jl.
+# Fragment of `JsonModule` — a recursive-descent parser from JSON text to a
+# document tree.
 #
-# A small recursive-descent JSON parser. Converts JSON source text into a
-# `JsonDocument` tree from `JsonModule`.
-#
-# Provides:
-# - `parse_json(text)` — parse a JSON string into a `JsonDocument`
-# - `parse_json_file(path)` — read and parse a `.json` file from disk
-#
-# Deliberately minimal (objects, arrays, strings, numbers, `true`/`false`/`null`,
-# the common backslash escapes including `\\uXXXX`). It is not a conformance-grade
-# parser — it is enough to turn typed JSON in the editor into a real document.
-# Anything malformed raises an error rather than guessing.
-# ── Cursor over the source (1-based char vector — simple, not the fastest) ─────
+# It reads an object, an array, a string, a number, `true`, `false`, `null` and
+# the common backslash escapes including `\uXXXX`. It is not conformance-grade.
+# It is enough to turn JSON typed in the editor into a real document, and it
+# raises an error on anything malformed rather than guessing.
+
+# ── The cursor over the source, a 1-based vector of characters ──────────────
 
 mutable struct _Cur
     cs::Vector{Char}

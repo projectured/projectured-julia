@@ -1,41 +1,25 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JsonFile.jl.
+# Fragment of `JsonModule` — `JsonFile`, the `.json` file on disk.
 #
-# `JsonFile`: a `FileDocument` whose `content` is a `JsonDocument`.
-# Parse uses the existing `parse_json`; emit runs the existing
-# `JsonToSyntax → SyntaxToText → TextToString` projection chain via
-# `print_natural_text`.
-#
-# Cross-file references appear in JSON as **strings** whose whole value
-# matches the marker regex (see `parse_marker_text`). A post-parse walk
-# substitutes those strings with `ReferenceStub` values in the AST
-# (reactive slot cells are `Any`-typed at runtime, so a stub sits
-# happily in a `JsonObjectEntry.value` slot declared `Document`, or in a
-# `JsonArray` element). Emit is symmetric — an extension of
-# `JsonToSyntax` (in `JsonToSyntax.jl`) renders `ReferenceStub` and
-# embedded `FileDocument` values as marker strings, so no pre-save
-# mutation is required.
+# A cross-file reference is written in JSON as a string whose whole value is a
+# marker. The two directions are symmetric: on load `_substitute_markers`
+# replaces each such `JsonString` with a `ReferenceStub`, and on save
+# `JsonToSyntax` renders a `ReferenceStub` and an embedded `FileDocument` back
+# as a marker string. Neither direction mutates the tree before it walks it.
 """
     JsonFile(filename, content)
 
-A file document whose `content` is a `JsonDocument`. See the module
-docstring for the marker walk and the emit-side projection extension.
+A file document whose `content` is a `JsonDocument`.
 """
 @document struct JsonFile <: FileDocument
     filename::String
     content::JsonDocument = JsonNothing()
 end
 
-# Emit through the visual projection pipeline via `print_natural_text`.
-# The `ReferenceStub` case registered in `JsonToSyntax.jl` renders
-# stubs as marker strings when the projection walks over them, so no
-# pre-emit AST mutation is needed.
+# Emit runs the `JsonToSyntax → SyntaxToText → TextToString` chain.
 emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 
-# Load: parse the file with `parse_json`, then substitute marker
-# strings with `ReferenceStub` values in the parsed tree in place.
-# The stubs carry `ctx` so `resolve!` later shares interned targets
-# with sibling stubs from the same load session.
+# A stub carries `ctx`, so `resolve!` later shares an interned target with the
+# sibling stubs of the same load session.
 function populate_file!(f::JsonFile, filename::AbstractString, ctx::LoaderContext)
     text = read(joinpath(ctx.base_dir, filename), String)
     ast = parse_json(text)
@@ -44,14 +28,10 @@ function populate_file!(f::JsonFile, filename::AbstractString, ctx::LoaderContex
     f
 end
 
-# Descend the JSON AST replacing marker-shaped `JsonString` leaves in
-# place with `ReferenceStub` values that carry `ctx`. Reactive slot
-# cells are `Any`-typed at runtime, so a stub sits happily in a
-# `JsonObjectEntry` value slot declared `Document` or in a
-# `JsonArray`'s CellVector element. Non-marker JsonStrings and
-# non-string leaves are untouched; only the compound containers are
-# traversed and their slot cells rewritten. Returns the (possibly
-# replaced) root node.
+# Replace every marker-shaped `JsonString` with a `ReferenceStub`, in place, and
+# return the root. A reactive slot cell is `Any`-typed at runtime, so a stub sits
+# in a `JsonObjectEntry.value` slot declared `Document` and in a `JsonArray`
+# element. Every other leaf is left alone.
 _substitute_markers(node, ctx::LoaderContext) = node
 
 function _substitute_markers(node::JsonString, ctx::LoaderContext)
@@ -79,6 +59,3 @@ function _substitute_markers(node::JsonObject, ctx::LoaderContext)
     end
     node
 end
-
-# Register `.json` so `resolve!` picks JsonFile for a `<<file("x.json")>>`
-# marker. Done in `__init__` so the mutation survives precompilation.

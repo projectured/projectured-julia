@@ -1,7 +1,8 @@
-# Fragment of `JsonModule` — the JSON document types.
+# Fragment of `JsonModule` — the JSON document types, the document each
+# insertion starts from, and the gestures that edit them.
 #
-# `@domain Json` declares the abstract `JsonDocument` type. Every type below
-# subtypes it.
+# `@domain Json` declares the abstract `JsonDocument` type that every type below
+# subtypes, and generates `JsonNothing` and `JsonInsertion`.
 
 @domain Json
 

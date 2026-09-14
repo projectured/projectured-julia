@@ -1,11 +1,7 @@
-# ──────────────────────────────────────────────────────────────────────────
-# Folded in from JsonToSyntax.jl.
-#
-# JSON → SyntaxDocument projection. Maps each JSON value type to a matching
-# syntax tree shape: null, bool, number, and string become leaves; arrays and
-# objects become nodes that carry their quote, bracket, and brace delimiters and
-# comma separators.
-# ── JsonNullToSyntaxLeaf ─────────────────────────────────────────────────────
+# Fragment of `JsonModule` — the projection from a JSON document to a syntax
+# tree. A null, a bool, a number and a string become a leaf. An array and an
+# object become a node that carries its brackets or its braces and its comma
+# separators.
 
 @projection struct JsonNullToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
@@ -14,8 +10,6 @@ end
 @projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
     SyntaxLeaf(TextString("null", prj.style))
 
-# ── JsonInsertionToSyntaxLeaf ───────────────────────────────────────────────────
-#
 # The shared typed-name insertion buffer, constrained to the JSON candidates
 # (prefix-free: `string` → `JsonString`), with the live completion hint and
 # commitability colouring. The `"`/`[`/`{`/digit type-to-replace gestures on a
@@ -23,8 +17,6 @@ end
 # without a value cursor, so those keys fall through to `@gestures JsonDocument`.
 
 JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument)
-
-# ── JsonBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection struct JsonBoolToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
@@ -39,8 +31,6 @@ end
                      make_hinted_text(() -> doc.value ? "true" : "false",
                                  () -> !(doc.value isa Bool), "enter json bool", prj.style)))
 
-# ── JsonNumberToSyntaxLeaf ───────────────────────────────────────────────────
-
 @projection struct JsonNumberToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
@@ -49,8 +39,6 @@ end
     SyntaxLeaf(bound(:value, Real,
                      make_hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
                      retype = ReplaceNumberRangeOperation))
-
-# ── JsonStringToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection struct JsonStringToSyntaxLeaf
     quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
@@ -62,8 +50,6 @@ end
                      make_hinted_text(() -> json_escape(doc.value), () -> isempty(doc.value), "enter json string", prj.value_style));
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
-
-# ── JsonArrayToSyntaxNode ────────────────────────────────────────────────────
 
 @projection struct JsonArrayToSyntaxNode
     delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
@@ -77,9 +63,8 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
-# ── JsonObjectEntryToSyntaxNode ──────────────────────────────────────────────
-# One `"key": value` member. The object delegates each entry here (School A) rather
-# than inlining, so a bare `JsonObjectEntry` also projects on its own.
+# One `"key": value` member. The object delegates each entry here rather than
+# inlining it, so a bare `JsonObjectEntry` also projects on its own.
 
 @projection struct JsonObjectEntryToSyntaxNode
     key_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
@@ -96,8 +81,6 @@ end
                  project(:value) ],
                0, false, getfield(e, :selection))
 
-# ── JsonObjectToSyntaxNode ───────────────────────────────────────────────────
-
 @projection struct JsonObjectToSyntaxNode
     delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
     separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
@@ -110,7 +93,7 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
-# ── Compound convenience constructor ────────────────────────────────────────
+# The projection of the whole domain: one rule per document type.
 
 function JsonToSyntax()
     TypeDispatchingProjection(
@@ -133,10 +116,9 @@ function JsonToSyntax()
     )
 end
 
-# ── ReferenceStubToJsonSyntaxLeaf ────────────────────────────────────────────
-# A ReferenceStub sitting in a JSON AST slot renders as the marker
-# string `"<<file(\"path\")>>"` — a JsonString-shaped SyntaxLeaf with the
-# same quote-then-value-then-quote structure JsonStringToSyntaxLeaf produces.
+# A `ReferenceStub` in a JSON slot renders as the marker string
+# `"<<file(\"path\")>>"`, in the quote-value-quote shape
+# `JsonStringToSyntaxLeaf` produces.
 
 @projection struct ReferenceStubToJsonSyntaxLeaf
     quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
@@ -150,11 +132,9 @@ end
 
 _stub_marker_body(stub::ReferenceStub) = json_escape(format_marker_text(stub))
 
-# ── EmbeddedFileDocumentToJsonSyntaxLeaf ─────────────────────────────────────
-# A FileDocument embedded directly in a JSON AST (as opposed to referenced
-# through a ReferenceStub) renders as the same marker string — the
-# embedded child gets its own file on save, and the parent's serialised
-# form only holds the reference.
+# A `FileDocument` embedded in a JSON slot renders as the same marker string.
+# The embedded child gets its own file on save, and the parent holds only the
+# reference.
 
 @projection struct EmbeddedFileDocumentToJsonSyntaxLeaf
     quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
@@ -167,8 +147,6 @@ end
                close=TextString("\"", prj.quote_style))
 
 _embedded_marker_body(file::FileDocument) = json_escape(format_file_marker_text(get_filename(file)))
-
-# ── Utility ──────────────────────────────────────────────────────────────────
 
 function json_escape(s::AbstractString)
     buf = IOBuffer()
@@ -189,11 +167,5 @@ function json_escape(s::AbstractString)
     String(take!(buf))
 end
 
-# ── Natural-format registration ─────────────────────────────────────────────
-# JSON's seams for import_document / export_document / read+write_document_file.
+# The document an empty `.json` starts from.
 make_document_seed(::Val{:json}) = JsonInsertion()
-
-# ── What this domain's natural notation is ──────────────────────────────────
-# One statement: the rung it starts at and how to build it, the format it is
-# written in, the extension that names the format back, and how to read that text
-# in again. Runtime state, so `__init__` rather than a top-level call.
