@@ -1,45 +1,21 @@
-"""
-    GraphToGraphLayoutModule
-
-Graph → GraphLayout projection. The chicken-and-egg step: **sizing precedes
-placement.**
-
-For each `GraphVertex` the projection recurses its `content` through `recursion`
-to a `GraphicsCanvas` and reads its `w`/`h` cells — the vertex's intrinsic size
-(reactive: a size change invalidates the layout). It collects constraints, runs
-the `GraphLayoutEngine` (memoized on topology + sizes + constraints), and builds a
-`GraphLayout` whose `VertexLayout`/`EdgeLayout` cells hold the engine's positions
-and routes.
-
-A `VertexLayout.vertex` field carries the **original `GraphVertex`** (by
-identity), so the downstream `GraphLayoutToGraphics` projection recurses the same
-content again to draw it, and selection round-trips: `vertices[i]` ↔
-`vertex_layouts[i].vertex` (tutorial School A — peel the one step this projection
-owns and delegate the tail through the same field unchanged).
-"""
-module GraphToGraphLayoutModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout, GraphConstraint
-import ..GraphLayoutEngineModule: GraphLayoutEngine, GridEmbedding, layout_graph,
-                                  layout_engine_name
-import ..GraphLayoutChoiceModule: resolve_layout_engine
-import ..GraphicsModule: GraphicsCanvas
-import ..IoMapModule: ChildrenIoMap
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep,
-                          EmptyReference
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-
-export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphToGraphLayout.jl.
+#
+# Graph → GraphLayout projection. The chicken-and-egg step: **sizing precedes
+# placement.**
+#
+# For each `GraphVertex` the projection recurses its `content` through `recursion`
+# to a `GraphicsCanvas` and reads its `w`/`h` cells — the vertex's intrinsic size
+# (reactive: a size change invalidates the layout). It collects constraints, runs
+# the `GraphLayoutEngine` (memoized on topology + sizes + constraints), and builds a
+# `GraphLayout` whose `VertexLayout`/`EdgeLayout` cells hold the engine's positions
+# and routes.
+#
+# A `VertexLayout.vertex` field carries the **original `GraphVertex`** (by
+# identity), so the downstream `GraphLayoutToGraphics` projection recurses the same
+# content again to draw it, and selection round-trips: `vertices[i]` ↔
+# `vertex_layouts[i].vertex` (tutorial School A — peel the one step this projection
+# owns and delegate the tail through the same field unchanged).
 # IoMap carrying the per-vertex content iomaps (used only for sizing — the
 # content is *not* re-rooted into the output here; the original vertex rides in
 # `VertexLayout.vertex`). Shaped like ChildrenIoMap for the mappers.
@@ -203,5 +179,3 @@ function GraphToGraphLayout(; engine::GraphLayoutEngine=GridEmbedding(),
     GraphGraphToGraphLayout(engine; extent = extent, border = border,
                             constraints = constraints)
 end
-
-end # module

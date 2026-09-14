@@ -1,54 +1,42 @@
-"""
-    GraphLayoutEngineModule
-
-A swappable interface for graph placement + edge routing. `GridEmbedding`
-(pure Julia) places without simulating, so nothing downstream is blocked. The
-force-directed engines ported from OMNeT++ live above this file; the native
-binding (Adaptagrams: libcola for placement, libavoid for routing) lives in its
-own package, `ProjecturedAdaptagrams`, because it pulls in an external native
-dependency — it adds an `AdaptagramsLayout <: GraphLayoutEngine` method to
-`layout_graph` behind this same interface. Core domain code never depends on it.
-
-Interface:
-
-```julia
-layout_graph(engine, graph, sizes, constraints; extent = nothing, border = 0)
-    -> (positions, routes)
-```
-
-where
-- `graph`        is a `GraphGraph`,
-- `sizes`        maps each `GraphVertex` (by `objectid`) to `(w, h)`,
-- `constraints`  is a vector of `GraphConstraint`,
-- `extent`       is `(width, height)`, the box the caller wants filled, or
-                 `nothing` when the caller has no box in mind,
-- `border`       is the inset kept on every side of that box,
-- `positions`    maps each `GraphVertex` (by `objectid`) to `(x, y, w, h)`,
-- `routes`       maps each `GraphEdge` (by `objectid`) to `Vector{Tuple{Int,Int}}`.
-
-`extent` and `border` are one argument pair rather than engine fields, because
-the same graph in two panes wants two layouts. OMNeT++ passes the same pair the
-same way, as `GraphLayouter::setSize(width, height, border)`.
-
-Keying on `objectid` keeps the engine call pure of any reactive cell, so the
-projection can memoize it on topology + sizes + constraints.
-
-An engine declares which `GraphConstraint` kinds it implements and
-[`check_constraints`](@ref) refuses every other kind by name. An engine that
-accepted a kind and dropped it would draw a picture indistinguishable from one
-that was never asked for the constraint at all.
-"""
-module GraphLayoutEngineModule
-
-import ..GraphModule: GraphGraph, GraphVertex, GraphEdge
-import ..GraphLayoutModule: GraphConstraint
-
-export GraphLayoutEngine, GridEmbedding, layout_graph, layout_engine_name,
-       get_supported_constraint_kinds, check_constraints, GRAPH_CONSTRAINT_KINDS,
-       get_constraint_pins, get_constraint_fixed_sizes, get_constraint_clusters,
-       layout_vertices, get_vertex_sizes,
-       get_straight_routes, get_extent_transform, fit_into_extent!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphLayoutEngine.jl.
+#
+# A swappable interface for graph placement + edge routing. `GridEmbedding`
+# (pure Julia) places without simulating, so nothing downstream is blocked. The
+# force-directed engines ported from OMNeT++ live above this file; the native
+# binding (Adaptagrams: libcola for placement, libavoid for routing) lives in its
+# own package, `ProjecturedAdaptagrams`, because it pulls in an external native
+# dependency — it adds an `AdaptagramsLayout <: GraphLayoutEngine` method to
+# `layout_graph` behind this same interface. Core domain code never depends on it.
+#
+# Interface:
+#
+# ```julia
+# layout_graph(engine, graph, sizes, constraints; extent = nothing, border = 0)
+#     -> (positions, routes)
+# ```
+#
+# where
+# - `graph`        is a `GraphGraph`,
+# - `sizes`        maps each `GraphVertex` (by `objectid`) to `(w, h)`,
+# - `constraints`  is a vector of `GraphConstraint`,
+# - `extent`       is `(width, height)`, the box the caller wants filled, or
+#                  `nothing` when the caller has no box in mind,
+# - `border`       is the inset kept on every side of that box,
+# - `positions`    maps each `GraphVertex` (by `objectid`) to `(x, y, w, h)`,
+# - `routes`       maps each `GraphEdge` (by `objectid`) to `Vector{Tuple{Int,Int}}`.
+#
+# `extent` and `border` are one argument pair rather than engine fields, because
+# the same graph in two panes wants two layouts. OMNeT++ passes the same pair the
+# same way, as `GraphLayouter::setSize(width, height, border)`.
+#
+# Keying on `objectid` keeps the engine call pure of any reactive cell, so the
+# projection can memoize it on topology + sizes + constraints.
+#
+# An engine declares which `GraphConstraint` kinds it implements and
+# [`check_constraints`](@ref) refuses every other kind by name. An engine that
+# accepted a kind and dropped it would draw a picture indistinguishable from one
+# that was never asked for the constraint at all.
 abstract type GraphLayoutEngine end
 
 """
@@ -486,5 +474,3 @@ end
 # it carries an external native dependency that the core domain must not require.
 # It is a separate package that adds its own `layout_graph` method behind this
 # interface. See `package/adaptagrams/`.
-
-end # module

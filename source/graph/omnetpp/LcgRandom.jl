@@ -1,23 +1,18 @@
-"""
-    LcgRandomModule
-
-The layouters' own random number generator, ported from OMNeT++'s
-`src/common/lcgrandom.h` and `.cc`.
-
-Both ported layouters need random numbers — one to scatter its start positions,
-the other to draw most of its own parameters — and both must answer the same
-picture twice. A shared session generator cannot promise that, because whoever
-else drew from it in between changes the answer. So a layouter carries its own
-generator and its own seed, exactly as `GraphLayouter::setSeed` does, and a seed
-plus a graph is a picture.
-
-This is the minimal standard generator of Park and Miller: `seed = 16807 * seed
-mod (2^31 - 1)`, evaluated by Schrage's method so that it never overflows.
-"""
-module LcgRandomModule
-
-export LcgRandom, draw_uniform01!, draw_uniform!, draw!, set_seed!, run_lcg_self_test
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/LcgRandom.jl.
+#
+# The layouters' own random number generator, ported from OMNeT++'s
+# `src/common/lcgrandom.h` and `.cc`.
+#
+# Both ported layouters need random numbers — one to scatter its start positions,
+# the other to draw most of its own parameters — and both must answer the same
+# picture twice. A shared session generator cannot promise that, because whoever
+# else drew from it in between changes the answer. So a layouter carries its own
+# generator and its own seed, exactly as `GraphLayouter::setSeed` does, and a seed
+# plus a graph is a picture.
+#
+# This is the minimal standard generator of Park and Miller: `seed = 16807 * seed
+# mod (2^31 - 1)`, evaluated by Schrage's method so that it never overflows.
 "The largest seed the generator accepts: `2^31 - 2`."
 const GLRAND_MAX = Int32(0x7ffffffe)
 
@@ -97,5 +92,3 @@ function run_lcg_self_test()
     end
     random.seed
 end
-
-end # module

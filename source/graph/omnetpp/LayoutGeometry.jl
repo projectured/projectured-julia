@@ -1,42 +1,24 @@
-"""
-    LayoutGeometryModule
-
-The geometry the ported layouters are written in, from OMNeT++'s
-`src/layout/geometry.h`: a three-dimensional point `Pt`, a size `Rs`, a
-positioned rectangle `Rc`, and a segment `Ln`.
-
-The third dimension is not decoration. `ForceDirectedGraphLayouter` can lift the
-embedding off the base plane and pull it back down with a spring, which lets a
-tangled graph untangle through a dimension the drawing does not have. The
-drawing then reads x and y and ignores z.
-
-**One deviation from the original.** `Pt`, `Rs`, `Rc` and `Ln` are immutable
-here, and every operation answers a new value. The C++ mutates in place and
-copies by hand where a copy is needed (`Pt(variable->getPosition()).add(...)`);
-a missed copy there is an aliasing bug that a port would inherit silently. An
-immutable value cannot have that bug, so it is worth the deviation.
-
-`NaN` means "not assigned yet" throughout, as it does in the original: a
-coordinate is nil until something assigns it, and `convert_nan_to_zero` is what turns an
-unassigned coordinate into a usable one.
-"""
-module LayoutGeometryModule
-
-export Pt, Rs, Rc, Ln,
-       pt_nil, pt_zero, pt_radial, is_nil, is_zero, is_fully_specified,
-       pt_length, pt_length_square, pt_distance, pt_normalize, pt_multiply,
-       pt_reverse, convert_nan_to_zero, with_base_plane_projection, get_base_plane_length,
-       get_base_plane_squared_length, get_base_plane_distance, get_base_plane_angle,
-       rotate_base_plane, transpose_base_plane, with_x, with_y, with_z,
-       rs_nil, get_diagonal_length, get_area,
-       rc_nil, rc_from_center_size, rc_left, rc_right, rc_top, rc_bottom,
-       rc_center, rc_left_top, rc_right_top, rc_left_bottom, rc_right_bottom,
-       rc_center_top, rc_center_bottom, rc_left_center, rc_right_center,
-       rc_contains, rc_bounding, ln_nil, rc_base_plane_distance,
-       rc_base_plane_contains, rc_base_plane_intersects,
-       Cc, cc_center_top, cc_center_bottom, cc_left_center, cc_right_center,
-       cc_intersect, cc_enclosing
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/LayoutGeometry.jl.
+#
+# The geometry the ported layouters are written in, from OMNeT++'s
+# `src/layout/geometry.h`: a three-dimensional point `Pt`, a size `Rs`, a
+# positioned rectangle `Rc`, and a segment `Ln`.
+#
+# The third dimension is not decoration. `ForceDirectedGraphLayouter` can lift the
+# embedding off the base plane and pull it back down with a spring, which lets a
+# tangled graph untangle through a dimension the drawing does not have. The
+# drawing then reads x and y and ignores z.
+#
+# **One deviation from the original.** `Pt`, `Rs`, `Rc` and `Ln` are immutable
+# here, and every operation answers a new value. The C++ mutates in place and
+# copies by hand where a copy is needed (`Pt(variable->getPosition()).add(...)`);
+# a missed copy there is an aliasing bug that a port would inherit silently. An
+# immutable value cannot have that bug, so it is worth the deviation.
+#
+# `NaN` means "not assigned yet" throughout, as it does in the original: a
+# coordinate is nil until something assigns it, and `convert_nan_to_zero` is what turns an
+# unassigned coordinate into a usable one.
 # ── Pt ───────────────────────────────────────────────────────────────────────
 
 """
@@ -348,5 +330,3 @@ function rc_base_plane_distance(rc::Rc, other::Rc)
         (Ln(x1, y1, z, x4, y4, z_other), get_base_plane_distance(Pt(x1, y1, 0), Pt(x4, y4, 0)))
     end
 end
-
-end # module

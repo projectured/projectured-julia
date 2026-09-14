@@ -1,30 +1,17 @@
-"""
-    GraphLayoutChoiceModule
-
-Which engine a caller gets when it names none, and when that is decided.
-
-`DeferredLayout` decides **when the layout runs**, not when the projection is
-built, and it decides the way Qtenv decides
-(`omnet-cpp/src/qtenv/modulelayouter.cc:363-372`): twenty vertices or more go
-to `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
-which is better and costs more. A package with a native engine registers a
-factory and takes over both.
-
-This module sits above the engines rather than beside the interface, because
-choosing between them means naming them.
-"""
-module GraphLayoutChoiceModule
-
-import ..GraphModule: GraphGraph
-import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
-                                  layout_engine_name, get_supported_constraint_kinds,
-                                  layout_vertices
-import ..BasicSpringEmbedderLayoutModule: SpringEmbedderLayout
-import ..ForceDirectedGraphLayouterModule: ForceDirectedLayout
-
-export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
-       resolve_layout_engine, make_pure_julia_layout_engine, QTENV_ADVANCED_LIMIT
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphLayoutChoice.jl.
+#
+# Which engine a caller gets when it names none, and when that is decided.
+#
+# `DeferredLayout` decides **when the layout runs**, not when the projection is
+# built, and it decides the way Qtenv decides
+# (`omnet-cpp/src/qtenv/modulelayouter.cc:363-372`): twenty vertices or more go
+# to `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
+# which is better and costs more. A package with a native engine registers a
+# factory and takes over both.
+#
+# This module sits above the engines rather than beside the interface, because
+# choosing between them means naming them.
 """
 The vertex count at which the choice turns from the advanced layouter to the
 fast one. It is `LIMIT` in `ModuleLayouter::getSubmodulePositions`, and the
@@ -127,5 +114,3 @@ layout_graph(engine::DeferredLayout, graph::GraphGraph, sizes::Dict,
              constraints::Vector; extent = nothing, border::Real = 0) =
     layout_graph(resolve_layout_engine(engine, length(layout_vertices(graph))),
                  graph, sizes, constraints; extent = extent, border = border)
-
-end # module

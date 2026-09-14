@@ -32,12 +32,12 @@ engine really placed it, so the substitution is visible rather than silent.
 """
 module ProjecturedAdaptagrams
 
-import ProjecturedGraph.GraphLayoutEngineModule: GraphLayoutEngine, layout_graph,
+import ProjecturedGraph.GraphModule: GraphLayoutEngine, layout_graph,
                                                   get_supported_constraint_kinds,
                                                   check_constraints, get_constraint_pins,
                                                   get_vertex_sizes, get_extent_transform,
                                                   layout_engine_name, layout_vertices
-import ProjecturedGraph.GraphLayoutChoiceModule: register_layout_engine!,
+import ProjecturedGraph.GraphModule: register_layout_engine!,
                                                  make_pure_julia_layout_engine,
                                                  resolve_layout_engine
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge

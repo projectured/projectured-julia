@@ -1,52 +1,31 @@
-"""
-    ForceDirectedParametersModule
-
-The bodies and the forces, from OMNeT++'s
-`src/layout/forcedirectedparameters.h`.
-
-Three bodies:
-
-- `Body` sits where its variable says.
-- `RelativelyPositionedBody` sits at a fixed offset from its variable, so
-  several of them on one variable move as one rigid group.
-- `WallBody` is a border: no size on one axis and infinite size on the other,
-  and a position on the axis it does constrain.
-
-And the forces the graph layouter builds out of them: an electric repulsion
-between every pair of bodies, a spring along every edge, four springs and a
-choice of the least stretched one for an edge to the border, a spring pulling
-the third dimension back to zero, and a drag that takes energy out of everything.
-
-**Two deviations.** The common fields of a force provider are one `config`
-value that each provider holds, rather than an inherited base — Julia has no
-field inheritance, and composition says the same thing. And `HorizonalSpring` is
-spelled `HorizontalSpring`; the missing `t` in the original is a typo, not an
-identifier anybody depends on.
-
-The layouter never builds `Friction`, `PointConstraint`, `LineConstraint` or
-`CircleConstraint`, so they are not ported. A force nothing constructs is not
-part of the picture.
-"""
-module ForceDirectedParametersModule
-
-import ..LayoutGeometryModule: Pt, Rs, pt_length, pt_normalize, get_base_plane_length,
-                               convert_nan_to_zero, rc_from_center_size, rc_base_plane_distance,
-                               is_nil, rs_nil
-import ..ForceDirectedParametersBaseModule: Variable, AbstractBody, AbstractForceProvider,
-                                            reinitialize!, apply_forces!, get_potential_energy,
-                                            get_class_name, set_embedding!,
-                                            get_position, assign_position!,
-                                            get_velocity, add_force!, subtract_force!,
-                                            get_body_position, get_body_size, get_body_mass,
-                                            get_body_charge, get_body_variable
-
-export Body, RelativelyPositionedBody, WallBody, set_wall_position!, set_wall_variable!,
-       ForceProviderConfig, AbstractElectricRepulsion, ElectricRepulsion,
-       VerticalElectricRepulsion, HorizontalElectricRepulsion,
-       AbstractSpring, Spring, VerticalSpring, HorizontalSpring,
-       LeastExpandedSpring, BasePlaneSpring, Drag,
-       get_spring_repose_length, get_spring_distance_and_vector
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/ForceDirectedParameters.jl.
+#
+# The bodies and the forces, from OMNeT++'s
+# `src/layout/forcedirectedparameters.h`.
+#
+# Three bodies:
+#
+# - `Body` sits where its variable says.
+# - `RelativelyPositionedBody` sits at a fixed offset from its variable, so
+#   several of them on one variable move as one rigid group.
+# - `WallBody` is a border: no size on one axis and infinite size on the other,
+#   and a position on the axis it does constrain.
+#
+# And the forces the graph layouter builds out of them: an electric repulsion
+# between every pair of bodies, a spring along every edge, four springs and a
+# choice of the least stretched one for an edge to the border, a spring pulling
+# the third dimension back to zero, and a drag that takes energy out of everything.
+#
+# **Two deviations.** The common fields of a force provider are one `config`
+# value that each provider holds, rather than an inherited base — Julia has no
+# field inheritance, and composition says the same thing. And `HorizonalSpring` is
+# spelled `HorizontalSpring`; the missing `t` in the original is a typo, not an
+# identifier anybody depends on.
+#
+# The layouter never builds `Friction`, `PointConstraint`, `LineConstraint` or
+# `CircleConstraint`, so they are not ported. A force nothing constructs is not
+# part of the picture.
 signum(value::Real) = value < 0 ? -1.0 : value == 0 ? 0.0 : 1.0
 
 # ── Bodies ───────────────────────────────────────────────────────────────────
@@ -511,5 +490,3 @@ function apply_forces!(provider::Drag)
 end
 
 get_potential_energy(::Drag) = 0.0
-
-end # module

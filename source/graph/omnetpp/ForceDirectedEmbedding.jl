@@ -1,53 +1,32 @@
-"""
-    ForceDirectedEmbeddingModule
-
-The solver, from OMNeT++'s `src/layout/forcedirectedembedding.cc`.
-
-The layout is a differential equation: a variable's value is a position, its
-first derivative a velocity, its second an acceleration, and the forces say what
-the acceleration is. It is integrated by a modified Runge-Kutta of fourth order:
-
-```
-a1 = a[pn, vn]
-a2 = a[pn + h/2 * vn + h*h/8 * a1, vn + h/2 * a1]
-a3 = a[pn + h/2 * vn + h*h/8 * a2, vn + h/2 * a2]
-a4 = a[pn + h   * vn + h*h/2 * a3, vn + h   * a3]
-
-pn+1 = pn + h * vn + h*h/6 * (a1 + a2 + a3)
-vn+1 = vn + h/6 * (a1 + 2*a2 + 2*a3 + a4)
-```
-
-The step `h` is not fixed. The four acceleration estimates should agree; how far
-apart they are is the error, and the step is doubled while the error is too
-small and halved while it is too large. That is why a graph that is nearly
-settled advances in long steps and a graph in a violent phase advances in short
-ones, at about the same cost per cycle.
-
-**One deviation.** OMNeT++ also stops on elapsed wall-clock time, which makes
-the drawing depend on the machine that drew it. `max_calculation_time` is here
-and honoured, but `ForceDirectedLayout` leaves it at `Inf`; §3.6 of the plan
-requires that a seed and a graph decide a picture, and a clock is neither.
-"""
-module ForceDirectedEmbeddingModule
-
-import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_length, pt_distance,
-                               pt_normalize
-import ..ForceDirectedParametersBaseModule: ForceDirectedParameters, Variable,
-                                            AbstractBody, AbstractForceProvider,
-                                            reinitialize!, apply_forces!, get_potential_energy,
-                                            set_embedding!, get_position, assign_position!,
-                                            get_velocity, assign_velocity!,
-                                            get_acceleration, get_kinetic_energy, reset_force!,
-                                            set_mass!,
-                                            get_body_variable, get_body_mass,
-                                            get_body_left, get_body_right, get_body_top, get_body_bottom
-import ..ForceDirectedParametersModule: WallBody
-import ..LcgRandomModule: LcgRandom, draw_uniform01!
-
-export ForceDirectedEmbedding, default_force_directed_parameters,
-       add_body!, add_force_provider!, embed!, get_embedding_bounding_rectangle,
-       total_kinetic_energy, total_potential_energy
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/ForceDirectedEmbedding.jl.
+#
+# The solver, from OMNeT++'s `src/layout/forcedirectedembedding.cc`.
+#
+# The layout is a differential equation: a variable's value is a position, its
+# first derivative a velocity, its second an acceleration, and the forces say what
+# the acceleration is. It is integrated by a modified Runge-Kutta of fourth order:
+#
+# ```
+# a1 = a[pn, vn]
+# a2 = a[pn + h/2 * vn + h*h/8 * a1, vn + h/2 * a1]
+# a3 = a[pn + h/2 * vn + h*h/8 * a2, vn + h/2 * a2]
+# a4 = a[pn + h   * vn + h*h/2 * a3, vn + h   * a3]
+#
+# pn+1 = pn + h * vn + h*h/6 * (a1 + a2 + a3)
+# vn+1 = vn + h/6 * (a1 + 2*a2 + 2*a3 + a4)
+# ```
+#
+# The step `h` is not fixed. The four acceleration estimates should agree; how far
+# apart they are is the error, and the step is doubled while the error is too
+# small and halved while it is too large. That is why a graph that is nearly
+# settled advances in long steps and a graph in a violent phase advances in short
+# ones, at about the same cost per cycle.
+#
+# **One deviation.** OMNeT++ also stops on elapsed wall-clock time, which makes
+# the drawing depend on the machine that drew it. `max_calculation_time` is here
+# and honoured, but `ForceDirectedLayout` leaves it at `Inf`; §3.6 of the plan
+# requires that a seed and a graph decide a picture, and a clock is neither.
 """
     ForceDirectedEmbedding()
 
@@ -414,5 +393,3 @@ function get_embedding_bounding_rectangle(embedding::ForceDirectedEmbedding)
     end
     Rc(left, top, 0.0, right - left, bottom - top)
 end
-
-end # module

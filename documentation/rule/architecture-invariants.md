@@ -1007,9 +1007,8 @@ the `nothing` leaf in visual and the `*Nothing` insertion placeholder in
 domain; the more specific concept took the qualifier
 (`InsertionNothingToSyntaxLeaf`).
 
-Every file of the tree follows this rule except the sixteen of `graph`, which
-are named in that package's `unmigrated_files` and wait on
-`plan/pending/divide-graph-and-text.md`.
+Every file of the tree follows this rule. A package may name what it has not
+migrated in `unmigrated_files`, and none does.
 
 ### PAR-PARALLEL-TRIADS
 

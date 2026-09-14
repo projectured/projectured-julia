@@ -1,21 +1,10 @@
-"""
-    GraphLayoutModule
-
-Geometry layer for the graph domain: `VertexLayout` places a `GraphVertex`;
-`EdgeLayout` routes a `GraphEdge`; `GraphLayout` bundles them with
-direction/spacing knobs. `GraphConstraint` is the policy wrapper (mirrors
-`LayoutConstraint`).
-"""
-module GraphLayoutModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ReferenceModule: Reference
-
-export GraphLayoutDocument
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphLayout.jl.
+#
+# Geometry layer for the graph domain: `VertexLayout` places a `GraphVertex`;
+# `EdgeLayout` routes a `GraphEdge`; `GraphLayout` bundles them with
+# direction/spacing knobs. `GraphConstraint` is the policy wrapper (mirrors
+# `LayoutConstraint`).
 abstract type GraphLayoutDocument <: Document end
 
 # ── VertexLayout ─────────────────────────────────────────────────────────────
@@ -82,5 +71,3 @@ Per-vertex/edge policy wrapper. `kind` is one of `:pin`, `:same_rank`,
     kind::Symbol = :pin
     payload::Any = nothing
 end
-
-end # module

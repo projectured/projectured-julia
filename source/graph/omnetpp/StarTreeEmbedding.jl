@@ -1,33 +1,21 @@
-"""
-    StarTreeEmbeddingModule
-
-A planar embedding for one connected component, from OMNeT++'s
-`src/layout/startreeembedding.cc`.
-
-Where `HeapEmbedding` packs rectangles, this packs **circles**. Every subtree is
-wrapped in a circle; a parent sits in the middle and its subtrees are placed
-around it, each new circle set against two already placed so that it touches
-both and lies as near the parent as it can. When all the children are placed,
-the whole is wrapped in one circle and becomes a child of its own parent.
-
-A second pass turns each subtree in place so that its weight falls away from its
-parent, which is what stops a tree from folding back over itself. A third pass
-turns the relative centres into absolute positions.
-
-Nothing overlaps, and a tree drawn this way reads as a tree. The layouter picks
-it over `HeapEmbedding` whenever the component really is a tree.
-"""
-module StarTreeEmbeddingModule
-
-import ..LayoutGeometryModule: Pt, Rc, Cc, pt_zero, pt_distance,
-                               get_diagonal_length, get_area, get_base_plane_angle,
-                               rotate_base_plane, cc_intersect, cc_enclosing,
-                               cc_center_top, cc_center_bottom, cc_left_center,
-                               cc_right_center
-import ..GraphComponentModule: GraphComponent, LayoutVertex
-
-export StarTreeEmbedding, embed_star_tree!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/StarTreeEmbedding.jl.
+#
+# A planar embedding for one connected component, from OMNeT++'s
+# `src/layout/startreeembedding.cc`.
+#
+# Where `HeapEmbedding` packs rectangles, this packs **circles**. Every subtree is
+# wrapped in a circle; a parent sits in the middle and its subtrees are placed
+# around it, each new circle set against two already placed so that it touches
+# both and lies as near the parent as it can. When all the children are placed,
+# the whole is wrapped in one circle and becomes a child of its own parent.
+#
+# A second pass turns each subtree in place so that its weight falls away from its
+# parent, which is what stops a tree from folding back over itself. A third pass
+# turns the relative centres into absolute positions.
+#
+# Nothing overlaps, and a tree drawn this way reads as a tree. The layouter picks
+# it over `HeapEmbedding` whenever the component really is a tree.
 """
     StarTreeEmbedding(component, vertex_spacing)
 
@@ -183,5 +171,3 @@ function _calculate_position!(vertex::LayoutVertex, pt::Pt)
     end
     nothing
 end
-
-end # module

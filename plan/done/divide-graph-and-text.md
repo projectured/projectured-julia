@@ -5,7 +5,14 @@
 > [naming-rules.md](../../documentation/rule/naming-rules.md),
 > [one-module-per-slice.md](../done/one-module-per-slice.md) §4.2
 
-## 0. Why this plan exists
+## 0. Where this stands
+
+**Both slices are folded, and this plan is done.** `text` was read and folded on
+2026-09-14; `graph` was measured, the division case did not survive the
+measurement, and the user chose to fold it the same day. Every slice of the tree
+declares one module.
+
+## 1. Why this plan existed
 
 [one-module-per-slice.md](../done/one-module-per-slice.md) folded sixty of the
 sixty-two slices into one module each. It left `graph` and `text` alone, because
@@ -18,41 +25,58 @@ Nothing here is urgent. Both slices work, and both pass their suites. The cost
 of leaving them is that two slices break the law the rest of the tree follows,
 and a reader who derives `GraphModule` from the folder finds seventeen modules.
 
-## 1. What the two hold
+## 2. What the two held
 
-| slice | modules | files | lines |
-| --- | --- | --- | --- |
-| `graph` | 17 | 16 | 4831 |
-| ~~`text`~~ | ~~14~~ 1 | 14 | 5123 |
+| slice | modules before | modules now | files | lines |
+| --- | --- | --- | --- | --- |
+| `graph` | 17 | 1 | 16 | 4831 |
+| `text` | 14 | 1 | 14 | 5123 |
 
-Every other slice declares one module.
+Every slice declares one module.
 
-## 2. `graph` — the case is read and the answer is known
+## 2. `graph` is one slice — MEASURED AND FOLDED 2026-09-14
 
-Its 39 internal edges are not flat. They form a dependency graph four to five
-levels deep:
+This section argued for a division and rested on a claim that measurement did
+not support.
 
-    LayoutGeometry  <-  GraphComponent, ForceDirectedParametersBase,
-                        ForceDirectedParameters, HeapEmbedding, StarTreeEmbedding
-    GraphComponent  <-  HeapEmbedding, StarTreeEmbedding
-    ForceDirectedParametersBase <- ForceDirectedParameters
-    StarTreeEmbedding <- ForceDirectedGraphLayouter
+**The claim.** "`source/graph/omnetpp/` is a self-contained port of a C++
+force-directed layout engine … **It knows no document type.** The only edge from
+the top level into it is `GraphLayoutChoice`."
 
-    GraphModule     <-  GraphLayoutEngine, GraphLayoutChoice,
-                        GraphToGraphLayout, GraphLayoutToGraphics
-    GraphLayout     <-  GraphLayoutEngine, GraphToGraphLayout, GraphLayoutToGraphics
-    GraphLayoutEngine <- GraphLayoutChoice, GraphToGraphLayout
-    GraphToGraphLayout <- GraphLayoutToGraphics
+**The measurement.** Three of the ten files name a document type and two import
+it:
 
-**The two halves barely touch.** `source/graph/omnetpp/` is a self-contained
-port of a C++ force-directed layout engine: geometry, a random generator, a
-component, the parameter families and two embeddings. It knows no document type.
-The only edge from the top level into it is `GraphLayoutChoice`, which picks a
-layouter.
+    BasicSpringEmbedderLayout.jl:32   import ..GraphModule: GraphGraph, GraphEdge
+    ForceDirectedGraphLayouter.jl:33  import ..GraphModule: GraphGraph, GraphEdge
 
-**The division:** `source/graph/` keeps the documents and the projections and
-becomes one module. `omnetpp/` becomes its own slice, plausibly its own package,
-because it depends on nothing above it.
+Both also import the engine contract. So the edges run both ways: one file of the
+top level reaches into `omnetpp/`, and two files of `omnetpp/` reach back up.
+
+**The shape is three layers, not two halves.** The include order says so: the
+document and the engine contract, then the ten engines, then the registry that
+picks one, then the projections. The engines sit *between* two parts of the rest,
+so a straight lift makes a cycle.
+
+**To divide would have cost two moves and a package.** The document types the
+engines use and the engine contract would form a base package; the built-in
+choice would move down into the engines and register itself, the way
+`ProjecturedAdaptagrams` already registers a native engine from its `__init__`.
+That is the edge that inverts. This codebase maps one slice to one package, so
+the engines would need a `Project.toml`, `[sources]` in every environment and a
+row in the package-graph table.
+
+**The user decided on 2026-09-14 to fold instead.** Sixteen modules became
+`GraphModule`. The three-layer structure survives as the include order of the
+fragments, which is where it was already written.
+
+The fold needed no reconciliation. Twenty-one names are defined in more than one
+fragment and every one of them is a contract with its implementations —
+`layout_graph`, `layout_engine_name` and `get_supported_constraint_kinds`
+declared in `GraphLayoutEngine.jl` and implemented by the two layouters,
+`apply_forces!` and the `get_body_*` family declared in
+`ForceDirectedParametersBase.jl` and specialised in `ForceDirectedParameters.jl`.
+`duplicate_definition_violations` reports none of them, because none shares a
+signature.
 
 ## 3. `text` is one slice — READ AND FOLDED 2026-09-14
 

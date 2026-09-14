@@ -1,44 +1,20 @@
-"""
-    GraphLayoutToGraphicsModule
-
-GraphLayout → Graphics projection. Draws each `VertexLayout` as a node box (a
-rounded `GraphicsRect` outline at `(x, y, w, h)`) with the vertex's projected
-content canvas placed inside, and each `EdgeLayout` as a `GraphicsPolyline`
-connector along its `route` (an end arrowhead when the edge is directed), with the
-edge's optional `label` recursed to a canvas and centred on the route midpoint.
-Edges are drawn first, nodes on top.
-
-Selection: a path `vertex_layouts[i].vertex.content.…` routes into the i-th
-node's content sub-pipeline (tutorial School A — peel the steps this projection
-owns and delegate the tail through the stored child IO maps). The
-`GraphToGraphLayout` stage above maps `vertices[i].content.…` ↔
-`vertex_layouts[i].vertex.content.…`, so a selection into vertex content
-round-trips through the whole graph pipeline. Edges are decorations in v1
-(selectable later via the Phase 1 polyline hit-test).
-"""
-module GraphLayoutToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, print_child, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..IntentModule: Intent
-import ..GraphLayoutModule: GraphLayout, VertexLayout, EdgeLayout
-import ..GraphModule: GraphVertex, GraphEdge
-import ..GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsPolyline, layout_none, hit_element_at
-import ..StyleModule: color_default, StyleColor
-import ..IoMapModule: ChildrenIoMap
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, FieldReferenceStep, RangeReferenceStep, EmptyReference
-import ..ReferenceModule: var"@reference", var"@reference_step"
-import ..ReferenceModule: var"@reference_case"
-import ..PrinterContextModule: make_child_context
-import ..OperationModule: ReplaceSelectionOperation, operation_travels_unchanged
-import ..EventModule: MousePress
-
-export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
-       GraphLayoutToGraphicsCanvasIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from GraphLayoutToGraphics.jl.
+#
+# GraphLayout → Graphics projection. Draws each `VertexLayout` as a node box (a
+# rounded `GraphicsRect` outline at `(x, y, w, h)`) with the vertex's projected
+# content canvas placed inside, and each `EdgeLayout` as a `GraphicsPolyline`
+# connector along its `route` (an end arrowhead when the edge is directed), with the
+# edge's optional `label` recursed to a canvas and centred on the route midpoint.
+# Edges are drawn first, nodes on top.
+#
+# Selection: a path `vertex_layouts[i].vertex.content.…` routes into the i-th
+# node's content sub-pipeline (tutorial School A — peel the steps this projection
+# owns and delegate the tail through the stored child IO maps). The
+# `GraphToGraphLayout` stage above maps `vertices[i].content.…` ↔
+# `vertex_layouts[i].vertex.content.…`, so a selection into vertex content
+# round-trips through the whole graph pipeline. Edges are decorations in v1
+# (selectable later via the Phase 1 polyline hit-test).
 # Node box visual style.
 const _BORDER_W = 2
 const _BORDER = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)   # solarized base01
@@ -361,10 +337,6 @@ function GraphToGraphics end
 # natural renderer as their recursion, so a vertex's content is whatever it is,
 # rendered the same way it would be anywhere else. That is what lets a diagram
 # node be a widget, or prose, or a table.
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..GraphModule: GraphGraph
-import ..GraphToGraphLayoutModule: GraphGraphToGraphLayout
-import ..NaturalModule: register_natural_graphics!
 
 function __init__()
     register_natural_graphics!(:graph, (; measure) -> Pair{Type,Any}[
@@ -372,5 +344,3 @@ function __init__()
                                          GraphLayoutToGraphicsCanvas()),
     ])
 end
-
-end # module

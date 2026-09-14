@@ -1,43 +1,31 @@
-"""
-    BasicSpringEmbedderLayoutModule
-
-`SpringEmbedderLayout`, the port of OMNeT++'s
-`src/layout/basicspringembedderlayout.cc`.
-
-This is the layouter OMNeT++ 3.x shipped, and the one Qtenv still reaches for
-when a module has twenty submodules or more, because it is the fast one. Every
-edge is a spring pulling its ends to a preferred length, every pair of nodes
-pushes apart, and a halving friction stops the whole thing eventually.
-
-Three things in it are not the textbook algorithm, and all three matter:
-
-- **Repulsion between unconnected parts dies off.** Two nodes of different
-  colour — different connected parts — stop repelling past 100 units. Without
-  that, a graph in several pieces blows itself apart instead of laying out.
-- **Movement is capped, not the force.** A node moves at most 50 units per
-  iteration, and the velocity that produced it is kept, so a large force turns
-  into sustained movement rather than one jump.
-- **A node not connected to anything fixed may leave through the top and the
-  left** while it settles, and is shifted back at the end. Letting it out gives
-  a better arrangement than pressing it against a wall.
-
-The header of the original states the simplification that decides where this
-layouter is used and where the force-directed one is: **it ignores node sizes**.
-An edge's preferred length grows a little with its endpoints, and nothing else
-in the simulation knows how big a box is. A network of equal-sized icons reads
-well; a network of cards does not.
-"""
-module BasicSpringEmbedderLayoutModule
-
-import ..GraphModule: GraphGraph, GraphEdge
-import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
-                                  get_supported_constraint_kinds, check_constraints,
-                                  get_constraint_pins, get_constraint_clusters,
-                                  layout_vertices, get_vertex_sizes, get_straight_routes
-import ..LcgRandomModule: LcgRandom, draw_uniform01!
-
-export SpringEmbedderLayout
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/BasicSpringEmbedderLayout.jl.
+#
+# `SpringEmbedderLayout`, the port of OMNeT++'s
+# `src/layout/basicspringembedderlayout.cc`.
+#
+# This is the layouter OMNeT++ 3.x shipped, and the one Qtenv still reaches for
+# when a module has twenty submodules or more, because it is the fast one. Every
+# edge is a spring pulling its ends to a preferred length, every pair of nodes
+# pushes apart, and a halving friction stops the whole thing eventually.
+#
+# Three things in it are not the textbook algorithm, and all three matter:
+#
+# - **Repulsion between unconnected parts dies off.** Two nodes of different
+#   colour — different connected parts — stop repelling past 100 units. Without
+#   that, a graph in several pieces blows itself apart instead of laying out.
+# - **Movement is capped, not the force.** A node moves at most 50 units per
+#   iteration, and the velocity that produced it is kept, so a large force turns
+#   into sustained movement rather than one jump.
+# - **A node not connected to anything fixed may leave through the top and the
+#   left** while it settles, and is shifted back at the end. Letting it out gives
+#   a better arrangement than pressing it against a wall.
+#
+# The header of the original states the simplification that decides where this
+# layouter is used and where the force-directed one is: **it ignores node sizes**.
+# An edge's preferred length grows a little with its endpoints, and nothing else
+# in the simulation knows how big a box is. A network of equal-sized icons reads
+# well; a network of cards does not.
 # ── The engine ───────────────────────────────────────────────────────────────
 
 """
@@ -636,5 +624,3 @@ function layout_graph(engine::SpringEmbedderLayout, graph::GraphGraph, sizes::Di
 
     (positions, get_straight_routes(graph, positions))
 end
-
-end # module

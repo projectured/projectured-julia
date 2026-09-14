@@ -1,68 +1,32 @@
-"""
-    ForceDirectedGraphLayouterModule
-
-`ForceDirectedLayout`, the port of OMNeT++'s
-`src/layout/forcedirectedgraphlayouter.cc`.
-
-This is the layouter Qtenv reaches for below twenty submodules, the one it calls
-"advanced". Unlike the spring embedder it **carries node sizes** through every
-force, which is what makes it the answer for a network of cards rather than a
-network of icons.
-
-What it builds:
-
-1. Expected measures — the average body size decides the edge length everything
-   else is scaled against, and whether a body may be treated as a point.
-2. Parameters, most of them drawn from the layouter's own seeded generator, so
-   one graph under two seeds is two pictures.
-3. The connected parts, and, half the time, a pre-embedding per part — a star
-   tree if the part is a tree, a heap otherwise — so that the simulation starts
-   from an arrangement rather than from noise.
-4. Wall bodies, when there is a box to fill or anything pinned, with a repulsion
-   from every body and a spring holding opposite walls apart.
-5. An electric repulsion between every pair of bodies, weakened to a finite
-   range between parts that are not connected.
-6. A drag, and a spring pulling the third dimension flat, when the layout was
-   allowed to leave the plane at all.
-
-Then it integrates until the layout settles, and shifts the result so that
-nothing has a negative coordinate.
-"""
-module ForceDirectedGraphLayouterModule
-
-import ..GraphModule: GraphGraph, GraphEdge
-import ..GraphLayoutEngineModule: GraphLayoutEngine, layout_graph, layout_engine_name,
-                                  get_supported_constraint_kinds, check_constraints,
-                                  get_constraint_pins, get_constraint_clusters,
-                                  layout_vertices, get_vertex_sizes, get_straight_routes
-import ..LcgRandomModule: LcgRandom, draw_uniform01!, draw_uniform!
-import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, pt_multiply,
-                               get_diagonal_length, get_area, rc_center
-import ..GraphComponentModule: GraphComponent, LayoutVertex, LayoutEdge,
-                               add_vertex!, add_edge!, get_vertex_count,
-                               get_edge_count, get_bounding_rectangle,
-                               calculate_spanning_tree!,
-                               calculate_connected_sub_components!
-import ..ForceDirectedParametersBaseModule: Variable, PointConstrainedVariable, AbstractBody,
-                                            get_position, assign_position!,
-                                            get_body_position, get_body_size, get_body_top,
-                                            get_body_bottom, get_body_left, get_body_right,
-                                            get_body_variable
-import ..ForceDirectedParametersModule: Body, RelativelyPositionedBody, WallBody,
-                                        set_wall_position!, set_wall_variable!,
-                                        ElectricRepulsion, VerticalElectricRepulsion,
-                                        HorizontalElectricRepulsion, Spring,
-                                        VerticalSpring, HorizontalSpring,
-                                        BasePlaneSpring, Drag
-import ..ForceDirectedEmbeddingModule: ForceDirectedEmbedding,
-                                       default_force_directed_parameters,
-                                       add_body!, add_force_provider!, embed!,
-                                       get_embedding_bounding_rectangle
-import ..StarTreeEmbeddingModule: StarTreeEmbedding, embed_star_tree!
-import ..HeapEmbeddingModule: HeapEmbedding, embed_heap!
-
-export ForceDirectedLayout
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/ForceDirectedGraphLayouter.jl.
+#
+# `ForceDirectedLayout`, the port of OMNeT++'s
+# `src/layout/forcedirectedgraphlayouter.cc`.
+#
+# This is the layouter Qtenv reaches for below twenty submodules, the one it calls
+# "advanced". Unlike the spring embedder it **carries node sizes** through every
+# force, which is what makes it the answer for a network of cards rather than a
+# network of icons.
+#
+# What it builds:
+#
+# 1. Expected measures — the average body size decides the edge length everything
+#    else is scaled against, and whether a body may be treated as a point.
+# 2. Parameters, most of them drawn from the layouter's own seeded generator, so
+#    one graph under two seeds is two pictures.
+# 3. The connected parts, and, half the time, a pre-embedding per part — a star
+#    tree if the part is a tree, a heap otherwise — so that the simulation starts
+#    from an arrangement rather than from noise.
+# 4. Wall bodies, when there is a box to fill or anything pinned, with a repulsion
+#    from every body and a spring holding opposite walls apart.
+# 5. An electric repulsion between every pair of bodies, weakened to a finite
+#    range between parts that are not connected.
+# 6. A drag, and a spring pulling the third dimension flat, when the layout was
+#    allowed to leave the plane at all.
+#
+# Then it integrates until the layout settles, and shifts the result so that
+# nothing has a negative coordinate.
 # ── The engine ───────────────────────────────────────────────────────────────
 
 """
@@ -639,5 +603,3 @@ function layout_graph(engine::ForceDirectedLayout, graph::GraphGraph, sizes::Dic
 
     (positions, get_straight_routes(graph, positions))
 end
-
-end # module

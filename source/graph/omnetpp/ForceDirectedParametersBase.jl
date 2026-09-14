@@ -1,33 +1,19 @@
-"""
-    ForceDirectedParametersBaseModule
-
-The vocabulary the force-directed embedding is written in, from OMNeT++'s
-`src/layout/forcedirectedparametersbase.h`: the parameter block, the `Variable`
-the differential equation solves for, and the two interfaces — a body, which has
-a position, a size, a mass and a charge, and a force provider, which pushes
-variables around.
-
-A variable is not a node. Several bodies may share one variable, and that is how
-a family of nodes moves as one: each is a body, all of them read the same
-variable, and a force on any of them lands on that one variable.
-
-**One deviation.** `PointConstrainedVariable` is a subclass over there and a
-`point_constrained` flag here. It differs from a plain variable in three
-one-line methods, and a flag says that more plainly than a second type would.
-"""
-module ForceDirectedParametersBaseModule
-
-import ..LayoutGeometryModule: Pt, Rs, pt_zero, pt_length, is_fully_specified
-
-export ForceDirectedParameters, Variable, PointConstrainedVariable,
-       AbstractBody, AbstractForceProvider,
-       reinitialize!, apply_forces!, get_potential_energy, get_class_name, set_embedding!,
-       get_position, assign_position!, get_velocity, assign_velocity!,
-       get_acceleration, get_kinetic_energy, reset_force!, get_mass, set_mass!,
-       get_force, add_force!, subtract_force!,
-       get_body_position, get_body_size, get_body_mass, get_body_charge, get_body_variable,
-       get_body_left, get_body_right, get_body_top, get_body_bottom, get_body_left_top
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/ForceDirectedParametersBase.jl.
+#
+# The vocabulary the force-directed embedding is written in, from OMNeT++'s
+# `src/layout/forcedirectedparametersbase.h`: the parameter block, the `Variable`
+# the differential equation solves for, and the two interfaces — a body, which has
+# a position, a size, a mass and a charge, and a force provider, which pushes
+# variables around.
+#
+# A variable is not a node. Several bodies may share one variable, and that is how
+# a family of nodes moves as one: each is a body, all of them read the same
+# variable, and a force on any of them lands on that one variable.
+#
+# **One deviation.** `PointConstrainedVariable` is a subclass over there and a
+# `point_constrained` flag here. It differs from a plain variable in three
+# one-line methods, and a flag says that more plainly than a second type would.
 """
     ForceDirectedParameters
 
@@ -185,5 +171,3 @@ get_body_right(body::AbstractBody) = get_body_position(body).x + get_body_size(b
 get_body_top(body::AbstractBody) = get_body_position(body).y - get_body_size(body).height / 2
 get_body_bottom(body::AbstractBody) = get_body_position(body).y + get_body_size(body).height / 2
 get_body_left_top(body::AbstractBody) = Pt(get_body_left(body), get_body_top(body), get_body_position(body).z)
-
-end # module

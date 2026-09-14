@@ -1,29 +1,18 @@
-"""
-    HeapEmbeddingModule
-
-A planar embedding for one connected component, from OMNeT++'s
-`src/layout/heapembedding.cc`.
-
-Vertices are placed in spanning-tree order. A list of candidate points is kept;
-each vertex is tried against every candidate with each of its eight edge and
-corner points, every placement that would overlap something already placed is
-rejected, and the survivor nearest to the neighbours already placed wins. Then
-the vertex's own four edge midpoints become new candidates.
-
-Nothing overlaps, and a vertex ends up beside the neighbours it already has. It
-is the cheaper of the two pre-embeddings and the one the layouter uses when the
-component is not a tree.
-"""
-module HeapEmbeddingModule
-
-import ..LayoutGeometryModule: Pt, Rs, Rc, pt_zero, pt_nil, is_nil, pt_distance,
-                               rc_center, rc_center_top, rc_center_bottom,
-                               rc_left_center, rc_right_center,
-                               rc_base_plane_contains, rc_base_plane_intersects
-import ..GraphComponentModule: GraphComponent
-
-export HeapEmbedding, embed_heap!
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/HeapEmbedding.jl.
+#
+# A planar embedding for one connected component, from OMNeT++'s
+# `src/layout/heapembedding.cc`.
+#
+# Vertices are placed in spanning-tree order. A list of candidate points is kept;
+# each vertex is tried against every candidate with each of its eight edge and
+# corner points, every placement that would overlap something already placed is
+# rejected, and the survivor nearest to the neighbours already placed wins. Then
+# the vertex's own four edge midpoints become new candidates.
+#
+# Nothing overlaps, and a vertex ends up beside the neighbours it already has. It
+# is the cheaper of the two pre-embeddings and the one the layouter uses when the
+# component is not a tree.
 """
     HeapEmbedding(component, vertex_spacing)
 
@@ -134,5 +123,3 @@ function embed_heap!(embedding::HeapEmbedding)
     end
     nothing
 end
-
-end # module

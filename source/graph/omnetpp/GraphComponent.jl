@@ -1,32 +1,22 @@
-"""
-    GraphComponentModule
-
-The graph algorithms both ported layouters read, from OMNeT++'s
-`src/layout/graphcomponent.h` and `.cc`: a vertex, an edge, and the component
-that owns them, with a spanning tree and a split into connected parts.
-
-This is a working copy of the topology, not the document. A `LayoutVertex` holds
-its neighbours, its placed rectangle and an `identity` the caller recognises it
-by; nothing here knows what the identity means.
-
-Two deviations from the original. It has no `owner` flag, because Julia frees
-what nothing points at. And `colorize_connected_sub_component!` runs from an
-explicit stack rather than by recursion, which visits the vertices in the same
-order and cannot exhaust the call stack on a long chain.
-
-The original names — `Vertex` and `Edge` — would sit beside this domain's own
-`GraphVertex` and `GraphEdge` documents and read as the same thing. They are
-`LayoutVertex` and `LayoutEdge` here for that reason.
-"""
-module GraphComponentModule
-
-import ..LayoutGeometryModule: Pt, Rs, Rc, pt_nil, rc_left, rc_right, rc_top, rc_bottom
-
-export LayoutVertex, LayoutEdge, GraphComponent,
-       add_vertex!, add_edge!, index_of_vertex, find_vertex, get_bounding_rectangle,
-       calculate_spanning_tree!, calculate_connected_sub_components!,
-       get_vertex_count, get_edge_count
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from omnetpp/GraphComponent.jl.
+#
+# The graph algorithms both ported layouters read, from OMNeT++'s
+# `src/layout/graphcomponent.h` and `.cc`: a vertex, an edge, and the component
+# that owns them, with a spanning tree and a split into connected parts.
+#
+# This is a working copy of the topology, not the document. A `LayoutVertex` holds
+# its neighbours, its placed rectangle and an `identity` the caller recognises it
+# by; nothing here knows what the identity means.
+#
+# Two deviations from the original. It has no `owner` flag, because Julia frees
+# what nothing points at. And `colorize_connected_sub_component!` runs from an
+# explicit stack rather than by recursion, which visits the vertices in the same
+# order and cannot exhaust the call stack on a long chain.
+#
+# The original names — `Vertex` and `Edge` — would sit beside this domain's own
+# `GraphVertex` and `GraphEdge` documents and read as the same thing. They are
+# `LayoutVertex` and `LayoutEdge` here for that reason.
 """
     LayoutVertex(pt, rs, identity = nothing)
 
@@ -270,5 +260,3 @@ function _colorize_connected_sub_component!(child::GraphComponent,
     end
     nothing
 end
-
-end # module

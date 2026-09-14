@@ -79,17 +79,17 @@ in `WidgetToGraphics.jl` that happen to share the name. `rule_print` and
 `$(rule_print)` interpolations inside a macro, which are the function and must
 move.
 
-## 2.1 The sweep is done except for graph — 2026-09-14
+## 2.1 The sweep is done — 2026-09-14
 
-**Every one of the 349 source files follows the rule, except the sixteen of
-`graph`.** Measured by running the checker over every file of every slice: 50
-rejections, all of them in `graph`.
+**Every one of the 349 source files follows the rule.** `graph` was the last,
+and it was folded rather than divided, the user's decision — see
+[divide-graph-and-text.md](divide-graph-and-text.md) §2.
 
-The guard is no longer opt-in. It checks every file of every package, and what
-is not migrated is named in that package's `unmigrated_files`. Only `graph` has
-one. A file named there and since migrated is reported, so the set cannot go
-stale, and the per-suite ledgers are gone — twenty-six registrations and the
-assertion that guarded them.
+The guard is not opt-in. It checks every file of every package. A package may
+name what it has not migrated in `unmigrated_files`, and no package does. A file
+named there and since migrated is reported, so the set cannot go stale, and the
+per-suite ledgers are gone — twenty-six registrations and the assertion that
+guarded them.
 
 Proven by breaking a file that was never on any list: `JsonParser.jl` gained an
 `import ..CellModule: Cell` and the guard named the file, the name and the fix.
@@ -141,9 +141,8 @@ To fold `graph` as one module would finish the sweep and flatten a layering that
 4. **The kernel.** **DONE.** Every kernel file follows the rule, the sealed ones
    included: what they import, they extend.
 
-**`graph` waits for [divide-graph-and-text.md](divide-graph-and-text.md).** Nine
-of the 14 modules that extend nothing are inside it, and the division moves
-them. To migrate them now is work the division redoes.
+**`graph` was the last slice, and it is done.** It was folded rather than
+divided: the division case did not survive measurement. To migrate them now is work the division redoes.
 
 ## 4. How to migrate one module
 
