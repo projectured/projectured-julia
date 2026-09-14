@@ -1,38 +1,6 @@
-"""
-    DomainModule
-
-The core document domain. Models document-level identity and basic structural
-documents: a base abstract type, a nothing-document, an insertion placeholder,
-and a reference document.
-
-The load/save/import/export document operations live with the serializers:
-binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
-`Export`/`ImportDocumentOperation` in `FileFormatModule`.
-"""
-module DomainModule
-
-using ..CellModule
-using ..DocumentModule
-using ..ReferenceModule
-export DocumentBase
-using ..EventPatternModule
-using ..GestureBindingModule
-import ..GestureBindingModule: get_document_gesture_bindings_own
-using ..SelectionModule
-using ..ProjectionModule
-using ..OperationModule
-export var"@domain", var"@insertion",
-       get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
-       get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
-       get_insertion_names, get_insertion_candidates, complete_insertion, name_completion,
-       resolve_insertion,
-       insert_document_operation, append_insertion_operation, move_to_field,
-       replace_selected_document
-export DocumentNothing, DocumentInsertion
-
-
-
-# ── DocumentBase (abstract) ───────────────────────────────────────────────────
+# Fragment of `DomainModule` — the document types every domain builds on: the
+# abstract `DocumentBase`, and the empty and insertion placeholders a domain
+# inherits.
 
 abstract type DocumentBase <: Document end
 
@@ -95,8 +63,3 @@ DocumentReference(path::Reference; selection=nothing) =
 # The load/save/import/export document operations now live with the serializers
 # (see the module docstring): binary in `SerializationModule`, natural in
 # `FileFormatModule`.
-
-
-include("Domain.jl")
-
-end # module

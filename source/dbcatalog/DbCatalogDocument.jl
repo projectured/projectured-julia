@@ -1,36 +1,6 @@
-"""
-    DbCatalogModule
-
-Document hierarchy modelling the PostgreSQL catalog tree:
-`DbCatalogRdbms → DbCatalogDatabase → DbCatalogSchema → DbCatalogTable → DbCatalogColumn`
-
-No global state — constructors are plain wrappers with no side effects.
-"""
-module DbCatalogModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export DbCatalogDocument
-using ..SqlModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IoMapModule
-using ..ProjectionAlgebraModule
-export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
-       DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
-using ..ProjectionModule
-using ..TextModule
-using ..StyleModule
-using ..SyntaxModule
-using ..OperationModule
-export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
-       DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
-       is_dbcatalog_marker_eligible
-export DbCatalogRdbms, DbCatalogDatabase
-
-
-
+# Fragment of `DbCatalogModule` — the database-catalog document types: the
+# abstract `DbCatalogDocument` and the server, database, table and column nodes
+# a catalog tree holds.
 
 abstract type DbCatalogDocument <: Document end
 
@@ -69,9 +39,3 @@ Base.show(io::IO, d::DbCatalogDatabase) = print(io, "DbCatalogDatabase(", d.name
 Base.show(io::IO, s::DbCatalogSchema)   = print(io, "DbCatalogSchema(", s.name, ")")
 Base.show(io::IO, t::DbCatalogTable)    = print(io, "DbCatalogTable(", t.name, ")")
 Base.show(io::IO, c::DbCatalogColumn)   = print(io, "DbCatalogColumn(", c.name, "::", c.data_type, ")")
-
-
-include("DbCatalogToSql.jl")
-include("DbCatalogToSyntax.jl")
-
-end # module

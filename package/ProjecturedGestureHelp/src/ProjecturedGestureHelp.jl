@@ -42,6 +42,6 @@ const TextModule = ProjecturedText.TextModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 
-include("../../../source/gesturehelp/GestureMap.jl")
+include("../../../source/gesturehelp/GestureHelpModule.jl")
 
 end # module ProjecturedGestureHelp

@@ -21,6 +21,6 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 
-include("../../../source/domain/DocumentCore.jl")
+include("../../../source/domain/DomainModule.jl")
 
 end # module ProjecturedDomain

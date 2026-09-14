@@ -234,22 +234,47 @@ The `code` column is the number of code lines that stay in the old file.
 - [x] `@projection` exports the type it declares. `test_export_collisions()`
   passes over the whole stack.
 
-### Batch 2 — small slices
+### Batch 2 — small slices (done)
 
-- [ ] `collection` — `CollectionDocument.jl`, code 1. The fragment goes **last**.
-- [ ] `inspector` — `ReferenceInspector.jl`, code 3
-- [ ] `dragging` — `DraggingDocument.jl`, code 4
-- [ ] `tooltip` — `TooltipDocument.jl`, code 5
-- [ ] `workbench` — `Workspace.jl`, code 6
-- [ ] `chart` — `ChartSampleReferenceStep.jl`, code 16
-- [ ] `domain` — `DocumentCore.jl`, code 17
-- [ ] `filesystem` — `FileSystemDocument.jl`, code 17
-- [ ] `component` — `ComponentDocument.jl`, code 18. One file today.
-- [ ] `dbcatalog` — `DbCatalogDocument.jl`, code 22
-- [ ] `graphics` — `PointReferenceStep.jl`, code 23
-- [ ] `gesturehelp` — `GestureMap.jl`, code 23
-- [ ] `fileformat` — `NaturalFormat.jl`, code 25
-- [ ] `book` — `BookDocument.jl`, code 25
+- [x] `collection` — `CollectionDocument.jl`, code 1. The fragment goes **last**.
+- [x] `inspector` — `ReferenceInspector.jl`, code 3
+- [x] `dragging` — `DraggingDocument.jl`, code 4
+- [x] `tooltip` — `TooltipDocument.jl`, code 5
+- [x] `workbench` — `Workspace.jl`, code 6
+- [x] `chart` — `ChartSampleReferenceStep.jl`, code 16
+- [x] `domain` — `DocumentCore.jl`, code 17
+- [x] `filesystem` — `FileSystemDocument.jl`, code 17
+- [x] `component` — `ComponentDocument.jl`, code 18. One file today.
+- [x] `dbcatalog` — `DbCatalogDocument.jl`, code 22
+- [x] `graphics` — `PointReferenceStep.jl`, code 23
+- [x] `gesturehelp` — `GestureMap.jl`, code 23
+- [x] `fileformat` — `NaturalFormat.jl`, code 25
+- [x] `book` — `BookDocument.jl`, code 25
+
+
+**What batch 2 measured.** `test_substrate()` 60167 / 4 / 2 / 1 / 60174 and
+`test_json()` 170 / 170, both identical to the baseline. The stack loads with no
+warning, the naming guard is clean, `test_export_collisions()` passes, and every
+touched file parses.
+
+**Two bugs in the tool, both caught before they reached a suite.**
+
+The first cut every trailing `end`. The tool took the code region as the first
+`code` line to the last `code` line, and an `end` that closes a struct or a
+function is not a `code` line — it is an `end` line. Four files failed to parse.
+The region now runs to whatever comes next at the top level: an include,
+`__init__`, or the module's own closing `end`, which is the last one in the file.
+
+The second left a duplicate `using`. Two modules named `TextModule` twice,
+scattered through a header that no one had sorted; sorting brought the copies
+together without removing them. The tool now drops an exact duplicate. Four more
+files in the tree carry the same duplication and will be fixed as their batch
+reaches them: `SyntaxDocument.jl`, `NaturalNotation.jl`,
+`GestureLogDocument.jl`, `Console.jl`.
+
+**Parse every touched file before running a suite.** `Meta.parseall` over the
+files the batch changed costs a second and reports a truncation that a load
+would report as something else.
 
 ### Batch 3 — medium slices
 

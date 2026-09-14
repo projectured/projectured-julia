@@ -49,7 +49,7 @@ for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversatio
     end
 end
 
-include("../../../source/workbench/Workspace.jl")
+include("../../../source/workbench/WorkbenchModule.jl")
 
 # The draft's key handlers are registered by `ProjecturedAssistant`, which owns
 # them now.

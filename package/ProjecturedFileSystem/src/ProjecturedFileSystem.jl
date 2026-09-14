@@ -34,6 +34,6 @@ for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedNatural, Proje
     end
 end
 
-include("../../../source/filesystem/FileSystemDocument.jl")
+include("../../../source/filesystem/FileSystemModule.jl")
 
 end # module ProjecturedFileSystem

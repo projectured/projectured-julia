@@ -1,35 +1,6 @@
-"""
-    FileSystemModule
-
-The file-system document domain — `FileSystemFile` (leaf) and
-`FileSystemDirectory` (node holding `elements` in a `CellVector`). Both carry
-their `pathname` as identity.
-"""
-module FileSystemModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export FileSystemDocument, make_filesystem_pathname
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..TextModule
-using ..StyleModule
-using ..SyntaxModule
-using ..ProjectionAlgebraModule
-using ..IoMapModule
-using ..OperationModule
-using ..PrimitiveModule
-export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
-       is_filesystem_marker_eligible
-using ..NaturalModule
-using ..WidgetModule
-using ..GestureBindingModule
-export FileSystemToWidgetTree, FileSystemToWidget
-export FileSystemFile, FileSystemDirectory
-
-
+# Fragment of `FileSystemModule` — the file-system document types: the abstract
+# `FileSystemDocument`, its insertion placeholder, and the file and directory
+# nodes.
 
 abstract type FileSystemDocument <: Document end
 
@@ -69,9 +40,3 @@ function make_filesystem_pathname(pathname::AbstractString)
         FileSystemFile(p)
     end
 end
-
-
-include("FileSystemToSyntax.jl")
-include("FileSystemToWidget.jl")
-
-end # module

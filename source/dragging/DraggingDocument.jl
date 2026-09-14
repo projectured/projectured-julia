@@ -1,29 +1,6 @@
-"""
-    DraggingModule
-
-`DraggingState` — a transparent wrapper marking a sub-tree as a drag-and-drop
-reorder region. Actual gesture interpretation lives in `DraggingProjection`.
-"""
-module DraggingModule
-
-using ..CellModule
-using ..DocumentModule
-using ..ReferenceModule
-export DraggingDocument
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IntentModule
-using ..IoMapModule
-using ..CollectionModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..EventModule
-export DraggingProjection, DraggingIoMap, MoveRangeOperation
-export make_dragging_document, make_dragging_projection
-export DraggingState
-
-
-
+# Fragment of `DraggingModule` — the dragging document types: the abstract
+# `DraggingDocument` and the transparent wrapper that turns a press into a drag
+# once it travels past a threshold.
 
 abstract type DraggingDocument <: Document end
 
@@ -36,9 +13,3 @@ as a normal click).
     content::Document
     threshold::Int = 5
 end
-
-
-include("Dragging.jl")
-include("DraggingWrapper.jl")
-
-end # module

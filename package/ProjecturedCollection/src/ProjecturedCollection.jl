@@ -24,6 +24,6 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
 # The four collection shapes. CollectionModule includes its four fragments.
-include("../../../source/collection/CollectionDocument.jl")
+include("../../../source/collection/CollectionModule.jl")
 
 end # module ProjecturedCollection

@@ -34,6 +34,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
     end
 end
 
-include("../../../source/chart/ChartSampleReferenceStep.jl")
+include("../../../source/chart/ChartModule.jl")
 
 end # module ProjecturedChart

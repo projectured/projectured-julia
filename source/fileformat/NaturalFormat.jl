@@ -1,49 +1,6 @@
-"""
-    FileFormatModule
-
-Reading and writing a document **as a file** — `import_document` /
-`export_document` — and the two editor operations that do it.
-
-What a natural notation *is* lives in `ProjecturedNatural`: a domain declares the
-rung it starts at, the format it is written in, the extension that names that
-format back, and how to read the text in again. This module is the file half
-alone: it picks a parser by the extension of a path, and it writes what
-`print_natural_text` produced.
-
-Unlike the binary format ([`SerializationModule`](@ref)), this is portable
-and editable outside ProjecturEd, but lossy with respect to editor-only state:
-selection and collapse are not represented, and a document carrying an *insertion
-placeholder* has no valid natural-text form, so its export will not re-parse.
-Round-trip on real data documents; not on editor scaffolding.
-"""
-module FileFormatModule
-
-using ..DocumentModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..NaturalModule
-export import_document, export_document,
-       ImportDocumentOperation, ExportDocumentOperation
-using ..SerializationModule
-using ..DomainModule
-export write_document_file, read_document_file, make_document_for, make_document_seed
-using ..CellModule
-using ..CollectionModule
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..IoMapModule
-using ..ReferenceModule
-using ..SyntaxModule
-using ..TextModule
-using ..StyleModule
-using ..LayoutModule
-using ..WidgetModule
-using ..PrimitiveModule
-export ReferenceStubToSyntax, FileDocumentToSyntax, EmbedIoMap
-export export_document
-
-
-
+# Fragment of `FileFormatModule` — the file input and output of a document:
+# `import_document`, `export_document`, and the extension-to-format mapping they
+# both read.
 
 _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 
@@ -115,9 +72,3 @@ function evaluate_operation(editor, op::ImportDocumentOperation)
     editor.document = import_document(op.path)
     editor.iomap = nothing
 end
-
-
-include("DocumentFile.jl")
-include("EmbedToSyntax.jl")
-
-end # module

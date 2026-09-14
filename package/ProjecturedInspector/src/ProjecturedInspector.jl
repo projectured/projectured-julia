@@ -28,6 +28,6 @@ const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 
-include("../../../source/inspector/ReferenceInspector.jl")
+include("../../../source/inspector/InspectorModule.jl")
 
 end # module ProjecturedInspector

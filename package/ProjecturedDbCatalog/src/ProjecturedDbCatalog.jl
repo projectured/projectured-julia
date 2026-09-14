@@ -34,6 +34,6 @@ for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedProjection, Pr
     end
 end
 
-include("../../../source/dbcatalog/DbCatalogDocument.jl")
+include("../../../source/dbcatalog/DbCatalogModule.jl")
 
 end # module ProjecturedDbCatalog

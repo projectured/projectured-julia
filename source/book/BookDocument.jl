@@ -1,38 +1,5 @@
-"""
-    BookModule
-
-The book document domain. Models structured prose: books, chapters,
-paragraphs, lists, and pictures.
-
-The domain includes:
-- **Structure**: `BookBook`, `BookChapter`
-- **Content**: `BookParagraph`, `BookList`, `BookPicture`
-- **Utility types**: `BookInsertion` for cursor positioning
-"""
-module BookModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export BookDocument
-using ..StyleModule
-using ..BackendModule
-using ..GraphicsModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..TextModule
-using ..SyntaxModule
-using ..ProjectionAlgebraModule
-using ..IoMapModule
-using ..OperationModule
-using ..PrimitiveModule
-export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
-       BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
-using ..NaturalModule
-export BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
-
-
+# Fragment of `BookModule` — the book document types: the abstract
+# `BookDocument`, its insertion cursor, and the nodes a book tree holds.
 
 abstract type BookDocument <: Document end
 
@@ -105,8 +72,3 @@ end
 # Text-replace edits need no per-type method: `title`/`author`/`numbering` are
 # plain strings, and a paragraph's `content` is a `TextBlock` whose representation
 # locates and splices the right span.
-
-
-include("BookToSyntax.jl")
-
-end # module
