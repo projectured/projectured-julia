@@ -112,6 +112,85 @@ Fact 2 gives the rule for the include order. The old file becomes a fragment,
 and its include takes the place its code held. Code before the includes means
 the fragment goes first. Code after them means the fragment goes last.
 
+## The header the head file carries
+
+The json trial settled the shape of the header. Every head file takes it.
+
+```julia
+module JsonModule
+
+using ..CellModule
+using ..CollectionModule
+…                                  # every using, sorted by module name
+using ..TextModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..FileFormatModule: make_document_seed
+import ..SerializationModule: emit_text, populate_file!
+
+export parse_json, parse_json_file
+export JsonToSyntax, JsonInsertionToSyntaxLeaf
+```
+
+Three blocks, in this order: what the module uses, what it extends, what it
+offers. The usings are sorted. The imports carry the comment that says why they
+are imports and not usings, which is what `PAR-QUALIFIED-EXTENSION` demands.
+
+**A module exports only what no macro exports for it.** Three macros emit an
+export, and no others:
+
+| macro | exports | file |
+| --- | --- | --- |
+| `@document struct T` | `T` and its four spelling aliases | [DocumentMacro.jl:292](../../source/kernel/document/DocumentMacro.jl#L292) |
+| `@domain X` | `XDocument`, and `XNothing` / `XInsertion` through `@document` | [Domain.jl:575](../../source/domain/Domain.jl#L575) |
+| `@projection struct T` | `T` | [Projection.jl](../../source/kernel/projection/Projection.jl) |
+
+`@projection` did not export until this campaign. It does now, because a
+projection type is the public name of the rule it holds, exactly as a document
+type is. The change made 17 projection types public that no module had
+exported: 15 in `WidgetToGraphics.jl` and 2 in `RstToSyntax.jl`. No name
+collides — all 312 projection types in the tree carry a distinct name, and
+`test_export_collisions()` proves it over the whole loaded stack.
+
+So an export line keeps only a plain function and a plain type. **286 names on
+22 export lines are now duplicates.** Delete them as each batch reaches its
+file:
+
+| file | names to delete |
+| --- | ---: |
+| `julia/JuliaDocument.jl` | 57 |
+| `rst/RstDocument.jl` | 52 |
+| `sql/SqlDocument.jl` | 27 |
+| `widget/WidgetDocument.jl` | 26 |
+| `markdown/MarkdownDocument.jl` | 21 |
+| `math/MathDocument.jl` | 21 |
+| `process/ProcessDocument.jl` | 15 |
+| `syntax/SyntaxDocument.jl` | 14 |
+| `fsm/FsmDocument.jl` | 9 |
+| `text/TextSpanReferenceStep.jl` | 7 |
+| `yaml/YamlDocument.jl` | 7 |
+| `book/BookDocument.jl` | 6 |
+| `xml/XmlDocument.jl` | 5 |
+| `dbcatalog/DbCatalogDocument.jl` | 5 |
+| `formula/FormulaDocument.jl` | 4 |
+| `gesturehelp/GestureMap.jl`, `fileformat/NaturalFormat.jl`, `filesystem/FileSystemDocument.jl` | 2 each |
+| `projection/generic/Identity.jl`, `inspector/ReferenceInspector.jl`, `gesturelog/GestureLogDocument.jl`, `layout/LayoutDocument.jl` | 1 each |
+
+**Delete only a name that a macro really declares.** The json slice exported
+`JsonToSyntax` and `JsonInsertionToSyntaxLeaf` on the same line as nine
+`@projection struct` names. Both are plain functions that build a projection,
+not projection types, so both keep their export. A name that ends in
+`ToSyntaxLeaf` is not proof of anything.
+
+**Count the export list before and after.** `length(names(M))` on the loaded
+module must not move, unless a name was dead. The count caught
+`JsonInsertionToSyntaxLeaf` when the whole line went out at once.
+
+**A dead export is silent.** The json slice exported `entries`, a field name of
+`JsonObject`. No binding of that name ever existed. Julia accepts an export of
+an undefined name without a word, so the line was inert from the day it was
+written. Look for one in every header.
+
 ## The recipe
 
 Do one batch at a time. One commit per batch.
@@ -127,9 +206,13 @@ Do one batch at a time. One commit per batch.
 4. Change the one include that reaches the module. For a slice it is
    `package/Projectured<Name>/src/Projectured<Name>.jl`. For a kernel layer it
    is `source/kernel/<layer>/<Layer>Layer.jl`.
-5. Run the layering guard and the narrowest suite that covers the slice:
+5. Sort the usings. Put the imports and the exports in blocks of their own.
+   Put the extension comment above the imports.
+6. Delete every export name that `@document`, `@domain` or `@projection`
+   already emits. Check `length(names(M))` before and after.
+7. Run the layering guard and the narrowest suite that covers the slice:
    `test_<slice>_layering()` and `test_<slice>()`.
-6. Mark the item done in this plan and commit.
+8. Mark the item done in this plan and commit.
 
 Write `workspace/bin/split-module-head.py` first. It does steps 1 to 4 for one
 file. Sixty-five files by hand is sixty-five chances to drop a line.
@@ -142,6 +225,12 @@ The `code` column is the number of code lines that stay in the old file.
 
 - [x] `json` — `JsonDocument.jl` → `JsonModule.jl`, code 58. 7/7 layering,
   170/170 suite. Commit `96cd3373`.
+- [x] The json header: sorted usings, three blocks, the extension comment.
+  Commit `99019cbb`.
+- [x] The json exports: delete what `@document` and `@domain` already export,
+  and the dead `export entries`. Commit `b933fdf5`.
+- [x] `@projection` exports the type it declares. `test_export_collisions()`
+  passes over the whole stack.
 
 ### Batch 2 — small slices
 

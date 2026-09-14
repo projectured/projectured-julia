@@ -43,15 +43,12 @@ using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
 
+# Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
 import ..SerializationModule: emit_text, populate_file!
 
 export parse_json, parse_json_file
-export JsonToSyntax,
-       JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
-       JsonStringToSyntaxLeaf, JsonInsertionToSyntaxLeaf,
-       JsonArrayToSyntaxNode, JsonObjectToSyntaxNode, JsonObjectEntryToSyntaxNode,
-       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf
+export JsonToSyntax, JsonInsertionToSyntaxLeaf
 
 
 include("JsonDocument.jl")

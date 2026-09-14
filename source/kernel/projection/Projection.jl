@@ -252,6 +252,10 @@ default is present, a keyword constructor is also generated — fields with a
 default are optional keywords, fields without one are required keywords —
 forwarding into the positional auto-wrapping constructor.
 
+The macro exports the type it declares, the way `@document` does. A projection
+type is the public name of the rule it holds, so the module that declares it
+needs no `export` line of its own.
+
 This is `@cell_struct` (the cell layer's transparent-Cell struct codegen) plus
 one default: a struct without an explicit supertype gets `<: Projection`. The
 injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
@@ -271,7 +275,14 @@ macro projection(args...)
     if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :Projection)
     end
-    return esc(build_cell_struct_exprs(structdef; default = default))
+    # A projection type is the public name of the rule it holds, so the macro
+    # exports it — the same rule `@document` follows for a document type. A
+    # module that also names it on an `export` line is a harmless duplicate.
+    name = structdef.args[2].args[1]
+    name isa Expr && name.head === :curly && (name = name.args[1])
+    return esc(Expr(:block,
+                    build_cell_struct_exprs(structdef; default = default),
+                    Expr(:export, name)))
 end
 
 end # module
