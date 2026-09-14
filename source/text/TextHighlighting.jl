@@ -170,14 +170,27 @@ end
 # input flat caret → output flat caret, over the seg table. Takes the blocks
 # explicitly so `print_document` can compute the output selection before the
 # `IoMap` exists.
-function _forward_map(segs, in_block, out_block, sel)
+"""
+    _forward_map(segs, in_block, out_block, sel; unmapped_maps_to_itself = false)
+
+Map a caret on `in_block` forward to `out_block` across the segments `segs`.
+
+`unmapped_maps_to_itself` says what a caret with no segment means. A projection
+that rewrites every top-level span leaves nothing unmapped, so `nothing` is the
+honest answer and the default. Word wrapping is the exception: `_wrap` reflows
+only top-level spans and passes a `TextLine` through unchanged, so a caret inside
+one carries no `WrapSegment`. The line is identical in the output, so such a
+caret maps to itself, and the cursor stays visible over a line-structured block.
+"""
+function _forward_map(segs, in_block, out_block, sel;
+                      unmapped_maps_to_itself::Bool = false)
     _is_structural_ref(sel) && return sel
     # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
     # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
     flat = get_flat_caret(in_block, sel)
     flat === nothing && return nothing
     loc = convert_flat_offset_to_element(in_block, flat)
-    loc === nothing && return nothing
+    loc === nothing && return unmapped_maps_to_itself ? sel : nothing
     in_span, in_char = loc
     best = nothing
     for seg in segs

@@ -63,7 +63,8 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = ComputedCellVector(() -> both[][1])
     segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _wrap_forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
+    out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection;
+                                     unmapped_maps_to_itself = true))
     output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
@@ -216,37 +217,10 @@ _flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyRefer
 # explicitly so `print_document` can compute the output selection before the
 # `IoMap` exists (structural ∅ / `TextSpanReferenceStep` pass through: the flat
 # character space is wrap-invariant since soft `TextNewline`s are not counted).
-function _wrap_forward_map(segs, in_block, out_block, sel)
-    _is_structural_ref(sel) && return sel
-    # Accept either caret representation: the flat `TextRangeReferenceStep{k}` or the
-    # structural `.elements[i].content{k}` a lowered edit leaves on the input block.
-    # A flat-only read here drops the cursor the moment an edit lands (the caret
-    # disappears after the first typed character).
-    flat = get_flat_caret(in_block, sel)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(in_block, flat)
-    # A caret inside a `TextLine` has no flat top-level span mapping — `_wrap` passes
-    # `TextLine` elements through unchanged (it reflows only top-level spans), so they
-    # carry no `WrapSegment`. The line is identical in the output, so such a caret maps to
-    # itself; returning `sel` keeps the cursor visible over a line-structured block.
-    loc === nothing && return sel
-    in_span, in_char = loc
-    best = nothing
-    for seg in segs
-        seg.in_span == in_span || continue
-        if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
-            best = seg
-            # Prefer the start of the next sub-span at a wrap boundary.
-            in_char == seg.in_char_start && seg.in_char_start != 0 && break
-        end
-    end
-    best === nothing && return nothing
-    f = convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
-    f === nothing ? nothing : _flat_caret(f)
-end
 
 map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
-    _wrap_forward_map(iomap.segs, iomap.input, iomap.output, reference)
+    _forward_map(iomap.segs, iomap.input, iomap.output, reference;
+                 unmapped_maps_to_itself = true)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
     _is_structural_ref(reference) && return reference

@@ -136,27 +136,6 @@ function _output_to_input_map(input_elems)
     result
 end
 
-function _line_number_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return (nothing, nothing)
-    h1 = path.head
-    (h1 isa FieldReferenceStep && h1.name == "elements") || return (nothing, nothing)
-    t1 = path.tail
-    t1 isa ConcreteReference || return (nothing, nothing)
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return (nothing, nothing)
-    span_idx = h2.start::Int + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return (nothing, nothing)
-    h3 = t2.head
-    (h3 isa FieldReferenceStep && h3.name == "content") || return (nothing, nothing)
-    t3 = t2.tail
-    t3 isa ConcreteReference || return (nothing, nothing)
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return (nothing, nothing)
-    (span_idx, h4.start::Int)
-end
-
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
