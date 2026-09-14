@@ -30,6 +30,6 @@ const FocusModule = ProjecturedFocus.FocusModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
-include("../../../source/layout/LayoutDocument.jl")
+include("../../../source/layout/LayoutModule.jl")
 
 end # module ProjecturedLayout

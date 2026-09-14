@@ -1,0 +1,96 @@
+"""
+    WidgetModule
+
+The widget document domain. Widgets are UI-layer documents that sit above
+the graphics domain and below application-specific projections. Each widget
+type subtypes the abstract WidgetDocument base (itself a Document) and
+carries reactive Cell fields for all mutable properties.
+"""
+module WidgetModule
+
+using ..CellModule
+using ..ClockModule
+using ..CollectionModule
+using ..DocumentModule
+using ..EventModule
+using ..EventPatternModule
+using ..FocusModule
+using ..GestureBindingModule
+using ..GraphicsModule
+using ..IntentModule
+using ..IoMapModule
+using ..LayoutModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..ProjectionAlgebraModule
+using ..ProjectionModule
+using ..ReferenceModule
+using ..ScreenModule
+using ..SelectionModule
+using ..StyleModule
+using ..TextModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..CellModule: set_cell_function!
+import ..GestureBindingModule: get_instance_gesture_bindings
+import ..OperationModule: evaluate_operation
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..SelectionModule: has_dormant_selection
+
+export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
+       WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
+       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+       EndSplitterDragOperation, Shortcut, matches_action_shortcut,
+       InvokeActionOperation, resolve_action,
+       WidgetLazyTable, get_lazy_table_cell, get_lazy_table_column_names,
+       get_lazy_table_column_widths, make_widget_lazy_table_row_selection,
+       get_widget_lazy_table_selected_row,
+       make_numeric_validator, evaluate_operation, inset_default, inset_size,
+       inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
+       inset_bottom_right, set_cell_function!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
+       make_widget_list_selection, get_widget_list_selected,
+       make_widget_table_row_selection, get_widget_table_selected_row,
+       resolve_toggle_group_write, resolve_slider_write
+export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+       WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
+       WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
+       WidgetContextMenuToGraphicsCanvasIoMap,
+       WidgetDialogToGraphicsCanvas, WidgetDialogToGraphicsCanvasIoMap,
+       WidgetMenuToGraphicsCanvas,
+       WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
+       WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
+       WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
+       WidgetHighlightToGraphicsCanvas,
+       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, get_frozen_extent,
+       WidgetLazyTableToGraphicsCanvas, WidgetLazyTableToGraphicsCanvasIoMap,
+       WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
+       WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
+       WidgetToGraphics, WidgetTheme, make_light_theme, make_dark_theme,
+       make_slate_light_theme, make_slate_dark_theme,
+       WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
+       WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
+       WidgetSliderToGraphicsCanvasIoMap,
+       WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
+       WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
+       WidgetOptionToGraphicsCanvas,
+       get_anchor_point,
+       register_icon!, make_glyph_icon, make_image_icon
+export ObjectToWidget, ObjectToWidgetIoMap
+export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
+export CellTableToWidgetTable
+export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
+export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
+export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
+export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
+
+
+include("WidgetDocument.jl")
+include("WidgetToGraphics.jl")
+include("ObjectToWidget.jl")
+include("ObjectFieldToWidget.jl")
+include("CellTableToWidgetTable.jl")
+include("WidgetHoverTracking.jl")
+include("ProjectionConfiguring.jl")
+include("WidgetPopupResolver.jl")
+
+end # module

@@ -50,7 +50,7 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const DomainModule = ProjecturedDomain.DomainModule
 const DomainModule = ProjecturedDomain.DomainModule
 
-include("../../../source/syntax/SyntaxDocument.jl")
+include("../../../source/syntax/SyntaxModule.jl")
 
 # The reflection tail this package can draw with, offered to the natural
 # renderer. Runtime state, so it is registered on load rather than baked into an

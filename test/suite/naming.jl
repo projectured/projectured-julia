@@ -101,7 +101,6 @@ function module_violations(root::AbstractString)
             # module of its slice rather than one of its own. See
             # `plan/pending/one-module-per-slice.md`.
             name == slice && continue
-            name in _PENDING_SLICE_MODULES && continue
             # a projection file may name its module for the projection it holds
             name == stem * "ProjectionModule" &&
                 occursin(Regex("\\b" * stem * "Projection\\b"), code) && continue
@@ -161,13 +160,6 @@ const _ALLOWED = Dict(
     "PRED_REF_ELEMENT_TAG" => "the wire value is literally pred:ref",
     "PRED_REF_FUNCTION_NAME" => "the wire value is literally pred_ref",
     "PRED_REF_LANGUAGE" => "the wire value is literally pred-ref")
-
-"""
-Modules whose name a slice collapse will settle, so renaming them now is work
-that gets undone. See `plan/pending/one-module-per-slice.md`.
-"""
-const _PENDING_SLICE_MODULES = Set([
-    "ConsoleBackendModule", "PdfBackendModule"])
 
 "Words the rules ban inside a name, and the expansion each one owes."
 const _BANNED_WORDS = Dict(

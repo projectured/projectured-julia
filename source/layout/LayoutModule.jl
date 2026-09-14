@@ -1,0 +1,54 @@
+"""
+    LayoutModule
+
+Generic, content-driven layout documents. Each layout type holds an
+ordered `children::CellVector` of arbitrary `Document`s and a few
+axis-specific knobs (alignment, gap, max extent). Layouts are *not*
+tied to widgets — children can be any document type that has a
+projection to `GraphicsCanvas`.
+
+Layouts have no `position`/`size` of their own; their projected
+canvas is intrinsic (computed from the children's `w`/`h` cells).
+A parent that needs to place a layout positions the outer canvas
+the layout produces.
+"""
+module LayoutModule
+
+using ..CellModule
+using ..CollectionModule
+using ..DocumentModule
+using ..EventModule
+using ..EventPatternModule
+using ..FocusModule
+using ..GraphicsModule
+using ..IoMapModule
+using ..OperationModule
+using ..ProjectionAlgebraModule
+using ..ProjectionModule
+using ..ReferenceModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+
+export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis, layout_min,
+       layout_max, layout_preferred, layout_weight,
+       SizePolicy, Fixed, Content, Relative, Fill,
+       AnchoredEntry, AnchoredLayout, compute_anchored_positions
+export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
+       solve_constraint_layout
+export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
+       GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
+       StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
+       ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
+       LayoutToGraphics, GridLayoutIoMap
+export CellVectorToVerticalLayout
+export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
+export descend_reference_forward, shift_child_image
+
+
+include("LayoutDocument.jl")
+include("ConstraintSolver.jl")
+include("LayoutToGraphics.jl")
+include("CollectionToLayout.jl")
+
+end # module

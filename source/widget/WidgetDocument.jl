@@ -1,101 +1,7 @@
-"""
-    WidgetModule
+# Fragment of `WidgetModule` — the widget document types: the abstract
+# `WidgetDocument`, its insertion placeholder, and every concrete widget the
+# slice offers.
 
-The widget document domain. Widgets are UI-layer documents that sit above
-the graphics domain and below application-specific projections. Each widget
-type subtypes the abstract WidgetDocument base (itself a Document) and
-carries reactive Cell fields for all mutable properties.
-"""
-module WidgetModule
-
-using ..CellModule
-import ..CellModule: set_cell_function!
-using ..LayoutModule
-using ..DocumentModule
-using ..CollectionModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..SelectionModule
-import ..SelectionModule: has_dormant_selection
-using ..EventPatternModule
-using ..GestureBindingModule
-import ..GestureBindingModule: get_instance_gesture_bindings
-using ..FocusModule
-using ..StyleModule
-using ..ReferenceModule
-export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
-       WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
-       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-       EndSplitterDragOperation, Shortcut, matches_action_shortcut,
-       InvokeActionOperation, resolve_action,
-       WidgetLazyTable, get_lazy_table_cell, get_lazy_table_column_names,
-       get_lazy_table_column_widths, make_widget_lazy_table_row_selection,
-       get_widget_lazy_table_selected_row,
-       make_numeric_validator, evaluate_operation, inset_default, inset_size,
-       inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
-       make_widget_list_selection, get_widget_list_selected,
-       make_widget_table_row_selection, get_widget_table_selected_row,
-       resolve_toggle_group_write, resolve_slider_write
-using ..ClockModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IntentModule
-using ..ProjectionModule
-using ..GraphicsModule
-using ..IoMapModule
-using ..EventModule
-using ..ScreenModule
-using ..PrimitiveModule
-using ..ProjectionAlgebraModule
-export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
-       WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
-       WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,
-       WidgetContextMenuToGraphicsCanvasIoMap,
-       WidgetDialogToGraphicsCanvas, WidgetDialogToGraphicsCanvasIoMap,
-       WidgetMenuToGraphicsCanvas,
-       WidgetMenuItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
-       WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
-       WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
-       WidgetHighlightToGraphicsCanvas,
-       WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap, get_frozen_extent,
-       WidgetLazyTableToGraphicsCanvas, WidgetLazyTableToGraphicsCanvasIoMap,
-       WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
-       WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, make_light_theme, make_dark_theme,
-       make_slate_light_theme, make_slate_dark_theme,
-       WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
-       WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
-       WidgetSliderToGraphicsCanvasIoMap,
-       WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
-       WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
-       WidgetOptionToGraphicsCanvas,
-       get_anchor_point,
-       register_icon!, make_glyph_icon, make_image_icon
-using ..TextModule
-export ObjectToWidget, ObjectToWidgetIoMap
-export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
-export CellTableToWidgetTable
-export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
-export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
-export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
-
-
-# The focus walk is generic; this module answers its open trait for the
-# interactive widget leaves.
-
-# ── WidgetDocument (abstract base) ─────────────────────────────────────────────────
-
-"""
-    WidgetDocument
-
-Abstract base type for all widget documents.  Subtypes the `Document`
-contract.  Every
-concrete widget carries the seven base fields (`visible`, `margin`,
-`margin_color`, `border`, `border_color`, `padding`, `padding_color`)
-plus its own positional / content fields; `@document` injects the
-`selection::Union{Nothing, Reference}`.
-"""
 abstract type WidgetDocument <: Document end
 
 # ── WidgetInsertion ─────────────────────────────────────────────────────
@@ -2477,14 +2383,3 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
-
-
-include("WidgetToGraphics.jl")
-include("ObjectToWidget.jl")
-include("ObjectFieldToWidget.jl")
-include("CellTableToWidgetTable.jl")
-include("WidgetHoverTracking.jl")
-include("ProjectionConfiguring.jl")
-include("WidgetPopupResolver.jl")
-
-end # module

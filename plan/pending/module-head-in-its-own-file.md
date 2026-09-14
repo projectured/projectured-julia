@@ -330,15 +330,30 @@ The stack loads with no warning, the naming guard is clean,
 needs its entry in `_PENDING_SLICE_MODULES`. `PdfBackendModule` is the last one
 in that set, and batch 5 settles it.
 
-### Batch 5 — the giants
+### Batch 5 — the giants (done)
 
-- [ ] `syntax` — `SyntaxDocument.jl`, code 270
-- [ ] `sequencechart` — `SequenceChartGeometry.jl`, code 300
-- [ ] `layout` — `LayoutDocument.jl`, code 360
-- [ ] `plot` — `PlotGeometry.jl`, code 366
-- [ ] `pdf` — `Pdf.jl`, code 506. One file today.
-- [ ] `widget` — `WidgetDocument.jl`, code 1106
-- [ ] `style` — `Color.jl`, code 1110
+- [x] `syntax` — `SyntaxDocument.jl`, code 270
+- [x] `sequencechart` — `SequenceChartGeometry.jl`, code 300
+- [x] `layout` — `LayoutDocument.jl`, code 360
+- [x] `plot` — `PlotGeometry.jl`, code 366
+- [x] `pdf` — `Pdf.jl`, code 506. One file today.
+- [x] `widget` — `WidgetDocument.jl`, code 1106
+- [x] `style` — `Color.jl`, code 1110
+
+
+**What batch 5 measured.** `test_substrate()` 60167 / 4 / 2 / 1 / 60174,
+`test_workbench()` 105 / 3 / 2 / 110, both identical to the baseline.
+`test_json()` 170 / 170, `test_sequencechart()` 270 / 270. The stack loads with
+no warning, `test_export_collisions()` passes, and every touched file parses.
+
+**The first piece of the prize.** `_PENDING_SLICE_MODULES` is gone. It parked
+`ConsoleBackendModule` and `PdfBackendModule`, which now live in files that name
+them. Removing the same exception on `main` makes the guard report both, so it
+was load-bearing until this batch.
+
+**The largest head moved out from under 2381 lines** in `WidgetDocument.jl`.
+`Color.jl` keeps 1216 lines, of which about 1076 are `const color_… = _color(…)`
+— a lookup table, not logic.
 
 ### Batch 6 — the three that rewrite include paths
 
@@ -388,9 +403,10 @@ The prize is a guard that states the law in one sentence.
   [test/suite/naming.jl](../../test/suite/naming.jl). `module_violations` allows
   a file to declare the module of its slice rather than one named after itself.
   That exception exists only because 66 modules hide in a fragment.
-- [ ] Delete `_PENDING_SLICE_MODULES`. It parks `ConsoleBackendModule` and
-  `PdfBackendModule` until the collapse settles their names. Batch 4 and batch 5
-  settle them.
+- [x] Delete `_PENDING_SLICE_MODULES`. It parked `ConsoleBackendModule` and
+  `PdfBackendModule`. Batch 4 and batch 5 settled them, and the guard passes
+  without it. Proved by breaking: with the exception removed on `main`, the
+  guard reports both files.
 - [ ] Prove the guard by breaking it. Move one module head back into a fragment
   and see the guard report it.
 - [ ] Update the module inventory in

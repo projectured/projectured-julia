@@ -26,6 +26,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 
-include("../../../source/pdf/Pdf.jl")
+include("../../../source/pdf/PdfBackendModule.jl")
 
 end # module ProjecturedPdf

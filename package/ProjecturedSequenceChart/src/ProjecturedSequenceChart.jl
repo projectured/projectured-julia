@@ -31,6 +31,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
     end
 end
 
-include("../../../source/sequencechart/SequenceChartGeometry.jl")
+include("../../../source/sequencechart/SequenceChartModule.jl")
 
 end # module ProjecturedSequenceChart
