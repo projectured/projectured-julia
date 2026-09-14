@@ -46,16 +46,12 @@ using ..TextModule
 import ..FileFormatModule: make_document_seed
 import ..SerializationModule: emit_text, populate_file!
 
-export JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
-       JsonObject, JsonObjectEntry, JsonNothing, JsonInsertion
-export entries
 export parse_json, parse_json_file
 export JsonToSyntax,
        JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
        JsonStringToSyntaxLeaf, JsonInsertionToSyntaxLeaf,
        JsonArrayToSyntaxNode, JsonObjectToSyntaxNode, JsonObjectEntryToSyntaxNode,
        ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf
-export JsonFile
 
 
 include("JsonDocument.jl")
