@@ -23,10 +23,8 @@ using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
 using ..PrinterContextModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..PrimitiveModule
-using ..ProjectionTemplateModule
 using ..SerializationModule
 import ..SerializationModule: emit_text, populate_file!, get_document_section
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,

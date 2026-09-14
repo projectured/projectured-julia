@@ -18,7 +18,7 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const SelectionModule = ProjecturedKernel.SelectionModule
-const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 
 include("../../../source/domain/DocumentCore.jl")

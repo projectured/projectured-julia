@@ -1,65 +1,19 @@
-"""
-    ProjectionTemplateModule
+# Fragment of `ProjectionModule` — `@projection_template` and the
+# builder-and-walk engine behind it. Every structural projection is written
+# with it rather than as a hand-written printer and reader pair.
+#
+# It names no concrete children-container type: `make_children_container` builds
+# the container and `get_children_container_type` returns the concrete type for
+# a `TypeReferenceStep` marker, and a higher package registers both. That is the
+# pressure that keeps the engine kernel-pure.
+#
+# Two seams stay open for a higher package. The `RuleIoMap` readers keyed on the
+# transparent recursive wrapper, and the one text-range-replace retype method,
+# live there beside the reader defaults: that wrapper projection and that
+# operation type are defined there, and the kernel can name neither. The higher
+# package imports `RuleIoMap` and `AtomicWiring` from here to keep the same
+# dispatch.
 
-Builder-and-walk projection rules. A rule is an ordinary builder function
-`(p, doc) -> output` that constructs the **real** output document with its real
-constructor, except that at the positions needing special handling it drops in a
-**marker** value:
-
-- `bound(:field, T, render; retype=Op)` — a value bound to `doc.field::T`;
-  `render` is the real renderable value placed there.
-- `project(:field)` — delegate this child to its own projection (School A).
-- `collection(:field[, element])` — a recursive children vector. *(node support
-  is WIP; leaves are implemented first.)*
-
-Because `@document` types store every field in a `Cell` with no type check, a
-marker can sit in a real field (e.g. a `Bound` in a leaf's value slot). The engine
-**walks the built value** by reflection (`fieldnames`), records the wiring, and
-reconstructs a clean, marker-free output, so the projection API only ever sees a
-real output document. Reference mapping is generic and data-driven from the
-recorded wiring; nothing is generated per type.
-
-The engine references **no output-domain type or field name**: fields are
-classified by value (marker vs. not), and any non-`bound` output field is treated
-as projection-introduced (a cursor on it wraps into this projection's own step).
-An output domain is supported purely by writing builders that construct its
-documents — no adapter or engine change.
-"""
-module ProjectionTemplateModule
-
-using ..CellModule
-# This module does not name the concrete children-container type.
-# `make_children_container(...)` builds the container and
-# `get_children_container_type()` returns the concrete type for TypeReferenceStep
-# markers; a higher package registers both. This is the pressure that keeps the
-# template engine kernel-pure.
-using ..ChildrenContainerModule
-using ..IoMapModule
-# This also binds the module itself, so `@projection_template` can emit a
-# module-qualified `ProjectionModule.print_document` method-definition name
-# (see the macro).
-using ..ProjectionModule
-using ..IntentModule
-# `import`, not `using`: this module adds RuleIoMap methods to the three seams.
-using ..SelectionModule
-import ..ProjectionModule: map_reference_forward, map_reference_backward, read_intent
-using ..ReferenceModule
-using ..ProjectionReferenceStepModule
-using ..PrinterContextModule
-using ..OperationModule
-# The `RuleIoMap` readers keyed on the transparent recursive wrapper and the
-# single text-range-replace retype method live in a higher package beside the
-# reader defaults: that wrapper projection and that operation type are defined
-# there, and the kernel cannot name either. The higher package imports
-# `RuleIoMap` + `AtomicWiring` from this module to preserve the same dispatch.
-using ..DocumentModule
-using ..EventModule
-using ..EventPatternModule
-using ..GestureBindingModule
-
-export Bound, Project, Collection, Tokens, Sections, bound, project, collection, tokens, sections, RuleIoMap, var"@projection_template"
-# the two entry points a hand-written template rule calls
-export print_template_rule, read_template_intent
 
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
@@ -1388,5 +1342,3 @@ macro projection_template(projname, intype, builder)
         end
     end
 end
-
-end # module

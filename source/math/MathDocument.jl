@@ -29,10 +29,8 @@ using ..PrimitiveModule
 using ..TextModule
 using ..StyleModule
 using ..SyntaxModule
-using ..ProjectionTemplateModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..ProjectionReferenceStepModule
 using ..PrinterContextModule
 using ..OperationModule
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,

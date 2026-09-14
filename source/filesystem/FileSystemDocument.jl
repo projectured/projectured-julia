@@ -19,7 +19,6 @@ using ..StyleModule
 using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..PrinterContextModule

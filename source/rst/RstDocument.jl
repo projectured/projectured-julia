@@ -40,14 +40,12 @@ using ..StyleModule
 using ..BackendModule
 using ..IoMapModule
 using ..PrinterContextModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..SyntaxModule
 using ..SerializationModule
 import ..SerializationModule: emit_text, populate_file!, get_document_section
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 using ..IntentModule
 export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,

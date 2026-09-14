@@ -1,28 +1,14 @@
-"""
-    ProjectionReferenceStepModule
-
-The `ProjectionReferenceStep` step type — a reference step that points at an
-element introduced by a projection (a delimiter, a bracket, an
-indentation, or any output-only fragment that has no direct counterpart in
-the input document). Carries the `projection` that introduced the element
-and an `output_path` describing where within that projection's output the
-reference points.
-
-Lives at the projection layer because the projection concept is what it
-bridges; the reference layer (below) never names it. Registered as a
-`:terminal` step type — it identifies a location but does not participate
-in structural navigation — and registers its own `.proj(projection, sub)`
-entries with the `@reference` / `@reference_case` DSLs via the reference
-layer's `build_reference_step` / `match_reference_step` / `get_reference_step_subpath_args` seams.
-"""
-module ProjectionReferenceStepModule
-
-using ..CellModule
-using ..CellStructModule
-using ..ReferenceModule
-
-export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
-       normalize_named_node_reference
+# Fragment of `ProjectionModule` — `ProjectionReferenceStep`, a reference step
+# that points at an element a projection introduced: a delimiter, a bracket, an
+# indentation, or any output-only fragment with no counterpart in the input
+# document. It carries the projection that introduced the element and an
+# `output_path` saying where in that projection's output the reference points.
+#
+# It is a `:terminal` step type — it names a location and takes no part in
+# structural navigation — and it registers its own `.proj(projection, sub)`
+# entries with the `@reference` and `@reference_case` DSLs through the
+# reference layer's `build_reference_step`, `match_reference_step` and
+# `get_reference_step_subpath_args` seams.
 
 """
     ProjectionReferenceStep(projection, output_path)
@@ -118,7 +104,7 @@ Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
 ReferenceModule.get_reference_step_subpath_args(::Val{:proj}) = (2,)
 
 ReferenceModule.build_reference_step(::Val{:proj}, projex, outpathex) =
-    :($(GlobalRef(ProjectionReferenceStepModule, :ProjectionReferenceStep))($projex, $outpathex))
+    :($(GlobalRef(ProjectionModule, :ProjectionReferenceStep))($projex, $outpathex))
 
 function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_success, bound,
                                         gen_value_match, gen_path_match)
@@ -128,7 +114,7 @@ function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_s
     after_out, bound2 = gen_path_match(outpathexpr, outpath, rest_success, bound)
     after_proj, bound1 = gen_value_match(projexpr, projpat, after_out, bound2)
     ex = quote
-        if $hex isa $(GlobalRef(ProjectionReferenceStepModule, :ProjectionReferenceStep))
+        if $hex isa $(GlobalRef(ProjectionModule, :ProjectionReferenceStep))
             $after_proj
         else
             _nomatch
@@ -136,5 +122,3 @@ function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_s
     end
     return ex, bound1
 end
-
-end # module

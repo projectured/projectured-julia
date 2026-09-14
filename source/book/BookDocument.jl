@@ -25,11 +25,9 @@ using ..TextModule
 using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..PrinterContextModule
-using ..ProjectionTemplateModule
 export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
 using ..NaturalModule

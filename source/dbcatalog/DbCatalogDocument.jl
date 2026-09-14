@@ -24,7 +24,6 @@ using ..ProjectionModule
 using ..TextModule
 using ..StyleModule
 using ..SyntaxModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,

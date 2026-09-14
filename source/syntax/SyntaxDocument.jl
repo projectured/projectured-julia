@@ -33,7 +33,6 @@ using ..DocumentModule
 using ..CollectionModule
 using ..TextModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..EventModule
 using ..GestureBindingModule

@@ -19,7 +19,6 @@ using ..SyntaxModule
 using ..TextModule
 using ..StyleModule
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 using ..SerializationModule
 import ..SerializationModule: emit_text, populate_file!
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
@@ -35,7 +34,6 @@ export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

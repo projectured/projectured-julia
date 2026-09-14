@@ -55,7 +55,6 @@ using ..SyntaxModule
 using ..TextModule
 using ..StyleModule
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 using ..JuliaModule
 export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
        ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,
@@ -80,7 +79,6 @@ export ProcessDocument, ProcessNothing, ProcessInsertion, ProcessModel, ProcessS
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

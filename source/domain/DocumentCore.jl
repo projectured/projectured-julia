@@ -19,7 +19,7 @@ using ..EventPatternModule
 using ..GestureBindingModule
 import ..GestureBindingModule: get_document_gesture_bindings_own
 using ..SelectionModule
-using ..ProjectionReferenceStepModule
+using ..ProjectionModule
 using ..OperationModule
 export var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,

@@ -14,7 +14,7 @@ module _ProjectionTemplateHygieneProbe
     import ProjecturedKernel.ReferenceModule: Reference
     import ProjecturedKernel.ProjectionModule: Projection
     import ProjecturedKernel.ProjectionModule: var"@projection"
-    import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
     import ProjecturedSyntax.SyntaxModule: SyntaxLeaf
     import ProjecturedText.TextModule: TextString
     # print_document intentionally NOT imported.
@@ -53,7 +53,7 @@ module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.ReferenceModule: Reference
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
-    import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template", bound
+    import ProjecturedKernel.ProjectionModule: var"@projection_template", bound
     import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
     import ProjecturedText.TextModule: TextString
     import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20

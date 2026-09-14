@@ -23,7 +23,6 @@ using ..StyleModule
 using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..ProjectionReferenceStepModule
 using ..PrinterContextModule
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
        FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax

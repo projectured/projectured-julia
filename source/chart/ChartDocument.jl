@@ -20,7 +20,6 @@
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

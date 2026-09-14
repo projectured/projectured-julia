@@ -207,17 +207,42 @@ drop one, and must run this check over every package:
 `ProjecturedKernel` is the one legitimate hit: there `ProjectionModule` is a
 real submodule and needs no alias.
 
-## Stage 2 — the reference step and the template engine move in
+## Stage 2 — the reference step and the template engine move in (done)
 
-- [ ] `ProjectionReferenceStep.jl` and `ProjectionTemplate.jl` become fragments.
+- [x] `ProjectionReferenceStep.jl` and `ProjectionTemplate.jl` become fragments.
   Their headers fold into `ProjectionModule.jl`.
-- [ ] `DomainModule` takes
-  `import ..ProjectionModule: normalize_named_node_reference`.
-- [ ] Delete the `using ..ProjectionReferenceStepModule` and
+- [x] ~~`DomainModule` takes a named import.~~ **Wrong.** `DomainModule` only
+  *calls* `normalize_named_node_reference`; it extends nothing.
+  `PAR-QUALIFIED-EXTENSION` says a name a file only calls arrives through a bare
+  `using`. It takes `using ..ProjectionModule`.
+- [x] Delete the `using ..ProjectionReferenceStepModule` and
   `using ..ProjectionTemplateModule` lines from the 18 modules that already name
   another projection module.
-- [ ] The 8 files with a qualified `ProjectionApiModule.print_document` inside a
+- [x] The 8 files with a qualified `ProjectionApiModule.print_document` inside a
   macro expansion take the new qualifier.
+
+
+**What stage 2 measured.** Again every number matches the baseline.
+
+| check | result |
+| --- | --- |
+| `test_kernel()` | 1638 / 3 / 3 / 1644 — identical |
+| `test_substrate()` | 60167 / 4 / 2 / 1 / 60174 — identical |
+| `test_rst()` | 79 / 3 / 2 / 84 — identical |
+| `test_json()` | 170 / 170 |
+| the naming guard | clean |
+| `using Projectured` | loads, no warning |
+| `test_export_collisions()` | 1 / 1, checker 5 / 5 |
+
+`ProjectionModule` now exports **28** names and holds **240**. `DocumentModule`
+holds 228 and `ReferenceModule` 464, so it lands between the two, as predicted.
+
+**A form the sweep's regular expressions did not see.**
+`ProjectionReferenceStep.jl` builds two method-definition names with
+`GlobalRef(ProjectionReferenceStepModule, :ProjectionReferenceStep)`. A
+`GlobalRef` names the module with a comma, not a dot, so neither the
+qualified-call pattern nor the import pattern matched. Grep for the bare module
+name after every sweep, not only for its `using`, `import` and `Mod.` forms.
 
 ## Stage 3 — the DSL words leave the export list
 

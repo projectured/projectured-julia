@@ -41,7 +41,6 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
-const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
 
 include("../../../source/text/TextSpanReferenceStep.jl")
 

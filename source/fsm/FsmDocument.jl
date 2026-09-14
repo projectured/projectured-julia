@@ -37,7 +37,6 @@ using ..SyntaxModule
 using ..TextModule
 using ..StyleModule
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 using ..JuliaModule
 export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
        FsmTransitionToSyntaxNode, FsmStateToSyntaxNode, FsmMachineToSyntaxNode,
@@ -57,7 +56,6 @@ export FsmDocument, FsmNothing, FsmInsertion, FsmComponent, FsmMachine, FsmState
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

@@ -14,7 +14,6 @@ using ..SyntaxModule
 using ..TextModule
 using ..StyleModule
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 using ..PrimitiveModule
 using ..IoMapModule
 using ..PrinterContextModule
@@ -29,7 +28,6 @@ export YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString, YamlNothing, Ya
 using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..SelectionModule
 using ..EventPatternModule

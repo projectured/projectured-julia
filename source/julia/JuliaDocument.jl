@@ -19,7 +19,6 @@ using ..TextModule
 using ..StyleModule
 using ..OperationModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..IoMapModule
 using ..CellModule
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
@@ -28,7 +27,6 @@ using ..SerializationModule
 import ..SerializationModule: emit_text, populate_file!
 export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
 using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,

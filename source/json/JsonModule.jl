@@ -33,8 +33,6 @@ using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
-using ..ProjectionReferenceStepModule
-using ..ProjectionTemplateModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..SerializationModule

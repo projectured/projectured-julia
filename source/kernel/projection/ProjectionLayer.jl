@@ -1,14 +1,11 @@
-# ── Projection layer — interface & infrastructure ──────────────────────────
-# This layer keeps only the interface, the gesture-binding machinery, the
-# `@projection` macro defaults, and the projection-template engine. The concrete
-# projection algebra (the generic + higher-order combinators) is
-# domain-independent framework that sinks to a higher package, not here. The IO
-# maps it builds on are the layer below (`iomap/`).
-# The ordered include list of the projection layer; a fragment of ProjecturedKernel.
-# ProjectionReferenceStep — a reference step whose payload is a projection.
-# Small, self-contained; needs only DocumentModule and ReferenceModule, so
-# loads first in the layer.
-include("ProjectionReferenceStep.jl")
+# ── Projection layer ───────────────────────────────────────────────────────
+# The layer holds the projection contract, the fallback of each of its generics,
+# the two codegen macros, and the open-generic seams a higher package registers
+# against. The concrete projection algebra — the generic and the higher-order
+# combinators — is domain-independent framework that sinks to a higher package,
+# not here. The IO maps it builds on are the layer below (`iomap/`).
+#
+# The ordered include list of the layer; a fragment of ProjecturedKernel.
 # PrinterContext (Cell + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections.
 include("PrinterContext.jl")
@@ -28,14 +25,3 @@ include("ProjectionModule.jl")
 # domain-independent framework that sinks to a higher package; the kernel keeps
 # only the binding machinery.
 include("GestureBindings.jl")
-
-# ── ProjectionTemplate ─────────────────────────────────────────────────────
-# The builder-and-walk projection-template engine every structural projection
-# uses. It is projection machinery, not per-domain content. It keeps two seams
-# open for a higher package:
-#   (a) constructive element-collection sites go through the children-container
-#       generic (make_children_container / get_children_container_type); a higher
-#       package registers the concrete methods.
-#   (b) the text-range-replace read_intent method lives in a higher package
-#       beside the primitive-op defaults.
-include("ProjectionTemplate.jl")

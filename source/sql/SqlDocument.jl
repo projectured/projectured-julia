@@ -17,9 +17,7 @@ using ..TextModule
 using ..StyleModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..ProjectionTemplateModule
 using ..ReferenceModule
-using ..ProjectionReferenceStepModule
 using ..OperationModule
 using ..PrinterContextModule
 export SqlInsertionToSyntaxLeaf,

@@ -17,10 +17,10 @@
 # needs over it.
 import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
-import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
+import ProjecturedKernel.ProjectionModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
-import ProjecturedKernel.ProjectionReferenceStepModule: ProjectionReferenceStep
+import ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
 import ProjecturedKernel.ReferenceModule: ConcreteReference
 
 # Does the (input-domain) reference pass through any projection-introduced output?
