@@ -23,8 +23,8 @@ using ..OperationModule
 import ..OperationModule: evaluate_operation
 export WorkbenchDocument, get_workbench_title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..FileSystemModule
 using ..IoMapModule
 using ..ProjectionAlgebraModule

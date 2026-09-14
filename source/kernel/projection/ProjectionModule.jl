@@ -1,0 +1,87 @@
+"""
+    ProjectionModule
+
+Shared projection interface. Declares the four generic functions every
+projection implements — `print_document`, `read_intent`,
+`map_reference_forward`, `map_reference_backward` — dispatched on by all
+projection types, primitive and higher-order alike. Keeping the interface here
+avoids circular dependencies between projection modules.
+
+The four functions form two symmetric pairs, one per direction of data flow:
+
+- **Forward (printing).** `print_document` transforms input → output and, for
+  the cursor, calls `map_reference_forward` to map the input selection into an
+  output selection.
+- **Backward (reading).** `read_intent` turns an output-domain event/
+  operation back into an input-domain operation and, for the cursor, calls
+  `map_reference_backward` to map an output reference into an input reference.
+
+Rule of thumb: **`print_document` uses `map_reference_forward`;
+`read_intent` uses `map_reference_backward`.** The two mappers are the
+single source of truth for how a path crosses this projection — written once,
+reused on both sides.
+
+# The recursion contract
+
+These four functions are **the** interface every projection implements — nothing
+else is universal. The contract that keeps arbitrary projections composable is:
+
+> Recursion across projections flows **only** through these four functions. When a
+> projection descends into a child document, each function hands that child to the
+> **child projection's own** version of *the same* function. The vehicles are the
+> `recursion` parameter — invoked via `print_child(recursion, child,
+> ctx)` on the printer side — and the **stored child IoMaps**
+> (`ChildrenIoMap.child_iomaps`) that the reader and both mappers walk on the
+> backward side. Each function maps its **own single level** and delegates the rest.
+
+Two things are therefore **forbidden**:
+
+1. **No fifth recursive function.** A projection must not introduce a *new*
+   generic function to perform descent. The four above are implemented by every
+   projection; a fifth would not be, so the first pipeline that composes a
+   projection needing it with one that does not breaks at that boundary. All
+   descent must ride the functions everyone already implements. (This is also why
+   the contract is validated *externally*, by a harness driving these four — see
+   [documentation/testing.md](../../../../documentation/testing.md) — never by adding
+   an interface method.)
+2. **No self-walking / flattening by child type.** A function must not recurse over
+   the input (or output) subtree itself, dispatching on each child's concrete type,
+   and bake the whole subtree into its result. That hard-codes which projection
+   renders each descendant and forecloses composing a child with another domain or
+   a substituted projection — the "School B" anti-pattern. Delegate through the
+   child IoMap / `recursion` instead ("School A").
+
+See [package/kernel/doc/projection-system.md](../../doc/projection-system.md)
+("The recursion contract" and "Recursion across projections") for worked recipes
+and [package/kernel/doc/selection.md](../../doc/selection.md)
+for the selection mechanism.
+
+# The fragments
+
+| Fragment | Contract |
+|---|---|
+| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype and the four open generics |
+| [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
+| [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
+"""
+module ProjectionModule
+
+using ..CellModule
+using ..CellStructModule
+using ..DocumentModule
+using ..EventModule
+using ..GestureBindingModule
+using ..IntentModule
+using ..OperationModule
+using ..PrinterContextModule
+using ..ReferenceModule
+
+export Projection, print_document, print_child, print_document_pure, print_child_pure,
+       read_intent, map_reference_forward, map_reference_backward
+export @projection, print_pure
+
+include("ProjectionInterface.jl")
+include("ProjectionDefaults.jl")
+include("ProjectionMacro.jl")
+
+end # module

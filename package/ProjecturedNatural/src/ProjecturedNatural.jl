@@ -40,7 +40,7 @@ const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const DomainModule = ProjecturedDomain.DomainModule
 const DocumentModule = ProjecturedKernel.DocumentModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule
 

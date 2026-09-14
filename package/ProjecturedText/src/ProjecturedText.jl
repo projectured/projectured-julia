@@ -32,7 +32,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const OperationModule = ProjecturedKernel.OperationModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const StyleModule = ProjecturedStyle.StyleModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule

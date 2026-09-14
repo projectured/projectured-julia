@@ -57,7 +57,7 @@ import ProjecturedKernel.EventModule: ModifierKeys
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedStyle.StyleModule: ImageFile
-import ProjecturedKernel.ProjectionApiModule: print_document, read_intent, Projection
+import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projection
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!

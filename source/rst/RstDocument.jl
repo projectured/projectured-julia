@@ -33,8 +33,7 @@ using ..CollectionModule
 using ..ReferenceModule
 export RstDocument, set_cell_function!
 export parse_rst, parse_rst_file
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..TextModule
 using ..StyleModule

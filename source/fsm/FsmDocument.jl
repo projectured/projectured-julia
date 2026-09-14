@@ -31,8 +31,7 @@ using ..CellModule
 export get_fsm_states, get_fsm_transitions, find_fsm,
        find_state, find_event, find_timer, get_fsm_transition_index
 export FsmDiagram
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..SyntaxModule
 using ..TextModule

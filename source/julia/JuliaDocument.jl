@@ -9,8 +9,7 @@ module JuliaModule
 
 export _julia_operator_string
 export parse_julia, parse_julia_file
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..SelectionModule
 using ..SyntaxModule

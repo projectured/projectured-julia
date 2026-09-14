@@ -11,7 +11,7 @@ the per-projection methods above.
 """
 module ProjectionGestureBindingsModule
 
-using ..ProjectionApiModule
+using ..ProjectionModule
 using ..DocumentModule
 using ..EventPatternModule
 using ..GestureBindingModule

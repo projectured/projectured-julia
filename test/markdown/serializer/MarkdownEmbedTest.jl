@@ -21,7 +21,7 @@ using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
 using ProjecturedSyntax.SyntaxModule: SyntaxToText
 using ProjecturedText.TextModule: TextToString
-using ProjecturedKernel.ProjectionApiModule: print_document, map_reference_backward, read_intent
+using ProjecturedKernel.ProjectionModule: print_document, map_reference_backward, read_intent
 using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                                          evaluate_operation

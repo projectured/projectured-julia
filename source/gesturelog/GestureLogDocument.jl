@@ -28,8 +28,7 @@ using ..EventPatternModule
 using ..OperationModule
 export GestureLogEntry, GestureLog, record_gesture!, clear_gesture_log!,
        describe_gesture, describe_operation, default_gesture_log_filter
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..IoMapModule
 using ..TextModule

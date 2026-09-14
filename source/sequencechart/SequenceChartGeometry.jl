@@ -64,8 +64,8 @@ export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
 using ..DocumentModule
 export SequenceChartView, get_sequence_chart_view, view_contains
 using ..CellModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, read_intent
+using ..ProjectionModule
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
 using ..IoMapModule
 export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
 using ..CollectionModule

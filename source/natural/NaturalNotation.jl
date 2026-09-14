@@ -50,8 +50,8 @@ by a package that does not own the printer, or a rung that belongs to no domain.
 module NaturalModule
 
 using ..DocumentModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document
+using ..ProjectionModule
+import ..ProjectionModule: print_document
 using ..ProjectionAlgebraModule
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
        register_natural_parser!, register_natural_rung!,

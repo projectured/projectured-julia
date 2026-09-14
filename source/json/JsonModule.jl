@@ -32,7 +32,6 @@ using ..NaturalModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
-using ..ProjectionApiModule
 using ..ProjectionModule
 using ..ProjectionReferenceStepModule
 using ..ProjectionTemplateModule

@@ -155,17 +155,17 @@ Every edge checked. `PrinterContext` needs Cell, Document, Reference and Clock,
 none of them in the layer. `ChildrenContainer` needs nothing.
 `ProjectionModule` needs both. `GestureBindings` needs `Projection`.
 
-## Stage 1 — the contract becomes a fragment
+## Stage 1 — the contract becomes a fragment (done)
 
-- [ ] Write `ProjectionModule.jl`: the contract docstring, the header, the
+- [x] Write `ProjectionModule.jl`: the contract docstring, the header, the
   fragment table, the includes.
-- [ ] `ProjectionApi.jl` → `ProjectionInterface.jl`. Remove the `module` line,
+- [x] `ProjectionApi.jl` → `ProjectionInterface.jl`. Remove the `module` line,
   the `export` line and the closing `end`. Move the docstring to the head.
-- [ ] Split `Projection.jl` into `ProjectionDefaults.jl` and
+- [x] Split `Projection.jl` into `ProjectionDefaults.jl` and
   `ProjectionMacro.jl`. The `import ..ProjectionApiModule: print_document, …`
   disappears: a default now extends a generic in its own namespace.
-- [ ] Reorder `ProjectionLayer.jl`.
-- [ ] Sweep the consumers. 156 mentions of `ProjectionApiModule` in `source/`,
+- [x] Reorder `ProjectionLayer.jl`.
+- [x] Sweep the consumers. 156 mentions of `ProjectionApiModule` in `source/`,
   `test/`, `example/` and `package/`, and 38 documents.
 
 | case | count | change |
@@ -175,6 +175,37 @@ none of them in the layer. `ChildrenContainer` needs nothing.
 | an extension import | 40 | rename the module in the `import` |
 | a package root binds the name | 19 | delete the `const` line |
 | a qualified call `ProjectionApiModule.print_document` | 8 files | rename the qualifier |
+
+
+**What stage 1 measured.** Every number matches the baseline taken on `main` the
+same way.
+
+| check | result |
+| --- | --- |
+| `test_kernel()` | 1638 / 3 / 3 / 1644 — identical |
+| `test_substrate()` | 60167 / 4 / 2 / 1 / 60174 — identical |
+| `test_rst()` | 79 / 3 / 2 / 84 — identical |
+| `test_json()` | 170 / 170 |
+| `test_syntax()`, `test_text()` | all pass |
+| the naming guard over the whole tree | clean |
+| `using Projectured` | loads, no warning |
+| `test_export_collisions()` | 1 / 1, checker 5 / 5 |
+| mentions of `ProjectionApiModule` left in code | 0 |
+
+**A trap the plan did not name.** Nineteen package roots bind the kernel's
+modules with an explicit `const` list rather than the alias loop. The line
+`const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule` is an alias
+to **rename**, not to delete. Deleting it left ten roots with nothing bound to
+`ProjectionModule`, and three packages failed to precompile with
+`UndefVarError: ProjectionModule not defined`. Stage 2 must rename an alias, not
+drop one, and must run this check over every package:
+
+> for each package root, if any source file it includes says
+> `using ..ProjectionModule`, the root must bind that name by a `const` or by
+> the alias loop.
+
+`ProjecturedKernel` is the one legitimate hit: there `ProjectionModule` is a
+real submodule and needs no alias.
 
 ## Stage 2 — the reference step and the template engine move in
 

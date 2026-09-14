@@ -29,8 +29,7 @@ using ..DomainModule
 export write_document_file, read_document_file, make_document_for, make_document_seed
 using ..CellModule
 using ..CollectionModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..IoMapModule
 using ..PrinterContextModule

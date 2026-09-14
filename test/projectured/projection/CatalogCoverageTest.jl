@@ -47,7 +47,7 @@ end
 # names somebody has to maintain.
 function _coverage_wanted()
     want = Set{Any}()
-    for m in methods(Projectured.ProjectionApiModule.print_document)
+    for m in methods(Projectured.ProjectionModule.print_document)
         sig = Base.unwrap_unionall(m.sig)
         length(sig.parameters) == 5 || continue
         P, D = sig.parameters[2], sig.parameters[4]

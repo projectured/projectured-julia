@@ -13,8 +13,7 @@ using ..CollectionModule
 using ..ReferenceModule
 export MarkdownDocument, set_cell_function!
 export parse_markdown, parse_markdown_file
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..TextModule
 using ..StyleModule

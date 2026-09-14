@@ -22,7 +22,7 @@ using Projectured.ClockModule: set_clock_time!
 using Projectured.EventModule: WindowInput, MousePress, MouseMove, MouseScroll,
     KeyDown, KeyPress, ModifierKeys
 using Projectured.IntentModule: Intent
-using Projectured.ProjectionApiModule: read_intent
+using Projectured.ProjectionModule: read_intent
 using Projectured.OperationModule: Operation
 
 const WIDTH, HEIGHT = 1600, 1000

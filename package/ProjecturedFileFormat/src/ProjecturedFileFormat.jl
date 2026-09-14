@@ -25,7 +25,6 @@ using ProjecturedWidget
 
 const NaturalModule = ProjecturedNatural.NaturalModule
 const NaturalModule = ProjecturedNatural.NaturalModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule

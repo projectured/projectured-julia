@@ -65,8 +65,8 @@ export HeapEmbedding, embed_heap!
 export ForceDirectedLayout
 export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
        resolve_layout_engine, make_pure_julia_layout_engine, QTENV_ADVANCED_LIMIT
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IntentModule
 using ..GraphicsModule
 using ..IoMapModule

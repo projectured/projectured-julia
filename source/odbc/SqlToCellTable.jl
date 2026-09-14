@@ -2,7 +2,7 @@
 # Folded in from SqlToCellTable.jl.
 import ProjecturedKernel.CellModule: Cell, ComputedCell
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
-import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
+import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedSql.SqlModule: SqlSelectStatement
 import ProjecturedSql.SqlModule: SqlToSyntax

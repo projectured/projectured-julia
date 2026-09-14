@@ -23,8 +23,7 @@ export MathDocument, _operator_string, get_math_operator_glyph, get_math_operato
        get_math_symbol_glyph, get_math_big_operator_glyph, get_math_big_operator_name,
        is_math_big_operator_text,
        get_math_delimiter_strings, is_math_accent_wide, MathSubscript, MathSuperscript
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..PrimitiveModule
 using ..TextModule

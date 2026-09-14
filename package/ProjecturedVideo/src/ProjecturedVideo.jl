@@ -26,7 +26,7 @@ import FFMPEG
 
 import ProjecturedKernel.BackendModule: record_video
 import ProjecturedGraphics.GraphicsModule: GraphicsCanvas
-import ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+import ProjecturedKernel.ProjectionModule: print_document, read_intent
 import ProjecturedKernel.OperationModule: evaluate_operation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
 import ProjecturedKernel.PrinterContextModule: PrinterContext

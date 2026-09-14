@@ -17,7 +17,7 @@ using ProjecturedRst.RstModule: parse_rst
 using ProjecturedNatural.NaturalModule: print_natural_text
 using ProjecturedNatural.NaturalModule: NaturalToGraphics
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas
-using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedKernel.EventModule: MousePress, KeyPress, ModifierKeys
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation,
                                          evaluate_operation

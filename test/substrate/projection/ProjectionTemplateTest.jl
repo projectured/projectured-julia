@@ -1,7 +1,7 @@
 # Regression for the `@projection_template` import-hygiene fix.
 #
 # `@projection_template` must register its `print_document` method on the
-# *canonical* `ProjectionApiModule.print_document` generic — the one the
+# *canonical* `ProjectionModule.print_document` generic — the one the
 # type-dispatcher calls — regardless of whether the calling module imported
 # `print_document` into its own scope. A projection module that imports the
 # markers but forgets `print_document` used to silently define a dead local
@@ -12,7 +12,7 @@ module _ProjectionTemplateHygieneProbe
     import ProjecturedKernel.DocumentModule: Document, var"@document"
     import ProjecturedKernel.CellModule: Cell, ComputedCell
     import ProjecturedKernel.ReferenceModule: Reference
-    import ProjecturedKernel.ProjectionApiModule: Projection
+    import ProjecturedKernel.ProjectionModule: Projection
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template"
     import ProjecturedSyntax.SyntaxModule: SyntaxLeaf
@@ -51,7 +51,7 @@ module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.DocumentModule: Document, var"@document"
     import ProjecturedKernel.CellModule: Cell, ComputedCell
     import ProjecturedKernel.ReferenceModule: Reference
-    import ProjecturedKernel.ProjectionApiModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionTemplateModule: var"@projection_template", bound
     import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument

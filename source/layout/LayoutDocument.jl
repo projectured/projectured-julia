@@ -24,8 +24,7 @@ export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, al
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
 export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
        solve_constraint_layout
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..GraphicsModule
 using ..IoMapModule
 using ..EventModule

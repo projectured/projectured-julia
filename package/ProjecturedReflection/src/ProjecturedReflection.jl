@@ -23,7 +23,7 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const OperationModule = ProjecturedKernel.OperationModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 

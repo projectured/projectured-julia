@@ -15,7 +15,7 @@
 # What remains here needs a concrete IoMap type — the `ProjectionTemplate`
 # `RuleIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
 # needs over it.
-import ProjecturedKernel.ProjectionApiModule: read_intent, map_reference_backward, Projection
+import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionTemplateModule: RuleIoMap, AtomicWiring
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation

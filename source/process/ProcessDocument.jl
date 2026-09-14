@@ -49,8 +49,7 @@ export ProcessTrace, ProcessStoppedException, process_at!,
 export ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
 export ProcessDebugSession, is_stale, has_breakpoint, toggle_breakpoint!,
        set_process_position!, sync_process_debug!, detach_process_debug!
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..SyntaxModule
 using ..TextModule

@@ -9,7 +9,7 @@ real window. Builds on the editor-loop primitives
 module PlaybackModule
 
 using ..EditorModule
-using ..ProjectionApiModule
+using ..ProjectionModule
 using ..IntentModule
 using ..EventModule
 using ..OperationModule

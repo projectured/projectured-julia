@@ -34,7 +34,6 @@ const EventModule = ProjecturedKernel.EventModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IntentModule = ProjecturedKernel.IntentModule

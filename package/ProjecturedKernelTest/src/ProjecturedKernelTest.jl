@@ -48,7 +48,7 @@ using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventPatternModule
 using ProjecturedKernel.GestureBindingModule
-using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+using ProjecturedKernel.ProjectionModule: print_document, read_intent
 
 # ── shared static layering guard ────────────────────────────────────────────
 include("../../../test/kernel/layering/CheckLayering.jl")

@@ -10,8 +10,7 @@ module InspectorModule
 using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
 using ..ProjectionModule
 using ..TextModule
 using ..TextModule

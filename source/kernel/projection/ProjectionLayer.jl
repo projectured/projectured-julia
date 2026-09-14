@@ -5,33 +5,29 @@
 # domain-independent framework that sinks to a higher package, not here. The IO
 # maps it builds on are the layer below (`iomap/`).
 # The ordered include list of the projection layer; a fragment of ProjecturedKernel.
-# The interface stubs lead the layer: ProjectionApi declares the abstract types
-# and open generics (the four projection functions) that everything below
-# implements. Nothing below this layer imports any of them — a higher package
-# extends the generics through the fully loaded kernel, so they need no earlier
-# position in the include list. (`Intent` itself is operation-layer data: the
-# binding layer builds one, which is below this layer.)
 # ProjectionReferenceStep — a reference step whose payload is a projection.
 # Small, self-contained; needs only DocumentModule and ReferenceModule, so
 # loads first in the layer.
 include("ProjectionReferenceStep.jl")
-include("ProjectionApi.jl")
 # PrinterContext (Cell + Reference only) is projection-layer infrastructure
 # consumed by ProjectionModule and the generic projections.
 include("PrinterContext.jl")
 # Open generics for the children container the template engine uses; a higher
 # package adds the concrete element-collection methods.
 include("ChildrenContainer.jl")
+
+# ── ProjectionModule — the contract, its defaults and `@projection` ────────
+# The contract declares the four generics every projection implements, and the
+# same module holds their fallbacks and the codegen that declares a projection
+# type. It loads before the gesture bindings, which take the `Projection` type
+# from it.
+include("ProjectionModule.jl")
+
 # Open generics for the gesture-binding tables. The concrete generic and
 # higher-order projections that consume `read_projection_gesture` are
 # domain-independent framework that sinks to a higher package; the kernel keeps
 # only the binding machinery.
 include("GestureBindings.jl")
-
-# ── Projection defaults & the `@projection` macro ──────────────────────────
-# ProjectionModule holds the four-generic fallbacks and the `@projection`
-# macro. Nothing in the kernel imports it, so it loads after the whole algebra.
-include("Projection.jl")
 
 # ── ProjectionTemplate ─────────────────────────────────────────────────────
 # The builder-and-walk projection-template engine every structural projection

@@ -7,7 +7,7 @@
 
 using Test
 using ProjecturedKernel.EventModule
-using ProjecturedKernel.ProjectionApiModule
+using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
@@ -21,9 +21,9 @@ using ProjecturedKernelExample
 end
 
 struct InboxProbeProjection <: Projection end
-ProjectionApiModule.print_document(::InboxProbeProjection, recursion, input, ctx) =
+ProjectionModule.print_document(::InboxProbeProjection, recursion, input, ctx) =
     SimpleIoMap(nothing, input, input)
-ProjectionApiModule.read_intent(::InboxProbeProjection, recursion, change::Intent, iomap) =
+ProjectionModule.read_intent(::InboxProbeProjection, recursion, change::Intent, iomap) =
     change
 
 # Records the task it was applied on, which is the property under test: a posted

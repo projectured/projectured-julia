@@ -42,8 +42,7 @@ export set_cell_function!, get_flat_length, get_flat_offsets, get_flat_selection
        convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, _lower_text_range
 export SpanPath, get_flat_base, make_flat_caret_reference,
        get_flat_cursor_coordinate, is_structural_selection
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..GraphicsModule
 using ..EventModule
 using ..EventPatternModule

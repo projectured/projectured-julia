@@ -14,8 +14,8 @@ using ..CollectionModule
 using ..ReferenceModule
 export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
        VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate, select_version
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IntentModule
 using ..OperationModule
 import ..OperationModule: evaluate_operation

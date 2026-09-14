@@ -61,7 +61,7 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.PrinterContextModule: PrinterContext
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
+using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedCollection.CollectionModule
 using ProjecturedPrimitive.PrimitiveModule
 using ProjecturedProjection.ProjectionAlgebraModule
@@ -73,8 +73,8 @@ using ProjecturedProjection.ProjectionAlgebraModule: SortingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: SwitchingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: WindowInputUnwrappingProjection
 using ProjecturedPrimitive.PrimitiveModule: PrimitiveString
-using ProjecturedKernel.ProjectionApiModule: map_reference_backward
-using ProjecturedKernel.ProjectionApiModule: map_reference_forward
+using ProjecturedKernel.ProjectionModule: map_reference_backward
+using ProjecturedKernel.ProjectionModule: map_reference_forward
 using ProjecturedKernel.EventModule: KeyDown
 using ProjecturedKernel.EventModule: ModifierKeys
 using ProjecturedReflection.ReflectionModule

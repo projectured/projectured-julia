@@ -34,8 +34,8 @@ export ChartSeries, get_chart_series_family, get_chart_axis_family,
        get_chart_sample, make_chart_sample_reference, get_selected_sample
 using ..DocumentModule
 export ChartView, get_chart_view, is_point_in_chart_view
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IoMapModule
 export ChartToChartPlot, ChartToChartPlotIoMap
 using ..CollectionModule

@@ -7,7 +7,7 @@ import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
 import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_catalog_schemas,
                          get_db_catalog_tables, get_db_catalog_columns
 import ProjecturedKernel.IoMapModule: SimpleIoMap
-import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
+import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedKernel.CellModule: set_cell_function!
 import ProjecturedKernel.ReferenceModule: EmptyReference

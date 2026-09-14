@@ -13,8 +13,7 @@ module XmlModule
 
 export parse_xml, parse_xml_file
 using ..CellModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: read_intent, map_reference_forward
+import ..ProjectionModule: read_intent, map_reference_forward
 using ..ProjectionModule
 using ..SyntaxModule
 using ..TextModule

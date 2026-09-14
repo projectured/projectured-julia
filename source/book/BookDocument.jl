@@ -19,8 +19,7 @@ export BookDocument
 using ..StyleModule
 using ..BackendModule
 using ..GraphicsModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..TextModule
 using ..SyntaxModule

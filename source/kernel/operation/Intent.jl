@@ -88,7 +88,7 @@ is translated exactly as before.
 It is a payload rather than a fifth generic function on purpose: descent rides
 `read_intent`, which already dispatches on what the payload *is* — a raw event, an
 `Operation`, or (now) a claimed event. The recursion contract forbids a new function
-to descend with (see `ProjectionApiModule`).
+to descend with (see `ProjectionModule`).
 """
 struct ClaimedGesture
     gesture::Any

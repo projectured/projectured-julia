@@ -24,7 +24,6 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const OperationModule = ProjecturedKernel.OperationModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule

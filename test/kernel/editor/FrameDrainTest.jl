@@ -7,7 +7,7 @@
 
 using Test
 using ProjecturedKernel.EventModule
-using ProjecturedKernel.ProjectionApiModule
+using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
@@ -41,9 +41,9 @@ evaluate_operation(editor::Editor, op::DrainFrameSwapOperation) =
 struct FrameDrainProjection <: Projection
     log::Vector{Any}
 end
-ProjectionApiModule.print_document(::FrameDrainProjection, recursion, input, ctx) =
+ProjectionModule.print_document(::FrameDrainProjection, recursion, input, ctx) =
     SimpleIoMap(nothing, input, input)
-ProjectionApiModule.read_intent(p::FrameDrainProjection, recursion, change::Intent, iomap) =
+ProjectionModule.read_intent(p::FrameDrainProjection, recursion, change::Intent, iomap) =
     Intent(change.gesture,
            change.gesture === :swap ? DrainFrameSwapOperation(p.log) :
                                       DrainFrameOperation(p.log, change.gesture))

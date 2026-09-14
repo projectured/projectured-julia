@@ -30,8 +30,7 @@ export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..IoMapModule
 using ..TextModule

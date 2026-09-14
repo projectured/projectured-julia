@@ -24,8 +24,8 @@ using ..ReferenceModule
 using ..TextModule
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label
 export ConversationDocument, make_conversation_thinking_part
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..NaturalModule
 using ..WidgetModule
 using ..LayoutModule

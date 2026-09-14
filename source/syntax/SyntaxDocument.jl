@@ -43,8 +43,7 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
        build_syntax_child_path, peel_child_step
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..SelectionModule
 using ..PrinterContextModule
 using ..IntentModule

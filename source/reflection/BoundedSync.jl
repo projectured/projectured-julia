@@ -64,8 +64,8 @@ export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
        reflect_document, sync_reflection!,
        reflect_child_count, reflect_child_pairs, reflect_children,
        is_reflection_leaf, get_reflection_value
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent
 using ..IoMapModule
 using ..WidgetModule
 export ReflectionToWidget

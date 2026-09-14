@@ -28,8 +28,8 @@ using ..StyleModule
 # The TrueType parser + SDL-free measurer moved to StyleModule (it is used by
 # the web backend and every projection example too, not just PDF). The PDF writer
 # still needs the parser internals for glyph embedding and text sizing.
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document
+using ..ProjectionModule
+import ..ProjectionModule: print_document
 using ..IoMapModule
 using ..PrinterContextModule
 using ..ReferenceModule

@@ -38,8 +38,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        make_widget_table_row_selection, get_widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write
 using ..ClockModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IntentModule
 using ..ProjectionModule
 using ..GraphicsModule

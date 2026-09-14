@@ -18,7 +18,7 @@ using ProjecturedStyle
 const CellModule = ProjecturedKernel.CellModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const StyleModule = ProjecturedStyle.StyleModule

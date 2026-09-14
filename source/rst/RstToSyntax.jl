@@ -31,7 +31,7 @@
 # plain computed `TextString`: correct on the page and correct on save, but not
 # splice-editable in the source view. Every other field stays `bound`.
 # The module binding itself, not only its names: the two macros below expand to
-# `ProjectionApiModule.print_document(...)` definitions, and the unescaped name
+# `ProjectionModule.print_document(...)` definitions, and the unescaped name
 # resolves in this module.
 
 
@@ -100,11 +100,11 @@ its blocks. `indent` is that column, and the children inherit it.
 """
 macro rst_flat(projname, intype, builder)
     quote
-        function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
+        function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             indent = $(_ambient)(ctx)
             $(print_template_rule)(p, recursion, doc, ctx, (prj, d) -> $(esc(builder))(prj, d, indent))
         end
-        function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
+        function ProjectionModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)
         end
     end
@@ -119,13 +119,13 @@ column of its body — and `inner` is what the children inherit.
 """
 macro rst_indented(projname, intype, builder)
     quote
-        function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
+        function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             outer = $(_ambient)(ctx)
             inner = outer * $(_IND)
             $(print_template_rule)(p, recursion, doc, $(with_property)(ctx, :rst_indent, inner),
                           (prj, d) -> $(esc(builder))(prj, d, outer, inner))
         end
-        function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
+        function ProjectionModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)
         end
     end
@@ -825,7 +825,7 @@ end
     style::ImmutableCell{StyleText} = _BODY
 end
 
-function ProjectionApiModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
+function ProjectionModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
     style = get_property(ctx, :rst_style, p.style)
     sel = ComputedCell(() -> begin
         s = t.selection
@@ -878,7 +878,7 @@ struct RstEmphasisToStyledNode <: RstStyledInline end
 _mode(::RstStrongToStyledNode)   = :bold
 _mode(::RstEmphasisToStyledNode) = :italic
 
-function ProjectionApiModule.print_document(p::RstStyledInline, recursion, doc, ctx)
+function ProjectionModule.print_document(p::RstStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :rst_style, _BODY)
     style = _mode_style(_mode(p), ambient, doc)
     child_iomaps = ComputedCell(() -> [
@@ -958,7 +958,7 @@ end
     style::ImmutableCell{StyleText} = _BODY
 end
 
-function ProjectionApiModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
+function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
     title_style = StyleText(_title_font(doc.level), _TITLE_COLOR)
     child_iomaps = ComputedCell(() -> begin
@@ -1000,7 +1000,7 @@ end
     marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
 end
 
-function ProjectionApiModule.print_document(p::RstEnumeratedListToStyledNode, recursion, doc::RstEnumeratedList, ctx)
+function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recursion, doc::RstEnumeratedList, ctx)
     indent = _ambient(ctx)
     child_iomaps = ComputedCell(() -> [
         print_child(recursion, item,

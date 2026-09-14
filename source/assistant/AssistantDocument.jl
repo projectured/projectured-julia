@@ -22,8 +22,8 @@ using ..LlmModule
 using ..ReferenceModule
 using ..ConversationModule
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..WidgetModule
 using ..LayoutModule
 using ..TextModule

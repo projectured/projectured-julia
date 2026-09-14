@@ -9,7 +9,7 @@
 using Test
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.OperationModule
-using ProjecturedKernel.ProjectionApiModule
+using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
@@ -25,16 +25,16 @@ end
 # Declines everything: the gesture passes through unchanged, as a reader that has
 # no use for it does.
 struct EscapeDecliningProjection <: Projection end
-ProjectionApiModule.print_document(::EscapeDecliningProjection, recursion, input, ctx) =
+ProjectionModule.print_document(::EscapeDecliningProjection, recursion, input, ctx) =
     SimpleIoMap(nothing, input, input)
-ProjectionApiModule.read_intent(::EscapeDecliningProjection, recursion, change::Intent, iomap) =
+ProjectionModule.read_intent(::EscapeDecliningProjection, recursion, change::Intent, iomap) =
     change
 
 # Claims Escape, the way an open palette or a modal dialog does.
 struct EscapeClaimingProjection <: Projection end
-ProjectionApiModule.print_document(::EscapeClaimingProjection, recursion, input, ctx) =
+ProjectionModule.print_document(::EscapeClaimingProjection, recursion, input, ctx) =
     SimpleIoMap(nothing, input, input)
-function ProjectionApiModule.read_intent(::EscapeClaimingProjection, recursion, change::Intent, iomap)
+function ProjectionModule.read_intent(::EscapeClaimingProjection, recursion, change::Intent, iomap)
     gesture = change.gesture
     event = gesture isa WindowInput ? gesture.event : gesture
     (event isa KeyDown && event.key === :escape) &&

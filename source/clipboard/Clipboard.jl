@@ -31,8 +31,8 @@ using ..DocumentModule
 using ..CollectionModule
 using ..ReferenceModule
 export ClipboardDocument
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IntentModule
 using ..OperationModule
 import ..OperationModule: evaluate_operation

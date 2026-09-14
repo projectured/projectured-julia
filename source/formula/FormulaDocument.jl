@@ -17,8 +17,7 @@ using ..JuliaModule
 export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_references, get_formula_dependencies, would_create_cycle, compute_topological_order,
        convert_formula_to_expr, evaluate_formula
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..StyleModule
 using ..SyntaxModule

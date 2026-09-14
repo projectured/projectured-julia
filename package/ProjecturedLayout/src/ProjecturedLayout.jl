@@ -20,7 +20,6 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule

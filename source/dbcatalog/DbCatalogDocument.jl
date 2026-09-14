@@ -14,8 +14,7 @@ using ..CollectionModule
 using ..ReferenceModule
 export DbCatalogDocument
 using ..SqlModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IoMapModule
 using ..ProjectionAlgebraModule
 using ..PrinterContextModule

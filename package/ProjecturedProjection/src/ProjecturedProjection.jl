@@ -15,7 +15,6 @@ using ProjecturedCollection
 using ProjecturedKernel
 using ProjecturedPrimitive
 
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const DocumentModule = ProjecturedKernel.DocumentModule

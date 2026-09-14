@@ -16,8 +16,7 @@ its pass-through branch.
 """
 module ProjectionAlgebraModule
 
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure
 using ..IoMapModule
 using ..IntentModule
 using ..DocumentModule

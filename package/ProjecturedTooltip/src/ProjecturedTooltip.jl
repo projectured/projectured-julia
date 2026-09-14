@@ -15,7 +15,7 @@ using ProjecturedScreen
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ScreenModule = ProjecturedScreen.ScreenModule

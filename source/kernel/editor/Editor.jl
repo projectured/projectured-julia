@@ -9,7 +9,7 @@ the current coordinate mapping.
 """
 module EditorModule
 
-using ..ProjectionApiModule
+using ..ProjectionModule
 using ..IntentModule
 using ..IoMapModule
 using ..DeviceModule

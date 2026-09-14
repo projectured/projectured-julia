@@ -20,8 +20,8 @@ using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_n
 using ProjecturedStyle.StyleModule: color_black
 using ProjecturedCollection.CollectionModule: CellVector
 using ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-import ProjecturedKernel.ProjectionApiModule: print_document, map_reference_forward
-using ProjecturedKernel.ProjectionApiModule: Projection
+import ProjecturedKernel.ProjectionModule: print_document, map_reference_forward
+using ProjecturedKernel.ProjectionModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
 using ProjecturedKernel.ReferenceModule: var"@reference"
 using ProjecturedKernel.ReferenceModule: var"@reference_case"

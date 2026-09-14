@@ -8,8 +8,7 @@ module YamlModule
 
 export parse_yaml, parse_yaml_file
 using ..CellModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..SyntaxModule
 using ..TextModule

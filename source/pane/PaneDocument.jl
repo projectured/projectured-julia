@@ -60,8 +60,8 @@ export show_layout, get_referenced_value, replace_referenced_value!,
        pane_group_to_avoid, make_pane_api
 using ..GestureBindingModule
 using ..EventModule
-using ..ProjectionApiModule
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward
+using ..ProjectionModule
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IntentModule
 using ..WidgetModule
 using ..IoMapModule

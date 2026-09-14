@@ -15,7 +15,7 @@
 struct _CoordStub <: Projection
     f::Any
 end
-ProjectionApiModule.read_intent(p::_CoordStub, recursion, change::Intent, iomap) =
+ProjectionModule.read_intent(p::_CoordStub, recursion, change::Intent, iomap) =
     Intent(change.gesture, p.f(change.gesture))
 
 struct _StubInner

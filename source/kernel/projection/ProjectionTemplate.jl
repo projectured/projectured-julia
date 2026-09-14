@@ -36,13 +36,13 @@ using ..CellModule
 using ..ChildrenContainerModule
 using ..IoMapModule
 # This also binds the module itself, so `@projection_template` can emit a
-# module-qualified `ProjectionApiModule.print_document` method-definition name
+# module-qualified `ProjectionModule.print_document` method-definition name
 # (see the macro).
-using ..ProjectionApiModule
+using ..ProjectionModule
 using ..IntentModule
 # `import`, not `using`: this module adds RuleIoMap methods to the three seams.
 using ..SelectionModule
-import ..ProjectionApiModule: map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: map_reference_forward, map_reference_backward, read_intent
 using ..ReferenceModule
 using ..ProjectionReferenceStepModule
 using ..PrinterContextModule
@@ -94,7 +94,7 @@ _project_child_cell(recursion, doc, ctx, prj::Project) =
             cctx = make_child_context(ctx, FieldReferenceStep(String(prj.input)))
             ov = _override(prj.override, v)
             ov === nothing ? print_child(recursion, v, cctx) :
-                             ProjectionApiModule.print_document(ov, recursion, v, cctx)
+                             ProjectionModule.print_document(ov, recursion, v, cctx)
         end)
 
 # ── Wiring + IoMap ───────────────────────────────────────────────────────────
@@ -1370,21 +1370,20 @@ through.
 macro projection_template(projname, intype, builder)
     quote
         # Define the method with a *module-qualified* name so it always extends
-        # the canonical `ProjectionApiModule.print_document` the type-dispatcher
-        # calls — regardless of what the calling module imported. The unescaped
-        # `ProjectionApiModule` hygiene-resolves to this macro's defining module
-        # (which binds it via `import ..ProjectionApiModule`). The old
-        # `esc(:print_document)` instead resolved the name in the *caller's*
-        # module and, if it hadn't imported the generic, silently defined a dead
-        # local one → a confusing MethodError at dispatch time.
-        function ProjectionApiModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
+        # the canonical `ProjectionModule.print_document` the type-dispatcher
+        # calls, whatever the calling module imported. The unescaped
+        # `ProjectionModule` hygiene-resolves to this macro's defining module,
+        # which binds it. A bare `esc(:print_document)` would resolve the name in
+        # the caller's module and, if that module had not imported the generic,
+        # silently define a dead local one.
+        function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             $(print_template_rule)(p, recursion, doc, ctx, $(esc(builder)))
         end
 
         # Without this the projection falls to the generic bridge, which collapses the
         # `Intent` to a single payload and so can only ever translate a claimed
         # operation — the input domain never sees the key that caused it.
-        function ProjectionApiModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
+        function ProjectionModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)
         end
     end
