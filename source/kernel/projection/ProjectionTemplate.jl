@@ -15,6 +15,40 @@
 # dispatch.
 
 
+# ── The marker words of a template body ─────────────────────────────────────
+
+"""
+The words a template body writes to mark a slot. They are resolved by
+`make_template_builder`, so no module that writes a template needs them in its
+namespace.
+"""
+const TEMPLATE_MARKER_WORDS = (:bound, :project, :collection, :tokens, :sections)
+
+"""
+    make_template_builder(expr) -> expr
+
+Return the template body with every marker-word call bound to this module's
+function, whatever the calling module has in scope.
+
+`bound`, `project`, `collection`, `tokens` and `sections` are ordinary English
+words, and a domain wants them for its own code: four files in this repository
+already bind one of them as a local. A macro that escaped the body wholesale
+would make every module that writes a template import all five. This resolves
+the call head instead, so the words stay private to this module.
+
+Only a call head is resolved. A local of the same name, a field access and a
+word in a string are left alone.
+"""
+function make_template_builder(expr)
+    expr isa Expr || return expr
+    if expr.head === :call && !isempty(expr.args) &&
+       expr.args[1] isa Symbol && expr.args[1] in TEMPLATE_MARKER_WORDS
+        return Expr(:call, getfield(@__MODULE__, expr.args[1]),
+                    map(make_template_builder, expr.args[2:end])...)
+    end
+    Expr(expr.head, map(make_template_builder, expr.args)...)
+end
+
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
 
 struct Bound;      input::Symbol; type::Any; render::Any; retype::Any; end
@@ -1322,6 +1356,7 @@ builder through `print_template_rule`, and the matching 4-arg
 through.
 """
 macro projection_template(projname, intype, builder)
+    builder = make_template_builder(builder)
     quote
         # Define the method with a *module-qualified* name so it always extends
         # the canonical `ProjectionModule.print_document` the type-dispatcher

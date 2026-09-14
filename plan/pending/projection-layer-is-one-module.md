@@ -244,22 +244,49 @@ holds 228 and `ReferenceModule` 464, so it lands between the two, as predicted.
 qualified-call pattern nor the import pattern matched. Grep for the bare module
 name after every sweep, not only for its `using`, `import` and `Mod.` forms.
 
-## Stage 3 — the DSL words leave the export list
+## Stage 3 — the DSL words leave the export list (done)
 
 Today `@projection_template` escapes the builder wholesale — `$(esc(builder))` —
 so `bound`, `project`, `collection`, `tokens` and `sections` resolve in the
 caller's module and must be exported.
 
-- [ ] The macro walks the builder and rewrites those five call heads to
+- [x] The macro walks the builder and rewrites those five call heads to
   `ProjectionModule.bound(…)` and so on. It already does this for
   `print_document`, and the comment there gives the reason: an unqualified name
   resolved in the caller's module silently defined a dead local one.
-- [ ] Delete the five from the export list. 28 exports become 23.
-- [ ] Prove it by breaking it: a template body in a module that does not name
-  `ProjectionModule` must still build.
+- [x] Delete them from the export list. **Ten names, not five**: the five
+  marker types `Bound`, `Project`, `Collection`, `Tokens` and `Sections` have
+  no code user outside the projection layer either — every hit was prose in a
+  comment. 28 exports become 19.
+- [x] Proved: `isdefined(JsonModule, :bound)` and the other nine are all
+  `false`, in `JsonModule` and in `RstModule`, and every template still builds.
 
 Stage 3 is last because it is the only stage that changes a macro, and because
 after stages 1 and 2 the words are the last namespace cost left.
+
+
+**Three macros, not one.** `@projection_template` was not the only escape hatch:
+`RstToSyntax.jl` defines `@rst_flat` and `@rst_indented`, 32 uses between them,
+and their builders write `collection(:lines)` like any other. Each of the three
+calls `make_template_builder` on its body now.
+
+**The resolver is one exported name in place of ten.**
+`make_template_builder(expr)` walks the body and binds each marker-word **call
+head** to this module's function. A local of the same name, a field access and a
+word in a string are left alone.
+
+**What stage 3 measured.**
+
+| check | result |
+| --- | --- |
+| `test_kernel()` | 1638 / 3 / 3 / 1644 — identical |
+| `test_substrate()` | 60167 / 4 / 2 / 1 / 60174 — identical |
+| `test_rst()` | 79 / 3 / 2 / 84 — identical |
+| `test_json()` | 170 / 170 |
+| the naming guard | clean |
+| `using Projectured` | loads, no warning |
+| `test_export_collisions()` | 1 / 1, checker 5 / 5 |
+| `ProjectionModule` exports | 28 → **19** |
 
 ## Stage 4 — open: the remaining three
 

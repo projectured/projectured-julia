@@ -87,10 +87,8 @@ export Projection, print_document, print_child, print_document_pure, print_child
 export @projection, print_pure
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        normalize_named_node_reference
-export Bound, Project, Collection, Tokens, Sections,
-       bound, project, collection, tokens, sections,
-       RuleIoMap, var"@projection_template"
-export print_template_rule, read_template_intent
+export RuleIoMap, var"@projection_template"
+export print_template_rule, read_template_intent, make_template_builder
 
 include("ProjectionReferenceStep.jl")
 include("ProjectionInterface.jl")

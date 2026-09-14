@@ -99,6 +99,7 @@ A rule whose children sit at its own column: a list and its items, a root and
 its blocks. `indent` is that column, and the children inherit it.
 """
 macro rst_flat(projname, intype, builder)
+    builder = make_template_builder(builder)
     quote
         function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             indent = $(_ambient)(ctx)
@@ -118,6 +119,7 @@ block quote. `outer` is the column the rule itself starts at, `inner` the
 column of its body — and `inner` is what the children inherit.
 """
 macro rst_indented(projname, intype, builder)
+    builder = make_template_builder(builder)
     quote
         function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             outer = $(_ambient)(ctx)
