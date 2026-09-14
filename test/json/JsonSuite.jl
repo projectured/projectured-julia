@@ -7,8 +7,6 @@ function test_json_layering()
     main = get_package_source_root(ProjecturedJson)
     check_layering(main, pathof(ProjecturedJson);
                    name = "json",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["JsonDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedJson; all = true)
                          if isdefined(ProjecturedJson, n) &&

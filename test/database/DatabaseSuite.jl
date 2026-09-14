@@ -8,7 +8,6 @@ function test_database_layering()
     check_layering(main, pathof(ProjecturedDatabase);
                    name = "database",
                    # PAR-QUALIFIED-EXTENSION: migrated to bare `using ..Xxx`
-                   qualified_files = Set(["DatabaseAdapters.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedDatabase; all = true)
                          if isdefined(ProjecturedDatabase, n) &&

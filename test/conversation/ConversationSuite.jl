@@ -7,8 +7,6 @@ function test_conversation_layering()
     main = get_package_source_root(ProjecturedConversation)
     check_layering(main, pathof(ProjecturedConversation);
                    name = "conversation",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["Evaluator.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedConversation; all = true)
                          if isdefined(ProjecturedConversation, n) &&

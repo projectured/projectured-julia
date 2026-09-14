@@ -79,11 +79,20 @@ in `WidgetToGraphics.jl` that happen to share the name. `rule_print` and
 `$(rule_print)` interpolations inside a macro, which are the function and must
 move.
 
-## 2.1 Where the sweep stands — 2026-09-14
+## 2.1 The sweep is done except for graph — 2026-09-14
 
-**Forty-six of the sixty module headers import only what they extend.** The
-fourteen that do not are every module of `graph`, and their 264 idle names are
-all of what is left.
+**Every one of the 349 source files follows the rule, except the sixteen of
+`graph`.** Measured by running the checker over every file of every slice: 50
+rejections, all of them in `graph`.
+
+The guard is no longer opt-in. It checks every file of every package, and what
+is not migrated is named in that package's `unmigrated_files`. Only `graph` has
+one. A file named there and since migrated is reported, so the set cannot go
+stale, and the per-suite ledgers are gone — twenty-six registrations and the
+assertion that guarded them.
+
+Proven by breaking a file that was never on any list: `JsonParser.jl` gained an
+`import ..CellModule: Cell` and the guard named the file, the name and the fix.
 
 `graph` is out of the sweep, the user's decision on 2026-09-14, and
 [divide-graph-and-text.md](divide-graph-and-text.md) owns it. The reason is that
@@ -129,10 +138,8 @@ To fold `graph` as one module would finish the sweep and flatten a layering that
    functions. Take them in batches, smallest first.
 3. **`SyntaxModule`, `ProjectionAlgebraModule`, `SqlModule`, `WidgetModule`**
    last, because they carry 387 of the 902 sites between them. **DONE.**
-4. **The kernel's remaining files.** `Intent.jl` and `ProjectionTemplate.jl` are
-   **DONE**; `projection/Projection.jl` carries one import line and is sealed.
-   When every file is migrated the `qualified_files` parameter goes, because the
-   opt-in set covers everything.
+4. **The kernel.** **DONE.** Every kernel file follows the rule, the sealed ones
+   included: what they import, they extend.
 
 **`graph` waits for [divide-graph-and-text.md](divide-graph-and-text.md).** Nine
 of the 14 modules that extend nothing are inside it, and the division moves

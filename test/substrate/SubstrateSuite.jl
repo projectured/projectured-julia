@@ -1,45 +1,4 @@
 """
-Files migrated to `PAR-QUALIFIED-EXTENSION`: bare `using ..Xxx`, and any
-extension of a sibling's generic written `Xxx.f(…) = …`. Opt-in and growing, the
-same ledger the kernel keeps. See
-`plan/pending/qualified-extension-sweep.md`. When it covers every file of a
-package the entry can go, and when it covers every package so can the parameter.
-
-A key names a package of `_SOURCES`. `test_substrate_layering` asserts that, so
-a package this suite does not guard cannot sit here and look guarded.
-`ProjecturedAssistant` is migrated and absent, because no suite guards its
-layering yet.
-"""
-const _QUALIFIED_FILES = Dict(
-    "ProjecturedClipboard"     => Set(["Clipboard.jl"]),
-    "ProjecturedCollection"    => Set(["CollectionDocument.jl"]),
-    "ProjecturedComponent"     => Set(["ComponentDocument.jl"]),
-    "ProjecturedDomain"        => Set(["DocumentCore.jl"]),
-    "ProjecturedDragging"      => Set(["DraggingDocument.jl"]),
-    "ProjecturedFileFormat"    => Set(["NaturalFormat.jl"]),
-    "ProjecturedGestureHelp"   => Set(["GestureMap.jl"]),
-    "ProjecturedGestureLog"    => Set(["GestureLogDocument.jl"]),
-    "ProjecturedGraphics"      => Set(["PointReferenceStep.jl"]),
-    "ProjecturedLayout"        => Set(["LayoutDocument.jl"]),
-    "ProjecturedFocus"         => Set(["Focus.jl"]),
-    "ProjecturedInspector"     => Set(["ReferenceInspector.jl"]),
-    "ProjecturedNatural"       => Set(["NaturalNotation.jl"]),
-    "ProjecturedPane"          => Set(["PaneDocument.jl"]),
-    "ProjecturedPdf"           => Set(["Pdf.jl"]),
-    "ProjecturedPlot"          => Set(["PlotGeometry.jl"]),
-    "ProjecturedProjection"    => Set(["generic/Identity.jl"]),
-    "ProjecturedPrimitive"     => Set(["PrimitiveDocument.jl"]),
-    "ProjecturedReflection"    => Set(["BoundedSync.jl"]),
-    "ProjecturedScreen"        => Set(["ScreenDocument.jl"]),
-    "ProjecturedSerialization" => Set(["BinarySerialization.jl"]),
-    "ProjecturedStyle"         => Set(["Color.jl"]),
-    "ProjecturedSyntax"        => Set(["SyntaxDocument.jl"]),
-    "ProjecturedText"          => Set(["TextSpanReferenceStep.jl"]),
-    "ProjecturedTooltip"       => Set(["TooltipDocument.jl"]),
-    "ProjecturedWidget"        => Set(["WidgetDocument.jl"]),
-    "ProjecturedVersioning"    => Set(["VersioningDocument.jl"]))
-
-"""
     test_substrate_layering()
 
 The static layered-architecture guard of every substrate package (see
@@ -48,18 +7,10 @@ declares no layer index, so the check is the topological include order of its
 own entry file plus the file inventory of its own folder.
 """
 function test_substrate_layering()
-    @testset "every qualified-file entry names a package this suite guards" begin
-        guarded = Set(String(nameof(pkg)) for pkg in _SOURCES)
-        for name in sort(collect(keys(_QUALIFIED_FILES)))
-            @test name in guarded
-        end
-    end
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
         main = get_package_source_root(pkg)
-        name = String(nameof(pkg))
-        check_layering(main, pathof(pkg); name = name,
-                       qualified_files = get(_QUALIFIED_FILES, name, Set{String}()))
+        check_layering(main, pathof(pkg); name = String(nameof(pkg)))
     end
 end
 

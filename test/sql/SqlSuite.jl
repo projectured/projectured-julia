@@ -7,8 +7,6 @@ function test_sql_layering()
     main = get_package_source_root(ProjecturedSql)
     check_layering(main, pathof(ProjecturedSql);
                    name = "sql",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["SqlDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedSql; all = true)
                          if isdefined(ProjecturedSql, n) &&

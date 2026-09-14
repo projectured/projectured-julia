@@ -7,8 +7,6 @@ function test_sequencechart_layering()
     main = get_package_source_root(ProjecturedSequenceChart)
     check_layering(main, pathof(ProjecturedSequenceChart);
                    name = "sequencechart",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["SequenceChartGeometry.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedSequenceChart; all = true)
                          if isdefined(ProjecturedSequenceChart, n) &&

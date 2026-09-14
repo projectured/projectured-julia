@@ -40,7 +40,7 @@
 #    under PAR-QUALIFIED-EXTENSION qualification is how a file extends another module's
 #    generic — so without this check PAR-MODULE-BOUNDARY-IS-API would hold for import
 #    headers and be unenforced exactly where it now matters most.
-# 8. (opt-in via `qualified_files`) a migrated file names siblings with bare
+# 8. every file names a sibling module with bare
 #    `using ..XxxModule` only — never `import ..XxxModule` or a symbol list
 #    (PAR-QUALIFIED-EXTENSION).
 #
@@ -472,7 +472,7 @@ end
 # ─────────────────────────────────────────────────
 
 """
-    relative_import_errors(src_root, qualified_files) -> Vector{String}
+    relative_import_errors(src_root, unmigrated_files) -> Vector{String}
 
 PAR-QUALIFIED-EXTENSION: a file imports the names it **extends** and names every
 other module with a bare `using ..Xxx`. Three forms are wrong:
@@ -495,26 +495,31 @@ is what makes an extension reach its generic, and
 definition that misses it. This checker is the tidiness half: it keeps an import
 list meaning what it says.
 
-`qualified_files` is an **opt-in** set: only files listed in it are held to the
-rule. The migration is file-by-file, and an opt-in set that grows is honest
-about the remaining work in a way a shrinking exemption list covering ~1400
-import lines would not be. When the sweep is done the set covers every file and
-the parameter can go away.
+**Every file under `src_root` is checked.** The sweep that brought the tree to
+this form is done except for `graph`, so what remains is an exemption set rather
+than an opt-in one: `unmigrated_files` names the files still to migrate, and a
+file named there and since migrated is reported, so the set cannot go stale.
 
 "Extended" is read over every file under `src_root`, because a slice is one
 module whose header sits in one file and whose definitions sit in the others.
 For a root that holds several modules this over-approximates, so the checker
 stays silent where it cannot be sure.
 """
-function relative_import_errors(src_root, qualified_files)
+function relative_import_errors(src_root, unmigrated_files)
     errs = String[]
     extended = extended_names(src_root)
-    for rel in sort(collect(qualified_files))
+    every = String[]
+    for (dir, _dirs, files) in walkdir(src_root), file in files
+        endswith(file, ".jl") && push!(every, relpath(joinpath(dir, file), src_root))
+    end
+    for rel in sort(collect(unmigrated_files))
+        isfile(joinpath(src_root, rel)) ||
+            push!(errs, "$rel is listed as not yet migrated to " *
+                        "PAR-QUALIFIED-EXTENSION but is not on disk")
+    end
+    for rel in sort(every)
+        rel in unmigrated_files && continue
         path = joinpath(src_root, rel)
-        if !isfile(path)
-            push!(errs, "$rel is listed as migrated to PAR-QUALIFIED-EXTENSION but is not on disk")
-            continue
-        end
         for stmt in collect_exprs(x -> x.head in (:import, :using), parse_file(path))
             for arg in stmt.args
                 dep = relative_module(arg)
@@ -695,7 +700,7 @@ get_package_source_root(pkg::Module) =
                    layers = String[], exempt_files = Set{String}(),
                    check_private_imports = false,
                    interface_files = Dict{String, Symbol}(),
-                   qualified_files = Set{String}())
+                   unmigrated_files = Set{String}())
 
 Run the full static layered-architecture guard for one main package inside
 a `@testset`:
@@ -717,7 +722,7 @@ a `@testset`:
 7. every `XxxModule.sym` qualification names an exported symbol
    (PAR-MODULE-BOUNDARY-IS-API's other half — always runs, since qualification is new
    syntax with no legacy to grandfather; `layers` only drives its exemptions),
-8. each file in `qualified_files` uses bare `using ..Xxx` and never
+8. every file outside `unmigrated_files` imports only what it extends and never
    `import ..Xxx` / `using ..Xxx: a, b` (PAR-QUALIFIED-EXTENSION); the set is opt-in
    and grows as the migration proceeds.
 
@@ -734,7 +739,7 @@ function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
                         check_private_imports = false,
                         interface_files = Dict{String, Symbol}(),
-                        qualified_files = Set{String}(),
+                        unmigrated_files = Set{String}(),
                         extra_aliases = Set{Symbol}(),
                         allow_root_fragments = false,
                         foreign_files = Set{String}())
@@ -833,15 +838,13 @@ function check_layering(src_root, top_file; name = "package",
             @test isempty(errs)
         end
 
-        if !isempty(qualified_files)
-            @testset "migrated files import what they extend" begin
-                errs = relative_import_errors(src_root, qualified_files)
-                if !isempty(errs)
-                    println(stderr, "\nImport-form violations (PAR-QUALIFIED-EXTENSION):")
-                    foreach(e -> println(stderr, "  ", e), errs)
-                end
-                @test isempty(errs)
+        @testset "every file imports what it extends" begin
+            errs = relative_import_errors(src_root, unmigrated_files)
+            if !isempty(errs)
+                println(stderr, "\nImport-form violations (PAR-QUALIFIED-EXTENSION):")
+                foreach(e -> println(stderr, "  ", e), errs)
             end
+            @test isempty(errs)
         end
     end
 end
@@ -1162,7 +1165,7 @@ function test_layering_checkers()
         check(source) = mktempdir() do root
             mkpath(joinpath(root, "cell"))
             write(joinpath(root, "cell/A.jl"), source)
-            relative_import_errors(root, Set(["cell/A.jl"]))
+            relative_import_errors(root, Set{String}())
         end
 
         # Bare `using ..B` and a qualified extension: nothing to import.
@@ -1192,14 +1195,14 @@ function test_layering_checkers()
         # PAR-QUALIFIED-EXTENSION's business.
         @test isempty(check("import Base\nusing Test\nimport MathOptInterface as MOI\n"))
 
-        # A file not in the opt-in set is untouched by the lint.
+        # A file named in the exemption set is untouched by the lint.
         @test isempty(mktempdir() do root
             mkpath(joinpath(root, "cell"))
             write(joinpath(root, "cell/A.jl"), "import ..B: f\n")
-            relative_import_errors(root, Set{String}())
+            relative_import_errors(root, Set(["cell/A.jl"]))
         end)
 
-        # A listed file that is not on disk is itself an error — the set must stay honest.
+        # An exempt file that is not on disk is itself an error — the set must not go stale.
         @test occursin("not on disk",
                        only(mktempdir(root -> relative_import_errors(root, Set(["gone.jl"])))))
     end

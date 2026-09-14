@@ -973,8 +973,9 @@ Three guards hold the rule up:
   whole tree on every suite.
 - `relative_import_errors` (the layering guard) keeps an import list meaning
   what it says: no bare `import ..Xxx`, no `using ..Xxx: a, b`, and no imported
-  name that nothing extends. It runs over an opt-in `qualified_files` set that
-  grows as the sweep proceeds; when it covers every file the parameter goes.
+  name that nothing extends. It checks **every** file of a package. What is not
+  migrated is named in that package's `unmigrated_files`, and a file named there
+  and since migrated is itself reported, so the set cannot go stale.
 - `qualified_reference_errors` asserts every `XxxModule.sym` names an exported
   symbol, because qualification bypasses the export list entirely
   (`XxxModule._private` reaches a non-exported name with no complaint) and
@@ -1006,11 +1007,9 @@ the `nothing` leaf in visual and the `*Nothing` insertion placeholder in
 domain; the more specific concept took the qualifier
 (`InsertionNothingToSyntaxLeaf`).
 
-The sweep that brings every header to this form is
-`plan/pending/qualified-extension-sweep.md`. It is ~1400 import lines across 74
-files, of which the four projection generics (`print_document`, `read_intent`,
-`map_reference_forward`, `map_reference_backward`) and `evaluate_operation`
-account for 801 of the 902 extension sites.
+Every file of the tree follows this rule except the sixteen of `graph`, which
+are named in that package's `unmigrated_files` and wait on
+`plan/pending/divide-graph-and-text.md`.
 
 ### PAR-PARALLEL-TRIADS
 

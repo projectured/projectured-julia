@@ -29,19 +29,7 @@ function test_kernel_layering()
                        "backend/BackendInterface.jl" => :BackendModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionApi.jl" => :ProjectionApiModule,
-                       "iomap/IoMapInterface.jl"     => :IoMapModule),
-                   # PAR-QUALIFIED-EXTENSION: files migrated to bare `using ..Xxx`
-                   # + qualified extension (`Xxx.f(…) = …`). Opt-in, and it grows
-                   # as the sweep proceeds; when it covers every file the
-                   # parameter goes.
-                   qualified_files = Set([
-                       "projection/ProjectionReferenceStep.jl",   # the reference-step seam
-                       "editor/Editor.jl",
-                       "editor/Playback.jl",
-                       "llm/LlmModule.jl",
-                       "agent/AgentModule.jl",
-                       "operation/Intent.jl",
-                       "projection/ProjectionTemplate.jl"]))
+                       "iomap/IoMapInterface.jl"     => :IoMapModule))
 end
 
 """

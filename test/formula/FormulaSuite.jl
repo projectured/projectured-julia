@@ -7,8 +7,6 @@ function test_formula_layering()
     main = get_package_source_root(ProjecturedFormula)
     check_layering(main, pathof(ProjecturedFormula);
                    name = "formula",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["FormulaDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedFormula; all = true)
                          if isdefined(ProjecturedFormula, n) &&

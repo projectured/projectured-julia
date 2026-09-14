@@ -7,8 +7,6 @@ function test_process_layering()
     main = get_package_source_root(ProjecturedProcess)
     check_layering(main, pathof(ProjecturedProcess);
                    name = "process",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["ProcessDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedProcess; all = true)
                          if isdefined(ProjecturedProcess, n) &&

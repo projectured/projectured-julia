@@ -7,8 +7,6 @@ function test_rst_layering()
     main = get_package_source_root(ProjecturedRst)
     check_layering(main, pathof(ProjecturedRst);
                    name = "rst",
-                   # PAR-QUALIFIED-EXTENSION: the header imports what it extends
-                   qualified_files = Set(["RstDocument.jl"]),
                    extra_aliases = Set{Symbol}(
                        n for n in names(ProjecturedRst; all = true)
                          if isdefined(ProjecturedRst, n) &&
