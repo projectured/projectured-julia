@@ -21,7 +21,7 @@ using ProjecturedStyle
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
-const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
+const TextModule = ProjecturedText.TextModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const DocumentModule = ProjecturedKernel.DocumentModule
@@ -39,15 +39,15 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IntentModule = ProjecturedKernel.IntentModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
-const TextSpanReferenceStepModule = ProjecturedText.TextSpanReferenceStepModule
-const TextRangeReferenceStepModule = ProjecturedText.TextRangeReferenceStepModule
+const TextModule = ProjecturedText.TextModule
+const TextModule = ProjecturedText.TextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const StyleModule = ProjecturedStyle.StyleModule
-const TextToStringModule = ProjecturedText.TextToStringModule
+const TextModule = ProjecturedText.TextModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const DomainModule = ProjecturedDomain.DomainModule

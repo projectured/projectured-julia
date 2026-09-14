@@ -38,7 +38,7 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
-const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
+const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/gesturelog/GestureLogDocument.jl")

@@ -13,7 +13,7 @@ using ..ReferenceModule
 using ..ProjectionApiModule
 import ..ProjectionApiModule: print_document, map_reference_forward, map_reference_backward, read_intent
 using ..ProjectionModule
-using ..ReferenceToTextModule
+using ..TextModule
 using ..TextModule
 using ..StyleModule
 using ..PrinterContextModule

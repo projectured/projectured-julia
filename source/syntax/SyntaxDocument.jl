@@ -49,15 +49,15 @@ using ..SelectionModule
 using ..PrinterContextModule
 using ..IntentModule
 using ..ProjectionAlgebraModule
-using ..TextSpanReferenceStepModule
-using ..TextRangeReferenceStepModule
+using ..TextModule
+using ..TextModule
 using ..IoMapModule
 using ..PrimitiveModule
 using ..EventPatternModule
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap, _syntax_to_flat
 using ..ProjectionModule
-using ..TextToStringModule
+using ..TextModule
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
@@ -72,7 +72,7 @@ export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSy
        InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, parse_completion,
        insert_insertion_text_operation, delete_insertion_text_operation
-using ..TextToGraphicsModule
+using ..TextModule
 using ..NaturalModule
 export make_natural_to_syntax_dispatch, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation

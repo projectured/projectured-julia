@@ -23,7 +23,7 @@ and a reader who derives `GraphModule` from the folder finds seventeen modules.
 | slice | modules | files | lines |
 | --- | --- | --- | --- |
 | `graph` | 17 | 16 | 4831 |
-| `text` | 14 | 14 | 5123 |
+| ~~`text`~~ | ~~14~~ 1 | 14 | 5123 |
 
 Every other slice declares one module.
 
@@ -54,7 +54,41 @@ layouter.
 becomes one module. `omnetpp/` becomes its own slice, plausibly its own package,
 because it depends on nothing above it.
 
-## 3. `text` — the reading is not done
+## 3. `text` is one slice — READ AND FOLDED 2026-09-14
+
+The reading the plan asked for is done, and the answer is one module.
+
+**The import headers settle it.** Across its eleven modules `text` extends eight
+names — `print_document`, `read_intent`, `map_reference_forward`,
+`map_reference_backward`, `evaluate_operation`, `reroot_operation`,
+`set_cell_function!` and `splice_value!`. Four seams, the same set an ordinary
+slice implements. Its 363 idle imported names were eleven headers repeating each
+other, not a sign of two units of architecture.
+
+`text` is one module now, and its header imports those eight names.
+
+**The fold exposed what the module boundary was hiding: nine helpers copied into
+up to six files each.** Five were copied verbatim, and four had been copied and
+then diverged:
+
+| helper | copies | what they were |
+| --- | --- | --- |
+| `_text_elem_path`, `_parse_text_elem_range`, `_text_range_caret` | 5 each | one body, copied |
+| `_flat_caret`, `_is_structural_ref` | 4 each | one body; `_is_structural_ref`'s fourth differed only by a `ref = ref` line |
+| `_parse_text_elem_path` | 6 | five identical; `TextLineNumbering`'s returned `(nothing, nothing)` where the others return `nothing` |
+| `_effective_pattern` | 2 | one body, copied |
+| `_forward_map` | 4 | `TextFiltering`'s takes a typed argument and is a real second method; two share a body; `WordWrapping`'s returns the caret unchanged where the others return nothing |
+| `_make_span` | 3 | two take two arguments and one takes three — a real second method |
+
+Twenty-four duplicate definitions went. Two diverged copies took a name of their
+own inside their own file, `_wrap_forward_map` and `_line_number_elem_path`,
+which keeps their behaviour exactly. Nothing was reconciled: to merge a variant
+into its family would change what the code does, and that is separate work.
+
+The guard caught the one family the plan missed. `_text_range_caret` survived in
+two files, and `duplicate_definition_violations` named both.
+
+### 3.1 What the old section asked
 
 Fourteen modules across 25 internal edges:
 

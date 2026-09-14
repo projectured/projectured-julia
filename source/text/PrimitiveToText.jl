@@ -1,36 +1,11 @@
-"""
-    PrimitiveToTextModule
-
-PrimitiveDocument → TextBlock projection. Converts `PrimitiveBool`,
-`PrimitiveNumber`, and `PrimitiveString` directly into a single-span
-`TextBlock` without an intervening `SyntaxLeaf`. Used by widget labels,
-conversation cells, and other contexts that aggregate styled spans and
-want a primitive value to land in the text domain directly.
-"""
-module PrimitiveToTextModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..PrimitiveModule: PrimitiveDocument, PrimitiveBool, PrimitiveNumber, PrimitiveString,
-                          ReplaceStringRangeOperation
-import ..TextModule: TextDocument, TextBlock, TextString
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_solarized_cyan, color_solarized_magenta, color_solarized_green
-import ..StyleModule: StyleText
-import ..IoMapModule: SimpleIoMap
-import ..ReferenceModule: ConcreteReference, EmptyReference, FieldReferenceStep, RangeReferenceStep,
-                          ElementReferenceStep, PositionReferenceStep, Reference, Position
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..GestureBindingModule: var"@gestures"
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..PrinterContextModule: make_child_context
-export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveToText
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from PrimitiveToText.jl.
+#
+# PrimitiveDocument → TextBlock projection. Converts `PrimitiveBool`,
+# `PrimitiveNumber`, and `PrimitiveString` directly into a single-span
+# `TextBlock` without an intervening `SyntaxLeaf`. Used by widget labels,
+# conversation cells, and other contexts that aggregate styled spans and
+# want a primitive value to land in the text domain directly.
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextBlock.
 # Range selections collapse to a cursor at the range start.
 function _forward_value(reference)
@@ -246,5 +221,3 @@ function PrimitiveToText(; bool_kw=(), number_kw=(), string_kw=())
         PrimitiveString => PrimitiveStringToTextBlock(; string_kw...),
     )
 end
-
-end # module

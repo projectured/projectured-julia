@@ -7,7 +7,7 @@ import ProjecturedKernel.ProjectionApiModule: print_document, read_intent,
 import ProjecturedSql.SqlModule: SqlSelectStatement
 import ProjecturedSql.SqlModule: SqlToSyntax
 import ProjecturedSyntax.SyntaxModule: SyntaxToText
-import ProjecturedText.TextToStringModule: TextToString
+import ProjecturedText.TextModule: TextToString
 import ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 import ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance

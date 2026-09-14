@@ -33,8 +33,8 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const CollectionModule = ProjecturedCollection.CollectionModule
-const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
-const WordWrappingModule = ProjecturedText.WordWrappingModule
+const TextModule = ProjecturedText.TextModule
+const TextModule = ProjecturedText.TextModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
@@ -42,7 +42,7 @@ const DomainModule = ProjecturedDomain.DomainModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ProjectionApiModule = ProjecturedKernel.ProjectionApiModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const TextToStringModule = ProjecturedText.TextToStringModule
+const TextModule = ProjecturedText.TextModule
 
 include("../../../source/natural/NaturalNotation.jl")
 
@@ -57,9 +57,9 @@ include("../../../source/natural/NaturalNotation.jl")
 # what the document is.
 function __init__()
     NaturalModule.register_natural_rung!(:text, :graphics,
-        (; measure) -> ProjecturedText.TextToGraphicsModule.TextToGraphics(measure = measure))
+        (; measure) -> ProjecturedText.TextModule.TextToGraphics(measure = measure))
     NaturalModule.register_natural_rung!(:text, :string,
-        (; measure) -> ProjecturedText.TextToStringModule.TextToString())
+        (; measure) -> ProjecturedText.TextModule.TextToString())
     NaturalModule.register_natural_notation!(
         ProjecturedText.TextModule.TextDocument, :text,
         () -> ProjecturedProjection.ProjectionAlgebraModule.IdentityProjection())

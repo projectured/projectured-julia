@@ -354,7 +354,7 @@ end # @testset "TextToGraphics lays out TextLine blocks"
 _font = font_ubuntu_monospace_regular_20
 measure = (t, f) -> (length(t) * 10, 18)
 p = TextToGraphics(measure = measure)
-SC = TextToGraphicsModule.SegmentCoordinate
+SC = TextModule.SegmentCoordinate
 coord_map = [SC([1], 0, 6, 0,  0, _font, "abcdef", 60, 18),
              SC([3], 0, 6, 0, 20, _font, "ghijkl", 60, 18)]
 # Flat space: row 1 chars 0..6, an implicit break at 6, row 2 chars 7..13.
@@ -362,13 +362,13 @@ span_flat_offsets = Dict([1] => 0, [3] => 7)
 
 # A column from flat 1 (row 1 col x=10) to flat 11 (row 2 char 4, col x=40): the
 # rectangle [10 … 40] painted on both rows, regardless of the glyphs on each.
-rects = TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 1, 11, p)
+rects = TextModule._compute_column_geo(coord_map, span_flat_offsets, 1, 11, p)
 @test length(rects) == 2                          # one rect per spanned row
 @test all(r -> r[1] == 10 && r[3] == 30, rects)   # same [col10 … col40] box on every row
 @test [r[2] for r in rects] == [0, 20]            # top row then bottom row
 
 # Coinciding columns (zero width) or an unresolvable endpoint yield no box.
-@test TextToGraphicsModule._compute_column_geo(coord_map, span_flat_offsets, 2, 9, p) == []
+@test TextModule._compute_column_geo(coord_map, span_flat_offsets, 2, 9, p) == []
 
 # A `TextColumnReferenceStep` selection is structural — not a character cursor, so char
 # motion / flat edits decline (block editing is future work).
@@ -389,8 +389,8 @@ end # @testset "TextColumnReferenceStep column-box geometry"
 _font = font_ubuntu_monospace_regular_20
 measure = (t, f) -> (length(t) * 10, 18)
 p = TextToGraphics(measure = measure)
-SC = TextToGraphicsModule.SegmentCoordinate
-fs = TextToGraphicsModule.font_logical_size(_font)
+SC = TextModule.SegmentCoordinate
+fs = TextModule.font_logical_size(_font)
 #   row y=0 : "AB{"          flat 0..3   (node's first line, starts at x=0)
 #   break                    flat 3
 #   row y=20: "    " indent  flat 4..8   (blank — must NOT anchor the row)
@@ -405,7 +405,7 @@ coord_map = [SC([1], 0, 3,  0,  0, _font, "AB{",  30, 18),
              SC([5], 0, 1, 20, 40, _font, "}",    10, 18)]
 span_flat_offsets = Dict([1] => 0, [2] => 4, [3] => 8, [4] => 11, [5] => 13)
 
-rects = TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 0, 14, p)
+rects = TextModule._compute_span_rows(coord_map, span_flat_offsets, 0, 14, p)
 @test length(rects) == 3                              # one rect per visual row
 @test [r[2] for r in rects] == [0, 20, 40]            # top to bottom
 @test all(r -> r[4] == fs, rects)                     # each the row's font height
@@ -420,7 +420,7 @@ rects = TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 0,
 
 # A row whose only in-range content is whitespace yields no rect: select just the
 # interior indent (flat 4..8) — blank, so no highlight.
-@test TextToGraphicsModule._compute_span_rows(coord_map, span_flat_offsets, 4, 8, p) == []
+@test TextModule._compute_span_rows(coord_map, span_flat_offsets, 4, 8, p) == []
 
 end # @testset "TextSpanReferenceStep content-hugging per-row rects"
 

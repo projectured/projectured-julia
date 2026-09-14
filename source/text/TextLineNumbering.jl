@@ -1,30 +1,11 @@
-"""
-    TextLineNumberingModule
-
-Text → Text projection. Prepends a reactive line-number prefix to every
-line in the input TextBlock. Lines are delimited by TextNewline elements;
-each prefix is a plain TextString of the form "<n><separator>" where <n>
-is left-padded to a uniform width derived from the total line count (or an
-explicit width when width > 0).
-"""
-module TextLineNumberingModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, convert_flat_offset_to_element, convert_element_to_flat_offset
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..StyleModule: StyleColor, color_default
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: SimpleIoMap
-import ..PrinterContextModule: make_child_context
-import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation
-import ..EventModule: KeyDown
-export TextLineNumbering, LineNumbering
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextLineNumbering.jl.
+#
+# Text → Text projection. Prepends a reactive line-number prefix to every
+# line in the input TextBlock. Lines are delimited by TextNewline elements;
+# each prefix is a plain TextString of the form "<n><separator>" where <n>
+# is left-padded to a uniform width derived from the total line count (or an
+# explicit width when width > 0).
 # ── TextLineNumbering ──────────────────────────────────────────────────────
 
 @projection struct TextLineNumbering <: Projection
@@ -155,7 +136,7 @@ function _output_to_input_map(input_elems)
     result
 end
 
-function _parse_text_elem_path(path)
+function _line_number_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReference || return (nothing, nothing)
     h1 = path.head
@@ -182,5 +163,3 @@ end
 function LineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20)
     TextLineNumbering(width=width, separator=separator, font=font)
 end
-
-end # module

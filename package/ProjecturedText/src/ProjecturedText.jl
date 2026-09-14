@@ -45,18 +45,5 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ProjectionReferenceStepModule = ProjecturedKernel.ProjectionReferenceStepModule
 
 include("../../../source/text/TextSpanReferenceStep.jl")
-include("../../../source/text/TextColumnReferenceStep.jl")
-include("../../../source/text/TextRangeReferenceStep.jl")
-include("../../../source/text/TextDocument.jl")
-include("../../../source/text/TextToGraphics.jl")
-include("../../../source/text/TextToString.jl")
-include("../../../source/text/TextLineNumbering.jl")
-include("../../../source/text/WordWrapping.jl")
-include("../../../source/text/TextFiltering.jl")
-include("../../../source/text/TextFirstLine.jl")
-include("../../../source/text/TextHighlighting.jl")
-include("../../../source/text/SelectionInverting.jl")
-include("../../../source/text/PrimitiveToText.jl")
-include("../../../source/text/ReferenceToText.jl")
 
 end # module ProjecturedText

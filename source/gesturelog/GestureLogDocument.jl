@@ -41,7 +41,7 @@ using ..IntentModule
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
 using ..ProjectionAlgebraModule
 using ..GraphicsModule
-using ..TextToGraphicsModule
+using ..TextModule
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
        make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
 

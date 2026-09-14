@@ -34,6 +34,7 @@ const _QUALIFIED_FILES = Dict(
     "ProjecturedSerialization" => Set(["BinarySerialization.jl"]),
     "ProjecturedStyle"         => Set(["Color.jl"]),
     "ProjecturedSyntax"        => Set(["SyntaxDocument.jl"]),
+    "ProjecturedText"          => Set(["TextSpanReferenceStep.jl"]),
     "ProjecturedTooltip"       => Set(["TooltipDocument.jl"]),
     "ProjecturedWidget"        => Set(["WidgetDocument.jl"]),
     "ProjecturedVersioning"    => Set(["VersioningDocument.jl"]))

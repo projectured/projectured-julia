@@ -1,38 +1,21 @@
-"""
-    TextFilteringModule
-
-Text → Text projection. The `grep` of the projection stack: keeps only the
-lines of a `TextBlock` whose text matches a regex, dropping the rest. Lines are
-delimited by `TextNewline` elements; a line's match string is the concatenation
-of its `TextString` contents (`TextNewline` / `TextSpacing` / `TextGraphics`
-contribute nothing to the match).
-
-Surviving lines are emitted unchanged — same span objects, same styling, same
-character content — so the mapping is an identity on character offsets and only
-the element (span) index is remapped. This makes the projection invertible by a
-simple `kept` table (`TextFilteringIoMap.kept`): `kept[j]` is the input element
-index of the j-th output element.
-
-A `nothing` pattern is a pass-through (keep every line), so the projection can
-sit permanently in a pipeline with its filter idle until a pattern is set on the
-reactive `pattern` cell.
-"""
-module TextFilteringModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-export TextFiltering, TextFilteringIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextFiltering.jl.
+#
+# Text → Text projection. The `grep` of the projection stack: keeps only the
+# lines of a `TextBlock` whose text matches a regex, dropping the rest. Lines are
+# delimited by `TextNewline` elements; a line's match string is the concatenation
+# of its `TextString` contents (`TextNewline` / `TextSpacing` / `TextGraphics`
+# contribute nothing to the match).
+#
+# Surviving lines are emitted unchanged — same span objects, same styling, same
+# character content — so the mapping is an identity on character offsets and only
+# the element (span) index is remapped. This makes the projection invertible by a
+# simple `kept` table (`TextFilteringIoMap.kept`): `kept[j]` is the input element
+# index of the j-th output element.
+#
+# A `nothing` pattern is a pass-through (keep every line), so the projection can
+# sit permanently in a pipeline with its filter idle until a pattern is set on the
+# reactive `pattern` cell.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
@@ -146,17 +129,6 @@ end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
 
-# The flat caret offset of a `TextRangeReferenceStep` selection (or `nothing`), and the
-# flat caret path for an offset. `∅` / `TextSpanReferenceStep` shapes are handled
-# by `_is_structural_ref` before these are reached.
-function _text_range_caret(ref)
-    r = strip_reference_types(ref)
-    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
-    r.head.start::Int
-end
-_flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
-
 # A whole-element selection at this layer is either `∅` (the whole text) or a
 # `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
 # two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
@@ -235,52 +207,3 @@ end
 read_intent(::TextFiltering, ::TextFilteringIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
-
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
-
-function _parse_text_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int)
-end
-
-# Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
-# char_stop)` of the terminal `RangeReferenceStep` instead of only its start.
-function _parse_text_elem_range(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int, h4.stop::Int)
-end
-
-end # module

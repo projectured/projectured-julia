@@ -1,37 +1,19 @@
-"""
-    TextHighlightingModule
-
-Text → Text projection. The "highlight all" of a search box: keeps every line of
-a `TextBlock` and paints a background swatch behind the regex matches by setting
-`fill_color` on the matched sub-spans (rendered as a background `GraphicsRect` by
-`TextToGraphics`).
-
-It is the structural sibling of `WordWrapping` — both split a `TextString` into
-adjacent sub-spans and stay invertible through a piecewise offset table. Here the
-split happens at match boundaries and the matched runs are restyled, but no
-character is inserted or removed, so `HighlightSegment` is `WrapSegment` and the
-selection/reader mapping is identical. Matching is per span (the same
-span-delimited simplification as `TextFiltering`); a `nothing` pattern is a
-pass-through (no highlights), so the projection can sit idle in a pipeline until
-a pattern is set on the reactive `pattern` cell.
-"""
-module TextHighlightingModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..StyleModule: StyleColor, color_yellow
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-export TextHighlighting, TextHighlightingIoMap, HighlightSegment
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextHighlighting.jl.
+#
+# Text → Text projection. The "highlight all" of a search box: keeps every line of
+# a `TextBlock` and paints a background swatch behind the regex matches by setting
+# `fill_color` on the matched sub-spans (rendered as a background `GraphicsRect` by
+# `TextToGraphics`).
+#
+# It is the structural sibling of `WordWrapping` — both split a `TextString` into
+# adjacent sub-spans and stay invertible through a piecewise offset table. Here the
+# split happens at match boundaries and the matched runs are restyled, but no
+# character is inserted or removed, so `HighlightSegment` is `WrapSegment` and the
+# selection/reader mapping is identical. Matching is per span (the same
+# span-delimited simplification as `TextFiltering`); a `nothing` pattern is a
+# pass-through (no highlights), so the projection can sit idle in a pipeline until
+# a pattern is set on the reactive `pattern` cell.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
@@ -58,18 +40,6 @@ TextHighlighting(pattern::Regex; kw...) = TextHighlighting(Cell(pattern); kw...)
 TextHighlighting(pattern::AbstractString; kw...) = TextHighlighting(Cell(String(pattern)); kw...)
 TextHighlighting(; pattern=nothing, kw...) =
     TextHighlighting(pattern isa Cell ? pattern : Cell(pattern); kw...)
-
-# Normalise the (reactive) pattern cell value into the `Union{Regex,Nothing}` the
-# highlighter consumes. `nothing` / empty source ⇒ no highlights (pass-through); a
-# source `String` is compiled (with the `i` flag when `case_insensitive`); a `Regex`
-# is used verbatim — flags it carries win, so it ignores `case_insensitive`.
-function _effective_pattern(value, case_insensitive::Bool)
-    value === nothing && return nothing
-    value isa Regex && return value
-    s = String(value)
-    isempty(s) && return nothing
-    case_insensitive ? Regex(s, "i") : Regex(s)
-end
 
 # ── Mapping table ───────────────────────────────────────────────────────────
 
@@ -194,26 +164,6 @@ end
 # ── Selection / reference mapping ───────────────────────────────────────────
 # Identical to WordWrapping: the seg table is a piecewise-linear char-offset map.
 
-# The flat caret offset of a `TextRangeReferenceStep` selection (or `nothing`), and the
-# flat caret path for an offset. `∅` / `TextSpanReferenceStep` shapes are handled
-# by `_is_structural_ref` before these are reached.
-function _text_range_caret(ref)
-    r = strip_reference_types(ref)
-    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
-    r.head.start::Int
-end
-_flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
-
-# A whole-element selection at this layer is either `∅` (the whole text) or a
-# `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
-# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
-# flat character space, which highlighting leaves unchanged, so they map
-# identically in either direction.
-_is_structural_ref(ref) =
-    ref isa EmptyReference ||
-    (ref isa ConcreteReference && ref.head isa TextSpanReferenceStep)
-
 # Forward: rebuild an input flat caret against the split output by finding the
 # sub-span the cursor falls into. At the exact boundary between two sub-spans
 # of the same input span, prefer the start of the next sub-span.
@@ -293,51 +243,3 @@ end
 read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
-
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
-
-function _parse_text_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int)
-end
-
-# Like `_parse_text_elem_path` but returns the full terminal `(span, start, stop)`.
-function _parse_text_elem_range(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int, h4.stop::Int)
-end
-
-end # module

@@ -1,55 +1,29 @@
-"""
-    TextModule
-
-The text domain bridges the structural (syntax tree) and visual (graphics) domains.
-Text is stored as a flat sequence of spans, each with its own reactive style and color.
-The selection is a flat character offset, making keyboard navigation straightforward
-before the pixel-coordinate layout is applied.
-
-The domain includes:
-- **Span types**: `TextString` (text content), `TextNewline` (line break), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
-- **Container type**: `TextBlock` (sequence of spans)
-- **Base type**: `TextDocument` abstract type for all text documents
-- **Insertion kit** (`@domain Text`): `TextNothing` (the empty-text placeholder) and
-  `TextInsertion` (the typed-name buffer Insert opens on it)
-
-Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
-- Spans: `.content{k}` — cursor at boundary k within the span's content
-- TextBlock: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
-
-Each span has reactive styling fields:
-- `font` — font style (e.g., "bold", "italic", "monospace")
-- `font_color` — text color (name, hex, or rgb)
-- `fill_color` — background fill color
-- `line_color` — border/line color
-- `padding` — inset/padding value
-"""
-module TextModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..DocumentModule: Document
-import ..DocumentModule: @document
-import ..DomainModule
-import ..DomainModule: @domain, @insertion
-import ..SelectionModule: @with_selection, clear_selection!, set_selection!
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20
-import ..StyleModule: StyleColor, color_default, color_solarized_gray
-import ..StyleModule: StyleText
-import ..StyleModule: Inset
-import ..ReferenceModule: Reference, ConcreteReference, EmptyReference, RangeReferenceStep, FieldReferenceStep, strip_reference_types, evaluate_reference, get_reference_steps
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..TextColumnReferenceStepModule: TextColumnReferenceStep
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep, is_text_caret
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation, splice_string, splice_value!, evaluate_operation, reroot_operation, reroot_reference
-import ..PrimitiveModule: ReplaceStringRangeOperation, ReplaceRangeOperation
-import ..GestureBindingModule: var"@gestures"
-export set_cell_function!, get_flat_length, get_flat_offsets, get_flat_selection, make_hinted_text,
-       get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation,
-       convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, _lower_text_range
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextDocument.jl.
+#
+# The text domain bridges the structural (syntax tree) and visual (graphics) domains.
+# Text is stored as a flat sequence of spans, each with its own reactive style and color.
+# The selection is a flat character offset, making keyboard navigation straightforward
+# before the pixel-coordinate layout is applied.
+#
+# The domain includes:
+# - **Span types**: `TextString` (text content), `TextNewline` (line break), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
+# - **Container type**: `TextBlock` (sequence of spans)
+# - **Base type**: `TextDocument` abstract type for all text documents
+# - **Insertion kit** (`@domain Text`): `TextNothing` (the empty-text placeholder) and
+#   `TextInsertion` (the typed-name buffer Insert opens on it)
+#
+# Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
+# - Spans: `.content{k}` — cursor at boundary k within the span's content
+# - TextBlock: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
+#
+# Each span has reactive styling fields:
+# - `font` — font style (e.g., "bold", "italic", "monospace")
+# - `font_color` — text color (name, hex, or rgb)
+# - `fill_color` — background fill color
+# - `line_color` — border/line color
+# - `padding` — inset/padding value
 # the flat-offset seam a projection over text reads
-export SpanPath, get_flat_base, make_flat_caret_reference,
-       get_flat_cursor_coordinate, is_structural_selection
 
 # ── The Text domain kit ───────────────────────────────────────────────────
 #
@@ -1056,5 +1030,3 @@ function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
     (s != e && a[2] == b[2]) && return nothing
     ReplaceStringRangeOperation(_text_replace_path(a[1], a[2], b[2]), op.replacement)
 end
-
-end # module

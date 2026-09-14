@@ -1,46 +1,20 @@
-"""
-    ReferenceToTextModule
-
-Reference → TextBlock projections. Two projections render a `Reference`
-(the linked-list path defined in `ReferenceModule`) as a `TextBlock`
-document:
-
-- `ReferenceToText` — a single colored line, the same compact shape as
-  `Base.show` but rendered with color-coded tokens.
-- `ReferenceToHumanReadableText` — a multi-line narrative read in
-  reverse order (innermost step first), one phrase per line, with each
-  step described in English and tagged with the Julia type of the value
-  the step is applied to.
-
-Both projections produce a `TextBlock` whose `selection` is always
-`nothing`; v1 does not map sub-selections between Reference steps and
-TextBlock spans.
-"""
-module ReferenceToTextModule
-
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..ProjectionApiModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..ReferenceModule: Reference, EmptyReference, ConcreteReference,
-                          ReferenceStep, RangeReferenceStep, FieldReferenceStep,
-                          TypeReferenceStep,
-                          is_element_reference_step, is_position_reference_step,
-                          get_reference_head, get_reference_tail, evaluate_reference, extend_reference
-import ..GraphicsModule: PointReferenceStep
-import ..ProjectionReferenceStepModule: ProjectionReferenceStep
-import ..TextModule: TextDocument, TextBlock, TextString, TextNewline
-import ..StyleModule: StyleFont, font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20
-import ..StyleModule: StyleColor, color_default,
-                      color_solarized_gray, color_solarized_cyan,
-                      color_solarized_magenta, color_solarized_orange,
-                      color_solarized_green, color_solarized_yellow,
-                      color_solarized_red
-import ..IoMapModule: SimpleIoMap
-
-export ReferenceToText, ReferenceToHumanReadableText
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from ReferenceToText.jl.
+#
+# Reference → TextBlock projections. Two projections render a `Reference`
+# (the linked-list path defined in `ReferenceModule`) as a `TextBlock`
+# document:
+#
+# - `ReferenceToText` — a single colored line, the same compact shape as
+#   `Base.show` but rendered with color-coded tokens.
+# - `ReferenceToHumanReadableText` — a multi-line narrative read in
+#   reverse order (innermost step first), one phrase per line, with each
+#   step described in English and tagged with the Julia type of the value
+#   the step is applied to.
+#
+# Both projections produce a `TextBlock` whose `selection` is always
+# `nothing`; v1 does not map sub-selections between Reference steps and
+# TextBlock spans.
 # ── shared helpers ────────────────────────────────────────────────────────
 
 _tok(content::AbstractString, font::StyleFont, color::StyleColor) =
@@ -361,5 +335,3 @@ print_document(p::ReferenceToHumanReadableText, recursion, ref::EmptyReference, 
 
 print_document(p::ReferenceToHumanReadableText, recursion, ref::ConcreteReference, ctx) =
     SimpleIoMap(p, ref, _long_text(p, ref))
-
-end # module

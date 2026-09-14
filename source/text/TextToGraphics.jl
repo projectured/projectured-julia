@@ -1,48 +1,19 @@
-"""
-    TextToGraphicsModule
-
-Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
-left-to-right and breaks the line at a `TextLine` element, at an explicit
-`TextNewline` element, or at an embedded `\\n` character. Word wrapping itself
-lives in `WordWrapping`, inserted upstream of `TextToGraphics` in the pipeline.
-
-A coordinate table in the IoMap records the character range and pixel
-position of each emitted segment. The reader uses it for keyboard navigation
-(arrow keys, home/end) and to translate downstream mouse-click selections
-into character positions.
-
-Text measurement is provided via the mandatory `measure(text, font) -> (w, h)`
-function parameter. Backends inject a real measurer (e.g. `measure_sdl_text`)
-at construction time.
-"""
-module TextToGraphicsModule
-
-import ..CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
-import ..CollectionModule: CellVector, ComputedCellVector, ListNode, CollectionDocument
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument,
-                     SpanPath, get_flat_cursor_coordinate, get_flat_base, make_flat_caret_reference, is_structural_selection,
-                     ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..GraphicsModule: GraphicsText, GraphicsRect, GraphicsImage, GraphicsCanvas, layout_none, layout_vertical
-import ..StyleModule: ImageDocument
-import ..StyleModule: StyleFont, font_logical_size
-import ..StyleModule: StyleColor, color_black
-import ..ReferenceModule: Reference, ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, EmptyReference, FieldReferenceStep, get_reference_head, get_reference_tail
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..GraphicsModule: PointReferenceStep
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: ReplaceSelectionOperation, ToggleCollapseOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyDown, KeyPress
-import ..EventModule: MousePress
-import ..DocumentModule: SelectionDocument
-import ..EventPatternModule: var"@event_case"
-import ..IoMapModule: IoMap, var"@iomap"
-export TextToGraphics, TextToGraphicsIoMap
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextToGraphics.jl.
+#
+# Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
+# left-to-right and breaks the line at a `TextLine` element, at an explicit
+# `TextNewline` element, or at an embedded `\\n` character. Word wrapping itself
+# lives in `WordWrapping`, inserted upstream of `TextToGraphics` in the pipeline.
+#
+# A coordinate table in the IoMap records the character range and pixel
+# position of each emitted segment. The reader uses it for keyboard navigation
+# (arrow keys, home/end) and to translate downstream mouse-click selections
+# into character positions.
+#
+# Text measurement is provided via the mandatory `measure(text, font) -> (w, h)`
+# function parameter. Backends inject a real measurer (e.g. `measure_sdl_text`)
+# at construction time.
 """
     SegmentCoordinate(span_path, char_start, char_end, x, y, font, text, width, height)
 
@@ -1299,5 +1270,3 @@ height so a click anywhere on a tall image still lands on it.
 _seg_band_height(sc::SegmentCoordinate) =
     _is_image_seg(sc) ? max(font_logical_size(sc.font), sc.height) :
                         font_logical_size(sc.font)
-
-end # module

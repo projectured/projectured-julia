@@ -1,34 +1,30 @@
-"""
-    TextColumnReferenceStepModule
-
-The `TextColumnReferenceStep` step type — a reference step representing a
-flat character-range **column box** in the text domain (`start` / `stop` are
-0-based character offsets into the concatenated text of a `TextBlock`). It is
-the sibling of `TextRangeReferenceStep` (stream) and `TextSpanReferenceStep` (bounding
-box): same `(start, stop)` data, different render geometry and cursor behaviour.
-
-A column box is the "rectangular selection" of Sublime / VS Code column-select
-and Emacs `rectangle-mark`: the left edge is the *column* of `start`, the right
-edge the *column* of `stop`, painted on every row the span covers — a true
-rectangle regardless of the glyph content on each row.
-
-Reserved but **deferred**: the type and its render path (`_compute_column_geo`)
-exist so a future column-select gesture (e.g. Alt+drag) is additive, not
-structural. No producer emits it today. Registered as a `:structural` step type —
-it identifies a range but does not descend into a child, and (like the bounding
-box) char motion declines and exits to structural navigation rather than
-corrupting it.
-
-Lives with the text slice because the concept is text-domain vocabulary; the
-kernel reference layer never names it.
-"""
-module TextColumnReferenceStepModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextColumnReferenceStep.jl.
+#
+# The `TextColumnReferenceStep` step type — a reference step representing a
+# flat character-range **column box** in the text domain (`start` / `stop` are
+# 0-based character offsets into the concatenated text of a `TextBlock`). It is
+# the sibling of `TextRangeReferenceStep` (stream) and `TextSpanReferenceStep` (bounding
+# box): same `(start, stop)` data, different render geometry and cursor behaviour.
+#
+# A column box is the "rectangular selection" of Sublime / VS Code column-select
+# and Emacs `rectangle-mark`: the left edge is the *column* of `start`, the right
+# edge the *column* of `stop`, painted on every row the span covers — a true
+# rectangle regardless of the glyph content on each row.
+#
+# Reserved but **deferred**: the type and its render path (`_compute_column_geo`)
+# exist so a future column-select gesture (e.g. Alt+drag) is additive, not
+# structural. No producer emits it today. Registered as a `:structural` step type —
+# it identifies a range but does not descend into a child, and (like the bounding
+# box) char motion declines and exits to structural navigation rather than
+# corrupting it.
+#
+# Lives with the text slice because the concept is text-domain vocabulary; the
+# kernel reference layer never names it.
 using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextColumnReferenceStep
 
 """
     TextColumnReferenceStep(start, stop)
@@ -56,5 +52,3 @@ Base.:(==)(a::TextColumnReferenceStep, b::TextColumnReferenceStep) =
 function Base.show(io::IO, s::TextColumnReferenceStep)
     print(io, "▥(", s.start, ":", s.stop, ")")
 end
-
-end # module

@@ -1,38 +1,17 @@
-"""
-    WordWrappingModule
-
-Text → Text projection. Pixel-accurate word wrapping: splits a TextString into
-sub-spans at word boundaries and inserts `TextNewline` elements where a word
-would push the column past the wrap width. The wrap width is taken from
-`ctx.available_width` when present (so a resize re-wraps reactively), falling
-back to the projection's `max_width`.
-
-Character preservation: the projection is structural only — every character of
-the input survives in the output, exactly once and in order. A space that
-lands at a wrap boundary stays as the last character of the previous visual
-line. This makes the projection invertible by a clean piecewise-linear offset
-table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
-"""
-module WordWrappingModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextGraphics, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, ReplaceTextRangeOperation, _lower_text_range
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: IoMap, var"@iomap"
-import ..PrinterContextModule: PrinterContext
-import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, Reference, strip_reference_types, Position
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-import ..GestureBindingModule: read_gesture
-import ..EventModule: KeyDown, KeyPress
-export WordWrapping, WordWrappingIoMap, WrapSegment
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from WordWrapping.jl.
+#
+# Text → Text projection. Pixel-accurate word wrapping: splits a TextString into
+# sub-spans at word boundaries and inserts `TextNewline` elements where a word
+# would push the column past the wrap width. The wrap width is taken from
+# `ctx.available_width` when present (so a resize re-wraps reactively), falling
+# back to the projection's `max_width`.
+#
+# Character preservation: the projection is structural only — every character of
+# the input survives in the output, exactly once and in order. A space that
+# lands at a wrap boundary stays as the last character of the previous visual
+# line. This makes the projection invertible by a clean piecewise-linear offset
+# table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
@@ -84,7 +63,7 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = ComputedCellVector(() -> both[][1])
     segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
+    out_selection = ComputedCell(() -> _wrap_forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
@@ -231,28 +210,13 @@ function _make_newline(original::TextString)
 end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
-
-# Forward: rebuild an input cursor `elements[s].content{c}` against the
-# wrapped output by finding the sub-span the cursor falls into. At the exact
-# boundary between two consecutive sub-spans of the same input span (the
-# cursor sitting between a wrap), prefer the start of the next visual line —
-# matches the boundary-duplicate convention in TextToGraphics.
-# The flat caret offset of a `TextRangeReferenceStep` selection (or `nothing`), and the
-# flat caret path for an offset. `∅` / `TextSpanReferenceStep` shapes are handled
-# by `_is_structural_ref` before these are reached.
-function _text_range_caret(ref)
-    r = strip_reference_types(ref)
-    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
-    r.head.start::Int
-end
 _flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
 
 # input flat caret → output flat caret, over the seg table. Takes the blocks
 # explicitly so `print_document` can compute the output selection before the
 # `IoMap` exists (structural ∅ / `TextSpanReferenceStep` pass through: the flat
 # character space is wrap-invariant since soft `TextNewline`s are not counted).
-function _forward_map(segs, in_block, out_block, sel)
+function _wrap_forward_map(segs, in_block, out_block, sel)
     _is_structural_ref(sel) && return sel
     # Accept either caret representation: the flat `TextRangeReferenceStep{k}` or the
     # structural `.elements[i].content{k}` a lowered edit leaves on the input block.
@@ -282,7 +246,7 @@ function _forward_map(segs, in_block, out_block, sel)
 end
 
 map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
-    _forward_map(iomap.segs, iomap.input, iomap.output, reference)
+    _wrap_forward_map(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
     _is_structural_ref(reference) && return reference
@@ -368,20 +332,6 @@ read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 
-# A whole-element selection at this layer is either `∅` (the whole text) or a
-# `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
-# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
-# flat character space, which wrapping leaves unchanged, so they map identically
-# in either direction.
-function _is_structural_ref(ref)
-    ref = ref
-    ref isa EmptyReference ||
-        (ref isa ConcreteReference && ref.head isa TextSpanReferenceStep)
-end
-
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
-
 function _parse_text_elem_path(path)
     path = strip_reference_types(path)
     path isa ConcreteReference || return nothing
@@ -425,5 +375,3 @@ function _parse_text_elem_range(path)
     h4 isa RangeReferenceStep || return nothing
     (span_idx, h4.start::Int, h4.stop::Int)
 end
-
-end # module

@@ -1,24 +1,12 @@
-"""
-    TextToStringModule
-
-TextBlock → String projection. Flattens a sequence of styled text spans into
-a plain Julia String by concatenating each span's content. TextString spans
-contribute their content verbatim; TextNewline spans contribute a newline
-character; a TextLine contributes its indentation and its own spans, and the
-enclosing block emits the break it implies (a separator: `n` lines, `n-1`
-breaks). All other span types are ignored.
-"""
-module TextToStringModule
-
-import ..ProjectionApiModule: print_document, print_child, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..TextModule: TextBlock, TextDocument, TextString, TextNewline, TextLine
-import ..CellModule: Cell, ComputedCell
-import ..IoMapModule: SimpleIoMap
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, PositionReferenceStep, RangeReferenceStep, FieldReferenceStep, EmptyReference, extend_reference
-import ..PrinterContextModule: make_child_context
-export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextToString.jl.
+#
+# TextBlock → String projection. Flattens a sequence of styled text spans into
+# a plain Julia String by concatenating each span's content. TextString spans
+# contribute their content verbatim; TextNewline spans contribute a newline
+# character; a TextLine contributes its indentation and its own spans, and the
+# enclosing block emits the break it implies (a separator: `n` lines, `n-1`
+# breaks). All other span types are ignored.
 # ── TextStringToString ───────────────────────────────────────────────────────
 
 struct TextStringToString <: Projection end
@@ -140,5 +128,3 @@ function TextToString()
         TextBlock   => TextBlockToString(),
     )
 end
-
-end # module

@@ -44,8 +44,8 @@ using ..CollectionModule
 using ..OperationModule
 using ..EventModule
 using ..ProjectionAlgebraModule
-using ..WordWrappingModule
-using ..TextToGraphicsModule
+using ..TextModule
+using ..TextModule
 using ..GraphicsModule
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,

@@ -1,44 +1,25 @@
-"""
-    SelectionInvertingModule
-
-Text → Text projection. Bakes the input `TextBlock`'s own selection into the
-spans as **inverse video** — swapping `font_color` ↔ `fill_color` over the
-selected character range, and widening a zero-width caret to a one-character
-block. Because the selection becomes ordinary span color, any backend that
-renders the Text domain shows it; in particular the console backend, which
-renders `TextBlock` straight to the terminal and has no separate cursor/highlight
-layer the way `TextToGraphics` does.
-
-It is the structural twin of `TextHighlighting`: both split `TextString`s at
-boundaries and restyle the resulting sub-spans **without** inserting or removing
-any character, so the selection/reader mapping is a piecewise offset table
-(`SelectionSegment`, the same shape as `HighlightSegment`). The only differences are the
-*segmentation source* (the input's own selection range vs regex matches) and the
-*restyle* (swap colors vs set a fill swatch). A `nothing`/absent selection is a
-pass-through (identity).
-
-Do **not** insert this into the SDL/web graphics pipeline: those already draw a
-cursor/selection rect in `TextToGraphics` and would double up. It is for
-Text-domain backends (console), opt-in elsewhere.
-"""
-module SelectionInvertingModule
-
-import ..ProjectionApiModule: print_document, read_intent, map_reference_forward, map_reference_backward, Projection
-import ..ProjectionModule: var"@projection"
-import ..TextModule: TextBlock, TextDocument, TextString, get_flat_length, get_flat_selection, convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret
-import ..TextRangeReferenceStepModule: TextRangeReferenceStep
-import ..StyleModule: StyleColor, color_solarized_background_dark, color_solarized_content_lighter
-import ..CellModule: Cell, ComputedCell
-import ..CollectionModule: CellVector, ComputedCellVector
-import ..IoMapModule: IoMap, var"@iomap"
-import ..ReferenceModule: ConcreteReference, RangeReferenceStep, FieldReferenceStep, EmptyReference, strip_reference_types, Position
-import ..TextSpanReferenceStepModule: TextSpanReferenceStep
-import ..ReferenceModule: var"@reference"
-import ..OperationModule: Operation
-import ..OperationModule: ReplaceSelectionOperation
-import ..PrimitiveModule: ReplaceStringRangeOperation
-export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from SelectionInverting.jl.
+#
+# Text → Text projection. Bakes the input `TextBlock`'s own selection into the
+# spans as **inverse video** — swapping `font_color` ↔ `fill_color` over the
+# selected character range, and widening a zero-width caret to a one-character
+# block. Because the selection becomes ordinary span color, any backend that
+# renders the Text domain shows it; in particular the console backend, which
+# renders `TextBlock` straight to the terminal and has no separate cursor/highlight
+# layer the way `TextToGraphics` does.
+#
+# It is the structural twin of `TextHighlighting`: both split `TextString`s at
+# boundaries and restyle the resulting sub-spans **without** inserting or removing
+# any character, so the selection/reader mapping is a piecewise offset table
+# (`SelectionSegment`, the same shape as `HighlightSegment`). The only differences are the
+# *segmentation source* (the input's own selection range vs regex matches) and the
+# *restyle* (swap colors vs set a fill swatch). A `nothing`/absent selection is a
+# pass-through (identity).
+#
+# Do **not** insert this into the SDL/web graphics pipeline: those already draw a
+# cursor/selection rect in `TextToGraphics` and would double up. It is for
+# Text-domain backends (console), opt-in elsewhere.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
@@ -217,55 +198,6 @@ end
 # ── Selection / reference mapping ───────────────────────────────────────────
 # Identical to TextHighlighting: the seg table is a piecewise-linear offset map.
 
-# The flat caret offset of a `TextRangeReferenceStep` selection (or `nothing`), and the
-# flat caret path for an offset. `∅` / `TextSpanReferenceStep` shapes are handled
-# by `_is_structural_ref` before these are reached.
-function _text_range_caret(ref)
-    r = strip_reference_types(ref)
-    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
-        r.tail isa EmptyReference && r.head.start == r.head.stop || return nothing
-    r.head.start::Int
-end
-_flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
-
-# A whole-element selection at this layer is either `∅` (the whole text) or a
-# `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
-# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
-# flat character space, which inversion leaves unchanged, so they map
-# identically in either direction.
-_is_structural_ref(ref) =
-    ref isa EmptyReference ||
-    (ref isa ConcreteReference && ref.head isa TextSpanReferenceStep)
-
-# Forward: rebuild an input flat caret against the split output by finding the
-# sub-span the cursor falls into. At the exact boundary between two sub-spans
-# of the same input span, prefer the start of the next sub-span.
-# input flat caret → output flat caret, over the seg table. Takes the blocks
-# explicitly so `print_document` can compute the output selection before the
-# `IoMap` exists.
-function _forward_map(segs, in_block, out_block, sel)
-    _is_structural_ref(sel) && return sel
-    # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
-    # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
-    flat = get_flat_caret(in_block, sel)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(in_block, flat)
-    loc === nothing && return nothing
-    in_span, in_char = loc
-    best = nothing
-    for seg in segs
-        seg.in_span == in_span || continue
-        if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
-            best = seg
-            # Prefer the start of the next sub-span at the split boundary.
-            in_char == seg.in_char_start && seg.in_char_start != 0 && break
-        end
-    end
-    best === nothing && return nothing
-    f = convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
-    f === nothing ? nothing : _flat_caret(f)
-end
-
 map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
     _forward_map(iomap.segs, iomap.input, iomap.output, reference)
 
@@ -317,50 +249,3 @@ read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
 read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 
 # ── Path helpers ────────────────────────────────────────────────────────────
-
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
-
-function _parse_text_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int)
-end
-
-function _parse_text_elem_range(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int, h4.stop::Int)
-end
-
-end # module

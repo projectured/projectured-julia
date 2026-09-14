@@ -1,33 +1,29 @@
-"""
-    TextRangeReferenceStepModule
-
-The `TextRangeReferenceStep` step type — a reference step representing a flat
-character range / caret in the text domain (`start` / `stop` are 0-based
-character offsets into the concatenated text of a `TextBlock`). This is the
-canonical, structure-independent representation of the text cursor and linear
-text selection: `start == stop` is the caret, `start < stop` a selection. It
-addresses a position purely by its flat offset, so the *same* visual caret has a
-single representation regardless of how the block splits its text into
-spans/lines — the boundary-duplicate ambiguity a span-anchored path suffers from
-does not arise.
-
-Sibling to `TextSpanReferenceStep`: both carry a flat `(start, stop)` pair,
-but they route to opposite behaviours — a rectangular reference is a whole-element
-box highlight (structural mode, declines character motion), a range reference is
-the character cursor itself. They are therefore distinct types.
-
-Lives with the text slice because the concept is text-domain vocabulary; the
-kernel reference layer never names it. Evaluates to a `Position` for a caret (so a
-caret path terminates `::Position`, as the old span-anchored form did) and to the
-offset pair `(start, stop)` for a non-empty range.
-"""
-module TextRangeReferenceStepModule
-
+# ──────────────────────────────────────────────────────────────────────────
+# Folded in from TextRangeReferenceStep.jl.
+#
+# The `TextRangeReferenceStep` step type — a reference step representing a flat
+# character range / caret in the text domain (`start` / `stop` are 0-based
+# character offsets into the concatenated text of a `TextBlock`). This is the
+# canonical, structure-independent representation of the text cursor and linear
+# text selection: `start == stop` is the caret, `start < stop` a selection. It
+# addresses a position purely by its flat offset, so the *same* visual caret has a
+# single representation regardless of how the block splits its text into
+# spans/lines — the boundary-duplicate ambiguity a span-anchored path suffers from
+# does not arise.
+#
+# Sibling to `TextSpanReferenceStep`: both carry a flat `(start, stop)` pair,
+# but they route to opposite behaviours — a rectangular reference is a whole-element
+# box highlight (structural mode, declines character motion), a range reference is
+# the character cursor itself. They are therefore distinct types.
+#
+# Lives with the text slice because the concept is text-domain vocabulary; the
+# kernel reference layer never names it. Evaluates to a `Position` for a caret (so a
+# caret path terminates `::Position`, as the old span-anchored form did) and to the
+# offset pair `(start, stop)` for a non-empty range.
 using ..CellModule
 using ..CellStructModule
 using ..ReferenceModule
 
-export TextRangeReferenceStep, is_text_caret
 
 """
     TextRangeReferenceStep(start, stop)
@@ -61,5 +57,3 @@ function Base.show(io::IO, s::TextRangeReferenceStep)
     s.start == s.stop ? print(io, "⌶{", s.start, "}") :
                         print(io, "⌶{", s.start, ":", s.stop, "}")
 end
-
-end # module

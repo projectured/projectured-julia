@@ -34,7 +34,7 @@ using ProjecturedKernel.ProjectionApiModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-using ProjecturedText.TextToStringModule: TextToString
+using ProjecturedText.TextModule: TextToString
 using ProjecturedSyntax.SyntaxModule: SyntaxLeaf
 using ProjecturedDomain.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque

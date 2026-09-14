@@ -39,8 +39,8 @@ const EventModule = ProjecturedKernel.EventModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
-const WordWrappingModule = ProjecturedText.WordWrappingModule
-const TextToGraphicsModule = ProjecturedText.TextToGraphicsModule
+const TextModule = ProjecturedText.TextModule
+const TextModule = ProjecturedText.TextModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 

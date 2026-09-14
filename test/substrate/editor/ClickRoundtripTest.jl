@@ -18,7 +18,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.ReferenceModule: get_reference_head, get_reference_tail
-using ProjecturedText.TextToGraphicsModule: TextToGraphicsIoMap, SegmentCoordinate
+using ProjecturedText.TextModule: TextToGraphicsIoMap, SegmentCoordinate
 
 # ── IoMap traversal helpers ────────────────────────────────────────────────
 

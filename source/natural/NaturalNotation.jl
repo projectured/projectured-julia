@@ -64,8 +64,8 @@ using ..StyleModule
 using ..WidgetModule
 using ..LayoutModule
 using ..CollectionModule
-using ..TextToGraphicsModule
-using ..WordWrappingModule
+using ..TextModule
+using ..TextModule
 using ..TextModule
 using ..DomainModule
 using ..IoMapModule
