@@ -71,6 +71,23 @@ first, and read `--show-other` before you trust a rename whose `other` count is
 not zero. The parser skips a string and a docstring by design, so a second pass
 must update the prose that names the function.
 
+## Comments and documentation
+
+**Source describes the code as it stands. It never records what the code was.**
+No "folded in from", no "used to", no "previously", no "renamed from", no note
+of which refactor put a thing where it is. A comment, a docstring and a fragment
+header all answer one question: what is this, and what does it promise.
+
+History goes in the plan under `plan/done/`, which already holds the reason and
+the alternatives, and in the commit message. A reader of the source wants the
+present and must not have to step over the past to reach it.
+
+When you find a history comment, delete it. If it carries a constraint the code
+cannot show, keep that one sentence in the present tense and drop the rest. The
+full rule, the forms that break it, and a grep that finds them are in
+[documentation/rule/code-quality-rules.md](documentation/rule/code-quality-rules.md)
+under "A comment says what is, never what was".
+
 ## Conventions
 
 - All indexing is 1-based (Julia convention).
