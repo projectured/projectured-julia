@@ -305,19 +305,30 @@ and 2 errors, and `RstEmbedTest.jl` the same five, at the same line numbers, on
 a clean checkout. Measure a domain's baseline before reading its failures as
 yours.
 
-### Batch 4 — large slices
+### Batch 4 — large slices (done)
 
-- [ ] `process` — `ProcessDocument.jl`, code 83
-- [ ] `clipboard` — `Clipboard.jl`, code 83
-- [ ] `fsm` — `FsmDocument.jl`, code 94
-- [ ] `natural` — `NaturalNotation.jl`, code 103
-- [ ] `odbc` — `OdbcAdapter.jl`, code 136
-- [ ] `console` — `Console.jl`, code 143. One file today.
-- [ ] `math` — `MathDocument.jl`, code 183
-- [ ] `julia` — `JuliaDocument.jl`, code 190
-- [ ] `sql` — `SqlDocument.jl`, code 192
-- [ ] `formula` — `FormulaDocument.jl`, code 193
-- [ ] `rst` — `RstDocument.jl`, code 217
+- [x] `process` — `ProcessDocument.jl`, code 83
+- [x] `clipboard` — `Clipboard.jl`, code 83
+- [x] `fsm` — `FsmDocument.jl`, code 94
+- [x] `natural` — `NaturalNotation.jl`, code 103
+- [x] `odbc` — `OdbcAdapter.jl`, code 136
+- [x] `console` — `Console.jl`, code 143. One file today.
+- [x] `math` — `MathDocument.jl`, code 183
+- [x] `julia` — `JuliaDocument.jl`, code 190
+- [x] `sql` — `SqlDocument.jl`, code 192
+- [x] `formula` — `FormulaDocument.jl`, code 193
+- [x] `rst` — `RstDocument.jl`, code 217
+
+
+**What batch 4 measured.** `test_substrate()` 60167 / 4 / 2 / 1 / 60174 and
+`test_rst()` 79 / 3 / 2 / 84, both identical to the baseline. `test_fsm()`
+154 / 154, `test_sql()` 354 / 354, `test_julia()` 59 / 59, `test_math()` 79 / 79.
+The stack loads with no warning, the naming guard is clean,
+`test_export_collisions()` passes, and every touched file parses.
+
+`ConsoleBackendModule` now lives in `ConsoleBackendModule.jl`, so it no longer
+needs its entry in `_PENDING_SLICE_MODULES`. `PdfBackendModule` is the last one
+in that set, and batch 5 settles it.
 
 ### Batch 5 — the giants
 

@@ -33,6 +33,6 @@ for _src in (ProjecturedCollection, ProjecturedJulia, ProjecturedKernel, Project
     end
 end
 
-include("../../../source/formula/FormulaDocument.jl")
+include("../../../source/formula/FormulaModule.jl")
 
 end # module ProjecturedFormula

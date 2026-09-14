@@ -41,6 +41,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/fsm/FsmDocument.jl")
+include("../../../source/fsm/FsmModule.jl")
 
 end # module ProjecturedFsm

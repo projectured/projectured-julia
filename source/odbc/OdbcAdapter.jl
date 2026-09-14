@@ -1,26 +1,5 @@
-module OdbcModule
-
-export OdbcDatabaseAdapter
-export OdbcConnectionPool, with_connection, get_dsn, close_pool!
-export SqlToCellTable
-export DatabaseInstanceToDbCatalog
-
-
-import ODBC
-import DBInterface
-import Tables
-
-import ProjecturedDatabase.DatabaseModule: DatabaseAdapter, RawDatabaseResult,
-                         connect_db!, close_db!, is_db_alive, get_db_rowid_column,
-                         query_db, execute_db_raw,
-                         insert_into_db!, update_db!, delete_from_db!,
-                         get_db_catalog_databases, get_db_catalog_schemas,
-                         get_db_catalog_tables, get_db_catalog_columns,
-                         get_db_catalog_foreign_keys,
-                         make_database_adapter
-
-
-# ── Private helpers ───────────────────────────────────────────────────────────
+# Fragment of `OdbcModule` — the ODBC database adapter: the statements it
+# builds, and the connection it runs them against.
 
 function _build_select(table::String, columns, where_clause, limit)
     col_part = columns === nothing ? "*" :
@@ -250,10 +229,3 @@ function get_db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::Strin
     [(from_table=String(row[1]), from_column=String(row[2]),
       to_table=String(row[3]), to_column=String(row[4])) for row in rows]
 end
-
-
-include("ConnectionPool.jl")
-include("SqlToCellTable.jl")
-include("DatabaseInstanceToDbCatalog.jl")
-
-end # module OdbcModule

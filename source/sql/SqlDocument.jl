@@ -1,52 +1,6 @@
-"""
-    SqlModule
-
-The SQL statement document model (ANSI/PostgreSQL conventions). The AST is
-database-agnostic; `SqlToSyntax` renders it and `SqlToCellTable` executes it
-against a `DatabaseInstance`.
-"""
-module SqlModule
-
-export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
-       SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
-export parse_sql_text, parse_sql_file
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..SyntaxModule
-using ..TextModule
-using ..StyleModule
-using ..ProjectionAlgebraModule
-using ..IoMapModule
-using ..ReferenceModule
-using ..OperationModule
-export SqlInsertionToSyntaxLeaf,
-       SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
-       SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
-       SqlTableExpressionToSyntaxLeaf, SqlSubqueryFromItemToSyntaxNode, SqlJoinTypeToSyntaxLeaf,
-       SqlSelectItemToSyntaxNode, SqlSelectClauseToSyntaxNode,
-       SqlFromItemToSyntaxNode, SqlFromClauseToSyntaxNode,
-       SqlJoinedFromItemToSyntaxNode, SqlJoinOnConditionToSyntaxNode,
-       SqlWhereFilterConditionToSyntaxNode, SqlWhereClauseToSyntaxNode,
-       SqlScalarValueToSyntaxLeaf, SqlComparisonToSyntaxNode,
-       SqlBooleanBinaryToSyntaxNode, SqlNotToSyntaxNode,
-       SqlSelectStatementToSyntaxNode,
-       SqlInsertStatementToSyntaxNode, SqlUpdateAssignmentToSyntaxNode,
-       SqlUpdateStatementToSyntaxNode,
-       SqlColumnDefinitionToSyntaxNode, SqlCreateTableStatementToSyntaxNode,
-       SqlCreateSchemaStatementToSyntaxNode, SqlStatementListToSyntaxNode, SqlToSyntax
-import ..FileFormatModule: make_document_seed
-using ..NaturalModule
-export SqlSelectStatement, SqlSelectClause, SqlFromClause, SqlWhereClause, SqlNothing, SqlDocument
-
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
-using ..DomainModule
-
-
-# ── Abstract types ─────────────────────────────────────────────────────────────
+# Fragment of `SqlModule` — the SQL document types: the abstract `SqlDocument`
+# and `SqlStatement`, the insertion that holds source being typed, and the
+# clauses a statement is built from.
 
 abstract type SqlDocument <: Document end
 abstract type SqlStatement <: SqlDocument end
@@ -370,9 +324,3 @@ SqlCreateTableStatement(table_name::SqlTableName, columns::CellVector) =
     SqlCreateTableStatement(table_name, columns, Cell(nothing))
 SqlCreateSchemaStatement(schema_name::AbstractString) =
     SqlCreateSchemaStatement(String(schema_name), Cell(nothing))
-
-
-include("SqlParser.jl")
-include("SqlToSyntax.jl")
-
-end # module

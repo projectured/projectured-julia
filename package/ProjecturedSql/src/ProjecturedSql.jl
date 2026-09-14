@@ -35,6 +35,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/sql/SqlDocument.jl")
+include("../../../source/sql/SqlModule.jl")
 
 end # module ProjecturedSql

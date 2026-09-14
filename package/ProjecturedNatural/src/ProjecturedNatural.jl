@@ -44,7 +44,7 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule
 
-include("../../../source/natural/NaturalNotation.jl")
+include("../../../source/natural/NaturalModule.jl")
 
 # The two rungs this package can supply itself, because it names the text
 # package. `syntax → text` belongs to whoever can supply it, and is registered

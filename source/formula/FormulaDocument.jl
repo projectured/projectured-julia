@@ -1,34 +1,6 @@
-"""
-    FormulaModule
-
-The Formula domain — named, cross-referencing, evaluated formulas whose code
-is a Julia expression (the spreadsheet idea generalised). Each formula's
-`result` is a reactive `Cell` evaluating the Julia body against a named
-environment; other formulas cite each other by identity.
-"""
-module FormulaModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..TextModule
-using ..JuliaModule
-export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
-       get_formula_references, get_formula_dependencies, would_create_cycle, compute_topological_order,
-       convert_formula_to_expr, evaluate_formula
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..StyleModule
-using ..SyntaxModule
-using ..ProjectionAlgebraModule
-using ..IoMapModule
-export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
-       FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
-export FormulaInsertion, FormulaReference
-
-
-
+# Fragment of `FormulaModule` — the formula document types: the abstract
+# `FormulaDocument` and the type-in entry point that parses typed text into
+# one.
 
 abstract type FormulaDocument <: Document end
 
@@ -392,8 +364,3 @@ function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
     set_cell_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
     formula
 end
-
-
-include("FormulaToSyntax.jl")
-
-end # module

@@ -28,7 +28,7 @@ using ProjecturedDatabase
 using ProjecturedDbCatalog
 using ProjecturedSql
 
-include("../../../source/odbc/OdbcAdapter.jl")
+include("../../../source/odbc/OdbcModule.jl")
 
 # Re-export and export public symbols at the package top level so consumers can
 # `using ProjecturedOdbc` and name these types directly.

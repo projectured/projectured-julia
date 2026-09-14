@@ -1,58 +1,7 @@
-"""
-    ClipboardModule
+# Fragment of `ClipboardModule` — the operating system clipboard: the shell
+# commands that read and write it, and the helpers that pick one for the
+# platform in hand.
 
-The clipboard domain: a slice that holds one sub-document, a collection that
-holds many, the two projections that show them, and access to the host
-operating system's clipboard.
-
-This file holds the OS access, because both projections mirror through it. It
-also holds `WriteOsClipboardOperation` and the helpers the two readers share.
-[ClipboardSliceToAny.jl](ClipboardSliceToAny.jl) and
-[ClipboardCollectionToAny.jl](ClipboardCollectionToAny.jl) hold one projection
-each.
-
-The OS access sits behind a stubbable indirection. A projection uses it to
-mirror a copy or a cut out to the OS clipboard, and to fall back to the OS
-clipboard when nothing is on the ProjecturEd one.
-
-The default backend shells out to the first available command-line tool
-(`xclip` / `xsel` on X11, `wl-paste`/`wl-copy` on Wayland, `pbpaste`/`pbcopy` on
-macOS). All reads/writes are wrapped so a missing tool or a failed invocation
-degrades gracefully — `read_os_clipboard` returns `nothing` and `write_os_clipboard!`
-returns `false` rather than throwing. Headless CI has none of these tools (so the OS
-path is inert there); tests install an in-memory fake via
-[`set_os_clipboard_backend!`](@ref).
-"""
-module ClipboardModule
-
-export read_os_clipboard, write_os_clipboard!, set_os_clipboard_backend!, reset_os_clipboard_backend!
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export ClipboardDocument
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IntentModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..PrimitiveModule
-using ..DomainModule
-using ..SelectionModule
-using ..TextModule
-using ..IoMapModule
-using ..GestureBindingModule
-using ..EventPatternModule
-import ..ProjectionModule: get_projection_gesture_bindings
-export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
-       ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
-       ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,
-       WriteOsClipboardOperation
-export ClipboardSlice, ClipboardCollection
-
-
-
-# First program name of a command, e.g. `xclip` for `xclip -selection clipboard -o`.
 _prog(cmd::Cmd) = first(cmd.exec)
 
 # Read a command's stdout as a String, or `nothing` if it errors.
@@ -216,9 +165,3 @@ function _prepend(steps::Tuple, path::Reference)
     end
     result
 end
-
-include("ClipboardDocument.jl")
-include("ClipboardSliceToAny.jl")
-include("ClipboardCollectionToAny.jl")
-
-end # module

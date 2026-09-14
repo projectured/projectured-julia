@@ -39,6 +39,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/julia/JuliaDocument.jl")
+include("../../../source/julia/JuliaModule.jl")
 
 end # module ProjecturedJulia
