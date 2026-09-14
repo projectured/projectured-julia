@@ -308,7 +308,9 @@ the include in the layer file. Do not split.
 - [ ] `ChildrenContainer.jl` → `ChildrenContainerModule.jl`, code 2
 - [ ] `AgentServer.jl` → `AgentServerModule.jl`, code 7
 - [ ] `GestureBindings.jl` → `ProjectionGestureBindingsModule.jl`, code 8
-- [ ] `ProjectionApi.jl` → `ProjectionApiModule.jl`, code 8
+- [ ] ~~`ProjectionApi.jl` → `ProjectionApiModule.jl`~~ — superseded. The
+  contract becomes a fragment of `ProjectionModule`. See
+  [projection-contract-is-a-fragment.md](projection-contract-is-a-fragment.md).
 
 ### Batch 8 — the kernel, split
 
@@ -322,7 +324,9 @@ includes the old one.
 - [ ] `editor/Playback.jl`, code 54
 - [ ] `projection/PrinterContext.jl`, code 54
 - [ ] `binding/GestureBinding.jl`, code 68
-- [ ] `projection/Projection.jl`, code 69
+- [ ] `projection/Projection.jl`, code 69 — done by
+  [projection-contract-is-a-fragment.md](projection-contract-is-a-fragment.md),
+  which gives the layer its `ProjectionModule.jl` head.
 - [ ] `gesture/GestureRecognizer.jl`, code 107
 - [ ] `editor/Editor.jl`, code 131
 - [ ] `event/EventPattern.jl`, code 213
