@@ -26,11 +26,9 @@ const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const DomainModule = ProjecturedDomain.DomainModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const TextModule = ProjecturedText.TextModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
-const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
 include("../../../source/clipboard/Clipboard.jl")
 

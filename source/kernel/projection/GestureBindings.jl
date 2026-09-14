@@ -1,22 +1,7 @@
-"""
-    ProjectionGestureBindingsModule
-
-The two projection-typed gesture-seam methods —
-`get_projection_gesture_bindings` and `read_projection_gesture`. They dispatch on
-`::Projection`, so they live here beside that type: the binding layer owns the
-reified `GestureBinding` container and the document-typed methods, and cannot
-name `Projection` without an upward edge. A projection contributes its own
-gestures by adding methods here — the seam pattern, with the framework below and
-the per-projection methods above.
-"""
-module ProjectionGestureBindingsModule
-
-using ..ProjectionModule
-using ..DocumentModule
-using ..EventPatternModule
-using ..GestureBindingModule
-
-export get_projection_gesture_bindings, read_projection_gesture
+# Fragment of `ProjectionModule` — the open generics for the gesture-binding
+# tables of a projection. The concrete generic and higher-order projections
+# that consume `read_projection_gesture` are domain-independent framework that
+# sinks to a higher package; the kernel keeps only the binding machinery.
 
 """
     get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
@@ -50,5 +35,3 @@ function read_projection_gesture(projection, iomap, event)
                 getfield(input, :selection)[] : nothing
     return fire_gesture_bindings(bindings, input, selection, event)
 end
-
-end # module

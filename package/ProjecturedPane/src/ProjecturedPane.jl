@@ -36,7 +36,6 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 
 include("../../../source/pane/PaneDocument.jl")
 

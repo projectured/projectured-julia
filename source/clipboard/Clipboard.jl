@@ -40,12 +40,10 @@ using ..PrimitiveModule
 using ..DomainModule
 using ..SelectionModule
 using ..TextModule
-using ..PrinterContextModule
 using ..IoMapModule
 using ..GestureBindingModule
 using ..EventPatternModule
-using ..ProjectionGestureBindingsModule
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
+import ..ProjectionModule: get_projection_gesture_bindings
 export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ClipboardSliceToAnyIoMap, ClipboardCollectionToAnyIoMap,
        ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,

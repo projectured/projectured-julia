@@ -24,7 +24,6 @@ using ..GestureBindingModule
 export IdentityProjection
 using ..CollectionModule
 using ..ReferenceModule
-using ..PrinterContextModule
 export ReversingProjection
 export ConstantProjection
 using ..CellModule
@@ -41,8 +40,7 @@ using ..ProjectionModule
 using ..OperationModule
 import ..OperationModule: evaluate_operation
 using ..EventPatternModule
-using ..ProjectionGestureBindingsModule
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
+import ..ProjectionModule: get_projection_gesture_bindings
 export FocusingProjection, ReplaceFocusPartOperation
 export SortingProjection, SortingIoMap
 export FilteringProjection, FilteringIoMap

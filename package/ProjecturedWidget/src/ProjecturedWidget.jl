@@ -47,7 +47,6 @@ const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const TextModule = ProjecturedText.TextModule

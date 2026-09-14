@@ -21,14 +21,12 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const CellModule = ProjecturedKernel.CellModule
 const EventModule = ProjecturedKernel.EventModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
-const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
 include("../../../source/projection/generic/Identity.jl")

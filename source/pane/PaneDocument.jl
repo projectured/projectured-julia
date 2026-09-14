@@ -66,7 +66,6 @@ using ..IntentModule
 using ..WidgetModule
 using ..IoMapModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,

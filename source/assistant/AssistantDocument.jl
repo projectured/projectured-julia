@@ -34,7 +34,6 @@ using ..OperationModule
 import ..OperationModule: evaluate_operation
 using ..EventModule
 using ..GestureBindingModule
-using ..PrinterContextModule
 using ..ProjectionAlgebraModule
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 using ..NaturalModule

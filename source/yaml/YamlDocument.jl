@@ -16,7 +16,6 @@ using ..StyleModule
 using ..ProjectionAlgebraModule
 using ..PrimitiveModule
 using ..IoMapModule
-using ..PrinterContextModule
 using ..EventModule
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,

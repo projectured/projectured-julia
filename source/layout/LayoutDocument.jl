@@ -32,7 +32,6 @@ using ..EventPatternModule
 using ..OperationModule
 using ..FocusModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,

@@ -70,7 +70,6 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 using ..IntentModule
 using ..GraphicsModule
 using ..IoMapModule
-using ..PrinterContextModule
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 using ..StyleModule
 using ..OperationModule

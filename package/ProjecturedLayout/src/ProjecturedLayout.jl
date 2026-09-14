@@ -28,7 +28,6 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const OperationModule = ProjecturedKernel.OperationModule
 const FocusModule = ProjecturedFocus.FocusModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
 include("../../../source/layout/LayoutDocument.jl")

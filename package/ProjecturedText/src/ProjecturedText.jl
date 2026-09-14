@@ -39,7 +39,6 @@ const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
 include("../../../source/text/TextSpanReferenceStep.jl")

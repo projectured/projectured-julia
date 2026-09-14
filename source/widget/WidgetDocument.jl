@@ -47,7 +47,6 @@ using ..EventModule
 using ..ScreenModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
        WidgetTooltipToGraphicsCanvas, WidgetContextMenuToGraphicsCanvas,

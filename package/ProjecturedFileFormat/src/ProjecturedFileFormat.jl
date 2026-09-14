@@ -37,7 +37,6 @@ const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule

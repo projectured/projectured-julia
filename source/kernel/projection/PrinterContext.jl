@@ -1,29 +1,7 @@
-"""
-    PrinterContextModule
+# Fragment of `ProjectionModule` — `PrinterContext`, the context a printer
+# carries down the tree: the available size it may use, the clock it animates
+# against, and the properties a parent passes to its children.
 
-The downward-flowing per-invocation context threaded through
-`print_document`. Replaces the bare `Reference` 4th argument with a
-lightweight, extensible struct that carries the reference path **plus**
-optional fields projections can use to pass information through the tree.
-
-The struct exposes a few named fields for universal concerns (reference
-path, available width/height, animation clock) and an open-ended properties
-`Dict` for per-projection data (theme, breadcrumbs, ancestor flags, …).
-
-Builder helpers (`make_child_context`, `with_available_size`, `with_clock`,
-`with_property`) let projections extend the context without knowing its full
-field set.
-"""
-module PrinterContextModule
-
-using ..CellModule
-using ..DocumentModule
-using ..ReferenceModule
-using ..ClockModule
-
-export PrinterContext, make_child_context, with_available_size, withhold_offer,
-       with_clock,
-       with_property, get_property
 
 """
     PrinterContext(reference, available_width, available_height, properties, clock)
@@ -196,5 +174,3 @@ Look up `key` in `ctx.properties`, returning `default` when missing.
 """
 get_property(ctx::PrinterContext, key::Symbol, default=nothing) =
     get(ctx.properties, key, default)
-
-end # module

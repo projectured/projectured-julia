@@ -21,7 +21,6 @@ using ..ProjectionAlgebraModule
 using ..IoMapModule
 using ..OperationModule
 using ..PrimitiveModule
-using ..PrinterContextModule
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        is_filesystem_marker_eligible
 using ..NaturalModule

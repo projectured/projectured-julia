@@ -44,7 +44,6 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        build_syntax_child_path, peel_child_step
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..SelectionModule
-using ..PrinterContextModule
 using ..IntentModule
 using ..ProjectionAlgebraModule
 using ..TextModule
@@ -64,8 +63,7 @@ export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyn
 export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
        PrimitiveToSyntax
 using ..DomainModule
-using ..ProjectionGestureBindingsModule
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
+import ..ProjectionModule: get_projection_gesture_bindings
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, parse_completion,

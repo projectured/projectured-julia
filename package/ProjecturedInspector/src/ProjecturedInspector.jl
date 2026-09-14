@@ -22,7 +22,6 @@ const TextModule = ProjecturedText.TextModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const EventModule = ProjecturedKernel.EventModule

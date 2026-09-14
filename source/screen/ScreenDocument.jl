@@ -35,7 +35,6 @@ using ..IoMapModule
 using ..EventModule
 export WindowManagingProjection, WindowManagingIoMap
 using ..GraphicsModule
-using ..PrinterContextModule
 using ..PrimitiveModule
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 using ..BackendModule

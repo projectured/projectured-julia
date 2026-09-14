@@ -15,7 +15,6 @@ using ..ProjectionModule
 using ..TextModule
 using ..TextModule
 using ..StyleModule
-using ..PrinterContextModule
 using ..IoMapModule
 export ReferenceInspectorToText
 using ..IntentModule

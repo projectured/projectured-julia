@@ -28,7 +28,6 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 using ..FileSystemModule
 using ..IoMapModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 using ..AssistantModule
 using ..WidgetModule

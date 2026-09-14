@@ -22,12 +22,10 @@ import ..OperationModule: evaluate_operation
 using ..PrimitiveModule
 using ..DomainModule
 using ..SelectionModule
-using ..PrinterContextModule
 using ..IoMapModule
 using ..GestureBindingModule
 using ..EventPatternModule
-using ..ProjectionGestureBindingsModule
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
+import ..ProjectionModule: get_projection_gesture_bindings
 export VersioningToAnyProjection, VersioningToAnyIoMap,
        SetVersionCriterionOperation
 export VersionedObject, ObjectVersion

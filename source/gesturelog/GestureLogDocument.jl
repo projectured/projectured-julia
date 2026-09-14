@@ -34,7 +34,6 @@ using ..IoMapModule
 using ..TextModule
 using ..StyleModule
 using ..SyntaxModule
-using ..PrinterContextModule
 export GestureLogToSyntax
 using ..IntentModule
 export GestureLogRecordingProjection, GestureLogRecordingIoMap

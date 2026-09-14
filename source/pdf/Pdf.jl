@@ -31,7 +31,6 @@ using ..StyleModule
 using ..ProjectionModule
 import ..ProjectionModule: print_document
 using ..IoMapModule
-using ..PrinterContextModule
 using ..ReferenceModule
 using ..CellModule
 

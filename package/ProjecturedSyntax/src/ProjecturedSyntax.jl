@@ -34,7 +34,6 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const SelectionModule = ProjecturedKernel.SelectionModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const IntentModule = ProjecturedKernel.IntentModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const TextModule = ProjecturedText.TextModule
@@ -50,7 +49,6 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const DomainModule = ProjecturedDomain.DomainModule
 const DomainModule = ProjecturedDomain.DomainModule
-const ProjectionGestureBindingsModule = ProjecturedKernel.ProjectionGestureBindingsModule
 
 include("../../../source/syntax/SyntaxDocument.jl")
 

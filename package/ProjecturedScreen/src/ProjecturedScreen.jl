@@ -28,7 +28,6 @@ const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
-const PrinterContextModule = ProjecturedKernel.PrinterContextModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule

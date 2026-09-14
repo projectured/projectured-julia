@@ -59,7 +59,7 @@ using ProjecturedSubstrateExample
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.PrinterContextModule: PrinterContext
+using ProjecturedKernel.ProjectionModule: PrinterContext
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedCollection.CollectionModule

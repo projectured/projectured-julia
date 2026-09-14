@@ -61,7 +61,7 @@ import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projecti
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
-import ProjecturedKernel.PrinterContextModule: PrinterContext
+import ProjecturedKernel.ProjectionModule: PrinterContext
 import ProjecturedKernel.CellModule: Cell, ComputedCell, is_cell_up_to_date
 import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.IoMapModule: SimpleIoMap

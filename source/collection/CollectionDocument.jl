@@ -27,7 +27,7 @@ using ..DocumentModule
 import ..DocumentModule: copy_document, is_element_collection, is_collection_field_type, get_cell_layout_field_type
 using ..ReferenceModule
 import ..OperationModule: child_reference_steps
-import ..ChildrenContainerModule: make_children_container, get_children_container_type
+import ..ProjectionModule: make_children_container, get_children_container_type
 export CollectionDocument, CellVector, ComputedCellVector, CellMatrix, CellTable, ListNode,
        get_left_tail, get_right_tail, get_cell_at, take_first, insert_row!,
        insert_column!, delete_row!, delete_column!

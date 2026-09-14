@@ -31,7 +31,6 @@ using ..StyleModule
 using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..PrinterContextModule
 using ..OperationModule
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,

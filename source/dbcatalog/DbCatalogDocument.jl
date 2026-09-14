@@ -17,7 +17,6 @@ using ..SqlModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 using ..IoMapModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
        DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
 using ..ProjectionModule

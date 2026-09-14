@@ -288,16 +288,56 @@ word in a string are left alone.
 | `test_export_collisions()` | 1 / 1, checker 5 / 5 |
 | `ProjectionModule` exports | 28 → **19** |
 
-## Stage 4 — open: the remaining three
+## Stage 4 — the remaining three (done)
 
 `PrinterContextModule`, `ChildrenContainerModule` and
-`ProjectionGestureBindingsModule` would make the layer one module, which is what
-eleven of the seventeen kernel layers already are.
+`ProjectionGestureBindingsModule` folded in. The layer is one module, which is
+what eleven of the seventeen kernel layers already are.
 
-The measurement says it is nearly free: `PrinterContext` and `GestureBindings`
-are **never** used without the contract, and `ChildrenContainer` is used alone by
-one file. But this plan does not decide it. Decide it after stage 3, when the
-merged module's real size is on the table.
+The measurement said it would be nearly free, and it was: `PrinterContext` and
+`GestureBindings` are never used without the contract, and `ChildrenContainer`
+is used alone by one file. Nothing inside the module needs the gesture bindings,
+so the include order was free; `ClockModule` was the only new dependency, and it
+came with `PrinterContext`.
+
+- [x] The three become fragments. `ProjectionLayer.jl` is one include.
+- [x] 32 bare usings deleted, 6 imports renamed, 19 package-root aliases
+  renamed, 3 absolute paths renamed.
+
+**The final size.** `ProjectionModule` exports **30** names over 8 fragments and
+holds 281. `DocumentModule` exports 34 and holds 228; `ReferenceModule` exports
+72 and holds 464. The one module of the projection layer exports fewer names
+than the document layer's.
+
+**What stage 4 measured.**
+
+| check | result |
+| --- | --- |
+| `test_kernel()` | 1638 / 3 / 3 / 1644 — identical |
+| `test_substrate()` | 60167 / 4 / 2 / 1 / 60174 — identical |
+| `test_rst()` | 79 / 3 / 2 / 84 — identical |
+| `test_json()` | 170 / 170 |
+| the naming guard | clean |
+| `using Projectured` | loads, no warning |
+| `test_export_collisions()` | 1 / 1, checker 5 / 5 |
+
+## The result
+
+Seven modules became one.
+
+```
+source/kernel/projection/
+  ProjectionLayer.jl          one include
+  ProjectionModule.jl         30 exports, 281 names
+    ChildrenContainer.jl
+    PrinterContext.jl
+    ProjectionReferenceStep.jl
+    ProjectionInterface.jl
+    ProjectionDefaults.jl
+    ProjectionMacro.jl
+    GestureBindings.jl
+    ProjectionTemplate.jl
+```
 
 ## The risk
 

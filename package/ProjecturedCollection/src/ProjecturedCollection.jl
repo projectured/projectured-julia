@@ -21,7 +21,7 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
-const ChildrenContainerModule = ProjecturedKernel.ChildrenContainerModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 
 # The four collection shapes. CollectionModule includes its four fragments.
 include("../../../source/collection/CollectionDocument.jl")

@@ -39,7 +39,6 @@ using ..TextModule
 using ..StyleModule
 using ..BackendModule
 using ..IoMapModule
-using ..PrinterContextModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..SyntaxModule

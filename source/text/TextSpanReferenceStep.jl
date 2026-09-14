@@ -49,7 +49,6 @@ using ..EventPatternModule
 using ..IoMapModule
 export TextToGraphics, TextToGraphicsIoMap
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
 using ..ProjectionModule
 export TextLineNumbering, LineNumbering

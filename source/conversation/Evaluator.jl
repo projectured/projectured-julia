@@ -36,7 +36,6 @@ import ..OperationModule: evaluate_operation
 using ..PrimitiveModule
 using ..EventModule
 using ..ProjectionAlgebraModule
-using ..PrinterContextModule
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
@@ -45,7 +44,7 @@ using ..DomainModule
 using ..ToolModule
 using ..GestureBindingModule
 using ..EventPatternModule
-import ..ProjectionGestureBindingsModule: get_projection_gesture_bindings
+import ..ProjectionModule: get_projection_gesture_bindings
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!,
        make_submit_operation, make_evaluate_operation,

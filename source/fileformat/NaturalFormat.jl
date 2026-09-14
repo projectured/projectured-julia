@@ -32,7 +32,6 @@ using ..CollectionModule
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 using ..ProjectionModule
 using ..IoMapModule
-using ..PrinterContextModule
 using ..ReferenceModule
 using ..SyntaxModule
 using ..TextModule

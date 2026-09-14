@@ -19,7 +19,6 @@ using ..ProjectionAlgebraModule
 using ..IoMapModule
 using ..ReferenceModule
 using ..OperationModule
-using ..PrinterContextModule
 export SqlInsertionToSyntaxLeaf,
        SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,

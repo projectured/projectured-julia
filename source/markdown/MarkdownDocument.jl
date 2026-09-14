@@ -22,7 +22,6 @@ using ..GraphicsModule
 using ..SyntaxModule
 using ..ProjectionAlgebraModule
 using ..IoMapModule
-using ..PrinterContextModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..SerializationModule
