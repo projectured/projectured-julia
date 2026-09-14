@@ -252,8 +252,8 @@ build_executable(; kwargs...) = build_executable(BuildSpec(; kwargs...))
 
 # ── Named specs ──────────────────────────────────────────────────────────────
 #
-# The two configurations that used to be hard-coded in `Build.jl` and
-# `regenerate.sh`. They are FUNCTIONS of the backend type, not constants: a
+# The two configurations a build names. They are FUNCTIONS of the backend type,
+# not constants: a
 # constant would have to name `SdlBackend`, which would make this package depend
 # on ProjecturedSdl and undo the reflection design that keeps it backend-agnostic.
 

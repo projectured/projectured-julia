@@ -80,8 +80,8 @@ read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = 
 # its buttons. A card that takes the keyboard — a conversation, a form — needs
 # the caret to arrive, and the caret arrives as a selection naming a child of
 # this layout. Re-rooted here into the page's own elements, exactly as
-# `map_reference_backward` does for any other reference; without this the click
-# died where the Run button used to, and every key went to the prose above.
+# `map_reference_backward` does for any other reference; without this a click on
+# the card lands on nothing and every key goes to the prose above.
 function read_intent(p::MarkdownRootToVerticalLayout, iomap, op::ReplaceSelectionOperation)
     inner = map_reference_backward(p, iomap, op.path)
     inner === nothing ? nothing : ReplaceSelectionOperation(inner)

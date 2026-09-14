@@ -738,9 +738,8 @@ end
 # Whitespace decorations track the content's font, because TextToGraphics measures
 # every span and takes the line's max — a decoration carrying a stale default font
 # would pin the line height when the content font shrinks. A node's own delimiter
-# is the source; a node with none falls back to the default font, which is exactly
-# what it used to get (the delimiter was then a `TextString("")`, and a bare
-# `TextString` carries the default font).
+# is the source; a node with none falls back to the default font, which is what a
+# bare `TextString` carries.
 #
 # Deliberately does NOT consult the children: reading a child's spans here would
 # force its output cells during the parent's splice, making the printer eager
@@ -1267,8 +1266,8 @@ _delimiter_len(t::TextString) = _span_len(t)
 # ── Shared flat metric of a syntax subtree ────────────────────────────────────
 # `_syntax_to_flat` / `_subtree_len` / `_span_len` are the canonical flat-character
 # metric of a syntax subtree, measured with a default `SyntaxCompoundToText()` at
-# depth 0. SyntaxToText's *own* mapping no longer uses them (it delegates through
-# `child_iomaps`); they survive because six `*ToSyntax` projections rely on them
+# depth 0. SyntaxToText's *own* mapping does not use them — it delegates through
+# `child_iomaps` — and they are here because six `*ToSyntax` projections rely on
 # for the flat-offset `ReplaceSelectionOperation` reader pattern — MathToSyntax,
 # BookToSyntax, SqlToSyntax, CollectionToSyntax, XmlToSyntax, DbCatalogToSyntax —
 # collapsing an unmapped caret on their output syntax subtree to a bounded flat

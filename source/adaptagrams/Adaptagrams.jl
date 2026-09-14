@@ -21,9 +21,8 @@ isavailable() =
     isfile(libadaptagrams_shim) &&
     Libdl.dlopen(libadaptagrams_shim; throw_error = false) !== nothing
 
-# Said once per session, not once per layout. An unbuilt shim used to error on
-# every layout, which stopped whatever was drawing rather than drawing it, and a
-# fresh checkout has no shim. Warning once and drawing with a pure-Julia engine
+# Said once per session, not once per layout. A fresh checkout has no shim, and an
+# error on every layout would stop whatever is drawing rather than draw it. Warning once and drawing with a pure-Julia engine
 # is the useful answer, and the layout records which engine really ran, so
 # nothing is silent about it.
 const _WARNED_UNAVAILABLE = Ref(false)

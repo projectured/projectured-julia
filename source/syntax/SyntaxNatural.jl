@@ -6,10 +6,10 @@
 #
 # # Why it is registered rather than named
 #
-# `ProjecturedNatural` used to hold this, and naming it made every renderer carry
-# the syntax domain — the reflection tail that can draw a document of any shape.
-# A campaign runner that draws a form, a table of runs and a chat never reaches it,
-# and paid for it in its dependency list all the same.
+# Naming this from `ProjecturedNatural` would make every renderer carry the syntax
+# domain — the reflection tail that can draw a document of any shape. A campaign
+# runner that draws a form, a table of runs and a chat never reaches it, and would
+# pay for it in its dependency list all the same.
 #
 # So the renderer declares a fallback seam and this module fills it. A session that
 # loads `ProjecturedSyntax` can draw anything; one that does not draws what it was

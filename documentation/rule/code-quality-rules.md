@@ -99,7 +99,7 @@ The word list in the shared policy catches only some of them. Measured in
 | Form | Example | Count |
 | --- | --- | ---: |
 | A banner that names the file's own past | `# Folded in from JsonParser.jl.` | 0, was 166 |
-| A past tense about the code | `# ProjecturedNatural used to hold this` | 25 |
+| A past tense about the code | `# ProjecturedNatural used to hold this` | 0, was 25 |
 | A statement of what is gone | `# … a sign that no longer …` | 13 |
 | A rename record | `# … renamed from …` | 6 |
 | The narrow word list | `previously`, `now we` | 3 |
@@ -109,9 +109,11 @@ at the top of `JsonParser.jl`, named the file it already was, and used none of
 the banned words. There were 166 of them, and they are gone: each now opens with
 the module that owns the fragment.
 
-The other four forms need a reader, not a grep. 47 lines still match, and some
-are legitimate: in `# Used to size an output to the content`, `used to` means
-*is used to*.
+The other four forms need a reader, not a grep. 27 lines still match, and 26 of
+them are legitimate: in `# Used to size an output to the content`, `used to`
+means *is used to*, and `# a rect whose row no longer exists` describes a run,
+not a refactor. The twenty-seventh is in a sealed file,
+`kernel/selection/SelectionDefaults.jl:76`, and waits for permission.
 
 A check, not a verdict:
 
@@ -195,9 +197,9 @@ reason is the signal the steward watches.
 **The 51 was an undercount.** The command behind it looks for eight words. It
 did not see `# Folded in from …`, which is a banner and not a sentence, and
 `source/` held 166 of those — so history in a comment stood at about 210 lines,
-not 51. The banners are gone. 47 lines still match the word list, and a reader
-has to judge each one. The size of the four largest files is the other weak
-point.
+not 51. The banners are gone, and so are the nineteen word-list
+lines that really were history. 27 still match, 26 of them legitimately. The
+size of the four largest files is the other weak point.
 
 ## 6. Where this repository differs from the other two
 

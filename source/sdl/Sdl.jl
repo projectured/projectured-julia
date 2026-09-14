@@ -863,11 +863,11 @@ _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
 
 # Viewports nest, and SDL's clip rectangle does not. `SDL_RenderSetClipRect`
 # REPLACES what is in force, and clearing it with `C_NULL` removes clipping
-# altogether rather than putting the enclosing one back. So a viewport inside a
-# viewport used to widen the clip to its own box on the way in, and remove it
-# entirely on the way out — everything drawn after an inner viewport, still
-# inside the outer one, was unclipped. A tab page holding a scroll pane drew its
-# later content over the tab strip and outside the page.
+# altogether rather than putting the enclosing one back. Left to SDL, a viewport
+# inside a viewport would widen the clip to its own box on the way in and remove
+# it entirely on the way out: everything drawn after an inner viewport, still
+# inside the outer one, would be unclipped, and a tab page holding a scroll pane
+# would draw its later content over the tab strip and outside the page.
 #
 # So a viewport intersects with the clip in force, and restores it afterwards.
 function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int)
@@ -2950,8 +2950,8 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
     if w.bg != res.bg
         res.bg = w.bg
     end
-    # style changes mid-life would require flag-bit toggles that SDL
-    # only partly supports; for now we just remember the latest value.
+    # A style change mid-life would need flag-bit toggles that SDL only partly
+    # supports, so this records the latest value without applying it.
     res.style = w.style
 end
 

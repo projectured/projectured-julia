@@ -862,7 +862,7 @@ end
 # a widget can be put into anything — a container written elsewhere, a
 # projection composed by hand, or nothing at all when it is the root — and a
 # contract nothing enforces is not one to build on. A 100x30 button with no
-# container above it used to answer a press 800 pixels to its right.
+# container above it would answer a press 800 pixels to its right.
 #
 # So each widget asks whether the position is inside what it drew. The printer
 # already produced that canvas and a canvas carries its own frame, so this is

@@ -360,11 +360,9 @@ end
 # There is nothing to render here: an `LlmRequest` carries `Tool`s, and the provider
 # adapter turns them into its own schema (`render_tool_schema`).
 #
-# `list_resources` and `read_resource` used to be "bridging tools" this module
-# hand-wrote provider schemas for, with a companion dispatcher that resolved them
-# by name, because the registry exposed resources through an API no tool call could
-# reach. They are ordinary registered tools now, so they arrive through `list_tools`
-# like everything else and dispatch through `call_tool` like everything else.
+# `list_resources` and `read_resource` are ordinary registered tools, so they
+# arrive through `list_tools` and dispatch through `call_tool` like every other
+# tool. Neither needs a provider schema written here or a dispatcher of its own.
 
 # ═══════════════════════════════════════════════════════════════════════
 # Conversation → LlmMessages

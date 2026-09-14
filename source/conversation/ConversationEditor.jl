@@ -493,10 +493,10 @@ end
 # and a kind chooser has its value in the second, after the "Insert a new "
 # prefix — so it is asked for rather than assumed.
 #
-# This is what makes a click land where it was aimed. The composer used to
-# answer `nothing` both ways and manage its cursor privately, which works only
-# where something else catches the keys: the assistant panel does, a page does
-# not, and a composer in a page could be clicked into and not typed in.
+# This is what makes a click land where it was aimed. Answering `nothing` both
+# ways and managing the cursor privately works only where something else catches
+# the keys: the assistant panel does, a page does not, and a composer in a page
+# would be clicked into and not typed in.
 
 # Which span of the rendered body carries the editable value.
 _caret_span(c::DocumentInsertion) = isempty(_value(c)) ? 1 : 2

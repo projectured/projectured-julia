@@ -184,11 +184,12 @@ end
 
 # ── print_document: part → the content, and a chrome only where it is earned ─
 #
-# A part used to be a card with a kind heading, whatever it held. Two things
-# were wrong with that. A frame does not say WHAT a part is — it only separates,
-# and the content already says what it is: prose looks like prose and code looks
-# like code. And a heading that names the kind repeats what the reader can see:
-# `¶ text` over the words `hi there` tells nobody anything.
+# A part draws as its content, and takes a chrome only where it earns one. A card
+# with a kind heading around whatever it holds is wrong twice. A frame does not
+# say WHAT a part is — it only separates, and the content already says what it is:
+# prose looks like prose and code looks like code. And a heading that names the
+# kind repeats what the reader can see: `¶ text` over the words `hi there` tells
+# nobody anything.
 #
 # So the default is no chrome at all. Three kinds keep one, because each has
 # something a frame does that whitespace cannot:
@@ -290,9 +291,9 @@ end
 # printed and delegates the rest to the child that printed them (School A: talk
 # to the child IoMap, never re-walk the tree by type).
 #
-# It used to answer `EmptyReference()` at every level, which said "somewhere in
-# me" and could not say where. Worse, an operation from below passed through
-# untranslated, so a click in a text part put a WIDGET path — `children[2].
+# Answering `EmptyReference()` at every level would say "somewhere in me" and
+# could not say where. Worse, an operation from below would pass through
+# untranslated, so a click in a text part would put a WIDGET path — `children[2].
 # content.children[1].content⌶{3}` — on a conversation document, where no such
 # field exists.
 

@@ -1,11 +1,9 @@
 # Fragment of `DocumentModule` — the value a `selection` cell holds.
 #
-# A selection used to be a bare reference, so the injected field was
-# `Union{Nothing, Reference}` and a node either had a selection or did not. That
-# leaves nowhere to say *which* selection is the one the editor acts on. A
-# document that keeps the selection it loses — a tab group, so that it still shows
-# the tab it showed — needs to keep the path **and** record that it is no longer
-# the live one.
+# A bare reference leaves nowhere to say *which* selection is the one the editor
+# acts on. A document that keeps the selection it loses — a tab group, so that it
+# still shows the tab it showed — needs to keep the path **and** record that it is
+# not the live one.
 #
 # So the cell holds a document of its own. `primary` is the reference, `live` says
 # whether it is the selection the editor acts on. Everything that asks a node

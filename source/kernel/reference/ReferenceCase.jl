@@ -509,7 +509,7 @@ end
 # The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
 # A bare pattern is `at(…)`; the five arm words say where the input sits relative
 # to it.
-# Arm words that were renamed, and what they are now. They raise where they are written
+# Arm words this DSL does not accept, and what to write instead. They raise where written
 # rather than being quietly accepted, so a block written against the old vocabulary is a
 # message and not a mystery. `prefix` is here too: it named `above` while reading as
 # though it meant `within`, which is why it went.
@@ -540,11 +540,10 @@ function _parse_arm_pattern(lhs)
         # is read here rather than expanded and then re-read.
         return (:at, parse_reference_pattern(lhs.args[end]))
     elseif lhs === :_
-        # `_` used to be the catch-all and now matches exactly one step, so a bare `_`
-        # arm would quietly change from "anything" to "any one-step path". It is an
-        # error rather than a silent reinterpretation. Only the un-worded arm is
-        # guarded: `at(_)` is caught by the arm-word branch above and says one step
-        # deliberately, which is how the new meaning is written meanwhile.
+        # `_` matches exactly one step. A bare `_` arm reads as "anything" to anyone
+        # who expects a catch-all, so it raises rather than take the narrower meaning
+        # silently. Only the un-worded arm is guarded: `at(_)` is caught by the
+        # arm-word branch above and says one step deliberately.
         error(REFERENCE_RETIRED_CATCH_ALL)
     elseif lhs === :∅
         # Empty-path pattern: matches a reference that terminates *at* the

@@ -359,8 +359,6 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             inner = _tab_forward(entries[i].iomap, rest)
             # The node at `[i]` is the tab's own content widget, whose type differs
             # from tab to tab, so the checkpoint is read off the document rather
-            # than written as a literal. It used to be `::WidgetScrollPane` for
-            # every tab, because every tab was wrapped in one.
             image = inner isa EmptyReference ?
                     EmptyReference(get_reference_node_type(entries[i].pane)) :
                     _typed_head(inner, entries[i].pane)
@@ -421,10 +419,10 @@ end
 # claims is the list below and nothing else — every other payload, a text edit or
 # a raw gesture included, reaches the generic reader by ordinary dispatch.
 
-# A tab click arrives as a ReplaceSelectionOperation now, which the generic
-# reader re-targets through `map_reference_backward` — its bare
-# `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`, the same path
-# `make_pane_focus_operation` used to build. No method of our own is needed.
+# A tab click arrives as a ReplaceSelectionOperation, which the generic reader
+# re-targets through `map_reference_backward`: its bare
+# `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`. No method of our
+# own is needed.
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::CloseTabOperation)
