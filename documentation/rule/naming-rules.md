@@ -72,7 +72,8 @@ thing, and is it the real thing or an example of one. It did not. Of 690 files,
 
 | tree | shape | example |
 | --- | --- | --- |
-| `source/` | `<Slice>Document.jl` — the slice's document types | `source/json/JsonDocument.jl` |
+| `source/` | `<Slice>Module.jl` — the module head: the docstring, the header, the includes | `source/json/JsonModule.jl` |
+| | `<Slice>Document.jl` — the slice's document types | `source/json/JsonDocument.jl` |
 | | `<A>To<B>.jl` — a projection | `source/json/JsonToSyntax.jl` |
 | | `<Thing>.jl` — anything that is neither | `source/sdl/Sdl.jl` |
 | `test/` | `<Thing>Test.jl` — `<Thing>` is the file it tests | `test/json/document/JsonDocumentTest.jl` |
