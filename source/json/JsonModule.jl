@@ -1,48 +1,62 @@
 """
     JsonModule
 
-The JSON document domain.
+The JSON slice. One namespace holds the whole round trip for `.json`: the
+document types, the parser that reads the text, the projection that renders and
+edits the tree, and the file wrapper that writes it back.
 
-The domain includes:
-- **Primitive types**: `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString`
-- **Compound types**: `JsonArray`, `JsonObject`, `JsonObjectEntry`
-- **Utility types**: `JsonNothing` for an empty document, `JsonInsertion` for cursor positioning
+Four fragments share the namespace:
+
+- [`JsonDocument.jl`](JsonDocument.jl) — `@domain Json` and the document types,
+  with the gestures that edit them.
+- [`JsonParser.jl`](JsonParser.jl) — a recursive-descent reader from JSON text
+  to a document tree.
+- [`JsonToSyntax.jl`](JsonToSyntax.jl) — the projection to `SyntaxModule`, one
+  rule per document type.
+- [`JsonFile.jl`](JsonFile.jl) — `JsonFile`, a `FileDocument` whose content is a
+  `JsonDocument`.
+
+The slice depends on the engine packages and on no other domain. `__init__`
+registers what the slice owns: the `.json` extension, and the natural notation
+that starts at the syntax rung.
 """
 module JsonModule
 
-export entries
-export parse_json, parse_json_file
 using ..CellModule
-using ..ProjectionApiModule
-using ..ProjectionModule
-using ..SerializationModule
-import ..SerializationModule: emit_text, populate_file!
-using ..SyntaxModule
-using ..TextModule
-using ..StyleModule
-using ..ProjectionAlgebraModule
-using ..ProjectionTemplateModule
-using ..PrimitiveModule
-export JsonInsertionToSyntaxLeaf, JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
-       JsonStringToSyntaxLeaf, JsonArrayToSyntaxNode, JsonObjectToSyntaxNode,
-       JsonObjectEntryToSyntaxNode,
-       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf,
-       JsonToSyntax
-import ..FileFormatModule: make_document_seed
-using ..NaturalModule
-export JsonFile
-export JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray, JsonObject, JsonNothing, JsonInsertion, JsonObjectEntry
-
-
-using ..DocumentModule
 using ..CollectionModule
-using ..ReferenceModule
-using ..ProjectionReferenceStepModule
-using ..OperationModule
-using ..SelectionModule
+using ..DocumentModule
+using ..DomainModule
 using ..EventPatternModule
 using ..GestureBindingModule
-using ..DomainModule
+using ..NaturalModule
+using ..OperationModule
+using ..PrimitiveModule
+using ..ProjectionAlgebraModule
+using ..ProjectionApiModule
+using ..ProjectionModule
+using ..ProjectionReferenceStepModule
+using ..ProjectionTemplateModule
+using ..ReferenceModule
+using ..SelectionModule
+using ..SerializationModule
+using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
+
+import ..FileFormatModule: make_document_seed
+import ..SerializationModule: emit_text, populate_file!
+
+export JsonDocument, JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
+       JsonObject, JsonObjectEntry, JsonNothing, JsonInsertion
+export entries
+export parse_json, parse_json_file
+export JsonToSyntax,
+       JsonNullToSyntaxLeaf, JsonBoolToSyntaxLeaf, JsonNumberToSyntaxLeaf,
+       JsonStringToSyntaxLeaf, JsonInsertionToSyntaxLeaf,
+       JsonArrayToSyntaxNode, JsonObjectToSyntaxNode, JsonObjectEntryToSyntaxNode,
+       ReferenceStubToJsonSyntaxLeaf, EmbeddedFileDocumentToJsonSyntaxLeaf
+export JsonFile
+
 
 include("JsonDocument.jl")
 include("JsonParser.jl")
