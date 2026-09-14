@@ -4,8 +4,10 @@
 
 A slice is one unit of architecture and it declares one module. The module head
 is the table of contents of that unit: the docstring, the header, the ordered
-includes, and the load-time registration. Today 66 of the 79 modules hide that
-head inside a file that also holds code.
+includes, and the load-time registration. Today 59 of the 73 modules hide that
+head inside a file that also holds code. Measured again on 2026-09-14, after
+the projection layer became one module: seven projection modules became one, and
+that one keeps its head in `ProjectionModule.jl`.
 
 A reader who opens the `style` slice must open `Color.jl` to find the module. A
 reader who opens the `json` slice had to read past 110 lines of document types
@@ -14,8 +16,8 @@ to reach the includes. Ten slices name the module file after one fragment:
 `NaturalFormat.jl`, `GestureMap.jl`, `PointReferenceStep.jl`,
 `ReferenceInspector.jl`, `BinarySerialization.jl` and `generic/Identity.jl`.
 
-Thirteen kernel layers already have the right shape. `CellModule.jl`,
-`AgentModule.jl` and eleven more hold a head and nothing else. They are the
+Fourteen kernel layers already have the right shape. `CellModule.jl`,
+`AgentModule.jl` and twelve more hold a head and nothing else. They are the
 model.
 
 ## The law
@@ -305,12 +307,12 @@ The `code` column is the number of code lines that stay in the old file.
 These four declare open generics and nothing else. `git mv` the file. Change
 the include in the layer file. Do not split.
 
-- [ ] `ChildrenContainer.jl` → `ChildrenContainerModule.jl`, code 2
 - [ ] `AgentServer.jl` → `AgentServerModule.jl`, code 7
-- [ ] `GestureBindings.jl` → `ProjectionGestureBindingsModule.jl`, code 8
-- [ ] ~~`ProjectionApi.jl` → `ProjectionApiModule.jl`~~ — superseded. The
-  contract becomes a fragment of `ProjectionModule`. See
-  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
+
+Three of this batch's four are done. `ChildrenContainer.jl`,
+`GestureBindings.jl` and `ProjectionApi.jl` are fragments of `ProjectionModule`
+now. See
+[projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
 
 ### Batch 8 — the kernel, split
 
@@ -320,19 +322,15 @@ includes the old one.
 - [ ] `clock/Clock.jl`, code 23
 - [ ] `operation/Intent.jl`, code 25
 - [ ] `cell/PerformanceCounter.jl`, code 27
-- [ ] ~~`projection/ProjectionReferenceStep.jl`~~ — superseded, same plan.
 - [ ] `editor/Playback.jl`, code 54
-- [ ] `projection/PrinterContext.jl`, code 54
 - [ ] `binding/GestureBinding.jl`, code 68
-- [ ] `projection/Projection.jl`, code 69 — done by
-  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md),
-  which gives the layer its `ProjectionModule.jl` head.
 - [ ] `gesture/GestureRecognizer.jl`, code 107
 - [ ] `editor/Editor.jl`, code 131
 - [ ] `event/EventPattern.jl`, code 213
-- [ ] ~~`projection/ProjectionTemplate.jl`~~ — superseded. It becomes a
-  fragment of `ProjectionModule`. See
-  [projection-layer-is-one-module.md](../done/projection-layer-is-one-module.md).
+
+Four more are done. `ProjectionReferenceStep.jl`, `PrinterContext.jl`,
+`Projection.jl` and `ProjectionTemplate.jl` are fragments of `ProjectionModule`
+now, and the layer has the head file it lacked.
 
 ## What ends the campaign
 
