@@ -1,62 +1,7 @@
-"""
-    SerializationModule
+# Fragment of `SerializationModule` — the binary round trip of a reactive cell.
+# The concrete type is the tag, so a typed cell keeps its value-type parameter,
+# and reading one back builds a fresh primitive cell.
 
-Exact, lossless binary persistence for documents — `save_document` /
-`load_document` — independent of any domain's text format.
-
-A document is written with Julia's `Serialization` stdlib. The only
-customization is that a [`Cell`](@ref) serializes as **just its value**: a cell's
-reactive wiring (`deps`/`dependents`) and its computing `thunk` are *runtime
-state*, not data. That single rule prunes the reactive graph at every cell
-boundary, so serializing a live document stays within the document's own data and
-never traverses `dependents` out into the projection output graph (computed cells
-and their closures). It also means documents, `CellVector`s, and the selection
-`Reference` (whose steps are themselves `Cell`-backed) are all handled
-uniformly — so the saved **selection is restored** on load.
-
-Targets *structural* documents. A document that holds a live external resource
-(a database adapter, an open socket) is not serializable this way; for a
-portable, human-readable format use the natural import/export
-(`FileFormatModule`). The binary format is tied to the in-memory struct
-layout, so it is a *same-version* persistence format, not an interchange format.
-"""
-module SerializationModule
-
-using ..CellModule
-using ..DocumentModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
-export FileDocument, is_file_document,
-       get_filename, get_file_content, emit_text, populate_file!,
-       save_project!, load_project, ReferenceStub, resolve!, is_resolved,
-       resolve_stubs!, LoaderContext,
-       register_file_document_type!, get_file_document_type,
-       register_marker_function!, get_marker_function, evaluate_marker,
-       register_marker_type_resolver!,
-       format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
-using ..ReferenceModule
-export TextFile
-
-
-using Serialization
-
-
-# ── Cell: serialize the value only ─────────────────────────────────────────
-#
-# Writing `getfield(c, :value)` (never `c[]`, which would trigger a reactive read
-# and register a spurious dependency) keeps serialization from following
-# `dependents` into the projection graph. Deserialization rebuilds a fresh value
-# cell: valid, no thunk, empty dep sets.
-#
-# We deliberately do *not* call `serialize_cycle`: that would register the cell in
-# the writer's backref table without a matching read-side registration here,
-# desyncing the shared-object counter and corrupting the stream. The cost is that
-# cell *sharing* (the shared selection chain, where `child.selection ===
-# parent.selection.tail`) is not preserved — the chain reloads as an equal value
-# tree and is re-shared by the next `set_selection!`/`replace_selection!`, a
-# perf nuance, not a correctness issue. Document trees are acyclic, so dropping
-# cycle tracking cannot loop.
 function Serialization.serialize(s::AbstractSerializer, c::ReactiveCell)
     # The concrete type (`ReactiveCell{T}`) is the tag, so typed cells round-trip
     # their value-type parameter. Deserialization rebuilds a fresh primitive cell.
@@ -152,9 +97,3 @@ function evaluate_operation(editor, op::LoadDocumentOperation)
     editor.document = load_document(op.path)
     editor.iomap = nothing
 end
-
-
-include("FileProject.jl")
-include("TextFile.jl")
-
-end # module

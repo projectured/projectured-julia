@@ -39,6 +39,6 @@ const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 
-include("../../../source/gesturelog/GestureLogDocument.jl")
+include("../../../source/gesturelog/GestureLogModule.jl")
 
 end # module ProjecturedGestureLog

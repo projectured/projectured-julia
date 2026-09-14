@@ -1,37 +1,8 @@
-"""
-    YamlModule
-
-The YAML document domain. YAML is a JSON superset; the value model mirrors it —
-scalars, block/flow sequences, ordered mappings.
-"""
-module YamlModule
-
-export parse_yaml, parse_yaml_file
-using ..CellModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..SyntaxModule
-using ..TextModule
-using ..StyleModule
-using ..ProjectionAlgebraModule
-using ..PrimitiveModule
-using ..IoMapModule
-using ..EventModule
-export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
-       YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
-       YamlToSyntax
-using ..NaturalModule
-export YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString, YamlNothing, YamlInsertion, YamlSequence, YamlMapping, YamlMappingEntry
-
-
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..OperationModule
-using ..SelectionModule
-using ..EventPatternModule
-using ..GestureBindingModule
-using ..DomainModule
+# Fragment of `YamlModule` — the YAML document types, the document each
+# insertion starts from, and the gestures that edit them.
+#
+# `@domain Yaml` declares the abstract `YamlDocument` type that every type below
+# subtypes, and generates `YamlNothing` and `YamlInsertion`.
 
 @domain Yaml
 
@@ -135,9 +106,3 @@ end
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, YamlMappingEntry)
     KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
 end
-
-
-include("YamlParser.jl")
-include("YamlToSyntax.jl")
-
-end # module

@@ -1,63 +1,6 @@
-"""
-    ConversationModule
-
-The evaluator document domain — a code form paired with the result of
-evaluating it. Modeled on the Common Lisp ProjecturEd `evaluator.lisp`:
-
-- `EvaluatorForm`     — one `form` (the code, e.g. a `JuliaDocument`) and its
-                        `result` (a result document; `TextBlock` of the output
-                        for now — richer result documents are future work).
-- `EvaluatorToplevel` — a sequence of `EvaluatorForm`s (a notebook / REPL
-                        toplevel).
-
-`is_error` and `tool_use_id` are protocol metadata for the Anthropic tool
-round-trip (an assistant `tool_use` paired with a `tool_result`); the
-conceptual core is the two fields `form` + `result`.
-"""
-module ConversationModule
-
-using ..CellModule
-import ..CellModule: set_cell_function!
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..TextModule
-export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label
-export ConversationDocument, make_conversation_thinking_part
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..NaturalModule
-using ..WidgetModule
-using ..LayoutModule
-using ..StyleModule
-using ..IoMapModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..PrimitiveModule
-using ..EventModule
-using ..ProjectionAlgebraModule
-export ConversationConversationToWidgetComposite,
-       ConversationTurnToWidgetComposite,
-       ConversationPartToWidget,
-       ConversationToWidget
-using ..DomainModule
-using ..ToolModule
-using ..GestureBindingModule
-using ..EventPatternModule
-import ..ProjectionModule: get_projection_gesture_bindings
-export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
-       finalize_draft!, make_conversation_draft, reset_draft!,
-       make_submit_operation, make_evaluate_operation,
-       ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
-       ComposerInsertPartOperation, ComposerCommitChooserOperation,
-       ComposerCommitSourceOperation, ComposerEvaluateOperation,
-       ComposerRevertOperation, ComposerSubmitOperation
-export ConversationConversation, EvaluatorForm, ConversationTurn, ConversationPart, ConversationDraft
-
-
-
-
-# ── Abstract base ────────────────────────────────────────────────────────────
+# Fragment of `ConversationModule` — the evaluator document types: the abstract
+# `EvaluatorDocument` and the form that carries a source, its result and the
+# tool call that produced it.
 
 abstract type EvaluatorDocument <: Document end
 
@@ -130,10 +73,3 @@ EvaluatorToplevel(elements::Vector) =
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
-
-
-include("ConversationDocument.jl")
-include("ConversationToWidget.jl")
-include("ConversationEditor.jl")
-
-end # module

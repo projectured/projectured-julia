@@ -1,39 +1,6 @@
-"""
-    VersioningModule
-
-Object-versioning as a domain-neutral overlay: any document subtree can carry
-multiple versions. `VersionedObject` holds the list; `ObjectVersion` pairs a
-value with `VersionProperties` (when/who/where). Elimination happens through
-`VersioningToAnyProjection`, which picks one version by criterion.
-"""
-module VersioningModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export VersioningDocument, VersionCriterion, VersionCriterionLatest, VersionCriterionIndex,
-       VersionCriterionByAuthor, VersionCriterionAsOf, VersionCriterionPredicate, select_version
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IntentModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..PrimitiveModule
-using ..DomainModule
-using ..SelectionModule
-using ..IoMapModule
-using ..GestureBindingModule
-using ..EventPatternModule
-import ..ProjectionModule: get_projection_gesture_bindings
-export VersioningToAnyProjection, VersioningToAnyIoMap,
-       SetVersionCriterionOperation
-export VersionedObject, ObjectVersion
-
-
-
-
-# ── Abstract base ─────────────────────────────────────────────────────────────
+# Fragment of `VersioningModule` — the versioning document types: the abstract
+# `VersioningDocument`, the properties a version carries, and the nodes a
+# history tree holds.
 
 abstract type VersioningDocument <: Document end
 
@@ -216,8 +183,3 @@ function _select_version(c::VersionCriterionPredicate, versions)
     end
     nothing
 end
-
-
-include("VersioningToAny.jl")
-
-end # module

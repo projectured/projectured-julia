@@ -37,6 +37,6 @@ const LayoutModule = ProjecturedLayout.LayoutModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 
-include("../../../source/pane/PaneDocument.jl")
+include("../../../source/pane/PaneModule.jl")
 
 end # module ProjecturedPane

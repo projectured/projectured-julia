@@ -1,61 +1,6 @@
-"""
-    ScreenModule
+# Fragment of `ScreenModule` — `ScreenDocument`, the root that holds the
+# windows, and the window document beneath it.
 
-The screen domain: the projection-output side of the multi-window pipeline.
-
-A `ScreenDocument` holds a list of `WindowDocument`s. Each `WindowDocument`
-carries window metadata (id, title, x/y, width/height, bg, style) and a
-`content::Document` of any type. The backend reconciles live native windows
-against a `ScreenDocument` — one native window per `WindowDocument.id`.
-
-`ScreenDocument` and `WindowDocument` are ordinary projectional documents:
-the existing `CopyingProjection` handles them via its `CellVector` and
-struct paths, so no new projection type is needed to project them — only
-the example's projection at the `content` leaf.
-
-The window *events* (`WindowClose`, `WindowResize`, `WindowDefocus`) are input
-vocabulary and live with the other events in the kernel; a reader here
-translates one into a document mutation — typically removing the matching
-`WindowDocument` from `windows`, or writing its new size.
-"""
-module ScreenModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
-       ResizeWindowOperation
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..IntentModule
-using ..IoMapModule
-using ..EventModule
-export WindowManagingProjection, WindowManagingIoMap
-using ..GraphicsModule
-using ..PrimitiveModule
-export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-using ..BackendModule
-using ..EditorModule
-export make_window_scene, make_window_scene_projection, run_window_editor
-export ScreenDocument, WindowDocument
-
-
-
-
-# ── ScreenDocument ────────────────────────────────────────────────────────
-
-"""
-    ScreenDocument(windows::Vector{WindowDocument})
-    ScreenDocument(window::WindowDocument)
-
-Top-level container modelling a set of open windows. `windows` is a
-`CellVector` of `WindowDocument`s. The list order is preserved across
-frames but carries no visual semantics — window identity is the
-`WindowDocument.id` `Symbol`.
-"""
 @document struct ScreenDocument
     windows::CellVector = CellVector()
 end
@@ -217,10 +162,3 @@ function evaluate_operation(editor, op::ResizeWindowOperation)
     op.target.width = op.width
     op.target.height = op.height
 end
-
-
-include("WindowManaging.jl")
-include("ScreenToScreen.jl")
-include("WindowScene.jl")
-
-end # module

@@ -1,49 +1,6 @@
-"""
-    MarkdownModule
-
-The Markdown document domain — blocks (headings, paragraphs, code blocks,
-quotes, lists) and inlines (text, code, emphasis, strong, link, image).
-"""
-module MarkdownModule
-
-using ..CellModule
-import ..CellModule: set_cell_function!, set_cell_value!
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export MarkdownDocument, set_cell_function!
-export parse_markdown, parse_markdown_file
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..TextModule
-using ..StyleModule
-using ..BackendModule
-using ..GraphicsModule
-using ..SyntaxModule
-using ..ProjectionAlgebraModule
-using ..IoMapModule
-using ..OperationModule
-using ..PrimitiveModule
-using ..SerializationModule
-import ..SerializationModule: emit_text, populate_file!, get_document_section
-export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
-       MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
-       MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
-       MarkdownListToSyntaxNode, MarkdownListItemToSyntaxNode, MarkdownRootToSyntaxNode,
-       MarkdownLinkToSyntaxNode, MarkdownImageToSyntaxNode, MarkdownCodeBlockToSyntaxNode,
-       MarkdownStyledTextToSyntaxLeaf, MarkdownStyledInline, MarkdownStrongToStyledNode,
-       MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
-       MarkdownImageToStyledNode, MarkdownListToStyledNode,
-       ReferenceStubToMarkdownSyntaxLeaf, EmbeddedFileDocumentToMarkdownSyntaxLeaf,
-       MarkdownToSyntax
-using ..NaturalModule
-export MarkdownFile, PRED_REF_LANGUAGE, get_markdown_section
-using ..LayoutModule
-using ..WidgetModule
-export MarkdownRootToVerticalLayout
-export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion
-
-
+# Fragment of `MarkdownModule` — the Markdown document types: the abstract
+# `MarkdownDocument`, its insertion cursor, and the block and inline nodes a
+# document tree holds.
 
 abstract type MarkdownDocument <: Document end
 
@@ -214,36 +171,3 @@ end
 # number reparsed from its text), `MarkdownCodeBlock.language`/`code`,
 # `MarkdownLink.url`, and `MarkdownImage.alt`/`url` — are all plain strings (or a
 # reparsed number), handled by the generic splice.
-
-
-include("MarkdownParser.jl")
-include("MarkdownToSyntax.jl")
-include("MarkdownFile.jl")
-include("MarkdownToLayout.jl")
-
-
-# What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
-function __init__()
-    register_natural_syntax!(:markdown, () -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
-
-    register_file_document_type!(".md",       MarkdownFile)
-    register_file_document_type!(".markdown", MarkdownFile)
-    # What this domain's natural notation is: the syntax rung, the format, and
-    # how to read it back. The `:graphics` rung — a page of blocks — is
-    # the call below it, because a domain may reach more than one rung and
-    # markdown reaches two.
-    register_natural_domain!(MarkdownDocument;
-                             rung      = :syntax,
-                             make      = () -> MarkdownToSyntax(),
-                             format    = :md,
-                             extension = ".md",
-                             parse     = parse_markdown)
-
-    register_natural_graphics!(:markdown_page, (; measure) -> Pair{Type,Any}[
-        MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
-                                           VerticalLayoutToGraphicsCanvas()),
-    ])
-end
-
-end # module

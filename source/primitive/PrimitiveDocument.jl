@@ -1,22 +1,6 @@
-"""
-    PrimitiveModule
-
-The primitive domain. Editable, domain-independent wrappers for boolean,
-number, and string scalar values with selection and identity. Each value
-is stored in a reactive Cell so changes are tracked.
-"""
-module PrimitiveModule
-
-using ..CellModule
-using ..DocumentModule
-using ..SelectionModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation, reroot_operation, operation_reference, retarget_operation
-using ..ReferenceModule
-export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
-export ObjectField, get_object_field_value, get_object_field_name
-
-# ── Abstract base ─────────────────────────────────────────────────────────────
+# Fragment of `PrimitiveModule` — the primitive document types: the abstract
+# `PrimitiveDocument`, its insertion placeholder, and the leaf documents that
+# carry a single value.
 
 abstract type PrimitiveDocument <: Document end
 
@@ -257,7 +241,3 @@ retarget_operation(op::ReplaceStringRangeOperation, reference::Reference) =
     ReplaceStringRangeOperation(reference, op.replacement)
 retarget_operation(op::ReplaceNumberRangeOperation, reference::Reference) =
     ReplaceNumberRangeOperation(reference, op.replacement)
-
-include("ObjectField.jl")
-
-end # module

@@ -27,6 +27,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 
-include("../../../source/reflection/BoundedSync.jl")
+include("../../../source/reflection/ReflectionModule.jl")
 
 end # module ProjecturedReflection

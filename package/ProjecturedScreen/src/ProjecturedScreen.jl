@@ -32,7 +32,7 @@ const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule
 
-include("../../../source/screen/ScreenDocument.jl")
+include("../../../source/screen/ScreenModule.jl")
 # One window on one document, for a program rather than for the gallery.
 
 end # module ProjecturedScreen

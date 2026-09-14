@@ -1,54 +1,6 @@
-"""
-    AssistantModule
-
-The assistant: a chat with a model that can act on the editor.
-
-The document alone lives here — the conversation it holds, the prompt a person
-types, the draft the composer edits, the model and the key it talks to, and the
-`Llm` that services a turn. What a turn DOES is `AssistantModule`'s, and what
-it looks like is `AssistantModule`'s.
-
-It was `ProjecturedWorkbench`'s, as a `WorkbenchDocument` beside the navigator and
-the console. It is a `Document` of its own now, because a program that wants an
-assistant beside its own panes should not carry an IDE to get one.
-"""
-module AssistantModule
-
-using ..CellModule
-import ..CellModule: set_cell_function!
-using ..DocumentModule
-using ..PrimitiveModule
-using ..LlmModule
-using ..ReferenceModule
-using ..ConversationModule
-export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM
-using ..ProjectionModule
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..WidgetModule
-using ..LayoutModule
-using ..TextModule
-using ..StyleModule
-using ..IoMapModule
-using ..CollectionModule
-using ..OperationModule
-import ..OperationModule: evaluate_operation
-using ..EventModule
-using ..GestureBindingModule
-using ..ProjectionAlgebraModule
-export AssistantToWidgetSplitPane, AssistantToWidgetCard
-using ..NaturalModule
-using ..ToolModule
-using ..EventPatternModule
-using ..AgentModule
-export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
-       EvaluateDraftTurnOperation,
-       ClearInputOperation, ResetConversationOperation,
-       build_messages, format_conversation, write_conversation,
-       parse_markdown_blocks
-
-
-# `@document` gives every document a `selection::Reference` slot.
-
+# Fragment of `AssistantModule` — the assistant document types and the prompts
+# they start from: the shared system prompt, and the conversation an assistant
+# keeps with its model.
 
 const ASSISTANT_TITLE = "Assistant"
 """
@@ -170,9 +122,3 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
 end
 
 set_cell_function!(a::Assistant, f::Function) = (set_cell_function!(getfield(a, :conversation), f); a)
-
-
-include("AssistantToWidget.jl")
-include("AssistantTurn.jl")
-
-end # module AssistantModule

@@ -1,44 +1,9 @@
-"""
-    XmlModule
-
-The XML document domain. Attributes are first-class documents, so the selection
-mechanism can descend into attribute values as well as element children and text.
-
-The domain includes:
-- **Node types**: `XmlText`, `XmlElement`, `XmlInsertion`
-- **Attribute type**: `XmlAttribute`
-- **Base type**: `XmlDocument`
-"""
-module XmlModule
-
-export parse_xml, parse_xml_file
-using ..CellModule
-import ..ProjectionModule: read_intent, map_reference_forward
-using ..ProjectionModule
-using ..SyntaxModule
-using ..TextModule
-using ..StyleModule
-using ..ProjectionAlgebraModule
-using ..SerializationModule
-import ..SerializationModule: emit_text, populate_file!
-export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
-       XmlElementToSyntaxNode,
-       ReferenceStubToXmlSyntaxLeaf, EmbeddedFileDocumentToXmlSyntaxLeaf,
-       XmlToSyntax
-import ..FileFormatModule: make_document_seed
-using ..NaturalModule
-export XmlFile, PRED_REF_ELEMENT_TAG
-export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
-
-
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..OperationModule
-using ..SelectionModule
-using ..EventPatternModule
-using ..GestureBindingModule
-using ..DomainModule
+# Fragment of `XmlModule` — the XML document types, the document each insertion
+# starts from, and the gestures that edit them.
+#
+# `@domain Xml` declares the abstract `XmlDocument` type that every type below
+# subtypes, and generates `XmlNothing` and `XmlInsertion`. An attribute is a
+# document of its own, so a selection can descend into its value.
 
 @domain Xml
 
@@ -154,24 +119,3 @@ _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?
     # name instead, through the command palette.
     nothing                 => "Move to attribute name"  => move_to_field(doc, :value, :name)
 end
-
-
-include("XmlParser.jl")
-include("XmlToSyntax.jl")
-include("XmlFile.jl")
-
-
-# What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
-function __init__()
-    register_natural_domain!(XmlDocument;
-                             rung      = :syntax,
-                             make      = () -> XmlToSyntax(),
-                             format    = :xml,
-                             extension = ".xml",
-                             parse     = parse_xml)
-
-    register_file_document_type!(".xml", XmlFile)
-end
-
-end # module

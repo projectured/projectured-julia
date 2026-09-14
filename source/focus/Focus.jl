@@ -1,35 +1,7 @@
-"""
-    FocusModule
+# Fragment of `FocusModule` — the walk that finds what a document can focus:
+# which nodes are focusable, and the child steps that reach them in document
+# order.
 
-Focus traversal — the generic walk that finds the first / last focusable leaf
-in a document subtree.
-
-Focus is selection. These pure helpers locate the *first* / *last* focusable
-leaf as a relative whole-element (∅) path, mirroring the generic field/element
-descent the selection machinery uses, so the produced path matches the
-projection readers' re-rooting (`elements[i]` / `children[i]`, with
-`RangeReferenceStep(i-1, i)` for the i-th element).
-
-The walk names no widget type. `is_focusable_document` is the open trait a
-document domain adds a method to: `WidgetModule` marks its enabled interactive
-leaves as the Tab stops. Both `LayoutToGraphics` and `WidgetToGraphics` share
-the walk for Tab traversal.
-"""
-module FocusModule
-
-using ..CellModule
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
-       is_focusable_document
-
-"""
-    is_focusable_document(node) -> Bool
-
-True when `node` is a leaf the focus walk stops at. The default is `false`; a
-document domain adds one method for the leaves it makes focusable.
-"""
 is_focusable_document(node) = false
 
 # `(steps::Tuple, child)` pairs for each child Document of `node`, in document
@@ -122,5 +94,3 @@ function get_next_focusable_index(children, after::Int, reverse::Bool)
     end
     0
 end
-
-end # module

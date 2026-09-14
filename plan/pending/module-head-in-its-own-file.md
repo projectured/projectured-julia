@@ -276,22 +276,34 @@ reaches them: `SyntaxDocument.jl`, `NaturalNotation.jl`,
 files the batch changed costs a second and reports a truncation that a load
 would report as something else.
 
-### Batch 3 — medium slices
+### Batch 3 — medium slices (done)
 
-- [ ] `conversation` — `Evaluator.jl`, code 29
-- [ ] `serialization` — `BinarySerialization.jl`, code 37
-- [ ] `database` — `DatabaseAdapters.jl`, code 43
-- [ ] `focus` — `Focus.jl`, code 46. One file today.
-- [ ] `yaml` — `YamlDocument.jl`, code 46
-- [ ] `reflection` — `BoundedSync.jl`, code 50
-- [ ] `xml` — `XmlDocument.jl`, code 55
-- [ ] `versioning` — `VersioningDocument.jl`, code 64
-- [ ] `pane` — `PaneDocument.jl`, code 67
-- [ ] `screen` — `ScreenDocument.jl`, code 67
-- [ ] `assistant` — `AssistantDocument.jl`, code 70
-- [ ] `markdown` — `MarkdownDocument.jl`, code 71
-- [ ] `gesturelog` — `GestureLogDocument.jl`, code 77
-- [ ] `primitive` — `PrimitiveDocument.jl`, code 77
+- [x] `conversation` — `Evaluator.jl`, code 29
+- [x] `serialization` — `BinarySerialization.jl`, code 37
+- [x] `database` — `DatabaseAdapters.jl`, code 43
+- [x] `focus` — `Focus.jl`, code 46. One file today.
+- [x] `yaml` — `YamlDocument.jl`, code 46
+- [x] `reflection` — `BoundedSync.jl`, code 50
+- [x] `xml` — `XmlDocument.jl`, code 55
+- [x] `versioning` — `VersioningDocument.jl`, code 64
+- [x] `pane` — `PaneDocument.jl`, code 67
+- [x] `screen` — `ScreenDocument.jl`, code 67
+- [x] `assistant` — `AssistantDocument.jl`, code 70
+- [x] `markdown` — `MarkdownDocument.jl`, code 71
+- [x] `gesturelog` — `GestureLogDocument.jl`, code 77
+- [x] `primitive` — `PrimitiveDocument.jl`, code 77
+
+
+**What batch 3 measured.** `test_substrate()` 60167 / 4 / 2 / 1 / 60174,
+`test_json()` 170 / 170, `test_xml()` 78 / 78, `test_yaml()` 47 / 2 broken, and
+`test_markdown()` 40 / 3 / 2 / 45. Every one matches the baseline. The stack
+loads with no warning, the naming guard is clean,
+`test_export_collisions()` passes, and every touched file parses.
+
+**The embed suites fail on `main` too.** `MarkdownEmbedTest.jl` reports 3 fails
+and 2 errors, and `RstEmbedTest.jl` the same five, at the same line numbers, on
+a clean checkout. Measure a domain's baseline before reading its failures as
+yours.
 
 ### Batch 4 — large slices
 

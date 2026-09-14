@@ -1,59 +1,7 @@
-"""
-    GestureLogModule
+# Fragment of `GestureLogModule` — the gesture log document types:
+# `GestureLogEntry`, one recorded gesture with the operation it produced, and
+# the bounded buffer that keeps the most recent ones.
 
-A record of what the user did — a document that holds the last N gestures and
-the operation that the projection pipeline made from each one.
-
-The buffer has a fixed size. `record_gesture!` appends one entry and deletes the
-oldest entry when the buffer is full. The entries live in a `CellVector`, so an
-append invalidates every reader of the collection and the overlay redraws.
-
-An entry holds **strings**, not the live gesture and the live operation. An
-operation holds a reference into the document, and the document changes as soon
-as the operation runs, so a live operation renders differently one second later.
-A string is a record of the moment.
-
-[`GestureLogToSyntax`](GestureLogToSyntax.jl) projects the log onto the
-Syntax → Text → Graphics path. [`GestureLogRecordingProjection`](GestureLogRecording.jl)
-fills it and [`GestureLogOverlayProjection`](GestureLogOverlay.jl) shows it.
-"""
-module GestureLogModule
-
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..ReferenceModule
-using ..EventModule
-using ..EventPatternModule
-using ..OperationModule
-export GestureLogEntry, GestureLog, record_gesture!, clear_gesture_log!,
-       describe_gesture, describe_operation, default_gesture_log_filter
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-using ..ProjectionModule
-using ..IoMapModule
-using ..TextModule
-using ..StyleModule
-using ..SyntaxModule
-export GestureLogToSyntax
-using ..IntentModule
-export GestureLogRecordingProjection, GestureLogRecordingIoMap
-using ..ProjectionAlgebraModule
-using ..GraphicsModule
-using ..TextModule
-export GestureLogOverlayProjection, GestureLogOverlayIoMap,
-       make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
-
-
-
-
-"""
-    GestureLogEntry(index, gesture, operation, kind)
-
-One line of the log. `index` counts every recorded entry of the session, so a
-number that the user does not see marks a dropped entry. `gesture` and
-`operation` are the rendered strings. `kind` is the operation's type name, which
-the printer uses to choose a style.
-"""
 struct GestureLogEntry
     index::Int
     gesture::String
@@ -223,10 +171,3 @@ _short_value(value) = string(nameof(typeof(value)))
 
 _truncate(text::AbstractString, limit::Integer) =
     length(text) <= limit ? String(text) : String(text[1:nextind(text, 0, limit - 1)]) * "…"
-
-
-include("GestureLogToSyntax.jl")
-include("GestureLogRecording.jl")
-include("GestureLogOverlay.jl")
-
-end # module

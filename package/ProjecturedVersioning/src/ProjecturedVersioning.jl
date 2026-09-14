@@ -29,6 +29,6 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 
-include("../../../source/versioning/VersioningDocument.jl")
+include("../../../source/versioning/VersioningModule.jl")
 
 end # module ProjecturedVersioning
