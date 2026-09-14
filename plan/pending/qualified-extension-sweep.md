@@ -79,6 +79,35 @@ in `WidgetToGraphics.jl` that happen to share the name. `rule_print` and
 `$(rule_print)` interpolations inside a macro, which are the function and must
 move.
 
+## 2.1 Where the sweep stands — 2026-09-14
+
+**Forty-six of the sixty module headers import only what they extend.** The
+fourteen that do not are every module of `graph`, and their 264 idle names are
+all of what is left.
+
+`graph` is out of the sweep, the user's decision on 2026-09-14, and
+[divide-graph-and-text.md](divide-graph-and-text.md) owns it. The reason is that
+the fold shape depends on the division, and the division needs a decision this
+sweep should not take:
+
+- The include order is three layers: the document and the engine contract, then
+  the ten engines under `omnetpp/`, then the registry that picks one, then the
+  projections.
+- `GraphLayoutChoice.jl` straddles the seam. It holds the registry that
+  `ProjecturedAdaptagrams` already uses from its `__init__` — a clean one-way
+  seam — and it also holds the built-in choice, which names
+  `SpringEmbedderLayout` and `ForceDirectedLayout` directly. That one edge is
+  what makes the halves inseparable.
+- To divide, the built-in choice moves down into the engines and registers
+  itself, the way Adaptagrams does. The dependency direction allows nothing
+  else.
+- This codebase maps one slice to one package, so an engines slice means a new
+  package: a `Project.toml`, `[sources]` in every environment, and a row in the
+  package-graph table.
+
+To fold `graph` as one module would finish the sweep and flatten a layering that
+§4.2 of the division plan argues is real. So it waits.
+
 ## 3. Order of the work
 
 1. **The five modules that extend nothing and sit outside `graph`** —
@@ -99,9 +128,11 @@ move.
 2. **The domain slices**, whose sites are almost entirely the four projection
    functions. Take them in batches, smallest first.
 3. **`SyntaxModule`, `ProjectionAlgebraModule`, `SqlModule`, `WidgetModule`**
-   last, because they carry 387 of the 902 sites between them.
-4. **The kernel's remaining three files**, and then delete the `qualified_files`
-   parameter, because the opt-in set covers everything.
+   last, because they carry 387 of the 902 sites between them. **DONE.**
+4. **The kernel's remaining files.** `Intent.jl` and `ProjectionTemplate.jl` are
+   **DONE**; `projection/Projection.jl` carries one import line and is sealed.
+   When every file is migrated the `qualified_files` parameter goes, because the
+   opt-in set covers everything.
 
 **`graph` waits for [divide-graph-and-text.md](divide-graph-and-text.md).** Nine
 of the 14 modules that extend nothing are inside it, and the division moves
