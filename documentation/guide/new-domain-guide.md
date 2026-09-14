@@ -16,9 +16,12 @@ that renders like this:
 
 Each step links to the relevant guide for deeper context.
 
-A domain is a package. Before Step 1, create `package/bookmark/main/` with a
-`Project.toml` and a root module, as [domains.md](../design/domain-inventory.md) describes — the
-steps below fill it in.
+A domain is a package. Before Step 1, create `package/ProjecturedBookmark/`
+with a `Project.toml` and a `src/ProjecturedBookmark.jl` root module, as
+[domains.md](../design/domain-inventory.md) describes — the steps below fill it
+in. The package holds those two files and nothing else; the code goes in
+`source/bookmark/`, the documents in `example/bookmark/` and the suite in
+`test/bookmark/`.
 
 ---
 
@@ -60,7 +63,8 @@ abstract type BookmarkDocument <: Document end
 #
 # NOTE: the abstract root, this insertion, a `BookmarkNothing` placeholder,
 # the Insert-key gesture and the insertion traits can all be generated from
-# one line — `@domain Bookmark` (see documentation/macros.md, "`@domain`").
+# one line — `@domain Bookmark` (see documentation/package/kernel/macros.md,
+# "`@domain`").
 # They are spelled out here so the tutorial shows what the macro expands to.
 
 @document struct BookmarkInsertion <: BookmarkDocument
@@ -144,7 +148,7 @@ export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 
 ---
 
-## Step 2: Register the domain in `Projectured.jl`
+## Step 2: Include the module file in the package root
 
 In `package/ProjecturedBookmark/src/ProjecturedBookmark.jl`, include the module
 file:
@@ -378,7 +382,7 @@ export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 
 ---
 
-## Step 4: Register the projection in `Projectured.jl`
+## Step 4: Include the projection in the module file
 
 The module file includes the fragment, after the document types it needs:
 
@@ -393,7 +397,7 @@ no change.
 
 ## Step 5: Add an example
 
-Create `example/document/Bookmark.jl`:
+Create `example/bookmark/BookmarkDocumentExample.jl`:
 
 ```julia
 function make_bookmark_document_example()
@@ -408,7 +412,7 @@ function make_bookmark_document_example()
 end
 ```
 
-Create `example/projection/Bookmark.jl`:
+Create `example/bookmark/BookmarkProjectionExample.jl`:
 
 ```julia
 function make_bookmark_projection_example(; measure=measure_sdl_text)
@@ -420,28 +424,31 @@ function make_bookmark_projection_example(; measure=measure_sdl_text)
 end
 ```
 
-In `example/ProjecturedExample.jl`, add:
+Both files belong to the example package. In
+`package/ProjecturedBookmarkExample/src/ProjecturedBookmarkExample.jl`, add:
 
 ```julia
-include(joinpath(_EXAMPLE_DIR, "document", "Bookmark.jl"))
-include(joinpath(_EXAMPLE_DIR, "projection", "Bookmark.jl"))
+include("../../../example/bookmark/BookmarkDocumentExample.jl")
+include("../../../example/bookmark/BookmarkProjectionExample.jl")
 export make_bookmark_document_example, make_bookmark_projection_example
 ```
 
-In `example/Examples.jl`, add:
+In `example/projectured/DomainExamples.jl`, add:
 
 ```julia
 const bookmark_example = Example("bookmark",
     make_bookmark_document_example, make_bookmark_projection_example)
 ```
 
-And add `bookmark_example` to the `examples` vector.
+And add `bookmark_example` to the `domain_examples` vector in that same file,
+and to the `examples` vector in `example/projectured/ProjecturedExamples.jl`.
+Both lists are hand-written.
 
 ---
 
 ## Step 6: Write a test
 
-Create `test/projection/BookmarkToSyntaxTest.jl`:
+Create `test/bookmark/projection/BookmarkToSyntaxTest.jl`:
 
 ```julia
 function test_bookmark_to_syntax()
@@ -479,13 +486,29 @@ end
 end # test_bookmark_to_syntax
 ```
 
-In `test/ProjecturedTest.jl`:
+In `package/ProjecturedBookmarkTest/src/ProjecturedBookmarkTest.jl`:
 
 ```julia
-include("projection/BookmarkToSyntaxTest.jl")
+include("../../../test/bookmark/projection/BookmarkToSyntaxTest.jl")
+include("../../../test/bookmark/BookmarkSuite.jl")
 ```
 
-And add `test_bookmark_to_syntax()` to `test_projections()`.
+Create `test/bookmark/BookmarkSuite.jl` with the aggregator of the package. It
+calls the layering guard first, then every test of the domain:
+
+```julia
+function test_bookmark()
+    @testset "ProjecturedBookmark" begin
+        test_bookmark_layering()
+        test_bookmark_to_syntax()
+    end
+end
+```
+
+Define `test_bookmark_layering()` in that same file. Copy the shape from
+[test/json/JsonSuite.jl](../../test/json/JsonSuite.jl): it calls `check_layering`
+on the source root of the package, and the call fails when a file names a module
+that its layer may not reach.
 
 ---
 

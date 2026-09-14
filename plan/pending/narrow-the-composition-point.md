@@ -118,9 +118,9 @@ not all of Base's.
 | [projection/ProjectionReferenceStep.jl](../../source/kernel/projection/ProjectionReferenceStep.jl) | ⬜ | one |
 
 **The user allowed unsealing for this work (2026-09-04.)** Follow the
-convention: flip `🔒` to `⬜` in `CLAUDE.md` in the same commit that edits the
-file, say in the entry why it was unsealed and on whose direction, and
-re-audit against
+convention: flip `🔒` to `⬜` in [SEALING.md](../../SEALING.md) in the same
+commit that edits the file, say in the entry why it was unsealed and on whose
+direction, and re-audit against
 [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
 before offering to seal it again. Do not remove or reorder entries.
 

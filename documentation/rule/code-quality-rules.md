@@ -85,7 +85,7 @@ a reason.
 declare a schema once. `naming.md` states that none of the coded prefixes is
 ever hand-rolled.
 
-**A sealed file is frozen.** `CLAUDE.md` holds the list. A quality fix is not a
+**A sealed file is frozen.** [`SEALING.md`](../../SEALING.md) holds the list. A quality fix is not a
 reason to change a sealed file, and a wide sweep is exactly where one gets
 changed by accident. List the sealed files before a sweep and exclude them.
 
@@ -142,7 +142,6 @@ An agent that crosses repositories must not carry a habit over.
 | File header | `# Fragment of \`XModule\` — job` | a `# ====` box comment |
 | Section banner | heavy, 1451 | 523 and 51 |
 | Requirement prefix | `PAR-`, `PR-` | `OR-`/`OAR-` and `IR-`/`IAR-` |
-| Sealed file list | `CLAUDE.md` | `SEALING.md` |
 
 ## 6. How this document is used
 

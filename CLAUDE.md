@@ -2,159 +2,20 @@
 
 A Julia reimplementation of [ProjecturEd](https://github.com/projectured/projectured), a generic-purpose projectional editor. Documents are structured data (trees, ASTs, graphs) presented through bidirectional, composable projections; editing acts on the projection and is mapped back to the underlying domain.
 
-## 🔒 Sealed files — DO NOT MODIFY
+## 🔒 Sealed files
 
-**Some files in this repository are *sealed*. A sealed file MUST NOT be modified by an AI in any way — no edits, no reformatting, no "while I'm here" cleanups, no incidental changes as part of a larger task — unless the user gives explicit permission for that specific file in the current conversation.** This overrides every other instruction, including a broad task that would otherwise touch a sealed file. If a change you are asked to make would require editing a sealed file, STOP and tell the user the file is sealed and ask for explicit permission before proceeding.
-
-The list below is authoritative. It is the ordered inventory of the kernel's source folder (`source/kernel/`), in the order the files are loaded, being reviewed and sealed one at a time. `🔒` = sealed, `⬜` = not yet sealed.
-
-**Audit a file against [documentation/rule/architecture-invariants.md](documentation/rule/architecture-invariants.md) the moment you introduce it as the next file — before inviting review and before offering to seal.** Present the audit result first; never say "seal as-is" or ask whether to seal until the audit has been reported. A file is sealed only once it complies (or a specific non-compliance is explicitly accepted by the user in the conversation). If a violation is found in an already-sealed file, report it and ask permission before fixing (the seal still holds until permission is given).
-
-### `source/kernel/` seal status
-
-- 🔒 `ProjecturedKernel.jl` — module root, the layer diagram. It is the one entry
-  that does not live under `source/kernel/`: a package root file belongs to its
-  package, at `package/ProjecturedKernel/src/ProjecturedKernel.jl`. Every entry
-  below is a path under `source/kernel/`.
-
-The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
-include order — the source files state their dependencies, never their index.
-
-- **Layer 1 — cell** (`cell/`)
-  - 🔒 `cell/CellLayer.jl`
-  - 🔒 `cell/PerformanceCounter.jl`
-  - ⬜ `cell/CellModule.jl`
-  - 🔒 `cell/CellInterface.jl`
-  - ⬜ `cell/CellComputed.jl`
-  - ⬜ `cell/ReactiveCell.jl`
-  - 🔒 `cell/MutableCell.jl`
-  - 🔒 `cell/ImmutableCell.jl`
-  - ⬜ `cell/CellDefaults.jl`
-  - 🔒 `cell/CellStructModule.jl`
-  - 🔒 `cell/CellStructPlan.jl`
-  - 🔒 `cell/CellStruct.jl`
-- **Layer 2 — clock** (`clock/`)
-  - 🔒 `clock/ClockLayer.jl`
-  - 🔒 `clock/Clock.jl`
-- **Layer 3 — event** (`event/`)
-  - 🔒 `event/EventLayer.jl`
-  - 🔒 `event/EventModule.jl`
-  - 🔒 `event/EventInterface.jl`
-  - 🔒 `event/ModifierKeys.jl`
-  - 🔒 `event/KeyboardEvent.jl`
-  - 🔒 `event/MouseEvent.jl`
-  - 🔒 `event/WindowEvent.jl`
-  - 🔒 `event/WindowInput.jl`
-  - 🔒 `event/EventDefaults.jl`
-  - 🔒 `event/EventPattern.jl`
-- **Layer 4 — device** (`device/`)
-  - 🔒 `device/DeviceLayer.jl`
-  - 🔒 `device/DeviceModule.jl`
-  - 🔒 `device/Device.jl`
-  - 🔒 `device/Keyboard.jl`
-  - 🔒 `device/Mouse.jl`
-  - 🔒 `device/Display.jl`
-- **Layer 5 — gesture** (`gesture/`)
-  - 🔒 `gesture/GestureLayer.jl`
-  - 🔒 `gesture/GestureRecognizer.jl`
-- **Layer 6 — backend** (`backend/`)
-  - 🔒 `backend/BackendLayer.jl`
-  - 🔒 `backend/BackendModule.jl`
-  - 🔒 `backend/BackendInterface.jl`
-  - 🔒 `backend/BackendDefaults.jl`
-- **Layer 7 — document** (`document/`)
-  - 🔒 `document/DocumentLayer.jl`
-  - ⬜ `document/DocumentModule.jl`
-  - ⬜ `document/DocumentInterface.jl`
-  - ⬜ `document/DocumentDefaults.jl`
-  - ⬜ `document/DocumentCopy.jl`
-  - ⬜ `document/DocumentSync.jl`
-  - ⬜ `document/DocumentMacro.jl`
-  - ⬜ `document/SelectionDocument.jl`
-  - 🔒 `document/DocumentWalk.jl`
-  - 🔒 `document/DocumentSearch.jl`
-  - 🔒 `document/ForwardProtocol.jl`
-- **Layer 8 — reference** (`reference/`)
-  - 🔒 `reference/ReferenceLayer.jl`
-  - ⬜ `reference/ReferenceModule.jl`
-  - 🔒 `reference/ReferenceInterface.jl`
-  - ⬜ `reference/ReferenceStep.jl` (unsealed 2026-08-24: `@cell_struct` → `@document [C, M]`, the user's direction — re-audit before resealing)
-  - ⬜ `reference/ReferencePath.jl` (unsealed 2026-09-14: `head` and `tail`
-    become `get_reference_head` and `get_reference_tail` and are exported, the
-    user's direction — re-audit before resealing)
-  - ⬜ `reference/ReferenceEvaluation.jl`
-  - 🔒 `reference/ReferenceSearch.jl`
-  - ⬜ `reference/ReferenceSyntax.jl` (unsealed 2026-09-12: `xs[i, j]` counts
-    elements, 1-based and inclusive, the user's direction — re-audit before
-    resealing)
-  - ⬜ `reference/ReferenceGlob.jl`
-  - ⬜ `reference/ReferenceCase.jl`
-  - ⬜ `reference/ReferenceRules.jl`
-  - ⬜ `reference/ReferencePatternString.jl`
-  - ⬜ `reference/ReferenceBuilder.jl`
-- **Layer 9 — selection** (`selection/`)
-  - 🔒 `selection/SelectionLayer.jl`
-  - 🔒 `selection/SelectionModule.jl`
-  - 🔒 `selection/SelectionInterface.jl`
-  - 🔒 `selection/SelectionDefaults.jl`
-- **Layer 10 — operation** (`operation/`)
-  - ⬜ `operation/OperationLayer.jl`
-  - ⬜ `operation/OperationModule.jl`
-  - ⬜ `operation/Interface.jl`
-  - ⬜ `operation/Operations.jl`
-  - ⬜ `operation/Rerooting.jl`
-  - ⬜ `operation/Intent.jl`
-- **Layer 11 — binding** (`binding/`)
-  - ⬜ `binding/BindingLayer.jl`
-  - ⬜ `binding/GestureBinding.jl`
-  - ⬜ `binding/Gestures.jl`
-- **Layer 12 — iomap** (`iomap/`)
-  - 🔒 `iomap/IoMapLayer.jl`
-  - 🔒 `iomap/IoMapModule.jl`
-  - 🔒 `iomap/IoMapInterface.jl`
-  - ⬜ `iomap/IoMapDefaults.jl`
-  - ⬜ `iomap/IoMapReconcile.jl`
-- **Layer 13 — projection** (`projection/`)
-  - ⬜ `projection/ProjectionLayer.jl`
-  - ⬜ `projection/ProjectionReferenceStep.jl`
-  - ⬜ `projection/ProjectionApi.jl`
-  - ⬜ `projection/PrinterContext.jl`
-  - ⬜ `projection/ChildrenContainer.jl`
-  - ⬜ `projection/GestureBindings.jl`
-  - ⬜ `projection/Projection.jl`
-  - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 14 — tool** (`tool/`)
-  - ⬜ `tool/ToolLayer.jl`
-  - ⬜ `tool/ToolModule.jl`
-  - ⬜ `tool/Tool.jl`
-  - ⬜ `tool/ToolSet.jl`
-  - ⬜ `tool/CodeExecution.jl`
-  - ⬜ `tool/Documentation.jl`
-  - ⬜ `tool/DefaultTools.jl`
-- **Layer 14 — llm** (`llm/`)
-  - ⬜ `llm/LlmLayer.jl`
-  - ⬜ `llm/LlmModule.jl`
-  - ⬜ `llm/Llm.jl`
-  - ⬜ `llm/LlmMessage.jl`
-  - ⬜ `llm/LlmEvent.jl`
-- **Layer 15 — agent** (`agent/`)
-  - ⬜ `agent/AgentLayer.jl`
-  - ⬜ `agent/AgentServer.jl`
-  - ⬜ `agent/AgentModule.jl`
-  - ⬜ `agent/Agent.jl`
-  - ⬜ `agent/AgentLoop.jl`
-- **Layer 16 — editor** (`editor/`)
-  - ⬜ `editor/EditorLayer.jl`
-  - ⬜ `editor/Editor.jl`
-  - ⬜ `editor/Playback.jl`
-
-When a file is sealed, flip its `⬜` to `🔒` in the same commit. Do not remove entries or reorder the list.
+**Some files in this repository are sealed. Read [SEALING.md](SEALING.md)
+before modifying anything: a file marked `🔒` there MUST NOT be modified by an
+AI in any way unless the user gives explicit permission for that specific file
+in the current conversation.** If a change you are asked to make would require
+editing a sealed file, STOP and ask. `SEALING.md` also holds the audit protocol
+and the full audit-order inventory of `source/kernel/`.
 
 ## Before working in this repo
 
 Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module / leaf) is defined in [documentation/rule/division-terminology.md](documentation/rule/division-terminology.md) — use those terms exactly. Before adding a package, read [documentation/rule/package-rules.md](documentation/rule/package-rules.md): it says what a package may depend on, and that a `@compile_workload` belongs only in a leaf.
 
-The canonical reading order for contributors is in [README.md](README.md) under **"Building something? Read next"**. A quick summary:
+The canonical reading order for contributors is in [README.md](README.md) under **"Before you build something"**. A quick summary:
 
 0. [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md) — **how everything is named.** Read it before you write a name.
 1. [documentation/design/editor-concepts.md](documentation/design/editor-concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
@@ -165,8 +26,8 @@ The canonical reading order for contributors is in [README.md](README.md) under 
 5. [documentation/package/kernel/projection-system.md](documentation/package/kernel/projection-system.md) — the four interface functions and the printer/reader pair.
 6. [documentation/package/kernel/editor.md](documentation/package/kernel/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
 
-Per-package reference guides live in each package's `doc/` directory next to the
-code they document; the cross-cutting concept/architecture/tooling guides stay in
+Per-slice reference guides live in [documentation/package/](documentation/package/),
+one folder per slice; the cross-cutting concept/architecture/tooling guides stay in
 [documentation/](documentation/). When touching selection/reference handling or a
 specific domain, also consult:
 
