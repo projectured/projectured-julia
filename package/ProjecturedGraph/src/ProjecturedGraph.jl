@@ -36,7 +36,7 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("../../../source/graph/GraphDocument.jl")
+include("../../../source/graph/GraphModule.jl")
 # The two layouters OMNeT++ draws a network with, ported file for file from
 # `omnet-cpp/src/layout/`. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.

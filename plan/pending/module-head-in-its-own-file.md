@@ -355,15 +355,34 @@ was load-bearing until this batch.
 `Color.jl` keeps 1216 lines, of which about 1076 are `const color_… = _color(…)`
 — a lookup table, not logic.
 
-### Batch 6 — the three that rewrite include paths
+### Batch 6 — the three deepest slices (done)
 
-- [ ] `text` — `TextSpanReferenceStep.jl`, code 9, 13 includes
-- [ ] `graph` — `GraphDocument.jl`, code 22, 15 includes, 9 of them in
+- [x] `text` — `TextSpanReferenceStep.jl`, code 9, 13 includes
+- [x] `graph` — `GraphDocument.jl`, code 22, 15 includes, 9 of them in
   `omnetpp/`
-- [ ] `projection` — `generic/Identity.jl`, code 12, 18 includes. The head moves
+- [x] `projection` — `generic/Identity.jl`, code 12, 18 includes. The head moves
   up one folder to `source/projection/ProjectionAlgebraModule.jl`, so every
   include path changes: `"Reversing.jl"` becomes `"generic/Reversing.jl"` and
   `"../higherorder/Chaining.jl"` becomes `"higherorder/Chaining.jl"`.
+
+
+**Only one of the three rewrote a path.** `text` and `graph` keep their head in
+the folder their fragments sit in, so every include spelling stays. Only
+`projection` moves up a folder, from `generic/` to the slice root, and there the
+tool re-expresses all nineteen: `"Reversing.jl"` becomes
+`"generic/Reversing.jl"`, `"../higherorder/Chaining.jl"` becomes
+`"higherorder/Chaining.jl"`, `"../ReaderDefaults.jl"` becomes
+`"ReaderDefaults.jl"`.
+
+**A third bug in the tool.** It rewrote the includer's path by replacing the old
+basename, which is wrong when the head lands in another folder: the package root
+got `source/projection/generic/ProjectionAlgebraModule.jl` for a file at
+`source/projection/ProjectionAlgebraModule.jl`. It now spells the new path
+against the includer. The failure was loud — `SystemError: opening file … No
+such file or directory` — because a missing include cannot be mistaken for
+anything else.
+
+**Every slice is done: 50 of 50.**
 
 ### Batch 7 — the kernel, rename only
 
@@ -399,16 +418,18 @@ now, and the layer has the head file it lacked.
 
 The prize is a guard that states the law in one sentence.
 
-- [ ] Delete the slice exception in
-  [test/suite/naming.jl](../../test/suite/naming.jl). `module_violations` allows
-  a file to declare the module of its slice rather than one named after itself.
-  That exception exists only because 66 modules hide in a fragment.
+- [x] Delete the slice exception in
+  [test/suite/naming.jl](../../test/suite/naming.jl), with
+  `_slice_module` and `_SLICE_MODULE_EXCEPTIONS`. Proved by breaking: removing
+  the same line on `main` reports **45 files**.
 - [x] Delete `_PENDING_SLICE_MODULES`. It parked `ConsoleBackendModule` and
   `PdfBackendModule`. Batch 4 and batch 5 settled them, and the guard passes
   without it. Proved by breaking: with the exception removed on `main`, the
   guard reports both files.
-- [ ] Prove the guard by breaking it. Move one module head back into a fragment
-  and see the guard report it.
+- [x] Proved the guard by breaking it. Renaming `TooltipModule.jl` to
+  `TooltipHead.jl` gives:
+  `source/tooltip/TooltipHead.jl declares module TooltipModule; the file that
+  names it is TooltipHeadModule.jl`.
 - [ ] Update the module inventory in
   [documentation/design/system-anatomy.md](../../documentation/design/system-anatomy.md).
 - [ ] Fix four stale references to `plan/pending/one-module-per-slice.md`. That

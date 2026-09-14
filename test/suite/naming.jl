@@ -19,43 +19,6 @@
 # session.
 # ============================================================================
 
-"""
-A slice whose module does not take the slice's name, and why. The law derives
-the module from the slice, so an exception is written here with its cause
-rather than left to look like a violation nobody fixed.
-"""
-const _SLICE_MODULE_EXCEPTIONS = Dict(
-    # The kernel's projection layer already declares `ProjectionModule`, and the
-    # kernel does not change. The slice holds the domain-free projection
-    # algebra, so it says so. See `plan/pending/one-module-per-slice.md`.
-    "projection" => "ProjectionAlgebraModule")
-
-"""
-    _slice_module(path) -> String
-
-The module a file's slice would declare. `source/json/JsonDocument.jl` gives
-`JsonModule`, because a slice is one unit of architecture and its files are
-fragments of one module.
-"""
-function _slice_module(root::AbstractString, path::AbstractString)
-    parts = splitpath(path)
-    length(parts) < 2 && return ""
-    slice = parts[2]
-    isempty(slice) && return ""
-    haskey(_SLICE_MODULE_EXCEPTIONS, slice) && return _SLICE_MODULE_EXCEPTIONS[slice]
-    # The slice folder is lower case and the package carries the CamelCase, so
-    # `filesystem` gives `FileSystem` and not `Filesystem`. Ask the package.
-    packages = joinpath(root, "package")
-    if isdir(packages)
-        for entry in readdir(packages)
-            startswith(entry, "Projectured") || continue
-            stem = entry[length("Projectured")+1:end]
-            lowercase(stem) == slice && return stem * "Module"
-        end
-    end
-    uppercase(slice[1:1]) * slice[2:end] * "Module"
-end
-
 "Every `.jl` file under `dir`, as a repository-relative path."
 function _naming_files(root::AbstractString, dir::AbstractString)
     out = String[]
@@ -77,10 +40,15 @@ end
 """
     module_violations(root) -> Vector{String}
 
-A module is its file name plus `Module`. Three exceptions the rules state:
-a package root declares the package's own name, a `<Concept>Module.jl` declares
-`<Concept>Module`, and a projection file `<Stem>.jl` declares
-`<Stem>ProjectionModule`.
+**A module is declared in the file that names it.** A module is its file name
+plus `Module`, so `JsonModule` lives in `JsonModule.jl` and `CellModule` in
+`CellModule.jl`. One exception the rules state: a projection file `<Stem>.jl`
+declares `<Stem>ProjectionModule`.
+
+The rule used to allow a second form — a file could declare the module of its
+slice rather than one named after itself — because 59 modules hid their head
+inside a fragment. They do not any more. Removing that allowance on the tree
+before `plan/done/module-head-in-its-own-file.md` reports 45 files.
 """
 function module_violations(root::AbstractString)
     out = String[]
@@ -90,22 +58,17 @@ function module_violations(root::AbstractString)
         isempty(declared) && continue
         stem = first(splitext(basename(path)))
         wanted = endswith(stem, "Module") ? stem : stem * "Module"
-        slice = _slice_module(root, path)
         # A test module is a fixture that Julia forces to the top level, and the
         # kernel is layered rather than sliced, so neither takes the slice rule.
         startswith(path, "test/") && continue
         startswith(path, joinpath("source", "kernel")) && continue
         for name in declared
             name == wanted && continue
-            # A slice is one unit of architecture, so a file may declare the
-            # module of its slice rather than one of its own. See
-            # `plan/pending/one-module-per-slice.md`.
-            name == slice && continue
             # a projection file may name its module for the projection it holds
             name == stem * "ProjectionModule" &&
                 occursin(Regex("\\b" * stem * "Projection\\b"), code) && continue
-            push!(out, "$path declares module $name; the file name gives " *
-                       "$wanted and its slice gives $slice")
+            push!(out, "$path declares module $name; " *
+                       "the file that names it is $wanted.jl")
         end
         length(declared) > 1 &&
             push!(out, "$path declares $(length(declared)) modules: " *

@@ -29,6 +29,6 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
-include("../../../source/projection/generic/Identity.jl")
+include("../../../source/projection/ProjectionAlgebraModule.jl")
 
 end # module ProjecturedProjection
