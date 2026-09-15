@@ -4199,6 +4199,12 @@ end
     chevron_size::Int              # its half-size
 end
 
+# The column a collapsible card's chevron takes, left of everything else the
+# card draws: two half-sizes of the mark and the title gap. Zero for a card that
+# does not fold, or has no title to fold from.
+_card_chevron_column(p, w::WidgetCard) =
+    (w.collapsible === true && w.title !== nothing) ? 2 * _sc(p.chevron_size) + _sc(p.title_gap) : 0
+
 # The padding a card draws with, as `(top, bottom, left, right)`: its own when it
 # names one — one number for every side, or an `Inset` — else the theme's.
 function _card_padding(p, w::WidgetCard)
@@ -4215,48 +4221,51 @@ end
 # `build` cell re-runs when the content grows — that is what keeps the card's
 # border, height, and child positions in step with reactive content.
 function _card_build(p, w, ctx, tim, cim)
-    pad_top, pad_bottom, padding, pad_right = _card_padding(p, w)
-    pad_x = padding + pad_right
+    pad_top, pad_bottom, pad_left, pad_right = _card_padding(p, w)
     elements = Any[]
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
     y = pad_top
+    # A collapsible card draws a chevron in a column of its own, and everything
+    # else — the title, the description, the body, the footer — starts past
+    # that column, so the body lines up under the title's word and not under
+    # the mark. The mark is pushed once the header's height is known, so it sits
+    # on the header's own middle line. Reading `collapsed` here is what flips it
+    # without a re-print.
+    column = _card_chevron_column(p, w)
+    padding = pad_left + column
+    pad_x = padding + pad_right
     # The width the card's own texts break to: the width it was told to be, else
-    # the width it was offered, less the padding on both sides. With neither
-    # there is no bound, and each text is the one line it measures.
+    # the width it was offered, less the padding on both sides and the chevron
+    # column. With neither there is no bound, and each text is the one line it
+    # measures.
     avail_w = ctx === nothing ? nothing : ctx.available_width
     authored_width = _sc(Int(w.width))
     text_bound = authored_width > 0 ? max(0, authored_width - pad_x) :
                  avail_w !== nothing ? max(0, Int(avail_w[]) - pad_x) : 0
-    # A collapsible card draws a chevron before its header, and the header moves
-    # right by the column the mark takes. The mark is pushed once the header's
-    # height is known, so it sits on the header's own middle line. Reading
-    # `collapsed` here is what flips it without a re-print.
-    collapsible = w.collapsible === true && w.title !== nothing
-    chevron_size = _sc(p.chevron_size)
-    column = collapsible ? 2 * chevron_size + _sc(p.title_gap) : 0
-    header_x = padding + column
-    header_bound = text_bound > 0 ? max(1, text_bound - column) : 0
     header_h = 0
     if tim !== nothing
-        push!(child_iomaps, (header_x, y, tim))
-        push!(elements, _make_canvas(header_x, y, Any[tim.output]))
+        push!(child_iomaps, (padding, y, tim))
+        push!(elements, _make_canvas(padding, y, Any[tim.output]))
         inner = tim.output
         if inner isa GraphicsCanvas
             header_h = Int(inner.h[])
-            max_content_width = max(max_content_width, Int(inner.w[]) + column)
+            max_content_width = max(max_content_width, Int(inner.w[]))
             y += header_h + _sc(p.title_gap)
         else
             y += _sc(p.title_gap)
         end
     elseif w.title !== nothing
         title_width, title_height = _push_text_block!(elements, p.measure, p.title_text,
-                                                      string(w.title), header_x, y, header_bound)
+                                                      string(w.title), padding, y, text_bound)
         header_h = title_height
-        max_content_width = max(max_content_width, title_width + column); y += title_height + _sc(p.title_gap)
+        max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
     end
-    if collapsible
-        _push_chevron!(elements, padding + chevron_size, pad_top + header_h ÷ 2, chevron_size,
+    if column > 0
+        chevron_size = _sc(p.chevron_size)
+        # The mark sits one pixel under the header's middle line: a word's ink
+        # sits under the middle of its box, and the mark belongs beside the ink.
+        _push_chevron!(elements, pad_left + chevron_size, pad_top + header_h ÷ 2 + _sc(1), chevron_size,
                        w.collapsed === true ? :right : :down, p.chevron.color;
                        stroke = max(1, _sc(p.chevron.width)))
     end
@@ -4367,7 +4376,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # that width whatever it was offered, so a body sized from the offer would be
     # wider than the card that holds it.
     _, _, pad_left, pad_right = _card_padding(p, w)
-    pad_x = pad_left + pad_right
+    pad_x = pad_left + pad_right + _card_chevron_column(p, w)
     avail_w = ctx.available_width
     authored_width = _sc(Int(w.width))
     inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - pad_x))) :

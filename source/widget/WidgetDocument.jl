@@ -1338,7 +1338,9 @@ this cell. A collapsed card draws its header and nothing else.
 
 `collapsible` says that the card shows its fold state: the renderer draws a
 chevron before the title, pointing down when the card is open and right when it
-is collapsed, and the whole header band is the fold target. A card that folds
+is collapsed, and the whole header band is the fold target. The chevron takes
+a column of its own, and the title, the body and the footer all start past it,
+so the body lines up under the title's word. A card that folds
 without saying so is a card a person can not read, so a producer that folds a
 card sets this. It needs a `Document` title, because the header band is the
 title's own box. A producer whose fold state lives elsewhere — a domain node's

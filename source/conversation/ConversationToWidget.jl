@@ -65,13 +65,14 @@ _role_color(role::Symbol) = role === :user      ? color_indigo_600 :
 _role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
 
 # A part's tag names a kind, which is a smaller thing to say than who spoke, so
-# it stays smaller and stays neutral.
-const _KIND_STYLE = StyleText(font_ubuntu_bold_14, color_slate_600)
+# it stays smaller and stays neutral. It is 16 and not 14: at 14 the word sat
+# below the middle of the chevron beside it, and the two read as two rows.
+const _KIND_STYLE = StyleText(font_ubuntu_bold_16, color_slate_600)
 # A section of an evaluation is a smaller thing again, so its title is the same
 # size and not bold. An error is the one section title that carries a color,
 # because it is the one a reader must not miss.
-const _SECTION_STYLE = StyleText(font_ubuntu_regular_14, color_slate_500)
-const _ERROR_STYLE   = StyleText(font_ubuntu_bold_14, color_destructive)
+const _SECTION_STYLE = StyleText(font_ubuntu_regular_16, color_slate_500)
+const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
 
 # The mark beside a role. It is drawn as text and not as a `WidgetAvatar`,
 # because an avatar is a disc with initials: at this size the disc is a pale ring

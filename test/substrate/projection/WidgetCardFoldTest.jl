@@ -51,10 +51,16 @@ function test_widget_card_fold()
         @test body in texts
         @test "Details" in texts
 
-        # The title moved right, by the column the chevron takes.
+        # The title moved right, by the column the chevron takes, and the body
+        # moved with it: the body lines up under the title's word.
         plain = WidgetCard(Point2D(0, 0); title = _fold_title(), content = body)
         plain_iomap = print_document(proj, proj, plain, PrinterContext())
         @test _fold_title_x(iomap) > _fold_title_x(plain_iomap)
+        document_body = WidgetCard(Point2D(0, 0); title = _fold_title(),
+                                   content = WidgetLabel(Point2D(0, 0), body), collapsible = true)
+        entries = getfield(print_document(proj, proj, document_body, PrinterContext()), :child_iomaps)[]
+        @test length(entries) == 2
+        @test entries[2][1] == entries[1][1]
 
         # A click on the chevron folds, and so does one on the title.
         on_chevron = read_intent(proj, iomap, MousePress(:left, 20, 28, ModifierKeys()))

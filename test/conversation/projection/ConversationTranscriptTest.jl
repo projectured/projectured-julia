@@ -61,12 +61,14 @@ _part_path(i::Int, j::Int) =
             ConcreteReference(FieldReferenceStep("parts"),
                 ConcreteReference(RangeReferenceStep(j - 1, j), EmptyReference()))))
 
-# Every distinct selection a vertical scan of the left edge produces.
+# Every distinct selection a vertical scan produces, down four columns: a part's
+# body starts past its card's padding and its chevron column, and a section of
+# an evaluation sits further in than a paragraph.
 function _scan_selections(proj, io)
     found = Any[]
-    for y in 2:2:600
+    for y in 2:2:600, x in (40, 70, 100, 130)
         op = try
-            read_intent(proj, io, MousePress(:left, 60, y))
+            read_intent(proj, io, MousePress(:left, x, y))
         catch
             nothing
         end

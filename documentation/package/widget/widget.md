@@ -52,7 +52,7 @@ the fields they need plus `visible`/`selection`:
 |---|---|
 | `WidgetBadge(position, content; variant)` | Pill label (`:default`/`:secondary`/`:destructive`/`:outline`) |
 | `WidgetSeparator(position; orientation, length)` | Hairline divider |
-| `WidgetCard(position; title, description, content, footer; variant, collapsible, padding)` | Surface with header/body/footer. `variant` says how loud the panel is (`:card`/`:tinted`/`:muted`/`:plain`). A `collapsible` card draws a chevron before its `Document` title, folds from its whole header band, and draws only the header while `collapsed`. `padding` overrides the theme's padding, one number for every side or an `Inset`; `0` on a `:plain` card occupies nothing beyond its content |
+| `WidgetCard(position; title, description, content, footer; variant, collapsible, padding)` | Surface with header/body/footer. `variant` says how loud the panel is (`:card`/`:tinted`/`:muted`/`:plain`). A `collapsible` card draws a chevron before its `Document` title, folds from its whole header band, draws only the header while `collapsed`, and lines its body up under the title's word, past the chevron. `padding` overrides the theme's padding, one number for every side or an `Inset`; `0` on a `:plain` card occupies nothing beyond its content |
 | `WidgetSwitch(position, checked)` | On/off switch (track + knob) |
 | `WidgetProgress(position, value)` | Progress bar (`value ∈ [0,1]`) |
 | `WidgetSlider(position, value)` | Slider (track + knob) |

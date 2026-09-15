@@ -171,6 +171,11 @@ struct, and the widget dispatch table is built once.
 - The renderer draws the chevron from `_push_chevron!` with the theme's chevron
   half-size (4) in the muted foreground; the header moves right by two
   half-sizes plus the title gap, 12 pixels.
+- The body moves with the header. The user asked for the arguments and the
+  result of a call to line up under the section's word and not under its
+  chevron, and the disclosure convention says the same for every card: the
+  chevron takes a column of its own, and the title, the body and the footer
+  start past it.
 - New example `widget_collapsible_card_example`, an open card over a folded one.
   The test is `test_widget_card_fold()`, in the substrate suite: the chevron's
   direction in both states, the body absent when folded, the fold on the
@@ -416,14 +421,14 @@ every item of the list above. The final values:
 | Constant | Value |
 | --- | --- |
 | `_ROLE_FONT` | `font_ubuntu_bold_18`, in the role's color |
-| `_KIND_STYLE` | `font_ubuntu_bold_14`, `color_slate_600` |
-| `_SECTION_STYLE` | `font_ubuntu_regular_14`, `color_slate_500` |
-| `_ERROR_STYLE` | `font_ubuntu_bold_14`, `color_destructive` |
+| `_KIND_STYLE` | `font_ubuntu_bold_16`, `color_slate_600` |
+| `_SECTION_STYLE` | `font_ubuntu_regular_16`, `color_slate_500` |
+| `_ERROR_STYLE` | `font_ubuntu_bold_16`, `color_destructive` |
 | `_GAP` (between parts) | 8 |
 | `_TURN_GAP` (between turns) | 8 |
 | `_SECTION_GAP` (between the two sections) | 10 |
 | `_SECTION_INDENT` | 12 |
-| chevron | the theme's half-size 4, muted foreground |
+| chevron | the theme's half-size 4, muted foreground, one pixel under the header's middle |
 
 Two things the render showed that this plan does not fix:
 
