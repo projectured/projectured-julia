@@ -53,9 +53,15 @@ is_file_domain_node(::PredFile, node) = is_pred_type(typeof(node)) || node isa P
 
 # A `.pred` file writes the call `pred_arguments` gives and nothing else, so
 # that is what it walks. A field the call leaves out — the live half a document
-# built for itself — is not written, not cut, and not an orphan.
+# built for itself — is not written, not cut, and not an orphan. A field the
+# call writes as a rendering — a formula's code, written as its text — holds
+# no node the walk could reach, so it is not walked and not cut either.
 is_written_in_file(file::PredFile, node, name::Symbol) =
-    !(node isa Document) || any(pair -> first(pair) === name, last(pred_arguments(node)))
+    !(node isa Document) ||
+    any(pair -> first(pair) === name && _holds_document(last(pair)), last(pred_arguments(node)))
+
+_holds_document(value) =
+    value isa Document || (value isa AbstractVector && any(element -> element isa Document, value))
 
 # The reference this format spells: the call itself, printed where the value
 # would be.

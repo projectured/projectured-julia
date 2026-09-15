@@ -67,5 +67,33 @@ function test_formula_file()
         # Code is text and nothing else.
         @test_throws Exception parse_pred_text("FormulaFormula(name = \"rho\", code = 1)")
     end
+
+    @testset "a sheet saves as a file, and a reference into it splices back" begin
+        # The code of a formula is a Julia tree the file writes as text, so the
+        # save must not walk it: a node of the Julia domain that no file writes
+        # would be an orphan, and it is not.
+        directory = mktempdir()
+        sheet = FormulaEnvironment([
+            FormulaFormula("rho", parse_julia("0.8")),
+            FormulaFormula("twice", parse_julia("2 * rho")),
+        ])
+        holder = TestFormulaHolder(formula = sheet.formulas[2])
+        register_pred_type!(TestFormulaHolder)
+        project = FileProject(directory, [PredFile("formulas.pred", sheet), PredFile("holder.pred", holder)])
+        @test save_project!(project) === true
+        @test occursin("code = \"2 * rho\"", read(joinpath(directory, "formulas.pred"), String))
+        @test occursin("node(file(\"formulas.pred\"), \"formulas[2]\")", read(joinpath(directory, "holder.pred"), String))
+        loaded = load_project(directory, ["holder.pred"]; follow = true)
+        holder_back = get_file_content(loaded.files[1])
+        @test holder_back.formula isa FormulaFormula
+        @test holder_back.formula.name == "twice"
+        @test isapprox(get_formula_value(holder_back.formula), 1.6; atol = 1e-9)
+        rm(directory; recursive = true, force = true)
+    end
 end
+end
+
+"A document that holds one formula of a sheet, to prove a reference into the sheet."
+@document struct TestFormulaHolder
+    formula::Any = nothing
 end
