@@ -2,7 +2,8 @@
 #
 # A `.pred` file holds one document, written as its own constructor:
 #
-#     TestRun(name = "aloha", options = ["a", "b"], count = 2)
+#     TestRun(name = "aloha", options = ["a", "b"], count = 2,
+#             parameters = (lambda = 1.3, capacity = 8))
 #
 # That is the marker language at file scale, so the format is the interpreter
 # beside it and nothing more. Three properties follow. The file cannot execute
@@ -119,6 +120,11 @@ _evaluate_pred(literal) = literal === :nothing ? nothing : literal
 
 function _evaluate_pred(e::Expr)
     e.head === :vect && return Any[_evaluate_pred(a) for a in e.args]
+    if e.head === :tuple
+        fields = _marker_tuple_fields(e)
+        return NamedTuple{Tuple(Symbol[f.args[1] for f in fields])}(
+            Tuple(Any[_evaluate_pred(f.args[2]) for f in fields]))
+    end
     verb = e.args[1]::Symbol
     # A call over the vocabulary rather than a type names a node somewhere else.
     # It is left as a reference: which file it names is settled by the set the
@@ -168,6 +174,18 @@ _print_pred_value(io::IO, x::AbstractString, where) = print(io, repr(String(x)))
 _print_pred_value(io::IO, ::Nothing, where) = print(io, "nothing")
 _print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where) = print(io, repr(x))
 
+function _print_pred_value(io::IO, v::NamedTuple, where)
+    isempty(v) && return print(io, "(;)")
+    print(io, "(")
+    for (index, name) in enumerate(keys(v))
+        index > 1 && print(io, ", ")
+        print(io, name, " = ")
+        _print_pred_value(io, v[name], isempty(where) ? String(name) : where * "." * String(name))
+    end
+    # One field needs the comma to stay a named tuple rather than a parenthesis.
+    print(io, Base.length(v) == 1 ? ",)" : ")")
+end
+
 function _print_pred_value(io::IO, v::AbstractVector, where)
     print(io, "[")
     for (index, element) in enumerate(v)
@@ -204,7 +222,8 @@ function _refuse_pred_value(value, where)
     throw(FileCutException(
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
-        "nothing, a vector of those, a registered document, and a reference" *
+        "nothing, a vector of those, a mapping of names to them, a registered " *
+        "document, and a reference" *
         (value isa Document ? "; call register_pred_type!(" * string(nameof(typeof(value))) *
                               ") to offer this type" : "")))
 end

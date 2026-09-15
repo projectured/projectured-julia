@@ -417,6 +417,33 @@ function test_file_project()
             @test_throws r"Secret" load_file(d, "x.pred")
         end
 
+        @testset "a mapping of names to values is a named tuple" begin
+            d = mktempdir()
+            try
+                run = TestRun(name = "queue",
+                              options = [(name = "idle", level = 1), (name = "busy", level = 2)],
+                              attachment = (arrival_rate = 12.0, capacity = 5))
+                @test save_file!(PredFile("run.pred", run), d) === true
+                text = read(joinpath(d, "run.pred"), String)
+                @test occursin("attachment = (arrival_rate = 12.0, capacity = 5)", text)
+                @test occursin("[(name = \"idle\", level = 1), (name = \"busy\", level = 2)]", text)
+                back = get_file_content(load_file(d, "run.pred"))
+                @test back.attachment == (arrival_rate = 12.0, capacity = 5)
+                @test back.options[2] == (name = "busy", level = 2)
+                # One field keeps the comma that makes it a mapping and not a
+                # parenthesis, and the bytes do not move on a second save.
+                @test save_file!(PredFile("one.pred", TestRun(name = "x", count = 1,
+                                                             attachment = (events = 20000,))), d)
+                @test occursin("attachment = (events = 20000,)", read(joinpath(d, "one.pred"), String))
+                stamp = mtime(joinpath(d, "one.pred"))
+                sleep(0.01)
+                @test save_file!(PredFile("one.pred", get_file_content(load_file(d, "one.pred"))), d)
+                @test mtime(joinpath(d, "one.pred")) == stamp
+            finally
+                rm(d; recursive = true, force = true)
+            end
+        end
+
         @testset "a document may write a reduced form of itself" begin
             register_pred_type!(TestWindow)
             d = mktempdir()
