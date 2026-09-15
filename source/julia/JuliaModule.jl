@@ -29,7 +29,8 @@ using ..ReferenceModule   # `@document` injects the implicit `selection::Union{N
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: emit_text, populate_file!
+import ..SerializationModule: emit_text, populate_file!,
+                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 
 export _julia_operator_string
 export parse_julia, parse_julia_file

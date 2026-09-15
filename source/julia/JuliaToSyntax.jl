@@ -46,8 +46,10 @@ end
     quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
+# The value is escaped on the way out — a quote, a backslash — and the parser
+# unescapes it on the way in, so any string round-trips as source.
 @projection_template JuliaStringToSyntaxLeaf JuliaString (p, v) ->
-    SyntaxLeaf(TextString(() -> v.value, p.style);
+    SyntaxLeaf(TextString(() -> _julia_string_escape(v.value), p.style);
                open=TextString("\"", p.quote_style),
                close=TextString("\"", p.quote_style))
 

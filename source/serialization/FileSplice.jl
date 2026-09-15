@@ -53,7 +53,14 @@ function _splice!(project::FileProject)
     index = Dict{String,Any}(normpath(get_filename(file)) => file for file in project.files)
     visited = IdDict{Any,Bool}()
     for file in project.files
-        _splice_walk!(project, index, get_file_content(file), visited)
+        # A file whose whole content is a reference: the save cut at its root, and
+        # a one-statement file parses to the statement itself.
+        target = _splice_target(project, index, get_file_content(file))
+        if target !== nothing
+            getfield(file, :content)[] = target
+        else
+            _splice_walk!(project, index, get_file_content(file), visited)
+        end
     end
     project
 end

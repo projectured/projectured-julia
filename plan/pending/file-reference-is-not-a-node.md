@@ -303,8 +303,7 @@ that is a plain string saves as one.
 
 - [x] The ownership walk over a save context.
 - [x] The cut walk: copy with the five rules, reference leaves at the cuts.
-- [x] `make_reference_leaf` for json and xml. Markdown, rst and julia come with
-  stage 3, when their stub projections go.
+- [x] `make_reference_leaf` for all five formats.
 - [x] The generic path verb, `node`, so a cut inside a JSON or XML tree can be named.
 - [x] `save_project!` over a context: cut, print, write-if-changed. The orphan
   abort logs and returns; no file is written.
@@ -317,11 +316,13 @@ The old path is untouched during stage 1.
 
 ### Stage 2 — load (done)
 
-- [x] `find_reference_marker` for json and xml; the other three with stage 3.
+- [x] `find_reference_marker` for all five formats. Each round-trips a JSON
+  object it does not own, in its own spelling.
 - [x] The two-phase load over a set of files, with the splice.
 - [x] A reference to a file outside the set stays a leaf.
 - [x] The load half of `FileProjectTest.jl` passes: every identity, the
-  partial set, save-load-save. 59 of 60; the sixtieth is the `.pred` block.
+  partial set, save-load-save, a file whose whole content is a reference.
+  74 of 75; the last is the `.pred` block.
 
 
 **What stages 1 and 2 found.**
@@ -348,6 +349,16 @@ node raw, while an attribute value was entity-escaped and the parser unescaped
 both. The old stub projection escaped its own marker text and so never met it;
 a plain `XmlText` holding a marker did. The text leaf escapes now, and any `<`
 in an XML text node round-trips.
+
+*The Julia string leaf did not escape either.* `JuliaStringToSyntaxLeaf` wrote
+the value raw between its quotes, so `pred_ref("<<file("a.json")>>")` was not
+Julia; the old stub projection escaped its own text with `_julia_string_escape`.
+The string leaf escapes now, `test_julia()` still passes 59 of 59, and any
+quote or backslash in a Julia string round-trips.
+
+*A file can be one reference.* A one-statement Julia file parses to the
+statement itself, and a JSON file whose root is a foreign node is one string.
+The splice handles the root as well as the children.
 
 *An XML text child is not stable across print, parse, print.* The printer
 indents it and the parser keeps the indentation as text: `<note>\n  hi\n</note>`

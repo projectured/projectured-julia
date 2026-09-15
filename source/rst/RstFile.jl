@@ -51,6 +51,16 @@ _unwrap(x) = x isa AbstractCell ? x[] : x
 # that owns no blocks passes through. A marker directive becomes a stub; a
 # `pred-ref` whose argument is not a marker stays the directive it was, so a
 # typing mistake shows on the page instead of vanishing.
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred-ref` directive whose argument is the marker.
+get_file_domain(::Type{<:RstFile}) = RstDocument
+make_reference_leaf(::RstFile, marker::AbstractString) =
+    RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
+find_reference_marker(node::RstDirective) =
+    _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE ?
+        parse_marker_text(strip(_unwrap(getfield(node, :argument)))) : nothing
+parse_file_content(::Type{<:RstFile}, text::AbstractString) = parse_rst(text)
+
 _substitute_markers(node, ctx::LoaderContext) = node
 
 function _substitute_markers(node::RstDirective, ctx::LoaderContext)

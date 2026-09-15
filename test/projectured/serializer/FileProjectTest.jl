@@ -32,6 +32,9 @@ using Test
 using ProjecturedSerialization.SerializationModule
 using ProjecturedJson.JsonModule
 using ProjecturedXml.XmlModule
+using Projectured.MarkdownModule
+using Projectured.RstModule
+using Projectured.JuliaModule
 using ProjecturedKernel.DocumentModule: @document
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +59,11 @@ _json_on_disk(dir, name) = parse_json(read(joinpath(dir, name), String))
 "The marker text a JSON string on disk carries, or `nothing`."
 _marker_of(leaf::JsonString) = parse_marker_text(leaf.value)
 _marker_of(::Any) = nothing
+
+"The last element of a root document: where each page above holds its reference."
+_last_child(root::MarkdownRoot) = getfield(root, :elements)[][end]
+_last_child(root::RstRoot)      = getfield(root, :elements)[][end]
+_last_child(root::JuliaBlock)   = getfield(root, :statements)[][end]
 
 "A fresh directory, and a project of `files` in it."
 _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
@@ -284,6 +292,41 @@ function test_file_project()
             @test _json_value(get_file_content(load_file(d, "a.json")), "n") isa JsonString
         end
 
+    end
+
+    @testset "every other format spells its own leaf" begin
+        # A page in each format holds a JSON object that a JSON file owns. Each
+        # writes the reference in its own notation and reads it back.
+        for (label, make_page, file_type, name, spelling) in (
+                ("markdown", obj -> MarkdownRoot([MarkdownParagraph([MarkdownText("Hi")]), obj]),
+                 MarkdownFile, "page.md",  "```pred-ref"),
+                ("rst",      obj -> RstRoot([RstParagraph([RstText("Hi")]), obj]),
+                 RstFile,      "page.rst", ".. pred-ref::"),
+                ("julia",    obj -> JuliaBlock([JuliaIdentifier("x"), obj]),
+                 JuliaFile,    "page.jl",  "pred_ref("))
+            @testset "$label" begin
+                obj = JsonObject("k" => JsonString("v"))
+                d, project = _project(file_type(name, make_page(obj)), JsonFile("a.json", obj))
+                @test save_project!(project) === true
+                text = read(joinpath(d, name), String)
+                @test occursin(spelling, text)
+                @test occursin("file(", text) && occursin("a.json", text)
+                loaded = load_project(d, [name, "a.json"])
+                page = get_file_content(loaded.files[1])
+                @test _last_child(page) === get_file_content(loaded.files[2])
+            end
+        end
+    end
+
+    @testset "a file whose whole content is a reference" begin
+        # a.json holds the XML element as its root, so the save cuts at the root
+        # and the file is one string; the load puts the element back as the root.
+        note = XmlElement("note", [XmlAttribute("lang", "en")], XmlDocument[])
+        d, project = _project(JsonFile("a.json", note), XmlFile("b.xml", note))
+        @test save_project!(project) === true
+        @test _marker_of(_json_on_disk(d, "a.json")) == "file(\"b.xml\")"
+        loaded = load_project(d, ["a.json", "b.xml"])
+        @test get_file_content(loaded.files[1]) === get_file_content(loaded.files[2])
     end
 
     @testset "a .pred file: the document as its constructor" begin

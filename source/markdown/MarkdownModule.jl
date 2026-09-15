@@ -28,7 +28,8 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: emit_text, populate_file!, get_document_section
+import ..SerializationModule: emit_text, populate_file!, get_document_section,
+                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 
 export MarkdownDocument, set_cell_function!
 export parse_markdown, parse_markdown_file

@@ -63,6 +63,18 @@ function _is_marker_call(node::JuliaCall)
     arg isa JuliaString
 end
 
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred_ref("…")` call with the marker as its one string argument.
+get_file_domain(::Type{<:JuliaFile}) = JuliaDocument
+make_reference_leaf(::JuliaFile, marker::AbstractString) =
+    JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME), CellVector([JuliaString(make_marker_text(marker))]))
+function find_reference_marker(node::JuliaCall)
+    _is_marker_call(node) || return nothing
+    args = getfield(node, :arguments)[]
+    parse_marker_text((args[1] isa Cell ? args[1][] : args[1]).value)
+end
+parse_file_content(::Type{<:JuliaFile}, text::AbstractString) = parse_julia(text)
+
 _marker_stub(node::JuliaCall, ctx::LoaderContext) = begin
     args = getfield(node, :arguments)[]
     s = args[1] isa Cell ? args[1][] : args[1]

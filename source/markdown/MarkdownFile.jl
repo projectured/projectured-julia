@@ -57,6 +57,15 @@ _unwrap(x) = x isa AbstractCell ? x[] : x
 _is_marker_block(node::MarkdownCodeBlock) =
     _unwrap(getfield(node, :language)) == PRED_REF_LANGUAGE
 
+# What the file writes itself, and how it spells a reference to what it does
+# not: a fenced block in the `pred-ref` language holding the marker.
+get_file_domain(::Type{<:MarkdownFile}) = MarkdownDocument
+make_reference_leaf(::MarkdownFile, marker::AbstractString) =
+    MarkdownCodeBlock(PRED_REF_LANGUAGE, make_marker_text(marker))
+find_reference_marker(node::MarkdownCodeBlock) =
+    _is_marker_block(node) ? parse_marker_text(strip(_unwrap(getfield(node, :code)))) : nothing
+parse_file_content(::Type{<:MarkdownFile}, text::AbstractString) = parse_markdown(text)
+
 function _marker_stub(node::MarkdownCodeBlock, ctx::LoaderContext)
     body = _unwrap(getfield(node, :code))
     src = parse_marker_text(strip(body))
