@@ -157,7 +157,9 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
         name === :selection && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
-        if is_element_collection(value)
+        # A plain vector in a cell holds references the same way a collection of
+        # cells does: a document read from a file lists its children that way.
+        if is_element_collection(value) || value isa AbstractVector
             for index_in in eachindex(value)
                 element = value[index_in]
                 target = _splice_target(project, index, element, tolerant)
