@@ -3579,6 +3579,13 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # appended content (a streaming chat) stays in view as the content grows.
         content_h_cell = inner_canvas.h
         inner_y = ComputedCell(() -> begin
+            # A content with no end has no extent to clamp against: its offset
+            # is measured from the head of its list, in either direction, and
+            # following an end it does not have means staying where it is.
+            if is_infinite_canvas(inner_canvas)
+                sp = scroll_cell[]::Point2D
+                return Int32(-Int(sp.y[]))
+            end
             room = max(0, Int(content_h_cell[]) - Int(vh_cell[]))
             follow_cell[] && return Int32(-room)
             # A stored offset is clamped as it is read too: the content can shrink
@@ -3649,6 +3656,7 @@ function _scroll_room(iomap)
     (out isa GraphicsCanvas && cim !== nothing) || return nothing
     content = cim.output
     content isa GraphicsDocument || return nothing
+    content isa GraphicsCanvas && is_infinite_canvas(content) && return nothing
     tx, ty = _inset_total(iomap.input)
     view_w = max(0, Int(out.w[]) - tx)
     view_h = max(0, Int(out.h[]) - ty)
@@ -6017,6 +6025,9 @@ end
 
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    # The printer reads the type of `rows` and nothing else says which table
+    # this is: a list draws the rows a viewport shows, a vector draws them all.
+    w.rows isa ListNode && return _wtl_print(p, recursion, w, ctx)
     position = w.position::Point2D
     # The padding is the projection's, from the theme: how a table is drawn is
     # not what a table is.
@@ -6372,7 +6383,9 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     cell_y = geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
     local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
     op = read_intent(cim.projection, cim, local_evt)
-    op isa ReplaceSelectionOperation || return nothing
+    # A selection is re-rooted under the cell; any other operation names its
+    # own document and is answered as it is, so a checkbox in a cell toggles.
+    op isa ReplaceSelectionOperation || return op
     table_ref = _wt_grid_ref_to_table(
         ConcreteReference(FieldReferenceStep("children"),
             ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)

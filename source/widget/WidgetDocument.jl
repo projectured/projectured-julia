@@ -1797,9 +1797,12 @@ layout iomap ("layout is just layout").
   `nothing`). Empty vector ⇒ no column-header strip.
 - `row_headers::CellVector` — optional left strip; each entry a `Document` (or
   `nothing`). Empty vector ⇒ no row-header strip.
-- `rows::CellVector` — the body; each entry is a `CellVector` of `Document` cells
-  (row-major). Field names `rows` / `column_headers` / `row_headers` are the
-  public reference vocabulary for selection.
+- `rows` — the body: a `CellVector` of rows, or a `ListNode` whose values are
+  rows; a row is a `CellVector` of `Document` cells either way. A list is drawn
+  one row at a time as a viewport reaches it, and `rows[i]` counts from the
+  list's head — the head is row 1, and a row reached through `prev` has an
+  index of zero or less. Field names `rows` / `column_headers` / `row_headers`
+  are the public reference vocabulary for selection.
 - `column_count::Int` — number of columns.
 - `border_width::Int` — hairline rule / border width (px). The padding inside a
   cell is the projection's, from the theme.
@@ -1818,7 +1821,7 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     position::Point2D
     column_headers::CellVector   # of Document (or nothing) — optional top strip
     row_headers::CellVector      # of Document (or nothing) — optional left strip
-    rows::CellVector             # each row is a CellVector of Document cells
+    rows::Any                    # CellVector of rows, or a ListNode of them; a row is a CellVector of Document cells
     column_count::Int
     border_width::Int
     column_policy::Any           # SizePolicy — what every body column is
@@ -1980,6 +1983,44 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(visible), Cell(nothing))
 end
+
+"""
+    WidgetTable(position, column_headers, rows::ListNode, column_count; …)
+
+A table whose rows are a list: drawn one row at a time as a viewport reaches
+it, with no count and no end it has to have. Each node's value is a row, which
+[`make_widget_table_row`](@ref) builds from a vector of values or documents.
+Every column must be given a width — `Fixed`, or a weight — and the rows are
+`Fixed` or `Content`; a list draws no row headers. The keywords are the
+document-cell constructor's.
+"""
+function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
+                     column_count::Integer;
+                     border_width::Integer=1, visible::Bool=true,
+                     column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
+                     column_policies=Any[], row_policies=Any[],
+                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
+    cell_policy in (:clip, :wrap) ||
+        error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
+    WidgetTable(Cell(position),
+                CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
+                CellVector(),
+                Cell(rows),
+                Cell(Int(column_count)), Cell(Int(border_width)),
+                Cell(column_policy), Cell(row_policy),
+                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
+                Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
+                Cell(visible), Cell(nothing))
+end
+
+"""
+    make_widget_table_row(values) -> CellVector
+
+One row of a table, from a vector of values or documents: a document passes
+through, and anything else becomes a `WidgetLabel` of its text. It is what a
+node of a list-backed table holds.
+"""
+make_widget_table_row(values) = _table_row(values)
 
 # String convenience shim: headers become a column-header strip, rows become the
 # body, columns inferred from the header count (or the widest row). Strings are

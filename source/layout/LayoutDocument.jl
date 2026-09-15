@@ -450,6 +450,30 @@ function find_axis_band(extent::Integer, gap::Integer, position::Integer)
     Int(position) ÷ pitch + 1
 end
 
+"""
+    compute_axis_extents(policies, gap, available) -> Vector{Int}
+
+The extent of every band on one axis from its policies alone, with nothing
+measured: a `Fixed` band is its number, a weighted band shares `available`
+with its siblings through `allocate_axis`, and a band that is its content — a
+`Content` policy — has no extent here at all, because nothing was measured.
+It is the rule the grid applies to a column it does not read the cells of,
+and a table whose rows are a list applies it to every column, because a cell
+that is never built cannot be measured.
+"""
+function compute_axis_extents(policies::AbstractVector, gap::Integer, available)
+    n = length(policies)
+    mins = Vector{Int}(undef, n); maxs = Vector{Int}(undef, n)
+    prefs = Vector{Int}(undef, n); weights = Vector{Float64}(undef, n)
+    weighted = false
+    for k in 1:n
+        (mins[k], maxs[k], prefs[k], weights[k]) = _gl_axis_inputs(policies[k]::SizePolicy, 0)
+        weights[k] > 0 && (weighted = true)
+    end
+    (available === nothing || !weighted) && return prefs
+    allocate_axis(Int(available), mins, maxs, prefs, weights, Int(gap), n)
+end
+
 # ── Allocation algorithm (per axis, one pass) ───────────────────────────────
 
 """

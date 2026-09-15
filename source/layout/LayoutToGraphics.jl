@@ -105,14 +105,20 @@ function _wrap_child(child::GraphicsDocument, x_cell::Cell, y_cell::Cell)
                    layout_none, true, Cell(nothing))
 end
 
-# A child drawn inside the slot it was allocated, on each axis the slot's extent
-# was known independently of the child — §3b of the layout rules: the container
-# that handed out a bounded extent clips to it. On an axis that is the child's
-# own, the viewport follows the child and clips nothing. The child sits at the
-# position the alignment gave it, expressed inside the viewport.
-function _clip_child(child::GraphicsDocument, cim, x_cell::Cell, y_cell::Cell,
-                     slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
-                     clip_x::Bool, clip_y::Bool)
+"""
+    clip_child_to_slot(child, iomap, x, y, slot_x, slot_y, slot_w, slot_h, clip_x, clip_y)
+
+A child drawn inside the slot it was allocated, on each axis the slot's extent
+was known independently of the child — §3b of the layout rules: the container
+that handed out a bounded extent clips to it. On an axis that is the child's
+own, the viewport follows the child and clips nothing. The child sits at the
+position the alignment gave it, expressed inside the viewport. Every cell is
+a `Cell`, so a slot that moves moves the viewport with it. A grid draws its
+cells through this, and so does a table whose rows are a list.
+"""
+function clip_child_to_slot(child::GraphicsDocument, cim, x_cell::Cell, y_cell::Cell,
+                            slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
+                            clip_x::Bool, clip_y::Bool)
     vx = clip_x ? slot_x : x_cell
     vy = clip_y ? slot_y : y_cell
     vw = clip_x ? slot_w : ComputedCell(() -> _child_w(cim))
@@ -507,6 +513,11 @@ function _backward_descend(document, entries::Vector, field::String, reference, 
 
     inside = EmptyReference()
     below = outer.tail
+    # A clipped child sits behind a viewport, one `content` step deeper than a
+    # bare wrapper; the step is skipped so both shapes read the same.
+    if below isa ConcreteReference && below.head isa FieldReferenceStep && below.head.name == "content"
+        below = below.tail
+    end
     if below isa ConcreteReference
         wrapper = below.head
         (wrapper isa FieldReferenceStep && wrapper.name == "elements") || return nothing
@@ -1181,9 +1192,9 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         clip_x = _gl_offers(policy_of_column(col))
         clip_y = _gl_offers(policy_of_row(row))
         if clip_x || clip_y
-            push!(wrapped, _clip_child(c, child_iomaps[i], child_x[i], child_y[i],
-                                       col_x[col], row_y[row], col_w[col], row_h[row],
-                                       clip_x, clip_y))
+            push!(wrapped, clip_child_to_slot(c, child_iomaps[i], child_x[i], child_y[i],
+                                              col_x[col], row_y[row], col_w[col], row_h[row],
+                                              clip_x, clip_y))
         else
             push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
         end

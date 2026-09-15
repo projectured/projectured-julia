@@ -11,7 +11,19 @@
 # upstream projection readers interpret as a character position.
 # ── Predicates ──────────────────────────────────────────────────────────────
 
-is_infinite_canvas(canvas::GraphicsCanvas) = canvas.elements isa ListNode
+# A canvas with no end: its elements are a list the renderer walks and stops
+# in, or one of its element canvases is. One level down is what a table whose
+# rows are a list draws — a header strip beside a body that is the list — and
+# it is the level a pane holding such a table has to see.
+function is_infinite_canvas(canvas::GraphicsCanvas)
+    elements = canvas.elements
+    elements isa ListNode && return true
+    elements === nothing && return false
+    for element in elements
+        element isa GraphicsCanvas && element.elements isa ListNode && return true
+    end
+    false
+end
 
 function is_leaf_canvas(canvas::GraphicsCanvas)
     for elem in canvas.elements

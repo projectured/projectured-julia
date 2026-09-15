@@ -285,12 +285,44 @@ steps can point at them.
       where it is. Every table test passed with the same numbers before and
       after; the substrate suite grew by the fifteen assertions of the two new
       functions and nothing else.
-- [ ] **Step 3b — `rows` accepts a `ListNode`.** Pieces 4 and 5 gain their
-      second form: a canvas list that mirrors the document list, and a walk from
-      the head that answers a cell's iomap. A `RangeReferenceStep` may carry a
-      negative start, and a scroll pane over a list-backed content measures its
-      offset from the head and does not clamp it. The head does not move in
-      this step. Repairs defects 2, 3 and 4.
+- [x] **Step 3b — `rows` accepts a `ListNode`.** Done 2026-09-16, in the
+      fragment `source/widget/WidgetTableList.jl` of the widget module, with its
+      own iomap `WidgetTableListIoMap` and its own readers; the eager printer
+      reads the type of `rows` and hands a list to it. Decided while building:
+      - A canvas node mirrors a document node: it holds the row's canvas and its
+        cell iomaps, is built when `next` or `prev` is first read, and a
+        document list that grows grows the canvas list with it, because the
+        thunk reads the document's `next`. The head sits at y zero; a row after
+        another is under it and a row before another is above it, by reading the
+        neighbour's y and height, so `Fixed` and `Content` rows are one rule.
+      - `compute_axis_extents(policies, gap, available)` is piece 1 for a list:
+        the extents from the policies alone, nothing measured. It sits beside
+        the other two, and `clip_child_to_slot` is exported for the same reason:
+        a grid and a list table draw a cell the same way.
+      - A weight on the rows is refused for any list, not only an infinite one,
+        because the printer cannot tell the two apart and a finite list that
+        wants weighted rows can be a vector. A list draws no row headers, and
+        names one row policy.
+      - The table reports its width and no height. `is_infinite_canvas` looks
+        one level down, which is the header strip beside the body, so a scroll
+        pane over such a table measures its offset from the head, clamps
+        nothing, and ignores `follow_end`. Nothing else reads the height.
+      - `rows[k][c]∅` maps forward to the cell's own origin, and anything inside
+        the cell to the cell's own answer moved by the row's place. The
+        backward map answers nothing: no path into the list's canvas is produced
+        by anything today, and a map without a caller is a map without a test.
+      - A click inside a cell that answers an operation other than a selection
+        — a checkbox toggling itself — now comes back as it is, in both forms.
+        Before, both forms dropped it, so a checkbox in a cell could not be
+        pressed; a test with a checkbox in a list cell says it can.
+      - A `WidgetText` in a cell prints as a `SimpleIoMap` and answers no
+        click, in both forms, before and after. That is that widget's own fault
+        and is listed under §7.
+      - A row before the head sits under the header strip until the pane is
+        scrolled up; a click on it while it is under the strip is a click on
+        the strip. That is settled with the head's relocation, which is
+        deferred.
+      Repairs defects 2, 3 and 4.
 - [ ] **Step 4 — the callers move.** The runner's table and the result table
       become `WidgetTable` with a `ListNode` in `rows` and their widths as
       `column_policies`; the five callers that install a function on `rows`
@@ -325,6 +357,10 @@ steps can point at them.
 
 ## 7. Found on the way, and not this plan's
 
+- A `WidgetText` inside a table cell prints as a `SimpleIoMap` with no content
+  iomap, and its reader answers nothing to a click. It is so in the eager
+  table and in the list form alike, and a `WidgetCheckbox` in the same cell
+  answers. The fault is in how the text widget prints when recursed as a cell.
 - `test_filter_run_table_bounded` in omnet's `SimulationFilterTest.jl` fails
   on the unmodified tree: 3 failed, 1 errored, in its text-position and clip
   assertions. It was dark for the same reason as defect 8.

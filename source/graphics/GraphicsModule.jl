@@ -33,6 +33,7 @@ export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout
        set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
 export GraphicsCanvasToGraphicsImage, GraphicsCaching
+export is_infinite_canvas
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export get_canvas_content_bounds
 

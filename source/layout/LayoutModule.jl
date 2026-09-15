@@ -31,7 +31,7 @@ using ..ReferenceModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis,
-       compute_axis_offsets, find_axis_band, layout_min,
+       compute_axis_offsets, find_axis_band, compute_axis_extents, layout_min,
        layout_max, layout_preferred, layout_weight,
        SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
@@ -44,7 +44,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        LayoutToGraphics, GridLayoutIoMap
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
-export descend_reference_forward, shift_child_image
+export descend_reference_forward, shift_child_image, clip_child_to_slot
 
 
 include("LayoutDocument.jl")

@@ -78,6 +78,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export CellTableToWidgetTable
+export WidgetTableListIoMap, make_widget_table_row
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
@@ -86,6 +87,7 @@ export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, W
 
 include("WidgetDocument.jl")
 include("WidgetToGraphics.jl")
+include("WidgetTableList.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
 include("CellTableToWidgetTable.jl")
