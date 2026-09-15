@@ -28,6 +28,11 @@
 # **What the table reports.** Its width, and no height: a list has no extent,
 # and a table whose rows are a list belongs in a `WidgetScrollPane`, which
 # measures its offset from the head and clamps nothing.
+#
+# **The empty list is an empty vector.** A `ListNode` holds a row, so a list
+# of no rows cannot be one; a table drawn as a list whose `rows` cell later
+# answers an empty `CellVector` draws its header and no rows, and draws the
+# rows again when the cell answers a list again.
 
 # What the list printer keeps for its readers: the geometry every row shares,
 # and the rows built so far by their index from the head.
@@ -301,15 +306,20 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
     end
 
     # The body: a canvas whose elements are the canvas list, built from the
-    # head. A new head in `rows` drops every row built and starts again.
+    # head. A new head in `rows` drops every row built and starts again, and
+    # no head — an empty vector — is no rows.
     set_cell_function!(st.head, () -> begin
         rows = w.rows
         empty!(st.built)
         rows isa ListNode ? _wtl_node(p, recursion, w, ctx, st, 1, rows, nothing, nothing) : nothing
     end)
+    body_elements = ComputedCell(() -> begin
+        head = st.head[]
+        head === nothing ? CellVector() : head
+    end)
     body = GraphicsCanvas(Cell(Int32(0)), ComputedCell(() -> Int32(Int(st.header_height[]))),
                           ComputedCell(() -> Int32(Int(total_w[]))), Cell(Int32(0)),
-                          st.head, layout_vertical, false, Cell(nothing))
+                          body_elements, layout_vertical, false, Cell(nothing))
     ox, oy = _origin(w.position::Point2D)
     elements = CellVector(Cell[Cell(e) for e in (has_header ? Any[header_canvas, body] : Any[body])])
     canvas = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),

@@ -177,6 +177,18 @@ end
     @test Int(image.y[]) < Int(at_head.y[])
 end
 
+@testset "an empty vector in the rows cell is the empty list" begin
+    table = make_table(make_list(3, texts_of))
+    io = print_document(rec, nothing, table, context())
+    @test length(texts(io.output)) == 8
+    set_cell_value!(getfield(table, :rows), CellVector())
+    @test length(texts(io.output)) == 2      # the two names, and no rows
+    @test !is_infinite_canvas(io.output)
+    set_cell_value!(getfield(table, :rows), make_list(2, texts_of))
+    @test length(texts(io.output)) == 6
+    @test is_infinite_canvas(io.output)
+end
+
 @testset "a list is refused where it cannot be drawn lazily" begin
     rows = make_list(3, texts_of)
     content = WidgetTable(Point2D(0, 0), Any["name", "value"], rows, 2;
