@@ -34,8 +34,9 @@
 #
 # `file` and `node` are the splice's own. Every other verb is registered by the
 # package that owns its machinery, with `register_marker_function!(:name, f)`,
-# and is called as `f(project, args...)`. A capitalised name constructs the
-# type it names, through the resolver a package registers.
+# and is called as `f(project, args...)`. A capitalised name constructs the type
+# it names, of the types `register_pred_type!` offered. A `.pred` file is one
+# such call, at file scale: see `PredFile.jl`.
 
 """
     FileDocument
@@ -211,24 +212,38 @@ end
 _is_type_name(name::Symbol) =
     (text = String(name); Base.isidentifier(text) && isuppercase(first(text)))
 
-# How a marker resolves a type name. `nothing` until a package sets one: the
-# serialization layer knows nothing about which modules a project may name, and
-# the package that does know registers the answer.
-const _MARKER_TYPE_RESOLVER = Ref{Any}(nothing)
+# The types a file may construct, by name. The serialization layer knows nothing
+# about which modules a project may name, so a package offers what its files may
+# hold and nothing else can be built.
+const _PRED_TYPES = Dict{String,Type}()
 
 """
-    register_marker_type_resolver!(f) -> f
+    register_pred_type!(T) -> T
 
-Say how a marker naming a type resolves it. `f(name::AbstractString) -> Type`,
-and it is the function that decides which types a file may construct — it should
-refuse anything a file has no business building.
+Offer `T` to a file: a marker naming it constructs one, and a `.pred` file may
+hold one. Nothing is offered by default, so a file can never name a type the
+session did not put on this list.
 
 Runtime state, so register it from `__init__`.
 """
-function register_marker_type_resolver!(f)
-    _MARKER_TYPE_RESOLVER[] = f
-    return f
+function register_pred_type!(T::Type)
+    _PRED_TYPES[String(nameof(T))] = T
+    T
 end
+
+"The type `name` names, or `nothing` when nothing offered it."
+get_pred_type(name::AbstractString) = get(_PRED_TYPES, String(name), nothing)
+
+# Whether `T` is offered to a file by name. A `@document` type is parametric in
+# the kind of each of its cells, so what a package registers is the name and
+# every layout of it answers to that name.
+function is_pred_type(T::Type)
+    registered = get(_PRED_TYPES, String(nameof(T)), nothing)
+    registered === nothing && return false
+    registered === T || T <: registered
+end
+
+is_pred_type(::Any) = false
 
 # Parse a marker body, returning the expression when it is in the
 # restricted subset and `nothing` otherwise. `raise=false` turns a
@@ -264,11 +279,18 @@ function _is_marker_argument(e::Expr)
     e.head === :parameters && return all(_is_marker_argument, e.args)   # f(; a = 1)
     e.head === :kw && return Base.length(e.args) == 2 && e.args[1] isa Symbol &&
                              _is_marker_argument(e.args[2])
+    # A vector of values, `options = ["a", "b"]`: a field of a document holds a
+    # list as readily as it holds one value, and a list of literals is data by
+    # the same argument every literal is.
+    e.head === :vect && return all(_is_marker_argument, e.args)
     return _is_marker_call(e)
 end
 
+# `nothing` is written as the word it is, and the parser hands back the name
+# rather than the value. It is the one bare name the subset takes: a field that
+# holds nothing has to be writable, and there is no other way to spell it.
 _is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
-                        x isa Bool || x === nothing
+                        x isa Bool || x === nothing || x === :nothing
 
 # The expression printed in one canonical form, for an error message: so
 # `file("a.json")` and `file( "a.json" )` read the same.
@@ -279,6 +301,14 @@ function _canonical_marker(e::Expr)
 end
 
 function _print_canonical(io::IO, e::Expr)
+    if e.head === :vect
+        print(io, "[")
+        for (i, a) in enumerate(e.args)
+            i > 1 && print(io, ", ")
+            _print_canonical(io, a)
+        end
+        return print(io, "]")
+    end
     # A keyword prints as `name = value`, and the ones written after a `;` print
     # the same way as the ones written inline — two spellings of one call read
     # the same.
@@ -301,6 +331,8 @@ function _print_canonical(io::IO, e::Expr)
 end
 
 _print_canonical(io::IO, x::AbstractString) = print(io, repr(String(x)))
+# The one name in the subset prints as the word, not as the symbol it parsed to.
+_print_canonical(io::IO, x::Symbol) = print(io, x)
 _print_canonical(io::IO, x) = print(io, repr(x))
 
 # ── The `section` vocabulary function ──────────────────────────────────────
@@ -338,8 +370,9 @@ end
 # One module, one `__init__`: the registrations of every fragment run from here.
 function __init__()
     register_marker_function!(:section, marker_section)
-    register_file_document_type!("",     TextFile)
-    register_file_document_type!(".txt", TextFile)
+    register_file_document_type!("",      TextFile)
+    register_file_document_type!(".txt",  TextFile)
+    register_file_document_type!(".pred", PredFile)
 end
 
 # The write gate: skip the write when the emitted text matches what's

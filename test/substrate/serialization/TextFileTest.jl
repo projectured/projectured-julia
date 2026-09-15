@@ -6,7 +6,6 @@ write gate, and recreation after an external deletion.
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedSerialization.SerializationModule: register_marker_type_resolver!
 
 function test_text_file()
 @testset "TextFile: save and load one file" begin
@@ -116,22 +115,16 @@ function test_text_file()
 
     @testset "a marker may name a type, and then it constructs one" begin
         # A document is a data structure, and a constructor is how one is
-        # written down. Nothing is registered per type: the capital is what
-        # tells `MarkdownFile(…)` from `file(…)`.
+        # written down. The capital is what tells `TextFile(…)` from `file(…)`,
+        # and the registry is what says a file may name this one.
         ctx = FileProject(".", [])
-        resolver = name -> name == "TextFile" ? TextFile :
-                           error("test resolver: no type named ", name)
-        register_marker_type_resolver!(resolver)
-        try
-            built = evaluate_marker("TextFile(\"page.txt\", \"hello\")", ctx)
-            @test built isa TextFile
-            @test get_filename(built) == "page.txt"
-            # A type the resolver refuses is refused here, so a file cannot
-            # build what it has no business building.
-            @test_throws ErrorException evaluate_marker("NotOffered()", ctx)
-        finally
-            register_marker_type_resolver!(nothing)
-        end
+        register_pred_type!(TextFile)
+        built = evaluate_marker("TextFile(\"page.txt\", \"hello\")", ctx)
+        @test built isa TextFile
+        @test get_filename(built) == "page.txt"
+        # A type nothing offered is refused, so a file cannot build what it has
+        # no business building.
+        @test_throws ErrorException evaluate_marker("NotOffered()", ctx)
     end
 
     @testset "keywords are in the marker subset" begin

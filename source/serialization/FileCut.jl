@@ -232,18 +232,14 @@ written into, log the reason, write nothing, and return `false`.
 """
 function save_project!(project::FileProject)
     owner = _assign_owners(project)
-    copies = Any[]
-    for file in project.files
-        try
-            push!(copies, (file, _cut_copy(owner, file, get_file_content(file),
-                                           EmptyReference(), IdDict{Any,Bool}(), false)))
-        catch e
-            e isa FileCutException || rethrow()
-            @error e.message
-            return false
-        end
+    texts = try
+        Any[(file, _cut_text(owner, file, false)) for file in project.files]
+    catch e
+        e isa FileCutException || rethrow()
+        @error e.message
+        return false
     end
-    _write_files!(project.base_dir, copies)
+    _write_texts!(project.base_dir, texts)
     true
 end
 
@@ -259,24 +255,32 @@ function save_file!(file, base_dir::AbstractString)
     is_file_document(file) ||
         error("save_file!: not a file document (", typeof(file), ")")
     owner = _assign_owners(FileProject(base_dir, Any[file]))
-    copied = try
-        _cut_copy(owner, file, get_file_content(file), EmptyReference(), IdDict{Any,Bool}(), true)
+    text = try
+        _cut_text(owner, file, true)
     catch e
         e isa FileCutException || rethrow()
         @error e.message
         return false
     end
-    _write_files!(base_dir, Any[(file, copied)])
+    _write_texts!(base_dir, Any[(file, text)])
     true
 end
 
-function _write_files!(base_dir::AbstractString, copies)
+# One file's text: cut the graph, then print the copy in the file's own
+# notation. Both halves can refuse — the cut at a node with no file, the
+# notation at a value it cannot write — and both refuse before anything is
+# written, so a save that cannot be finished leaves the directory as it was.
+_cut_text(owner, file, strict::Bool) =
+    emit_text(_with_content(file, _cut_copy(owner, file, get_file_content(file),
+                                            EmptyReference(), IdDict{Any,Bool}(), strict)))
+
+function _write_texts!(base_dir::AbstractString, texts)
     mkpath(base_dir)
-    for (file, content) in copies
+    for (file, text) in texts
         path = joinpath(base_dir, get_filename(file))
         parent = dirname(path)
         isempty(parent) || mkpath(parent)
-        _write_if_changed(path, emit_text(_with_content(file, content)))
+        _write_if_changed(path, text)
     end
 end
 

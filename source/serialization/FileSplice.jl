@@ -119,6 +119,7 @@ end
 # the arguments evaluated the same way. A `file` naming a file outside the set
 # answers `nothing`, and so does anything built on it.
 function _evaluate_splice(project, index, e::Expr)
+    e.head === :vect && return Any[_evaluate_splice(project, index, a) for a in e.args]
     verb = e.args[1]::Symbol
     positional, keywords = _splice_arguments(project, index, e)
     any(a -> a === nothing, positional) && return nothing
@@ -134,13 +135,11 @@ function _evaluate_splice(project, index, e::Expr)
     elseif _is_type_name(verb)
         # A capitalised name constructs the type it names: a document is a data
         # structure, and its constructor is how one is written down. Which types
-        # a file may construct is the resolver's business.
-        resolve = _MARKER_TYPE_RESOLVER[]
-        resolve === nothing &&
-            error("marker: ", verb, " looks like a type, and nothing here can resolve one ",
-                  "— a package registers `register_marker_type_resolver!` to say which ",
-                  "types a file may construct")
-        T = resolve(String(verb))
+        # a file may name is the registry's business.
+        T = get_pred_type(String(verb))
+        T === nothing &&
+            error("marker: no type named ", verb, " is offered here — a package calls ",
+                  "register_pred_type!(", verb, ") to say a file may construct one")
         isempty(keywords) && return T(positional...)
         isempty(positional) && return T(; keywords...)
         return T(positional...; keywords...)
@@ -152,7 +151,9 @@ function _evaluate_splice(project, index, e::Expr)
     isempty(keywords) ? f(project, positional...) : f(project, positional...; keywords...)
 end
 
-_evaluate_splice(project, index, literal) = literal
+# A literal stands for itself; `nothing` arrives as the name the parser made of
+# the word.
+_evaluate_splice(project, index, literal) = literal === :nothing ? nothing : literal
 
 function _splice_arguments(project, index, e::Expr)
     positional = Any[]

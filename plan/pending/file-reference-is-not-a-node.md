@@ -394,17 +394,46 @@ save-load-save test uses a stable shape.
 
 ### Stage 4 — the `.pred` file
 
-- [ ] Vector literals join the subset, in the reader and the canonical printer.
-- [ ] `register_pred_type!`: the gate becomes a registry; the one global
-  resolver goes.
-- [ ] The writer: a document as its constructor, canonical, refusing a value
-  the subset cannot write.
-- [ ] `PredFile`, registered for `.pred`; its leaf maker and recogniser are the
-  vocabulary itself.
-- [ ] The `.pred` half of `FileProjectTest.jl` passes.
-- [ ] In `omnet-julia`: `AlohaRun.json` becomes `AlohaRun.pred`, the page writes
-  `<<file("AlohaRun.pred")>>`, and `realize`, `$doctype` and `DocumentLoader.jl`
-  go. The fields that derive from the base directory are derived at load.
+The projectured half is done; the `omnet-julia` half is stage 6 below, because
+what it needs turned out to be a design decision rather than a port.
+
+- [x] Vector literals join the subset, in the reader and the canonical printer.
+  `nothing` joined it too: the parser hands back the name rather than the value,
+  so the subset takes that one bare word, and a field that holds nothing is
+  writable.
+- [x] `register_pred_type!(T)`: the gate is a registry keyed on the type's name,
+  and `register_marker_type_resolver!` is gone. A `@document` type is parametric
+  in the kind of each of its cells, so the check is by name and every layout
+  answers to it.
+- [x] The writer, `print_pred_text`: every declared field in declaration order,
+  one way to write each value. It refuses a value outside the notation with a
+  `FileCutException` naming the field.
+- [x] `PredFile`, registered for `.pred`. Its leaf is `PredReference`, which
+  holds the call as written: the parser leaves one at every call that does not
+  name a type, the splice replaces it, and the writer prints it verbatim. A
+  marker naming a file outside the set stays one and saves back unchanged.
+- [x] **A save writes nothing unless every file can be cut and printed.** The
+  notation can refuse a value, and it refuses before the first byte is written,
+  so a failed save leaves the directory as it was. `_cut_text` is the cut and
+  the print together; `_write_texts!` is the only writer.
+- [x] `test_file_project()` 94/94.
+- [x] The naming guard reads the type inside a `Type{<:JsonFile}` argument. Two
+  file formats in one module each define `get_file_domain` and
+  `parse_file_content`, and the guard could not tell the two methods apart.
+
+### Stage 6 — `omnet-julia` and `inet-julia`
+
+`realize`, `$doctype` and `DocumentLoader.jl` go, and a manifest becomes a
+`.pred` file. What is not a port and needs a decision: `OmnetProject` holds a
+`Module` (the sandbox the source ran in) and a `Type` (the model), which are
+runtime state and not data, so it cannot be written as its own constructor. The
+manifest has to describe the project — the source path, the readme path, the
+model name — and the loader has to build the project from that description.
+
+Ported without a decision: `NedFile` and `IniFile` (their whole node is their
+content, which the save and the load must be told about), every
+`LoaderContext` (now a `FileProject`), every registered verb (now called with
+the project), and the tests that named a stub.
 
 ### Stage 5 — what is left open
 

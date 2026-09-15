@@ -266,7 +266,9 @@ function _argument_types(call)
         i == 1 && continue                              # the function being defined
         _JS.kind(child) === _JS.K"parameters" && continue  # keyword arguments do not dispatch
         text = _JS.sourcetext(child)
-        m = match(r"::\s*([A-Za-z_][\w.{}, ]*)", text)
+        # `<:` is part of the type a `Type{<:JsonFile}` argument names, and it is
+        # the whole difference between one file format's method and another's.
+        m = match(r"::\s*([A-Za-z_][\w.{}<:, ]*)", text)
         push!(out, m === nothing ? "_" : strip(m.captures[1]))
     end
     out

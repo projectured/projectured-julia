@@ -37,12 +37,13 @@ export FileDocument, is_file_document,
        save_project!, load_project,
        register_file_document_type!, get_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
-       register_marker_type_resolver!,
+       register_pred_type!, get_pred_type, is_pred_type,
        parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, load_file, parse_file_content,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text
 export TextFile
+export PredFile, parse_pred_text, print_pred_text
 
 
 include("BinarySerialization.jl")
@@ -50,5 +51,6 @@ include("FileProject.jl")
 include("FileCut.jl")
 include("FileSplice.jl")
 include("TextFile.jl")
+include("PredFile.jl")
 
 end # module
