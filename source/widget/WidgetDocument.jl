@@ -1801,8 +1801,8 @@ layout iomap ("layout is just layout").
   (row-major). Field names `rows` / `column_headers` / `row_headers` are the
   public reference vocabulary for selection.
 - `column_count::Int` — number of columns.
-- `padding::Int` — inner padding (px) between a cell's border and its content.
-- `border_width::Int` — hairline rule / border width (px).
+- `border_width::Int` — hairline rule / border width (px). The padding inside a
+  cell is the projection's, from the theme.
 - `cell_policy::Symbol` — what a cell does with text wider than its column,
   when the column was given a width: `:clip` draws one line and cuts it at the
   column's edge, `:wrap` breaks the lines there and the row grows. A column
@@ -1820,7 +1820,6 @@ existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
     row_headers::CellVector      # of Document (or nothing) — optional left strip
     rows::CellVector             # each row is a CellVector of Document cells
     column_count::Int
-    padding::Int
     border_width::Int
     column_policy::Any           # SizePolicy — what every body column is
     row_policy::Any              # SizePolicy — what every body row is
@@ -1942,7 +1941,7 @@ _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
 
 """
     WidgetTable(position, column_headers, row_headers, rows, column_count;
-                padding=8, border_width=1, visible=true,
+                border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
                 cell_policy=:clip, column_cell_policies=Symbol[])
@@ -1965,7 +1964,7 @@ line, cut at the column's edge.
 """
 function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vector,
                      rows::Vector, column_count::Integer;
-                     padding::Integer=8, border_width::Integer=1, visible::Bool=true,
+                     border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
@@ -1975,7 +1974,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 CellVector(Cell[Cell(_table_row(r)) for r in rows]),
-                Cell(Int(column_count)), Cell(Int(padding)), Cell(Int(border_width)),
+                Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
@@ -1986,14 +1985,14 @@ end
 # body, columns inferred from the header count (or the widest row). Strings are
 # wrapped in WidgetLabels via `_table_cell_doc`.
 function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
-                     padding::Integer=8, border_width::Integer=1, visible::Bool=true,
+                     border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
     WidgetTable(position, collect(Any, headers), Any[], collect(Any, rows), column_count;
-                padding=padding, border_width=border_width, visible=visible,
+                border_width=border_width, visible=visible,
                 column_policy=column_policy, row_policy=row_policy,
                 column_policies=column_policies, row_policies=row_policies,
                 cell_policy=cell_policy, column_cell_policies=column_cell_policies)

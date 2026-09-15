@@ -12,7 +12,6 @@ function make_graph_document_example()
             Any[JsonString("Ada"), JsonString("Lead")],
         ],
         2;
-        padding=8,
     )
 
     # Vertex 2: a small JSON object.

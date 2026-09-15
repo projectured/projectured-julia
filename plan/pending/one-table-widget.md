@@ -258,10 +258,23 @@ steps can point at them.
       Measured after: the six-line row of §2 is one line again. Substrate
       60977 pass with only the split-pane drag baseline; table navigation 65/65
       and selection 21/21.
-- [ ] **Step 2 — padding and the row height come from the theme.** Move
-      `WidgetTable.padding` to the projection. Let an unset row policy mean one
-      line plus twice `pad_y`. Delete both omnet `_ROW_HEIGHT` constants.
-      Repairs defects 5, 6 and half of 7.
+- [x] **Step 2 — padding and the row height come from the theme.** Done
+      2026-09-16. Decided while building:
+      - `WidgetTableToGraphicsCanvas` carries `padding::Inset`, filled by the
+        factory from `theme.pad_x` and `theme.pad_y`; the geometry keeps one
+        padding and one grid offset per axis. The document field `padding` is
+        gone, and so is the `padding=` keyword at six callers in the examples
+        and one omnet demo.
+      - The row height needs no rule of its own: a `Content` row is its cell
+        plus the vertical gap of `2 * pad_y + border`, which is one line plus
+        twice `pad_y` — 20 + 18 + 1 = 39 pixels with the theme's font. A test
+        reads it back from the geometry.
+      - `border_width` stays on the document. It is drawn twice today — the
+        document's number sizes the gaps, the projection's stroke draws the
+        rule — and that is a smaller fault than this plan is for.
+      - The two omnet `_ROW_HEIGHT` constants stay until Step 4: they size the
+        lazy table, which keeps its own row height until it is gone.
+      Repairs defects 5 and 6.
 - [ ] **Step 3a — pieces 1 to 3 become functions in `ProjecturedLayout`.** The
       grid and both tables call them, and behaviour does not change. This step
       is a refactor and its test is that every existing table test still passes

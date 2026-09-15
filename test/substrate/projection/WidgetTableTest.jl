@@ -157,6 +157,15 @@ function test_widget_table_cell_policy()
     @testset "a policy that is neither is refused" begin
         @test_throws ErrorException make(; cell_policy = :squash)
     end
+    @testset "the padding around a cell is the theme's, one token per axis" begin
+        theme = make_slate_light_theme(font = font_ubuntu_regular_20)
+        geometry = clipped.geometry
+        @test geometry.pad_x == theme.pad_x
+        @test geometry.pad_y == theme.pad_y
+        # A row is one line of sixteen plus the padding above and below plus
+        # the rule: the theme decides the height of a row nobody sized.
+        @test geometry.row_y[2] - geometry.row_y[1] == 16 + 2 * theme.pad_y + 1
+    end
 end
 end
 

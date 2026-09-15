@@ -51,7 +51,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         CellVector(),        # no row headers
                         rows,
                         Cell(nc),
-                        Cell(8), Cell(1),    # padding, border_width
+                        Cell(1),             # border_width
                         Cell(Content), Cell(Content),      # every column and row is its content
                         Cell(Any[]), Cell(Any[]),          # and none of them differs
                         Cell(:clip), Cell(Symbol[]),       # a cell is one line, cut at the edge

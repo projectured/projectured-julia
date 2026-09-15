@@ -142,8 +142,7 @@ function make_chart_document_example()
             Any[make_chart_line_document_example(), make_chart_bar_document_example()],
             Any[make_chart_histogram_document_example(), make_chart_scatter_document_example()],
         ],
-        2;
-        padding=6)
+        2)
 end
 
 """

@@ -167,5 +167,5 @@ function make_sequencechart_pair_document_example()
     WidgetTable(Point2D(0, 0), Any[], Any[],
         Any[Any[make_sequencechart_document_example()],
             Any[make_sequencechart_linear_document_example()]],
-        1; padding=6)
+        1)
 end

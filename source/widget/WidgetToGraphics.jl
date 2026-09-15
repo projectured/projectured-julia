@@ -5768,6 +5768,7 @@ end
     header_text::ImmutableCell{StyleText}        # header strip text style
     rule::StyleStroke             # border / hairline rules
     header_fill::StyleColor       # header strip background
+    padding::Inset                # inside a cell: top and bottom, left and right
 end
 
 # Translucent selection accent (same blue the syntax-text / old table highlight used).
@@ -5797,8 +5798,10 @@ struct WTGeometry
     total_w::Int
     total_h::Int
     bw::Int                  # border / rule width
-    pad::Int                 # inner padding
-    grid_off::Int            # outer offset of the grid canvas (= bw + pad)
+    pad_x::Int               # inner padding, left and right of a cell
+    pad_y::Int               # inner padding, above and below a cell
+    grid_off_x::Int          # outer offset of the grid canvas (= bw + pad_x)
+    grid_off_y::Int          # outer offset of the grid canvas (= bw + pad_y)
 end
 
 # IoMap: carries the grid iomap (for cell delegation) plus the persisted geometry
@@ -5901,30 +5904,33 @@ _wt_grid_index(gr::Int, gc::Int, grid_cols::Int) = (gr - 1) * grid_cols + gc
 # Compute the outer geometry from the GridLayoutIoMap and the table padding/border.
 function _wt_geometry(gim::GridLayoutIoMap, grid_rows::Int, grid_cols::Int,
                       row_offset::Int, col_offset::Int, nrows::Int, ncols::Int,
-                      has_ch::Bool, has_rh::Bool, pad::Int, bw::Int)
-    grid_off = bw + pad
+                      has_ch::Bool, has_rh::Bool, pad_x::Int, pad_y::Int, bw::Int)
+    grid_off_x = bw + pad_x
+    grid_off_y = bw + pad_y
     # Per-grid-column width and per-grid-row height from the layout geometry.
     col_w = Int[Int(gim.col_w[c][]) for c in 1:grid_cols]
     row_h = Int[Int(gim.row_h[r][]) for r in 1:grid_rows]
     # Cumulative edges. `col_x[gc]` is the position of the rule to the LEFT of grid
     # column gc (so col_x[1] = 0 is the left border, col_x[grid_cols+1] is the
-    # right border). The content-left of column gc is col_x[gc] + bw + pad, which
-    # matches the GridLayout child x (Σ prev (col_w+gap)) plus grid_off=bw+pad,
-    # since each box advance is col_w + 2*pad + bw (= the layout gap plus col_w).
+    # right border). The content-left of column gc is col_x[gc] + bw + pad_x,
+    # which matches the GridLayout child x (Σ prev (col_w+gap)) plus grid_off_x,
+    # since each box advance is col_w + 2*pad_x + bw (= the layout gap plus
+    # col_w); rows the same with pad_y.
     col_x = Vector{Int}(undef, grid_cols + 1)
     col_x[1] = 0
     for gc in 1:grid_cols
-        col_x[gc + 1] = col_x[gc] + col_w[gc] + 2 * pad + bw
+        col_x[gc + 1] = col_x[gc] + col_w[gc] + 2 * pad_x + bw
     end
     row_y = Vector{Int}(undef, grid_rows + 1)
     row_y[1] = 0
     for gr in 1:grid_rows
-        row_y[gr + 1] = row_y[gr] + row_h[gr] + 2 * pad + bw
+        row_y[gr + 1] = row_y[gr] + row_h[gr] + 2 * pad_y + bw
     end
     total_w = col_x[grid_cols + 1] + bw   # + trailing right border
     total_h = row_y[grid_rows + 1] + bw
     WTGeometry(nrows, ncols, row_offset, col_offset, grid_rows, grid_cols,
-               has_rh, has_ch, col_x, row_y, total_w, total_h, bw, pad, grid_off)
+               has_rh, has_ch, col_x, row_y, total_w, total_h, bw,
+               pad_x, pad_y, grid_off_x, grid_off_y)
 end
 
 # ── Selection-shape recognition ───────────────────────────────────────────────
@@ -6025,9 +6031,11 @@ end
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    pad = _sc(Int(w.padding))
+    # The padding is the projection's, from the theme: how a table is drawn is
+    # not what a table is.
+    pad_x = _sc(Int(p.padding.left[]))
+    pad_y = _sc(Int(p.padding.top[]))
     bw  = max(1, _sc(Int(w.border_width)))
-    grid_off = bw + pad
 
     layout_info = ComputedCell(() -> _wt_grid_children(w))
 
@@ -6039,14 +6047,13 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         info = layout_info[]
         children, grid_rows, grid_cols = info[1], info[2], info[3]
         row_offset, col_offset = info[4], info[5]
-        gap = 2 * pad + bw
         grid = GridLayout(children, grid_cols;
-                          horizontal_gap=gap, vertical_gap=gap,
+                          horizontal_gap = 2 * pad_x + bw, vertical_gap = 2 * pad_y + bw,
                           column_policy = w.column_policy, row_policy = w.row_policy,
                           column_policies = _wt_shift(w.column_policies, col_offset),
                           row_policies = _wt_shift(w.row_policies, row_offset),
                           column_offers = _wt_column_offers(w, grid_cols, col_offset))
-        # The grid is positioned at grid_off inside the outer canvas; extend the
+        # The grid is positioned at (grid_off_x, grid_off_y) inside the outer canvas; extend the
         # context reference to the table's grid so child contexts are rooted here.
         print_child(recursion, grid, ctx)
     end)
@@ -6055,9 +6062,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         info = layout_info[]
         _, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh = info
         gim = grid_iomap[]
-        gim isa GridLayoutIoMap || return _wt_geometry_empty(pad, bw)
+        gim isa GridLayoutIoMap || return _wt_geometry_empty(pad_x, pad_y, bw)
         _wt_geometry(gim, grid_rows, grid_cols, row_offset, col_offset,
-                     nrows, ncols, has_ch, has_rh, pad, bw)
+                     nrows, ncols, has_ch, has_rh, pad_x, pad_y, bw)
     end)
 
     # Persistent selection-highlight overlay: one rect whose bounds read the
@@ -6110,11 +6117,11 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         #    content and rules. Hover is behind selection.
         push!(result, hover_rect)
         push!(result, highlight_rect)
-        # 3. The positioned grid content (from GridLayout), offset by grid_off.
+        # 3. The positioned grid content (from GridLayout), offset by the grid offset.
         if gim isa GridLayoutIoMap
             gcanvas = gim.output
             if gcanvas isa GraphicsCanvas
-                push!(result, _make_canvas(geom.grid_off, geom.grid_off, Any[gcanvas]))
+                push!(result, _make_canvas(geom.grid_off_x, geom.grid_off_y, Any[gcanvas]))
             end
         end
         # 4. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
@@ -6138,8 +6145,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     WidgetTableToGraphicsCanvasIoMap(p, w, canvas, grid_iomap, geometry)
 end
 
-_wt_geometry_empty(pad::Int, bw::Int) =
-    WTGeometry(0, 0, 0, 0, 0, 0, false, false, Int[bw], Int[bw], bw, bw, bw, pad, bw + pad)
+_wt_geometry_empty(pad_x::Int, pad_y::Int, bw::Int) =
+    WTGeometry(0, 0, 0, 0, 0, 0, false, false, Int[bw], Int[bw], bw, bw, bw,
+               pad_x, pad_y, bw + pad_x, bw + pad_y)
 
 # ── Reference mapping ────────────────────────────────────────────────────────
 # Forward: a table-domain selection pointing into a cell's content
@@ -6382,9 +6390,9 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
-    # Child position = grid_off (grid canvas offset) + child wrapper offset + child canvas offset.
-    cell_x = geom.grid_off + Int(ox_cell[]) + Int(canvas.x)
-    cell_y = geom.grid_off + Int(oy_cell[]) + Int(canvas.y)
+    # Child position = the grid offset + child wrapper offset + child canvas offset.
+    cell_x = geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
+    cell_y = geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
     local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
     op = read_intent(cim.projection, cim, local_evt)
     op isa ReplaceSelectionOperation || return nothing
@@ -7038,7 +7046,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetTable       => WidgetTableToGraphicsCanvas(
             StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),
-            theme.muted),
+            theme.muted,
+            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
         WidgetTree        => WidgetTreeToGraphicsCanvas(measurer,
             StyleText(theme.font, theme.foreground),
             StyleText(theme.font, theme.muted_foreground),

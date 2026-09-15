@@ -104,7 +104,7 @@ _short_type(t::AbstractString) = get(_SHORT_TYPES, t, t)
 # (and forces that table's lazy column query).
 function _table_card(t::DbCatalogTable)
     rows  = [[c.name, _short_type(c.data_type)] for c in t.columns]
-    table = WidgetTable(Point2D(0, 0), ["Column", "Type"], rows; padding=6)
+    table = WidgetTable(Point2D(0, 0), ["Column", "Type"], rows)
     WidgetCard(Point2D(0, 0); title=t.name, content=table, width=260)
 end
 
