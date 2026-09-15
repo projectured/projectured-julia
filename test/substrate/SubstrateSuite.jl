@@ -37,7 +37,7 @@ function test_substrate()
         test_switching()
         test_window_input_unwrapping()
         test_versioning_to_any()
-        test_file_project()
+        test_text_file()
         test_marker_language()
         # documents
         test_point_reference()
@@ -130,7 +130,7 @@ export test_bounded_sync, test_document_reflection
 export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export test_versioning_to_any
-export test_file_project, test_marker_language
+export test_text_file, test_marker_language
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference
 export test_syntax, test_text, test_graphics, test_affine_transform, test_font_metrics,

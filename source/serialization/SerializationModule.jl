@@ -33,13 +33,12 @@ import ..OperationModule: evaluate_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
-       get_filename, get_file_content, emit_text, populate_file!,
-       save_project!, load_project, ReferenceStub, resolve!, is_resolved,
-       resolve_stubs!, LoaderContext,
+       get_filename, get_file_content, emit_text,
+       save_project!, load_project,
        register_file_document_type!, get_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
        register_marker_type_resolver!,
-       format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
+       parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, load_file, parse_file_content,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text

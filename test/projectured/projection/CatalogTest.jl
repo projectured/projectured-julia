@@ -54,9 +54,6 @@ const _CATALOG_EDIT_BROKEN = (
     # @catalog-broken bare text spans: `WordWrapping` is block-level and has no
     #   method for a lone `TextString`/`TextNewline`/`TextLine`.
     "text/bare_string/", "text/bare_newline/", "text/bare_line/",
-    # @catalog-broken ReferenceStub is a plain `mutable struct <: Document`, not a
-    #   `@document`, so it has no `selection` field for a reader to write.
-    "embed/stub/",
 )
 _catalog_edit_broken(name) =
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
@@ -84,7 +81,7 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
                              "layout/", "widget/composite/",
                              "widget/reference_inspector/", "graph/layout/",
                              "text/bare_string/", "text/bare_newline/",
-                             "text/bare_line/", "embed/stub/")
+                             "text/bare_line/")
 # Entries whose PRINTER cannot force its own output. Distinct from the edit set:
 # these fail before any gesture, when the walk reads the cells the printer built.
 # @catalog-broken layouts / widget composite / graph layout: no `recursion` in a
@@ -92,12 +89,10 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
 # @catalog-broken text/bare_*: `WordWrapping` is block-level and has no method for
 #   a lone span, so the derived `:graphics` variant cannot be forced. The `:text`
 #   variant — the one these atoms exist for — prints fine.
-# @catalog-broken embed/stub: `ReferenceStub` is a plain `mutable struct <:
-#   Document` rather than a `@document`, so it has no `selection` field.
 const _CATALOG_PRINT_BROKEN = ("layout/", "widget/composite/",
                                "widget/reference_inspector/", "graph/layout/",
                                "text/bare_string/", "text/bare_newline/",
-                               "text/bare_line/", "embed/stub/")
+                               "text/bare_line/")
 _catalog_print_broken(name) =
     any(p -> occursin(p, name), _CATALOG_PRINT_BROKEN) ?
         (msg -> occursin("MethodError", msg) || occursin("FieldError", msg) ||

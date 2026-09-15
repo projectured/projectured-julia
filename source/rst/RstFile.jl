@@ -1,29 +1,10 @@
-# Fragment of `RstModule`.
+# Fragment of `RstModule` — `RstFile`, the `.rst` file on disk.
 #
-# `RstFile`: a `FileDocument` whose `content` is an `RstDocument` (the
-# projectured reStructuredText tree). Parse uses `parse_rst`; emit runs the
-# standard `RstToSyntax(style=:source) → SyntaxToText → TextToString`
-# projection chain through `print_natural_text`.
-#
-# This module also registers this domain's natural notation — the rung it starts
-# at, the format, the extension and the parser — and `.rst` as a file document
-# type, so `import_document` and `export_document` reach the slice by extension.
-#
-# **Marker syntax in RST.** A cross-file reference reads as a directive
-# whose argument is the marker:
-#
-#     .. pred-ref:: <<file("child.json")>>
-#
-# The directive needs no parser rule: a name the parser does not know
-# already becomes an `RstDirective` carrying its name and its argument,
-# and emit writes it back as it was. Load walks the block tree for an
-# `RstDirective` named `pred-ref` whose argument parses as a marker, and
-# rewrites each into a `ReferenceStub`. Emit is symmetric through the
-# projection (see `RstToSyntax.jl`).
-#
-# A marker written **in a line of prose** is not read yet: a block is
-# what a marker stands for here, and the markdown slice's text-run
-# splitting has no RST counterpart.
+# A cross-file reference is written in reStructuredText as a `pred-ref`
+# directive whose argument is the marker. The file writes one where the save
+# cuts, and the load splices the node it names into its place. The `section`
+# verb, which names a section by its title, lives here too.
+
 """
     RstFile(filename, content)
 
@@ -36,23 +17,15 @@ end
 
 emit_text(f::RstFile) = print_natural_text(get_file_content(f))
 
-function populate_file!(f::RstFile, filename::AbstractString, ctx::LoaderContext)
-    text = read(joinpath(ctx.base_dir, filename), String)
-    getfield(f, :content)[] = _substitute_markers(parse_rst(text), ctx)
-    f
-end
-
 # ── Markers ───────────────────────────────────────────────────────────────────
 
 # A cell may still be a cell mid-walk: a CellVector holds cells.
 _unwrap(x) = x isa AbstractCell ? x[] : x
 
-# Traversal: every container rewrites its own child slots in place, and a node
-# that owns no blocks passes through. A marker directive becomes a stub; a
-# `pred-ref` whose argument is not a marker stays the directive it was, so a
-# typing mistake shows on the page instead of vanishing.
 # What the file writes itself, and how it spells a reference to what it does
-# not: a `pred-ref` directive whose argument is the marker.
+# not: a `pred-ref` directive whose argument is the marker. A `pred-ref` whose
+# argument is not a marker stays the directive it was, so a typing mistake shows
+# on the page instead of vanishing.
 get_file_domain(::Type{<:RstFile}) = RstDocument
 make_reference_leaf(::RstFile, marker::AbstractString) =
     RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
@@ -60,45 +33,6 @@ find_reference_marker(node::RstDirective) =
     _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE ?
         parse_marker_text(strip(_unwrap(getfield(node, :argument)))) : nothing
 parse_file_content(::Type{<:RstFile}, text::AbstractString) = parse_rst(text)
-
-_substitute_markers(node, ctx::LoaderContext) = node
-
-function _substitute_markers(node::RstDirective, ctx::LoaderContext)
-    if _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE
-        source = parse_marker_text(strip(_unwrap(getfield(node, :argument))))
-        source === nothing || return ReferenceStub(source, ctx)
-    end
-    _visit_vector!(node, :elements, ctx)
-end
-
-function _visit_vector!(node, field::Symbol, ctx::LoaderContext)
-    elements = getfield(node, field)[]
-    for i in eachindex(elements)
-        elements[i] = _substitute_markers(elements[i], ctx)
-    end
-    node
-end
-
-# Every container that can hold a block, and therefore a marker. An inline
-# container is absent on purpose: an inline marker is not read (see the module
-# docstring), so walking a paragraph's runs would find nothing to rewrite.
-_substitute_markers(n::RstRoot,           ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstSection,        ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstListItem,       ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstField,          ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstBlockQuote,     ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstFootnote,       ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstAdmonition,     ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstTableCell,      ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-_substitute_markers(n::RstBulletList,     ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
-_substitute_markers(n::RstEnumeratedList, ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
-_substitute_markers(n::RstDefinitionList, ctx::LoaderContext) = _visit_vector!(n, :items,    ctx)
-_substitute_markers(n::RstFieldList,      ctx::LoaderContext) = _visit_vector!(n, :fields,   ctx)
-_substitute_markers(n::RstGridTable,      ctx::LoaderContext) = _visit_vector!(n, :rows,     ctx)
-_substitute_markers(n::RstTableRow,       ctx::LoaderContext) = _visit_vector!(n, :cells,    ctx)
-# A definition's body holds blocks; its term holds inline runs.
-_substitute_markers(n::RstDefinitionItem, ctx::LoaderContext) = _visit_vector!(n, :elements, ctx)
-
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 

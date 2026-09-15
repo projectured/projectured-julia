@@ -111,35 +111,6 @@ function precompile_atom_parsers(atoms)
 end
 
 """
-    precompile_atom_walks(atoms) -> Int
-
-Resolve stubs over every atom, returning how many completed.
-
-`resolve_stubs!` is what opening a document does before anything renders it, and
-it is specialised per node type *and* per predicate closure — so it is only
-reached by calling `resolve_stubs!` itself, not by an equivalent walk written
-here. On the demo it was the single largest item in opening a page: 2.65 s
-across 317 closure instantiations, more than the embed, the JSON decode and the
-Expr conversion together.
-
-Most atoms carry no stub, which does not matter: the walk still specialises for
-the node types it descends through, and those are the specialisations being
-bought.
-"""
-function precompile_atom_walks(atoms)
-    walked = 0
-    for atom in atoms
-        try
-            resolve_stubs!(atom.make_document())
-            walked += 1
-        catch
-            # As above: not the place a failure is meant to surface.
-        end
-    end
-    walked
-end
-
-"""
     precompile_workload(level::Symbol = :minimal; atoms = atomic_documents()) -> Nothing
 
 The body a leaf package's `@compile_workload` calls. It is an ordinary function
@@ -158,7 +129,6 @@ for twice the build cost. See the module comment above.
 function precompile_workload(; atoms = atomic_documents())
     precompile_atoms(atoms)
     precompile_atom_parsers(atoms)
-    precompile_atom_walks(atoms)
     nothing
 end
 

@@ -552,13 +552,6 @@ function MarkdownToSyntax(; style::Symbol = :source)
             MarkdownLink          => MarkdownLinkToStyledNode(),
             MarkdownImage         => MarkdownImageToStyledNode(),
             MarkdownRoot          => MarkdownRootToSyntaxNode(),
-            # An embed keeps its marker in *both* styles when this projection
-            # runs alone: a domain projection is the save path, and the save
-            # path is by-marker. Rendering an embed inline is the shared
-            # to-syntax fabric's job (`EmbedToSyntax`), which is what a page
-            # goes through when it is read rather than written.
-            ReferenceStub         => ReferenceStubToMarkdownSyntaxLeaf(),
-            FileDocument          => EmbeddedFileDocumentToMarkdownSyntaxLeaf(),
             Vector{Cell}          => CopyingProjection(),
         )
     end
@@ -578,45 +571,9 @@ function MarkdownToSyntax(; style::Symbol = :source)
         MarkdownLink          => MarkdownLinkToSyntaxNode(),
         MarkdownImage         => MarkdownImageToSyntaxNode(),
         MarkdownRoot          => MarkdownRootToSyntaxNode(),
-        # A cross-file reference — either as a load-produced stub or
-        # as an embedded FileDocument child — renders as a fenced
-        # `pred-ref` code block so print_natural_text emits the right
-        # thing without a pre-save AST mutation.
-        ReferenceStub         => ReferenceStubToMarkdownSyntaxLeaf(),
-        FileDocument          => EmbeddedFileDocumentToMarkdownSyntaxLeaf(),
         Vector{Cell}          => CopyingProjection(),
     )
 end
-
-# ── ReferenceStubToMarkdownSyntaxLeaf ───────────────────────────────────────
-# ReferenceStub → a fenced `pred-ref` code block whose body is the
-# marker text (`<<file(\"path\")>>`). Emitted as a single SyntaxLeaf
-# holding the whole block text so print_natural_text writes it
-# verbatim.
-
-@projection struct ReferenceStubToMarkdownSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-end
-
-@projection_template ReferenceStubToMarkdownSyntaxLeaf ReferenceStub (p, s) ->
-    SyntaxLeaf(TextString(_stub_marker_fence(s), p.style))
-
-# A marker written in a line of prose goes back as it was found; one written as
-# a block of its own goes back in its fence.
-_stub_marker_fence(stub::ReferenceStub) =
-    stub.inline ? format_marker_text(stub) : "```pred-ref\n" * format_marker_text(stub) * "\n```"
-
-# ── EmbeddedFileDocumentToMarkdownSyntaxLeaf ────────────────────────────────
-
-@projection struct EmbeddedFileDocumentToMarkdownSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-end
-
-@projection_template EmbeddedFileDocumentToMarkdownSyntaxLeaf FileDocument (p, f) ->
-    SyntaxLeaf(TextString(_embedded_marker_fence(f), p.style))
-
-_embedded_marker_fence(f::FileDocument) =
-    "```pred-ref\n" * format_file_marker_text(get_filename(f)) * "\n```"
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The

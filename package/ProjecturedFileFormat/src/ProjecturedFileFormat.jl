@@ -50,7 +50,6 @@ const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/fileformat/FileFormatModule.jl")
-include("../../../source/fileformat/NaturalRegistration.jl")
 
 
 end # module ProjecturedFileFormat

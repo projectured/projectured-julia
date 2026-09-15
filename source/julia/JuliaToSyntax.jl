@@ -891,42 +891,8 @@ function JuliaToSyntax()
         JuliaUsing           => JuliaUsingToSyntaxNode(),
         JuliaModuleDefinition       => JuliaModuleDefinitionToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
-        # A cross-file reference — either as a load-produced stub or
-        # as an embedded FileDocument child — renders as a
-        # `pred_ref("<<file(\"path\")>>")` call so print_natural_text
-        # emits the right thing without a pre-save AST mutation.
-        ReferenceStub        => ReferenceStubToJuliaSyntaxLeaf(),
-        FileDocument         => EmbeddedFileDocumentToJuliaSyntaxLeaf(),
     )
 end
-
-# ── ReferenceStubToJuliaSyntaxLeaf ──────────────────────────────────────────
-# ReferenceStub → the exact text `pred_ref("<<file(\"path\")>>")` as a
-# single SyntaxLeaf. Delegates escaping of the internal quotes to
-# `_julia_string_escape`; the wrapping quotes and parens are part of
-# the leaf text so the printer emits them literally.
-
-@projection struct ReferenceStubToJuliaSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-end
-
-@projection_template ReferenceStubToJuliaSyntaxLeaf ReferenceStub (p, s) ->
-    SyntaxLeaf(TextString(_stub_marker_call(s), p.style))
-
-_stub_marker_call(stub::ReferenceStub) =
-    "pred_ref(\"" * _julia_string_escape(format_marker_text(stub)) * "\")"
-
-# ── EmbeddedFileDocumentToJuliaSyntaxLeaf ───────────────────────────────────
-
-@projection struct EmbeddedFileDocumentToJuliaSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-end
-
-@projection_template EmbeddedFileDocumentToJuliaSyntaxLeaf FileDocument (p, f) ->
-    SyntaxLeaf(TextString(_embedded_marker_call(f), p.style))
-
-_embedded_marker_call(f::FileDocument) =
-    "pred_ref(\"" * _julia_string_escape(format_file_marker_text(get_filename(f))) * "\")"
 
 function _julia_string_escape(s::AbstractString)
     buf = IOBuffer()

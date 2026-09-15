@@ -114,10 +114,10 @@ function _splice_target(project, index, leaf)
     target !== nothing && is_file_document(target) ? get_file_content(target) : target
 end
 
-# The marker vocabulary, evaluated against the set: `file` and `node` here, any
-# other verb through the registry with the arguments evaluated the same way. A
-# `file` naming a file outside the set answers `nothing`, and so does anything
-# built on it.
+# The marker vocabulary, evaluated against the set: `file` and `node` here, a
+# capitalised name as a constructor, any other verb through the registry, with
+# the arguments evaluated the same way. A `file` naming a file outside the set
+# answers `nothing`, and so does anything built on it.
 function _evaluate_splice(project, index, e::Expr)
     verb = e.args[1]::Symbol
     positional, keywords = _splice_arguments(project, index, e)
@@ -131,13 +131,25 @@ function _evaluate_splice(project, index, e::Expr)
             error("node(…): expected a file and a path string")
         file, text = positional
         return _evaluate_path_text(get_file_content(file), String(text))
+    elseif _is_type_name(verb)
+        # A capitalised name constructs the type it names: a document is a data
+        # structure, and its constructor is how one is written down. Which types
+        # a file may construct is the resolver's business.
+        resolve = _MARKER_TYPE_RESOLVER[]
+        resolve === nothing &&
+            error("marker: ", verb, " looks like a type, and nothing here can resolve one ",
+                  "— a package registers `register_marker_type_resolver!` to say which ",
+                  "types a file may construct")
+        T = resolve(String(verb))
+        isempty(keywords) && return T(positional...)
+        isempty(positional) && return T(; keywords...)
+        return T(positional...; keywords...)
     end
     f = get_marker_function(verb)
     f === nothing &&
         error("marker: unknown function ", verb, " in ", _canonical_marker(e),
               " — the vocabulary is (", join(marker_function_names(), ", "), ")")
-    context = LoaderContext(project.base_dir)
-    isempty(keywords) ? f(context, positional...) : f(context, positional...; keywords...)
+    isempty(keywords) ? f(project, positional...) : f(project, positional...; keywords...)
 end
 
 _evaluate_splice(project, index, literal) = literal
@@ -176,4 +188,19 @@ function _evaluate_path_text(root, text::AbstractString)
     end
     isempty(steps) && error("node(…): an empty path names the file; write file(…) instead")
     evaluate_reference(root, extend_reference(EmptyReference(), steps...))
+end
+
+"""
+    evaluate_marker(source::AbstractString, project::FileProject) -> Any
+
+The value a marker body stands for, against `project`: a `file(…)` in it names
+one of the project's files, and the whole is what its verb returns. What the
+splice does for every reference leaf, offered to a test and to a verb's caller.
+"""
+function evaluate_marker(source::AbstractString, project::FileProject)
+    expression = _parse_marker_expression(source)
+    expression === nothing &&
+        error("evaluate_marker: not a marker expression: ", repr(source))
+    index = Dict{String,Any}(normpath(get_filename(file)) => file for file in project.files)
+    _evaluate_splice(project, index, expression)
 end

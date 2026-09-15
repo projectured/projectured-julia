@@ -69,7 +69,6 @@ const _EXAMPLE_DIR = normpath(joinpath(@__DIR__, "../../../example/projectured")
 # layouts. A per-domain example package holds only its own domain.
 include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
-include(joinpath(_EXAMPLE_DIR, "EmbedDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
@@ -146,7 +145,6 @@ export make_conversation_widget_projection_example
 export make_conversation_conversation_document_example, make_conversation_draft_document_example
 export make_conversation_part_document_example, make_conversation_turn_document_example
 export make_database_instance_document_example, make_dragging_document_example
-export make_reference_stub_document_example
 export make_db_catalog_column_document_example, make_db_catalog_table_document_example
 export make_db_catalog_schema_document_example, make_db_catalog_database_document_example
 export make_db_catalog_rdbms_document_example
@@ -266,7 +264,7 @@ export run_console_example, run_example, run_file_editor, sql_insert_syntax_exam
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
 export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
-export precompile_atoms, precompile_atom_parsers, precompile_atom_walks
+export precompile_atoms, precompile_atom_parsers
 export precompile_workload
 export record_precompile_statements, replay_precompile_statements,
        clean_precompile_trace, write_precompile_statements,

@@ -29,11 +29,10 @@ function test_json()
         test_json_to_syntax()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
-        test_json_file()
     end
 end
 
 export test_json, test_json_layering, test_json_document
 export test_json_parser
 export test_json_placeholder_navigation, test_json_to_syntax
-export test_json_to_syntax_reader, test_json_gesture_collection, test_json_file
+export test_json_to_syntax_reader, test_json_gesture_collection

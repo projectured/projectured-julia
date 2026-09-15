@@ -142,46 +142,9 @@ function XmlToSyntax()
         XmlElement   => XmlElementToSyntaxNode(),
         XmlInsertion => XmlInsertionToSyntaxLeaf(),
         XmlNothing   => InsertionNothingToSyntaxLeaf(),
-        # A cross-file reference — either as a load-produced stub or
-        # as an embedded FileDocument child — renders as a
-        # <pred:ref>&lt;&lt;file("path")&gt;&gt;</pred:ref> element
-        # so print_natural_text emits the right thing without a
-        # pre-save AST mutation.
-        ReferenceStub => ReferenceStubToXmlSyntaxLeaf(),
-        FileDocument  => EmbeddedFileDocumentToXmlSyntaxLeaf(),
     )
 end
 
-# ── ReferenceStubToXmlSyntaxLeaf ────────────────────────────────────────────
-# ReferenceStub → a full `<pred:ref>…</pred:ref>` element as one
-# SyntaxLeaf. Emitted verbatim by the printer; the < and > inside
-# the marker are entity-escaped so the round-trip parses back to the
-# same marker text.
-
-@projection struct ReferenceStubToXmlSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template ReferenceStubToXmlSyntaxLeaf ReferenceStub (p, s) ->
-    SyntaxLeaf(TextString(_stub_marker_element(s), p.style))
-
-_stub_marker_element(stub::ReferenceStub) =
-    "<pred:ref>" * _xml_text_escape(format_marker_text(stub)) * "</pred:ref>"
-
-# ── EmbeddedFileDocumentToXmlSyntaxLeaf ─────────────────────────────────────
-
-@projection struct EmbeddedFileDocumentToXmlSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template EmbeddedFileDocumentToXmlSyntaxLeaf FileDocument (p, f) ->
-    SyntaxLeaf(TextString(_embedded_marker_element(f), p.style))
-
-_embedded_marker_element(f::FileDocument) =
-    "<pred:ref>" * _xml_text_escape(format_file_marker_text(get_filename(f))) * "</pred:ref>"
-
-# Escape the five XML text-node characters: `<`, `>`, `&` are required;
-# `"` and `'` need not be escaped in text nodes but harmless if we do.
 function _xml_text_escape(s::AbstractString)
     buf = IOBuffer()
     for ch in s

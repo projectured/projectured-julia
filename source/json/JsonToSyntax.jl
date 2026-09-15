@@ -106,47 +106,9 @@ function JsonToSyntax()
         JsonInsertion   => JsonInsertionToSyntaxLeaf(),
         JsonNothing     => InsertionNothingToSyntaxLeaf(),
         JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
-        # A cross-file reference — either as a resolved-later stub or as
-        # an embedded FileDocument child — renders as a marker string
-        # (`"<<file(\"path\")>>"`), so print_natural_text emits the right
-        # thing without a pre-save AST mutation.
-        ReferenceStub   => ReferenceStubToJsonSyntaxLeaf(),
-        FileDocument    => EmbeddedFileDocumentToJsonSyntaxLeaf(),
         Vector{Cell}    => CopyingProjection(),
     )
 end
-
-# A `ReferenceStub` in a JSON slot renders as the marker string
-# `"<<file(\"path\")>>"`, in the quote-value-quote shape
-# `JsonStringToSyntaxLeaf` produces.
-
-@projection struct ReferenceStubToJsonSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-end
-
-@projection_template ReferenceStubToJsonSyntaxLeaf ReferenceStub (prj, stub) ->
-    SyntaxLeaf(TextString(_stub_marker_body(stub), prj.value_style);
-               open=TextString("\"", prj.quote_style),
-               close=TextString("\"", prj.quote_style))
-
-_stub_marker_body(stub::ReferenceStub) = json_escape(format_marker_text(stub))
-
-# A `FileDocument` embedded in a JSON slot renders as the same marker string.
-# The embedded child gets its own file on save, and the parent holds only the
-# reference.
-
-@projection struct EmbeddedFileDocumentToJsonSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-end
-
-@projection_template EmbeddedFileDocumentToJsonSyntaxLeaf FileDocument (prj, file) ->
-    SyntaxLeaf(TextString(_embedded_marker_body(file), prj.value_style);
-               open=TextString("\"", prj.quote_style),
-               close=TextString("\"", prj.quote_style))
-
-_embedded_marker_body(file::FileDocument) = json_escape(format_file_marker_text(get_filename(file)))
 
 function json_escape(s::AbstractString)
     buf = IOBuffer()

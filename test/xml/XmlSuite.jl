@@ -27,9 +27,8 @@ function test_xml()
         test_xml_to_syntax()
         test_xml_to_syntax_reader()
         test_xml_override_gestures()
-        test_xml_file()
     end
 end
 
 export test_xml, test_xml_layering, test_xml_parser, test_xml_to_syntax
-export test_xml_to_syntax_reader, test_xml_override_gestures, test_xml_file
+export test_xml_to_syntax_reader, test_xml_override_gestures

@@ -154,7 +154,7 @@ include("../../../test/substrate/projection/SearchingTest.jl")
 include("../../../test/substrate/projection/SortingTest.jl")
 include("../../../test/substrate/projection/HigherOrderTest.jl")
 include("../../../test/substrate/projection/VersioningToAnyTest.jl")
-include("../../../test/substrate/serialization/FileProjectTest.jl")
+include("../../../test/substrate/serialization/TextFileTest.jl")
 include("../../../test/substrate/serialization/MarkerLanguageTest.jl")
 # ── visual documents ─────────────────────────────────────────────────────────
 include("../../../test/substrate/document/PointReferenceTest.jl")

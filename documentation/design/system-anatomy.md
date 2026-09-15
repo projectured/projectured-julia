@@ -413,7 +413,7 @@ concept, and each declares the exact set of packages it imports:
    inspector       the reference inspector and the hover probe
    gesturehelp     the gesture map, the command palette and their two decorators
    gesturelog      the log document, its printer, its recorder and its overlay
-   fileformat      NaturalFormat, DocumentFile, EmbedToSyntax
+   fileformat      NaturalFormat, DocumentFile
    naturalprojection  NaturalRegistry and NaturalProjection: render anything
    console         the ANSI terminal backend
    pdf             the vector PDF backend

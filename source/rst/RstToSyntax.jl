@@ -1215,11 +1215,6 @@ _source_rules() = Pair{Any,Any}[
     RstDirective               => RstDirectiveToSyntaxNode(),
     RstSection                 => RstSectionToSyntaxNode(),
     RstRoot                    => RstRootToSyntaxNode(),
-    # A cross-file reference — either as a load-produced stub or as an embedded
-    # FileDocument child — goes back as the directive it was written as, so
-    # `print_natural_text` writes the marker without a pre-save walk over the tree.
-    ReferenceStub              => ReferenceStubToRstSyntaxLeaf(),
-    FileDocument               => EmbeddedFileDocumentToRstSyntaxLeaf(),
     Vector{Cell}               => CopyingProjection(),
 ]
 
@@ -1267,37 +1262,6 @@ function RstToSyntax(; style::Symbol = :source)
     )
     TypeDispatchingProjection((k => get(overrides, k, v) for (k, v) in rules)...)
 end
-
-# ── ReferenceStubToRstSyntaxLeaf ────────────────────────────────────────────
-# ReferenceStub → the `pred-ref` directive whose argument is the marker text.
-# One leaf holding the whole directive, so `print_natural_text` writes it verbatim.
-# Both styles use it: a domain projection is the save path, and the save path is
-# by marker. The natural notation renders an embed as the document it embeds,
-# and that happens in the shared fabric (`EmbedToSyntax`), not here.
-
-@projection struct ReferenceStubToRstSyntaxLeaf
-    style::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template ReferenceStubToRstSyntaxLeaf ReferenceStub (p, s) ->
-    SyntaxLeaf(TextString(_stub_marker_directive(s), p.style))
-
-_stub_marker_directive(stub::ReferenceStub) =
-    ".. " * PRED_REF_DIRECTIVE * ":: " * format_marker_text(stub)
-
-# ── EmbeddedFileDocumentToRstSyntaxLeaf ─────────────────────────────────────
-
-@projection struct EmbeddedFileDocumentToRstSyntaxLeaf
-    style::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-end
-
-@projection_template EmbeddedFileDocumentToRstSyntaxLeaf FileDocument (p, f) ->
-    SyntaxLeaf(TextString(_embedded_marker_directive(f), p.style))
-
-_embedded_marker_directive(f::FileDocument) =
-    ".. " * PRED_REF_DIRECTIVE * ":: " * format_file_marker_text(get_filename(f))
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that teaches the render-anything projection what this domain is. The

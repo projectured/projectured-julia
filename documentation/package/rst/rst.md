@@ -186,15 +186,16 @@ A cross-file reference reads as a directive whose argument is the marker:
 
 The directive needs no parser rule. A name the parser does not know already
 becomes an `RstDirective` carrying its name and its argument, and emit writes it
-back unchanged. Load walks the block tree for a `pred-ref` directive whose
-argument parses as a marker and rewrites each into a `ReferenceStub`; a
-`pred-ref` whose argument is not a marker stays the directive it was, so a typing
-mistake shows on the page instead of vanishing.
+back unchanged. Load splices the node a `pred-ref` directive names into its
+place, when the file it names is in the set that was loaded together. A
+`pred-ref` whose argument is not a marker, or names a file outside the set,
+stays the directive it was, so a typing mistake shows on the page instead of
+vanishing.
 
-**Save is by marker, never by content.** `document_to_text` runs `RstToSyntax`
-alone, whose table renders a stub and an embedded file document as the directive
-they were written as. Reading is the other projection: the natural renderer
-prints an embed as the document it embeds, in that document's own domain.
+**Save writes a reference where it cuts.** The save walks the page and copies
+every RST node. At a node of another domain, or at a node another file already
+owns, it writes a `pred-ref` directive that names the node, in its place. The
+natural renderer prints the node itself, in the node's own domain.
 
 ### A page is a stack of blocks
 

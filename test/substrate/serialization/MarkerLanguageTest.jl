@@ -1,16 +1,16 @@
 """
 Tests for the **marker language** — `<<expr>>` bodies as restricted Julia
-expressions, the vocabulary registry, and the interpreter's interning.
+expressions, the vocabulary registry, and the interpreter.
 
-The three properties a marker must keep (module docstring of
-`SerializationModule`): verbatim source, interning by canonical source,
-and lazy evaluation. Recognition is syntactic — the vocabulary is
-consulted only when a stub is resolved.
+Recognition is syntactic — the vocabulary is consulted only when a marker is
+evaluated, so load order between packages cannot turn a marker into text.
 """
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedSerialization.SerializationModule
+
+"A project of every file in `d`: the context a marker is evaluated in."
+_ml_project(d) = load_project(d, readdir(d))
 
 function test_marker_language()
 @testset "Marker language: restricted Julia in <<…>>" begin
@@ -27,28 +27,23 @@ function test_marker_language()
     @testset "rejects everything that is not a restricted call" begin
         for text in ("plain text", "<<>>", "<<x>>", "<<42>>", "<<file(\"a\")",
                      "file(\"a\")", "<<a = file(\"x\")>>", "<<for i in 1:3 end>>",
-                     "<<file(\"a\") junk>>", "<<file(x)>>", "<<file(\"a\"; k=1)>>")
+                     "<<file(\"a\") junk>>", "<<file(x)>>")
             @test parse_marker_text(text) === nothing
         end
     end
 
     @testset "a marker is not evaluated at parse time" begin
         # An unregistered name still round-trips: whether the vocabulary has it
-        # is settled at resolve time, so load order between packages cannot
-        # turn a marker into plain text.
+        # is settled when the marker is evaluated, so load order between
+        # packages cannot turn a marker into plain text.
         @test parse_marker_text("<<nosuch(\"a\")>>") == "nosuch(\"a\")"
-    end
-
-    @testset "the stub keeps its source verbatim" begin
-        stub = ReferenceStub("file( \"a.txt\" )")
-        @test format_marker_text(stub) == "<<file( \"a.txt\" )>>"
     end
 
     @testset "file(…) loads through the context" begin
         d = mktempdir()
         try
             write(joinpath(d, "a.txt"), "hello")
-            ctx = LoaderContext(d)
+            ctx = _ml_project(d)
             f = evaluate_marker("file(\"a.txt\")", ctx)
             @test f isa TextFile
             @test get_file_content(f) == "hello"
@@ -57,36 +52,34 @@ function test_marker_language()
         end
     end
 
-    @testset "interning: same canonical source ⇒ === value" begin
+    @testset "the same file, however spelled, is the project's one file" begin
         d = mktempdir()
         try
             write(joinpath(d, "a.txt"), "hello")
-            ctx = LoaderContext(d)
+            ctx = _ml_project(d)
             a = evaluate_marker("file(\"a.txt\")", ctx)
-            # Different spelling, same call: spacing is not part of the key,
+            # Different spelling, same file: spacing is not part of the name,
             # and neither is a redundant path segment.
             b = evaluate_marker("file( \"a.txt\" )", ctx)
             c = evaluate_marker("file(\"./a.txt\")", ctx)
             @test a === b
             @test a === c
-            # A different load session is a different intern table.
-            @test evaluate_marker("file(\"a.txt\")", LoaderContext(d)) !== a
+            # A different project holds a different file.
+            @test evaluate_marker("file(\"a.txt\")", _ml_project(d)) !== a
         finally
             rm(d; recursive=true, force=true)
         end
     end
 
-    @testset "nested calls evaluate inside-out and intern at every level" begin
+    @testset "nested calls evaluate inside-out" begin
         d = mktempdir()
         try
             write(joinpath(d, "a.txt"), "hello")
-            ctx = LoaderContext(d)
+            ctx = _ml_project(d)
             # A vocabulary function registered by a "domain": it receives the
-            # already-evaluated inner value.
-            register_marker_function!(:_test_upcase, (c, doc) -> uppercase(get_file_content(doc)))
+            # project and the already-evaluated inner value.
+            register_marker_function!(:_test_upcase, (project, doc) -> uppercase(get_file_content(doc)))
             @test evaluate_marker("_test_upcase(file(\"a.txt\"))", ctx) == "HELLO"
-            @test haskey(ctx.intern, "file(\"a.txt\")")
-            @test haskey(ctx.intern, "_test_upcase(file(\"a.txt\"))")
         finally
             rm(d; recursive=true, force=true)
         end
@@ -95,49 +88,9 @@ function test_marker_language()
     @testset "unknown function and malformed body fail loudly" begin
         d = mktempdir()
         try
-            ctx = LoaderContext(d)
+            ctx = FileProject(d, [])
             @test_throws ErrorException evaluate_marker("nosuch(\"a.txt\")", ctx)
             @test_throws ErrorException evaluate_marker("not a marker", ctx)
-        finally
-            rm(d; recursive=true, force=true)
-        end
-    end
-
-    @testset "resolve! is lazy, once, and reactive" begin
-        d = mktempdir()
-        try
-            write(joinpath(d, "a.txt"), "hello")
-            ctx = LoaderContext(d)
-            stub = ReferenceStub("file(\"a.txt\")", ctx)
-            @test !is_resolved(stub)
-            @test stub.resolved === nothing
-            first = resolve!(stub)
-            @test is_resolved(stub)
-            @test stub.resolved === first
-            @test resolve!(stub) === first
-        finally
-            rm(d; recursive=true, force=true)
-        end
-    end
-
-    @testset "resolve_stubs! forces the graph transitively" begin
-        d = mktempdir()
-        try
-            # a.txt is plain text, so build the chain with a vocabulary function
-            # that returns another stub-bearing document: use two text files
-            # reached through one manually built holder.
-            write(joinpath(d, "a.txt"), "one")
-            write(joinpath(d, "b.txt"), "two")
-            ctx = LoaderContext(d)
-            a = ReferenceStub("file(\"a.txt\")", ctx)
-            b = ReferenceStub("file(\"b.txt\")", ctx)
-            resolve_stubs!(TextFile("holder.txt", "x"))   # nothing to force
-            for s in (a, b)
-                @test !is_resolved(s)
-            end
-            resolve_stubs!(a)
-            @test is_resolved(a)
-            @test !is_resolved(b)
         finally
             rm(d; recursive=true, force=true)
         end

@@ -29,7 +29,7 @@ using ..ReferenceModule   # `@document` injects the implicit `selection::Union{N
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: emit_text, populate_file!,
+import ..SerializationModule: emit_text,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 
 export _julia_operator_string
@@ -59,7 +59,6 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaNamedTupleToSyntaxNode,
        JuliaStringChunkToSyntaxLeaf, JuliaInterpolationToSyntaxNode,
        JuliaFunctionDeclarationToSyntaxNode, JuliaWhereParametersToSyntaxNode,
-       ReferenceStubToJuliaSyntaxLeaf, EmbeddedFileDocumentToJuliaSyntaxLeaf,
        JuliaToSyntax
 export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaConst, JuliaDocstring, JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly, JuliaAnonymousTypeAnnotation, JuliaEmpty, JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange, JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument, JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere, JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple, JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration, JuliaWhereParameters, JuliaInsertion
 

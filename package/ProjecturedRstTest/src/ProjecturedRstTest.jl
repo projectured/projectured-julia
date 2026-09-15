@@ -65,7 +65,6 @@ for _src in _SOURCES
 end
 
 include("../../../test/rst/document/RstParserTest.jl")
-include("../../../test/rst/serializer/RstEmbedTest.jl")
 
 include("../../../test/rst/RstSuite.jl")
 

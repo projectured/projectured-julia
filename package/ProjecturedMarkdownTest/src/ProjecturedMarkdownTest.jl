@@ -64,7 +64,6 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/markdown/serializer/MarkdownEmbedTest.jl")
 
 include("../../../test/markdown/MarkdownSuite.jl")
 

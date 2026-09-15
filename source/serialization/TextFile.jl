@@ -22,10 +22,10 @@ end
 
 emit_text(f::TextFile) = get_file_content(f)
 
-function populate_file!(f::TextFile, filename::AbstractString, ctx)
-    getfield(f, :content)[] = read(joinpath(ctx.base_dir, filename), String)
-    f
-end
+# A text file holds no document, so nothing is its domain and nothing in it is a
+# reference; a document held by one has no file to be written into.
+get_file_domain(::Type{<:TextFile}) = Union{}
+parse_file_content(::Type{<:TextFile}, text::AbstractString) = String(text)
 
 # Fallback: any extension nothing else claims (including "") loads
 # as a raw text file. A concrete format that wants an unknown

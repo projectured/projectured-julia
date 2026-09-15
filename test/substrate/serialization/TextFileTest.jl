@@ -1,20 +1,15 @@
 """
-Tests for the `SerializationModule` — the natural-format save/load driver
-and its simplest concrete file document, `TextFile`.
-
-S2 covers a one-file project: no cross-file traversal, no marker walk,
-no intern table. It exercises the interface (`filename`, `content`,
-`emit_text`, `load_file`), the driver's byte-equality dirty guard, and
-recreation after external deletion.
+Tests for `TextFile`, the simplest file document, saved and loaded one at a
+time: the interface (`get_filename`, `get_file_content`, `emit_text`), the
+write gate, and recreation after an external deletion.
 """
 
 using Test
 using ProjecturedSerialization.SerializationModule
-using ProjecturedSerialization.SerializationModule
 using ProjecturedSerialization.SerializationModule: register_marker_type_resolver!
 
-function test_file_project()
-@testset "FileProject: TextFile round-trip" begin
+function test_text_file()
+@testset "TextFile: save and load one file" begin
 
     @testset "FileDocument interface: filename + content" begin
         f = TextFile("hello.txt", "world")
@@ -29,11 +24,11 @@ function test_file_project()
         @test emit_text(TextFile("x.txt", "")) == ""
     end
 
-    @testset "save_project! writes the root to base_dir/filename" begin
+    @testset "save_file! writes the root to base_dir/filename" begin
         d = mktempdir()
         try
             f = TextFile("out.txt", "hello")
-            save_project!(f, d)
+            save_file!(f, d)
             @test isfile(joinpath(d, "out.txt"))
             @test read(joinpath(d, "out.txt"), String) == "hello"
         finally
@@ -41,22 +36,22 @@ function test_file_project()
         end
     end
 
-    @testset "save_project! creates parent directories" begin
+    @testset "save_file! creates parent directories" begin
         d = mktempdir()
         try
             f = TextFile("sub/dir/nested.txt", "nested")
-            save_project!(f, d)
+            save_file!(f, d)
             @test isfile(joinpath(d, "sub", "dir", "nested.txt"))
         finally
             rm(d; recursive=true, force=true)
         end
     end
 
-    @testset "load_project reads what save_project! wrote" begin
+    @testset "load_file reads what save_file! wrote" begin
         d = mktempdir()
         try
-            save_project!(TextFile("hello.txt", "world"), d)
-            g = load_project(TextFile, "hello.txt", d)
+            save_file!(TextFile("hello.txt", "world"), d)
+            g = load_file(d, "hello.txt")
             @test g isa TextFile
             @test get_filename(g) == "hello.txt"
             @test get_file_content(g) == "world"
@@ -69,11 +64,11 @@ function test_file_project()
         d = mktempdir()
         try
             f = TextFile("h.txt", "x")
-            save_project!(f, d)
+            save_file!(f, d)
             first = mtime(joinpath(d, "h.txt"))
             # Sleep long enough that a rewrite would definitely bump mtime.
             sleep(0.05)
-            save_project!(TextFile("h.txt", "x"), d)
+            save_file!(TextFile("h.txt", "x"), d)
             @test mtime(joinpath(d, "h.txt")) == first
         finally
             rm(d; recursive=true, force=true)
@@ -83,8 +78,8 @@ function test_file_project()
     @testset "byte-equality guard: re-save with changed content writes" begin
         d = mktempdir()
         try
-            save_project!(TextFile("h.txt", "before"), d)
-            save_project!(TextFile("h.txt", "after"), d)
+            save_file!(TextFile("h.txt", "before"), d)
+            save_file!(TextFile("h.txt", "after"), d)
             @test read(joinpath(d, "h.txt"), String) == "after"
         finally
             rm(d; recursive=true, force=true)
@@ -94,10 +89,10 @@ function test_file_project()
     @testset "recreate: save after external deletion writes again" begin
         d = mktempdir()
         try
-            save_project!(TextFile("h.txt", "value"), d)
+            save_file!(TextFile("h.txt", "value"), d)
             rm(joinpath(d, "h.txt"))
             @test !isfile(joinpath(d, "h.txt"))
-            save_project!(TextFile("h.txt", "value"), d)
+            save_file!(TextFile("h.txt", "value"), d)
             @test isfile(joinpath(d, "h.txt"))
             @test read(joinpath(d, "h.txt"), String) == "value"
         finally
@@ -108,11 +103,11 @@ function test_file_project()
     @testset "round-trip: save → external edit → load reflects the edit" begin
         d = mktempdir()
         try
-            save_project!(TextFile("h.txt", "original"), d)
+            save_file!(TextFile("h.txt", "original"), d)
             open(joinpath(d, "h.txt"), "w") do io
                 write(io, "edited on disk")
             end
-            g = load_project(TextFile, "h.txt", d)
+            g = load_file(d, "h.txt")
             @test get_file_content(g) == "edited on disk"
         finally
             rm(d; recursive=true, force=true)
@@ -123,7 +118,7 @@ function test_file_project()
         # A document is a data structure, and a constructor is how one is
         # written down. Nothing is registered per type: the capital is what
         # tells `MarkdownFile(…)` from `file(…)`.
-        ctx = LoaderContext(".")
+        ctx = FileProject(".", [])
         resolver = name -> name == "TextFile" ? TextFile :
                            error("test resolver: no type named ", name)
         register_marker_type_resolver!(resolver)
@@ -152,17 +147,6 @@ function test_file_project()
         # And arithmetic is not a marker at all: `+` is a call with a symbol
         # callee like any other, so the callee has to be an identifier.
         @test parse_marker_text("<<1 + 1>>") === nothing
-    end
-
-    @testset "ReferenceStub: constructor and printing" begin
-        stub = ReferenceStub("file(\"child.json\")")
-        @test stub isa SerializationModule.ReferenceStub
-        @test stub.source == "file(\"child.json\")"
-        @test format_marker_text(stub) == "<<file(\"child.json\")>>"
-        @test occursin("ReferenceStub", sprint(show, stub))
-        # equality is by marker source
-        @test ReferenceStub("file(\"child.json\")") == stub
-        @test ReferenceStub("file(\"other.json\")") != stub
     end
 
 end

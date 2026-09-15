@@ -417,7 +417,6 @@ const domain_atomic_documents = AtomicDocument[
     # Two base-tier documents whose only example lives here, because the wrapper
     # is only interesting around a domain document: a `DraggingState` over a
     # JSON array, a `VersionedObject` over a JSON object.
-    AtomicDocument(:embed, "stub", make_reference_stub_document_example),
     AtomicDocument(:dragging, "state", make_dragging_document_example),
     AtomicDocument(:versioning, "object", make_versioning_document_example),
 ]

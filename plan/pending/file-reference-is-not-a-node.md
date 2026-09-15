@@ -366,18 +366,31 @@ comes back as `"\n  hi\n"`. An attribute-only element and an element child are
 stable. This predates the plan and is the XML domain's to fix; the
 save-load-save test uses a stable shape.
 
-### Stage 3 — the switch
+### Stage 3 — the switch (done)
 
-- [ ] The drivers use the new walks. Delete `ReferenceStub`, `resolve!`,
-  `resolve_stubs!`, the drain, the intern table, the ten per-domain projections,
-  the five `_substitute_markers` walks, and the two generic rows.
-- [ ] `MixedProjectionExample.jl` uses the natural projection instead of a merged
-  table.
-- [ ] Port the serializer tests that still state a requirement; retire the ones
-  that test a stub. `StubCollectionTest` goes whole.
-- [ ] Every domain suite for json, xml, markdown, rst and julia matches its
-  baseline; `test_substrate()` matches; the stack loads; the naming guard is
-  clean.
+- [x] The drivers use the new walks. Deleted: `ReferenceStub`, `resolve!`,
+  `resolve_stubs!`, `LoaderContext` and its intern table, `populate_file!`,
+  `format_marker_text`, `format_file_marker_text`, the ten per-domain stub
+  projections and their table rows, the five `_substitute_markers` walks,
+  `EmbedToSyntax.jl` and `NaturalRegistration.jl` (the two generic rows), the
+  `embed/stub` example and its catalog entries, and `precompile_atom_walks`
+  (it walked the stubs). `FileProject.jl` keeps the contract, the extension
+  registry, the marker language and the `section` verb; `evaluate_marker` runs
+  against a `FileProject`. A registered verb is called as `f(project, …)`.
+- [x] `MixedProjectionExample.jl` does not exist; nothing to change.
+- [x] Ported: `MarkerVocabularyTest.jl` (a project is the context; the fenced
+  round trip now also proves the spliced case — the page holds the definition
+  and the save names it `node(file("steps.jl"), "statements[…]")`),
+  `MarkerLanguageTest.jl` (no stub, no intern table; `file("a"; k=1)` is a
+  marker, because a keyword is in the subset), and the substrate
+  `FileProjectTest.jl`, now `TextFileTest.jl` / `test_text_file()`. Retired:
+  `FileProjectS4Test`, `FileProjectS5Test`, `JuliaAndMarkdownFileTest`,
+  `StubCollectionTest`, `XmlFileTest`, `MarkdownEmbedTest`, `RstEmbedTest`,
+  `JsonFileTest`.
+- [x] `test_file_project()` 74 pass, 1 error (the `.pred` block, stage 4);
+  `test_marker_vocabulary()` 32/32; `test_marker_language()` 22/22;
+  `test_text_file()` 26/26; `test_export_collisions()` clean; the naming guard
+  is clean; the stack loads. The suites against `main`: see the commit.
 
 ### Stage 4 — the `.pred` file
 

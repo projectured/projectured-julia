@@ -37,17 +37,14 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..OperationModule: evaluate_operation
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation
 export write_document_file, read_document_file, make_document_for, make_document_seed
-export ReferenceStubToSyntax, FileDocumentToSyntax, EmbedIoMap
 export export_document
 
 
 include("NaturalFormat.jl")
 include("DocumentFile.jl")
-include("EmbedToSyntax.jl")
 
 end # module
