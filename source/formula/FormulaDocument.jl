@@ -77,11 +77,31 @@ Look up the formula named `name` in `env` (the first match by current name).
 Reads `env.formulas` and each `f.name` reactively.
 """
 function resolve(env::FormulaEnvironment, name::AbstractString)
+    key = get_formula_key(name)
     for f in env.formulas
         f isa FormulaFormula || continue
-        f.name == name && return f
+        get_formula_key(f.name) == key && return f
     end
     return nothing
+end
+
+"""
+    get_formula_key(name) -> String
+
+The name a formula binds under: its own name when that is an identifier, and
+otherwise the identifier its name reads as in the math notation, so `ρ` and
+`rho` are one name and `p_{block}` is `p_block`. A name that reads as neither
+is itself.
+"""
+function get_formula_key(name::AbstractString)
+    text = String(name)
+    try
+        read = convert_math_to_julia(parse_math(text))
+        read isa JuliaIdentifier && return read.name
+    catch e
+        e isa MathReadingException || e isa ErrorException || rethrow()
+    end
+    text
 end
 
 """
@@ -190,6 +210,7 @@ function and a field names a slot; neither is a value a sheet holds.
 """
 function get_formula_names(code)
     names = String[]
+    code isa PrimitiveNumber && return names
     _collect_names!(names, code isa MathDocument ? convert_math_to_julia(code) : code)
     names
 end
@@ -296,15 +317,16 @@ target's name. The result is evaluated inside a `let` that binds those names to
 the targets' values.
 """
 convert_formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
-# A math tree evaluates through its Julia reading.
+# A math tree evaluates through its Julia reading, and a bare number is its value.
 convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
     _to_expr(convert_math_to_julia(code))
+convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.value
 
 function _to_expr(node)
     if node isa FormulaReference
         t = node.target
         t isa FormulaFormula || error("FormulaReference target is not a formula")
-        return Symbol(t.name)
+        return Symbol(get_formula_key(t.name))
     elseif node isa JuliaInteger
         return node.value
     elseif node isa JuliaFloat
@@ -379,7 +401,7 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
         bindings = Expr[]
         for d in deps
             val = _result_value(d.result)
-            push!(bindings, Expr(:(=), Symbol(d.name), QuoteNode(val)))
+            push!(bindings, Expr(:(=), Symbol(get_formula_key(d.name)), QuoteNode(val)))
         end
         body = convert_formula_to_expr(formula.code, env)
         letex = Expr(:let, Expr(:block, bindings...), body)
@@ -443,20 +465,36 @@ end
 """
     pred_arguments(formula::FormulaFormula)
 
-The call a `.pred` file writes for a formula: its name, its code as source text,
-and its display mode. The result is derived and is not written.
+The call a `.pred` file writes for a formula: its name, its code as the text
+of its notation, the notation, `:julia` or `:math`, and its display mode. The
+result is derived and is not written. No field holds the notation: the type of
+the code says it, and the file writes what the type says.
 """
 pred_arguments(formula::FormulaFormula) = (), Pair{Symbol,Any}[
     :name         => formula.name,
-    :code         => print_natural_text(formula.code),
+    :code         => _formula_code_text(formula.code),
+    :notation     => is_math_code(formula.code) ? :math : :julia,
     :display_mode => formula.display_mode,
 ]
+
+"""
+    is_math_code(code) -> Bool
+
+Whether a formula's code is written in the math notation: a math tree, or a
+bare number, which the math reader answers for a line that is one number.
+"""
+is_math_code(code) = code isa MathDocument || code isa PrimitiveNumber
+
+_formula_code_text(code::PrimitiveNumber) = string(code.value)
+_formula_code_text(code) = print_natural_text(code)
 
 """
     make_pred_document(::Type{<:FormulaFormula}, positional, keywords)
 
 The formula a call in a file builds: `FormulaFormula(name = "rho", code = "0.8")`
-or `FormulaFormula("rho", "0.8")`. The code text is parsed with `parse_julia`.
+or `FormulaFormula("rho", "0.8")`. The code text is read by the notation the
+call names, `parse_julia` for `:julia` and `parse_math` for `:math`; a call
+that names none is Julia.
 """
 function make_pred_document(::Type{<:FormulaFormula}, positional, keywords)
     fields = Dict{Symbol,Any}(keywords)
@@ -467,8 +505,11 @@ function make_pred_document(::Type{<:FormulaFormula}, positional, keywords)
     code = fields[:code]
     code isa AbstractString ||
         error("FormulaFormula: the code of a formula is text, got ", typeof(code))
-    FormulaFormula(String(fields[:name]), parse_julia(String(code));
-                   display_mode = get(fields, :display_mode, :both))
+    notation = get(fields, :notation, :julia)
+    notation in (:julia, :math) ||
+        error("FormulaFormula: the notation is :julia or :math, got ", repr(notation))
+    tree = notation === :math ? parse_math(String(code)) : parse_julia(String(code))
+    FormulaFormula(String(fields[:name]), tree; display_mode = get(fields, :display_mode, :both))
 end
 
 """

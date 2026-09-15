@@ -2,6 +2,8 @@
 
 _math_reading(tree) = strip(print_natural_text(convert_math_to_julia(tree)))
 
+using ProjecturedMath.MathModule: parse_math
+
 function test_formula_math()
 @testset "a formula whose code is an equation" begin
     @testset "every builder of the math corpus converts or is refused by name" begin
@@ -88,6 +90,28 @@ function test_formula_math()
         push!(getfield(sheet, :formulas)[], Cell(stray))
         wire_result!(stray, sheet)
         @test occursin("has no value here", string(get_formula_value(stray)))
+    end
+
+    @testset "a sheet with math code round-trips as its linear form" begin
+        sheet = FormulaEnvironment([
+            FormulaFormula("ρ", parse_math("0.8")),
+            FormulaFormula("n", parse_math("6")),
+            FormulaFormula("p_{block}", parse_math("((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")),
+        ])
+        @test isapprox(get_formula_value(sheet.formulas[3]), 0.066341; atol = 1e-5)
+        text = print_pred_text(sheet)
+        @test occursin("code = \"((1 - ρ) ρ^{n})/(1 - ρ^{(n + 1)})\"", text)
+        @test occursin("notation = :math", text)
+        @test !occursin("notation = :julia", text)
+        loaded = parse_pred_text(text)
+        @test loaded.formulas[3].code isa MathDocument
+        @test loaded.formulas[1].code isa PrimitiveNumber && is_math_code(loaded.formulas[1].code)
+        @test isapprox(get_formula_value(loaded.formulas[3]), 0.066341; atol = 1e-5)
+        @test print_pred_text(loaded) == text
+        # A Julia formula says so, and a mixed sheet reads both.
+        mixed = parse_pred_text("FormulaEnvironment(formulas = [FormulaFormula(name = \"a\", code = \"2 * 3\", notation = :julia), FormulaFormula(name = \"b\", code = \"a^{2}\", notation = :math)])")
+        @test get_formula_value(mixed.formulas[2]) == 36
+        @test_throws Exception parse_pred_text("FormulaFormula(name = \"a\", code = \"1\", notation = :latex)")
     end
 end
 end

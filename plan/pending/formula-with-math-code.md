@@ -119,11 +119,17 @@ omnet-julia's `[sources]` reach the main checkout.
 ### Step 2 — a formula with math code, and its file half
 
 - [x] `convert_formula_to_expr` and `get_formula_names` accept a math tree.
-- [ ] `pred_arguments` writes the notation; `make_pred_document` reads by it.
-      Waits on the reader of the sibling plan for `parse_math` and for the
-      natural syntax notation of the math domain, which prints the linear form.
-- [ ] Tests: a sheet of three math formulas evaluates; it round-trips through
-      `print_pred_text` and `parse_pred_text` byte for byte.
+- [x] `pred_arguments` writes the notation; `make_pred_document` reads by it.
+      A bare number is math code too: the math reader answers one for a line
+      that is one number.
+- [x] Tests: a sheet of three math formulas evaluates; it round-trips through
+      `print_pred_text` and `parse_pred_text` byte for byte; a mixed sheet
+      reads both notations. `test_formula()` 111/111.
+- [x] **Decided while building.** A formula binds under `get_formula_key`
+      of its name: the identifier its name reads as in the math notation, so
+      `ρ` and `rho` are one name and `p_{block}` is `p_block`. `ρ` is an
+      identifier to Julia too, so the reading comes first and the text is the
+      fallback.
 
 ### Step 3 — the block
 
