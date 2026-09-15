@@ -45,6 +45,9 @@ ProjecturedVersioning = "a4ca456b-a893-43e8-800f-57a1f4488681"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
+ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
+ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
+
 [sources]
 ProjecturedClipboard = {path = "../ProjecturedClipboard"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
@@ -82,3 +85,5 @@ ProjecturedText = {path = "../ProjecturedText"}
 ProjecturedTooltip = {path = "../ProjecturedTooltip"}
 ProjecturedVersioning = {path = "../ProjecturedVersioning"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}
+ProjecturedMath = {path = "../ProjecturedMath"}
+ProjecturedMathExample = {path = "../ProjecturedMathExample"}

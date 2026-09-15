@@ -106,19 +106,19 @@ Each step is a commit on branch `study` of the worktree
 `projectured-julia-study`, then a fast-forward of `main`, because
 omnet-julia's `[sources]` reach the main checkout.
 
-### Step 1 — the conversion
+### Step 1 — the conversion (done)
 
-- [ ] `test/formula/FormulaMathTest.jl`, `test_formula_math()`: every builder
+- [x] `test/formula/FormulaMathTest.jl`, `test_formula_math()`: every builder
       of `example/math/MathDocumentExample.jl` converts or is refused by name;
       the blocking formula converts to the expression that evaluates to
       `0.066341` at ρ = 0.8 and n = 6; a subscripted name is one identifier.
-- [ ] `source/formula/MathToJulia.jl`: `convert_math_to_julia`,
+- [x] `source/formula/MathToJulia.jl`: `convert_math_to_julia`,
       `MathReadingException`. `ProjecturedFormula` depends on
-      `ProjecturedMath`.
+      `ProjecturedMath` and `ProjecturedPrimitive`. `test_formula()` 101/101.
 
 ### Step 2 — a formula with math code, and its file half
 
-- [ ] `convert_formula_to_expr` and `get_formula_names` accept a math tree.
+- [x] `convert_formula_to_expr` and `get_formula_names` accept a math tree.
 - [ ] `pred_arguments` writes the notation; `make_pred_document` reads by it.
       Waits on the reader of the sibling plan for `parse_math` and for the
       natural syntax notation of the math domain, which prints the linear form.

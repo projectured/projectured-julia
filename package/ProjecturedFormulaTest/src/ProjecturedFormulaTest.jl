@@ -46,6 +46,8 @@ using ProjecturedSubstrateExample
 using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 using ProjecturedFormulaExample
+import ProjecturedMath
+import ProjecturedMathExample
 
 const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedFormula, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
 
@@ -67,6 +69,7 @@ end
 
 include("../../../test/formula/projection/FormulaToSyntaxTest.jl")
 include("../../../test/formula/FormulaFileTest.jl")
+include("../../../test/formula/FormulaMathTest.jl")
 
 include("../../../test/formula/FormulaSuite.jl")
 

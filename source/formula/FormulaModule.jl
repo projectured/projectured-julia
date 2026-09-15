@@ -21,6 +21,8 @@ using ..SyntaxModule
 using ..TextModule
 using ..NaturalModule
 using ..SerializationModule
+using ..MathModule
+using ..PrimitiveModule
 import ..SerializationModule: pred_arguments, make_pred_document
 
 # Imported to extend: this module adds a method to each of these.
@@ -28,12 +30,14 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 
 export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_references, get_formula_dependencies, get_formula_names, would_create_cycle,
-       compute_topological_order, convert_formula_to_expr, evaluate_formula, get_formula_value
+       compute_topological_order, convert_formula_to_expr, evaluate_formula, get_formula_value,
+       convert_math_to_julia, MathReadingException
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
        FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
 export FormulaInsertion, FormulaReference
 
 
+include("MathToJulia.jl")
 include("FormulaDocument.jl")
 include("FormulaToSyntax.jl")
 

@@ -190,7 +190,7 @@ function and a field names a slot; neither is a value a sheet holds.
 """
 function get_formula_names(code)
     names = String[]
-    _collect_names!(names, code)
+    _collect_names!(names, code isa MathDocument ? convert_math_to_julia(code) : code)
     names
 end
 
@@ -296,6 +296,9 @@ target's name. The result is evaluated inside a `let` that binds those names to
 the targets' values.
 """
 convert_formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
+# A math tree evaluates through its Julia reading.
+convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
+    _to_expr(convert_math_to_julia(code))
 
 function _to_expr(node)
     if node isa FormulaReference

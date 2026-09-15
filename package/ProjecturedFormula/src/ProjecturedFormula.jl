@@ -16,7 +16,9 @@ module ProjecturedFormula
 using ProjecturedCollection
 using ProjecturedJulia
 using ProjecturedKernel
+using ProjecturedMath
 using ProjecturedNatural
+using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedSerialization
 using ProjecturedStyle
@@ -24,7 +26,7 @@ using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedJulia
 
-for _src in (ProjecturedCollection, ProjecturedJulia, ProjecturedKernel, ProjecturedNatural, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedCollection, ProjecturedJulia, ProjecturedKernel, ProjecturedMath, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
