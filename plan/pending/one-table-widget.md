@@ -323,10 +323,36 @@ steps can point at them.
         the strip. That is settled with the head's relocation, which is
         deferred.
       Repairs defects 2, 3 and 4.
-- [ ] **Step 4 — the callers move.** The runner's table and the result table
-      become `WidgetTable` with a `ListNode` in `rows` and their widths as
-      `column_policies`; the five callers that install a function on `rows`
-      grow a list instead. Repairs the rest of defect 7.
+- [x] **Step 4 — the callers move.** Done 2026-09-16, omnet branch
+      `one-table`. Decided while building:
+      - The runner's table is the list: a node per matched run, built when the
+        walk reaches it, and the `rows` cell answers a new head when the match
+        or the epoch changes. A match with no rows answers an empty vector,
+        which the list printer takes as the empty list. The five columns keep
+        their numbers as `Fixed` cell widths; the table adds its padding.
+      - The result table is a vector, not a list. The view's `limit` already
+        bounds its rows to two hundred, and it lives in the study page, which
+        is a stack that offers no height — and a table whose rows are a list
+        has no extent, so it would draw nothing there. Its columns are `Fixed`,
+        so nothing is measured, and the rows are made again when the frame is
+        replaced. The plan's two omnet callers are thus one list and one
+        vector, and the other four omnet callers that grow a vector after
+        construction stay as they are: a vector is still a form of `rows`.
+      - Both omnet `_ROW_HEIGHT` constants and the result table's column
+        padding constant are gone: the theme decides.
+      - A plain click on a cell whose reader declines it — a label — selects
+        the row, in both forms. The result view picks a row by such a click,
+        and the lazy table answered every click with the row; the eager table
+        answered nothing. Now both forms answer the same.
+      - The runner's graphics test prints with the height the window offers.
+        Printed with no offer, a list-backed table has no extent and its pane
+        nothing to show, which is by design and is written on the printer.
+      - The campaign census counts one `WidgetTable` in the runner where it
+        counted one `WidgetLazyTable`.
+      - Not this plan's, but fixed on the way: the study's three cards called
+        `WidgetCard` by position and broke when a card gained a field on main
+        the same morning; they are built by keyword now, with their reactive
+        statements set after.
 - [ ] **Step 5 — `WidgetLazyTable` is deleted**, with its printer, its reader,
       its helpers, its test file and its mentions in the guides of both
       repositories.
