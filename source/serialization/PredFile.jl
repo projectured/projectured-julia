@@ -98,7 +98,10 @@ function pred_arguments(document)
     for name in fieldnames(typeof(document))
         name === :selection && continue
         raw = getfield(document, name)
-        push!(keywords, name => (raw isa AbstractCell ? raw[] : raw))
+        value = raw isa AbstractCell ? raw[] : raw
+        # A collection of cells is written as the list of what the cells hold.
+        is_element_collection(value) && (value = Any[element for element in value])
+        push!(keywords, name => value)
     end
     (), keywords
 end
