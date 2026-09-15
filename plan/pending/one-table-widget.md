@@ -129,6 +129,37 @@ A `LazyRows` whose table does not meet both is an error the printer states, not
 a silent walk of every row. The existing vocabulary says both conditions, so the
 widget gains no `lazy` flag and no second row-height field.
 
+**Laziness lives in a set of functions both paths call.** It is not a property
+of `GridLayout` and not a property of the table's printer. Splitting it into
+five pieces shows that only two of them have two implementations at all, and
+the arithmetic that the selection band, the rules and the click all read is
+one piece with one implementation.
+
+| piece | eager | lazy |
+| --- | --- | --- |
+| 1. the extents of an axis | measured from the cells | read from the policies |
+| 2. the offsets of the bands | cumulative over the extents | the same |
+| 3. the band at a coordinate | the inverse of 2 | the same |
+| 4. the canvas of the content | a vector of cell canvases | a list of row canvases the renderer stops walking |
+| 5. the child iomap at (row, column) | a vector lookup | a cache and a builder |
+
+Piece 1 is written once already: `_gl_extents_cell` reads a column's cells only
+when the column was not offered, so it is the eager rule and the lazy rule in
+one function. Pieces 2 and 3 exist twice today — `_gl_col_x_cell` against
+`_lazy_column_edges`, and `_wt_hit_test` against a bare `event.y ÷ height` —
+and each pair is the same arithmetic. Piece 4 is the definition of laziness and
+has to have two forms. Piece 5 is the one this plan had not named, and it is
+what a reference into a lazy table needs.
+
+Pieces 1 to 3 belong in `ProjecturedLayout` beside `allocate_axis`, which is
+already the allocator the stacks, the split and the grid share. That precedent
+is the argument: this codebase already puts layout arithmetic in a function
+everyone calls rather than in the widget that needed it first.
+
+A consequence worth naming: with 1 to 3 shared, `GridLayout` can later take a
+lazy children form of its own and inherit piece 4, at the cost of nothing new.
+So this route does not close that door, it makes it cheap.
+
 **Padding and the row height come from the theme.** `w.padding` leaves the
 document and becomes `Inset(theme.pad_y, …, theme.pad_x, …)` on the projection,
 beside every other widget's. A `row_policy` left unset means the theme decides:
@@ -136,17 +167,11 @@ one line of the projection's font plus twice `pad_y`.
 
 ## 4. Open questions, to settle before any code
 
-- **Where does laziness live?**
-  *Route A* — `GridLayout` gains a lazy children form and emits a `ListNode` of
-  row canvases. `WidgetTable` keeps one printer over one layout, and the
-  selection overlay keeps reading one geometry. The change is bounded to
-  `_grid_build`, but that function serves every other grid.
-  *Route B* — the table's printer builds the row canvases itself when `rows` is
-  lazy, as `WidgetLazyTable` does today, and recurses each visible cell through
-  `recursion`. `GridLayout` is untouched, but the table then has two positioning
-  paths and must produce its geometry twice.
-  **Recommended: Route A.** The overlay is the reason: it reads the grid
-  geometry, and Route B would have to invent a second one.
+- **What does piece 5 evict?** A cache keyed by row index must drop rows, or a
+  walk of a large table holds every row it ever showed. A bound of the rows a
+  viewport can hold plus a margin is the obvious answer, and the wrong one if a
+  reference names a row far away and must keep its iomap alive. The two uses
+  may need two lifetimes.
 
 - **What owns the identity of a lazily built row?** A factory called at paint
   time that answers a new document each call gives the reconciler nothing to
@@ -195,8 +220,12 @@ one line of the projection's font plus twice `pad_y`.
       `WidgetTable.padding` to the projection. Let an unset row policy mean one
       line plus twice `pad_y`. Delete both omnet `_ROW_HEIGHT` constants.
       Repairs defects 5, 6 and half of 7.
-- [ ] **Step 3 — `LazyRows`, and the printer that reads the type of `rows`.**
-      The chosen route from §4. Repairs defects 2 and 3.
+- [ ] **Step 3a — pieces 1 to 3 become functions in `ProjecturedLayout`.** The
+      grid and both tables call them, and behaviour does not change. This step
+      is a refactor and its test is that every existing table test still passes
+      with the same numbers.
+- [ ] **Step 3b — `LazyRows`, and the printer that reads the type of `rows`.**
+      Pieces 4 and 5 gain their second form. Repairs defects 2 and 3.
 - [ ] **Step 4 — a reference into a lazy table.** The forward and backward maps,
       and the row the reference names is built to answer it. Repairs defect 4.
 - [ ] **Step 5 — the callers move.** The runner's table and the result table
