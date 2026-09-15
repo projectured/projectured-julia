@@ -45,6 +45,7 @@ const empty_pane_example     = Example("empty_pane",     make_empty_pane_documen
 const widget_badge_example       = Example("widget_badge",       make_widget_badge_document_example,       make_widget_projection_example)
 const widget_separator_example   = Example("widget_separator",   make_widget_separator_document_example,   make_widget_projection_example)
 const widget_card_example        = Example("widget_card",        make_widget_card_document_example,        make_widget_projection_example)
+const widget_collapsible_card_example = Example("widget_collapsible_card", make_widget_collapsible_card_document_example, make_widget_projection_example)
 const widget_switch_example      = Example("widget_switch",      make_widget_switch_document_example,      make_widget_projection_example)
 const widget_progress_example    = Example("widget_progress",    make_widget_progress_document_example,    make_widget_projection_example)
 const widget_slider_example      = Example("widget_slider",      make_widget_slider_document_example,      make_widget_projection_example)
@@ -115,6 +116,7 @@ const substrate_examples = Example[
     widget_badge_example,
     widget_separator_example,
     widget_card_example,
+    widget_collapsible_card_example,
     widget_switch_example,
     widget_progress_example,
     widget_slider_example,

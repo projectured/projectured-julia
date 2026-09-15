@@ -457,6 +457,22 @@ make_widget_card_document_example() =
                content="Name and framework go here.",
                footer="You can change this later.")
 
+# WidgetCard that folds — a chevron before the title says whether the body is
+# shown, and a click anywhere on the header band flips it. The title is a
+# Document, because the header band is the title's own box. The second card
+# starts collapsed, so both states are on screen at once.
+make_widget_collapsible_card_document_example() =
+    VerticalLayout(Any[
+        WidgetCard(Point2D(0, 0);
+                   title=WidgetLabel(Point2D(0, 0), "Details"),
+                   content="The body of an open card.",
+                   collapsible=true),
+        WidgetCard(Point2D(0, 0);
+                   title=WidgetLabel(Point2D(0, 0), "More details"),
+                   content="The body of a collapsed card, which is not drawn.",
+                   collapsible=true, collapsed=true),
+    ]; gap=12)
+
 # WidgetSwitch — on and off, stacked by a VerticalLayout.
 make_widget_switch_document_example() =
     VerticalLayout(Any[

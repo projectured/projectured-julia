@@ -17,7 +17,7 @@ const examples = [
     # whole *layout* — most of which is chrome that rightly declines — so their
     # failures would drown the suite's baseline. Run them by name:
     # `run_example(pane_example)` / `run_example(empty_pane_example)`.
-    widget_badge_example, widget_separator_example, widget_card_example, widget_switch_example,
+    widget_badge_example, widget_separator_example, widget_card_example, widget_collapsible_card_example, widget_switch_example,
     widget_progress_example, widget_slider_example, widget_radio_group_example,
     widget_avatar_example, widget_alert_example, widget_skeleton_example,
     widget_toggle_example, widget_toggle_group_example, widget_select_example,

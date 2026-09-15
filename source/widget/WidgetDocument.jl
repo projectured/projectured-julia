@@ -1326,17 +1326,29 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
-    WidgetCard(position; title, description, content, footer, width=0, collapsed=false, variant=:card)
-
+    WidgetCard(position; title, description, content, footer, width=0, collapsed=false,
+               variant=:card, collapsible=false, padding=-1)
 
 A surface with an optional title / description header, a content body and an
 optional footer, stacked vertically.
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 header click emits `ToggleCollapseOperation(card)`, whose default handler flips
-this cell. Producers that want a collapsible card read `card.collapsed` from the
-reactive `title`/`content` they build (chevron glyph, empty body when collapsed).
-Cards left at the default `collapsed=false` render exactly as before.
+this cell. A collapsed card draws its header and nothing else.
+
+`collapsible` says that the card shows its fold state: the renderer draws a
+chevron before the title, pointing down when the card is open and right when it
+is collapsed, and the whole header band is the fold target. A card that folds
+without saying so is a card a person can not read, so a producer that folds a
+card sets this. It needs a `Document` title, because the header band is the
+title's own box. A producer whose fold state lives elsewhere — a domain node's
+flag — makes `collapsed` a computed cell that reads it.
+
+`padding` is the card's own padding: a number of pixels on every side, or an
+`Inset` with a number per side. A negative number, the default, means the
+theme's. A `:plain` card with `padding = 0` draws nothing and occupies nothing
+beyond its content, and one with `padding = Inset(0, 0, 12, 0)` is indented by
+12 pixels and nothing else, which is what a section inside another card needs.
 
 `variant` says how loud the surface is. The card keeps its shape, its padding
 and its header in every variant — only the panel behind them changes:
@@ -1369,6 +1381,8 @@ shared a color would draw one shape.
     visible::Bool
     collapsed::Bool
     variant::Symbol
+    collapsible::Bool
+    padding::Any
 end
 
 """
@@ -1386,10 +1400,12 @@ tall content simply extends past the card.
 """
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
-           visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card) =
+           visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
+           collapsible::Bool=false, padding::Union{Integer,Inset}=-1) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
-               Cell(visible), Cell(collapsed), Cell(variant), Cell(nothing))
+               Cell(visible), Cell(collapsed), Cell(variant),
+               Cell(collapsible), Cell(padding isa Inset ? padding : Int(padding)), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 

@@ -4192,9 +4192,21 @@ end
     muted_color::StyleColor        # card fill, in the :muted variant
     border::StyleStroke
     corner_radius::Int
-    padding::Int                   # uniform card padding
+    padding::Int                   # uniform card padding, unless the card names its own
     title_gap::Int
     section_gap::Int
+    chevron::StyleStroke           # the fold mark of a collapsible card
+    chevron_size::Int              # its half-size
+end
+
+# The padding a card draws with, as `(top, bottom, left, right)`: its own when it
+# names one — one number for every side, or an `Inset` — else the theme's.
+function _card_padding(p, w::WidgetCard)
+    own = w.padding
+    own isa Inset && return (_sc(Int(own.top[])), _sc(Int(own.bottom[])),
+                             _sc(Int(own.left[])), _sc(Int(own.right[])))
+    n = Int(own) >= 0 ? _sc(Int(own)) : _sc(p.padding)
+    (n, n, n, n)
 end
 
 # Lay out the card body: stack title/description/content/footer top-to-bottom,
@@ -4203,32 +4215,50 @@ end
 # `build` cell re-runs when the content grows — that is what keeps the card's
 # border, height, and child positions in step with reactive content.
 function _card_build(p, w, ctx, tim, cim)
-    padding = _sc(p.padding)
+    pad_top, pad_bottom, padding, pad_right = _card_padding(p, w)
+    pad_x = padding + pad_right
     elements = Any[]
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
-    y = padding
+    y = pad_top
     # The width the card's own texts break to: the width it was told to be, else
     # the width it was offered, less the padding on both sides. With neither
     # there is no bound, and each text is the one line it measures.
     avail_w = ctx === nothing ? nothing : ctx.available_width
     authored_width = _sc(Int(w.width))
-    text_bound = authored_width > 0 ? max(0, authored_width - 2padding) :
-                 avail_w !== nothing ? max(0, Int(avail_w[]) - 2padding) : 0
+    text_bound = authored_width > 0 ? max(0, authored_width - pad_x) :
+                 avail_w !== nothing ? max(0, Int(avail_w[]) - pad_x) : 0
+    # A collapsible card draws a chevron before its header, and the header moves
+    # right by the column the mark takes. The mark is pushed once the header's
+    # height is known, so it sits on the header's own middle line. Reading
+    # `collapsed` here is what flips it without a re-print.
+    collapsible = w.collapsible === true && w.title !== nothing
+    chevron_size = _sc(p.chevron_size)
+    column = collapsible ? 2 * chevron_size + _sc(p.title_gap) : 0
+    header_x = padding + column
+    header_bound = text_bound > 0 ? max(1, text_bound - column) : 0
+    header_h = 0
     if tim !== nothing
-        push!(child_iomaps, (padding, y, tim))
-        push!(elements, _make_canvas(padding, y, Any[tim.output]))
+        push!(child_iomaps, (header_x, y, tim))
+        push!(elements, _make_canvas(header_x, y, Any[tim.output]))
         inner = tim.output
         if inner isa GraphicsCanvas
-            max_content_width = max(max_content_width, Int(inner.w[]))
-            y += Int(inner.h[]) + _sc(p.title_gap)
+            header_h = Int(inner.h[])
+            max_content_width = max(max_content_width, Int(inner.w[]) + column)
+            y += header_h + _sc(p.title_gap)
         else
             y += _sc(p.title_gap)
         end
     elseif w.title !== nothing
         title_width, title_height = _push_text_block!(elements, p.measure, p.title_text,
-                                                      string(w.title), padding, y, text_bound)
-        max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
+                                                      string(w.title), header_x, y, header_bound)
+        header_h = title_height
+        max_content_width = max(max_content_width, title_width + column); y += title_height + _sc(p.title_gap)
+    end
+    if collapsible
+        _push_chevron!(elements, padding + chevron_size, pad_top + header_h ÷ 2, chevron_size,
+                       w.collapsed === true ? :right : :down, p.chevron.color;
+                       stroke = max(1, _sc(p.chevron.width)))
     end
     if w.description !== nothing
         description_width, description_height =
@@ -4267,22 +4297,25 @@ function _card_build(p, w, ctx, tim, cim)
             push!(elements, _make_canvas(padding, y, Any[inner]))
             inner isa GraphicsCanvas && (max_content_width = max(max_content_width, Int(inner.w[])))
         end
-        y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(p.section_gap) : _sc(p.section_gap)
+        y += inner isa GraphicsCanvas ? Int(inner.h[]) : 0
     elseif content isa AbstractString
         content_width, content_height = _push_text_block!(elements, p.measure, p.content_text,
                                                           content, padding, y, text_bound)
-        max_content_width = max(max_content_width, content_width); y += content_height + _sc(p.section_gap)
+        max_content_width = max(max_content_width, content_width); y += content_height
     end
+    # The section gap separates the content from a footer. With no footer there
+    # is nothing to separate, and the card ends at its padding.
     if w.footer !== nothing
+        y += _sc(p.section_gap)
         footer_width, footer_height = _push_text_block!(elements, p.measure, p.footer_text,
                                                         string(w.footer), padding, y, text_bound)
         max_content_width = max(max_content_width, footer_width); y += footer_height
     end
-    card_width = _resolve_width(ctx, authored_width, max_content_width + 2padding)
+    card_width = _resolve_width(ctx, authored_width, max_content_width + pad_x)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
     card_height = fixed_height > 0 ? fixed_height :
-                  _resolve_height(ctx, 0, y + padding)
+                  _resolve_height(ctx, 0, y + pad_bottom)
     # Card surface drawn first (behind content). The variant says how loud that
     # surface is; the card keeps its shape and its padding in all three, so only
     # the panel changes. `:plain` draws no panel at all — a fill with zero alpha
@@ -4333,12 +4366,13 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # The body is offered the card's OWN inner width. A card told a width draws
     # that width whatever it was offered, so a body sized from the offer would be
     # wider than the card that holds it.
-    pad = _sc(p.padding)
+    _, _, pad_left, pad_right = _card_padding(p, w)
+    pad_x = pad_left + pad_right
     avail_w = ctx.available_width
     authored_width = _sc(Int(w.width))
-    inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - 2pad))) :
+    inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - pad_x))) :
               avail_w === nothing ? nothing :
-              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
+              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - pad_x)))
     inner_ctx = withhold_offer(with_available_size(ctx; width=inner_w), :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
     # A `LayoutConstraint` around the content is how a caller pins the body's
@@ -4419,7 +4453,12 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
         tcanvas = tim.output
         if tcanvas isa GraphicsCanvas
             tw = Int(tcanvas.w[]); th = Int(tcanvas.h[])
-            (tx <= evt.x < tx + tw && ty <= evt.y < ty + th) && return ToggleCollapseOperation(w)
+            # A collapsible card folds from its whole header band: the chevron
+            # sits left of the title, and a click on it must fold too.
+            folds_everywhere = w.collapsible === true
+            x0 = folds_everywhere ? 0 : tx
+            x1 = folds_everywhere ? Int(iomap.output.w[]) : tx + tw
+            (x0 <= evt.x < x1 && ty <= evt.y < ty + th) && return ToggleCollapseOperation(w)
         end
     end
     _card_route(w, entries, evt.x, evt.y,
@@ -6912,7 +6951,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             # colored mark and word on the role line.
             theme.card, color_interpolate(theme.muted, theme.background, 0.5), theme.muted,
             StyleStroke(theme.border, theme.border_width), theme.radius,
-            16, 4, 10),
+            16, 4, 10,
+            StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,
             color_white, StyleStroke(theme.border, theme.border_width),
