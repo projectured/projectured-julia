@@ -403,9 +403,9 @@ end
 
 # ── The bands of an axis ─────────────────────────────────────────────────────
 #
-# A grid's columns, a table's rules and a lazy table's rows are one sum: the
-# edge of every band, cumulative over the extents and a gap. It is written once
-# here, beside the allocator every stack shares, and the inverse beside it.
+# A grid's columns and a table's rules are one sum: the edge of every band,
+# cumulative over the extents and a gap. It is written once here, beside the
+# allocator every stack shares, and the inverse beside it.
 
 """
     compute_axis_offsets(extents, gap) -> Vector{Int}
@@ -425,29 +425,17 @@ end
 
 """
     find_axis_band(offsets, position) -> Int or nothing
-    find_axis_band(extent, gap, position) -> Int or nothing
 
-The band a coordinate falls in. With the edges `compute_axis_offsets` answers,
-band `k` spans `offsets[k] <= position < offsets[k + 1]`, and a coordinate
-before the first edge or past the last is in no band.
-
-With one uniform `extent` and a `gap` — the rows of a list too long to sum —
-the band is arithmetic and no edges are built. A coordinate before the first
-band is in none; one past every band built so far is still a band number,
-because a uniform axis has no last edge.
+The band a coordinate falls in, given the edges `compute_axis_offsets`
+answers: band `k` spans `offsets[k] <= position < offsets[k + 1]`, and a
+coordinate before the first edge or past the last is in no band. A table
+whose rows are a list has no edges to give; it walks its rows instead.
 """
 function find_axis_band(offsets::AbstractVector{<:Integer}, position::Integer)
     for k in 1:(length(offsets) - 1)
         offsets[k] <= position < offsets[k + 1] && return k
     end
     nothing
-end
-
-function find_axis_band(extent::Integer, gap::Integer, position::Integer)
-    position < 0 && return nothing
-    pitch = Int(extent) + Int(gap)
-    pitch <= 0 && return nothing
-    Int(position) ÷ pitch + 1
 end
 
 """

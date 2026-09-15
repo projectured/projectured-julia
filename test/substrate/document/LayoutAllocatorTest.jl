@@ -13,13 +13,6 @@ end
     @test find_axis_band(edges, 71) == 3
     @test find_axis_band(edges, 72) === nothing
     @test find_axis_band(edges, -1) === nothing
-    # A uniform axis has no last edge: the band is arithmetic.
-    @test find_axis_band(20, 0, 0) == 1
-    @test find_axis_band(20, 0, 19) == 1
-    @test find_axis_band(20, 0, 20) == 2
-    @test find_axis_band(20, 0, 100_000 * 20) == 100_001
-    @test find_axis_band(20, 0, -1) === nothing
-    @test find_axis_band(0, 0, 5) === nothing
 end
 
 @testset "allocate_axis — bare children" begin

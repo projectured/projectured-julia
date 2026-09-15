@@ -1,6 +1,6 @@
 # One table widget, lazy or not
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
+> **Kind:** plan · **Status:** done 2026-09-16 · **Stands on:**
 > [../../documentation/rule/layout-rules.md](../../documentation/rule/layout-rules.md),
 > [../../documentation/package/widget/widget.md](../../documentation/package/widget/widget.md)
 
@@ -353,9 +353,13 @@ steps can point at them.
         `WidgetCard` by position and broke when a card gained a field on main
         the same morning; they are built by keyword now, with their reactive
         statements set after.
-- [ ] **Step 5 — `WidgetLazyTable` is deleted**, with its printer, its reader,
-      its helpers, its test file and its mentions in the guides of both
-      repositories.
+- [x] **Step 5 — `WidgetLazyTable` is deleted**, with its printer, its
+      reader, its three accessors, its two selection helpers, its factory row,
+      its exports, its test file and its mentions in both repositories. Done
+      2026-09-16. The uniform form of `find_axis_band` went with it: its one
+      caller was the lazy click, and a list table walks its rows instead. The
+      substrate suite lost the sixteen assertions of the lazy table and the six
+      of the uniform band, and keeps its split-pane drag baseline.
 
 ## 6. What the tests must say
 
@@ -382,6 +386,13 @@ steps can point at them.
   answers that reference.
 
 ## 7. Found on the way, and not this plan's
+
+- `test_campaign_ui_closure` fails on omnet main as it stood before this plan:
+  the campaign runner's dependency closure reaches `ProjecturedSerialization`
+  and holds 24 packages against a guard of 22. The `.pred` support of the
+  result views, landed with the study plan the same morning, is the likely
+  edge; it was not run then. It fails identically with and without this plan's
+  commits.
 
 - A `WidgetText` inside a table cell prints as a `SimpleIoMap` with no content
   iomap, and its reader answers nothing to a click. It is so in the eager
