@@ -1186,7 +1186,7 @@ uuid = "9b6ed84a-435e-4201-b17d-e2031f977df8"
 version = "0.1.0"
 
 [[deps.ProjecturedMath]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedMath"
 uuid = "80f7b254-0441-42e3-ab4d-62a480615fad"
 version = "0.1.0"
