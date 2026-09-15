@@ -66,6 +66,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/formula/projection/FormulaToSyntaxTest.jl")
+include("../../../test/formula/FormulaFileTest.jl")
 
 include("../../../test/formula/FormulaSuite.jl")
 

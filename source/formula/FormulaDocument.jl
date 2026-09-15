@@ -160,6 +160,64 @@ function get_formula_dependencies(formula::FormulaFormula)
 end
 
 """
+    get_formula_dependencies(formula, env) -> Vector{FormulaFormula}
+
+The formulas `formula` depends on in `env`: the targets of its references, and
+every formula of the sheet that a plain name in its code resolves to.
+
+A name binds because a file holds names and not identities. A sheet read from a
+`.pred` file says `code = "(1 - rho) * rho^n"`, and `rho` is the formula of
+that name in the same sheet. A reference by identity keeps what it has: a
+rename tracks it, and a name written in the code does not.
+"""
+function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironment)
+    deps = get_formula_dependencies(formula)
+    for name in get_formula_names(formula.code)
+        target = resolve(env, name)
+        target === nothing && continue
+        target === formula && continue
+        target in deps || push!(deps, target)
+    end
+    deps
+end
+
+"""
+    get_formula_names(code) -> Vector{String}
+
+Every plain name the Julia body `code` reads: each `JuliaIdentifier` that is
+not the callee of a call and not the field of a field access. A callee names a
+function and a field names a slot; neither is a value a sheet holds.
+"""
+function get_formula_names(code)
+    names = String[]
+    _collect_names!(names, code)
+    names
+end
+
+function _collect_names!(names::Vector{String}, node)
+    if node isa JuliaIdentifier
+        node.name in names || push!(names, node.name)
+        return
+    end
+    node isa Document || return
+    for fname in fieldnames(typeof(node))
+        fname === :selection && continue
+        node isa JuliaCall && fname === :callee &&
+            getfield(node, :callee)[] isa JuliaIdentifier && continue
+        node isa JuliaFieldAccess && fname === :field && continue
+        child = getfield(node, fname)[]
+        if child isa CellVector
+            for c in child
+                _collect_names!(names, c)
+            end
+        elseif child isa Document
+            _collect_names!(names, child)
+        end
+    end
+    return
+end
+
+"""
     would_create_cycle(env, from, to) -> Bool
 
 True if adding a reference `from → to` would close a cycle, i.e. if `to` can
@@ -175,7 +233,7 @@ function would_create_cycle(env::FormulaEnvironment, from::FormulaFormula, to::F
         n === from && return true
         n in visited && continue
         push!(visited, n)
-        for d in get_formula_dependencies(n)
+        for d in get_formula_dependencies(n, env)
             push!(stack, d)
         end
     end
@@ -196,7 +254,7 @@ function compute_topological_order(env::FormulaEnvironment)
         s == 2 && return
         s == 1 && error("compute_topological_order: cycle detected at $(n.name)")
         state[n] = 1
-        for d in get_formula_dependencies(n)
+        for d in get_formula_dependencies(n, env)
             visit(d)
         end
         state[n] = 2
@@ -312,7 +370,7 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
     end
     push!(_EVALUATING, formula)
     try
-        deps = get_formula_dependencies(formula)
+        deps = get_formula_dependencies(formula, env)
         # Bind each dependency name to its evaluated value. Reading dep.result
         # here is the reactive subscription that triggers recompute on change.
         bindings = Expr[]
@@ -363,4 +421,61 @@ dependency's value changes. Idempotent.
 function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
     set_cell_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
     formula
+end
+
+# ── What a formula owes its file ─────────────────────────────────────────────
+#
+# A formula holds its code as a Julia tree and its result as a derived cell. A
+# `.pred` file holds the code as the text a person wrote, and no result: the
+# sheet evaluates it again on load. A sheet writes its formulas, one block each.
+
+"""
+    pred_arguments(formula::FormulaFormula)
+
+The call a `.pred` file writes for a formula: its name, its code as source text,
+and its display mode. The result is derived and is not written.
+"""
+pred_arguments(formula::FormulaFormula) = (), Pair{Symbol,Any}[
+    :name         => formula.name,
+    :code         => print_natural_text(formula.code),
+    :display_mode => formula.display_mode,
+]
+
+"""
+    make_pred_document(::Type{<:FormulaFormula}, positional, keywords)
+
+The formula a call in a file builds: `FormulaFormula(name = "rho", code = "0.8")`
+or `FormulaFormula("rho", "0.8")`. The code text is parsed with `parse_julia`.
+"""
+function make_pred_document(::Type{<:FormulaFormula}, positional, keywords)
+    fields = Dict{Symbol,Any}(keywords)
+    Base.length(positional) >= 1 && (fields[:name] = positional[1])
+    Base.length(positional) >= 2 && (fields[:code] = positional[2])
+    haskey(fields, :name) || error("FormulaFormula: a formula needs a name")
+    haskey(fields, :code) || error("FormulaFormula: a formula needs its code")
+    code = fields[:code]
+    code isa AbstractString ||
+        error("FormulaFormula: the code of a formula is text, got ", typeof(code))
+    FormulaFormula(String(fields[:name]), parse_julia(String(code));
+                   display_mode = get(fields, :display_mode, :both))
+end
+
+"""
+    pred_arguments(env::FormulaEnvironment)
+
+The call a `.pred` file writes for a sheet: its formulas, in order.
+"""
+pred_arguments(env::FormulaEnvironment) =
+    (), Pair{Symbol,Any}[:formulas => Any[f for f in env.formulas]]
+
+"""
+    make_pred_document(::Type{<:FormulaEnvironment}, positional, keywords)
+
+The sheet a call in a file builds. Every formula in it is wired to the sheet, so
+each result evaluates again against the names the file wrote.
+"""
+function make_pred_document(::Type{<:FormulaEnvironment}, positional, keywords)
+    fields = Dict{Symbol,Any}(keywords)
+    formulas = Base.length(positional) >= 1 ? positional[1] : get(fields, :formulas, Any[])
+    FormulaEnvironment(Vector{Any}(formulas))
 end

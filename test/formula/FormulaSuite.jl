@@ -24,7 +24,8 @@ function test_formula()
     @testset "ProjecturedFormula" begin
         test_formula_layering()
         test_formula_to_syntax()
+        test_formula_file()
     end
 end
 
-export test_formula, test_formula_layering, test_formula_to_syntax
+export test_formula, test_formula_layering, test_formula_to_syntax, test_formula_file

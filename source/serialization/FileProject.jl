@@ -333,7 +333,13 @@ end
 # rather than the value. It is the one bare name the subset takes: a field that
 # holds nothing has to be writable, and there is no other way to spell it.
 _is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
-                        x isa Bool || x === nothing || x === :nothing
+                        x isa Bool || x === nothing || x === :nothing ||
+                        _is_marker_symbol(x)
+
+# `:holds` is a symbol literal when its name is an identifier. `Symbol("a b")`
+# is a call, and a call names a type or a verb, never a value.
+_is_marker_symbol(x) = x isa QuoteNode && x.value isa Symbol &&
+                       Base.isidentifier(String(x.value))
 
 # The expression printed in one canonical form, for an error message: so
 # `file("a.json")` and `file( "a.json" )` read the same.
@@ -342,6 +348,8 @@ function _canonical_marker(e::Expr)
     _print_canonical(io, e)
     String(take!(io))
 end
+
+_print_canonical(io::IO, quoted::QuoteNode) = print(io, ":", quoted.value)
 
 function _print_canonical(io::IO, e::Expr)
     if e.head === :tuple

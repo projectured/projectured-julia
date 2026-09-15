@@ -126,6 +126,9 @@ function parse_pred_text(text::AbstractString)
 end
 
 _evaluate_pred(literal) = literal === :nothing ? nothing : literal
+# `:holds` is a symbol literal. The marker grammar admits one only when its name
+# is an identifier, so the value it reads is the one the writer printed.
+_evaluate_pred(quoted::QuoteNode) = quoted.value
 
 function _evaluate_pred(e::Expr)
     e.head === :vect && return Any[_evaluate_pred(a) for a in e.args]
@@ -173,8 +176,8 @@ in declaration order, and one way to write each value. The write gate compares
 bytes, so two saves of one document must print the same text.
 
 Throws a [`FileCutException`](@ref) naming the field when a value is outside the
-notation: a string, a number, a character, a bool, `nothing`, a vector of those,
-a registered document, and a reference are all of it.
+notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
+of those, a registered document, and a reference are all of it.
 """
 function print_pred_text(document)
     io = IOBuffer()
@@ -187,6 +190,12 @@ const _PRED_INDENT = "    "
 _print_pred_value(io::IO, reference::PredReference, where, indent) = print(io, reference.marker)
 _print_pred_value(io::IO, x::AbstractString, where, indent) = print(io, repr(String(x)))
 _print_pred_value(io::IO, ::Nothing, where, indent) = print(io, "nothing")
+# A symbol prints as `:name`. One whose name is not an identifier would print as
+# a call, which the reader takes for a type, so it is refused instead.
+function _print_pred_value(io::IO, x::Symbol, where, indent)
+    Base.isidentifier(String(x)) || _refuse_pred_value(x, where)
+    print(io, ":", x)
+end
 _print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where, indent) =
     print(io, repr(x))
 
