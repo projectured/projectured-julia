@@ -69,6 +69,41 @@ table's rows reads the other's unchanged.
    `source/legacy/simulator/presentation/SimulationFilterToWidget.jl` and in
    `source/legacy/result/presentation/SimulationResultFrameToWidget.jl`.
 
+8. **The runner's table test is dark and has been failing since 2026-09-12.**
+   Commit `6d91cb2b` moved the runner from `WidgetTable` to `WidgetLazyTable`
+   and did not move `test_filter_run_table`, which still asserts
+   `column_count`, `column_headers`, `rows` and `row_headers` — four fields the
+   lazy table does not have. Measured on the landed main: 16 passed, 2 failed,
+   12 errored. Nobody saw it because the `OmnetLegacyTest` environment of the
+   main checkout could not load at all: its manifest was stale and `Pkg.resolve`
+   died on an internal assertion, so the manifest had to be deleted and built
+   again before the suite would run.
+
+## 2b. What the callers actually do
+
+Counted across the three repositories. `inet-julia` has none of either type, so
+the merge touches two repositories.
+
+| | sites | cells hold |
+| --- | --- | --- |
+| `WidgetTable` | 21 | strings at 14, whole documents at 7 |
+| `WidgetLazyTable` | 5 | strings at all 5 |
+
+Three facts from that count bear on the design.
+
+- **No caller anywhere states a column or a row policy.** Every `WidgetTable`
+  relies on the `Content` default. So the `Fixed` column path that makes
+  laziness possible is, today, exercised by nothing but a test.
+- **A cell already holds a whole document at seven sites** — a nested sequence
+  chart, four charts, JSON values, a math operation. "Any widget in a cell" is a
+  live feature and not a hypothetical, which is why the lazy form must gain it
+  rather than the eager form losing it.
+- **Five omnet callers wire `rows` reactively after construction**, with
+  `set_cell_function!` on `getfield(table.rows, :elements)`. A capture view, the
+  workbench run list, the optimisation observations, the federation view and the
+  runner all grow their table this way. `LazyRows` must leave that pattern
+  possible or those five have to change with it.
+
 ## 3. The design
 
 **One widget. The printer reads the type of `rows`.**
@@ -136,10 +171,21 @@ one line of the projection's font plus twice `pad_y`.
   forbid it.
 
 - **Does `WidgetLazyTable` stay as a name?** If the merge lands, the type goes
-  and `LazyRows` takes its place. That is a rename across three repositories.
+  and `LazyRows` takes its place. That is a rename across two repositories;
+  `inet-julia` has no site.
+
+- **How does a caller grow a lazy table?** Five callers today install a
+  function on the `rows` collection after they build the table. A `LazyRows`
+  holding a count cell and a factory can carry the same wiring, but the call
+  looks different and each of the five has to be read.
 
 ## 5. Steps
 
+- [ ] **Step 0 — the runner's table test stops being dark.** Rewrite
+      `test_filter_run_table` against the type the runner actually builds, and
+      say in the plan of record that the suite could not load. Repairs defect 8.
+      The merge will rewrite these assertions again; they must pass in between,
+      or the step that moves the caller has no baseline to compare against.
 - [ ] **Step 1 — the grid clips what it allocated, and a cell draws one line.**
       A cell in an offered column is drawn in a viewport of that column's
       extent, and a table cell is one clipped line unless the table says
