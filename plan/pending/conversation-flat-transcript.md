@@ -397,6 +397,10 @@ Steps 1 to 4 are small. Step 5 is the delicate one: it is the same seam Stage 5
 changed, and getting a suffix count wrong silently stops a container carrying
 the caret.
 
+**The `padding` field of step 1 exists.** The transcript-folds plan added it,
+as a number for every side or an `Inset`, so step 1 is done and the rest of
+this stage starts at step 2.
+
 **Hover** is a second piece on top, and it needs a `hovered` cell on the card
 that does not exist yet. [`WidgetHoverTracking.jl`](../../source/widget/WidgetHoverTracking.jl)
 tracks the pointer for widgets that have one.
