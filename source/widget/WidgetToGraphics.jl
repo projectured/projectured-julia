@@ -6383,8 +6383,12 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     cell_y = geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
     local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
     op = read_intent(cim.projection, cim, local_evt)
-    # A selection is re-rooted under the cell; any other operation names its
-    # own document and is answered as it is, so a checkbox in a cell toggles.
+    # A cell that declines the click — a label has nothing to say to one —
+    # leaves it to the row, and the row is selected: a table of text is a
+    # table of rows. A selection the cell answers is re-rooted under the cell;
+    # any other operation names its own document and is answered as it is, so
+    # a checkbox in a cell toggles.
+    op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
     op isa ReplaceSelectionOperation || return op
     table_ref = _wt_grid_ref_to_table(
         ConcreteReference(FieldReferenceStep("children"),

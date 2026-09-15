@@ -157,6 +157,17 @@ function test_widget_table_cell_policy()
     @testset "a policy that is neither is refused" begin
         @test_throws ErrorException make(; cell_policy = :squash)
     end
+    @testset "a plain click on a label cell selects its row" begin
+        geometry = clipped.geometry
+        x = geometry.col_x[1] + geometry.bw + geometry.pad_x + 2
+        y = geometry.row_y[3] + geometry.bw + geometry.pad_y + 2     # body row two
+        change = read_intent(rec, nothing, Intent(MousePress(:left, x, y, ModifierKeys()), nothing), clipped)
+        op = change isa Intent ? change.operation : change
+        @test op isa ReplaceSelectionOperation
+        @test op.path.head.name == "rows"
+        @test op.path.tail.head.start == 1
+        @test op.path.tail.tail isa EmptyReference
+    end
     @testset "the padding around a cell is the theme's, one token per axis" begin
         theme = make_slate_light_theme(font = font_ubuntu_regular_20)
         geometry = clipped.geometry
