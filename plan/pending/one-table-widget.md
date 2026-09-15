@@ -135,22 +135,28 @@ The five omnet callers that wire `rows` today do this instead.
 grid and must keep holding: `Fixed(n)` and a weight both answer `_gl_offers`,
 and the cells of such a column are never read.
 
-**Laziness is not a mode the caller names. It is what `rows` and the policies
-allow.** A `ListNode` in `rows` draws lazily when both are true:
+**Laziness is not a mode the caller names. It is what `rows` and the column
+policies allow.** A `ListNode` in `rows` draws lazily when every column is
+offered — each is `Fixed` or carries a weight — so that no column width depends
+on a cell that was never built. A list in a table with a `Content` column is
+an error the printer states, not a silent walk of every row. The existing
+vocabulary says the condition, so the widget gains no `lazy` flag.
 
-- every column is offered — each is `Fixed` or carries a weight, so no column
-  width depends on a cell;
-- the row policy is `Fixed(h)`, so the y of row *n* is arithmetic.
-
-A list whose table does not meet both is an error the printer states, not a
-silent walk of every row. The existing vocabulary says both conditions, so the
-widget gains no `lazy` flag and no second row-height field.
+**Rows take the same four policies as columns, in both forms.** A small table
+wants `Content` rows as much as a column does, and a list does not forbid it:
+a walk from the head computes each row's y as the previous row's y plus its
+height, which is the walk the renderer makes in any case. `Fixed` rows make
+that y arithmetic and let a row be found without building the rows above it;
+`Content` rows cost the walk and nothing more. A weight divides an offered
+height by a count, which a finite list answers by walking to its end and an
+infinite list cannot answer at all; a weight on an infinite list is refused,
+and the message says why.
 
 **A cell clips or wraps by the policy of its column, else of its table.** The
 table carries one policy and a column may carry its own; a cell carries none
 and falls back. The default is one clipped line, because a table is a data
-table until someone says otherwise. A row of `Fixed` height cannot wrap in any
-case, so the lazy form settles it by construction.
+table until someone says otherwise. A `Fixed` row clips by construction in
+either form; a `Content` row may wrap in either.
 
 **Laziness lives in a set of functions both paths call.** It is not a property
 of `GridLayout` and not a property of the table's printer. Splitting it into
@@ -190,32 +196,29 @@ one line of the projection's font plus twice `pad_y`.
 **`WidgetLazyTable` is deleted.** The name, the type, its printer, its reader
 and its three helpers. Nothing takes its place under another name.
 
-## 4. Open questions, to settle before any code
+## 4. Settled, and one thing deferred
 
-- **How does a reference name a row before the head?** `rows[i]` is a
-  `RangeReferenceStep` with a zero-based start, and the head is row 1. A row
-  the renderer reached through `prev` sits at a negative offset. Either the
-  range step is allowed a negative start, or the table re-anchors its head so
-  that no drawn row is ever before it. The second keeps the vocabulary as it is
-  and puts the cost on scrolling.
+The four questions of the first draft are answered. They are kept here so the
+steps can point at them.
 
-- **How does a scroll pane scroll an infinite content?** A pane clamps its
-  offset to `content_h - vh`, and a list-backed canvas has no `content_h`.
-  Proposal: the offset of a list-backed content is measured from the head and
-  is not clamped, and once it passes a whole row the table moves its head to
-  that row and the offset shrinks by the row. Then a far row is reached by
-  re-anchoring, never by a pixel count over an unbounded extent, and
-  `follow_end` on such a pane means the head follows the last node. Who moves
-  the head — the pane's reader or the table's — is the part to decide.
+- **A row before the head has a negative index.** `rows[i]` with the head as
+  row 1 counts `next` steps upward and `prev` steps downward, and a
+  `RangeReferenceStep` may carry a negative start to say so. The reference
+  vocabulary changes by that one allowance and nothing else.
 
-- **Does an eager `CellVector` table keep its whole-table height?** Yes, and it
-  must: a page stacks it and needs its extent. Only a list-backed table has
-  none, and only that table is walked.
+- **Scrolling is relative to the head.** The offset of a list-backed content
+  is measured from the head and is not clamped, because a list has no extent
+  to clamp against. **Relocating the head** — moving it to the row the offset
+  has passed, so that a far row is reached by re-anchoring rather than by a
+  pixel count — is allowed by this design and **deferred**: it is not a step
+  of this plan, and no step here may make it harder.
 
-- **Is `Fixed` the only row policy a list allows?** A weighted row policy
-  divides an offered height among the rows, and an infinite list has no count
-  to divide by. So a list allows `Fixed` and refuses a weight, and the error
-  message says why.
+- **An eager table keeps its whole extent.** A `CellVector` table can compute
+  its total width and height when a page or a pane needs them, as it does
+  today. Only a list-backed table has none, and only that table is walked.
+
+- **Rows take the same policies as columns.** Stated in §3: `Fixed`, `Content`
+  and a weight, in both forms; a weight on an infinite list is refused.
 
 ## 5. Steps
 
@@ -240,8 +243,10 @@ and its three helpers. Nothing takes its place under another name.
       with the same numbers.
 - [ ] **Step 3b — `rows` accepts a `ListNode`.** Pieces 4 and 5 gain their
       second form: a canvas list that mirrors the document list, and a walk from
-      the head that answers a cell's iomap. The two open questions on the head
-      and on scrolling are settled here. Repairs defects 2, 3 and 4.
+      the head that answers a cell's iomap. A `RangeReferenceStep` may carry a
+      negative start, and a scroll pane over a list-backed content measures its
+      offset from the head and does not clamp it. The head does not move in
+      this step. Repairs defects 2, 3 and 4.
 - [ ] **Step 4 — the callers move.** The runner's table and the result table
       become `WidgetTable` with a `ListNode` in `rows` and their widths as
       `column_policies`; the five callers that install a function on `rows`
@@ -266,4 +271,10 @@ and its three helpers. Nothing takes its place under another name.
 - The same table, eager and lazy over the same data, draws the same pixels at
   the same size. That is the one test that says the merge did not fork.
 - A list in a table whose columns are not all offered is refused, and the
-  message names the column. A weighted row policy on a list is refused too.
+  message names the column. A weighted row policy on an infinite list is
+  refused; on a finite list it divides the offer as it does for a vector.
+- A list with `Content` rows draws rows of different heights, and the row at
+  a coordinate is the one the cumulative offsets say. That is piece 3 over
+  piece 2 with nothing uniform to lean on.
+- `rows[-1]` on a list names the row before the head, and a click on that row
+  answers that reference.
