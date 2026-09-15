@@ -3365,13 +3365,8 @@ get_frozen_extent(iomap::WidgetLazyTableToGraphicsCanvasIoMap) =
     end)
 
 # The x of each column edge, cumulative, so a cell's box is two lookups.
-function _lazy_column_edges(w::WidgetLazyTable)
-    edges = Int[0]
-    for width in get_lazy_table_column_widths(w)
-        push!(edges, last(edges) + width)
-    end
-    edges
-end
+_lazy_column_edges(w::WidgetLazyTable) =
+    compute_axis_offsets(Int[Int(width) for width in get_lazy_table_column_widths(w)], 0)
 
 _lazy_table_width(w::WidgetLazyTable) = last(_lazy_column_edges(w))
 
@@ -3462,10 +3457,10 @@ function read_intent(p::WidgetLazyTableToGraphicsCanvas,
     event.button === :left || return nothing
     w = iomap.input
     height = Int(w.row_height)
-    height <= 0 && return nothing
     (0 <= event.x < _lazy_table_width(w)) || return nothing
-    band = event.y ÷ height
-    row = w.header ? band : band + 1
+    band = find_axis_band(height, 0, event.y)
+    band === nothing && return nothing
+    row = w.header ? band - 1 : band
     (1 <= row <= Int(w.row_count)) || return nothing
     ReplaceSelectionOperation(make_widget_lazy_table_row_selection(row))
 end
@@ -5916,16 +5911,8 @@ function _wt_geometry(gim::GridLayoutIoMap, grid_rows::Int, grid_cols::Int,
     # which matches the GridLayout child x (Σ prev (col_w+gap)) plus grid_off_x,
     # since each box advance is col_w + 2*pad_x + bw (= the layout gap plus
     # col_w); rows the same with pad_y.
-    col_x = Vector{Int}(undef, grid_cols + 1)
-    col_x[1] = 0
-    for gc in 1:grid_cols
-        col_x[gc + 1] = col_x[gc] + col_w[gc] + 2 * pad_x + bw
-    end
-    row_y = Vector{Int}(undef, grid_rows + 1)
-    row_y[1] = 0
-    for gr in 1:grid_rows
-        row_y[gr + 1] = row_y[gr] + row_h[gr] + 2 * pad_y + bw
-    end
+    col_x = compute_axis_offsets(col_w, 2 * pad_x + bw)
+    row_y = compute_axis_offsets(row_h, 2 * pad_y + bw)
     total_w = col_x[grid_cols + 1] + bw   # + trailing right border
     total_h = row_y[grid_rows + 1] + bw
     WTGeometry(nrows, ncols, row_offset, col_offset, grid_rows, grid_cols,
@@ -6317,18 +6304,8 @@ end
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
 function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
     (0 <= x < geom.total_w && 0 <= y < geom.total_h) || return (:outside, 0, 0)
-    gc = 0
-    for c in 1:geom.grid_cols
-        if geom.col_x[c] <= x < geom.col_x[c + 1]
-            gc = c; break
-        end
-    end
-    gr = 0
-    for r in 1:geom.grid_rows
-        if geom.row_y[r] <= y < geom.row_y[r + 1]
-            gr = r; break
-        end
-    end
+    gc = something(find_axis_band(geom.col_x, x), 0)
+    gr = something(find_axis_band(geom.row_y, y), 0)
     (gc == 0 || gr == 0) && return (:outside, 0, 0)
     header_col = geom.has_row_headers && gc == 1
     header_row = geom.has_col_headers && gr == 1

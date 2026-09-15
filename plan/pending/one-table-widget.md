@@ -275,10 +275,16 @@ steps can point at them.
       - The two omnet `_ROW_HEIGHT` constants stay until Step 4: they size the
         lazy table, which keeps its own row height until it is gone.
       Repairs defects 5 and 6.
-- [ ] **Step 3a — pieces 1 to 3 become functions in `ProjecturedLayout`.** The
-      grid and both tables call them, and behaviour does not change. This step
-      is a refactor and its test is that every existing table test still passes
-      with the same numbers.
+- [x] **Step 3a — pieces 1 to 3 become functions in `ProjecturedLayout`.**
+      Done 2026-09-16. `compute_axis_offsets(extents, gap)` answers the edge of
+      every band, and `find_axis_band` answers the band at a coordinate, over a
+      vector of edges or over one uniform extent with no edges built. They sit
+      beside `allocate_axis`. The grid's reactive column and row edges, the
+      table's rule positions and hit test, and the lazy table's column edges
+      and click all call them. Piece 1 was one function already and stays
+      where it is. Every table test passed with the same numbers before and
+      after; the substrate suite grew by the fifteen assertions of the two new
+      functions and nothing else.
 - [ ] **Step 3b — `rows` accepts a `ListNode`.** Pieces 4 and 5 gain their
       second form: a canvas list that mirrors the document list, and a walk from
       the head that answers a cell's iomap. A `RangeReferenceStep` may carry a

@@ -1,4 +1,27 @@
 function test_layout_allocator()
+@testset "compute_axis_offsets — the edge of every band, cumulative" begin
+    @test compute_axis_offsets(Int[], 5) == [0]
+    @test compute_axis_offsets(Int[10, 20, 30], 0) == [0, 10, 30, 60]
+    @test compute_axis_offsets(Int[10, 20, 30], 4) == [0, 14, 38, 72]
+end
+
+@testset "find_axis_band — the band a coordinate falls in" begin
+    edges = compute_axis_offsets(Int[10, 20, 30], 4)
+    @test find_axis_band(edges, 0) == 1
+    @test find_axis_band(edges, 13) == 1      # inside the first band and its gap
+    @test find_axis_band(edges, 14) == 2
+    @test find_axis_band(edges, 71) == 3
+    @test find_axis_band(edges, 72) === nothing
+    @test find_axis_band(edges, -1) === nothing
+    # A uniform axis has no last edge: the band is arithmetic.
+    @test find_axis_band(20, 0, 0) == 1
+    @test find_axis_band(20, 0, 19) == 1
+    @test find_axis_band(20, 0, 20) == 2
+    @test find_axis_band(20, 0, 100_000 * 20) == 100_001
+    @test find_axis_band(20, 0, -1) === nothing
+    @test find_axis_band(0, 0, 5) === nothing
+end
+
 @testset "allocate_axis — bare children" begin
 
 # All bare → preferred = intrinsic (treated as the seed), no weight: no slack growth.

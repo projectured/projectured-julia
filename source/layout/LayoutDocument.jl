@@ -401,6 +401,55 @@ function layout_weight(doc, axis::Symbol, default=nothing)
     v === nothing ? _policy_field(default, :weight, 0.0) : Float64(v)
 end
 
+# ── The bands of an axis ─────────────────────────────────────────────────────
+#
+# A grid's columns, a table's rules and a lazy table's rows are one sum: the
+# edge of every band, cumulative over the extents and a gap. It is written once
+# here, beside the allocator every stack shares, and the inverse beside it.
+
+"""
+    compute_axis_offsets(extents, gap) -> Vector{Int}
+
+The edge of every band on one axis: `n + 1` edges for `n` extents, the first
+at zero and each next one an extent and a gap further on. The last edge is the
+far side of the last band.
+"""
+function compute_axis_offsets(extents::AbstractVector{<:Integer}, gap::Integer)
+    offsets = Vector{Int}(undef, length(extents) + 1)
+    offsets[1] = 0
+    for k in eachindex(extents)
+        offsets[k + 1] = offsets[k] + Int(extents[k]) + Int(gap)
+    end
+    offsets
+end
+
+"""
+    find_axis_band(offsets, position) -> Int or nothing
+    find_axis_band(extent, gap, position) -> Int or nothing
+
+The band a coordinate falls in. With the edges `compute_axis_offsets` answers,
+band `k` spans `offsets[k] <= position < offsets[k + 1]`, and a coordinate
+before the first edge or past the last is in no band.
+
+With one uniform `extent` and a `gap` — the rows of a list too long to sum —
+the band is arithmetic and no edges are built. A coordinate before the first
+band is in none; one past every band built so far is still a band number,
+because a uniform axis has no last edge.
+"""
+function find_axis_band(offsets::AbstractVector{<:Integer}, position::Integer)
+    for k in 1:(length(offsets) - 1)
+        offsets[k] <= position < offsets[k + 1] && return k
+    end
+    nothing
+end
+
+function find_axis_band(extent::Integer, gap::Integer, position::Integer)
+    position < 0 && return nothing
+    pitch = Int(extent) + Int(gap)
+    pitch <= 0 && return nothing
+    Int(position) ÷ pitch + 1
+end
+
 # ── Allocation algorithm (per axis, one pass) ───────────────────────────────
 
 """

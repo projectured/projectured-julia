@@ -941,24 +941,14 @@ function _gl_row_h_cell(row::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
     end)
 end
 
+# The edge of column `col` and of row `row`: the shared sum over the extents
+# before it, read reactively so an earlier extent that grows moves the edge.
 function _gl_col_x_cell(col::Int, col_w::Vector{Cell}, hgap::Cell)
-    ComputedCell(function ()
-        x = 0
-        for cc in 1:(col-1)
-            x += col_w[cc][] + hgap[]
-        end
-        x
-    end)
+    ComputedCell(() -> last(compute_axis_offsets(Int[Int(col_w[cc][]) for cc in 1:(col-1)], Int(hgap[]))))
 end
 
 function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, vgap::Cell)
-    ComputedCell(function ()
-        y = 0
-        for rr in 1:(row-1)
-            y += row_h[rr][] + vgap[]
-        end
-        y
-    end)
+    ComputedCell(() -> last(compute_axis_offsets(Int[Int(row_h[rr][]) for rr in 1:(row-1)], Int(vgap[]))))
 end
 
 # Per-column alignment. An empty vector falls back to the single
