@@ -163,6 +163,15 @@ its extent comes from those cells and offering it back would close a cycle.
     row_policy::Any          # SizePolicy — what every row is
     column_policies::Any     # Vector{SizePolicy} — the columns that differ
     row_policies::Any        # Vector{SizePolicy} — the rows that differ
+    # Vector{Bool}, one per column; a column past its end, or an empty vector,
+    # hands its extent out. A column that was given an extent — `Fixed`, or a
+    # weight — normally offers that extent to its cells, so a cell that breaks
+    # its lines breaks them there. `false` withholds the offer while the column
+    # keeps its extent and clips to it: the cell draws at the size it measures,
+    # a label as one line, and the grid cuts it at the column's edge. That is
+    # what a table means by a clipped cell, and it is said here because the
+    # offer is the grid's to make.
+    column_offers::Any
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -174,7 +183,8 @@ function GridLayout(children::Vector, columns::Integer;
                     column_policy::SizePolicy=Content,
                     row_policy::SizePolicy=Content,
                     column_policies=Any[],
-                    row_policies=Any[])
+                    row_policies=Any[],
+                    column_offers=Bool[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
@@ -183,6 +193,7 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
+               Cell(collect(Bool, column_offers)),
                Cell(nothing))
 end
 

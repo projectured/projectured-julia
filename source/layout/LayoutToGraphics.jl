@@ -105,6 +105,29 @@ function _wrap_child(child::GraphicsDocument, x_cell::Cell, y_cell::Cell)
                    layout_none, true, Cell(nothing))
 end
 
+# A child drawn inside the slot it was allocated, on each axis the slot's extent
+# was known independently of the child — §3b of the layout rules: the container
+# that handed out a bounded extent clips to it. On an axis that is the child's
+# own, the viewport follows the child and clips nothing. The child sits at the
+# position the alignment gave it, expressed inside the viewport.
+function _clip_child(child::GraphicsDocument, cim, x_cell::Cell, y_cell::Cell,
+                     slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
+                     clip_x::Bool, clip_y::Bool)
+    vx = clip_x ? slot_x : x_cell
+    vy = clip_y ? slot_y : y_cell
+    vw = clip_x ? slot_w : ComputedCell(() -> _child_w(cim))
+    vh = clip_y ? slot_h : ComputedCell(() -> _child_h(cim))
+    inner = GraphicsCanvas(ComputedCell(() -> Int32(Int(x_cell[]) - Int(vx[]))),
+                           ComputedCell(() -> Int32(Int(y_cell[]) - Int(vy[]))),
+                           Cell(Int32(0)), Cell(Int32(0)),
+                           CellVector(Cell[Cell(child)]),
+                           layout_none, true, Cell(nothing))
+    GraphicsViewport(ComputedCell(() -> Int32(Int(vx[]))), ComputedCell(() -> Int32(Int(vy[]))),
+                     ComputedCell(() -> Int32(max(0, Int(vw[])))),
+                     ComputedCell(() -> Int32(max(0, Int(vh[])))),
+                     Cell(inner))
+end
+
 """
 Hit-test a coordinate event against each child wrapper canvas; returns
 `(op, i)` for the first child that produced a non-`nothing` result.
@@ -1072,6 +1095,12 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     row_policies    = doc.row_policies
     policy_of_column(k::Int) = _gl_policy_at(column_policies, k, column_policy)
     policy_of_row(k::Int)    = _gl_policy_at(row_policies, k, row_policy)
+    # A column that was given an extent hands it to its cells unless the grid
+    # was told not to for that column; a column that was not given one has
+    # nothing to hand out either way.
+    column_offers = doc.column_offers
+    offers_to_cells(k::Int) = _gl_offers(policy_of_column(k)) &&
+        !(column_offers isa AbstractVector && k <= length(column_offers) && column_offers[k] === false)
 
     # Up to n columns and n rows — one child per column, or one column of n.
     #
@@ -1103,7 +1132,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         row = c > 0 ? _grid_row(i, c) : 1
         cctx = ctx
         if cctx !== nothing
-            cctx = _gl_offers(policy_of_column(col)) ?
+            cctx = offers_to_cells(col) ?
                 with_available_size(cctx; width = _gl_int32_cell(col_w[col])) :
                 withhold_offer(cctx, :x)
             cctx = _gl_offers(policy_of_row(row)) ?
@@ -1148,11 +1177,26 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         total + max(0, nrows - 1) * vgap[]
     end)
 
+    # A child in a column or a row whose extent was given is drawn inside that
+    # slot; every other child is drawn where the alignment put it and reaches as
+    # far as it reaches. The column count is read once here: a grid whose column
+    # count changes is rebuilt by the cell around this function.
+    columns_now = cols_cell[]
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
         c isa GraphicsDocument || continue
-        push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+        col = columns_now > 0 ? _grid_col(i, columns_now) : 1
+        row = columns_now > 0 ? _grid_row(i, columns_now) : 1
+        clip_x = _gl_offers(policy_of_column(col))
+        clip_y = _gl_offers(policy_of_row(row))
+        if clip_x || clip_y
+            push!(wrapped, _clip_child(c, child_iomaps[i], child_x[i], child_y[i],
+                                       col_x[col], row_y[row], col_w[col], row_h[row],
+                                       clip_x, clip_y))
+        else
+            push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
+        end
     end
 
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),

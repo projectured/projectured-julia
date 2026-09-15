@@ -111,6 +111,55 @@ end # function
 # the strips, and the pane draws four regions instead of one. A pane over any
 # other content answers `nothing` and stays the single viewport it has always
 # been.
+# A table cell of a column that was given a width clips or wraps by the policy
+# of its column, else of its table. The default is one clipped line, because a
+# table is a data table until someone says otherwise.
+function test_widget_table_cell_policy()
+@testset "a table cell clips or wraps by policy" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    long = "a value that is far too wide for eighty pixels"
+    # The header names are chosen so that neither is a piece of the long cell.
+    make(; kw...) = WidgetTable(Point2D(0, 0), Any["AA", "BB"],
+                                Any[Any[long, "x"], Any["second", "y"]];
+                                column_policies = Any[Fixed(80), Fixed(80)], kw...)
+    ctx = with_available_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
+    # Every text a table drew, through the viewports the grid now emits.
+    function texts(node, found = String[])
+        if node isa GraphicsCanvas
+            for element in node.elements
+                texts(element, found)
+            end
+        elseif node isa GraphicsViewport
+            texts(node.content, found)
+        elseif node isa GraphicsText
+            push!(found, string(node.text))
+        end
+        found
+    end
+    pieces(io) = count(t -> t != long && length(t) > 1 && occursin(t, long), texts(io.output))
+
+    clipped = print_document(rec, nothing, make(), ctx)
+    wrapped = print_document(rec, nothing, make(; cell_policy = :wrap), ctx)
+    @testset "the default is one line, and :wrap breaks it into several" begin
+        @test long in texts(clipped.output)
+        @test pieces(clipped) == 0
+        @test pieces(wrapped) > 1
+        @test Int(clipped.output.h[]) < Int(wrapped.output.h[])
+    end
+    @testset "a column's own policy wins over the table's" begin
+        mixed = print_document(rec, nothing,
+                               make(; cell_policy = :wrap, column_cell_policies = Symbol[:clip]), ctx)
+        @test Int(mixed.output.h[]) == Int(clipped.output.h[])
+    end
+    @testset "a policy that is neither is refused" begin
+        @test_throws ErrorException make(; cell_policy = :squash)
+    end
+end
+end
+
 function test_frozen_table_headers()
 @testset "a table's header strips do not scroll" begin
 

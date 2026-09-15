@@ -222,17 +222,42 @@ steps can point at them.
 
 ## 5. Steps
 
-- [ ] **Step 0 — the runner's table test stops being dark.** Rewrite
+- [x] **Step 0 — the runner's table test stops being dark.** Done 2026-09-16,
+      omnet branch `one-table`: 28/28 and 7/7. A fourth test in the same file,
+      `test_filter_run_table_bounded`, fails on the unmodified tree too (3 failed,
+      1 errored, proven by stashing) and is not this plan's; it is listed under
+      §7. Rewrite
       `test_filter_run_table` against the type the runner actually builds, and
       say in the plan of record that the suite could not load. Repairs defect 8.
       The merge will rewrite these assertions again; they must pass in between,
       or the step that moves the caller has no baseline to compare against.
-- [ ] **Step 1 — the grid clips what it allocated, and a cell draws by the
-      policy of its column, else of its table.** A cell in an offered column is
-      drawn in a viewport of that column's extent. The table gains the policy
-      and a column may override it; the default is one clipped line. Eager
-      table only. Repairs defect 1 and gives the eager table the gap the lazy
-      one now has.
+- [x] **Step 1 — the grid clips what it allocated, and a cell draws by the
+      policy of its column, else of its table.** Done 2026-09-16. Decided while
+      building:
+      - `GridLayout` gains `column_offers`, a `Vector{Bool}`: a column that was
+        given an extent hands it to its cells unless told not to. The offer is
+        the grid's to make, so the bit lives on the grid and not on the cell,
+        and a cell of any kind — not only a label — draws at its measured size
+        when the offer is withheld.
+      - The grid emits a `GraphicsViewport` per child on each axis whose extent
+        was given (`_gl_offers`), rows as well as columns; on an axis that is
+        the child's own the viewport follows the child and clips nothing. The
+        reference maps and the event routing read the child iomaps, not the
+        canvas, so a viewport in the output changes neither.
+      - `WidgetTable` gains `cell_policy` (`:clip` | `:wrap`, default `:clip`)
+        and `column_cell_policies`; the printer turns them into the grid's
+        `column_offers`. `:clip` is a withheld offer plus the grid's viewport;
+        `:wrap` is the offer plus the same viewport.
+      - `GraphicsViewport` gains a constructor over five cells that fills the
+        identity transform, so a layout that clips a moving slot names nothing
+        from the style package. The layering guard is what asked for it.
+      - Known limit: `_route_to_children` bounds a hit by the child's own canvas,
+        so a click in the cut-away part of a wide clipped cell still reaches
+        that cell through the grid's passthrough. The table's own click uses
+        the band geometry and is not affected.
+      Measured after: the six-line row of §2 is one line again. Substrate
+      60977 pass with only the split-pane drag baseline; table navigation 65/65
+      and selection 21/21.
 - [ ] **Step 2 — padding and the row height come from the theme.** Move
       `WidgetTable.padding` to the projection. Let an unset row policy mean one
       line plus twice `pad_y`. Delete both omnet `_ROW_HEIGHT` constants.
@@ -278,3 +303,9 @@ steps can point at them.
   piece 2 with nothing uniform to lean on.
 - `rows[-1]` on a list names the row before the head, and a click on that row
   answers that reference.
+
+## 7. Found on the way, and not this plan's
+
+- `test_filter_run_table_bounded` in omnet's `SimulationFilterTest.jl` fails
+  on the unmodified tree: 3 failed, 1 errored, in its text-position and clip
+  assertions. It was dark for the same reason as defect 8.

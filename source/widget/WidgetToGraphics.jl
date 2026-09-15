@@ -5857,6 +5857,23 @@ function _wt_grid_children(w::WidgetTable)
     (children, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh)
 end
 
+# The cell policy of body column `c`: the column's own when it names one, else
+# the table's.
+function _wt_column_cell_policy(w::WidgetTable, c::Int)
+    policies = w.column_cell_policies
+    (policies isa AbstractVector && 1 <= c <= length(policies)) ? policies[c] : w.cell_policy
+end
+
+# Whether each grid column hands its extent to its cells: a body column does
+# when its cells wrap and not when they clip, because a cell that is handed a
+# width breaks its lines there and a cell that is not draws one line for the
+# grid to cut. The row-header strip, when there is one, is its content and the
+# grid has nothing to hand it.
+function _wt_column_offers(w::WidgetTable, grid_cols::Int, col_offset::Int)
+    Bool[gc - col_offset < 1 || _wt_column_cell_policy(w, gc - col_offset) === :wrap
+         for gc in 1:grid_cols]
+end
+
 # The document occupying grid position (gr, gc), or nothing (→ placeholder).
 function _wt_cell_doc(w::WidgetTable, gr::Int, gc::Int, row_offset::Int, col_offset::Int, ncols::Int)
     header_row = row_offset == 1 && gr == 1
@@ -6027,7 +6044,8 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                           horizontal_gap=gap, vertical_gap=gap,
                           column_policy = w.column_policy, row_policy = w.row_policy,
                           column_policies = _wt_shift(w.column_policies, col_offset),
-                          row_policies = _wt_shift(w.row_policies, row_offset))
+                          row_policies = _wt_shift(w.row_policies, row_offset),
+                          column_offers = _wt_column_offers(w, grid_cols, col_offset))
         # The grid is positioned at grid_off inside the outer canvas; extend the
         # context reference to the table's grid so child contexts are rooted here.
         print_child(recursion, grid, ctx)

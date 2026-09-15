@@ -54,6 +54,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         Cell(8), Cell(1),    # padding, border_width
                         Cell(Content), Cell(Content),      # every column and row is its content
                         Cell(Any[]), Cell(Any[]),          # and none of them differs
+                        Cell(:clip), Cell(Symbol[]),       # a cell is one line, cut at the edge
                         Cell(true), Cell(nothing))   # visible, hovered (selection defaults)
     SimpleIoMap(p, ct, table)
 end

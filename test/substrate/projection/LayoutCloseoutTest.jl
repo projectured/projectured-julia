@@ -63,6 +63,36 @@ end
     @test fh >= 400 - 1
 end
 
+@testset "a Fixed column clips what it holds, and a withheld offer draws one line" begin
+    long = "a value that is far too wide for forty pixels of column"
+    cells() = Any[WidgetLabel(Point2D(0, 0), long), WidgetLabel(Point2D(0, 0), "b")]
+    ctx = with_available_size(PrinterContext(EmptyReference());
+                              width=_LC_Cell(600), height=_LC_Cell(400))
+    # The column hands its forty pixels to the cell, which breaks its lines
+    # there; the grid draws the cell inside a viewport of the slot, which is
+    # §3b: what was handed out is clipped to.
+    offered = print_document(proj, nothing,
+                             GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content]), ctx)
+    first_element = offered.output.elements[1]
+    @test first_element isa GraphicsViewport
+    @test Int(first_element.w) == 40
+    # The offer withheld: the cell draws the one line it measures, wider than
+    # the column, and the viewport still cuts it at forty. The grid is shorter,
+    # because nothing broke into lines.
+    withheld = print_document(proj, nothing,
+                              GridLayout(cells(), 2; column_policies=Any[Fixed(40), Content],
+                                         column_offers=Bool[false]), ctx)
+    element = withheld.output.elements[1]
+    @test element isa GraphicsViewport
+    @test Int(element.w) == 40
+    child = element.content.elements[1]   # the viewport holds the cell's own canvas
+    @test Int(child.w[]) > 40
+    @test Int(withheld.output.h[]) < Int(offered.output.h[])
+    # A column that is its content is drawn where it lands, in no viewport.
+    second = withheld.output.elements[2]
+    @test !(second isa GraphicsViewport)
+end
+
 @testset "a Fixed column is exactly what it was told" begin
     cells = Any[WidgetLabel(Point2D(0, 0), "a-very-long-label"), WidgetLabel(Point2D(0, 0), "b")]
     g = GridLayout(cells, 2; column_policies=Any[Fixed(40), Content])

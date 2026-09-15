@@ -434,6 +434,12 @@ function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
                      Cell(nothing))
 end
 
+# A viewport whose box is reactive and whose transform is the identity: what a
+# layout builds when it clips a child to a slot that moves with the layout.
+function GraphicsViewport(x::Cell, y::Cell, w::Cell, h::Cell, content::Cell)
+    GraphicsViewport(x, y, w, h, content, Cell(affine_identity), Cell(nothing))
+end
+
 # ── Image (cached rasterized canvas) ─────────────────────────────────────
 
 @document struct GraphicsImage <: GraphicsDocument
