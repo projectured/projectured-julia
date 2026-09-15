@@ -1031,7 +1031,7 @@ uuid = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 version = "0.1.0"
 
 [[deps.ProjecturedFormula]]
-deps = ["ProjecturedCollection", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedFormula"
 uuid = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 version = "0.1.0"
