@@ -10,9 +10,10 @@ evaluating it. Modeled on the Common Lisp ProjecturEd `evaluator.lisp`:
 - `EvaluatorToplevel` — a sequence of `EvaluatorForm`s (a notebook / REPL
                         toplevel).
 
-`is_error` and `tool_use_id` are protocol metadata for the Anthropic tool
-round-trip (an assistant `tool_use` paired with a `tool_result`); the
-conceptual core is the two fields `form` + `result`.
+`is_error`, `tool_use_id`, `tool_name` and `input` are protocol metadata for
+the tool round-trip (an assistant `tool_use` paired with a `tool_result`); the
+conceptual core is the two fields `form` + `result`, and each of the two has
+a fold of its own.
 """
 module ConversationModule
 
@@ -42,7 +43,9 @@ import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
-export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label
+export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
+       get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
+       ToggleEvaluatorSectionOperation
 export ConversationDocument, make_conversation_thinking_part
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,

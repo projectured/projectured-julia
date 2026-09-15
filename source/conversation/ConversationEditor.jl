@@ -303,9 +303,22 @@ function finalize_draft!(d::ConversationDraft)
     for i in eachindex(d.parts)
         part = d.parts[i]
         part.content isa PrimitiveString &&
-            (part.content = TextBlock(TextString(_value(part.content))))
+            (part.content = _prose_document(_value(part.content)))
     end
     !isempty(d.parts)
+end
+
+# A committed paragraph is a markdown document when a markdown parser is loaded,
+# so a typed message draws in the font and with the wrapping of a reply. With no
+# parser it stays a text block, which is what an environment without the markdown
+# package can draw. The model receives the source either way.
+function _prose_document(text::AbstractString)
+    has_natural_parser(:md) || return TextBlock(TextString(String(text)))
+    try
+        parse_natural_text(:md, String(text))
+    catch
+        TextBlock(TextString(String(text)))
+    end
 end
 
 evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.draft); nothing)
@@ -435,7 +448,7 @@ end
 # ── Committed part body — recurse the real content document through the inner
 # dispatch, so committed code renders as a parsed Julia document, prose as text,
 # and an evaluation as its form stacked over its result.
-_committed_body(c::EvaluatorForm) = VerticalLayout(Any[c.form, c.result]; gap = _GAP)
+_committed_body(c::EvaluatorForm) = _eval_sections(c, nothing)
 _committed_body(c) = c
 
 # The composer draws the chrome the transcript draws, for the same reason: the

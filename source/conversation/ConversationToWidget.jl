@@ -13,15 +13,18 @@
 #                                a quiet tinted panel with a one-line tag; every
 #                                other kind draws no chrome at all.
 #
-# A turn is collapsible, and so is a part that kept a panel: when `collapsed` is
-# set, the body is wrapped in a `WidgetScrollPane` clipped to a few lines (a
-# graphics-viewport clip). A part with no panel has no header to click, so it does
-# not fold — prose is what a person reads, and folding it hides the message.
-# The richer first-line collapse (`TextFirstLine`) is a later refinement.
+# A turn is collapsible, and so is a part that kept a panel. Each is a
+# `collapsible` card, which draws a chevron before its header and, while
+# `collapsed`, the header and nothing else. The fold state lives on the domain
+# node — `turn.collapsed`, `part.collapsed`, and the two section flags of an
+# `EvaluatorForm` — and the card's own `collapsed` cell is a computed cell that
+# reads it, because a turn's part cards are rebuilt whenever its part list
+# changes and state held on a widget would reset while the model answers. A part
+# with no panel has no header to click, so it does not fold — prose is what a
+# person reads, and folding it hides the message.
 #
 # The turn/part *lists* are reactive (a `CellVector` thunk), so pushing a turn or a
-# part updates the layout without re-running `print_document` (streaming). The
-# `collapsed` state is read at print time.
+# part updates the layout without re-running `print_document` (streaming).
 # The badge on a part names the part's format, which the document itself
 # answers; this file names no domain.
 
@@ -37,17 +40,18 @@ struct ConversationPartToWidget                  <: Projection end
 # No card width. A turn card and a part card take the width they are offered —
 # the transcript says `child_width = Fill` and the card resolves it — so a
 # conversation is as wide as the pane holding it.
-const _COLLAPSED_H   = 30   # clipped viewport height (≈ one row) when collapsed
 const _GAP           = 8    # between the parts of one turn
 # Between turns. A transcript is read by turn, so the eye needs the boundary to
-# be louder than the one inside a turn. A gap says it; a border would say it
-# again.
-const _TURN_GAP      = 28
-# Mirrors the WidgetCard padding configured in the WidgetToGraphics theme builder
-# (the source of truth). Used to size a collapsed body's clip to the card's
-# *interior* width so the clipped viewport never widens the card past its
-# authored width.
-const _CARD_PADDING  = 16
+# be louder than the one inside a turn. Each turn card already keeps its own
+# padding above and below what it holds, so a small gap on top of that is what
+# separates two turns without pushing them apart.
+const _TURN_GAP      = 8
+# Between the two sections of an evaluation, which are one thing read together.
+const _SECTION_GAP   = 10
+# A section sits under the header of the card around it, indented by the column
+# that card's chevron takes: two half-sizes of the theme's chevron and the title
+# gap, so a section's own chevron starts where the header's word starts.
+const _SECTION_INDENT = 12
 
 # The role line is metadata, and the message is the content, so it renders
 # smaller than the body it introduces — but it is still read, so it is not the
@@ -63,6 +67,11 @@ _role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
 # A part's tag names a kind, which is a smaller thing to say than who spoke, so
 # it stays smaller and stays neutral.
 const _KIND_STYLE = StyleText(font_ubuntu_bold_14, color_slate_600)
+# A section of an evaluation is a smaller thing again, so its title is the same
+# size and not bold. An error is the one section title that carries a color,
+# because it is the one a reader must not miss.
+const _SECTION_STYLE = StyleText(font_ubuntu_regular_14, color_slate_500)
+const _ERROR_STYLE   = StyleText(font_ubuntu_bold_14, color_destructive)
 
 # The mark beside a role. It is drawn as text and not as a `WidgetAvatar`,
 # because an avatar is a disc with initials: at this size the disc is a pale ring
@@ -118,7 +127,7 @@ _kind_label(::PrimitiveString)      = "text"
 _kind_label(::DocumentInsertion)    = "insert"
 _kind_label(::ConversationThinking) = "thinking"
 _kind_label(::TextBlock)            = "text"
-_kind_label(f::EvaluatorForm)       = get_evaluation_kind_label(f)
+_kind_label(f::EvaluatorForm)       = get_evaluation_title(f)
 _kind_label(c)                      = _format_label(get_natural_format(typeof(c)))
 _format_label(::Nothing)            = "doc"
 _format_label(key::Symbol)          = get(FORMAT_LABELS, key, String(key))
@@ -132,11 +141,14 @@ _role_header(role::Symbol) =
         WidgetLabel(Point2D(0, 0), String(role); text_style = _role_style(role)),
     ]; vertical_align = :center, gap = 10)
 
-# A collapsed card shows one row of its body. Saying so is a constraint on the
-# body's height; the card builds the viewport, because the card is what knows its
-# own inner width and this does not.
-_maybe_clip(body, collapsed::Bool) =
-    collapsed ? LayoutConstraint(body; height = Fixed(_COLLAPSED_H)) : body
+# A card that folds. Its `collapsed` cell reads the flag on the domain node,
+# because the toggle reader re-targets every fold to that node and the kernel
+# handler flips the flag there; the card only shows it. `read_flag` answers the
+# flag, and a flag that was never set reads as open.
+function _follow_fold!(card::WidgetCard, read_flag::Function)
+    set_cell_function!(getfield(card, :collapsed), () -> read_flag() === true)
+    card
+end
 
 # ── print_document: conversation → vertical list of turn cards ──────────────
 
@@ -177,8 +189,10 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # the turn that a produced card came from.
     card = WidgetCard(Point2D(0, 0);
                       title = _role_header(t.role),
-                      content = _maybe_clip(body, t.collapsed === true),
-                      variant = t.role === :user ? :tinted : :plain)
+                      content = body,
+                      variant = t.role === :user ? :tinted : :plain,
+                      collapsible = true)
+    _follow_fold!(card, () -> t.collapsed)
     ChildrenIoMap(projection, t, card, ioms)
 end
 
@@ -199,15 +213,25 @@ end
 # - an evaluation, which is two documents (a form and its result) and needs to
 #   say where one ends.
 
+# The IO map of a part. `folds` lists the cards inside the part that fold on
+# their own — the two sections of an evaluation — each with the domain operation
+# its fold means, so the reader can say a header click back to the domain.
+@iomap struct ConversationPartToWidgetIoMap
+    projection::Any
+    input::Any
+    output::Any
+    folds::Any
+end
+
 function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     content = part.content
-    collapsed = part.collapsed === true
-    output = content isa EvaluatorForm        ? _eval_card(content, collapsed)     :
-             content isa ConversationThinking ? _thinking_card(content, collapsed) :
-             _is_code(content)                ? _code_card(content, collapsed)     :
+    folds = Pair{Any,Any}[]
+    output = content isa EvaluatorForm        ? _eval_card(content, part, folds) :
+             content isa ConversationThinking ? _thinking_card(content, part)    :
+             _is_code(content)                ? _code_card(content, part)        :
              content
-    SimpleIoMap(projection, part, output)
+    ConversationPartToWidgetIoMap(projection, part, output, folds)
 end
 
 # A part's panel is MUTED and a turn's band is TINTED, because a part sits inside
@@ -219,42 +243,60 @@ end
 _tag(label::AbstractString) =
     WidgetLabel(Point2D(0, 0), String(label); text_style = _KIND_STYLE)
 
+# The panel of a part: a muted card with a tag, that folds with the part.
+_part_card(tag::AbstractString, body, part::ConversationPart) =
+    _follow_fold!(WidgetCard(Point2D(0, 0);
+                             title = _tag(tag), content = body,
+                             variant = :muted, collapsible = true),
+                  () -> part.collapsed)
+
 # Code is separated from the prose around it, and its language named, because a
 # panel cannot say which language it holds.
-_code_card(content, collapsed::Bool) =
-    WidgetCard(Point2D(0, 0);
-               title = _tag(_kind_label(content)),
-               content = _maybe_clip(content, collapsed),
-               variant = :muted)
+_code_card(content, part::ConversationPart) =
+    _part_card(_kind_label(content), content, part)
 
-# Reasoning is secondary, so it folds. Its tag is the bare word, like every other
-# tag: the `∴` it carried first drew as a missing-glyph box, because the chrome
-# font holds no such character and the renderer falls back to nothing.
-_thinking_card(t::ConversationThinking, collapsed::Bool) =
-    WidgetCard(Point2D(0, 0);
-               title = _tag("thinking"),
-               content = _maybe_clip(_thinking_body(t), collapsed),
-               variant = :muted)
+# Reasoning is secondary, so it starts folded, and folded it is the bare word.
+# The tag is a word like every other tag: the `∴` it carried first drew as a
+# missing-glyph box, because the chrome font holds no such character and the
+# renderer falls back to nothing.
+_thinking_card(t::ConversationThinking, part::ConversationPart) =
+    _part_card("thinking", _thinking_body(t), part)
 
-_eval_card(ef::EvaluatorForm, collapsed::Bool) =
-    WidgetCard(Point2D(0, 0);
-               title = _tag(get_evaluation_kind_label(ef)),
-               content = _maybe_clip(_eval_body(ef), collapsed),
-               variant = :muted)
+# An evaluation is its header over its two sections. The header names the tool
+# or the resource, and the part folds as a whole; each section folds on its own.
+_eval_card(ef::EvaluatorForm, part::ConversationPart, folds) =
+    _part_card(get_evaluation_title(ef), _eval_sections(ef, folds), part)
 
-# An EvaluatorForm renders as its code over its result. The form (a
-# JuliaDocument) and result (a TextBlock) are embedded directly as layout children
-# so each is recursed through its own projection chain and **sizes to its
-# content** — wrapping them in a fixed-height scroll pane would clip them to one
-# row even when the part is expanded.
+# The two sections of a form: its code (or its arguments) over its result. Each
+# is a bare card with a small title, indented under the panel's header and with
+# no other padding of its own, because the panel around them already keeps one. The form (a JuliaDocument) and the result
+# (a TextBlock) are embedded as the sections' bodies, so each is recursed through
+# its own projection chain and sizes to its content.
 #
-# The panel and the gap separate the two. A rule between them was tried and
-# removed: a `WidgetSeparator` takes the width it is OFFERED, and no offer
-# reaches it here — neither `child_width = Fill` on this layout nor a
-# `LayoutConstraint` around the rule changed that — so it fell back to its own
-# 200 px default and drew a stub that read as a mistake.
-_eval_body(ef::EvaluatorForm) =
-    VerticalLayout(Any[ef.form, ef.result]; gap = _GAP)
+# With `folds`, each section folds on its own, and `folds` receives what a fold
+# on each card means, so the reader can say it back to the domain. With no
+# `folds` the sections do not fold — the composer draws a draft that way.
+function _eval_sections(ef::EvaluatorForm, folds)
+    form_label, result_label = get_evaluation_section_labels(ef)
+    foldable = folds !== nothing
+    form_card   = _section_card(form_label, ef.form, _SECTION_STYLE, foldable)
+    result_card = _section_card(result_label, ef.result,
+                                ef.is_error === true ? _ERROR_STYLE : _SECTION_STYLE,
+                                foldable)
+    if foldable
+        _follow_fold!(form_card,   () -> ef.form_collapsed)
+        _follow_fold!(result_card, () -> ef.result_collapsed)
+        push!(folds, form_card   => ToggleEvaluatorSectionOperation(ef, :form))
+        push!(folds, result_card => ToggleEvaluatorSectionOperation(ef, :result))
+    end
+    VerticalLayout(Any[form_card, result_card]; gap = _SECTION_GAP)
+end
+
+_section_card(label::AbstractString, body, style::StyleText, foldable::Bool) =
+    WidgetCard(Point2D(0, 0);
+               title = WidgetLabel(Point2D(0, 0), String(label); text_style = style),
+               content = body, variant = :plain, collapsible = foldable,
+               padding = Inset(0, 0, _SECTION_INDENT, 0))
 
 # A thinking part's body is its reasoning text, recursed like any other text
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)
@@ -404,15 +446,23 @@ for P in (ConversationConversationToWidgetComposite,
 end
 
 # The WidgetCard header-click reader emits `ToggleCollapseOperation(card)` where
-# `card` is the produced widget. Translate it back to the conversation domain
-# node whose projection produced that card by walking the iomap tree.
-function _find_collapse_target(iomap, target)
-    iomap.output === target && return iomap.input
+# `card` is the produced widget. Say what that fold means in the conversation
+# domain by walking the iomap tree: a card that is the output of an iomap folds
+# the node that iomap printed, and a card a part listed among its `folds` means
+# the operation the part said. A card this walk does not find is not the
+# transcript's, and its operation travels unchanged.
+function _find_fold_operation(iomap, card)
+    if iomap isa ConversationPartToWidgetIoMap
+        for (folded, operation) in iomap.folds
+            folded === card && return operation
+        end
+    end
+    iomap.output === card && return ToggleCollapseOperation(iomap.input)
     if iomap isa ChildrenIoMap
         for entry in getfield(iomap, :child_iomaps)[]
             cim = entry isa Tuple ? entry[end] : entry
-            node = _find_collapse_target(cim, target)
-            node !== nothing && return node
+            operation = _find_fold_operation(cim, card)
+            operation !== nothing && return operation
         end
     end
     nothing
@@ -421,8 +471,8 @@ end
 function read_intent(::ConversationConversationToWidgetComposite,
                          iomap, op::ToggleCollapseOperation)
     op.target === nothing && return op
-    node = _find_collapse_target(iomap, op.target)
-    node === nothing ? op : ToggleCollapseOperation(node)
+    operation = _find_fold_operation(iomap, op.target)
+    operation === nothing ? op : operation
 end
 
 # ── Factory ──────────────────────────────────────────────────────────────────

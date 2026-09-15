@@ -97,6 +97,24 @@ function test_conversation_serialization()
             @test kept.input["code"] == "2+2"
         end
 
+        @testset "a call that kept its input replays as itself" begin
+            convo = ConversationConversation([
+                ConversationTurn(:user, [ConversationPart("look it up")]),
+                ConversationTurn(:assistant, [ConversationPart(
+                    EvaluatorForm(TextBlock(TextString("uri: resource://guide/orientation"));
+                                  tool_name = "read_resource",
+                                  input = Dict{String,Any}("uri" => "resource://guide/orientation"),
+                                  result = make_evaluator_result_text("# Orientation"),
+                                  tool_use_id = "tu_1"))])])
+            call = only([c for m in build_messages(convo) for c in m.content if c isa LlmToolUse])
+            @test call.name == "read_resource"
+            @test call.input == Dict{String,Any}("uri" => "resource://guide/orientation")
+            @test call.id == "tu_1"
+            # The plain rendering names the tool before the arguments.
+            text = format_conversation(convo)
+            @test occursin("# resource · resource://guide/orientation", text)
+        end
+
         @testset "thinking + tool_use round-trip: ordering + signature" begin
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("run it")]),

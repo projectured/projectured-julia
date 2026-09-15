@@ -279,7 +279,33 @@ function _mvp_test_resource_collapse()
         @test ef isa EvaluatorForm
         @test ef.tool_name == "read_resource"
         @test reply.parts[1].collapsed == true       # collapsed by default
+        # The form keeps the call's input, and the transcript's header names the
+        # resource it read — drawn even while the part is folded, because the
+        # header is what a folded part shows.
+        @test ef.input == Dict{String,Any}("uri" => "resource://guides")
+        @test get_evaluation_title(ef) == "resource · resource://guides"
+        texts = _mvp_texts(_render_conversation_widget(a.conversation, PrinterContext()))
+        @test any(t -> occursin("resource://guides", t), texts)
     end
+end
+
+# The text of every GraphicsText under a printed tree.
+function _mvp_texts(node, out = String[])
+    node isa ReactiveCell && return _mvp_texts(node[], out)
+    node isa GraphicsText && (push!(out, String(node.text)); return out)
+    for field in (:elements, :content)
+        hasproperty(node, field) || continue
+        value = getproperty(node, field)
+        value isa ReactiveCell && (value = value[])
+        if value isa AbstractVector
+            for child in value
+                _mvp_texts(child, out)
+            end
+        elseif value !== nothing && !(value isa AbstractString)
+            _mvp_texts(value, out)
+        end
+    end
+    out
 end
 
 # ── Collapse layout containment (plan: assistant-collapse-layout Stages 2–3) ──
@@ -331,7 +357,9 @@ function _mvp_test_collapse_containment()
         out_default  = _render_conversation_widget(
             ProjecturedConversationExample.make_conversation_document_example(), PrinterContext())
         out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
-        @test _canvas_maxw(out_default) == _canvas_maxw(out_expanded)
+        # A folded card is its header alone, so it can be narrower than the
+        # open card; it must never be wider.
+        @test _canvas_maxw(out_default) <= _canvas_maxw(out_expanded)
 
         # Stage 3 — every card's right edge is within the conversation width, on
         # the fallback path and at allocated panel widths (collapsed + expanded).

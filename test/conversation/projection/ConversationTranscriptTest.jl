@@ -15,6 +15,45 @@ function _transcript_render()
     (doc, proj, print_document(proj, proj, doc, PrinterContext()))
 end
 
+# The text of every GraphicsText under a printed tree, through cells, canvases
+# and viewports.
+function _transcript_texts(node, out = String[])
+    node isa ReactiveCell && return _transcript_texts(node[], out)
+    node isa GraphicsText && (push!(out, String(node.text)); return out)
+    for field in (:elements, :content)
+        hasproperty(node, field) || continue
+        value = getproperty(node, field)
+        value isa ReactiveCell && (value = value[])
+        if value isa AbstractVector
+            for child in value
+                _transcript_texts(child, out)
+            end
+        elseif value !== nothing && !(value isa AbstractString)
+            _transcript_texts(value, out)
+        end
+    end
+    out
+end
+
+# Every fold a scan of the left edge produces: each distinct operation a header
+# click answers with, in the order the scan meets them.
+function _scan_folds(proj, io)
+    found = Any[]
+    for y in 2:2:900, x in 16:6:120
+        op = try
+            read_intent(proj, io, MousePress(:left, x, y))
+        catch
+            nothing
+        end
+        (op isa ToggleCollapseOperation || op isa ToggleEvaluatorSectionOperation) || continue
+        any(q -> q === op || (typeof(q) == typeof(op) && _same_fold(q, op)), found) || push!(found, op)
+    end
+    found
+end
+_same_fold(a::ToggleCollapseOperation, b::ToggleCollapseOperation) = a.target === b.target
+_same_fold(a::ToggleEvaluatorSectionOperation, b::ToggleEvaluatorSectionOperation) =
+    a.form === b.form && a.section === b.section
+
 # `turns[i].parts[j]`, the shape a click on a part must produce.
 _part_path(i::Int, j::Int) =
     ConcreteReference(FieldReferenceStep("turns"),
@@ -44,8 +83,71 @@ function _scan_selections(proj, io)
 end
 
 function test_conversation_transcript()
+    @testset "a fold names its node, and a section fold names its section" begin
+        doc, proj, io = _transcript_render()
+        folds = _scan_folds(proj, io)
+        # Every fold the scan finds is the transcript's own: a domain node or a
+        # section of a form, never a widget.
+        for op in folds
+            if op isa ToggleCollapseOperation
+                @test op.target isa ConversationTurn || op.target isa ConversationPart
+            else
+                @test op isa ToggleEvaluatorSectionOperation
+            end
+        end
+        ef = doc.turns[3].parts[1].content
+        @test ef isa EvaluatorForm
+        sections = [op for op in folds if op isa ToggleEvaluatorSectionOperation && op.form === ef]
+        @test Set(op.section for op in sections) == Set([:form, :result])
+
+        # The result section starts open and draws its text; a fold closes it,
+        # and the text goes with it. The form section is untouched.
+        @test ef.result_collapsed == false
+        @test "120" in _transcript_texts(io.output)
+        evaluate_operation((document = doc,), only(op for op in sections if op.section === :result))
+        @test ef.result_collapsed == true
+        @test ef.form_collapsed == false
+        @test !("120" in _transcript_texts(io.output))
+        @test "code" in _transcript_texts(io.output)
+        @test "result" in _transcript_texts(io.output)
+
+        # A failed evaluation starts with its error folded, and says so.
+        failed = EvaluatorForm(JuliaIdentifier("sqrt(-1)");
+                               result = make_evaluator_result_text("DomainError"), is_error = true)
+        @test failed.result_collapsed == true
+        @test failed.form_collapsed == false
+        @test get_evaluation_section_labels(failed) == ("code", "error")
+    end
+
+    @testset "the header of a form names the tool or the resource" begin
+        read = EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
+                             tool_name = "read_resource",
+                             input = Dict{String,Any}("uri" => "resource://guide/orientation"))
+        @test get_evaluation_title(read) == "resource · resource://guide/orientation"
+        @test get_evaluation_section_labels(read) == ("arguments", "result")
+        listing = EvaluatorForm(TextBlock(); tool_name = "list_resources")
+        @test get_evaluation_title(listing) == "resources"
+        search = EvaluatorForm(TextBlock(); tool_name = "search_api",
+                               input = Dict{String,Any}("query" => "make_child_context", "kind" => "function"))
+        @test get_evaluation_title(search) == "tool · search_api \"make_child_context\""
+        bare = EvaluatorForm(TextBlock(); tool_name = "search_documentation")
+        @test get_evaluation_title(bare) == "tool · search_documentation"
+        long = EvaluatorForm(TextBlock(); tool_name = "search_api",
+                             input = Dict{String,Any}("query" => "x"^80))
+        @test endswith(get_evaluation_title(long), "…\"") && length(get_evaluation_title(long)) < 90
+        @test get_evaluation_title(EvaluatorForm(JuliaIdentifier("1"))) == "eval"
+        # The arguments of a call draw one line each, in key order.
+        lines = [span.content for span in make_evaluator_arguments_text(Dict("uri" => "u", "depth" => 2)).elements
+                 if hasproperty(span, :content)]
+        @test join(lines) == "depth: 2\nuri: u"
+    end
+
     @testset "a click names the part it landed in" begin
         (doc, proj, io) = _transcript_render()
+        # A folded part shows its header and nothing else, and the header is
+        # the fold. The thinking part starts folded, so it is unfolded first;
+        # a click on it then names it like a click on any other part.
+        doc.turns[2].parts[1].collapsed = false
         found = _scan_selections(proj, io)
         # The example is [user: 1 part], [assistant: 4 parts], [user: 1 part].
         # Every one of the six is reachable, and each is named exactly.

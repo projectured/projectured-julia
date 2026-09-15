@@ -163,6 +163,16 @@ _eval_code(ef::EvaluatorForm) =
     isempty(ef.source) ? _doc_source(ef.form) : String(ef.source)
 _eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
 
+# The call a form replays as. A form that kept its input replays the call as it
+# was made — its own tool, its own arguments. A form that kept none — one a
+# person typed, or one an older transcript holds — is an evaluation whose input
+# is its code.
+_replayed_call(ef::EvaluatorForm) =
+    isempty(ef.input) ?
+        LlmToolUse(ef.tool_use_id, "execute_julia_code",
+                   Dict{String,Any}("code" => _eval_code(ef))) :
+        LlmToolUse(ef.tool_use_id, ef.tool_name, Dict{String,Any}(ef.input))
+
 function _set_input!(a::Assistant, s::AbstractString)
     a.input.value = String(s)
     n = length(s)
@@ -338,6 +348,13 @@ ConversationModule.make_evaluate_operation(assistant::Assistant) =
 # form. With no Julia domain loaded, or with a snippet that does not parse, the
 # code is kept as a string: it still renders, and it still runs.
 
+# The form of a call: an evaluation shows its code, parsed; any other tool shows
+# its arguments, one line each.
+_eval_form_doc(call::LlmToolUse) =
+    call.name == "execute_julia_code" ?
+        _eval_form_doc(String(get(call.input, "code", ""))) :
+        make_evaluator_arguments_text(call.input)
+
 function _eval_form_doc(code::AbstractString)
     # Strip surrounding blank lines so the rendered form does not carry an empty
     # leading/trailing gutter line (common when the snippet is a triple-quoted
@@ -471,13 +488,7 @@ function _emit_assistant_turn!(out, parts)
         # adjacent text blocks concatenate with no separator otherwise.
         isempty(text) || push!(content, LlmText(join(text, "\n\n")))
         for ef in evals               # then the tool calls
-            # KNOWN GAP (pre-existing, held constant by this refactor): the call is
-            # replayed as `execute_julia_code` with a `code` argument whatever tool
-            # it actually was, so a `read_resource` call re-serialises with an empty
-            # code string. Fixing it needs `EvaluatorForm` to keep the tool's raw
-            # input, which is a behaviour change, not a move.
-            push!(content, LlmToolUse(ef.tool_use_id, "execute_julia_code",
-                                      Dict{String,Any}("code" => _eval_code(ef))))
+            push!(content, _replayed_call(ef))
         end
         isempty(content) || push!(out, LlmMessage(:assistant, content))
         if !isempty(evals)
@@ -530,6 +541,7 @@ function format_conversation(conversation::ConversationConversation)
         for part in t.parts
             c = part.content
             if c isa EvaluatorForm
+                c.tool_name == "execute_julia_code" || println(io, "# ", get_evaluation_title(c))
                 println(io, "> ", _eval_code(c))
                 println(io, "= ", _eval_result(c))
             elseif c isa ConversationThinking
@@ -669,20 +681,22 @@ end
 # tool_use/tool_result blocks when `build_messages` re-serialises the conversation.
 function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     call = ev.call
-    code = get(call.input, "code", "")
+    is_evaluation = call.name == "execute_julia_code"
+    code = is_evaluation ? String(get(call.input, "code", "")) : ""
     # For `execute_julia_code`, a `Document` return value is embedded as the live
     # result and renders in place; other tools, and non-Document values, keep the
     # text repr. (The model still sees the textual tool_result, which
     # `build_messages` derives from this same result.)
-    val = call.name == "execute_julia_code" ? get_last_evaluated_value(set) : nothing
+    val = is_evaluation ? get_last_evaluated_value(set) : nothing
     result = val isa Document ? val : make_evaluator_result_text(ev.output)
     push!(turn.parts, Cell(ConversationPart(
-        EvaluatorForm(_eval_form_doc(String(code));
-                      source      = String(code),
+        EvaluatorForm(_eval_form_doc(call);
+                      source      = code,
                       result      = result,
                       is_error    = ev.is_error,
                       tool_use_id = call.id,
-                      tool_name   = call.name);
+                      tool_name   = call.name,
+                      input       = call.input);
         collapsed = _collapse_tool_default(call.name))))
     nothing
 end

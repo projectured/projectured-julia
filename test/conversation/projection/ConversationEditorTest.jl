@@ -13,6 +13,10 @@ function _ce_flatten(t::TextBlock)
     end
     String(take!(io))
 end
+# A committed paragraph is a markdown document when the markdown parser is
+# loaded and a text block when it is not; either way its words are its source.
+_ce_flatten(d::Document) = String(strip(print_natural_text(d)))
+_ce_is_prose(d) = d isa TextBlock || get_natural_format(typeof(d)) === :md
 
 # Apply an operation to the draft. No real editor is needed for the logic, but the
 # stand-in must carry a `ToolSet`: the composer's evaluate operation runs code
@@ -51,13 +55,13 @@ function test_conversation_editor()
 
             @test length(turn.parts) == 3
             p1, p2, p3 = turn.parts[1].content, turn.parts[2].content, turn.parts[3].content
-            @test p1 isa TextBlock
+            @test _ce_is_prose(p1)
             @test _ce_flatten(p1) == "hey assistant, look what I've got"
             @test p2 isa EvaluatorForm
             @test p2.form isa JuliaDocument
             @test !p2.is_error
             @test occursin("4", _ce_flatten(p2.result))
-            @test p3 isa TextBlock
+            @test _ce_is_prose(p3)
             @test _ce_flatten(p3) == "see, it's not that complicated"
         end
 
