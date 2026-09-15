@@ -78,6 +78,39 @@ caret to a bounded flat offset — a formula is full of projection-introduced
 chrome, and without the collapse the navigation walk grows its paths without
 bound.
 
+### The reader of the linear form
+
+`parse_math(text)` reads the line back into a tree. The printer is the
+grammar: a line the printer writes reads back to a tree that prints the same
+line. A read is wider than a print: `ρ^n` reads as well as `ρ^{n}`, `\rho` as
+well as `ρ`, and the print is the canonical form. An error names the position
+of what the reader could not read, and the reader never evaluates.
+
+Where the line is ambiguous, the reader decides:
+
+- **`/` with no space around it is a fraction; ` / ` with spaces is the
+  binary division.** That is how the printer tells the two apart, and a
+  fraction binds tighter than juxtaposition: `1/n x` is a row of a fraction
+  and a variable, and a numerator that is a row is written in parentheses,
+  `((1 - ρ) ρ^{n})/(1 - ρ^{n + 1})`.
+- **A letter is a variable, a word is text, and a name directly before `(`
+  is a function.** `f(x)` is a call, `f (x)` is juxtaposition,
+  `log_{2}(x)` is a call with a base, and `sin x` reads as text beside a
+  variable. A two-letter word `d` and one lower-case letter is a differential,
+  `dt`.
+- **A space is juxtaposition.** An explicit `MathSpace` prints as `\,`,
+  `\:`, `\;` or `\quad`, so the two never print alike.
+- **Every `(…)` reads as a `MathParenthesized`**, the parentheses the printer
+  adds around a numerator, a base or a body included. The tree that comes back
+  is the tree that went in up to those nodes, and the line is the same.
+- **`-` directly before digits is a negative number**; before anything else
+  it is the prefix minus.
+
+A `.math` file holds one formula in its linear form: `MathFile(filename,
+tree)`, registered for the extension `.math`, and `print_natural_text` prints
+any math tree. `test_math_parser()` proves every builder of the corpus
+prints, reads and prints the same line.
+
 ## The two-dimensional form
 
 ### The box protocol
@@ -169,6 +202,7 @@ reader rule.
 
 ## Testing
 
+`test_math_parser()` reads the corpus back and holds every decision above.
 `test_math_to_graphics()` in the domain suite asserts coordinates — where the
 fraction rule landed, how far the script baseline moved, which face a nested
 script uses — and walks `math_display_example` through the printer, the REPL

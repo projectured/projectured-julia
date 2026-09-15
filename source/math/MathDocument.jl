@@ -266,7 +266,7 @@ const _MATH_OPERATORS = Dict{Symbol, Tuple{String, String, Symbol}}(
     :comma      => (",",        ",",   :punctuation),
     :semicolon  => (";",        ";",   :punctuation),
     :factorial  => ("!",        "!",   :postfix),
-    :not        => ("\\neg",    "¬",   :prefix),
+    :not        => ("\\neg ",   "¬",   :prefix),
 )
 
 """

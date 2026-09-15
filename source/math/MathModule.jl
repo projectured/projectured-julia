@@ -27,6 +27,8 @@ using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
+using ..SerializationModule
+import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_content, emit_text
 using ..ReferenceModule
 using ..StyleModule
 using ..SyntaxModule
@@ -61,10 +63,13 @@ export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
        MathFunctionToGraphics, MathAccentToGraphics, MathMatrixToGraphics,
        MathCaseToGraphics, MathCasesToGraphics
 export MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, MathSymbol, MathText
+export parse_math, MathFile
 
 
 include("MathDocument.jl")
+include("MathParser.jl")
 include("MathToSyntax.jl")
 include("MathToGraphics.jl")
+include("MathFile.jl")
 
 end # module

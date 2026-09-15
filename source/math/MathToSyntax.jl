@@ -388,8 +388,12 @@ end
     style::ImmutableCell{StyleText} = _CHROME
 end
 
+# `\\,`, `\\:`, `\\;` and `\\quad`, so that an explicit space and the gap between
+# the elements of a row do not print alike.
+const _MATH_SPACE_TEXTS = Dict{Symbol,String}(:thin => "\\,", :medium => "\\:", :thick => "\\;", :quad => "\\quad")
+
 @projection_template MathSpaceToSyntaxLeaf MathSpace (p, doc) ->
-    SyntaxLeaf(TextString(" ", p.style))
+    SyntaxLeaf(TextString(() -> get(_MATH_SPACE_TEXTS, doc.kind, "\\,"), p.style))
 
 # ── MathRowToSyntaxNode ──────────────────────────────────────────────────────
 #
@@ -663,10 +667,13 @@ end
 # The row that teaches the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
 
-# One module, one `__init__`. The slice registers both of its natural-notation
-# seams here, because folding the modules folded their initialisers.
+# One module, one `__init__`. The slice registers its natural-notation seams
+# here, the format its reader reads, and the file extension it owns.
 function __init__()
     register_natural_syntax!(:math, () -> Pair{Type,Any}[MathDocument => MathToSyntax()])
     register_natural_graphics!(:math, (; measure) ->
         make_math_to_graphics_dispatch(measure = measure))
+    register_natural_domain!(MathDocument; rung = :syntax, make = () -> MathToSyntax(),
+                             format = :math, extension = ".math", parse = parse_math)
+    register_file_document_type!(".math", MathFile)
 end

@@ -65,6 +65,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/math/projection/MathToGraphicsTest.jl")
+include("../../../test/math/document/MathParserTest.jl")
 
 include("../../../test/math/MathSuite.jl")
 

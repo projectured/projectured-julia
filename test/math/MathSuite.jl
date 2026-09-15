@@ -24,7 +24,8 @@ function test_math()
     @testset "ProjecturedMath" begin
         test_math_layering()
         test_math_to_graphics()
+        test_math_parser()
     end
 end
 
-export test_math, test_math_layering, test_math_to_graphics
+export test_math, test_math_layering, test_math_to_graphics, test_math_parser

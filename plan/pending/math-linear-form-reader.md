@@ -1,7 +1,6 @@
 # A reader for the linear form of the math domain
 
-**Status:** pending. Design from a survey of `source/math/` on 2026-09-15.
-Nothing is built.
+**Status:** Steps 1 to 4 done on 2026-09-15; Step 5, type-in, is open.
 **Scope:** `ProjecturedMath`, slice `source/math/`: a parser of the linear
 form, a `.math` file type, and the guide.
 **Serves:** omnet-julia `plan/pending/assistant-develops-a-study.md`, Step 2b,
@@ -126,7 +125,7 @@ checkout, so a worktree would hide the change from it.
 
 ### Step 1 — the tests, first
 
-- [ ] `test/math/MathParserTest.jl`, `test_math_parser()`, included in
+- [x] `test/math/document/MathParserTest.jl`, `test_math_parser()`, included in
       `test_math()`:
   - every builder of `example/math/MathDocumentExample.jl` prints, reads back
     and prints the same line again; and the tree read back equals the tree
@@ -140,24 +139,24 @@ checkout, so a worktree would hide the change from it.
 
 ### Step 2 — the reader
 
-- [ ] `source/math/MathParser.jl`: the cursor, the tokens (a number, a letter,
+- [x] `source/math/MathParser.jl`: the cursor, the tokens (a number, a letter,
       a word, a glyph, a backslash name, an operator, a brace or a bracket or
       a parenthesis, a comma, a semicolon), and one function per precedence
       level of 2.2.
-- [ ] `MathSpace` prints `\,`.
-- [ ] `export parse_math` from `MathModule`.
+- [x] `MathSpace` prints `\,`, and `\:`, `\;`, `\quad` for its other kinds.
+- [x] `export parse_math` from `MathModule`.
 
 ### Step 3 — the file
 
-- [ ] `source/math/MathFile.jl`, the registrations of 2.4, and a round trip in
+- [x] `source/math/MathFile.jl`, the registrations of 2.4, and a round trip in
       `test_file_project` or a small `test_math_file()`: a page with a
       `pred-ref` fence to a `.math` file loads with the tree in place and saves
       the same bytes.
-- [ ] The natural graphics row for `MathDocument`, if absent.
+- [x] The natural graphics row for `MathDocument` was there already.
 
 ### Step 4 — the guide
 
-- [ ] `math.md`: "The linear form" says it has a reader, lists the four
+- [x] `math.md`: "The linear form" says it has a reader, lists the four
       decisions of 2.3, and names the file type. The testing section names
       `test_math_parser()`.
 
@@ -176,6 +175,14 @@ checkout, so a worktree would hide the change from it.
   no longer print alike.
 - **D5. An equation is a `.math` file.** The line is the file. A tree written
   as nested `.pred` calls would be fifteen lines nobody reads.
+
+**Decided while building.** The printer writes a binary division with spaces
+and a fraction without, so `\div` is not needed to tell them apart: `/` with
+no space is a fraction, ` / ` a division. A fraction binds tighter than
+juxtaposition, which is what the printer's parentheses say. A number inside a
+formula is a `PrimitiveNumber`, and the `.math` file counts it as its own. The
+printer of `\neg` gained the space it lacked before its operand. `test_math()`
+173/173.
 
 ## 5. Decisions left open
 
