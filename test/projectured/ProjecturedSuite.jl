@@ -148,6 +148,7 @@ include("projection/TableNavigationTest.jl")
 include("projection/TableSelectionTest.jl")
 include("serializer/FileProjectS4Test.jl")
 include("serializer/FileProjectS5Test.jl")
+include("serializer/FileProjectTest.jl")
 include("serializer/JuliaAndMarkdownFileTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/SerializationTest.jl")
@@ -402,5 +403,5 @@ export test_workbench_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_workbench_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
 export test_command_palette, test_command_palette_decorator, test_document_insertion
-export test_gesture_log, test_file_project_s4, test_file_project_s5
+export test_gesture_log, test_file_project_s4, test_file_project_s5, test_file_project
 export test_julia_and_markdown_file, test_marker_vocabulary, test_stub_collection

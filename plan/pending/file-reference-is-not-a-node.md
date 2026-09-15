@@ -204,7 +204,52 @@ splice. One node type, one generic rule to draw it, and the machinery is shared.
 That is the recommendation. It is not decided here, because `realize` lives in
 `omnet-julia` and the tutorial pages there depend on it.
 
+## The API the tests fix
+
+The tests were written before the code, in
+[test/projectured/serializer/FileProjectTest.jl](../../test/projectured/serializer/FileProjectTest.jl),
+and the names they use are the API:
+
+```julia
+FileProject(base_dir, files)              # the context: an ordered set of file documents
+save_project!(project) -> Bool            # cut, print, write; false and an error log on an orphan
+load_project(base_dir, filenames)         # parse every file named, then splice
+project.files[i]                          # a file document; get_file_content(…) is its root
+```
+
+A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
+inside a file is `<<node(file("b.xml"), "children[1]")>>`: the generic path
+verb is named **`node`**, and its path is the reference DSL's text form, the
+one `ReferenceToText` writes. A reference to a file's own root is `file(…)`,
+not `node(…)` with an empty path.
+
+The old `save_project!(root, base_dir)` and `load_project(T, filename, base_dir)`
+take different arguments, so both shapes coexist until stage 3 deletes the old.
+
 ## Stages
+
+### Stage 0 — the tests (done)
+
+Twelve testsets, every one red with `UndefVarError: FileProject` and none with
+a parse error. The four from the brief:
+
+- a JSON file holding a JSON array that holds an object that holds the same
+  array — written once, a `file("a.json")` at the second visit, an identity
+  cycle after load;
+- an XML element deep in a JSON file and deep in an XML file — a `node(…)`
+  reference on the JSON side, the element on the XML side, `===` after load;
+- two files that hold each other's inner documents — the JSON file writes
+  `file("b.xml")`, the XML file writes `node(file("a.json"), …)`, both
+  identities hold after load;
+- an XML element in no XML file — the save logs the orphan, returns `false`,
+  and writes nothing.
+
+And eight more the design needs: the XML element as the whole XML file; a
+JSON object reachable only through an XML element is an orphan too; a file
+document held as a value is a `file(…)` reference; a reference to a file
+outside the loaded set stays a string and saves back unchanged; two references
+to one node splice `===`; save, load, save changes no `mtime`; a string that is
+not a marker is left alone; an unknown verb names itself in the error.
 
 ### Stage 1 — save
 
@@ -214,10 +259,8 @@ That is the recommendation. It is not decided here, because `realize` lives in
 - [ ] The generic path verb, so a cut inside a JSON or XML tree can be named.
 - [ ] `save_project!` over a context: cut, print, write-if-changed. The orphan
   abort logs and returns; no file is written.
-- [ ] Tests: a JSON file holding an XML element owned by an XML file writes two
-  files with the right leaves; a shared subtree inside one file is written once;
-  a cycle between two files saves; an orphan aborts with the file and the node
-  named; a file whose bytes did not change keeps its `mtime`.
+- [ ] The save half of `FileProjectTest.jl` passes: the cuts, the two orphans,
+  the write gate.
 
 The old path is untouched during stage 1.
 
@@ -227,9 +270,8 @@ The old path is untouched during stage 1.
 - [ ] The two-phase load over a set of files, with the splice.
 - [ ] A reference to a file outside the set stays a leaf; adding the file and
   splicing again resolves it.
-- [ ] Tests: the stage-1 files load back to a graph equal to the one saved; two
-  markers to one target splice `===`; a cycle terminates; a marker naming a file
-  not in the set stays a string and round-trips.
+- [ ] The load half of `FileProjectTest.jl` passes: every identity, the
+  partial set, save-load-save.
 
 ### Stage 3 — the switch
 
@@ -289,12 +331,13 @@ domain can be wrong. Each gets a round-trip test of its own before the switch.
 - A node is written in a file of its own domain, the first to reach it through
   that domain. Anything else is an orphan, and the save aborts.
 - A reference to a file outside the loaded set stays a plain leaf.
+- The generic path verb is `node`, and a reference to a file's own root is
+  `file(…)`. The tests fixed both.
 - The display is not touched: the global natural table already renders a mixed
   tree, in both nestings, measured on 2026-09-15.
 
 ## Decisions left open
 
-- The name of the generic path verb.
 - Whether `realize` becomes a `ComputedDocument`.
 - Whether the save context is built from the workspace document.
 - When the embed card returns, and on what key.
