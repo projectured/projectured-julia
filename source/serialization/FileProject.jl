@@ -298,17 +298,25 @@ function _is_marker_argument(e::Expr)
     # list as readily as it holds one value, and a list of literals is data by
     # the same argument every literal is.
     e.head === :vect && return all(_is_marker_argument, e.args)
-    # A mapping of names to values, `parameters = (lambda = 1.3, capacity = 8)`.
-    # It is Julia's own named tuple, so it is a literal and not a call, and it
-    # is what a field holds when it holds a set of named numbers.
-    e.head === :tuple && return all(_is_marker_argument, e.args)
+    # A mapping of names to values, `parameters = (lambda = 1.3, capacity = 8)`,
+    # and a group of values, `("mm1k.sink", "lifeTime")`. Both are Julia's own
+    # tuple, so both are literals and not calls: the first is what a field holds
+    # when it holds a set of named numbers, and the second is what a mapping
+    # becomes when its keys are paths rather than names.
+    e.head === :tuple && return all(_is_marker_argument, e.args) &&
+        (all(_is_marker_tuple_field, e.args) || !any(_is_marker_tuple_field, e.args))
     (e.head === :(=) || e.head === :kw) && return Base.length(e.args) == 2 &&
         e.args[1] isa Symbol && _is_marker_argument(e.args[2])
     return _is_marker_call(e)
 end
 
-# The names and values of a named tuple expression, in the order written. Both
-# spellings reach here: `(a = 1, b = 2)` and `(; a = 1, b = 2)`.
+# Whether a tuple's element names a field, which is what tells one kind of tuple
+# from the other.
+_is_marker_tuple_field(x) = x isa Expr &&
+    (x.head === :(=) || x.head === :kw || x.head === :parameters)
+
+# The elements of a tuple expression, in the order written. Both spellings of a
+# named tuple reach here: `(a = 1, b = 2)` and `(; a = 1, b = 2)`.
 function _marker_tuple_fields(e::Expr)
     fields = Any[]
     for argument in e.args
@@ -338,12 +346,13 @@ end
 function _print_canonical(io::IO, e::Expr)
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
-        isempty(fields) && return print(io, "(;)")
+        isempty(fields) && return print(io, "()")
+        named = _is_marker_tuple_field(first(fields))
         print(io, "(")
         for (i, a) in enumerate(fields)
             i > 1 && print(io, ", ")
-            print(io, a.args[1], " = ")
-            _print_canonical(io, a.args[2])
+            named ? (print(io, a.args[1], " = "); _print_canonical(io, a.args[2])) :
+                    _print_canonical(io, a)
         end
         return print(io, Base.length(fields) == 1 ? ",)" : ")")
     end

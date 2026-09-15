@@ -190,8 +190,12 @@ function _evaluate_splice(project, index, e::Expr)
     e.head === :vect && return Any[_evaluate_splice(project, index, a) for a in e.args]
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
-        return NamedTuple{Tuple(Symbol[f.args[1] for f in fields])}(
-            Tuple(Any[_evaluate_splice(project, index, f.args[2]) for f in fields]))
+        isempty(fields) && return ()
+        if _is_marker_tuple_field(first(fields))
+            return NamedTuple{Tuple(Symbol[f.args[1] for f in fields])}(
+                Tuple(Any[_evaluate_splice(project, index, f.args[2]) for f in fields]))
+        end
+        return Tuple(Any[_evaluate_splice(project, index, f) for f in fields])
     end
     verb = e.args[1]::Symbol
     positional, keywords = _splice_arguments(project, index, e)

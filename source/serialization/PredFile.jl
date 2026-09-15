@@ -125,8 +125,12 @@ function _evaluate_pred(e::Expr)
     e.head === :vect && return Any[_evaluate_pred(a) for a in e.args]
     if e.head === :tuple
         fields = _marker_tuple_fields(e)
-        return NamedTuple{Tuple(Symbol[f.args[1] for f in fields])}(
-            Tuple(Any[_evaluate_pred(f.args[2]) for f in fields]))
+        isempty(fields) && return ()
+        if _is_marker_tuple_field(first(fields))
+            return NamedTuple{Tuple(Symbol[f.args[1] for f in fields])}(
+                Tuple(Any[_evaluate_pred(f.args[2]) for f in fields]))
+        end
+        return Tuple(Any[_evaluate_pred(f) for f in fields])
     end
     verb = e.args[1]::Symbol
     # A call over the vocabulary rather than a type names a node somewhere else.
@@ -179,6 +183,16 @@ _print_pred_value(io::IO, x::AbstractString, where, indent) = print(io, repr(Str
 _print_pred_value(io::IO, ::Nothing, where, indent) = print(io, "nothing")
 _print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where, indent) =
     print(io, repr(x))
+
+function _print_pred_value(io::IO, v::Tuple, where, indent)
+    isempty(v) && return print(io, "()")
+    print(io, "(")
+    for (index, element) in enumerate(v)
+        index > 1 && print(io, ", ")
+        _print_pred_value(io, element, where, indent)
+    end
+    print(io, Base.length(v) == 1 ? ",)" : ")")
+end
 
 function _print_pred_value(io::IO, v::NamedTuple, where, indent)
     isempty(v) && return print(io, "(;)")
@@ -244,8 +258,8 @@ function _refuse_pred_value(value, where)
     throw(FileCutException(
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
-        "nothing, a vector of those, a mapping of names to them, a registered " *
-        "document, and a reference" *
+        "nothing, a vector of those, a group of them, a mapping of names to " *
+        "them, a registered document, and a reference" *
         (value isa Document ? "; call register_pred_type!(" * string(nameof(typeof(value))) *
                               ") to offer this type" : "")))
 end

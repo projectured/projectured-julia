@@ -430,6 +430,14 @@ function test_file_project()
                 back = get_file_content(load_file(d, "run.pred"))
                 @test back.attachment == (arrival_rate = 12.0, capacity = 5)
                 @test back.options[2] == (name = "busy", level = 2)
+                # A key that is a path and not a name makes the mapping a list
+                # of groups, which is the same tuple without the names.
+                paths = TestRun(name = "s", options = [("mm1k.sink", (lifeTime = "histogram",))])
+                @test save_file!(PredFile("paths.pred", paths), d) === true
+                @test occursin("[(\"mm1k.sink\", (lifeTime = \"histogram\",))]",
+                               read(joinpath(d, "paths.pred"), String))
+                @test get_file_content(load_file(d, "paths.pred")).options[1] ==
+                      ("mm1k.sink", (lifeTime = "histogram",))
                 # One field keeps the comma that makes it a mapping and not a
                 # parenthesis, and the bytes do not move on a second save.
                 @test save_file!(PredFile("one.pred", TestRun(name = "x", count = 1,
