@@ -3395,13 +3395,18 @@ function _lazy_row_canvas(p::WidgetLazyTableToGraphicsCanvas, w::WidgetLazyTable
                         get_lazy_table_cell(w, row, column)
         isempty(text) && continue
         _, text_height = _text_size(p.measure, style.font, text)
-        # The text sits in a viewport the size of its cell, so a text wider than
-        # its column ends at the column's edge and not in the next cell.
+        # The text sits in a viewport the size of its cell LESS the padding on
+        # both sides, so a text wider than its column is cut with the same gap
+        # before the next column that a short one has after it. Without the
+        # right-hand half of that, a long cell ran flush into its neighbour and
+        # the two columns read as one.
+        padding = _sc(p.padding)
         cell_width = edges[column + 1] - edges[column]
-        label = GraphicsText(text, _sc(p.padding), (height - text_height) ÷ 2,
+        inner_width = max(0, cell_width - 2padding)
+        label = GraphicsText(text, 0, (height - text_height) ÷ 2,
                              style.font, style.color)
-        push!(elements, GraphicsViewport(edges[column], 0, cell_width, height,
-                                         GraphicsCanvas(0, 0, cell_width, height,
+        push!(elements, GraphicsViewport(edges[column] + padding, 0, inner_width, height,
+                                         GraphicsCanvas(0, 0, inner_width, height,
                                                         CellVector(Cell[Cell(label)]),
                                                         layout_none, true)))
     end

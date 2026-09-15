@@ -65,6 +65,28 @@ end
     @test asked[] < 1000
 end
 
+@testset "a cell keeps the same gap on both sides of its column" begin
+    # A cell far wider than its column: what it draws must start after the
+    # padding and stop the same distance before the next column, or two columns
+    # read as one. The padding is the projection's own parameter, which the
+    # theme fills with its horizontal padding.
+    projection = first(proj for (T, proj) in
+                       WidgetToGraphics(font_ubuntu_regular_20; measure = _measure).dispatch
+                       if T === WidgetLazyTable)
+    padding = Int(projection.padding)
+    @test padding > 0
+    wide = (row, column) -> repeat("x", 60)
+    table = WidgetLazyTable(Point2D(0, 0), [("ID", 80), ("Value", 120)], 3, 20, wide;
+                            header = false)
+    row = print_document(projection, nothing, table, nothing).output.elements.value
+    viewports = [e for e in row.elements if e isa GraphicsViewport]
+    @test length(viewports) == 2
+    # Column one spans 0..80 and column two 80..200; each viewport is inset by
+    # the padding at both ends.
+    @test (Int(viewports[1].x), Int(viewports[1].w)) == (padding, 80 - 2padding)
+    @test (Int(viewports[2].x), Int(viewports[2].w)) == (80 + padding, 120 - 2padding)
+end
+
 @testset "a header is the prefix a pane holds still" begin
     table, _ = _table(50)
     io = print_document(RecursiveProjection(TypeDispatchingProjection(
