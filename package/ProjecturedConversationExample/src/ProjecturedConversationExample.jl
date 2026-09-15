@@ -81,6 +81,7 @@ include("../../../example/conversation/ConversationProjectionExample.jl")
 
 export _conversation_widget_graphics
 export make_conversation_document_example, make_conversation_editor_document_example, make_conversation_part_document_example
+export make_assistant_conversation_document_example
 export make_conversation_turn_document_example, make_conversation_conversation_document_example, make_conversation_draft_document_example
 export make_conversation_widget_projection_example, make_conversation_editor_projection_example
 

@@ -85,7 +85,7 @@ const math_example           = Example("math",           make_math_document_exam
 const math_display_example   = Example("math_display",   make_math_display_document_example,   make_math_display_projection_example)
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_graphics_image_projection_example)
-const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=283)
+const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=1000)
 const conversation_widget_example = Example("conversation_widget", make_conversation_document_example, make_conversation_widget_projection_example; render_width=1200, render_height=700)
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
 # The live-database (ODBC) catalog/object/sql_table examples and the native
