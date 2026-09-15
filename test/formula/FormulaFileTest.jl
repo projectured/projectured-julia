@@ -25,6 +25,7 @@ function test_formula_file()
         @test get_formula_names(p_block.code) == ["rho", "n"]
         @test length(get_formula_dependencies(p_block, sheet)) == 2
         @test isapprox(parse(Float64, _formula_file_result(p_block)), 0.066341; atol = 1e-5)
+        @test isapprox(get_formula_value(p_block), 0.066341; atol = 1e-5)
         # A changed load changes every number below it.
         sheet.formulas[1].code = parse_julia("0.5")
         @test isapprox(parse(Float64, _formula_file_result(p_block)), 0.007874; atol = 1e-5)

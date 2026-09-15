@@ -389,6 +389,14 @@ function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
     end
 end
 
+"""
+    get_formula_value(formula) -> Any
+
+The value a formula's result stands for: a number, a bool, or the text of an
+error or a cycle. Reading it inside a reactive cell subscribes to the result.
+"""
+get_formula_value(formula::FormulaFormula) = _result_value(formula.result)
+
 # Read the scalar value out of a result document (a TextBlock of one TextString).
 # This is what a dependent formula consumes; parse it back to a number/bool/string.
 function _result_value(result)
