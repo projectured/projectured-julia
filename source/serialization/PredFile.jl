@@ -2,8 +2,11 @@
 #
 # A `.pred` file holds one document, written as its own constructor:
 #
-#     TestRun(name = "aloha", options = ["a", "b"], count = 2,
-#             parameters = (lambda = 1.3, capacity = 8))
+#     TestRun(
+#         name = "aloha",
+#         options = ["a", "b"],
+#         parameters = (lambda = 1.3, capacity = 8),
+#     )
 #
 # That is the marker language at file scale, so the format is the interpreter
 # beside it and nothing more. Three properties follow. The file cannot execute
@@ -165,57 +168,76 @@ a registered document, and a reference are all of it.
 """
 function print_pred_text(document)
     io = IOBuffer()
-    _print_pred_value(io, document, "")
+    _print_pred_value(io, document, "", 0)
     String(take!(io))
 end
 
-_print_pred_value(io::IO, reference::PredReference, where) = print(io, reference.marker)
-_print_pred_value(io::IO, x::AbstractString, where) = print(io, repr(String(x)))
-_print_pred_value(io::IO, ::Nothing, where) = print(io, "nothing")
-_print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where) = print(io, repr(x))
+const _PRED_INDENT = "    "
 
-function _print_pred_value(io::IO, v::NamedTuple, where)
+_print_pred_value(io::IO, reference::PredReference, where, indent) = print(io, reference.marker)
+_print_pred_value(io::IO, x::AbstractString, where, indent) = print(io, repr(String(x)))
+_print_pred_value(io::IO, ::Nothing, where, indent) = print(io, "nothing")
+_print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where, indent) =
+    print(io, repr(x))
+
+function _print_pred_value(io::IO, v::NamedTuple, where, indent)
     isempty(v) && return print(io, "(;)")
     print(io, "(")
     for (index, name) in enumerate(keys(v))
         index > 1 && print(io, ", ")
         print(io, name, " = ")
-        _print_pred_value(io, v[name], isempty(where) ? String(name) : where * "." * String(name))
+        _print_pred_value(io, v[name],
+                          isempty(where) ? String(name) : where * "." * String(name), indent)
     end
     # One field needs the comma to stay a named tuple rather than a parenthesis.
     print(io, Base.length(v) == 1 ? ",)" : ")")
 end
 
-function _print_pred_value(io::IO, v::AbstractVector, where)
+# A list of values reads on one line; a list of documents is a list of blocks,
+# and one per line is the only way to read it.
+function _print_pred_value(io::IO, v::AbstractVector, where, indent)
+    isempty(v) && return print(io, "[]")
+    if any(e -> e isa Document && !(e isa PredReference), v)
+        print(io, "[\n")
+        for element in v
+            print(io, _PRED_INDENT^(indent + 1))
+            _print_pred_value(io, element, where, indent + 1)
+            print(io, ",\n")
+        end
+        return print(io, _PRED_INDENT^indent, "]")
+    end
     print(io, "[")
     for (index, element) in enumerate(v)
         index > 1 && print(io, ", ")
-        _print_pred_value(io, element, where)
+        _print_pred_value(io, element, where, indent)
     end
     print(io, "]")
 end
 
-function _print_pred_value(io::IO, document::Document, where)
+# One field to a line. A file is read in a diff as much as it is read whole, and
+# a changed field should be a changed line.
+function _print_pred_value(io::IO, document::Document, where, indent)
     is_pred_type(typeof(document)) || _refuse_pred_value(document, where)
     positional, keywords = pred_arguments(document)
     print(io, nameof(typeof(document)), "(")
-    first = true
+    isempty(positional) && isempty(keywords) && return print(io, ")")
+    print(io, "\n")
     for value in positional
-        first || print(io, ", ")
-        first = false
-        _print_pred_value(io, value, where)
+        print(io, _PRED_INDENT^(indent + 1))
+        _print_pred_value(io, value, where, indent + 1)
+        print(io, ",\n")
     end
     for (name, value) in keywords
-        first || print(io, ", ")
-        first = false
-        print(io, name, " = ")
+        print(io, _PRED_INDENT^(indent + 1), name, " = ")
         _print_pred_value(io, value,
-                          isempty(where) ? String(name) : where * "." * String(name))
+                          isempty(where) ? String(name) : where * "." * String(name),
+                          indent + 1)
+        print(io, ",\n")
     end
-    print(io, ")")
+    print(io, _PRED_INDENT^indent, ")")
 end
 
-_print_pred_value(io::IO, value, where) = _refuse_pred_value(value, where)
+_print_pred_value(io::IO, value, where, indent) = _refuse_pred_value(value, where)
 
 function _refuse_pred_value(value, where)
     at = isempty(where) ? "" : " at " * where

@@ -449,8 +449,10 @@ function test_file_project()
             d = mktempdir()
             try
                 @test save_file!(PredFile("w.pred", TestWindow("Aloha", 5)), d) === true
-                # Only what the document called its file half is on disk.
-                @test read(joinpath(d, "w.pred"), String) == "TestWindow(title = \"Aloha\")\n"
+                # Only what the document called its file half is on disk, one
+                # field to a line.
+                @test read(joinpath(d, "w.pred"), String) ==
+                      "TestWindow(\n    title = \"Aloha\",\n)\n"
                 back = get_file_content(load_file(d, "w.pred"))
                 @test back.title == "Aloha"
                 # And the rest of it was built on the way back in.
