@@ -33,10 +33,15 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     # The page's own element cells are reused, not copied: the layout's
     # children share the root's element storage (only the selection cell is
     # the layout's own), and the layout renderer recurses each element.
+    #
+    # Every block fills the width of the page (`child_width = Fill`), which is
+    # what makes a paragraph break its lines at the edge of the page rather
+    # than at the length of its longest sentence. A block that authored a width
+    # of its own keeps it: an offer is a promise about space, not a constraint.
     elements = root.elements::CellVector
     out = VerticalLayout(CellVector(getfield(elements, :elements), Cell(nothing)),
                          Cell(p.horizontal_align), Cell(p.gap),
-                         Cell(nothing), Cell(nothing), sel)
+                         Cell(Fill), Cell(nothing), sel)
     iomap = SimpleIoMap(p, root, out)
     iomap_cell[] = iomap
     iomap

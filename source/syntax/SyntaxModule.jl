@@ -69,7 +69,7 @@ export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSy
        InsertionNothingToSyntaxLeaf,
        default_factory, default_completion, parse_completion,
        insert_insertion_text_operation, delete_insertion_text_operation
-export make_natural_to_syntax_dispatch, register_syntax_fallback!
+export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
 
 

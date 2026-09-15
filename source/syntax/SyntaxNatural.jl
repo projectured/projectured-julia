@@ -51,6 +51,29 @@ function make_natural_to_syntax_dispatch()
     )
 end
 
+"""
+    make_natural_prose_graphics(; measure) -> Projection
+
+The same fabric with one more stage: the lines are broken to the width the
+context offers. It is what a domain registers for a block whose text is
+**prose** — a paragraph, a heading, a quotation — where a line is a sentence
+and not a structure.
+
+The fabric itself never breaks a line, because the layout of a syntax tree
+carries meaning: an indented line of code says which block it is in, and a
+break invented by a measurement would say something the document does not.
+Prose has no such layout, so a line that runs past the box is simply lost.
+
+`measure(text, font) -> (width, height)` is the backend's own, so the break
+points line up with what is drawn.
+"""
+make_natural_prose_graphics(; measure) = ChainingProjection(
+    RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
+    RecursiveProjection(SyntaxToText()),
+    WordWrapping(measure = measure),
+    TextToGraphics(measure = measure),
+)
+
 # The rows this package fills the natural renderer's fallback with. The two Text
 # editing states are here and not in the renderer because only these leaves can
 # draw a placeholder or a name buffer; `Any` is the reflection tail.

@@ -72,9 +72,16 @@ function __init__()
                              extension = ".md",
                              parse     = parse_markdown)
 
+    # A page is a stack of blocks, and a block of prose breaks its lines at the
+    # width the page offers. The four prose blocks say so; a code block and a
+    # thematic break do not, and fall to the fabric, which never breaks a line.
     register_natural_graphics!(:markdown_page, (; measure) -> Pair{Type,Any}[
         MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
                                            VerticalLayoutToGraphicsCanvas()),
+        MarkdownHeading   => make_natural_prose_graphics(; measure),
+        MarkdownParagraph => make_natural_prose_graphics(; measure),
+        MarkdownQuote     => make_natural_prose_graphics(; measure),
+        MarkdownList      => make_natural_prose_graphics(; measure),
     ])
 end
 

@@ -541,6 +541,53 @@ function _push_text!(elems::Vector, font::StyleFont, text::AbstractString,
     push!(elems, GraphicsText(text, x, y, font, fg))
 end
 
+# ── Text that must fit a width ──────────────────────────────────────────────
+#
+# A widget draws its own text as one measured line, and a line longer than the
+# box is drawn past the edge and lost. Where the widget knows a width — the one
+# it was told, or the one it was offered — it breaks the text to that width
+# instead. Prose in a document is broken by `WordWrapping`, which this cannot
+# use: a `String` in a widget field is not a `TextDocument`, and making one of
+# it would give every label a domain it does not have.
+
+# The lines `text` breaks into so that each fits `bound`, measured in `font`.
+# Text that already fits is one line, whatever it holds, so a widget whose text
+# fits draws exactly what it drew before. A word wider than the bound keeps its
+# own line: nothing can make a word narrower. A `bound` of zero is no bound.
+function _text_lines(measure, font::StyleFont, text::AbstractString, bound::Int)
+    (bound <= 0 || first(_text_size(measure, font, text)) <= bound) && return String[String(text)]
+    out = String[]
+    for paragraph in split(text, '\n'; keepempty = true)
+        current = ""
+        for word in split(paragraph, ' ')
+            candidate = isempty(current) ? String(word) : current * " " * String(word)
+            if isempty(current) || first(_text_size(measure, font, candidate)) <= bound
+                current = candidate
+            else
+                push!(out, current)
+                current = String(word)
+            end
+        end
+        push!(out, current)
+    end
+    out
+end
+
+# One text, drawn from `x, y` down, broken to `bound`. Answers the width of the
+# widest line and the height of all of them.
+function _push_text_block!(elements::Vector, measure, style::StyleText,
+                           text::AbstractString, x::Int, y::Int, bound::Int)
+    width = 0
+    height = 0
+    for line in _text_lines(measure, style.font, text, bound)
+        line_width, line_height = _text_size(measure, style.font, line)
+        _push_text!(elements, style.font, line, x, y + height, style.color)
+        width = max(width, Int(line_width))
+        height += Int(line_height)
+    end
+    (width, height)
+end
+
 # A callable wrapper so the backend text-measure function can be stored as a
 # plain *value* inside a `@projection` Cell — a bare `Function` would be taken as
 # a thunk (computed cell) and invoked with zero args. Call it exactly like the
@@ -836,6 +883,19 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
                 w.text_style isa StyleColor ? StyleText(p.text.font, w.text_style) :
                 w.text_style
         content_width, content_height = _content_size(p.measure, style.font, content)
+        # Text breaks at the width the parent offered. A label that fills a
+        # column holds prose in that column, and a line longer than the column
+        # is drawn past it and lost. An image is not broken; it fills its box.
+        avail = ctx === nothing ? nothing : ctx.available_width
+        bound = avail === nothing || content isa ImageDocument ? 0 : max(0, Int(avail[]))
+        if bound > 0 && content_width > bound
+            elements = Any[]
+            text_width, text_height =
+                _push_text_block!(elements, p.measure, style, string(content), 0, 0, bound)
+            return (width = _resolve_width(ctx, 0, text_width),
+                    height = _resolve_height(ctx, 0, text_height),
+                    elements = elements)
+        end
         # No size of its own, so the offer decides and the content is the floor.
         # An image label fills what it is given; text stays where it is drawn.
         content_width  = _resolve_width(ctx, 0, content_width)
@@ -4143,6 +4203,13 @@ function _card_build(p, w, ctx, tim, cim)
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
     y = padding
+    # The width the card's own texts break to: the width it was told to be, else
+    # the width it was offered, less the padding on both sides. With neither
+    # there is no bound, and each text is the one line it measures.
+    avail_w = ctx === nothing ? nothing : ctx.available_width
+    authored_width = _sc(Int(w.width))
+    text_bound = authored_width > 0 ? max(0, authored_width - 2padding) :
+                 avail_w !== nothing ? max(0, Int(avail_w[]) - 2padding) : 0
     if tim !== nothing
         push!(child_iomaps, (padding, y, tim))
         push!(elements, _make_canvas(padding, y, Any[tim.output]))
@@ -4154,16 +4221,16 @@ function _card_build(p, w, ctx, tim, cim)
             y += _sc(p.title_gap)
         end
     elseif w.title !== nothing
-        title = string(w.title)
-        title_width, title_height = _text_size(p.measure, p.title_text.font, title)
-        _push_text!(elements, p.title_text.font, title, padding, y, p.title_text.color)
+        title_width, title_height = _push_text_block!(elements, p.measure, p.title_text,
+                                                      string(w.title), padding, y, text_bound)
         max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
     end
     if w.description !== nothing
-        description = string(w.description)
-        description_width, description_height = _text_size(p.measure, p.description_text.font, description)
-        _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
-        max_content_width = max(max_content_width, description_width); y += description_height + _sc(p.section_gap)
+        description_width, description_height =
+            _push_text_block!(elements, p.measure, p.description_text,
+                              string(w.description), padding, y, text_bound)
+        max_content_width = max(max_content_width, description_width)
+        y += description_height + _sc(p.section_gap)
     end
     content = w.content
     # A collapsed card draws its header and nothing else. Reading `collapsed`
@@ -4179,11 +4246,12 @@ function _card_build(p, w, ctx, tim, cim)
         inner = cim.output
         # The card offered its body an inner width, so the card clips that width
         # (§3b of layout-rules.md) and a body wider than the card no longer draws
-        # past its border. Height is not clipped: the card withholds that axis and
-        # takes its own height from what the body drew.
-        avail_w = ctx === nothing ? nothing : ctx.available_width
-        if inner isa GraphicsCanvas && avail_w !== nothing
-            clip_w = max(0, Int(avail_w[]) - 2padding)
+        # past its border. It is the same width the card's own texts break to, so
+        # a card of a declared width holds everything it draws. Height is not
+        # clipped: the card withholds that axis and takes its own height from
+        # what the body drew.
+        if inner isa GraphicsCanvas && text_bound > 0
+            clip_w = text_bound
             push!(elements, GraphicsViewport(Cell(Int32(padding)), Cell(Int32(y)),
                                              Cell(Int32(clip_w)), Cell(Int32(Int(inner.h[]))),
                                              Cell(_make_canvas(0, 0, Any[inner])),
@@ -4196,17 +4264,16 @@ function _card_build(p, w, ctx, tim, cim)
         end
         y += inner isa GraphicsCanvas ? Int(inner.h[]) + _sc(p.section_gap) : _sc(p.section_gap)
     elseif content isa AbstractString
-        content_width, content_height = _text_size(p.measure, p.content_text.font, content)
-        _push_text!(elements, p.content_text.font, content, padding, y, p.content_text.color)
+        content_width, content_height = _push_text_block!(elements, p.measure, p.content_text,
+                                                          content, padding, y, text_bound)
         max_content_width = max(max_content_width, content_width); y += content_height + _sc(p.section_gap)
     end
     if w.footer !== nothing
-        footer = string(w.footer)
-        footer_width, footer_height = _text_size(p.measure, p.footer_text.font, footer)
-        _push_text!(elements, p.footer_text.font, footer, padding, y, p.footer_text.color)
+        footer_width, footer_height = _push_text_block!(elements, p.measure, p.footer_text,
+                                                        string(w.footer), padding, y, text_bound)
         max_content_width = max(max_content_width, footer_width); y += footer_height
     end
-    card_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
+    card_width = _resolve_width(ctx, authored_width, max_content_width + 2padding)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
     card_height = fixed_height > 0 ? fixed_height :
@@ -4258,9 +4325,14 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # a responsive body (chat-bubble text, nested cards) wrap to the card rather
     # than overrunning it. Strip the vertical axis: the card is content-tall, so
     # neither the header row nor the body should fill the parent's height.
+    # The body is offered the card's OWN inner width. A card told a width draws
+    # that width whatever it was offered, so a body sized from the offer would be
+    # wider than the card that holds it.
     pad = _sc(p.padding)
     avail_w = ctx.available_width
-    inner_w = avail_w === nothing ? nothing :
+    authored_width = _sc(Int(w.width))
+    inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - 2pad))) :
+              avail_w === nothing ? nothing :
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - 2pad)))
     inner_ctx = withhold_offer(with_available_size(ctx; width=inner_w), :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
