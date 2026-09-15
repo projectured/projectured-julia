@@ -165,9 +165,14 @@ _field_value(p::ObjectNodeToSyntaxNode, fim) =
 # has reserved and not yet filled is skipped: a vector a running task appends to
 # is read while it grows.
 _visible_elements(p::ObjectNodeToSyntaxNode, obj) = begin
-    els = Any[obj[i] for i in 1:length(obj) if isassigned(obj, i)]
+    els = Any[obj[i] for i in 1:length(obj) if _is_slot_assigned(obj, i)]
     p.filter === nothing ? els : Any[x for x in els if p.filter(_unwrap_cell(x))]
 end
+
+# Only an array has a slot with nothing in it yet; every other collection
+# answers each index it has.
+_is_slot_assigned(obj::Array, i::Integer) = isassigned(obj, i)
+_is_slot_assigned(obj, i::Integer) = true
 
 function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)

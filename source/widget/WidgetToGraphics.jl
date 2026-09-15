@@ -3335,9 +3335,15 @@ function _lazy_row_canvas(p::WidgetLazyTableToGraphicsCanvas, w::WidgetLazyTable
                         get_lazy_table_cell(w, row, column)
         isempty(text) && continue
         _, text_height = _text_size(p.measure, style.font, text)
-        _push_text!(elements, style.font, text,
-                    edges[column] + _sc(p.padding), (height - text_height) ÷ 2,
-                    style.color)
+        # The text sits in a viewport the size of its cell, so a text wider than
+        # its column ends at the column's edge and not in the next cell.
+        cell_width = edges[column + 1] - edges[column]
+        label = GraphicsText(text, _sc(p.padding), (height - text_height) ÷ 2,
+                             style.font, style.color)
+        push!(elements, GraphicsViewport(edges[column], 0, cell_width, height,
+                                         GraphicsCanvas(0, 0, cell_width, height,
+                                                        CellVector(Cell[Cell(label)]),
+                                                        layout_none, true)))
     end
     # The line under a row, which is what makes a table read as rows.
     push!(elements, GraphicsRect(0, height - max(1, _sc(p.grid.width)), width,
