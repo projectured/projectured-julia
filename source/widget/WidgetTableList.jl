@@ -429,18 +429,23 @@ end
 # A click inside a cell goes to the cell's own reader, in the cell's own
 # coordinates. A selection it answers is re-rooted under `rows[k][c]`; any
 # other operation names its own document and is answered as it is, which is
-# what lets a checkbox or a button in a cell be pressed.
+# what lets a checkbox or a button in a cell be pressed. A cell that declines
+# the click — a label has nothing to say to one — leaves the click to the row,
+# and the row is selected: a table of text is a table of rows, and a list
+# draws no row-header strip to click on instead.
 function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::MousePress)
     st = iomap.state
     _wtl_row_node(st, k) === nothing && return nothing
     canvas, entries = st.built[k]
     (x_cell, y_cell, cim) = entries[c]
-    cim === nothing && return nothing
+    row = ReplaceSelectionOperation(_wtl_row_reference(k))
+    cim === nothing && return row
     cell = cim.output
-    cell isa GraphicsCanvas || return nothing
+    cell isa GraphicsCanvas || return row
     cell_x = Int(x_cell[]) + Int(cell.x)
     cell_y = Int(st.header_height[]) + Int(canvas.y) + Int(y_cell[]) + Int(cell.y)
     op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers))
+    op === nothing && return row
     op isa ReplaceSelectionOperation || return op
     ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
 end

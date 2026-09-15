@@ -130,6 +130,12 @@ end
     plain = read(io, MousePress(:left, x + 4, y + 4, mods))
     @test plain isa ReplaceReferencedValueOperation
     @test plain.document === box
+    # A plain click on a label, which declines it, selects the row.
+    on_text = read(io, MousePress(:left, Int(st.columns[][2]) + st.bw + st.pad_x + 2, y, mods))
+    @test on_text isa ReplaceSelectionOperation
+    @test on_text.path.head.name == "rows"
+    @test row_of(on_text.path) == 2
+    @test on_text.path.tail.tail isa EmptyReference
 end
 
 @testset "rows of different heights, and the row at a coordinate" begin
