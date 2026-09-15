@@ -76,6 +76,16 @@ _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
     attachment::Any = nothing
 end
 
+"A document with a symbol field, for the `:name` literal of the notation."
+@document struct TestState
+    kind::Symbol = :new
+end
+
+"A document with a collection of cells, written as the list of what they hold."
+@document struct TestBag
+    items::CellVector = CellVector()
+end
+
 "A document with a half it did not read: `width` and the panel it built."
 @document struct TestWindow
     title::String
@@ -390,6 +400,41 @@ function test_file_project()
 
     @testset "a .pred file: the document as its constructor" begin
         register_pred_type!(TestRun)
+
+        @testset "a symbol writes as :name and reads back" begin
+            register_pred_type!(TestState)
+            text = print_pred_text(TestState(kind = :holds))
+            @test text == "TestState(\n    kind = :holds,\n)"
+            loaded = parse_pred_text(text)
+            @test loaded isa TestState && loaded.kind === :holds
+            # A symbol whose name is not an identifier would print as a call, so
+            # the writer refuses it, and a call in the reader names a type.
+            @test_throws FileCutException print_pred_text(TestState(kind = Symbol("a b")))
+            @test_throws Exception parse_pred_text("TestState(kind = Symbol(\"a b\"))")
+        end
+
+        @testset "a collection of cells writes as a list" begin
+            register_pred_type!(TestBag)
+            bag = TestBag(items = CellVector(Cell[Cell(TestRun(name = "a")), Cell(TestRun(name = "b"))]))
+            text = print_pred_text(bag)
+            @test occursin("items = [\n", text)
+            loaded = parse_pred_text(text)
+            @test loaded isa TestBag && length(loaded.items) == 2
+            @test loaded.items[2].name == "b"
+            @test print_pred_text(loaded) == text
+            # A list read from a file is a plain vector in a cell, and a reference
+            # in it splices like an element of a collection of cells.
+            d = mktempdir()
+            try
+                write(joinpath(d, "a.pred"), "TestRun(name = \"a\")\n")
+                write(joinpath(d, "bag.pred"), "TestBag(items = [file(\"a.pred\")])\n")
+                project = load_project(d, ["bag.pred"]; follow = true)
+                bag_back = get_file_content(project.files[1])
+                @test bag_back.items[1] isa TestRun && bag_back.items[1].name == "a"
+            finally
+                rm(d; recursive = true, force = true)
+            end
+        end
 
         @testset "a document with a vector field round-trips, byte-stable" begin
             d = mktempdir()
