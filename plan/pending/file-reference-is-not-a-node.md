@@ -421,19 +421,49 @@ what it needs turned out to be a design decision rather than a port.
   file formats in one module each define `get_file_domain` and
   `parse_file_content`, and the guard could not tell the two methods apart.
 
-### Stage 6 — `omnet-julia` and `inet-julia`
+### Stage 6 — `omnet-julia` and `inet-julia` (done, on branch `file-references`)
 
-`realize`, `$doctype` and `DocumentLoader.jl` go, and a manifest becomes a
-`.pred` file. What is not a port and needs a decision: `OmnetProject` holds a
-`Module` (the sandbox the source ran in) and a `Type` (the model), which are
-runtime state and not data, so it cannot be written as its own constructor. The
-manifest has to describe the project — the source path, the readme path, the
-model name — and the loader has to build the project from that description.
+`realize`, `$doctype`, `DocumentLoader.jl` and `DocumentExpression.jl` are
+gone; 66 manifests are written as the documents they describe, and 74 pages say
+`file("X.pred")` where they said `realize(file("X.json"))`.
 
-Ported without a decision: `NedFile` and `IniFile` (their whole node is their
-content, which the save and the load must be told about), every
-`LoaderContext` (now a `FileProject`), every registered verb (now called with
-the project), and the tests that named a stub.
+The decision the port needed: a document that holds what it did not read — a
+card's live workbench, the module a project's source ran in — cannot be written
+whole. **A document says what its file half is**, with `pred_arguments` and
+`make_pred_document`, and the save walks what the file writes
+(`is_written_in_file`). A `SimulationEmbed` keeps what the file said in
+`file_form` and writes that back: a card converts panes, a limit and a capture
+into live objects on the way in, and a page edits the workbench rather than the
+card, so the file's own words are what the file gets back. A card built in the
+editor has no file form yet and says so.
+
+What the load needed, both added here: `follow`, so a page opens with the files
+it embeds and not with every page beside it; and `tolerant`, so a page whose
+card belongs to a package this session never loaded loses that card and keeps
+its prose and every other card.
+
+A field derived from where the file is — `base_dir`, the sandbox module, a
+catalog's entries — is filled in after the splice by the entry point that knows
+the directory: `load_omnet_workbench`, `load_catalog_shell`. A reference is not
+the file it names until the whole set is loaded, so nothing that needs the file
+can happen while the file is being read.
+
+**Both repositories had stopped following projectured.** Three earlier
+campaigns merged modules, and 114 files named eleven modules that are gone, so
+neither repository loaded at all. The catch-up is in the same branch, along
+with the template words the projection merge un-exported (a helper beside a
+template names what it uses), two vanished package dependencies in inet's
+environment, and `get_canvas_content_bounds`.
+
+Measured in omnet: the project tests and the round-trip test pass; the embed
+tests pass; `test_demo_catalog` is 394 pass, 1 fail, 1 error, and neither is
+this campaign's — the capture test expects seam paths (`links.*`) the model no
+longer uses (`mm1k.*`), and a battery slice has no method for a picosecond
+quantity.
+
+Open in omnet: a `definition(file("X.jl"), name)` marker finds only a top-level
+definition, so the three markers of the ticker page, whose definitions sit
+inside a `module`, have never resolved.
 
 ### Stage 5 — what is left open
 
