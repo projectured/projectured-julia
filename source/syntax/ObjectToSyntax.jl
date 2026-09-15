@@ -161,9 +161,11 @@ _field_value(p::ObjectNodeToSyntaxNode, fim) =
     fim === nothing ? SyntaxLeaf(TextString("<undefined>", p.undef)) : fim.output
 
 # The visible elements of a collection (after `filter`), read inside the reconcile so
-# appends/deletes repaint. Element order = collection order.
+# appends/deletes repaint. Element order = collection order. A slot another task
+# has reserved and not yet filled is skipped: a vector a running task appends to
+# is read while it grows.
 _visible_elements(p::ObjectNodeToSyntaxNode, obj) = begin
-    els = Any[obj[i] for i in 1:length(obj)]
+    els = Any[obj[i] for i in 1:length(obj) if isassigned(obj, i)]
     p.filter === nothing ? els : Any[x for x in els if p.filter(_unwrap_cell(x))]
 end
 
