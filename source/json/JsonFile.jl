@@ -15,6 +15,13 @@ A file document whose `content` is a `JsonDocument`.
     content::JsonDocument = JsonNothing()
 end
 
+# What the file writes itself, and how it spells a reference to what it does
+# not: a string whose whole value is the marker.
+get_file_domain(::Type{<:JsonFile}) = JsonDocument
+make_reference_leaf(::JsonFile, marker::AbstractString) = JsonString(make_marker_text(marker))
+find_reference_marker(leaf::JsonString) = parse_marker_text(leaf.value)
+parse_file_content(::Type{<:JsonFile}, text::AbstractString) = parse_json(text)
+
 # Emit runs the `JsonToSyntax → SyntaxToText → TextToString` chain.
 emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 

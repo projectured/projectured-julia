@@ -31,6 +31,17 @@ const PRED_REF_ELEMENT_TAG = "pred:ref"
     content::XmlDocument = XmlNothing()
 end
 
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred:ref` element with the marker as its one text child.
+get_file_domain(::Type{<:XmlFile}) = XmlDocument
+make_reference_leaf(::XmlFile, marker::AbstractString) =
+    XmlElement(PRED_REF_ELEMENT_TAG, XmlAttribute[], [XmlText(make_marker_text(marker))])
+find_reference_marker(node::XmlElement) =
+    _is_marker_element(node) ?
+        parse_marker_text(strip(_unwrap(getfield(_unwrap(_unwrap(getfield(node, :children))[1]), :content)))) :
+        nothing
+parse_file_content(::Type{<:XmlFile}, text::AbstractString) = parse_xml(text)
+
 emit_text(f::XmlFile) = print_natural_text(get_file_content(f))
 
 function populate_file!(f::XmlFile, filename::AbstractString, ctx::LoaderContext)

@@ -42,7 +42,8 @@ using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
-import ..SerializationModule: emit_text, populate_file!
+import ..SerializationModule: emit_text, populate_file!, get_file_domain, make_reference_leaf,
+                              find_reference_marker, parse_file_content
 
 export parse_json, parse_json_file
 export JsonToSyntax, JsonInsertionToSyntaxLeaf

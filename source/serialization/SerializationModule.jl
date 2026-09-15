@@ -40,11 +40,16 @@ export FileDocument, is_file_document,
        register_marker_function!, get_marker_function, evaluate_marker,
        register_marker_type_resolver!,
        format_marker_text, parse_marker_text, format_file_marker_text, get_document_section
+export FileProject, FileCutException, save_file!, load_file, parse_file_content,
+       get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
+       make_marker_text
 export TextFile
 
 
 include("BinarySerialization.jl")
 include("FileProject.jl")
+include("FileCut.jl")
+include("FileSplice.jl")
 include("TextFile.jl")
 
 end # module

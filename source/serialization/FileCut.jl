@@ -1,0 +1,285 @@
+# Fragment of `SerializationModule` — saving a set of files without a storage
+# node in the document.
+#
+# A file reference is a fact about storage, so it lives in the file and never in
+# the document. The document in memory is the real graph: a JSON object holds
+# the XML element, a shared subtree is one object reached twice, a cycle is a
+# cycle. Saving turns that graph into files by a walk that copies each file's
+# content until it must cut, and at a cut writes a reference leaf in the file's
+# own notation. The copy is a pure document of one domain, so the domain's
+# natural notation prints it with no special rule.
+#
+# Two decisions come before any copy. Which file writes a node: a node is
+# written in a file of its own domain, the first one that reaches it through
+# nodes of that domain; anything else is an orphan and the save aborts. And how
+# a node is named from another file: `file("b.xml")` for a file's root,
+# `node(file("b.xml"), "children[1]")` for a node inside it, the path in the
+# reference DSL's text form.
+
+"""
+    FileProject(base_dir, files)
+
+The context a save and a load work in: the file documents, in order, and the
+directory they live in. The files are handled together, because a reference
+from one into another must know that the other exists and what it holds.
+"""
+mutable struct FileProject
+    base_dir::String
+    files::Vector{Any}
+end
+
+FileProject(base_dir::AbstractString, files::AbstractVector) =
+    FileProject(String(base_dir), Any[files...])
+
+"""
+    FileCutException(message)
+
+A save could not cut the graph into files: a node has no file to be written
+into, or a single-file save met a cut it may not write.
+"""
+struct FileCutException <: Exception
+    message::String
+end
+
+Base.showerror(io::IO, e::FileCutException) = print(io, e.message)
+
+# ── What a file type contributes ──────────────────────────────────────────────
+
+"""
+    get_file_domain(::Type{<:FileDocument}) -> Type
+
+The document type a file's content is made of: `JsonDocument` for a `JsonFile`.
+Every file type defines it in one line. A node of that type is written in the
+file; any other document is a cut.
+"""
+function get_file_domain end
+
+"""
+    is_file_domain_node(file, node) -> Bool
+
+Whether `node` is one the file writes itself. The default asks
+[`get_file_domain`](@ref); a file type whose domain is not one type overrides it.
+"""
+is_file_domain_node(file, node) = node isa get_file_domain(typeof(file))
+
+"""
+    make_reference_leaf(file, marker::AbstractString) -> Document
+
+The file's own spelling of a reference: a `JsonString` whose value is the
+marker, a `pred:ref` element, a directive, a fence, a call. `marker` is the
+marker body without its `<<` `>>`; the leaf writes them. Every file type defines
+one.
+"""
+function make_reference_leaf end
+
+"""
+    find_reference_marker(node) -> Union{Nothing, String}
+
+The marker body a reference leaf carries, or `nothing` for any other node. The
+inverse of [`make_reference_leaf`](@ref); a load splices where this answers.
+"""
+find_reference_marker(::Any) = nothing
+
+"The marker text of `body`, with its brackets."
+make_marker_text(body::AbstractString) = _MARKER_OPEN * String(body) * _MARKER_CLOSE
+
+# ── Ownership ────────────────────────────────────────────────────────────────
+
+# `owner[node] = (file, path)` for every document node some file writes. A file
+# walks its content through nodes of its own domain and stops at anything else:
+# a node of another domain is that domain's to own, a file document is a cut, a
+# node already owned stays with its first owner.
+function _assign_owners(project::FileProject)
+    owner = IdDict{Any,Tuple{Any,Reference}}()
+    for file in project.files
+        _own_walk!(owner, file, get_file_content(file), EmptyReference())
+    end
+    owner
+end
+
+function _own_walk!(owner, file, node, path::Reference)
+    node isa Document || return
+    is_file_document(node) && return
+    is_file_domain_node(file, node) || return
+    haskey(owner, node) && return
+    owner[node] = (file, path)
+    for (steps, child) in _child_slots(node)
+        _own_walk!(owner, file, child, extend_reference(path, steps...))
+    end
+end
+
+# The document children of a node, each with the steps that reach it: a field
+# holding a document is one step, an element of a collection field is two. The
+# `selection` field is state, not content, and is skipped.
+function _child_slots(node::Document)
+    slots = Tuple{Tuple,Any}[]
+    for name in fieldnames(typeof(node))
+        name === :selection && continue
+        raw = getfield(node, name)
+        value = raw isa AbstractCell ? raw[] : raw
+        if is_element_collection(value) || value isa AbstractVector
+            for (index, element) in enumerate(value)
+                element isa Document &&
+                    push!(slots, ((FieldReferenceStep(string(name)), ElementReferenceStep(index)), element))
+            end
+        elseif value isa Document
+            push!(slots, ((FieldReferenceStep(string(name)),), value))
+        end
+    end
+    slots
+end
+
+# ── The cut ──────────────────────────────────────────────────────────────────
+
+# The five rules, for the copy of `file`. `strict` is the single-file save: every
+# cut is an error, because there is no context to refer into.
+function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
+    node isa Document || return node
+    if is_file_document(node)
+        return _cut_leaf(file, path, strict, "file(" * repr(get_filename(node)) * ")",
+                         "holds the file document " * repr(get_filename(node)))
+    end
+    entry = get(owner, node, nothing)
+    entry === nothing &&
+        throw(FileCutException(_orphan_message(file, path, node, strict)))
+    owner_file, owner_path = entry
+    owner_file === file ||
+        return _cut_leaf(file, path, strict, _reference_marker(owner_file, owner_path),
+                         "holds a " * string(nameof(typeof(node))) * " that " *
+                         repr(get_filename(owner_file)) * " writes")
+    haskey(visited, node) &&
+        return _cut_leaf(file, path, strict, _reference_marker(file, owner_path),
+                         "holds the same " * string(nameof(typeof(node))) * " twice, at " *
+                         _path_text(owner_path) * " and at " * _path_text(path))
+    visited[node] = true
+    _rebuild(owner, file, node, path, visited, strict)
+end
+
+# A reference leaf in the file's notation, or — in the strict mode — the error
+# that says why the file cannot be saved alone.
+function _cut_leaf(file, path, strict::Bool, marker::AbstractString, why::AbstractString)
+    strict && throw(FileCutException(
+        "save_file!: " * repr(get_filename(file)) * " " * why * " at " * _path_text(path) *
+        "; it needs a reference, and a file saved alone cannot write one — " *
+        "save it in a FileProject"))
+    make_reference_leaf(file, marker)
+end
+
+function _orphan_message(file, path, node, strict::Bool)
+    what = string(nameof(typeof(node)))
+    strict && return "save_file!: " * repr(get_filename(file)) * " holds a " * what *
+                     " at " * _path_text(path) * " that is not of its domain; it needs a " *
+                     "reference, and a file saved alone cannot write one — save it in a FileProject"
+    "save_project!: " * repr(get_filename(file)) * " reaches a " * what * " at " *
+    _path_text(path) * " that no file of its domain writes — put it in a file of its " *
+    "domain, or under a node one of them reaches"
+end
+
+# Rebuild a node the way `copy_document` does, with every child cut. A cell keeps
+# its kind; a collection field is rebuilt as the same kind of collection.
+function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::Bool)
+    T = typeof(node)
+    args = Any[]
+    for name in fieldnames(T)
+        raw = getfield(node, name)
+        value = raw isa AbstractCell ? raw[] : raw
+        copied = name === :selection ? value :
+                 _cut_field(owner, file, name, value, path, visited, strict)
+        push!(args, raw isa AbstractCell ? copy_cell_as(raw, copied) : copied)
+    end
+    Base.typename(T).wrapper(args...)
+end
+
+function _cut_field(owner, file, name::Symbol, value, path::Reference, visited::IdDict, strict::Bool)
+    if is_element_collection(value)
+        items = Any[_cut_copy(owner, file, element,
+                              extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
+                              visited, strict)
+                    for (index, element) in enumerate(value)]
+        return Base.typename(typeof(value)).wrapper(items)
+    elseif value isa AbstractVector
+        return Any[_cut_copy(owner, file, element,
+                             extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
+                             visited, strict)
+                   for (index, element) in enumerate(value)]
+    elseif value isa Document
+        return _cut_copy(owner, file, value, extend_reference(path, FieldReferenceStep(string(name))),
+                         visited, strict)
+    end
+    value
+end
+
+# ── Naming a node from another file ──────────────────────────────────────────
+
+# The reference DSL's text form: `entries[1].value`. `show` writes a field step
+# with its leading dot; the DSL does not, so the first one goes.
+_path_text(path::Reference) = lstrip(string(strip_reference_types(path)), '.')
+
+# `file("b.xml")` for a root, `node(file("b.xml"), "children[1]")` for a node in it.
+function _reference_marker(file, path::Reference)
+    name = "file(" * repr(get_filename(file)) * ")"
+    path isa EmptyReference ? name : "node(" * name * ", " * repr(_path_text(path)) * ")"
+end
+
+# ── The two saves ────────────────────────────────────────────────────────────
+
+"""
+    save_project!(project::FileProject) -> Bool
+
+Write every file of the project: cut its content, print the copy in the file's
+natural notation, write it when the bytes changed. When a node has no file to be
+written into, log the reason, write nothing, and return `false`.
+"""
+function save_project!(project::FileProject)
+    owner = _assign_owners(project)
+    copies = Any[]
+    for file in project.files
+        try
+            push!(copies, (file, _cut_copy(owner, file, get_file_content(file),
+                                           EmptyReference(), IdDict{Any,Bool}(), false)))
+        catch e
+            e isa FileCutException || rethrow()
+            @error e.message
+            return false
+        end
+    end
+    _write_files!(project.base_dir, copies)
+    true
+end
+
+"""
+    save_file!(file, base_dir) -> Bool
+
+Write one file with no context, so no reference can be written: the content
+must be a tree of the file's domain, with no foreign node, no shared subtree
+and no cycle, or the save logs why and returns `false`. A marker that is a plain
+leaf of the domain is a plain leaf, and saves as one.
+"""
+function save_file!(file, base_dir::AbstractString)
+    is_file_document(file) ||
+        error("save_file!: not a file document (", typeof(file), ")")
+    owner = _assign_owners(FileProject(base_dir, Any[file]))
+    copied = try
+        _cut_copy(owner, file, get_file_content(file), EmptyReference(), IdDict{Any,Bool}(), true)
+    catch e
+        e isa FileCutException || rethrow()
+        @error e.message
+        return false
+    end
+    _write_files!(base_dir, Any[(file, copied)])
+    true
+end
+
+function _write_files!(base_dir::AbstractString, copies)
+    mkpath(base_dir)
+    for (file, content) in copies
+        path = joinpath(base_dir, get_filename(file))
+        parent = dirname(path)
+        isempty(parent) || mkpath(parent)
+        _write_if_changed(path, emit_text(_with_content(file, content)))
+    end
+end
+
+# A file of the same type and name whose content is `content`: what the domain's
+# `emit_text` prints.
+_with_content(file, content) = Base.typename(typeof(file)).wrapper(get_filename(file), content)

@@ -299,29 +299,61 @@ And five for one file at a time: a pure file round-trips; a foreign node, a
 shared subtree and a cycle are each rejected with nothing written; a marker
 that is a plain string saves as one.
 
-### Stage 1 — save
+### Stage 1 — save (done)
 
-- [ ] The ownership walk over a save context.
-- [ ] The cut walk: copy with the five rules, reference leaves at the cuts.
-- [ ] `make_reference_leaf` for json, xml, markdown, rst, julia.
-- [ ] The generic path verb, so a cut inside a JSON or XML tree can be named.
-- [ ] `save_project!` over a context: cut, print, write-if-changed. The orphan
+- [x] The ownership walk over a save context.
+- [x] The cut walk: copy with the five rules, reference leaves at the cuts.
+- [x] `make_reference_leaf` for json and xml. Markdown, rst and julia come with
+  stage 3, when their stub projections go.
+- [x] The generic path verb, `node`, so a cut inside a JSON or XML tree can be named.
+- [x] `save_project!` over a context: cut, print, write-if-changed. The orphan
   abort logs and returns; no file is written.
-- [ ] `save_file!` and `load_file`: the walk with no context, every cut an
+- [x] `save_file!` and `load_file`: the walk with no context, every cut an
   error.
-- [ ] The save half of `FileProjectTest.jl` passes: the cuts, the two orphans,
+- [x] The save half of `FileProjectTest.jl` passes: the cuts, the two orphans,
   the write gate.
 
 The old path is untouched during stage 1.
 
-### Stage 2 — load
+### Stage 2 — load (done)
 
-- [ ] `find_reference_marker` for the five domains.
-- [ ] The two-phase load over a set of files, with the splice.
-- [ ] A reference to a file outside the set stays a leaf; adding the file and
-  splicing again resolves it.
-- [ ] The load half of `FileProjectTest.jl` passes: every identity, the
-  partial set, save-load-save.
+- [x] `find_reference_marker` for json and xml; the other three with stage 3.
+- [x] The two-phase load over a set of files, with the splice.
+- [x] A reference to a file outside the set stays a leaf.
+- [x] The load half of `FileProjectTest.jl` passes: every identity, the
+  partial set, save-load-save. 59 of 60; the sixtieth is the `.pred` block.
+
+
+**What stages 1 and 2 found.**
+
+*A file type contributes four one-liners, not two.* Besides the leaf maker and
+the recogniser, the walk needs the file's domain, `get_file_domain(::Type{<:JsonFile}) = JsonDocument`,
+and the load needs the parser of the format, `parse_file_content(::Type{<:JsonFile}, text) = parse_json(text)`.
+Neither is worth a registry.
+
+*`file("b.xml")` names the file's content.* The save cuts at a root and writes
+`file(…)`; the splice puts the content back. As an argument to another verb —
+`section(file("a.rst"), "Title")` — it is the file document, which every verb
+that takes a document accepts. A file document held *inside* content is the old
+embed shape; the save writes it as `file(…)` and the load puts the content in its
+place.
+
+*The reference DSL's parser is now exported.* `parse_reference_path`,
+`ReferenceSyntaxField` and `ReferenceSyntaxIndex` left the reference layer's
+private names, so the splice reads a path with the parser that owns the form
+rather than a tokenizer of its own.
+
+*The XML text leaf did not escape.* `XmlTextToSyntaxLeaf` wrote a `<` in a text
+node raw, while an attribute value was entity-escaped and the parser unescaped
+both. The old stub projection escaped its own marker text and so never met it;
+a plain `XmlText` holding a marker did. The text leaf escapes now, and any `<`
+in an XML text node round-trips.
+
+*An XML text child is not stable across print, parse, print.* The printer
+indents it and the parser keeps the indentation as text: `<note>\n  hi\n</note>`
+comes back as `"\n  hi\n"`. An attribute-only element and an element child are
+stable. This predates the plan and is the XML domain's to fix; the
+save-load-save test uses a stable shape.
 
 ### Stage 3 — the switch
 

@@ -105,6 +105,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        apply_reference_rules, match_reference_pattern,
        glob_matches,
        parse_reference_pattern, @ref_str,
+       parse_reference_path, ReferenceSyntaxStep, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step
 
 include("ReferenceInterface.jl")
