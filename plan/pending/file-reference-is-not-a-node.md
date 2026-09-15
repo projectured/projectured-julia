@@ -461,9 +461,18 @@ this campaign's — the capture test expects seam paths (`links.*`) the model no
 longer uses (`mm1k.*`), and a battery slice has no method for a picosecond
 quantity.
 
+Measured in inet: `test_packet` 18260/18260, `test_queuing` 518/518 and its
+layering guard 8/8. `test_linklayer` is 533/5/1 and `test_runner` 225/6, and
+neither is this campaign's — a capture now watches every declared connection
+(an omnet feature this repository never followed, proven by putting the old
+call back and getting the same five failures), and one runner test compares a
+result file byte for byte against a C++ run that has drifted.
+
 Open in omnet: a `definition(file("X.jl"), name)` marker finds only a top-level
 definition, so the three markers of the ticker page, whose definitions sit
-inside a `module`, have never resolved.
+inside a `module`, have never resolved. Open in inet: whether a capture should
+watch the gates as well as the declared seams, which is what those five
+linklayer expectations now disagree with.
 
 ### Stage 5 — what is left open
 
