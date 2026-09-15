@@ -133,10 +133,16 @@ omnet-julia's `[sources]` reach the main checkout.
 
 ### Step 3 — the block
 
-- [ ] `source/formula/FormulaToGraphics.jl` with the rows of 2.4, and the math
-      table in `FormulaToSyntax`.
-- [ ] A headless print of a sheet with one math formula and one Julia formula
-      to an image; assert the canvas holds the fraction rule and the value.
+- [x] `source/formula/FormulaToGraphics.jl` with the rows of 2.4: a formula
+      with math code draws as the assignment of its name to its code through
+      the math boxes, with a label of its value after it; a Julia formula draws
+      as one line of text; a sheet as a column. The math table in
+      `FormulaToSyntax` is open: a formula prints as text through the natural
+      notation of its code already.
+- [x] A headless print of a sheet with three math formulas and one Julia
+      formula through `NaturalToGraphics`: the canvas holds the symbol, the
+      subscript of the name, the value, and a changed input redraws the value.
+      `test_formula()` 116/116.
 
 ### Step 4 — the guide
 

@@ -23,6 +23,9 @@ using ..NaturalModule
 using ..SerializationModule
 using ..MathModule
 using ..PrimitiveModule
+using ..LayoutModule
+using ..WidgetModule
+using ..ProjectionAlgebraModule
 import ..SerializationModule: pred_arguments, make_pred_document
 
 # Imported to extend: this module adds a method to each of these.
@@ -35,17 +38,20 @@ export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_col
 export FormulaInsertionToSyntaxLeaf, FormulaReferenceToSyntaxLeaf,
        FormulaFormulaToSyntaxNode, FormulaEnvironmentToSyntaxNode, FormulaToSyntax
 export FormulaInsertion, FormulaReference
+export FormulaFormulaToLayout, FormulaEnvironmentToLayout, make_formula_graphics_entry
 
 
 include("MathToJulia.jl")
 include("FormulaDocument.jl")
 include("FormulaToSyntax.jl")
+include("FormulaToGraphics.jl")
 
 # A file may name a formula and a sheet. The registry is runtime state, so the
 # offer is made here and not at the top level.
 function __init__()
     register_pred_type!(FormulaFormula)
     register_pred_type!(FormulaEnvironment)
+    register_natural_graphics!(:formula, make_formula_graphics_entry)
 end
 
 end # module
