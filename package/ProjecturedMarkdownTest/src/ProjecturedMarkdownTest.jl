@@ -65,6 +65,7 @@ for _src in _SOURCES
 end
 
 
+include("../../../test/markdown/MarkdownWrapTest.jl")
 include("../../../test/markdown/MarkdownSuite.jl")
 
 end # module ProjecturedMarkdownTest

@@ -23,7 +23,8 @@ Run this package's whole suite: the layering guard and every markdown test.
 function test_markdown()
     @testset "ProjecturedMarkdown" begin
         test_markdown_layering()
+        test_markdown_page_wrap()
     end
 end
 
-export test_markdown, test_markdown_layering
+export test_markdown, test_markdown_layering, test_markdown_page_wrap
