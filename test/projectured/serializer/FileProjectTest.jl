@@ -11,6 +11,10 @@ before the code, and the names they use are the API the plan adopts:
   logs an error when a node has no file to be written into; writes nothing then.
 - `load_project(base_dir, filenames) -> FileProject` — parse every file, then
   splice each reference leaf into the node it names.
+- `save_file!(file, base_dir) -> Bool` — one file, no context, so no reference
+  can be written: the content must be a pure tree of the file's domain, or the
+  save logs why and returns `false`. `load_file(base_dir, filename)` is its
+  inverse; a marker in it stays a leaf.
 
 A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
 inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
@@ -214,6 +218,54 @@ function test_file_project()
         d = mktempdir()
         write(joinpath(d, "a.json"), "{\"n\": \"<<nonsense(1)>>\"}")
         @test_throws r"nonsense" load_project(d, ["a.json"])
+    end
+
+    @testset "one file at a time" begin
+
+        @testset "a pure file saves and loads back" begin
+            d = mktempdir()
+            file = JsonFile("a.json", JsonObject("n" => JsonNumber(1), "s" => JsonString("x")))
+            @test save_file!(file, d) === true
+            back = load_file(d, "a.json")
+            @test back isa JsonFile
+            @test _json_value(get_file_content(back), "s").value == "x"
+        end
+
+        @testset "a foreign node is rejected: it would need a reference" begin
+            note = XmlElement("note", XmlAttribute[], [XmlText("hi")])
+            d = mktempdir()
+            result = @test_logs (:error, r"needs a reference") save_file!(
+                JsonFile("a.json", JsonObject("n" => note)), d)
+            @test result === false
+            @test isempty(readdir(d))
+        end
+
+        @testset "a shared subtree is rejected: a single file cannot refer to itself" begin
+            shared = JsonObject("k" => JsonString("v"))
+            d = mktempdir()
+            result = @test_logs (:error, r"twice") save_file!(
+                JsonFile("a.json", JsonObject("p" => shared, "q" => shared)), d)
+            @test result === false
+            @test isempty(readdir(d))
+        end
+
+        @testset "a cycle is rejected the same way" begin
+            array = JsonArray()
+            push!(array, JsonObject("back" => array))
+            d = mktempdir()
+            result = @test_logs (:error, r"twice") save_file!(JsonFile("a.json", array), d)
+            @test result === false
+            @test isempty(readdir(d))
+        end
+
+        @testset "a marker string is a plain string, and saves" begin
+            d = mktempdir()
+            file = JsonFile("a.json", JsonObject("n" => JsonString("<<file(\"b.xml\")>>")))
+            @test save_file!(file, d) === true
+            @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "n")) == "file(\"b.xml\")"
+            @test _json_value(get_file_content(load_file(d, "a.json")), "n") isa JsonString
+        end
+
     end
 
 end # testset

@@ -215,7 +215,16 @@ FileProject(base_dir, files)              # the context: an ordered set of file 
 save_project!(project) -> Bool            # cut, print, write; false and an error log on an orphan
 load_project(base_dir, filenames)         # parse every file named, then splice
 project.files[i]                          # a file document; get_file_content(…) is its root
+save_file!(file, base_dir) -> Bool        # one file, no context: every cut is an error
+load_file(base_dir, filename)             # one file; a marker in it stays a leaf
 ```
+
+**The single-file save is the same walk with no context.** There is nothing to
+refer to, so a foreign node, a shared subtree and a cycle are each an error, and
+the file is written only when the default natural notation of its domain can
+write the content alone. The message says which node, where, and that a
+`FileProject` can save it. A marker that arrived as a plain string is a plain
+string and saves as one.
 
 A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
 inside a file is `<<node(file("b.xml"), "children[1]")>>`: the generic path
@@ -230,8 +239,8 @@ take different arguments, so both shapes coexist until stage 3 deletes the old.
 
 ### Stage 0 — the tests (done)
 
-Twelve testsets, every one red with `UndefVarError: FileProject` and none with
-a parse error. The four from the brief:
+Seventeen testsets, every one red with `UndefVarError` and none with a parse
+error. The four from the brief:
 
 - a JSON file holding a JSON array that holds an object that holds the same
   array — written once, a `file("a.json")` at the second visit, an identity
@@ -251,6 +260,10 @@ outside the loaded set stays a string and saves back unchanged; two references
 to one node splice `===`; save, load, save changes no `mtime`; a string that is
 not a marker is left alone; an unknown verb names itself in the error.
 
+And five for one file at a time: a pure file round-trips; a foreign node, a
+shared subtree and a cycle are each rejected with nothing written; a marker
+that is a plain string saves as one.
+
 ### Stage 1 — save
 
 - [ ] The ownership walk over a save context.
@@ -259,6 +272,8 @@ not a marker is left alone; an unknown verb names itself in the error.
 - [ ] The generic path verb, so a cut inside a JSON or XML tree can be named.
 - [ ] `save_project!` over a context: cut, print, write-if-changed. The orphan
   abort logs and returns; no file is written.
+- [ ] `save_file!` and `load_file`: the walk with no context, every cut an
+  error.
 - [ ] The save half of `FileProjectTest.jl` passes: the cuts, the two orphans,
   the write gate.
 
