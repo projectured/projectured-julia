@@ -76,6 +76,18 @@ _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
     attachment::Any = nothing
 end
 
+"A document with a half it did not read: `width` is derived from the title."
+@document struct TestWindow
+    title::String
+    width::Any = nothing
+end
+
+# What its file writes, and how the rest of it comes back. The pair is what a
+# document needs when it holds more than what a file says.
+SerializationModule.pred_arguments(w::TestWindow) = ((), Pair{Symbol,Any}[:title => w.title])
+SerializationModule.make_pred_document(::Type{<:TestWindow}, positional, keywords) =
+    (title = String(last(first(keywords))); TestWindow(title, length(title)))
+
 # ── The tests ────────────────────────────────────────────────────────────────
 
 function test_file_project()
@@ -382,6 +394,22 @@ function test_file_project()
             d = mktempdir()
             write(joinpath(d, "x.pred"), "Secret(key = 1)")
             @test_throws r"Secret" load_file(d, "x.pred")
+        end
+
+        @testset "a document may write a reduced form of itself" begin
+            register_pred_type!(TestWindow)
+            d = mktempdir()
+            try
+                @test save_file!(PredFile("w.pred", TestWindow("Aloha", 5)), d) === true
+                # Only what the document called its file half is on disk.
+                @test read(joinpath(d, "w.pred"), String) == "TestWindow(title = \"Aloha\")\n"
+                back = get_file_content(load_file(d, "w.pred"))
+                @test back.title == "Aloha"
+                # And the rest of it was built on the way back in.
+                @test back.width == 5
+            finally
+                rm(d; recursive = true, force = true)
+            end
         end
 
         @testset "a value the notation cannot write is refused at save" begin

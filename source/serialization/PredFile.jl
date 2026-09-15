@@ -63,6 +63,41 @@ function emit_text(f::PredFile)
     end
 end
 
+# ── What a document's file form is ───────────────────────────────────────────
+
+"""
+    pred_arguments(document) -> (positional, keywords)
+
+The arguments of the call a `.pred` file writes for `document`. The default
+writes every declared field as a keyword, in declaration order: a document made
+of data is its fields.
+
+A document that also holds what it did not read — a workbench built for a
+model, the module a source ran in — says here what its file half is, and reads
+it back in [`make_pred_document`](@ref). The two are inverses, and a value the
+notation cannot write is refused at save whichever of them produced it.
+"""
+function pred_arguments(document)
+    keywords = Pair{Symbol,Any}[]
+    for name in fieldnames(typeof(document))
+        name === :selection && continue
+        raw = getfield(document, name)
+        push!(keywords, name => (raw isa AbstractCell ? raw[] : raw))
+    end
+    (), keywords
+end
+
+"""
+    make_pred_document(::Type{T}, positional, keywords) -> T
+
+The document a call in a file builds. The default is the constructor itself.
+The inverse of [`pred_arguments`](@ref): a type whose file form is a reduced one
+builds the rest of itself here.
+"""
+make_pred_document(T::Type, positional, keywords) =
+    isempty(keywords) ? T(positional...) :
+    isempty(positional) ? T(; keywords...) : T(positional...; keywords...)
+
 # ── The reader ───────────────────────────────────────────────────────────────
 
 """
@@ -106,9 +141,7 @@ function _evaluate_pred(e::Expr)
             push!(positional, _evaluate_pred(argument))
         end
     end
-    isempty(keywords) && return T(positional...)
-    isempty(positional) && return T(; keywords...)
-    T(positional...; keywords...)
+    make_pred_document(T, positional, keywords)
 end
 
 # ── The writer ───────────────────────────────────────────────────────────────
@@ -146,15 +179,19 @@ end
 
 function _print_pred_value(io::IO, document::Document, where)
     is_pred_type(typeof(document)) || _refuse_pred_value(document, where)
+    positional, keywords = pred_arguments(document)
     print(io, nameof(typeof(document)), "(")
     first = true
-    for name in fieldnames(typeof(document))
-        name === :selection && continue
+    for value in positional
+        first || print(io, ", ")
+        first = false
+        _print_pred_value(io, value, where)
+    end
+    for (name, value) in keywords
         first || print(io, ", ")
         first = false
         print(io, name, " = ")
-        raw = getfield(document, name)
-        _print_pred_value(io, raw isa AbstractCell ? raw[] : raw,
+        _print_pred_value(io, value,
                           isempty(where) ? String(name) : where * "." * String(name))
     end
     print(io, ")")

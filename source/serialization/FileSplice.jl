@@ -151,9 +151,7 @@ function _evaluate_splice(project, index, e::Expr)
         T === nothing &&
             error("marker: no type named ", verb, " is offered here — a package calls ",
                   "register_pred_type!(", verb, ") to say a file may construct one")
-        isempty(keywords) && return T(positional...)
-        isempty(positional) && return T(; keywords...)
-        return T(positional...; keywords...)
+        return make_pred_document(T, positional, keywords)
     end
     f = get_marker_function(verb)
     f === nothing &&
