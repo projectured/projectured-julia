@@ -111,12 +111,13 @@ _julia_precedence(op::Symbol) =
     op === :&& ? 2 :
     op in _JULIA_COMPARISONS ? 3 :
     op in (:+, :-) ? 4 :
-    op in (:*, :/) ? 5 : 6
+    op in (:*, :/) ? 5 :
+    op === :^ ? 7 : 6
 
 # `&&` and `||` associate to the right in Julia, the arithmetic and comparison
 # operators to the left. The side an operator already associates toward needs no
 # parentheses at equal precedence; the other side does.
-_julia_right_associative(op::Symbol) = op === :&& || op === :||
+_julia_right_associative(op::Symbol) = op === :&& || op === :|| || op === :^
 
 _julia_operand_parens(operand, outer::Symbol, on_right::Bool) = begin
     operand isa JuliaBinaryOperation || return false

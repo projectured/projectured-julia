@@ -25,7 +25,7 @@
 # which is lossless for display.
 
 const BINARY_OPERATORS = Set{Symbol}([
-    :+, :-, :*, :/, :(==), :(!=), :(<), :(>), :(<=), :(>=),
+    :+, :-, :*, :/, :^, :(==), :(!=), :(<), :(>), :(<=), :(>=),
     :(===), :(!==)])
 
 const UNARY_OPERATORS = Set{Symbol}([:-, :!, :~])

@@ -30,6 +30,14 @@ function test_julia_parser()
         @test occursin("for i in 1:3", _julia_round_trip("s = sum(f(i) for i in 1:3)"))
     end
 
+    @testset "a power is an infix operator, and it binds to the right" begin
+        @test _julia_round_trip("p = (1 - rho) * rho^n / (1 - rho^(n + 1))") ==
+              "p = (1 - rho) * rho ^ n / (1 - rho ^ (n + 1))"
+        @test _julia_round_trip("2^3^2") == "2 ^ 3 ^ 2"
+        @test _julia_round_trip("(2^3)^2") == "(2 ^ 3) ^ 2"
+        @test _julia_round_trip("-x^2") == "-(x ^ 2)"
+    end
+
     @testset "splat, broadcast and interpolation" begin
         @test _julia_round_trip("f(xs...)") == "f(xs...)"
         @test _julia_round_trip("y = f.(xs)") == "y = f.(xs)"
