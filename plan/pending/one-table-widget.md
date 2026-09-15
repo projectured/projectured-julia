@@ -106,28 +106,51 @@ Three facts from that count bear on the design.
 
 ## 3. The design
 
-**One widget. The printer reads the type of `rows`.**
+**One widget, and `rows` is a `CellVector` or a `ListNode`.** The printer reads
+the type of `rows` and nothing else says which table this is.
 
 - `rows::CellVector` of rows, each a `CellVector` of documents — the eager form,
   unchanged.
-- `rows::LazyRows` — a count and a factory. The factory answers **a row**, which
-  is a `CellVector` of documents exactly like an eager row. So a cell is any
-  widget in both forms, and every projection below the table sees one shape.
+- `rows::ListNode` — the lazy form. A node's `value` is a row, a `CellVector` of
+  documents exactly like an eager row, so a cell is any widget in both forms
+  and every projection below the table sees one shape. A node's `next` and
+  `prev` are cells, so a neighbour is built when it is first read, and a list
+  whose `next` never answers `nothing` is infinite. There is no count field:
+  a finite list ends where `next` answers `nothing`.
+
+**The head is the anchor, and a reference index is relative to it.** The
+renderer already walks a list-backed canvas both ways from its head — `prev`
+upward until a row is above the viewport, `next` downward until one is below —
+so the head is not the first row, it is the row the table is looking at.
+`rows[i][c]` counts from the head: the head is row 1, and `next` steps count
+up. A row reached through `prev` is before the head, and the reference
+vocabulary has to be able to say so (§4).
+
+**A lazy table grows by growing its list.** Nothing installs a function on the
+rows after the fact. When more data arrives, `next` answers a node it did not
+answer before; when the data is replaced, the `rows` cell answers a new head.
+The five omnet callers that wire `rows` today do this instead.
 
 **A column that was given a width is not measured.** This already holds in the
 grid and must keep holding: `Fixed(n)` and a weight both answer `_gl_offers`,
 and the cells of such a column are never read.
 
-**Laziness is not a mode the caller names. It is what the policies allow.**
-A table can draw lazily when both are true:
+**Laziness is not a mode the caller names. It is what `rows` and the policies
+allow.** A `ListNode` in `rows` draws lazily when both are true:
 
 - every column is offered — each is `Fixed` or carries a weight, so no column
   width depends on a cell;
 - the row policy is `Fixed(h)`, so the y of row *n* is arithmetic.
 
-A `LazyRows` whose table does not meet both is an error the printer states, not
-a silent walk of every row. The existing vocabulary says both conditions, so the
+A list whose table does not meet both is an error the printer states, not a
+silent walk of every row. The existing vocabulary says both conditions, so the
 widget gains no `lazy` flag and no second row-height field.
+
+**A cell clips or wraps by the policy of its column, else of its table.** The
+table carries one policy and a column may carry its own; a cell carries none
+and falls back. The default is one clipped line, because a table is a data
+table until someone says otherwise. A row of `Fixed` height cannot wrap in any
+case, so the lazy form settles it by construction.
 
 **Laziness lives in a set of functions both paths call.** It is not a property
 of `GridLayout` and not a property of the table's printer. Splitting it into
@@ -140,69 +163,59 @@ one piece with one implementation.
 | 1. the extents of an axis | measured from the cells | read from the policies |
 | 2. the offsets of the bands | cumulative over the extents | the same |
 | 3. the band at a coordinate | the inverse of 2 | the same |
-| 4. the canvas of the content | a vector of cell canvases | a list of row canvases the renderer stops walking |
-| 5. the child iomap at (row, column) | a vector lookup | a cache and a builder |
+| 4. the canvas of the content | a vector of cell canvases | a `ListNode` of row canvases that mirrors `rows` node for node |
+| 5. the child iomap at (row, column) | a vector lookup | a walk from the head to the node |
 
 Piece 1 is written once already: `_gl_extents_cell` reads a column's cells only
 when the column was not offered, so it is the eager rule and the lazy rule in
 one function. Pieces 2 and 3 exist twice today — `_gl_col_x_cell` against
 `_lazy_column_edges`, and `_wt_hit_test` against a bare `event.y ÷ height` —
 and each pair is the same arithmetic. Piece 4 is the definition of laziness and
-has to have two forms. Piece 5 is the one this plan had not named, and it is
-what a reference into a lazy table needs.
+has to have two forms. Piece 5 needs no cache and evicts nothing: the canvas
+list mirrors the document list, a canvas node holds its row's cell iomaps, and
+it lives exactly as long as the document node it mirrors is reachable.
 
 Pieces 1 to 3 belong in `ProjecturedLayout` beside `allocate_axis`, which is
 already the allocator the stacks, the split and the grid share. That precedent
 is the argument: this codebase already puts layout arithmetic in a function
-everyone calls rather than in the widget that needed it first.
-
-A consequence worth naming: with 1 to 3 shared, `GridLayout` can later take a
-lazy children form of its own and inherit piece 4, at the cost of nothing new.
-So this route does not close that door, it makes it cheap.
+everyone calls rather than in the widget that needed it first. With them
+shared, `GridLayout` can later take a `ListNode` of children of its own and
+inherit piece 4 at the cost of nothing new.
 
 **Padding and the row height come from the theme.** `w.padding` leaves the
 document and becomes `Inset(theme.pad_y, …, theme.pad_x, …)` on the projection,
 beside every other widget's. A `row_policy` left unset means the theme decides:
 one line of the projection's font plus twice `pad_y`.
 
+**`WidgetLazyTable` is deleted.** The name, the type, its printer, its reader
+and its three helpers. Nothing takes its place under another name.
+
 ## 4. Open questions, to settle before any code
 
-- **What does piece 5 evict?** A cache keyed by row index must drop rows, or a
-  walk of a large table holds every row it ever showed. A bound of the rows a
-  viewport can hold plus a margin is the obvious answer, and the wrong one if a
-  reference names a row far away and must keep its iomap alive. The two uses
-  may need two lifetimes.
+- **How does a reference name a row before the head?** `rows[i]` is a
+  `RangeReferenceStep` with a zero-based start, and the head is row 1. A row
+  the renderer reached through `prev` sits at a negative offset. Either the
+  range step is allowed a negative start, or the table re-anchors its head so
+  that no drawn row is ever before it. The second keeps the vocabulary as it is
+  and puts the cost on scrolling.
 
-- **What owns the identity of a lazily built row?** A factory called at paint
-  time that answers a new document each call gives the reconciler nothing to
-  reuse, and an in-cell caret would not survive a frame. Either the caller
-  memoises, or the table holds a bounded cache keyed by row index and drops it
-  when a revision cell changes. The omnet runner already carries an `epoch`
-  cell for exactly this, which is evidence for the second.
+- **How does a scroll pane scroll an infinite content?** A pane clamps its
+  offset to `content_h - vh`, and a list-backed canvas has no `content_h`.
+  Proposal: the offset of a list-backed content is measured from the head and
+  is not clamped, and once it passes a whole row the table moves its head to
+  that row and the offset shrinks by the row. Then a far row is reached by
+  re-anchoring, never by a pixel count over an unbounded extent, and
+  `follow_end` on such a pane means the head follows the last node. Who moves
+  the head — the pane's reader or the table's — is the part to decide.
 
-- **How far down does a reference reach in a lazy table?** A row is arithmetic.
-  A cell needs its row built. Proposal: building the row a reference names is
-  part of answering the reference, so a cell reference works and costs one row.
+- **Does an eager `CellVector` table keep its whole-table height?** Yes, and it
+  must: a page stacks it and needs its extent. Only a list-backed table has
+  none, and only that table is walked.
 
-- **Does a cell wrap or clip?** The two tables now answer differently, and
-  neither answered on purpose. A row of a fixed height cannot wrap at all, so
-  the lazy form settles it by construction; the eager form must be told. The
-  cheapest honest answer is a per-table choice that defaults to one clipped
-  line, because a table is a data table until someone says otherwise.
-
-- **What happens to a lazy row that must scroll horizontally?** The frozen
-  extent holds the header. A frozen first column is the same idea on the other
-  axis and neither table has it. Out of scope, but the shape should not
-  forbid it.
-
-- **Does `WidgetLazyTable` stay as a name?** If the merge lands, the type goes
-  and `LazyRows` takes its place. That is a rename across two repositories;
-  `inet-julia` has no site.
-
-- **How does a caller grow a lazy table?** Five callers today install a
-  function on the `rows` collection after they build the table. A `LazyRows`
-  holding a count cell and a factory can carry the same wiring, but the call
-  looks different and each of the five has to be read.
+- **Is `Fixed` the only row policy a list allows?** A weighted row policy
+  divides an offered height among the rows, and an infinite list has no count
+  to divide by. So a list allows `Fixed` and refuses a weight, and the error
+  message says why.
 
 ## 5. Steps
 
@@ -211,11 +224,12 @@ one line of the projection's font plus twice `pad_y`.
       say in the plan of record that the suite could not load. Repairs defect 8.
       The merge will rewrite these assertions again; they must pass in between,
       or the step that moves the caller has no baseline to compare against.
-- [ ] **Step 1 — the grid clips what it allocated, and a cell draws one line.**
-      A cell in an offered column is drawn in a viewport of that column's
-      extent, and a table cell is one clipped line unless the table says
-      otherwise. Eager table only. This repairs defect 1 and gives the eager
-      table the gap the lazy one now has.
+- [ ] **Step 1 — the grid clips what it allocated, and a cell draws by the
+      policy of its column, else of its table.** A cell in an offered column is
+      drawn in a viewport of that column's extent. The table gains the policy
+      and a column may override it; the default is one clipped line. Eager
+      table only. Repairs defect 1 and gives the eager table the gap the lazy
+      one now has.
 - [ ] **Step 2 — padding and the row height come from the theme.** Move
       `WidgetTable.padding` to the projection. Let an unset row policy mean one
       line plus twice `pad_y`. Delete both omnet `_ROW_HEIGHT` constants.
@@ -224,15 +238,17 @@ one line of the projection's font plus twice `pad_y`.
       grid and both tables call them, and behaviour does not change. This step
       is a refactor and its test is that every existing table test still passes
       with the same numbers.
-- [ ] **Step 3b — `LazyRows`, and the printer that reads the type of `rows`.**
-      Pieces 4 and 5 gain their second form. Repairs defects 2 and 3.
-- [ ] **Step 4 — a reference into a lazy table.** The forward and backward maps,
-      and the row the reference names is built to answer it. Repairs defect 4.
-- [ ] **Step 5 — the callers move.** The runner's table and the result table
-      become one `WidgetTable` with `LazyRows`, with their widths as
-      `column_policies`. Repairs the rest of defect 7.
-- [ ] **Step 6 — `WidgetLazyTable` is deleted**, and the guides and the three
-      repositories follow.
+- [ ] **Step 3b — `rows` accepts a `ListNode`.** Pieces 4 and 5 gain their
+      second form: a canvas list that mirrors the document list, and a walk from
+      the head that answers a cell's iomap. The two open questions on the head
+      and on scrolling are settled here. Repairs defects 2, 3 and 4.
+- [ ] **Step 4 — the callers move.** The runner's table and the result table
+      become `WidgetTable` with a `ListNode` in `rows` and their widths as
+      `column_policies`; the five callers that install a function on `rows`
+      grow a list instead. Repairs the rest of defect 7.
+- [ ] **Step 5 — `WidgetLazyTable` is deleted**, with its printer, its reader,
+      its helpers, its test file and its mentions in the guides of both
+      repositories.
 
 ## 6. What the tests must say
 
@@ -240,11 +256,14 @@ one line of the projection's font plus twice `pad_y`.
   gap at both ends. One test for the eager table, one for the lazy form.
 - A row of a table with a long cell stays one row tall. The measurement that
   found this drew six lines for one value.
-- A table of 100,000 rows builds a handful. The existing lazy test says this and
-  must keep saying it after the merge.
+- A table whose list is infinite builds a handful of rows, and a walk to the
+  viewport's bottom is the whole cost. The existing lazy test says this for a
+  count of 100,000 and must keep saying it for a list with no count.
 - A widget in a lazy cell draws, and a click on it reaches it. This is new and
   is the reason the merge is worth doing.
+- `rows[i][c]` on a list names the same cell the eager table names for the
+  same data, and a row before the head is nameable, however §4 settles it.
 - The same table, eager and lazy over the same data, draws the same pixels at
   the same size. That is the one test that says the merge did not fork.
-- A `LazyRows` whose columns are not all offered is refused, and the message
-  names the column.
+- A list in a table whose columns are not all offered is refused, and the
+  message names the column. A weighted row policy on a list is refused too.
