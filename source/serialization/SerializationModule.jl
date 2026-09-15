@@ -41,7 +41,7 @@ export FileDocument, is_file_document,
        parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, load_file, parse_file_content,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
-       make_marker_text, is_own_content, make_file
+       make_marker_text, is_own_content, make_file, is_written_in_file
 export TextFile
 export PredFile, parse_pred_text, print_pred_text, pred_arguments, make_pred_document
 

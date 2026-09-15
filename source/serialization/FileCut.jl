@@ -63,6 +63,19 @@ Whether `node` is one the file writes itself. The default asks
 is_file_domain_node(file, node) = node isa get_file_domain(typeof(file))
 
 """
+    is_written_in_file(file, node, name::Symbol) -> Bool
+
+Whether the file writes the field `name` of `node`, and so whether the save
+walks it. The default is `true`: a file writes the document it holds, whole.
+
+A format whose notation writes a reduced form of a node says so here, and the
+rest of that node is the document's own business. A card read from a file holds
+the live workbench it built, and nothing writes that: without this the save
+would reach it, find no file of its domain, and call it an orphan.
+"""
+is_written_in_file(file, node, name::Symbol) = true
+
+"""
     make_reference_leaf(file, marker::AbstractString) -> Document
 
 The file's own spelling of a reference: a `JsonString` whose value is the
@@ -98,6 +111,7 @@ function _assign_owners(project::FileProject)
             # writes rather than a cut: claim it here, and walk what it holds.
             haskey(owner, content) || (owner[content] = (file, EmptyReference()))
             for (steps, child) in _child_slots(content)
+                is_written_in_file(file, content, _slot_field(steps)) || continue
                 _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...))
             end
         else
@@ -114,9 +128,13 @@ function _own_walk!(owner, file, node, path::Reference)
     haskey(owner, node) && return
     owner[node] = (file, path)
     for (steps, child) in _child_slots(node)
+        is_written_in_file(file, node, _slot_field(steps)) || continue
         _own_walk!(owner, file, child, extend_reference(path, steps...))
     end
 end
+
+# The field a slot's steps start at.
+_slot_field(steps::Tuple) = Symbol(first(steps).name)
 
 # The document children of a node, each with the steps that reach it: a field
 # holding a document is one step, an element of a collection field is two. The
@@ -193,7 +211,7 @@ function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::B
     for name in fieldnames(T)
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
-        copied = name === :selection ? value :
+        copied = (name === :selection || !is_written_in_file(file, node, name)) ? value :
                  _cut_field(owner, file, name, value, path, visited, strict)
         push!(args, raw isa AbstractCell ? copy_cell_as(raw, copied) : copied)
     end

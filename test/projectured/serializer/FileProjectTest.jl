@@ -76,10 +76,11 @@ _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
     attachment::Any = nothing
 end
 
-"A document with a half it did not read: `width` is derived from the title."
+"A document with a half it did not read: `width` and the panel it built."
 @document struct TestWindow
     title::String
     width::Any = nothing
+    panel::Any = nothing
 end
 
 # What its file writes, and how the rest of it comes back. The pair is what a
@@ -456,7 +457,11 @@ function test_file_project()
             register_pred_type!(TestWindow)
             d = mktempdir()
             try
-                @test save_file!(PredFile("w.pred", TestWindow("Aloha", 5)), d) === true
+                # The panel is a document of no file's domain. Nothing writes
+                # it, so the save does not walk it and does not call it an
+                # orphan — a card holds the live workbench it built this way.
+                window = TestWindow("Aloha", 5, JsonObject("live" => JsonString("x")))
+                @test save_file!(PredFile("w.pred", window), d) === true
                 # Only what the document called its file half is on disk, one
                 # field to a line.
                 @test read(joinpath(d, "w.pred"), String) ==

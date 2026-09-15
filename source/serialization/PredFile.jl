@@ -51,6 +51,12 @@ end
 get_file_domain(::Type{<:PredFile}) = Document
 is_file_domain_node(::PredFile, node) = is_pred_type(typeof(node)) || node isa PredReference
 
+# A `.pred` file writes the call `pred_arguments` gives and nothing else, so
+# that is what it walks. A field the call leaves out — the live half a document
+# built for itself — is not written, not cut, and not an orphan.
+is_written_in_file(file::PredFile, node, name::Symbol) =
+    !(node isa Document) || any(pair -> first(pair) === name, last(pred_arguments(node)))
+
 # The reference this format spells: the call itself, printed where the value
 # would be.
 make_reference_leaf(::PredFile, marker::AbstractString) = PredReference(String(marker))
