@@ -187,22 +187,55 @@ card becomes a display decoration keyed on that, independent of files. It is
 **out of scope** here. The two embed suites that fail today test the card, and
 they are retired or rewritten when the card is redone.
 
-### `realize` — the open decision
+### The `.pred` file: a document written as its constructor
 
-`definition` and `section` name a node inside a file, so they fit the splice. The
-`realize` verb a downstream package registers does not: it **computes** its value.
-Under "no artificial nodes" a computed embed would have to be evaluated at load
-into a real node, and the save could not re-emit the expression.
+`realize(file("AlohaRun.json"))` is a file format in disguise. It takes a JSON
+file with a `$doctype` key and runs a 279-line loader that turns it into a
+`LegacyRun`. The loader only reads; `_dump_document` is a comment, so a realized
+run cannot be saved back today. The shim exists because the file registry keys
+on extension and `.json` was taken.
 
-The principle draws the line: a file reference is storage and must not be a node;
-**computed content is content, and may be one.** A `ComputedDocument` that holds
-its source expression and its value is an honest document, like a formula cell.
-On save, the walk writes it as a reference leaf carrying its source; on load, a
-marker whose verb is not a file verb becomes a `ComputedDocument` instead of a
-splice. One node type, one generic rule to draw it, and the machinery is shared.
+The replacement is a file whose content **is the document, written as its own
+constructor**:
 
-That is the recommendation. It is not decided here, because `realize` lives in
-`omnet-julia` and the tutorial pages there depend on it.
+```julia
+LegacyRun(project = "aloha", ini_file = "omnetpp.ini", config = "General",
+          options = ["cmdenv-status-frequency=0.5s"])
+```
+
+That is the marker language at file scale. The interpreter already evaluates
+`T(field = value, …)` through a registered type gate, never `eval`, over a
+subset with no assignment, no control flow and no bare names. A `.pred` file is
+one marker body, and `<<file("AlohaRun.pred")>>` splices a `LegacyRun` the way
+any file's content is spliced. `realize`, `$doctype`, the loader and the
+`ComputedDocument` idea all go, and the principle holds with nothing added: a
+reference names stored content.
+
+**One generic file type, `PredFile`, extension `.pred`.** The first token names
+the document type, so one format covers every `@document` with a keyword
+constructor, and a domain gets a file notation without writing one. The
+notation, its reader and its writer live in the serialization slice beside the
+interpreter they are made of.
+
+Three properties come with it. A `.pred` file cannot execute code, because the
+interpreter is its reader. Only a type a package registered may be constructed,
+so a file cannot name what a session did not offer. And a cut in the save walk
+— `file("b.xml")`, `node(file("a.json"), "…")` — is a call in the same
+vocabulary, so this format writes its own references and needs no leaf maker.
+
+| piece | state |
+| --- | --- |
+| the reader: the restricted interpreter with keyword constructors | exists |
+| the type gate | exists as one global resolver function; becomes a registry of allowed types, `register_pred_type!(T)` |
+| vector literals, `options = ["…"]` | **missing** from the subset; `AlohaRun.json` needs one on day one |
+| the writer: document → canonical constructor text | **missing**; the write gate needs it byte-stable, so field order is declaration order and there is one way to write each value |
+| the extension `.pred` | free; `.jl` is `JuliaFile`, whose content is a parsed source AST |
+| a field derived from the file's location, `base_dir` | not written; derived at load from where the file is |
+
+What a value may be, in the writer and the reader alike: a string, a number, a
+char, a bool, `nothing`, a vector of values, a document written as its
+constructor, and a reference. Nothing else, and the writer refuses a field that
+holds anything else, the way `save_file!` refuses a foreign node.
 
 ## The API the tests fix
 
@@ -217,6 +250,8 @@ load_project(base_dir, filenames)         # parse every file named, then splice
 project.files[i]                          # a file document; get_file_content(…) is its root
 save_file!(file, base_dir) -> Bool        # one file, no context: every cut is an error
 load_file(base_dir, filename)             # one file; a marker in it stays a leaf
+PredFile(filename, document)              # a .pred file: any registered document, as its constructor
+register_pred_type!(T)                    # the gate: a .pred file may construct T
 ```
 
 **The single-file save is the same walk with no context.** There is nothing to
@@ -301,10 +336,22 @@ The old path is untouched during stage 1.
   baseline; `test_substrate()` matches; the stack loads; the naming guard is
   clean.
 
-### Stage 4 — what the principle leaves open
+### Stage 4 — the `.pred` file
 
-- [ ] `ComputedDocument` for `realize`, if that decision is taken, with
-  `omnet-julia`'s tutorial pages as the test.
+- [ ] Vector literals join the subset, in the reader and the canonical printer.
+- [ ] `register_pred_type!`: the gate becomes a registry; the one global
+  resolver goes.
+- [ ] The writer: a document as its constructor, canonical, refusing a value
+  the subset cannot write.
+- [ ] `PredFile`, registered for `.pred`; its leaf maker and recogniser are the
+  vocabulary itself.
+- [ ] The `.pred` half of `FileProjectTest.jl` passes.
+- [ ] In `omnet-julia`: `AlohaRun.json` becomes `AlohaRun.pred`, the page writes
+  `<<file("AlohaRun.pred")>>`, and `realize`, `$doctype` and `DocumentLoader.jl`
+  go. The fields that derive from the base directory are derived at load.
+
+### Stage 5 — what is left open
+
 - [ ] The embed card, keyed on a domain boundary.
 
 ## What the tests must keep proving
@@ -348,11 +395,13 @@ domain can be wrong. Each gets a round-trip test of its own before the switch.
 - A reference to a file outside the loaded set stays a plain leaf.
 - The generic path verb is `node`, and a reference to a file's own root is
   `file(…)`. The tests fixed both.
+- `realize` is a file format in disguise and becomes one: `.pred`, one generic
+  file type, the document written as its constructor, read by the marker
+  interpreter. No `ComputedDocument`.
 - The display is not touched: the global natural table already renders a mixed
   tree, in both nestings, measured on 2026-09-15.
 
 ## Decisions left open
 
-- Whether `realize` becomes a `ComputedDocument`.
 - Whether the save context is built from the workspace document.
 - When the embed card returns, and on what key.

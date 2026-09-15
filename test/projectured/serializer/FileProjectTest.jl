@@ -20,6 +20,10 @@ A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
 inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
 the reference DSL's text form.
 
+- `PredFile(filename, document)` — a `.pred` file: any registered document,
+  written as its own constructor and read by the marker interpreter.
+  `register_pred_type!(T)` is the gate.
+
 The documents are built by hand, the way a user builds them in the editor:
 no marker, no stub, foreign nodes held directly.
 """
@@ -28,6 +32,7 @@ using Test
 using ProjecturedSerialization.SerializationModule
 using ProjecturedJson.JsonModule
 using ProjecturedXml.XmlModule
+using ProjecturedKernel.DocumentModule: @document
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -54,6 +59,14 @@ _marker_of(::Any) = nothing
 
 "A fresh directory, and a project of `files` in it."
 _project(files...) = (d = mktempdir(); (d, FileProject(d, collect(files))))
+
+"A document a `.pred` file may hold: a vector field, a count, a slot for anything."
+@document struct TestRun
+    name::String
+    options::Any = nothing
+    count::Int   = 0
+    attachment::Any = nothing
+end
 
 # ── The tests ────────────────────────────────────────────────────────────────
 
@@ -266,6 +279,70 @@ function test_file_project()
             @test _json_value(get_file_content(load_file(d, "a.json")), "n") isa JsonString
         end
 
+    end
+
+    @testset "a .pred file: the document as its constructor" begin
+        register_pred_type!(TestRun)
+
+        @testset "a document with a vector field round-trips, byte-stable" begin
+            d = mktempdir()
+            run = TestRun("aloha"; options = ["a", "b"], count = 2)
+            @test save_file!(PredFile("run.pred", run), d) === true
+            text = read(joinpath(d, "run.pred"), String)
+            @test startswith(text, "TestRun(")
+            @test occursin("options = [\"a\", \"b\"]", text)
+            back = get_file_content(load_file(d, "run.pred"))
+            @test back isa TestRun
+            @test back.name == "aloha" && back.options == ["a", "b"] && back.count == 2
+            stamp = mtime(joinpath(d, "run.pred"))
+            sleep(0.01)
+            @test save_file!(PredFile("run.pred", back), d) === true
+            @test mtime(joinpath(d, "run.pred")) == stamp
+        end
+
+        @testset "a .pred referenced from a JSON file splices its document" begin
+            run = TestRun("aloha")
+            d, project = _project(JsonFile("a.json", JsonObject("run" => run)),
+                                  PredFile("run.pred", run))
+            @test save_project!(project) === true
+            @test _marker_of(_json_value(_json_on_disk(d, "a.json"), "run")) == "file(\"run.pred\")"
+            loaded = load_project(d, ["a.json", "run.pred"])
+            @test _json_value(get_file_content(loaded.files[1]), "run") ===
+                  get_file_content(loaded.files[2])
+        end
+
+        @testset "a .pred holding a foreign node writes the reference as a call" begin
+            note = XmlElement("note", XmlAttribute[], [XmlText("hi")])
+            run  = TestRun("aloha"; attachment = note)
+            d, project = _project(PredFile("run.pred", run), XmlFile("b.xml", note))
+            @test save_project!(project) === true
+            @test occursin("attachment = file(\"b.xml\")", read(joinpath(d, "run.pred"), String))
+            loaded = load_project(d, ["run.pred", "b.xml"])
+            @test get_file_content(loaded.files[1]).attachment === get_file_content(loaded.files[2])
+        end
+
+        @testset "a .pred file cannot run code" begin
+            d = mktempdir()
+            write(joinpath(d, "run.pred"), "TestRun(name = run(`touch pwned`))")
+            @test_throws r"marker" load_file(d, "run.pred")
+            @test !isfile(joinpath(d, "pwned"))
+            write(joinpath(d, "sum.pred"), "TestRun(name = 1 + 1)")
+            @test_throws r"marker" load_file(d, "sum.pred")
+        end
+
+        @testset "a type the gate does not allow is refused by name" begin
+            d = mktempdir()
+            write(joinpath(d, "x.pred"), "Secret(key = 1)")
+            @test_throws r"Secret" load_file(d, "x.pred")
+        end
+
+        @testset "a value the notation cannot write is refused at save" begin
+            d = mktempdir()
+            run = TestRun("aloha"; attachment = Dict("k" => 1))
+            result = @test_logs (:error, r"cannot write") save_file!(PredFile("run.pred", run), d)
+            @test result === false
+            @test isempty(readdir(d))
+        end
     end
 
 end # testset
