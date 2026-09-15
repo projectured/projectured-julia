@@ -341,6 +341,27 @@ function test_file_project()
         @test get_file_content(loaded.files[1]) === get_file_content(loaded.files[2])
     end
 
+    @testset "a load may follow what a file names" begin
+        # One page is opened without opening every page beside it: name the
+        # page, and what it embeds comes with it.
+        note = XmlElement("note", XmlAttribute[], [XmlText("hi")])
+        d, project = _project(JsonFile("a.json", JsonObject("deep" => JsonObject("x" => note))),
+                              XmlFile("b.xml", note))
+        @test save_project!(project) === true
+        alone = load_project(d, ["a.json"])
+        @test length(alone.files) == 1
+        # Nothing to splice it to, so the marker is still a string.
+        @test _marker_of(_json_value(_json_value(get_file_content(alone.files[1]), "deep"), "x")) ==
+              "file(\"b.xml\")"
+        followed = load_project(d, ["a.json"]; follow = true)
+        @test length(followed.files) == 2
+        @test _json_value(_json_value(get_file_content(followed.files[1]), "deep"), "x") ===
+              get_file_content(followed.files[2])
+        # A file named twice is opened once, and a file already named is not
+        # opened again for being reached.
+        @test length(load_project(d, ["a.json", "b.xml"]; follow = true).files) == 2
+    end
+
     @testset "a .pred file: the document as its constructor" begin
         register_pred_type!(TestRun)
 

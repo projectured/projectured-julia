@@ -33,17 +33,29 @@ make_file(T::Type, filename::AbstractString, text::AbstractString) =
     T(String(filename), parse_file_content(T, text))
 
 """
-    load_project(base_dir, filenames) -> FileProject
+    load_project(base_dir, filenames; follow = false) -> FileProject
 
-Parse every file named, in order, then splice each reference leaf into the
-node it names. A marker naming a file outside the set stays a leaf.
+Parse every file named, in order, then splice each reference leaf into the node
+it names. A marker naming a file outside the set stays a leaf.
+
+`follow = true` opens the files the set reaches as well, and the files those
+reach, until nothing is left unopened. That is how one page is opened without
+opening every page beside it: name the page, and what the page embeds comes
+with it.
 """
-function load_project(base_dir::AbstractString, filenames::AbstractVector{<:AbstractString})
+function load_project(base_dir::AbstractString, filenames::AbstractVector{<:AbstractString};
+                      follow::Bool = false)
     project = FileProject(base_dir, Any[])
-    for name in filenames
-        T = get_file_document_type(name)
+    queue = String[String(name) for name in filenames]
+    opened = Set{String}()
+    while !isempty(queue)
+        name = popfirst!(queue)
+        normpath(name) in opened && continue
+        push!(opened, normpath(name))
         text = read(joinpath(base_dir, name), String)
-        push!(project.files, make_file(T, String(name), text))
+        file = make_file(get_file_document_type(name), name, text)
+        push!(project.files, file)
+        follow && append!(queue, _referenced_filenames(file))
     end
     _splice!(project)
     project
@@ -57,6 +69,51 @@ set to splice it to.
 """
 load_file(base_dir::AbstractString, filename::AbstractString) =
     load_project(base_dir, [filename]).files[1]
+
+# ── What a file reaches ──────────────────────────────────────────────────────
+
+# Every file a marker in `file` names. `file("a.json")` is the only thing that
+# names one, and it names one wherever it stands: on its own, as the first
+# argument of `node`, or as an argument of a verb a package registered.
+_referenced_filenames(file) =
+    _collect_references!(String[], get_file_content(file), IdDict{Any,Bool}())
+
+function _collect_references!(names::Vector{String}, node, visited::IdDict)
+    node isa Document || return names
+    haskey(visited, node) && return names
+    visited[node] = true
+    marker = find_reference_marker(node)
+    if marker !== nothing
+        expression = _parse_marker_expression(marker)
+        expression === nothing || _collect_file_names!(names, expression)
+        return names
+    end
+    for name in fieldnames(typeof(node))
+        name === :selection && continue
+        raw = getfield(node, name)
+        value = raw isa AbstractCell ? raw[] : raw
+        if is_element_collection(value) || value isa AbstractVector
+            for element in value
+                _collect_references!(names, element, visited)
+            end
+        else
+            _collect_references!(names, value, visited)
+        end
+    end
+    names
+end
+
+function _collect_file_names!(names::Vector{String}, e::Expr)
+    if e.head === :call && e.args[1] === :file && length(e.args) == 2 &&
+       e.args[2] isa AbstractString
+        push!(names, String(e.args[2]))
+        return names
+    end
+    for argument in e.args
+        argument isa Expr && _collect_file_names!(names, argument)
+    end
+    names
+end
 
 # ── The splice ───────────────────────────────────────────────────────────────
 
