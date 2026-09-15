@@ -85,10 +85,25 @@ get_filename(f) = unwrap_cell(getfield(f, :filename))
 The format-native content of this file document — the parsed tree for a
 `JsonFile`, a raw `String` for a `TextFile`.
 
-Default reads through the `content` field, which every file document has:
-the save copies it, and the load fills it.
+Default reads through the `content` field: the save copies it, and the load
+fills it. A file whose whole node is its content — a `NedFile`, whose children
+and version are the file — answers with the node itself and says so with
+[`is_own_content`](@ref).
 """
 get_file_content(f) = unwrap_cell(getfield(f, :content))
+
+"""
+    is_own_content(file) -> Bool
+
+Whether the file node is itself the root of its content. A `JsonFile` holds its
+tree in a `content` field and answers `false`; a `NedFile` IS the tree and
+answers `true`, so the save rebuilds that node instead of cutting it, and the
+load takes what the parser built rather than wrapping it.
+
+Default `false`. A file that answers `true` defines `get_file_content(f) = f`
+and builds itself from its text with [`make_file`](@ref).
+"""
+is_own_content(::Any) = false
 
 """
     emit_text(f) -> String

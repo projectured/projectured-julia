@@ -92,7 +92,17 @@ make_marker_text(body::AbstractString) = _MARKER_OPEN * String(body) * _MARKER_C
 function _assign_owners(project::FileProject)
     owner = IdDict{Any,Tuple{Any,Reference}}()
     for file in project.files
-        _own_walk!(owner, file, get_file_content(file), EmptyReference())
+        content = get_file_content(file)
+        if is_own_content(file)
+            # The file node is the root of its own tree, so it is what the file
+            # writes rather than a cut: claim it here, and walk what it holds.
+            haskey(owner, content) || (owner[content] = (file, EmptyReference()))
+            for (steps, child) in _child_slots(content)
+                _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...))
+            end
+        else
+            _own_walk!(owner, file, content, EmptyReference())
+        end
     end
     owner
 end
@@ -270,9 +280,17 @@ end
 # notation. Both halves can refuse — the cut at a node with no file, the
 # notation at a value it cannot write — and both refuse before anything is
 # written, so a save that cannot be finished leaves the directory as it was.
-_cut_text(owner, file, strict::Bool) =
-    emit_text(_with_content(file, _cut_copy(owner, file, get_file_content(file),
-                                            EmptyReference(), IdDict{Any,Bool}(), strict)))
+function _cut_text(owner, file, strict::Bool)
+    content = get_file_content(file)
+    visited = IdDict{Any,Bool}()
+    if is_own_content(file)
+        # The root is the file, so it is rebuilt rather than cut, and the copy is
+        # already the file the notation prints.
+        visited[content] = true
+        return emit_text(_rebuild(owner, file, content, EmptyReference(), visited, strict))
+    end
+    emit_text(_with_content(file, _cut_copy(owner, file, content, EmptyReference(), visited, strict)))
+end
 
 function _write_texts!(base_dir::AbstractString, texts)
     mkpath(base_dir)

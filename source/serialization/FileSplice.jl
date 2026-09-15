@@ -22,6 +22,17 @@ it in one line, with the parser of its format.
 function parse_file_content end
 
 """
+    make_file(::Type{T}, filename, text) -> file document
+
+The file `text` holds, named `filename`. The default wraps what
+[`parse_file_content`](@ref) read, which is what a file with a `content` field
+is. A file whose whole node is its content — see [`is_own_content`](@ref) —
+defines this instead, because its parser already built the file.
+"""
+make_file(T::Type, filename::AbstractString, text::AbstractString) =
+    T(String(filename), parse_file_content(T, text))
+
+"""
     load_project(base_dir, filenames) -> FileProject
 
 Parse every file named, in order, then splice each reference leaf into the
@@ -32,7 +43,7 @@ function load_project(base_dir::AbstractString, filenames::AbstractVector{<:Abst
     for name in filenames
         T = get_file_document_type(name)
         text = read(joinpath(base_dir, name), String)
-        push!(project.files, T(String(name), parse_file_content(T, text)))
+        push!(project.files, make_file(T, String(name), text))
     end
     _splice!(project)
     project

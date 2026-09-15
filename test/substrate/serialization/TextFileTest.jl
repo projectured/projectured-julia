@@ -6,6 +6,29 @@ write gate, and recreation after an external deletion.
 
 using Test
 using ProjecturedSerialization.SerializationModule
+using ProjecturedKernel.DocumentModule: @document
+
+"""
+A file whose whole node is its content: its title and its body are the file,
+the way a `NedFile`'s children and version are the file. It says so with
+`is_own_content`, reads itself with `make_file`, and prints itself.
+"""
+@document struct NoteFile <: FileDocument
+    filename::String
+    title::String = ""
+    body::String  = ""
+end
+
+SerializationModule.is_own_content(::NoteFile) = true
+SerializationModule.get_file_content(f::NoteFile) = f
+SerializationModule.get_file_domain(::Type{<:NoteFile}) = Document
+SerializationModule.emit_text(f::NoteFile) = f.title * "\n" * f.body
+
+function SerializationModule.make_file(::Type{<:NoteFile}, filename::AbstractString,
+                                       text::AbstractString)
+    lines = split(String(text), "\n", limit = 2)
+    NoteFile(String(filename), String(lines[1]), String(length(lines) > 1 ? lines[2] : ""))
+end
 
 function test_text_file()
 @testset "TextFile: save and load one file" begin
@@ -16,6 +39,29 @@ function test_text_file()
         @test get_file_content(f) == "world"
         # subtype relationship
         @test f isa FileDocument
+    end
+
+    @testset "a file may be its own content" begin
+        register_file_document_type!(".note", NoteFile)
+        d = mktempdir()
+        try
+            note = NoteFile("a.note", "Title", "Body")
+            # There is no `content` field to read through: the file is the tree.
+            @test get_file_content(note) === note
+            @test save_file!(note, d)
+            @test read(joinpath(d, "a.note"), String) == "Title\nBody"
+            # The parser built the file, so the load takes it as it is.
+            back = load_file(d, "a.note")
+            @test back isa NoteFile
+            @test get_filename(back) == "a.note"
+            @test back.title == "Title" && back.body == "Body"
+            # And it saves beside a file of another kind, which is the only way
+            # one file can name another.
+            @test save_project!(FileProject(d, [note, TextFile("b.txt", "plain")]))
+            @test read(joinpath(d, "b.txt"), String) == "plain"
+        finally
+            rm(d; recursive = true, force = true)
+        end
     end
 
     @testset "emit_text on TextFile is the identity" begin
