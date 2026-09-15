@@ -363,6 +363,31 @@ function test_file_project()
         @test length(load_project(d, ["a.json", "b.xml"]; follow = true).files) == 2
     end
 
+    @testset "a tolerant load opens what it can" begin
+        # A page embedding a document of a package this session never loaded
+        # still opens, with its prose and every other embed.
+        d = mktempdir()
+        try
+            write(joinpath(d, "good.pred"), "TestRun(name = \"ok\")\n")
+            write(joinpath(d, "foreign.pred"), "NotOffered(name = \"x\")\n")
+            write(joinpath(d, "page.md"),
+                  "# Page\n\nProse.\n\n```pred-ref\n<<file(\"good.pred\")>>\n```\n\n" *
+                  "```pred-ref\n<<file(\"foreign.pred\")>>\n```\n")
+            register_pred_type!(TestRun)
+            # Without it the whole page is lost to the one file that will not open.
+            @test_throws Exception load_project(d, ["page.md"]; follow = true)
+            project = load_project(d, ["page.md"]; follow = true, tolerant = true)
+            elements = collect(getfield(get_file_content(project.files[1]), :elements)[])
+            @test any(e -> e isa TestRun, elements)
+            # The marker it could not open is the text it was.
+            @test any(e -> e isa MarkdownCodeBlock &&
+                           find_reference_marker(e) == "file(\"foreign.pred\")", elements)
+            @test any(e -> e isa MarkdownParagraph, elements)
+        finally
+            rm(d; recursive = true, force = true)
+        end
+    end
+
     @testset "a .pred file: the document as its constructor" begin
         register_pred_type!(TestRun)
 

@@ -33,7 +33,7 @@ make_file(T::Type, filename::AbstractString, text::AbstractString) =
     T(String(filename), parse_file_content(T, text))
 
 """
-    load_project(base_dir, filenames; follow = false) -> FileProject
+    load_project(base_dir, filenames; follow = false, tolerant = false) -> FileProject
 
 Parse every file named, in order, then splice each reference leaf into the node
 it names. A marker naming a file outside the set stays a leaf.
@@ -42,9 +42,16 @@ it names. A marker naming a file outside the set stays a leaf.
 reach, until nothing is left unopened. That is how one page is opened without
 opening every page beside it: name the page, and what the page embeds comes
 with it.
+
+`tolerant = true` opens what it can: a file that cannot be read stays unopened
+and the markers naming it stay the text they are, each with the reason logged.
+A page embedding a document of a package this session never loaded still opens,
+with its prose and every other embed — losing one embed must not cost a page
+the rest. Leave it off wherever a file that will not open is a fault to hear
+about.
 """
 function load_project(base_dir::AbstractString, filenames::AbstractVector{<:AbstractString};
-                      follow::Bool = false)
+                      follow::Bool = false, tolerant::Bool = false)
     project = FileProject(base_dir, Any[])
     queue = String[String(name) for name in filenames]
     opened = Set{String}()
@@ -52,12 +59,18 @@ function load_project(base_dir::AbstractString, filenames::AbstractVector{<:Abst
         name = popfirst!(queue)
         normpath(name) in opened && continue
         push!(opened, normpath(name))
-        text = read(joinpath(base_dir, name), String)
-        file = make_file(get_file_document_type(name), name, text)
+        file = try
+            make_file(get_file_document_type(name), name, read(joinpath(base_dir, name), String))
+        catch e
+            tolerant || rethrow()
+            @warn "a file of this set did not open" file = name reason =
+                first(split(sprint(showerror, e), "\n"))
+            continue
+        end
         push!(project.files, file)
         follow && append!(queue, _referenced_filenames(file))
     end
-    _splice!(project)
+    _splice!(project; tolerant = tolerant)
     project
 end
 
@@ -117,17 +130,17 @@ end
 
 # ── The splice ───────────────────────────────────────────────────────────────
 
-function _splice!(project::FileProject)
+function _splice!(project::FileProject; tolerant::Bool = false)
     index = Dict{String,Any}(normpath(get_filename(file)) => file for file in project.files)
     visited = IdDict{Any,Bool}()
     for file in project.files
         # A file whose whole content is a reference: the save cut at its root, and
         # a one-statement file parses to the statement itself.
-        target = _splice_target(project, index, get_file_content(file))
+        target = _splice_target(project, index, get_file_content(file), tolerant)
         if target !== nothing
             getfield(file, :content)[] = target
         else
-            _splice_walk!(project, index, get_file_content(file), visited)
+            _splice_walk!(project, index, get_file_content(file), visited, tolerant)
         end
     end
     project
@@ -136,7 +149,7 @@ end
 # Every child slot of `node` whose leaf is a reference gets the node it names,
 # written into the slot's cell. The walk visits each object once, so a graph
 # the splice closes into a cycle still terminates.
-function _splice_walk!(project, index, node, visited::IdDict)
+function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
     node isa Document || return
     haskey(visited, node) && return
     visited[node] = true
@@ -147,21 +160,21 @@ function _splice_walk!(project, index, node, visited::IdDict)
         if is_element_collection(value)
             for index_in in eachindex(value)
                 element = value[index_in]
-                target = _splice_target(project, index, element)
+                target = _splice_target(project, index, element, tolerant)
                 if target !== nothing
                     value[index_in] = target
                 else
-                    _splice_walk!(project, index, element, visited)
+                    _splice_walk!(project, index, element, visited, tolerant)
                 end
             end
         elseif value isa Document
-            target = _splice_target(project, index, value)
+            target = _splice_target(project, index, value, tolerant)
             if target !== nothing
                 raw isa AbstractCell || error("load_project: a reference sits in a plain field, ",
                                               name, " of ", typeof(node), ", which cannot be spliced")
                 raw[] = target
             else
-                _splice_walk!(project, index, value, visited)
+                _splice_walk!(project, index, value, visited, tolerant)
             end
         end
     end
@@ -169,13 +182,20 @@ end
 
 # The node a reference leaf names, or `nothing` when the leaf is not a reference
 # or names a file outside the set.
-function _splice_target(project, index, leaf)
+function _splice_target(project, index, leaf, tolerant::Bool = false)
     marker = find_reference_marker(leaf)
     marker === nothing && return nothing
     expression = _parse_marker_expression(marker)
     expression === nothing &&
         error("load_project: not a marker expression: ", repr(marker))
-    target = _evaluate_splice(project, index, expression)
+    target = try
+        _evaluate_splice(project, index, expression)
+    catch e
+        tolerant || rethrow()
+        @warn "a marker of this set was left as it is" marker = marker reason =
+            first(split(sprint(showerror, e), "\n"))
+        nothing
+    end
     # `file(…)` names the file's content: the node the save cut at the root. As
     # an argument to another verb it is the file document, which every verb
     # that takes a document accepts.
