@@ -286,8 +286,10 @@ two lexical indexes use, and the invariant text gets one sentence that says so.
 
 What gets a vector:
 
-- For an `_ApiEntry`, the text is `qualname * "\n" * text`. The name is in the
-  signature already, and the qualified name adds the module.
+- For an `_ApiEntry`, the text is `qualname * "\n" * full`, the qualified name
+  and the whole documentation, cut at 2,000 characters. The plan first said
+  `text`, the signature and one sentence; step 7 measured the whole
+  documentation as better.
 - For a `_GuideSection`, the text is `guide * " › " * heading * "\n\n" * body`.
   A body over 2,000 characters is split at paragraph boundaries into chunks of
   at most 2,000 characters, each with the same prefix. A section's score is the
@@ -317,15 +319,14 @@ record short, the read cuts that record off the file. If the folder can not be
 written, the vectors stay in memory and one warning says so. A test points the
 folder somewhere else through a `Ref`, so a test never writes to `build/`.
 
-**The rank.** The description mode runs both scorers and merges them with
-reciprocal rank fusion. A hit's score is `1 / (60 + lexical_rank) +
-1 / (60 + meaning_rank)`, over the first 50 hits of each list. A hit that is
-not in one list gets no term from that list. The lexical list is the keyword
-scorer on the words of the description, all of them optional. Fusion needs no
-calibration, and a hit that only one side finds still ranks. The output format
-is the one that exists. In the description mode, the full documentation is
-printed only when one hit remains; the exact-name rule does not apply to a
-sentence.
+**The rank.** When the vectors are there, the meaning alone ranks a description:
+the first 50 hits by cosine, and a guide section scores as its best chunk. The
+plan first merged this rank with the keyword rank of the description's words by
+reciprocal rank fusion. Step 7 measured that merge as worse than the meaning
+alone in every weighting that was tried, so the words rank only when the meaning
+can not. The output format is the one that exists. In the description mode, the
+full documentation is printed only when one hit remains; the exact-name rule
+does not apply to a sentence.
 
 **The fallback.** The description mode runs the keyword scorer alone when:
 
@@ -356,6 +357,10 @@ the test:
 | `stop every simulation that is running` | `stop_simulations!` |
 | `the single numbers the runs recorded` | `get_simulation_scalar_results` |
 | `write down what the runs taught us` | `add_finding!` |
+| `open a table of the histograms` | `make_histogram_result_table` |
+| `start a new study with a question` | `make_study!` |
+| `check the results against what we expected` | `check_expectations!` |
+| `run the simulations the filter selects` | `run_simulations!` |
 | `how do I plot results after a run` | a section of `omnet/assistant-guide` |
 
 The names are verbs that the omnet IDE window declares with
@@ -544,6 +549,11 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [ ] Move this plan to `plan/done/`.
 
 ## 5. Out of scope
+
+- A wider whitelist. The user expects the omnet IDE to declare more, for example
+  the layouts, the widgets and their APIs. The store is keyed by text, so a
+  wider declaration costs only the vectors of its new entries, computed once at
+  about 4,500 characters per second on this machine.
 
 - An `enum` field on a tool parameter. Three adapters render a parameter, and
   none of them has it. The description of `mode` names its values, as `kind`

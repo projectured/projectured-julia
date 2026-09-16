@@ -1,6 +1,5 @@
 # Fragment of `ToolModule` — search by meaning: the vectors a meaning model
-# computes, where they are kept, how a description is ranked by them, and how
-# that rank joins the rank of its words.
+# computes, where they are kept, and how a description is ranked by them.
 
 # ═══════════════════════════════════════════════════════════════════════
 # The store of vectors
@@ -293,9 +292,13 @@ end
 # The texts that get a vector
 # ═══════════════════════════════════════════════════════════════════════
 
-# An entry is its qualified name and the text it is scored on.
+# An entry is its qualified name and its whole documentation. The scored text
+# holds only the signature and one sentence, and a description finds its verb
+# less often by that: measured on the omnet IDE's 88 verbs, 2026-09-16, the
+# mean rank of eight test sentences fell from 8.1 to 5.8 with the whole
+# documentation, and five of the eight ranked their verb first instead of four.
 _get_meaning_text(entry::_ApiEntry) =
-    first(entry.qualname * "\n" * entry.text, _MEANING_CHUNK_CHARACTERS)
+    first(entry.qualname * "\n" * entry.full, _MEANING_CHUNK_CHARACTERS)
 
 # A section is its guide, its heading and its body, cut into chunks at its
 # paragraphs when the body is long. Each chunk carries the guide and the heading.
@@ -366,10 +369,14 @@ function _find_text_vectors(model::MeaningModel, texts::Vector{String}, dimensio
     end
 end
 
-# The items with the highest scores, best first, as many as a fusion counts. A
-# tie keeps the order the items came in.
+# How many items a rank by meaning answers. Every item has a score, so the rank
+# is cut, as the answer is.
+const _MEANING_RANK_COUNT = 50
+
+# The items with the highest scores, best first. A tie keeps the order the items
+# came in.
 _get_best_items(items::Vector, scores::Vector{Float32}) =
-    items[first(sortperm(scores; rev = true, alg = MergeSort), _FUSED_RANK_COUNT)]
+    items[first(sortperm(scores; rev = true, alg = MergeSort), _MEANING_RANK_COUNT)]
 
 # The entries a description means, best first, and the note that says why there
 # is no such ranking. Exactly one of the two is `nothing`.
@@ -410,24 +417,4 @@ function _rank_guide_sections_by_meaning(query::_DescriptionQuery,
         scores[index] = best
     end
     (_get_best_items(sections, scores), nothing)
-end
-
-# **Reciprocal rank fusion.** An item's score is the sum, over the rankings it is
-# in, of `1 / (_FUSION_RANK_OFFSET + its rank there)`, and each ranking counts its
-# first `_FUSED_RANK_COUNT` items. It needs no calibration between a count of
-# words and a cosine, and an item that only one ranking finds still ranks.
-const _FUSION_RANK_OFFSET = 60
-const _FUSED_RANK_COUNT = 50
-
-function _fuse_rankings(first_ranking::Vector{T}, second_ranking::Vector{T}) where {T}
-    scores = Dict{T,Float64}()
-    order = T[]
-    for ranking in (first_ranking, second_ranking)
-        for (rank, item) in enumerate(Iterators.take(ranking, _FUSED_RANK_COUNT))
-            haskey(scores, item) || push!(order, item)
-            scores[item] = get(scores, item, 0.0) + 1 / (_FUSION_RANK_OFFSET + rank)
-        end
-    end
-    # A tie keeps the order the rankings gave, the first ranking before the second.
-    sort!(order; by = item -> -scores[item], alg = MergeSort)
 end

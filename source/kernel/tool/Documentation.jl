@@ -689,10 +689,10 @@ URIs, each with a short excerpt. Read the full text with `read_resource(set, uri
   phrase. A section ranks by its heading first and by its body second.
 - `"regex"` — a regular expression, matched against the text as it is written;
   a `(?i)` prefix ignores case. A `Regex` query is read this way in every mode.
-- `"description"` — a sentence that says what the reader wants to do. Its words
-  rank a section as keywords do, and `meaning_model` ranks it by meaning too.
-  Without a meaning model the words alone decide, and the first line of the
-  answer says so.
+- `"description"` — a sentence that says what the reader wants to do.
+  `meaning_model` ranks the sections by what the sentence means. Without a
+  meaning model, or when it fails, the words of the sentence rank them as
+  keywords do, and the first line of the answer says why.
 
 A query that can not be read answers the reason as text, and never throws.
 """
@@ -707,7 +707,7 @@ function search_documentation(query::Union{AbstractString,Regex}; mode = "keywor
     note = nothing
     if read isa _DescriptionQuery
         by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
-        by_meaning === nothing || (ranked = _fuse_rankings(ranked, by_meaning))
+        by_meaning === nothing || (ranked = by_meaning)
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).")
     terms = _get_scored_terms(read)
@@ -821,9 +821,8 @@ sees the whole project.
 
 `mode` reads the query exactly as in [`search_documentation`](@ref): keywords by
 default, a pattern with `"regex"` or a `Regex`, and a sentence with
-`"description"`, which `meaning_model` ranks by meaning as well. The exact-name
-bonus is for a written word only: a pattern and a sentence rank by where they
-match.
+`"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
+for a written word only: a pattern ranks by where it matches.
 """
 function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind = nothing,
                     limit::Integer = 8, api = ApiEntry[], meaning_model = nothing)
@@ -837,8 +836,15 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind 
     ranked = _ApiEntry[entry for (_, entry) in scored]
     note = nothing
     if read isa _DescriptionQuery
+        # **The meaning decides, and the words only stand in for it.** Merged,
+        # the two ranks were worse than the meaning alone: a sentence's words
+        # are "value", "runs" and "time", and they match a name that means
+        # something else. Measured on the omnet IDE's 88 verbs, 2026-09-16: of
+        # the five weightings of a rank fusion that were tried, none put a verb
+        # above where the meaning alone put it, and each put three or four of
+        # eight test sentences' verbs below it.
         by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = _fuse_rankings(ranked, by_meaning))
+        by_meaning === nothing || (ranked = by_meaning)
         # A sentence names no verb, so only a single hit is a clear answer.
         alone = length(ranked) == 1
     else

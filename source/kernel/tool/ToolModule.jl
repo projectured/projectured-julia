@@ -15,7 +15,7 @@ be asked to read. Seven fragments share this namespace:
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
   documentation readers and the two search functions over them.
 - [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
-  means, and how that rank joins the rank of its words.
+  means, and where the vectors of that rank are kept.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 

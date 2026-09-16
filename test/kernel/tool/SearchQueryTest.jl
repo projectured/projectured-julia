@@ -154,11 +154,6 @@ function test_search_query()
         @test occursin("resource://guide/", guides)
     end
 
-    @testset "the two rankings of a description are fused by rank" begin
-        fused = ProjecturedKernel.ToolModule._fuse_rankings(["a", "b", "c"], ["c", "a", "d"])
-        @test fused == ["a", "c", "b", "d"]
-    end
-
     @testset "the tools take a mode, and no longer a regex flag" begin
         set = register_default_tools!(ToolSet(; api = Module[SearchToy]))
         for name in ("search_api", "search_documentation")

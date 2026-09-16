@@ -81,10 +81,12 @@ removes hits that nobody sees: `-test` would drop every entry that says
 `invokelatest`. The name score and the prose score of a hit count only the
 required and the optional terms.
 
-**A description is ranked twice.** Its words rank the hits, all of them optional.
-When the `ToolSet` has a `MeaningModel`, the vector of the description and the
-vector of each entry or guide section rank the hits by cosine as well, and
-reciprocal rank fusion merges the two ranks. A backend gives a tool set its model
+**A description is ranked by its meaning.** When the `ToolSet` has a
+`MeaningModel`, the vector of the description and the vector of each entry or
+guide section rank the hits by cosine. An entry's vector is computed from its
+qualified name and its whole documentation. The words of the description do not
+join that rank: merged with it, words such as "value" and "runs" put unrelated
+names above the verb that was meant. A backend gives a tool set its model
 through `bind_meaning_model!`. The assistant binds at every turn, and a window
 that serves MCP binds when it starts, because an MCP client runs no turn.
 
@@ -95,7 +97,8 @@ seconds; a later search during the same build does not wait.
 
 **A description never fails for want of a model.** When the tool set has no
 meaning model, when the model throws, or when its vectors are not ready, the
-words alone rank the hits, and the first line of the answer says why. For a model
+words of the description rank the hits as optional keywords, and the first line
+of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
 
