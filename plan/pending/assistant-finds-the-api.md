@@ -1,0 +1,359 @@
+# The assistant finds the API for what it means
+
+> **Kind:** plan · **Status:** pending · **Stands on:**
+> [three-kinds-of-search.md](../done/three-kinds-of-search.md),
+> [declared-api-is-a-list-of-names.md](../done/declared-api-is-a-list-of-names.md),
+> [agent.md](../../documentation/package/kernel/agent.md),
+> [naming-rules.md](../../documentation/rule/naming-rules.md),
+> [code-quality-rules.md](../../documentation/rule/code-quality-rules.md)
+
+The assistant has something in mind, and it can say it in English. It must find
+out how to do it with the Julia API that the window declares. This plan reviews
+the tools and the resources against that one goal, and changes them where they
+fall short.
+
+**The measure** is how easily a local model, `qwen3.8:27b` through Ollama, finds
+the solution to each of a table of problems: how many problems it solves, and
+how many rounds, tool calls and tokens each solution costs.
+
+## 1. What the assistant has now
+
+One `ToolSet` per editor. The chat pane's agent loop calls it in the process,
+and with `--mcp` the server at `127.0.0.1:9876/mcp` publishes the same set and
+gives a client the window's prompt.
+
+| kind | what | count in the omnet IDE |
+| --- | --- | --- |
+| tools | `execute_julia_code`, `search_api`, `search_documentation`, `read_function_documentation`, `list_resources`, `read_resource` | 6 |
+| resources | `resource://guides`, `resource://guide/<name>`, `resource://modules`, `resource://module/<m>`, `resource://type/<m>/<t>` | 2 catalogues, 69 guides, 9 modules, about 15 types |
+| declared names | what `execute_julia_code` can call, and what the searches see | 88 entries in 9 modules |
+
+The path from an intent to a call has five steps, and each has a tool: say the
+intent (`search_api` in description mode, or `search_documentation`), read the
+hits, read one in full (`read_function_documentation` or `read_resource`), write
+the call (`execute_julia_code`), and read the result.
+
+## 2. The analysis
+
+### 2a. Where the path breaks
+
+1. **The ranking depends on the docstring, and a docstring lacks the words a
+   person uses.** The meaning vector reads the whole docstring; the keyword
+   scorer reads its signature and first sentence. Measured 2026-09-16 on the 88
+   names: "draw how a value changes over time" ranks `make_result_plot`
+   twelfth, because its docstring says "chart" and never "draw", "value" or
+   "time"; "write down what the runs taught us" ranks `add_finding!`
+   twenty-fifth. Five of eight verb sentences ranked their verb first; the
+   guides did better, seven of eight, because a heading says in plain words
+   what its section is about.
+2. **A hit shows its signature and nothing else**, and nothing controls the
+   detail. A model reads eight signatures and still does not know what a verb
+   is for. The review of 2026-09-16 found this, and §3a fixes it.
+3. **A wrong guess costs a whole round.** A model that guesses `plot_results`
+   gets `UndefVarError: plot_results not defined` and nothing else, although
+   `make_result_plot` shares two of its words. A guess is the most natural
+   search a model makes, and the failure is where the answer is wanted.
+4. **A result is printed whole.** A verb called for its side effect prints its
+   return value; a `DataFrame` prints hundreds of rows; the model's window is
+   32,768 tokens, and one such result can take a third of it. Nothing cuts it.
+5. **Compositions have no unit of their own.** A goal often needs two or three
+   verbs in order — read the results, make a table, open a pane. The guides
+   hold such compositions as worked sessions, but a hit points at a whole
+   guide, and a model reads 4,000 characters for one recipe.
+6. **The model can arrange panes, and it can not build a widget.** The 99
+   widget names and 25 layout names of `WidgetModule` and `LayoutModule` are
+   outside the declaration. A person asks for "a card with the table and the
+   plot side by side", and no declared name answers.
+7. **Every answer ends where its data ends.** A model that read a list of hits
+   must remember the tool to read one in full; a model that read a long guide
+   gets no table of contents. The tool descriptions carry the instructions
+   instead, and they are sent with every request.
+
+### 2b. What is redundant
+
+1. **Three catalogues overlap.** `list_resources` lists every URI, about 95
+   lines in the IDE; `resource://guides` describes every guide in a paragraph;
+   `resource://modules` describes every declared module. The first is the
+   longest and says the least.
+2. **Two search tools have the same modes over two corpora**, and a model must
+   choose the corpus before it knows where the answer is. A sentence that means
+   a verb and a sentence that means a recipe look alike.
+3. **Two readers for one job.** A module or a type has a URI and is read with
+   `read_resource`; a function has none and is read with
+   `read_function_documentation`. The tool exists because a model, told in
+   prose to "call read_function_documentation", looked for a tool of that
+   name (measured 2026-09-13). The asymmetry stays: a hit's locator is a URI
+   for two kinds and a call for the third.
+4. **Eleven tools that no window registers.** `SimulationToolsModule` in omnet
+   defines `count_matching_runs`, `list_configurations`, `start_campaign`,
+   `stop_campaign`, `rerun`, `describe_campaign`, `describe_run`,
+   `open_in_qtenv`, `list_panes`, `focus_pane` and `close_pane`.
+   `run_campaign_window` gives `build_campaign_session` no tool set, so they
+   are dead surface, and their docstrings say "the MCP server serves them".
+
+The `kind` filter of `search_api` is seldom useful and costs little; it stays.
+
+### 2c. What to extend, what to reduce
+
+| change | extends or reduces | why |
+| --- | --- | --- |
+| one `search` tool over both corpora, with `scope`, `detail`, `mode` | reduces two tools to one, extends the answer | one call answers a verb and a recipe; one description instead of two |
+| `detail` levels | extends | the model chooses between many names and few whole docstrings |
+| a footer of next actions on a long answer | extends | the instructions move from every request into the answers that need them |
+| guide sections as resources | extends | a hit reads one section, not a whole guide |
+| `execute_julia_code`: `nothing` advice, a cut result, "did you mean" | extends | the round after a wrong guess or a long result is not wasted |
+| a docstring standard with use cases and an example | extends | the ranking reads the docstring; a use case is what a person says |
+| widget and layout vocabulary | extends | the model builds and controls the interface |
+| `list_resources` by kind | reduces | 95 lines become 6 |
+| `SimulationToolsModule` | reduces | dead surface, and its documentation is false |
+| a benchmark of problems | extends | nothing above is adopted without it |
+
+## 3. The design
+
+### 3a. The answer of a search — the review of 2026-09-16
+
+Decided by the user: a hit shows two lines, its signature in code with its kind
+and module, then the first sentence of its description. The name is not
+repeated. One line at the end says how to read a hit in full, once. The note
+of a description search says what ranked the hits — "No meaning model was
+given, so the words of the description ranked these hits. When you know a word
+of the name, mode \"keywords\" with that word does better." — and never "this
+editor" for a Julia call. `search_api(set, query; …)` reads the declaration
+and the meaning model from the set, so a REPL call answers what the tool
+answers. A module that two declaration entries name is indexed once. The stale
+`resource://classes` and `resource://functions` in `setup-guide.md` and
+`PAR-NEVER-GUESS-NAMES` name the catalogues that exist.
+
+`_ApiEntry.doc` becomes `signature` (the first signature of the docstring, cut
+at 200 characters) and `summary` (the first sentence of the first prose
+paragraph, without `**`, cut at 160 characters). A signature paragraph starts
+with the name and `(` or `{`, or is the name alone, with any fence removed. A
+sentence ends at `.`, `!` or `?` after two word characters and before a capital,
+a backtick or a bracket, so "e.g." ends none. `list_modules`, `list_types` and
+`list_functions` show the same summary, whole, instead of the signature.
+
+### 3b. One search
+
+```
+search(query; scope = "all", mode = "keywords", detail = "summary", kind, limit)
+```
+
+- `scope` is `"api"`, `"guides"` or `"all"`. With `"all"` the answer has two
+  parts, `## Names` and `## Guides`, each ranked as today; `limit` applies to
+  each. The Julia functions `search_api` and `search_documentation` stay, and
+  `search` calls both.
+- `mode` is as today: `"keywords"`, `"regex"`, `"description"`.
+- `detail` is `"names"`, `"summary"` or `"full"`:
+
+  | detail | a hit | default `limit` |
+  | --- | --- | --- |
+  | `names` | one line: the signature, or the guide and heading | 25 |
+  | `summary` | the two lines of §3a, or the heading and an excerpt | 8 |
+  | `full` | the whole docstring, or the whole section | 3 |
+
+  A model that wants the lie of the land asks for names; one that has narrowed
+  the search asks for full. The "one clear hit answers in full" rule stays at
+  every level.
+- `kind` filters the names part as today.
+
+The two old tools are removed from the set. omnet's prompts, guides and tests
+name `search_api` and `search_documentation` as tools in several places, and
+each is changed to `search`.
+
+**Decision 1.** One tool, or the two that exist. Recommended: one.
+
+### 3c. A footer of next actions
+
+An answer over 600 characters ends with one or two lines that say the actions
+that apply, and a shorter answer ends with none:
+
+- a list of names: "Read one in full: `read_resource(\"<uri of the first
+  hit>\")`. Narrow the search with +word or -word, or ask with mode
+  \"description\"."
+- a list of guides: the same, with the first section's URI.
+- a guide read whole: "Sections: a · b · c. Read one with
+  `resource://guide/<name>#<heading>`."
+- a `describe_api` miss: as today, the names that exist.
+
+The rules are in one place, `_make_footer(answer, hits)`, so a footer never
+says a tool that is not registered — which is how the 2026-09-13 failure
+happened.
+
+### 3d. Guide sections as resources
+
+`read_resource` resolves `resource://guide/<name>#<heading>` to one section,
+by the heading text after the `#`, matched without case and with `-` for a
+space. The sections are not listed in `list_resources`, as functions are not;
+a search hit and a whole-guide footer name them. A search hit for a guide
+carries the section URI, so a model reads 400 characters instead of 4,000.
+
+Functions get a URI the same way: `resource://function/<module>/<name>` is
+resolved by pattern, never listed. Every hit then carries one URI form, and
+the footer says one reader. `read_function_documentation` stays a tool, for a
+model that knows a module and a name from prose.
+
+**Decision 2.** Keep `read_function_documentation` beside the function URI, or
+retire it after the benchmark shows that the URI is found. Recommended: keep
+it for now, measure, then decide.
+
+### 3e. `execute_julia_code`
+
+- **The description says:** "End the code with `nothing` when you call a verb
+  for what it does and not for what it answers; the return value is printed
+  otherwise." The result path already prints nothing for `nothing`.
+- **A result is cut.** Over 4,000 characters or 60 lines, the output is cut
+  and one line says how much was cut and what to do: "Assign the value to a
+  variable and print a part of it: `first(frame, 10)`, `names(frame)`."
+- **A wrong guess answers the nearest names.** When the code fails with an
+  `UndefVarError` in the scratch module, the message gains one line: "Did you
+  mean: `make_result_plot`, `make_result_table`?" — the declared names ranked
+  by shared words of the name and by edit distance, at most three. This is
+  the search that starts from a guessed name, done where the guess fails, so
+  it costs no round.
+- The keyword help gains one sentence: "A guessed name is a good query: its
+  words match the parts of the real name."
+
+### 3f. A docstring standard for a declared name
+
+A name that a window declares to a model documents itself in this shape, and
+the searches read every part of it:
+
+```
+    make_result_plot(frames::DataFrame...; title) -> SimulationPlotDocument
+
+A chart of every `frame` given, as a document.
+
+Use it to draw a value over time, to compare the runs of a sweep, or to see
+the shape of a histogram. The frame decides the chart: …
+
+# Example
+
+    vectors = get_simulation_vector_results(get_project_result_directory(editor))
+    open_pane!(editor, make_result_plot(vectors; title = "Delay"))
+
+See also `make_result_table`, which shows the same frame as rows.
+```
+
+- The first sentence says what it is; a hit shows it.
+- The **Use it to** paragraph says the goals it serves, in the words a person
+  says: "draw", "over time", "compare". The meaning vector and the keyword
+  prose score read it.
+- The **Example** is a call that runs in this window; a model copies a shape
+  more than it reads a signature.
+- **See also** names the neighbours a model confuses it with.
+
+The standard goes in `code-quality-rules.md` as a rule for a declared name,
+with the grep that finds a declared docstring without a "Use it to" paragraph.
+Then every declared name of the omnet IDE gets it: 88 today, in
+`CampaignVerbs`, `PaneProgram`, `ResultVerbs`, `StudyVerbs`, the result readers
+and the selections in omnet, and the pane verbs in projectured. The
+`DataFrames` names keep their own docstrings.
+
+### 3g. The interface vocabulary
+
+The IDE declares the names a model needs to build and control the interface.
+The set is chosen by a survey before it is declared, and each name gets the
+docstring of §3f:
+
+- **layouts:** `GridLayout`, `VerticalLayout`, `HorizontalLayout`,
+  `FlowLayout`, and their policies `Fixed`, `Content`, `Weight`, `Inset`;
+- **widgets:** `WidgetCard`, `WidgetTable`, `WidgetText`, `WidgetButton`,
+  `WidgetCheckbox`, `WidgetScrollPane`, `WidgetSplitPane`, `WidgetImage`, and
+  what the survey adds;
+- **verbs:** the pane verbs that exist, and a verb to replace what a pane
+  shows and one to close a pane, if the survey finds that a case needs them.
+
+`declare_api!` refuses a name that two modules give, so the survey lists the
+collisions first — `select` is `DataFrames`' and may be a widget's too. The
+golden table of the search gains sentences for the interface: "put the table
+and the plot side by side", "a card with a title around the plot", "a button
+that runs the sweep again".
+
+### 3h. Reduce
+
+- `list_resources` answers six lines: each catalogue with its count and its
+  URI pattern, and how a section and a function are addressed.
+- `SimulationToolsModule` is deleted, with its test. A headless client has the
+  verbs through `execute_julia_code`, which is the design the window took.
+
+**Decision 3.** Delete `SimulationToolsModule`, or keep it for a client that
+wants tools and no Julia. Recommended: delete.
+
+### 3i. The benchmark
+
+`test_assistant_session()` in omnet already drives `qwen3.8:27b` with a seed
+against a stub project through eight cases, asserts the outcome of each, and
+counts the tool calls. It becomes the benchmark:
+
+- **A table of problems**, each a sentence a person says and a check of the
+  window's state. The eight cases, the study's seven turns, and the interface
+  cases of §3g. About twenty.
+- **What is recorded per problem:** solved or not, rounds, tool calls, which
+  tools, tokens in and out, wall time, and the first verb the model reached
+  for. `run_turn!` gives the events; the harness counts them.
+- **A report** printed as a table and kept in this plan, by stage: the
+  baseline before any change, then after §3a–3e, after §3f, after §3g.
+- **The by-hand upper bound** stays: the same problems solved by a person's
+  code, so a failure is the model's and not the API's.
+
+A run takes the model about a minute per problem; the machine must be idle
+and the user must say go before each run.
+
+## 4. Steps
+
+Work in the worktree `../projectured-julia-format` and in an omnet worktree.
+Commit each step with explicit paths; land with `git merge --ff-only`; cap
+every Julia process.
+
+### Step 1. The answer of a search (§3a) — in progress
+
+- [ ] `Documentation.jl`: `signature` and `summary`, the heading reader, the
+      hit format, the footer of the reader, the set methods, one module entry.
+- [ ] `MeaningSearch.jl`: the three notes. `DefaultTools.jl`: the tools call
+      the set methods.
+- [ ] Tests for the format, the summary rules, the notes, the set methods, the
+      module entry; the tests that read the old format follow the new one.
+- [ ] `agent.md`, `setup-guide.md`, `PAR-NEVER-GUESS-NAMES`.
+- [ ] omnet: `measure_meaning_search!` parses the new hit line; the live
+      table prints the same ranks.
+
+### Step 2. The benchmark and its baseline (§3i)
+
+- [ ] omnet: the harness records rounds, tools, tokens and time per problem
+      and prints the table; the study turns and the eight cases are its
+      problems.
+- [ ] Ask the user; run the baseline; record it in §5.
+
+### Step 3. One search, footers, sections (§3b, §3c, §3d, §3h)
+
+- [ ] `search` with `scope`, `detail`, `mode`, `kind`, `limit`; the two tools
+      removed; `_make_footer`; section and function URIs in `read_resource`;
+      `list_resources` by kind.
+- [ ] omnet: prompts, guides and tests say `search`.
+- [ ] Tests; guides; the benchmark run again.
+
+### Step 4. `execute_julia_code` (§3e)
+
+- [ ] The description; the cut result; the nearest names on `UndefVarError`;
+      tests.
+
+### Step 5. The docstring standard (§3f)
+
+- [ ] The rule and its grep in `code-quality-rules.md`.
+- [ ] The 88 declared names, in omnet and projectured; the golden table before
+      and after; the benchmark run again.
+
+### Step 6. The interface vocabulary (§3g)
+
+- [ ] The survey: names, collisions, the verbs a case needs; the user chooses.
+- [ ] The declaration, the docstrings, the golden sentences, the benchmark
+      problems; the benchmark run again.
+
+### Step 7. Reduce (§3h) and close
+
+- [ ] `SimulationToolsModule` and its test, after decision 3.
+- [ ] Move this plan to `plan/done/` with the four benchmark tables.
+
+## 5. Findings
+
+Filled in during the work.
