@@ -352,18 +352,27 @@ the test:
 
 | description | expected |
 | --- | --- |
-| `how many runs of a set failed` | `describe_campaign` |
-| `put a value over time on a chart` | `plot_vector` |
-| `what the caret is on` | `selection` guide |
-| `stop everything that is running` | `stop_campaign` |
+| `draw how a value changes over time` | `make_result_plot` |
+| `stop every simulation that is running` | `stop_simulations!` |
+| `the single numbers the runs recorded` | `get_simulation_scalar_results` |
+| `write down what the runs taught us` | `add_finding!` |
+| `how do I plot results after a run` | a section of `omnet/assistant-guide` |
+
+The names are verbs that the omnet IDE window declares with
+`get_assistant_api()`. The first version of this table named
+`describe_campaign` and `stop_campaign`, which are tools of
+`SimulationToolsModule` that no window registers, and `plot_vector`, which does
+not exist.
 
 The offline test checks the pipeline with a hand-made `MeaningModel` whose
 vectors come from a table of synonyms, so it proves that a description finds a
 name that shares no word with it. A second offline test binds a `FakeLlm` that
-has a meaning model. The live test in `ProjecturedOllamaTest`
-runs the table against the real model, prints the rank each query got under
-keywords and under description, and asserts only that the description rank is
-never worse than the keyword rank. The numbers go in §6 of this plan.
+has a meaning model. The live test in `ProjecturedOllamaTest` checks that the
+real model puts two sentences of one meaning closer than two of different
+meanings. The table above needs the omnet names, so it runs as a measurement in
+omnet's `environment/all`: it prints the rank each sentence gets under keywords
+and under description. The description rank must never be worse than the keyword
+rank. The numbers go in §6 of this plan.
 
 ## 4. Steps
 
@@ -470,7 +479,7 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] `test_ollama()`, with its layering guard: 97 pass. Both live tests
       skipped: no chat model is in memory, and `nomic-embed-text` is not pulled.
 
-### Step 5. Bind the meaning model where a backend is chosen
+### Step 5. Bind the meaning model where a backend is chosen — done 2026-09-16
 
 - [x] `AssistantTurn.jl`: `bind_meaning_model!(set, llm)` after the backend
       resolves, through `Base.invokelatest`, as `_build_llm` calls `make_llm`,
@@ -487,11 +496,19 @@ Work in a worktree. Commit each step with explicit paths. Land with
       `test_mcp_tools()`, `test_mcp_resources()` and `test_assistant_mvp()`
       have 227 passes and 2 failures, and clean `main` has the same 2 failures
       in `test_assistant_mvp()` (79 passes).
-- [ ] omnet `CampaignWindow.jl`: bind in `on_start` when `llm !== :none` and
-      `mcp`. Update the `run_campaign_window` docstring.
-- [ ] omnet `test/build.jl` and `CampaignControlTest.jl` stay green.
+- [x] omnet `CampaignWindow.jl`: `bind_backend_meaning_model!(tools,
+      build_backend)`, exported, called in `on_start` when `mcp` is on and
+      `llm !== :none`. It builds the backend with `make_llm(llm; model,
+      context)` and warns when the backend can not be built. The
+      `run_campaign_window` docstring says why, and `CAMPAIGN_SYSTEM` names
+      the description mode in one sentence.
+- [x] Test: a new testset in `CampaignAssistantTest.jl` binds a `FakeLlm` that
+      has a meaning model, one that has none, and a backend that throws.
+      `test_campaign_assistant()` and `test_campaign_controls()`: 30 pass.
+      `test/build.jl`: 118 passes and the 3 known errors (no `juliac`, and the
+      reactive build's two tests).
 
-### Step 6. Guides
+### Step 6. Guides — done 2026-09-16
 
 - [x] `agent.md`: the Layer 14 file list gains `SearchQuery.jl` and
       `MeaningSearch.jl`; the carve-out names the stores of vectors; a new
@@ -503,7 +520,8 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] `architecture-invariants.md`, `PAR-PER-EDITOR-STATE`: the stores of
       meaning vectors join the carve-out, in one sentence.
 - [x] `test_naming()` and `test_tree()` pass with the new files and exports.
-- [ ] omnet `assistant-guide.md`: the `mode` argument in the example call.
+- [x] omnet `assistant-guide.md`: a paragraph names the three modes, gives an
+      example of a description, and says how to install `nomic-embed-text`.
 
 ### Step 7. Measure
 
@@ -573,4 +591,10 @@ Work in a worktree. Commit each step with explicit paths. Land with
   turn fails with a `FieldError`, and the error turn it leaves counts as the
   reply the test waits for. The line dates from 2026-07-14 and is outside this
   plan.
+- **A live omnet test calls `search_api` with a keyword it does not take.**
+  `test/campaign/CampaignVerbsTest.jl` passes `modules = editor.tools.api` to
+  `search_api` and to `read_function_documentation`; both take `api`. The test
+  runs only when Ollama holds a model in memory, so it has not failed where
+  anyone saw it. This plan did not change that keyword, and the test is left as
+  it is.
 
