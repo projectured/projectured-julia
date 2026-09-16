@@ -119,12 +119,17 @@ whole guide ends with its sections. A shorter answer ends with its data. The
 rules are one function, `_make_footer`, so a footer never names a tool that is
 not registered.
 
-**A section and a function are read by the shape of their URI.** A search hit
-for a guide carries `resource://guide/<name>#<heading>`, and a hit for a
-function `resource://function/<module>/<name>`; `read_resource` resolves both,
-and lists neither, because one resource per section or per function would list
-in the hundreds. `list_resources` answers the kinds, each with its count and its
-shape, in six lines.
+**A section, a function, a constant and a re-exported type are read by the
+shape of their URI.** A search hit for a guide carries
+`resource://guide/<name>#<heading>`, a hit for a function
+`resource://function/<module>/<name>`, and a hit for a constant — a declared
+name that is neither a type nor a function, such as a size policy —
+`resource://value/<module>/<name>`; `read_resource` resolves each, and lists
+none, because one resource per section or per function would list in the
+hundreds. A type has a resource when its module defines it; a type a module
+re-exports, such as `Point2D` given through `WidgetModule`, is read by the same
+shape, `resource://type/<module>/<type>`. `list_resources` answers the kinds,
+each with its count and its shape, in six lines.
 
 **`execute_julia_code` answers what the code printed, whole, and the last value
 in one line.** What the code prints is what the model asked for, so it is never

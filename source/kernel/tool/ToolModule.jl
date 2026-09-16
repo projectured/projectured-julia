@@ -46,6 +46,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        list_guides, read_guide,
        list_modules, list_types, list_functions,
        read_module_documentation, read_type_documentation, read_function_documentation,
+       read_value_documentation,
        search_guides, search_api,
        SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 

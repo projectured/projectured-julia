@@ -168,11 +168,17 @@ function test_search_answer()
         @test !occursin("overloaded_verb(x, y)", described)
     end
 
-    @testset "a module two entries name is one hit" begin
-        twice = ToolSet(; api = [AnswerToy => (:fenced_verb,), AnswerToy => (:bare_verb,)])
+    @testset "a module two entries name is one hit, and gives the names of both" begin
+        twice = ToolSet(; api = [AnswerToy => (:fenced_verb,), AnswerToy => (:bare_verb, :AnswerBox)])
         entries = _AnswerTools._api_index(twice.api)
         @test count(entry -> entry.kind == "module", entries) == 1
         @test count(entry -> entry.kind == "function", entries) == 2
+        # A name of the second entry is declared: its type has a resource, and
+        # its verb is read.
+        register_default_tools!(twice)
+        @test occursin("A box with a lid", read_resource(twice, "resource://type/AnswerToy/AnswerBox"))
+        @test occursin("Close the box", read_resource(twice, "resource://function/AnswerToy/fenced_verb"))
+        @test !occursin("not one of the names", read_function_documentation("AnswerToy", "bare_verb"; api = twice.api))
     end
 
     @testset "a search on a tool set answers what its tool answers" begin

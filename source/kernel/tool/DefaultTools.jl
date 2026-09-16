@@ -41,12 +41,13 @@ _api_modules(set::ToolSet) =
 function _api_types(set::ToolSet, mod::Module)
     all = _struct_types(mod)
     isempty(set.api) && return all
+    # A module two entries name gives the names of both.
+    given = Set{Symbol}()
     for entry in set.api
         entry.module_ === mod || continue
-        given = get_api_entry_names(entry)
-        return [pair for pair in all if first(pair) in given]
+        union!(given, get_api_entry_names(entry))
     end
-    empty(all)
+    [pair for pair in all if first(pair) in given]
 end
 
 # What a declaration can be said in one sentence. A module that gave every name

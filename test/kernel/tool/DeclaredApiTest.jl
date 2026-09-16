@@ -14,11 +14,17 @@ using ProjecturedKernel.ToolModule
 # allows `module` only at the top level, so the fixture lives here rather than
 # inside the testset.
 module ToyApi
-export toy_verb, toy_count
+export toy_verb, toy_count, toy_limit
 """Answer the word this verb is named after."""
 toy_verb() = "toy"
 """Count what it is given."""
 toy_count(xs) = length(xs)
+"""
+    toy_limit
+
+How many toys a box holds. Use it to bound a count.
+"""
+const toy_limit = 3
 end
 
 # A docstring shaped the way this repository writes one: an indented signature
@@ -361,6 +367,16 @@ function test_declared_api()
             @test !occursin("UndefVarError",
                             execute_julia_code(set, nothing, "string(" * verb * ")"))
         end
+    end
+
+    @testset "a declared constant is found, and read where its hit points" begin
+        set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
+        hits = search_api("bound a count"; api = set.api)
+        @test occursin("`toy_limit` — value in ToyApi", hits)
+        @test occursin("How many toys a box holds.", hits)
+        @test occursin("bound a count", read_resource(set, "resource://value/ToyApi/toy_limit"))
+        @test startswith(read_resource(set, "resource://value/ToyApi/nothing_here"), "Value 'nothing_here' is not")
+        @test strip(execute_julia_code(set, nothing, "toy_limit + 1")) == "4"
     end
 
     # The resources a declared set publishes are its own modules AND the guides.

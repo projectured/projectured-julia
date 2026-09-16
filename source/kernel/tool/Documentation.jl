@@ -156,10 +156,8 @@ _projectured() = parentmodule(@__MODULE__)
 # indexing only what is declared.
 function _is_declared(api, mod::Module, name::Symbol)
     isempty(api) && return true
-    for entry in api
-        entry.module_ === mod && return name in get_api_entry_names(entry)
-    end
-    false
+    # A module two entries name gives the names of both.
+    any(entry -> entry.module_ === mod && name in get_api_entry_names(entry), api)
 end
 
 function _find_module(name::String, api = ApiEntry[])
@@ -288,7 +286,9 @@ function _is_signature_paragraph(lines::Vector{String}, name::AbstractString)
     inner = _get_unfenced_lines(lines)
     isempty(inner) && return false
     line = strip(first(inner))
+    # A constant's signature says its type: `Fill -> SizePolicy`.
     line == name || startswith(line, name * "(") || startswith(line, name * "{") ||
+        startswith(line, name * " ->") ||
         (startswith(name, "@") && startswith(line, name * " "))
 end
 
@@ -538,6 +538,25 @@ function read_function_documentation(module_name, function_signature, type_name 
     doc
 end
 
+"""
+    read_value_documentation(module_name, name; api = ApiEntry[]) -> String
+
+The docstring of a declared constant — a name that is neither a type nor a
+function, such as a size policy — read by the binding that holds it.
+"""
+function read_value_documentation(module_name, name; api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
+    isnothing(mod) && return "Module '$module_name' not found."
+    sym = Symbol(name)
+    _is_declared(api, mod, sym) ||
+        return "Value '$name' is not one of the names you may write."
+    sym = api_source_name(api, mod, sym)
+    isdefined(mod, sym) || return "Value '$name' not found in module '$module_name'."
+    doc = _binding_doc(mod, sym)
+    isempty(doc) && return "No documentation available for '$name'."
+    doc
+end
+
 # ═══════════════════════════════════════════════════════════════════════
 # Search
 # ═══════════════════════════════════════════════════════════════════════
@@ -712,6 +731,9 @@ function _index_declared(api)
                 push!(entries, _make_api_entry("type", qualname, doc, String(source)))
             elseif value isa Function
                 push!(entries, _make_api_entry("function", qualname, doc, String(source)))
+            else
+                # A constant the model writes as it is: a size policy, a default.
+                push!(entries, _make_api_entry("value", qualname, doc, String(source)))
             end
         end
     end
@@ -987,6 +1009,16 @@ function _read_addressed_resource(set::ToolSet, uri::AbstractString)
         length(parts) == 2 || return nothing
         return read_function_documentation(String(parts[1]), String(parts[2]); api = set.api)
     end
+    # A type a module re-exports has no resource of its own — the resources are
+    # the types a module defines — and a constant never has one; both are read
+    # by the shape a hit carries.
+    for (prefix, reader) in (("resource://type/", read_type_documentation),
+                             ("resource://value/", read_value_documentation))
+        startswith(uri, prefix) || continue
+        parts = split(uri[nextind(uri, length(prefix)):end], '/')
+        length(parts) == 2 || return nothing
+        return reader(String(parts[1]), String(parts[2]); api = set.api)
+    end
     nothing
 end
 
@@ -1033,7 +1065,8 @@ function describe_resources(set::ToolSet)
     println(io, "- ", count_of("resource://module/"), " modules: `resource://module/<module>`.")
     println(io, "- ", count_of("resource://type/"), " types: `resource://type/<module>/<type>`.")
     println(io, "- a function: `resource://function/<module>/<name>`, ",
-            "or `read_function_documentation(module, name)`.")
+            "or `read_function_documentation(module, name)`; ",
+            "a constant: `resource://value/<module>/<name>`.")
     println(io, "Find a section with `search_guides` and a name with `search_api`; ",
             "each hit carries its URI.")
     String(take!(io))
