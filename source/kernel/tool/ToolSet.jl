@@ -160,12 +160,16 @@ end
 """
     read_resource(set, uri) -> String
 
-Read a registered resource's body. Returns an error *message* rather than
-throwing: a caller is usually an LLM that guessed a URI, and a sentence it can
-read and retry from beats an exception it cannot.
+Read a resource's body: a registered one by its URI, or one section of a guide
+by `resource://guide/<name>#<heading>` and one function by
+`resource://function/<module>/<name>`, which are read by the shape of the URI
+and never listed. Returns an error *message* rather than throwing: a caller is
+usually an LLM that guessed a URI, and a sentence it can read and retry from
+beats an exception it cannot.
 """
 function read_resource(set::ToolSet, uri::AbstractString)
     r = find_resource(set, uri)
-    r === nothing && return "Resource '$uri' not found."
-    r.provider()
+    r === nothing || return r.provider()
+    addressed = _read_addressed_resource(set, uri)
+    addressed === nothing ? "Resource '$uri' not found." : addressed
 end

@@ -39,14 +39,14 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        api_entry_bindings, api_source_name, describe_api, register_guide_root!,
        register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, register_resources!, list_resources, find_resource,
-       read_resource,
+       read_resource, describe_resources,
        register_default_tools!,
        observe_evaluations!,
        execute_julia_code, get_last_evaluated_value,
        list_guides, read_guide,
        list_modules, list_types, list_functions,
        read_module_documentation, read_type_documentation, read_function_documentation,
-       search_documentation, search_api,
+       search_guides, search_api,
        SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 
 include("Tool.jl")

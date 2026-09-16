@@ -119,12 +119,12 @@ function test_declared_api()
         # A sentence that lives below the signature, which the old answer cut.
         @test occursin("person", answer)
         # And it does not ask for another round.
-        @test !occursin("Read a function with", answer)
+        @test !occursin("Read one in full", answer)
 
         # A query that matches several still lists them, one line each.
         many = ask("toy")
         @test occursin("API matches for", many)
-        @test occursin("Read a function with", many)
+        @test !occursin("the one API match", many)
 
         # A plural is the same question as its singular. The verb is named
         # `toy_arrange` and the docstring says "panes"; both spellings find it.
@@ -368,7 +368,7 @@ function test_declared_api()
     # The guides were once withheld from a declared set, on the reasoning that
     # they describe the whole editor and would send a model to read about a
     # surface it cannot reach. That was wrong in one way and then wrong in
-    # another. `search_documentation` went on printing `resource://guide/…` for
+    # another. `search_guides` went on printing `resource://guide/…` for
     # every hit it found, and `read_resource` could not resolve one, so a model
     # told to read a guide spent a round on "Resource not found" — measured
     # 2026-09-13. And an application registers guides of its own with

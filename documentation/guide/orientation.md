@@ -27,11 +27,13 @@ browsing tools below. Do not guess names — search for them.
 
 ## How to browse
 
-- `search_api("name")` — find a module, struct, or function by name/topic.
-- `search_documentation("topic")` — find the relevant guide section.
+- `search_api("name")` — find the name to call: a module, a type, or a function.
+- `search_guides("topic")` — learn how the parts fit together: a guide section,
+  with the `resource://guide/<name>#<heading>` URI that reads it.
 - Both take `mode`: `"keywords"` by default (`+word` must match, `-word` must
   not, `a|b` is either, `"a phrase"`), `"regex"`, or `"description"` for a
-  sentence that says what you want to do.
+  sentence that says what you want to do; and `detail`: `"names"`, `"summary"`
+  or `"full"`.
 - `read_guide("editor/reference")` / `read_resource(uri)` — read full text on demand.
 - `resource://guides`, `resource://modules` — the full catalogues.
 

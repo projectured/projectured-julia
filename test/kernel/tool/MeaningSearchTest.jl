@@ -144,7 +144,7 @@ function test_meaning_search()
     end
 
     @testset "the guides are ranked by meaning too" begin
-        found = search_documentation("close the window"; mode = "description",
+        found = search_guides("close the window"; mode = "description",
                                      meaning_model = toy)
         @test startswith(found, "# Documentation matches")
         @test occursin("resource://guide/", found)

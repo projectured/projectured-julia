@@ -31,7 +31,7 @@ const _EXTRA_GUIDE_ROOTS = Tuple{String,String}[]
 """
     register_guide_root!(directory; prefix = "") -> Nothing
 
-Add a tree of markdown guides to what `search_documentation` reads and
+Add a tree of markdown guides to what `search_guides` reads and
 `resource://guide/…` names.
 
 `prefix` goes in front of every guide name found under it, so two applications
@@ -769,11 +769,17 @@ function _api_index(api = ApiEntry[])
 end
 
 """
-    search_documentation(query; mode = "keywords", limit = 8, meaning_model = nothing) -> String
+    search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
+                  meaning_model = nothing) -> String
 
-Search the guide documentation. The guides are split into sections at their
-headings, and the first `limit` sections come back as `resource://guide/{name}`
-URIs, each with a short excerpt. Read the full text with `read_resource(set, uri)`.
+Search the guides. They are split into sections at their headings, and the hits
+are sections, each with the URI `read_resource` reads it by:
+`resource://guide/<name>#<heading>`.
+
+`detail` says how much a hit shows, and sets the `limit` a caller does not:
+`"names"` is one line each, the URI and the heading, 25 of them; `"summary"`, the
+default, adds an excerpt, 8 of them; `"full"` is the whole section, 3 of them.
+An answer that is long ends with what to do next.
 
 `mode` says how a `String` query is read:
 
@@ -790,10 +796,12 @@ URIs, each with a short excerpt. Read the full text with `read_resource(set, uri
 
 A query that can not be read answers the reason as text, and never throws.
 """
-function search_documentation(query::Union{AbstractString,Regex}; mode = "keywords",
-                              limit::Integer = 8, meaning_model = nothing)
+function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
+                       detail = "summary", limit = nothing, meaning_model = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
+    level = _read_search_detail(detail)
+    haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
     sections = _guide_index()
@@ -804,19 +812,29 @@ function search_documentation(query::Union{AbstractString,Regex}; mode = "keywor
         by_meaning === nothing ||
             (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
     end
-    isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).")
+    isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
+                                                 "A verb may do it: `search_api` with the same words.")
     terms = _get_scored_terms(read)
     fold = _get_query_fold(read)
     io = IOBuffer()
     note === nothing || println(io, note, "\n")
     println(io, "# Documentation matches for $(repr(query))\n")
-    for section in first(ranked, min(limit, length(ranked)))
+    shown = first(ranked, min(_get_hit_count(level, limit), length(ranked)))
+    for section in shown
         head = isempty(section.heading) ? "" : " — $(section.heading)"
-        println(io, "## resource://guide/$(section.guide)$head")
-        println(io, _excerpt(section.body, terms, fold))
-        println(io)
+        if level == "names"
+            println(io, "- ", _get_section_uri(section), head)
+        elseif level == "summary"
+            println(io, "## ", _get_section_uri(section), head)
+            println(io, _excerpt(section.body, terms, fold))
+            println(io)
+        else
+            println(io, "## ", _get_section_uri(section), head, "\n")
+            println(io, section.body, "\n")
+        end
     end
-    String(take!(io))
+    body = String(take!(io))
+    body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
 end
 
 # The sections a query finds, best first, each with its two scores.
@@ -899,31 +917,158 @@ end
 
 _prefix_note(note, text::AbstractString) = note === nothing ? String(text) : note * "\n\n" * text
 
+# ── How much a hit shows ────────────────────────────────────────────────────
+#
+# `detail` is `"names"`, `"summary"` or `"full"`, the same on both searches. A
+# model that wants the lie of the land asks for names; one that has narrowed the
+# search asks for full. Each level has a limit of its own, because one whole
+# docstring costs what twenty names cost.
+const _DETAIL_LIMITS = Dict("names" => 25, "summary" => 8, "full" => 3)
+
+# The detail a search was asked for, as a tool argument spells it, or the reason
+# it can not be read. A missing detail is the summary.
+function _read_search_detail(detail)
+    name = detail === nothing || isempty(strip(string(detail))) ? "summary" :
+           lowercase(strip(string(detail)))
+    haskey(_DETAIL_LIMITS, name) && return name
+    "Unknown search detail " * repr(name) * ". The details are \"names\", \"summary\" and \"full\"."
+end
+
+_get_hit_count(detail::String, limit) = limit === nothing ? _DETAIL_LIMITS[detail] : Int(limit)
+
+# ── What to do next ─────────────────────────────────────────────────────────
+#
+# An answer over `_FOOTER_THRESHOLD` characters ends with the actions that apply,
+# and a shorter one ends with none: the instructions live in the answers that
+# need them, and not in a tool description that is sent with every request. The
+# rules are here and nowhere else, so a footer never names a tool that is not
+# registered — a model was once told in prose to call a tool that did not exist,
+# and it stopped writing code (measured 2026-09-13).
+const _FOOTER_THRESHOLD = 600
+
+const _NARROW_LINE =
+    "Narrow the search with +word or -word, or say what you want done with mode \"description\"."
+
+function _make_footer(first_uri::AbstractString, body_length::Int; what::AbstractString)
+    body_length > _FOOTER_THRESHOLD || return ""
+    "\nRead " * what * " in full: `read_resource(\"" * first_uri * "\")`.\n" * _NARROW_LINE * "\n"
+end
+
+# The URI a hit is read by. A function has no resource of its own, and its URI
+# is read by its shape.
+function _get_entry_uri(entry::_ApiEntry)
+    parts = split(entry.qualname, '.')
+    entry.kind == "module" && return "resource://module/" * entry.qualname
+    "resource://" * entry.kind * "/" * join(parts[1:end-1], '.') * "/" * String(last(parts))
+end
+
+_make_heading_slug(heading::AbstractString) =
+    String(strip(replace(lowercase(heading), r"[^a-z0-9]+" => "-"), '-'))
+
+_get_section_uri(section::_GuideSection) =
+    "resource://guide/" * section.guide *
+    (isempty(section.heading) ? "" : "#" * _make_heading_slug(section.heading))
+
+# ── A resource read by the shape of its URI ─────────────────────────────────
+#
+# A section of a guide and a function have no resource of their own — one per
+# section or per function would list in the hundreds — so `read_resource` reads
+# them by the shape of the URI a search hit carries.
+function _read_addressed_resource(set::ToolSet, uri::AbstractString)
+    guide_prefix = "resource://guide/"
+    function_prefix = "resource://function/"
+    if startswith(uri, guide_prefix) && occursin('#', uri)
+        guide, fragment = split(uri[nextind(uri, length(guide_prefix)):end], '#'; limit = 2)
+        return _read_guide_section(String(guide), String(fragment))
+    end
+    if startswith(uri, function_prefix)
+        parts = split(uri[nextind(uri, length(function_prefix)):end], '/')
+        length(parts) == 2 || return nothing
+        return read_function_documentation(String(parts[1]), String(parts[2]); api = set.api)
+    end
+    nothing
+end
+
+function _read_guide_section(guide::AbstractString, fragment::AbstractString)
+    sections = _GuideSection[section for section in _guide_index() if section.guide == guide]
+    isempty(sections) && return "Documentation '$guide' not found."
+    wanted = _make_heading_slug(fragment)
+    for section in sections
+        _make_heading_slug(section.heading) == wanted &&
+            return "## " * section.heading * "\n\n" * section.body * "\n"
+    end
+    "Section '$fragment' not found in guide '$guide'. Its sections: " *
+        join(unique(section.heading for section in sections if !isempty(section.heading)), " · ") * "."
+end
+
+# A whole guide that is long ends with its sections, so the next read is one
+# section and not the guide again.
+function _add_guide_footer(guide::AbstractString, text::AbstractString)
+    length(text) > _FOOTER_THRESHOLD || return String(text)
+    headings = unique(section.heading for section in _guide_index()
+                      if section.guide == guide && !isempty(section.heading))
+    isempty(headings) && return String(text)
+    String(text) * "\n\nSections: " * join(headings, " · ") * ". Read one with `read_resource(\"" *
+        "resource://guide/" * guide * "#" * _make_heading_slug(first(headings)) * "\")`.\n"
+end
+
 """
-    search_api(query; mode = "keywords", kind = nothing, limit = 8, api = ApiEntry[],
-               meaning_model = nothing) -> String
+    describe_resources(set) -> String
+
+The kinds of resource `set` offers, each with its count and how it is addressed:
+what the `list_resources` tool answers. One line per kind, and not one per URI,
+because a model reads this to learn the shapes, and a search hit carries the
+URI it wants.
+"""
+function describe_resources(set::ToolSet)
+    uris = [resource.uri for resource in list_resources(set)]
+    count_of(prefix) = count(uri -> startswith(uri, prefix), uris)
+    io = IOBuffer()
+    println(io, "# Resources")
+    println(io, "- 2 catalogues: `resource://guides`, every guide in one paragraph each, and ",
+            "`resource://modules`, the modules you may call, with their types.")
+    println(io, "- ", count_of("resource://guide/"), " guides: `resource://guide/<name>`; ",
+            "one section of a guide: `resource://guide/<name>#<heading>`.")
+    println(io, "- ", count_of("resource://module/"), " modules: `resource://module/<module>`.")
+    println(io, "- ", count_of("resource://type/"), " types: `resource://type/<module>/<type>`.")
+    println(io, "- a function: `resource://function/<module>/<name>`, ",
+            "or `read_function_documentation(module, name)`.")
+    println(io, "Find a section with `search_guides` and a name with `search_api`; ",
+            "each hit carries its URI.")
+    String(take!(io))
+end
+
+"""
+    search_api(query; mode = "keywords", detail = "summary", kind = nothing, limit = nothing,
+               api = ApiEntry[], meaning_model = nothing) -> String
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
 hits. Each hit shows its signature, its kind and module, and the first sentence
-of its description; one line at the end says how to read a hit in full. Pass
-`kind` (`"module"`, `"type"`, or `"function"`) to filter.
+of its description. `detail` says how much: `"names"` is the signature line only,
+25 hits; `"summary"`, the default, adds the sentence, 8 hits; `"full"` is the
+whole docstring, 3 hits; a `limit` given replaces the count. An answer that is
+long ends with what to do next. Pass `kind` (`"module"`, `"type"`, or
+`"function"`) to filter.
 
 `api` is the declared API of a `ToolSet`. Named, the search sees those modules
 and nothing else — the same names the code the model writes can resolve. Empty, it
 sees the whole project.
 
-`mode` reads the query exactly as in [`search_documentation`](@ref): keywords by
+`mode` reads the query exactly as in [`search_guides`](@ref): keywords by
 default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
 """
-function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind = nothing,
-                    limit::Integer = 8, api = ApiEntry[], meaning_model = nothing)
+function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
+                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
+    level = _read_search_detail(detail)
+    haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
+    limit = _get_hit_count(level, limit)
     entries = _ApiEntry[entry for entry in _api_index(api)
                         if kind === nothing || entry.kind == kind]
     scored = _rank_api_entries(read, entries)
@@ -954,7 +1099,8 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind 
     if isempty(ranked)
         suffix = kind === nothing ? "" : " (kind=$kind)"
         names = isempty(api) ? "" : describe_api(api; signatures = false)
-        return _prefix_note(note, "No API matches $(repr(query))$suffix." *
+        return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
+                                  "A guide may say it: `search_guides` with the same words." *
                                   (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
     end
 
@@ -980,10 +1126,10 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind 
     println(io, "# API matches for $(repr(query))\n")
     shown = first(ranked, min(limit, length(ranked)))
     for entry in shown
-        println(io, _format_api_hit(entry))
+        println(io, _format_api_hit(entry, level))
     end
-    print(io, _format_api_footer(shown))
-    String(take!(io))
+    body = String(take!(io))
+    body * _make_footer(_get_entry_uri(first(shown)), length(body); what = "one")
 end
 
 # A hit is two lines: what a caller writes, and what it does.
@@ -994,50 +1140,41 @@ end
 # `CampaignVerbsModule.select_simulations!`, wrote
 # `PaneProgramModule.select_simulations!`, and lost the turn to an
 # `UndefVarError`. The module follows the kind, as context.
-function _format_api_hit(entry::_ApiEntry)
+function _format_api_hit(entry::_ApiEntry, level::String = "summary")
     parts = split(entry.qualname, '.')
     name = String(last(parts))
     head = isempty(entry.signature) ? name : entry.signature
     where = length(parts) > 1 ? " in " * join(parts[1:end-1], '.') : ""
     summary = isempty(entry.summary) ? "(no documentation)" : entry.summary
+    level == "names" && return "- `" * head * "` — " * entry.kind * where
+    level == "full" && return "## `" * head * "` — " * entry.kind * where * "\n\n" *
+                              (isempty(entry.full) ? summary : entry.full) * "\n"
     "- `" * head * "` — " * entry.kind * where * "\n  " * summary
 end
 
-# How to read a hit in full, said once, for the kinds the answer holds. A
-# function has no resource of its own; a type and a module have one.
-function _format_api_footer(entries)
-    kinds = Set(entry.kind for entry in entries)
-    parts = String[]
-    "function" in kinds &&
-        push!(parts, "a function with `read_function_documentation(module, name)`")
-    "type" in kinds &&
-        push!(parts, "a type with `read_resource(\"resource://type/<module>/<name>\")`")
-    "module" in kinds &&
-        push!(parts, "a module with `read_resource(\"resource://module/<module>\")`")
-    isempty(parts) ? "" : "\nRead " * join(parts, "; ") * ".\n"
-end
-
 """
-    search_api(set::ToolSet, query; mode = "keywords", kind = nothing, limit = 8) -> String
+    search_api(set::ToolSet, query; mode = "keywords", detail = "summary", kind = nothing,
+               limit = nothing) -> String
 
 Search what the tools of `set` search: its declared API, ranked by its meaning
 model when it has one. This is what the `search_api` tool answers, so a call
 from the REPL and a call from a model answer the same text.
 """
 search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-           kind = nothing, limit::Integer = 8) =
-    search_api(query; mode = mode, kind = kind, limit = limit, api = set.api,
+           detail = "summary", kind = nothing, limit = nothing) =
+    search_api(query; mode = mode, detail = detail, kind = kind, limit = limit, api = set.api,
                meaning_model = set.meaning_model)
 
 """
-    search_documentation(set::ToolSet, query; mode = "keywords", limit = 8) -> String
+    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
-when it has one. This is what the `search_documentation` tool answers.
+when it has one. This is what the `search_guides` tool answers.
 """
-search_documentation(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-                     limit::Integer = 8) =
-    search_documentation(query; mode = mode, limit = limit, meaning_model = set.meaning_model)
+search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
+              detail = "summary", limit = nothing) =
+    search_guides(query; mode = mode, detail = detail, limit = limit,
+                  meaning_model = set.meaning_model)
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
 # A tool argument arrives from JSON, so it may be a number, a string, or nothing.
@@ -1059,3 +1196,6 @@ end
 # The query of a search tool call. A value that is not text is read as its text,
 # and a missing one is empty, which the search answers.
 _get_query_argument(args) = string(something(get(args, "query", ""), ""))
+
+# A limit a call gave, or `nothing`, which the detail level then decides.
+_arg_limit(v) = v === nothing ? nothing : _arg_int(v, 8)

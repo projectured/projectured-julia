@@ -87,15 +87,65 @@ function test_search_answer()
         @test !occursin("`fenced_verb` ", answer)
         @test !occursin("**", answer)
         @test !occursin("→ read full", answer)
-        # One footer, for the kinds the answer holds.
-        @test count("Read a function with `read_function_documentation(module, name)`", answer) == 1
-        @test occursin("a type with `read_resource(\"resource://type/<module>/<name>\")`", answer)
-        # An answer of functions alone says nothing about a type.
-        verbs = search_api("verb"; api = api)
-        @test occursin("Read a function with", verbs)
-        @test !occursin("a type with", verbs)
+        # A short answer ends with its hits.
+        @test !occursin("Read one in full", answer)
         # A verb without a docstring shows its name and says so.
+        verbs = search_api("verb"; api = api)
         @test occursin("- `bare_verb` — function in AnswerToy\n  (no documentation)", verbs)
+    end
+
+    @testset "a long answer ends with what to do next, and the detail says how much" begin
+        long = search_api("make")
+        @test length(long) > 600
+        @test occursin("Read one in full: `read_resource(\"resource://", long)
+        @test occursin("Narrow the search with +word or -word", long)
+        # Names: one line per hit, up to 25, and no sentence under it.
+        names = search_api("make"; detail = "names")
+        hits = [line for line in split(names, '\n') if startswith(line, "- `")]
+        @test 8 < length(hits) <= 25
+        @test !any(line -> startswith(line, "  "), split(names, '\n'))
+        # Full: the whole docstring of each, and a limit given replaces the count.
+        full = search_api("make"; detail = "full", limit = 2)
+        @test count("## `", full) == 2
+        @test length(full) > length(search_api("make"; limit = 2))
+        @test startswith(search_api("make"; detail = "everything"), "Unknown search detail \"everything\"")
+        # The guides: the same levels, and a hit carries its section's URI.
+        summary = search_guides("selection")
+        @test occursin(r"^## resource://guide/\S+#\S+"m, summary)
+        @test occursin("Read a section in full: `read_resource(\"resource://guide/", summary)
+        guide_names = search_guides("selection"; detail = "names")
+        @test all(line -> startswith(line, "- resource://guide/") || !startswith(line, "- "),
+                  split(guide_names, '\n'))
+        @test count("- resource://guide/", guide_names) > 8
+        @test count("## resource://guide/", search_guides("selection"; detail = "full", limit = 1)) == 1
+        # A miss names the other search.
+        @test occursin("A guide may say it: `search_guides`", search_api("zzzznotarealword"; api = api))
+        @test occursin("A verb may do it: `search_api`", search_guides("zzzznotarealword"))
+    end
+
+    @testset "a section and a function are read by the shape of their URI" begin
+        set = register_default_tools!(ToolSet())
+        section = read_resource(set, "resource://guide/kernel/cell#invalidation")
+        @test startswith(section, "## Invalidation")
+        @test length(section) < length(read_resource(set, "resource://guide/kernel/cell"))
+        @test startswith(read_resource(set, "resource://guide/kernel/cell#nothing-here"),
+                         "Section 'nothing-here' not found in guide 'kernel/cell'. Its sections:")
+        @test read_resource(set, "resource://guide/no/such#x") == "Documentation 'no/such' not found."
+        @test occursin("Search modules", read_resource(set, "resource://function/ToolModule/search_api"))
+        declared = register_default_tools!(ToolSet(; api = Module[AnswerToy]))
+        @test occursin("Close the box", read_resource(declared, "resource://function/AnswerToy/fenced_verb"))
+        @test occursin("not found", read_resource(declared, "resource://function/ToolModule/search_api"))
+        # A whole guide that is long ends with its sections.
+        whole = read_resource(set, "resource://guide/kernel/cell")
+        @test occursin("\nSections: ", whole)
+        @test occursin("Read one with `read_resource(\"resource://guide/kernel/cell#", whole)
+        # The resource list is six lines by kind, and the tool answers the same.
+        kinds = describe_resources(set)
+        @test occursin("guides: `resource://guide/<name>`", kinds)
+        @test occursin("`resource://function/<module>/<name>`", kinds)
+        @test count('\n', kinds) == 7
+        listing = only(t for t in list_tools(set) if t.name == "list_resources")
+        @test listing.handler(nothing, Dict{String,Any}()) == kinds
     end
 
     @testset "a declared name is shown as the model writes it" begin
@@ -131,9 +181,11 @@ function test_search_answer()
         @test search_api(set, "box") == search.handler(nothing, Dict("query" => "box"))
         @test search_api(set, "box"; kind = "type") ==
               search.handler(nothing, Dict("query" => "box", "kind" => "type"))
-        guides = only(t for t in list_tools(set) if t.name == "search_documentation")
-        @test search_documentation(set, "selection"; limit = 2) ==
+        guides = only(t for t in list_tools(set) if t.name == "search_guides")
+        @test search_guides(set, "selection"; limit = 2) ==
               guides.handler(nothing, Dict("query" => "selection", "limit" => 2))
+        @test search_api(set, "box"; detail = "names") ==
+              search.handler(nothing, Dict("query" => "box", "detail" => "names"))
         # Without a meaning model, a description says so and never "this editor".
         note = first(split(search_api(set, "shut the box"; mode = "description"), '\n'))
         @test startswith(note, "No meaning model was given")

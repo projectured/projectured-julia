@@ -21,7 +21,7 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
     "- Call the `search_api` tool to find the right module, struct, or function " *
     "(it ranks by name and docstring and returns how to read full docs).\n" *
-    "- Call the `search_documentation` tool to find the relevant guide section.\n" *
+    "- Call the `search_guides` tool to find the relevant guide section.\n" *
     "- When you know what you want to do but not what it is called, call either " *
     "search with mode \"description\" and say it in a sentence.\n" *
     "- Read full text with the `read_resource` tool, and a function's full docs " *
@@ -87,10 +87,20 @@ const _QUERY_PARAMETER = (name = "query", type = "string",
 const _MODE_PARAMETER = (name = "mode", type = "string",
     description = "How `query` is read. \"keywords\" (the default): words that rank a " *
                   "hit; +word must match, -word must not, a|b is either, \"two words\" " *
-                  "is a phrase. \"regex\": a regular expression; a (?i) prefix ignores " *
-                  "case. \"description\": a sentence that says what you want to do, when " *
-                  "you do not know what it is called.",
+                  "is a phrase; a guessed name is a good query, its words match the " *
+                  "parts of the real name. \"regex\": a regular expression; a (?i) " *
+                  "prefix ignores case. \"description\": a sentence that says what you " *
+                  "want to do, when you do not know what it is called.",
     required = false)
+
+const _DETAIL_PARAMETER = (name = "detail", type = "string",
+    description = "How much a hit shows. \"names\": one line each, up to 25. " *
+                  "\"summary\" (the default): the signature and one sentence, up to 8. " *
+                  "\"full\": the whole text, up to 3.",
+    required = false)
+
+const _LIMIT_PARAMETER = (name = "limit", type = "number",
+    description = "How many hits; the detail decides when absent.", required = false)
 
 """
     register_default_tools!(set) -> set
@@ -118,42 +128,41 @@ function register_default_tools!(set::ToolSet)
     ))
 
     register_tool!(set, Tool(
-        "search_documentation",
-        "Search the ProjecturEd guide documentation by keywords, by a pattern, or by " *
-        "a sentence that says what you want to do. Returns ranked guide sections " *
-        "with their resource:// URIs and a short excerpt. Read the full text with " *
-        "the `read_resource` tool. Call this to locate the relevant guide section " *
-        "BEFORE reading whole guides.",
+        "search_guides",
+        "Learn how the parts fit together: search the guides, prose with worked " *
+        "examples. A hit is one section, with the URI `read_resource` reads it by. " *
+        "Use it when no single name does what was asked, or to see an example.",
         NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
-            (name = "limit", type = "number",
-             description = "Maximum number of results (default 8)", required = false),
+            _DETAIL_PARAMETER,
+            _LIMIT_PARAMETER,
         ],
-        (target, args) -> search_documentation(set, _get_query_argument(args);
-                                               mode = get(args, "mode", nothing),
-                                               limit = _arg_int(get(args, "limit", 8), 8)),
+        (target, args) -> search_guides(set, _get_query_argument(args);
+                                        mode = get(args, "mode", nothing),
+                                        detail = get(args, "detail", nothing),
+                                        limit = _arg_limit(get(args, "limit", nothing))),
     ))
 
     register_tool!(set, Tool(
         "search_api",
-        "Search ProjecturEd modules, structs (types), and functions by name and " *
-        "docstring. Returns ranked hits with a one-line doc and how to read the full " *
-        "docs: a resource:// URI for modules/types, or a read_function_documentation(…) " *
-        "call for functions. Use this to find the right type or function and NEVER guess " *
-        "names or signatures.",
+        "Find the name to call: search the modules, types and functions you may " *
+        "write, by name and docstring. A hit shows the signature and one sentence; " *
+        "one clear hit shows its whole docstring. Use it before you write code, and " *
+        "NEVER guess a name or a signature.",
         NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
+            _DETAIL_PARAMETER,
             (name = "kind", type = "string",
              description = "Optional filter: \"module\", \"type\", or \"function\"", required = false),
-            (name = "limit", type = "number",
-             description = "Maximum number of results (default 8)", required = false),
+            _LIMIT_PARAMETER,
         ],
         (target, args) -> search_api(set, _get_query_argument(args);
-                                     mode  = get(args, "mode", nothing),
-                                     kind  = _arg_kind(get(args, "kind", nothing)),
-                                     limit = _arg_int(get(args, "limit", 8), 8)),
+                                     mode   = get(args, "mode", nothing),
+                                     detail = get(args, "detail", nothing),
+                                     kind   = _arg_kind(get(args, "kind", nothing)),
+                                     limit  = _arg_limit(get(args, "limit", nothing))),
     ))
 
     # A function's docstring is reachable *as a tool*, and it is the one piece of
@@ -192,23 +201,18 @@ function register_default_tools!(set::ToolSet)
     # resource list is just this rendered onto the wire.
     register_tool!(set, Tool(
         "list_resources",
-        "List every read-only documentation resource registered in the editor. " *
-        "Returns a markdown bullet list of URIs and their one-line descriptions.",
+        "The kinds of documentation resource, each with its count and how it is " *
+        "addressed: the catalogues, the guides and their sections, the modules, the " *
+        "types, and a function.",
         NamedTuple[],
-        (target, args) -> begin
-            io = IOBuffer()
-            println(io, "# Resources")
-            for r in list_resources(set)
-                println(io, "- `", r.uri, "` — ", r.description)
-            end
-            String(take!(io))
-        end,
+        (target, args) -> describe_resources(set),
     ))
 
     register_tool!(set, Tool(
         "read_resource",
-        "Read the full body of a documentation resource by URI " *
-        "(URIs come from `list_resources`).",
+        "Read a documentation resource in full by its URI: a guide, one section of " *
+        "a guide (resource://guide/<name>#<heading>), a module, a type, or a function " *
+        "(resource://function/<module>/<name>). A search hit carries its URI.",
         NamedTuple[
             (name = "uri", type = "string",
              description = "Resource URI from `list_resources`", required = true),
@@ -222,7 +226,7 @@ function register_default_tools!(set::ToolSet)
     # that is the documentation a declared surface most wants.
     #
     # It was once the other way: guides only when nothing was declared. But
-    # `search_documentation` went on printing `resource://guide/…` for every hit,
+    # `search_guides` went on printing `resource://guide/…` for every hit,
     # and `read_resource` could not resolve one, so a model told to read a guide
     # spent a round on "Resource not found". Measured 2026-09-13.
     register_resource!(set, Resource(
@@ -238,7 +242,7 @@ function register_default_tools!(set::ToolSet)
                 "resource://guide/$gd_name",
                 "Guide: $gd_name",
                 "Full content of the $gd_name documentation guide.",
-                () -> read_guide(gd_name),
+                () -> _add_guide_footer(gd_name, read_guide(gd_name)),
             ))
         end
     end

@@ -826,7 +826,7 @@ qualify:
 - **Read-only data derived from process-invariant sources.** A cache built once
   from inputs that do not change while the process runs and are the same for
   every editor — for example the documentation and API indexes behind
-  `search_documentation` / `search_api` (`tool/Documentation.jl`), built by
+  `search_guides` / `search_api` (`tool/Documentation.jl`), built by
   reflection over the loaded code and the guide files on disk. Lazily populated,
   read-only thereafter, and identical for all editors, so — like the wall clock —
   it introduces no cross-editor write conflict; giving each editor its own copy

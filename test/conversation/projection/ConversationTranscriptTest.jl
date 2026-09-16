@@ -132,8 +132,8 @@ function test_conversation_transcript()
         search = EvaluatorForm(TextBlock(); tool_name = "search_api",
                                input = Dict{String,Any}("query" => "make_child_context", "kind" => "function"))
         @test get_evaluation_title(search) == "tool · search_api \"make_child_context\""
-        bare = EvaluatorForm(TextBlock(); tool_name = "search_documentation")
-        @test get_evaluation_title(bare) == "tool · search_documentation"
+        bare = EvaluatorForm(TextBlock(); tool_name = "search_guides")
+        @test get_evaluation_title(bare) == "tool · search_guides"
         long = EvaluatorForm(TextBlock(); tool_name = "search_api",
                              input = Dict{String,Any}("query" => "x"^80))
         @test endswith(get_evaluation_title(long), "…\"") && length(get_evaluation_title(long)) < 90

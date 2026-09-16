@@ -108,26 +108,26 @@ function test_read_function_documentation()
     end
 end
 
-function test_search_documentation()
-    @testset "search_documentation" begin
+function test_search_guides()
+    @testset "search_guides" begin
         # A term that should appear in the guides
-        result = search_documentation("selection")
+        result = search_guides("selection")
         @test isa(result, String)
         @test occursin("resource://guide/", result)
 
         # Limit is honoured (count the per-hit "resource://guide/" headers)
-        result_one = search_documentation("selection"; limit=1)
+        result_one = search_guides("selection"; limit=1)
         @test count("resource://guide/", result_one) <= 1
 
         # No match
-        result_none = search_documentation("zzzznotarealword")
+        result_none = search_guides("zzzznotarealword")
         @test occursin("No documentation matches", result_none)
 
         # Empty / too-short query
-        @test occursin("Provide a search query", search_documentation("a"))
+        @test occursin("Provide a search query", search_guides("a"))
 
         # Regex dispatch
-        @test occursin("resource://guide/", search_documentation(r"selection"))
+        @test occursin("resource://guide/", search_guides(r"selection"))
     end
 end
 
@@ -168,7 +168,7 @@ function test_search_tools_registered()
         tools = register_default_tools!(ToolSet())
         tool_names = [t.name for t in list_tools(tools)]
         @test "search_api" in tool_names
-        @test "search_documentation" in tool_names
+        @test "search_guides" in tool_names
 
         resource_uris = [r.uri for r in list_resources(tools)]
         @test !any(u -> startswith(u, "resource://function/"), resource_uris)
@@ -184,12 +184,12 @@ function test_search_tools_registered()
         @test occursin("ReplaceSelectionOperation", rout)
 
         # an invalid regex is reported, not thrown
-        bad = call_tool(tools, "search_documentation",
+        bad = call_tool(tools, "search_guides",
                         Dict("query" => "(unclosed", "mode" => "regex"), nothing)
         @test occursin("Invalid regex", bad)
 
         # in the default mode the same string is read as harmless keywords
-        kout = call_tool(tools, "search_documentation", Dict("query" => "(unclosed"), nothing)
+        kout = call_tool(tools, "search_guides", Dict("query" => "(unclosed"), nothing)
         @test isa(kout, String) && !occursin("Invalid regex", kout)
     end
 end
@@ -620,7 +620,7 @@ function test_mcp_tools()
         test_base_extensions()
         test_workbench_editor_reference()
         test_assistant_turn_binds_meaning_model()
-        test_search_documentation()
+        test_search_guides()
         test_search_api()
         test_search_tools_registered()
         test_workbench_b1()
@@ -635,5 +635,5 @@ export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_workbench_editor_reference, test_assistant_turn_binds_meaning_model
-export test_search_documentation, test_search_api, test_search_tools_registered
+export test_search_guides, test_search_api, test_search_tools_registered
 export test_workbench_b1, test_print_object_options, test_search_object

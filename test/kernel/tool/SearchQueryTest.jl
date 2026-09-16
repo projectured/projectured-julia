@@ -131,13 +131,13 @@ function test_search_query()
         @test occursin("Provide a search query", search_api("a"; api = api))
         @test occursin("Provide a word to look for", search_api("-row"; api = api))
         @test occursin("Unknown search mode \"fuzzy\"", search_api("row"; mode = "fuzzy", api = api))
-        @test occursin("Provide a search query", search_documentation("a"; mode = "description"))
+        @test occursin("Provide a search query", search_guides("a"; mode = "description"))
     end
 
     @testset "the regex mode reads a string as a pattern" begin
         @test occursin("count_rows", search_api("^SearchToy\\.count"; mode = "regex", api = api))
         @test occursin("Invalid regex", search_api("(unclosed"; mode = "regex", api = api))
-        @test occursin("Invalid regex", search_documentation("(unclosed"; mode = :regex))
+        @test occursin("Invalid regex", search_guides("(unclosed"; mode = :regex))
         # The mode is read without case.
         @test occursin("count_rows", search_api("^SearchToy\\.count"; mode = :Regex, api = api))
         # A `Regex` is a pattern whatever the mode says.
@@ -149,14 +149,14 @@ function test_search_query()
                            mode = "description", api = api)
         @test startswith(found, "No meaning model was given")
         @test occursin("arrange_panes", found)
-        guides = search_documentation("how the selection moves"; mode = "description")
+        guides = search_guides("how the selection moves"; mode = "description")
         @test startswith(guides, "No meaning model was given")
         @test occursin("resource://guide/", guides)
     end
 
     @testset "the tools take a mode, and no longer a regex flag" begin
         set = register_default_tools!(ToolSet(; api = Module[SearchToy]))
-        for name in ("search_api", "search_documentation")
+        for name in ("search_api", "search_guides")
             tool = only(t for t in list_tools(set) if t.name == name)
             parameters = [p.name for p in tool.parameters]
             @test "mode" in parameters

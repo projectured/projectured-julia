@@ -55,7 +55,7 @@ principled exception PAR-PER-EDITOR-STATE grants the wall clock.
 
 ### Three kinds of query
 
-`search_api` and `search_documentation` read their query in one of three modes.
+`search_api` and `search_guides` read their query in one of three modes.
 The `mode` argument names the mode, and a `Regex` value is a pattern in every
 mode.
 
@@ -98,9 +98,43 @@ the list says how to read a hit in full: a function with
 `read_resource` and its `resource://` URI. A description search that no
 meaning model ranked says so in its first line, and says what to do instead.
 
-`search_api(set, query; …)` and `search_documentation(set, query; …)` search as
+`search_api(set, query; …)` and `search_guides(set, query; …)` search as
 the tools of `set` do, with its declaration and its meaning model, so a call
 from the REPL answers what a model is answered.
+
+**Two searches, two intents.** `search_api` finds the name to call, and
+`search_guides` says how the parts fit together; their descriptions say so in
+one sentence each, and a miss in one names the other. They rank differently on
+purpose — a name by its name first, a guide section by its heading first — so
+they stay two tools.
+
+**`detail` says how much a hit shows**, the same on both: `"names"` is one line
+each, up to 25; `"summary"`, the default, adds the sentence or the excerpt, up
+to 8; `"full"` is the whole docstring or section, up to 3. A `limit` given
+replaces the count.
+
+**A long answer ends with what to do next.** Over 600 characters, a list of hits
+ends with how to read the first one in full and how to narrow the search; a
+whole guide ends with its sections. A shorter answer ends with its data. The
+rules are one function, `_make_footer`, so a footer never names a tool that is
+not registered.
+
+**A section and a function are read by the shape of their URI.** A search hit
+for a guide carries `resource://guide/<name>#<heading>`, and a hit for a
+function `resource://function/<module>/<name>`; `read_resource` resolves both,
+and lists neither, because one resource per section or per function would list
+in the hundreds. `list_resources` answers the kinds, each with its count and its
+shape, in six lines.
+
+**`execute_julia_code` answers what the code printed, whole, and the last value
+in one line.** What the code prints is what the model asked for, so it is never
+cut. The value of the last expression comes unasked — a `DataFrame` of thousands
+of rows, the `Text` a side-effect verb answers — so a short one is shown as it
+is and a long one is described by its `summary`, and the model prints the part
+it wants. `nothing` with nothing printed answers "Done.", because an empty
+answer reads as a broken tool. A name that is not defined answers the nearest
+declared names — `plot_results` is told about `make_result_plot` — which is the
+search that starts from a guess, done where the guess fails.
 
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or

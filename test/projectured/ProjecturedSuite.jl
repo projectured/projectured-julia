@@ -394,7 +394,7 @@ export test_json_construct, test_yaml_construct, test_xml_construct
 export test_assistant_composer_panel, test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
-export test_search_documentation, test_search_api, test_search_tools_registered
+export test_search_guides, test_search_api, test_search_tools_registered
 export test_workbench_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_workbench_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
