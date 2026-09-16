@@ -436,13 +436,23 @@ every Julia process.
 - [x] The survey: names, collisions, the verbs a case needs; the user chooses.
       The set is in §5, "The interface survey". The user was asked twice and
       said "continue with the plan", so the proposed set stands.
-- [ ] The declaration, the docstrings, the golden sentences, the benchmark
-      problems; the benchmark run again.
+- [x] The declaration, the docstrings, the golden sentences, the benchmark
+      problems; the benchmark run again. Done 2026-09-16; the table is in §5,
+      "After Step 6".
 
 ### Step 7. Reduce (§3h) and close
 
-- [ ] `SimulationToolsModule` and its test, after decision 3.
-- [ ] Move this plan to `plan/done/` with the four benchmark tables.
+- [ ] `SimulationToolsModule` and its test, after decision 3. **Blocked, and
+      the premise was half wrong.** The module holds the eleven tools no window
+      registers, and it also holds `build_campaign_session` and
+      `SimulationToolContext`, which `run_campaign_window`, the precompile
+      workload and the test fixture build the window with. The reduction is
+      therefore a move, not a deletion: a `CampaignSessionModule` with
+      `CampaignSession(editor, tree, filter)` and `build_campaign_session`,
+      whose Run wiring is `run_filter_in_new_pane!`, and the tools file and its
+      test deleted. The deletion was refused by the sandbox as irreversible,
+      and decision 3 has no word from the user yet; both are for the user.
+- [ ] Move this plan to `plan/done/` with the benchmark tables.
 
 ## 5. Findings
 
@@ -669,3 +679,74 @@ labelled "Run again" that runs the TandemQueue simulations when it is
 clicked"). A check walks every field of what a tab holds, so a card inside a
 row inside a card is found where the model put it. The golden table gains four
 sentences: a row, a card, a button, an alert.
+
+### After Step 6 — the interface declared, 2026-09-16
+
+The search, on the same twenty sentences plus four for the interface:
+
+| corpus | first by words | first by description | found by words |
+| --- | --- | --- | --- |
+| verbs and names, 12 | 5 | 8 | 12 |
+| guides, 8 | 5 | 7 | 8 |
+
+The four interface sentences: "a card with a title around the plot" ranks
+`WidgetCard` first by words and by description; "a button that runs the sweep
+again" ranks `WidgetButton` first by both; "a message that warns about a failed
+run" ranks `WidgetAlert` tenth by words and first by description; "put the
+table and the plot side by side" ranks `HorizontalLayout` fifteenth by words
+— "table" is `WidgetTable`'s word — and second by description, after `Fill`.
+The eight old verb sentences keep their ranks, but "draw how a value changes
+over time" fell from twelfth to twentieth by description: thirty-one more names
+share the ranking, and that docstring still says "chart".
+
+`qwen3.8:27b` on the eleven problems, seed and context as before:
+
+| problem | solved | rounds | calls | tokens in / out | seconds | first verb |
+| --- | --- | --- | --- | --- | --- | --- |
+| simulation_count | yes | 3 | 3 | 17,432 / 589 | 70.3 | `select_simulations!` |
+| simulation_run | yes | 5 | 5 | 36,502 / 433 | 46.9 | `select_simulations!` |
+| scalar_result_table | yes | 5 | 7 | 19,750 / 496 | 35.4 | `get_project_result_directory` |
+| vector_result_plot | yes | 5 | 5 | 24,861 / 418 | 40.2 | `open_pane!` |
+| added_plot_series | yes | 5 | 4 | 36,785 / 876 | 65.6 | `show_layout` |
+| pane_arrangement | yes | 3 | 2 | 9,709 / 1,079 | 66.0 | `show_layout` |
+| simulation_stop | yes | 5 | 6 | 19,590 / 402 | 33.0 | `show_layout` |
+| result_frame_columns | yes | 5 | 4 | 24,986 / 838 | 70.5 | `get_simulation_scalar_results` |
+| card_around_table | no | 5 | 6 | 20,153 / 748 | 52.8 | `get_project_result_directory` |
+| table_beside_plot | no | 5 | 8 | 29,885 / 1,031 | 89.6 | — |
+| button_runs_again | yes | 5 | 9 | 27,871 / 918 | 67.0 | `show_layout` |
+
+Solved 9 of 11: 51 rounds, 59 calls, 267,524 tokens in and 7,828 out, 637 s.
+**The eight problems of the earlier stages are all solved**, 8 of 8, against
+6 of 8 after Step 5 and 5 of 8 at the baseline; `simulation_stop` and
+`added_plot_series`, the two that failed on the corrected examples, passed.
+One seed, and a prompt that now carries thirty-one more names, so every sample
+differs from the earlier runs': the two that pass now are the two a `MethodError`
+and the cap ended before, and nothing in Step 6 touched their verbs. The gain on
+the eight is within the noise this plan warned about, and a second seed would
+say more. The three interface problems:
+
+- **`button_runs_again` passed**, in five rounds and nine calls. The search
+  "button with click action callback" answered `WidgetButton` first; the model
+  read `Action`, `WidgetButton` and `open_pane!` in full and wrote, in its
+  words, "The Action example shows exactly this": the docstring's example,
+  with the configuration changed.
+- **`card_around_table` failed** with a table titled "Delay" in a tab, and the
+  reply "I opened a card titled Delay". The search "card" by description
+  ranked `run_card!` first and `WidgetCard` second, and the footer pointed at
+  the first; the model read the table verbs instead and took the tab for the
+  card. The meaning of one word is thin: "card" is `run_card!`'s word as much
+  as `WidgetCard`'s, and a sentence would have ranked them apart, as the golden
+  table shows.
+- **`table_beside_plot` failed without writing code.** Three searches for the
+  readers and the plot, the whole assistant guide read as one resource, 4,000
+  characters, and in the fifth round the search "a horizontal row container
+  that shows two documents beside each other in one pane", which answered
+  `HorizontalLayout` first with its sentence "A row of children" — then the
+  read of it in full was the turn's last call. The cap of five rounds decided
+  it, with the answer in hand. This is the third turn the cap ends one round
+  short of its solution, after `added_plot_series` in Step 5.
+
+**What the run says about the cap.** Of the eleven turns, nine ran to the
+fifth round. A cap of eight would have cost `table_beside_plot` one more round
+and given it its pane; it would cost a turn that has lost its way three rounds
+more. The proposal of Step 5 stands, and it is the prompt owner's call.
