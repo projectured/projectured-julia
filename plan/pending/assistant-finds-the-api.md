@@ -355,8 +355,8 @@ every Julia process.
       read the old format follow the new one. The kernel search tests: 260 pass.
 - [x] `agent.md` says what a hit shows and how to read one; `setup-guide.md`
       and `PAR-NEVER-GUESS-NAMES` name the catalogues that exist.
-- [ ] omnet: `measure_meaning_search!` parses the new hit line; the live
-      table prints the same ranks.
+- [x] omnet: `measure_meaning_search!` parses the new hit line; the live
+      table prints the same ranks, 5 of 8 verbs and 7 of 8 guides first.
 
 ### Step 2. The benchmark and its baseline (§3i)
 
