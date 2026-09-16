@@ -394,8 +394,9 @@ every Julia process.
       the `list_resources` tool answers it.
 - [x] `agent.md` and `orientation.md` say all of it. The kernel search tests:
       286 pass.
-- [ ] omnet: prompts, guides and tests say `search_guides`; the omnet tests run
-      after projectured lands.
+- [x] omnet: the window's prompt, its guide and its measurement say
+      `search_guides`. The IDE harness tests, 64, and the campaign assistant
+      test, 16, pass against the landed projectured.
 
 ### Step 4. `execute_julia_code` (§3e) — done 2026-09-16
 
