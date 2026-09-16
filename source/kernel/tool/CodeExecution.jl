@@ -128,8 +128,20 @@ get_last_evaluated_value(set::ToolSet) = set.last_value
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
 Projectured names in scope. Statements run at the top level of `set`'s persistent
-scratch module, so top-level assignments stay bound for later calls. Returns the
-repr of the last value together with anything the code printed.
+scratch module, so top-level assignments stay bound for later calls.
+
+**The answer is what the code printed, whole, and the last value in one line.**
+What the code prints is what the caller asked for, so it is never cut. The
+value of the last expression comes unasked, and it is what floods a window — a
+`DataFrame` of thousands of rows, the `Text` a side-effect verb answers — so a
+short one is shown as it is and a long one is described by its `summary`; the
+caller then prints the part it wants. A value is whole or described, never cut
+in the middle. `nothing`, with nothing printed, answers "Done.", because an
+empty answer reads as a broken tool.
+
+**A name that is not defined answers the nearest names that are.** A caller
+guesses `plot_results`, and the error names `make_result_plot`: the search that
+starts from a guess, done where the guess fails, so it costs no round.
 
 Never throws: an error comes back as its formatted message, because the caller is
 usually an agent that must be able to read the failure and try again.
@@ -173,7 +185,7 @@ function execute_julia_code(set::ToolSet, target, code)
                 result = Core.eval(m, expr)
             end
             set.last_value = result
-            result === nothing || println(repr(result))
+            print(_describe_last_value(result))
         end
 
         close(stdout_pipe.in)
@@ -183,13 +195,92 @@ function execute_julia_code(set::ToolSet, target, code)
         close(stdout_pipe.out)
         close(stderr_pipe.out)
 
-        stdout_output * stderr_output
+        answer = stdout_output * stderr_output
+        isempty(strip(answer)) ? "Done." : answer
     catch e
-        sprint(showerror, e, catch_backtrace())
+        sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     end
     @info "[tool] execute_julia_code result" output
     _notify_evaluation(set)
     output
+end
+
+# The longest value that is shown as it is. Beyond it, the value is described.
+const _SHOWN_VALUE_CHARACTERS = 200
+
+# The value of the last expression, as the answer shows it: a short one as it
+# is, a long one by its `summary` and how to read a part of it, and `nothing` as
+# nothing at all. Prose a verb answers on purpose is shown whole, however long:
+# a `Text` as it is, and a long `String` without its quotes. A verb that answers
+# `show_layout`'s program or a search's hits answers it to be read.
+function _describe_last_value(value)
+    value === nothing && return ""
+    value isa Base.Text && return string(value) * "\n"
+    text = repr(value; context = :limit => true)
+    (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
+    value isa AbstractString && return String(value) * "\n"
+    "The last value is " * _summarize_value(value) * ". Print the part you want to read, " *
+        "as `println(first(x, 10))` or `println(names(x))`.\n"
+end
+
+function _summarize_value(value)
+    text = try
+        summary(value)
+    catch
+        string(typeof(value))
+    end
+    length(text) > _SHOWN_VALUE_CHARACTERS ? first(text, _SHOWN_VALUE_CHARACTERS - 1) * "…" : text
+end
+
+# The names the code may write: the declared ones, or every name of the surface.
+_get_writable_names(set::ToolSet) =
+    isempty(set.api) ? String[String(last(split(entry.qualname, '.'))) for entry in _api_index()] :
+                       String[String(name) for entry in set.api for name in get_api_entry_names(entry)]
+
+_suggest_nearest_names(error, set::ToolSet) = ""
+
+function _suggest_nearest_names(error::UndefVarError, set::ToolSet)
+    nearest = _find_nearest_names(String(error.var), _get_writable_names(set))
+    isempty(nearest) && return ""
+    "\nDid you mean: " * join(("`" * name * "`" for name in nearest), ", ") * "?\n"
+end
+
+# The names closest to a guess, at most `count`: first by the words the guess
+# shares with a name — `plot_results` shares two of three with
+# `make_result_plot` — and then by edit distance, which is what finds a typo.
+function _find_nearest_names(guess::AbstractString, candidates; count::Integer = 3)
+    guessed = lowercase(guess)
+    guessed_words = _split_name_words(guessed)
+    scored = Tuple{Float64,Int,String}[]
+    for candidate in unique(candidates)
+        lowered = lowercase(candidate)
+        lowered == guessed && continue
+        shared = length(intersect(guessed_words, _split_name_words(lowered)))
+        distance = _compute_edit_distance(guessed, lowered)
+        (shared > 0 || distance <= 2) || continue
+        push!(scored, (-shared / max(length(guessed_words), 1), distance, candidate))
+    end
+    sort!(scored)
+    [name for (_, _, name) in first(scored, count)]
+end
+
+_split_name_words(name::AbstractString) =
+    Set(word for word in split(rstrip(name, '!'), r"[^a-z0-9]+") if length(word) >= 2)
+
+function _compute_edit_distance(a::AbstractString, b::AbstractString)
+    x = collect(a)
+    y = collect(b)
+    previous = collect(0:length(y))
+    for (i, character) in enumerate(x)
+        current = Vector{Int}(undef, length(y) + 1)
+        current[1] = i
+        for (j, other) in enumerate(y)
+            current[j + 1] = min(previous[j + 1] + 1, current[j] + 1,
+                                 previous[j] + (character == other ? 0 : 1))
+        end
+        previous = current
+    end
+    previous[end]
 end
 
 # Tell whoever asked what this call produced. After the output is built, so an

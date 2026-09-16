@@ -10,8 +10,9 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "Projectured is already imported with `using Projectured` before executing the code, " *
     "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
     "it is already included automatically.\n\n" *
-    "Returns the repr of the last expression's value (if any), followed by any " *
-    "captured stdout/stderr. There is no need to call print().\n\n" *
+    "The tool answers what your code prints, whole. The value of the last " *
+    "expression is described in one line, and shown only when it is short. " *
+    "Print what you want to read: println(x), show(x) or @show x.\n\n" *
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *
     "2. resource://modules\n" *
@@ -27,7 +28,7 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "- Read full text with the `read_resource` tool, and a function's full docs " *
     "with the `read_function_documentation` tool.\n\n" *
     "NEVER guess names or signatures — search for them.\n" *
-    "NEVER call print(). NEVER include code comments."
+    "NEVER include code comments."
 
 # The modules a `ToolSet` publishes as resources: the ones it declared, or every
 # submodule of the project when it declared none.
@@ -73,9 +74,10 @@ function _execute_julia_code_description(set::ToolSet)
     "say it in a sentence.\n" *
     "- `read_function_documentation` reads one in full and says what its " *
     "arguments are.\n\n" *
-    "Returns the repr of the last expression's value (if any), followed by any " *
-    "captured stdout/stderr. There is no need to call print().\n\n" *
-    "NEVER guess a name — search for it. NEVER call print(). NEVER write comments."
+    "The tool answers what your code prints, whole. The value of the last " *
+    "expression is described in one line, and shown only when it is short. " *
+    "Print what you want to read: println(x), show(x) or @show x.\n\n" *
+    "NEVER guess a name — search for it. NEVER write comments."
 end
 
 # The two parameters both search tools share. A tool description is sent with

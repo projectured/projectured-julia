@@ -375,21 +375,42 @@ every Julia process.
       second model's run was cut off by a crash of the user's session and waits
       for an idle machine.
 
-### Step 3. The two searches, footers, sections (§3b, §3c, §3d, §3h)
+### Step 3. The two searches, footers, sections (§3b, §3c, §3d, §3h) — done 2026-09-16
 
-- [ ] `search_documentation` → `search_guides`, with `julia-rename.jl` and the
-      two sweeps, in projectured and omnet; `detail` on both tools;
-      `_make_footer`; section and function URIs in `read_resource`;
-      `list_resources` by kind.
-- [ ] omnet: prompts, guides and tests say `search_guides`.
-- [ ] Tests; guides; the benchmark run again.
+- [x] `search_documentation` → `search_guides`, tool and function, with
+      `julia-rename.jl` (15 references in 7 files in projectured, 2 in omnet)
+      and the sweep of strings, docstrings and guides; the test functions
+      followed. Each tool's description says in one sentence when to use it.
+- [x] `detail` on both searches: `names` (25), `summary` (8), `full` (3), and a
+      `limit` given replaces the count; an unknown detail answers the three.
+- [x] `_make_footer`: over 600 characters, a list ends with how to read its
+      first hit in full and how to narrow the search; a shorter answer ends
+      with its hits; a miss names the other search. A long whole guide ends
+      with its sections. The plan first put a reader line on every list, and
+      the rule above replaced it.
+- [x] `read_resource` reads `resource://guide/<name>#<heading>` and
+      `resource://function/<module>/<name>` by their shape; a guide hit carries
+      its section URI; `describe_resources` answers the kinds in six lines and
+      the `list_resources` tool answers it.
+- [x] `agent.md` and `orientation.md` say all of it. The kernel search tests:
+      286 pass.
+- [ ] omnet: prompts, guides and tests say `search_guides`; the omnet tests run
+      after projectured lands.
 
-### Step 4. `execute_julia_code` (§3e)
+### Step 4. `execute_julia_code` (§3e) — done 2026-09-16
 
-- [ ] The last value described by `summary`, a short one shown, `nothing` as
-      "Done."; printed output whole; the description; the nearest names on
-      `UndefVarError`; tests, and the tests that read a printed last value
-      follow the new rule.
+- [x] The last value: `Text` whole; a short value as its `repr`; a long
+      `String` whole without its quotes; anything else described by its
+      `summary` with how to read a part of it. `repr` is limited, so a long
+      vector shows as Julia's own elided line, and the description is for what
+      is long even limited, a tuple or a table. `nothing` with nothing printed
+      is "Done.". Printed output comes first and is never cut.
+- [x] An `UndefVarError` answers the nearest declared names: by the words the
+      guess shares, then by edit distance, at most three.
+- [x] The descriptions of `execute_julia_code` say to print what is wanted,
+      and no longer forbid `print`.
+- [x] `test/kernel/tool/CodeExecutionTest.jl`, `test_code_execution()`. The
+      kernel search tests: 304 pass.
 
 ### Step 5. The docstring standard (§3f)
 
