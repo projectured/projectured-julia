@@ -53,9 +53,11 @@ the call (`execute_julia_code`), and read the result.
    gets `UndefVarError: plot_results not defined` and nothing else, although
    `make_result_plot` shares two of its words. A guess is the most natural
    search a model makes, and the failure is where the answer is wanted.
-4. **A result is printed whole.** A verb called for its side effect prints its
-   return value; a `DataFrame` prints hundreds of rows; the model's window is
-   32,768 tokens, and one such result can take a third of it. Nothing cuts it.
+4. **The value of the last expression is printed whole, unasked.** A verb
+   called for its side effect prints its return value; a `DataFrame` prints
+   hundreds of rows; the model's window is 32,768 tokens, and one such value
+   can take a third of it. Julia gives the value without being asked, and the
+   tool passes it on without asking either.
 5. **Compositions have no unit of their own.** A goal often needs two or three
    verbs in order — read the results, make a table, open a pane. The guides
    hold such compositions as worked sessions, but a hit points at a whole
@@ -102,7 +104,7 @@ The `kind` filter of `search_api` is seldom useful and costs little; it stays.
 | `detail` levels on both searches | extends | the model chooses between many names and few whole docstrings |
 | a footer of next actions on a long answer | extends | the instructions move from every request into the answers that need them |
 | guide sections as resources | extends | a hit reads one section, not a whole guide |
-| `execute_julia_code`: `nothing` advice, a cut result, "did you mean" | extends | the round after a wrong guess or a long result is not wasted |
+| `execute_julia_code`: the last value described, printed output whole, "did you mean" | extends | the model decides what it reads; the round after a wrong guess is not wasted |
 | a docstring standard with use cases and an example | extends | the ranking reads the docstring; a use case is what a person says |
 | widget and layout vocabulary | extends | the model builds and controls the interface |
 | `list_resources` by kind | reduces | 95 lines become 6 |
@@ -213,12 +215,29 @@ it for now, measure, then decide.
 
 ### 3e. `execute_julia_code`
 
-- **The description says:** "End the code with `nothing` when you call a verb
-  for what it does and not for what it answers; the return value is printed
-  otherwise." The result path already prints nothing for `nothing`.
-- **A result is cut.** Over 4,000 characters or 60 lines, the output is cut
-  and one line says how much was cut and what to do: "Assign the value to a
-  variable and print a part of it: `first(frame, 10)`, `names(frame)`."
+The tool answers two kinds of output today, and they deserve opposite rules.
+
+- **What the code prints comes back whole, and is never cut.** It is what the
+  model asked for. A cut would hide the rows the model wanted, and the model
+  could not know what was cut. The user refused a cut on 2026-09-16 for this
+  reason, and the plan first had one.
+- **The value of the last expression is described in one line, never
+  dumped.** Julia gives it without being asked, and it is what floods the
+  window: a `DataFrame` of 4,200 rows, the `Text` a side-effect verb answers.
+  The line is Julia's own `summary` — "4200×6 DataFrame", "10-element
+  Vector{Float64}" — and a short value, up to about 200 characters, is shown as
+  it is, because its description would be longer than the value. Nothing is
+  hidden: the line says what exists, and `first(frame, 10)` or `names(frame)`
+  in the next call shows the part the model wants.
+- **`nothing` answers "Done."** — never an empty string, which a model read
+  as a broken tool (measured 2026-09-15). A `Document` stays embedded live in
+  the conversation, as today.
+- **The description says it in one sentence:** "The tool answers what your
+  code prints. The value of the last expression is described in one line.
+  Print what you want to read: `println(x)`, `show(x)`, or `@show x`."
+  `return x` was considered and refused: `return` is not allowed at the top
+  level of a module, so it would be a convention of ours to learn, where
+  printing is Julia's own.
 - **A wrong guess answers the nearest names.** When the code fails with an
   `UndefVarError` in the scratch module, the message gains one line: "Did you
   mean: `make_result_plot`, `make_result_table`?" — the declared names ranked
@@ -350,8 +369,10 @@ every Julia process.
 
 ### Step 4. `execute_julia_code` (§3e)
 
-- [ ] The description; the cut result; the nearest names on `UndefVarError`;
-      tests.
+- [ ] The last value described by `summary`, a short one shown, `nothing` as
+      "Done."; printed output whole; the description; the nearest names on
+      `UndefVarError`; tests, and the tests that read a printed last value
+      follow the new rule.
 
 ### Step 5. The docstring standard (§3f)
 
