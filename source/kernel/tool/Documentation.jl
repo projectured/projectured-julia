@@ -160,6 +160,27 @@ function _is_declared(api, mod::Module, name::Symbol)
     any(entry -> entry.module_ === mod && name in get_api_entry_names(entry), api)
 end
 
+# The module the declaration gives `name` in, or `nothing`.
+function _find_declaring_module(api, name::Symbol)
+    for entry in api
+        name in get_api_entry_names(entry) && return entry.module_
+    end
+    nothing
+end
+
+# What a reader answers for a name the URI puts under the wrong module: a model
+# guesses the module of a verb it found, and the guess is often the window's
+# verbs module. The name is declared, so the answer says where, and the URI
+# that reads it, rather than that it is not one of the names.
+function _say_not_declared(kind::AbstractString, name::AbstractString, module_name,
+                           api, shape::AbstractString)
+    owner = _find_declaring_module(api, Symbol(name))
+    owner === nothing && return "$kind '$name' is not one of the names you may write."
+    owner_name = String(nameof(owner))
+    "$kind '$name' is not in module '$module_name'. It is declared in '$owner_name': " *
+        "read `resource://$shape/$owner_name/$name`."
+end
+
 function _find_module(name::String, api = ApiEntry[])
     # A declared module is not a submodule of the umbrella, so the declared ones
     # are looked in first — and, when there are any, only there.
@@ -502,7 +523,7 @@ function read_type_documentation(module_name, type_name; api = ApiEntry[])
     isnothing(mod) && return "Module '$module_name' not found."
     sym = Symbol(type_name)
     _is_declared(api, mod, sym) ||
-        return "Type '$type_name' is not one of the names you may write."
+        return _say_not_declared("Type", String(type_name), module_name, api, "type")
     (isdefined(mod, sym) && getfield(mod, sym) isa Type) ||
         return "Type '$type_name' not found in module '$module_name'."
     T = getfield(mod, sym)
@@ -528,7 +549,7 @@ function read_function_documentation(module_name, function_signature, type_name 
     func_name = replace(function_signature, r"\(.*" => "")
     sym = Symbol(func_name)
     _is_declared(api, mod, sym) ||
-        return "Function '$func_name' is not one of the names you may write."
+        return _say_not_declared("Function", func_name, module_name, api, "function")
     # A declaration may have renamed it, and the module knows it by its own name.
     sym = api_source_name(api, mod, sym)
     isdefined(mod, sym) ||
@@ -549,7 +570,7 @@ function read_value_documentation(module_name, name; api = ApiEntry[])
     isnothing(mod) && return "Module '$module_name' not found."
     sym = Symbol(name)
     _is_declared(api, mod, sym) ||
-        return "Value '$name' is not one of the names you may write."
+        return _say_not_declared("Value", String(name), module_name, api, "value")
     sym = api_source_name(api, mod, sym)
     isdefined(mod, sym) || return "Value '$name' not found in module '$module_name'."
     doc = _binding_doc(mod, sym)

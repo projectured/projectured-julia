@@ -379,6 +379,20 @@ function test_declared_api()
         @test strip(execute_julia_code(set, nothing, "toy_limit + 1")) == "4"
     end
 
+    @testset "a name read under the wrong module is pointed to its own" begin
+        # A model guesses the module of a verb it found, and guesses wrong; the
+        # answer says where the name is and the URI that reads it there.
+        set = register_default_tools!(ToolSet(; api = Module[ToyApi, ToyExtra]))
+        @test read_resource(set, "resource://function/ToyExtra/toy_verb") ==
+              "Function 'toy_verb' is not in module 'ToyExtra'. It is declared in 'ToyApi': " *
+              "read `resource://function/ToyApi/toy_verb`."
+        @test read_resource(set, "resource://value/ToyExtra/toy_limit") ==
+              "Value 'toy_limit' is not in module 'ToyExtra'. It is declared in 'ToyApi': " *
+              "read `resource://value/ToyApi/toy_limit`."
+        @test startswith(read_resource(set, "resource://function/ToyExtra/nothing_here"),
+                         "Function 'nothing_here' is not one of the names you may write.")
+    end
+
     # The resources a declared set publishes are its own modules AND the guides.
     #
     # The guides were once withheld from a declared set, on the reasoning that
