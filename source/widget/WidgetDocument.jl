@@ -1142,6 +1142,11 @@ A scrollable viewport. With `follow_end=true` the pane sticks to the *bottom* of
 its content — newly appended content (e.g. streaming chat turns) stays in view
 instead of scrolling below the fold — ignoring `scroll_position` on the vertical
 axis.
+
+`follow_end` may be a cell instead of a value, and the pane then uses that very
+cell. A document that owns whether its view follows its end passes its own
+field's cell: a scroll that leaves the end writes it, and the document's owner
+writes it back to bring the end into view.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
@@ -1164,7 +1169,7 @@ function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
                           scroll_position::Point2D=Point2D(0, 0),
-                          follow_end::Bool=false,
+                          follow_end::Union{Bool,AbstractCell}=false,
                           visible::Bool=true,
                           margin::Inset=inset_default,
                           margin_color=nothing,
@@ -1174,7 +1179,7 @@ function WidgetScrollPane(content;
                           padding_color=nothing)
     WidgetScrollPane(Cell(content), Cell(content_fill_color),
                      Cell(position), Cell(size), Cell(scroll_position),
-                     Cell(follow_end),
+                     follow_end isa AbstractCell ? follow_end : Cell(follow_end),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),

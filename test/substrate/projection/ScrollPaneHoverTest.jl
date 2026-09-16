@@ -115,4 +115,28 @@ function test_scroll_pane_hover()
         @test _scroll_pane_row(projection, following, press) ==
               _scroll_pane_row(projection, scrolled, press)
     end
+
+    # A document that owns whether its view follows its end hands the pane its
+    # own cell. A wheel that leaves the end writes the document's flag, and the
+    # document's owner writing it back brings the end into view again.
+    @testset "a pane follows a cell a document owns" begin
+        projection = _scroll_pane_projection()
+        owned = Cell(true)
+        pane = WidgetScrollPane(_scroll_pane_list(); size = Point2D(200, 200),
+                                follow_end = owned)
+        @test getfield(pane, :follow_end) === owned
+        iomap = print_document(projection, pane)
+        room = Int(iomap.content_iomap.output.h) - 200
+        @test room > 0
+        @test Int(_scroll_pane_viewport(iomap).content.y) == -room
+        # Up one notch: the pane leaves the end, and the owner's cell says so.
+        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100))
+        @test up !== nothing
+        evaluate_operation(nothing, up)
+        @test owned[] == false
+        @test Int(_scroll_pane_viewport(iomap).content.y) > -room
+        # The owner asks for the end, and the pane draws it.
+        owned[] = true
+        @test Int(_scroll_pane_viewport(iomap).content.y) == -room
+    end
 end
