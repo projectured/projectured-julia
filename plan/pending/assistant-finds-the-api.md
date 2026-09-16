@@ -581,6 +581,26 @@ had solved failed, and the transcripts say why:
 - `added_plot_series`: five rounds and eight calls, three of them code, and the
   plot still held one series at the cap.
 
+After the fix, the same run: solved 6 of 8; 31 rounds, 31 calls, 157,042
+tokens in and 6,139 out, 468 s. `scalar_result_table` was solved in three
+rounds and two calls, with the corrected example. The two that fail are the two
+that fail at every stage:
+
+- `simulation_stop` is checked wrongly, and the transcript says so: "the set is
+  still finished". The stub's runs end within a second, so the set is
+  `:finished` before most turns are, and the check accepted only `:stopping`,
+  `:stopped` and `:done`. The model did reach for `stop_simulations!` — with
+  the tab instead of the tab's `content`, got a `MethodError`, and ran out of
+  rounds. The check now requires that `stop_simulations!` was called and that
+  nothing runs afterwards, a finished set included.
+- `added_plot_series` found the guide section that says how — "Several frames
+  in one plot", read through its section URI — and then spent its last three
+  rounds on the frame: `columns(frame)`, which no name is near, and
+  `length(::DataFrame)`, a `MethodError`; the cap of five rounds ended it with
+  the plot untouched. The round cap decides, as the baseline said; a cap of
+  eight would cost a failed turn three more rounds and give a turn like this
+  one what it needs.
+
 `vector_result_plot` went from four rounds to three and from four calls to two:
 the search answered `get_simulation_vector_results` in full, with its example,
 and the model wrote the call at once.
