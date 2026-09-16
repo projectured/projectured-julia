@@ -76,14 +76,6 @@ increasing x cursor, with vertical alignment chosen by
 `vertical_align ∈ (:top, :center, :bottom)`. The outer canvas has
 width = sum of child widths + gaps and height = max of child
 heights.
-"""
-@document struct HorizontalLayout <: LayoutDocument
-    children::CellVector = CellVector()
-    vertical_align::Symbol = :top
-    gap::Int = 0
-    child_width::Any = nothing
-    child_height::Any = nothing
-end
 
 Use it to put widgets or documents side by side in one row, from left to right.
 
@@ -92,6 +84,14 @@ Use it to put widgets or documents side by side in one row, from left to right.
     open_pane!(editor, HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
 
 See also `VerticalLayout`, `GridLayout`.
+"""
+@document struct HorizontalLayout <: LayoutDocument
+    children::CellVector = CellVector()
+    vertical_align::Symbol = :top
+    gap::Int = 0
+    child_width::Any = nothing
+    child_height::Any = nothing
+end
 
 function HorizontalLayout(children::Vector;
                           vertical_align::Symbol=:top,
@@ -111,14 +111,6 @@ end
 A column of children. Symmetric to `HorizontalLayout`:
 `horizontal_align ∈ (:left, :center, :right)`. Outer width = max
 of child widths; outer height = sum of child heights + gaps.
-"""
-@document struct VerticalLayout <: LayoutDocument
-    children::CellVector = CellVector()
-    horizontal_align::Symbol = :left
-    gap::Int = 0
-    child_width::Any = nothing
-    child_height::Any = nothing
-end
 
 Use it to put widgets or documents one under another in one column, from top to
 bottom.
@@ -128,6 +120,14 @@ bottom.
     open_pane!(editor, VerticalLayout([plot, table]; gap = 8); title = "Stacked")
 
 See also `HorizontalLayout`, `GridLayout`.
+"""
+@document struct VerticalLayout <: LayoutDocument
+    children::CellVector = CellVector()
+    horizontal_align::Symbol = :left
+    gap::Int = 0
+    child_width::Any = nothing
+    child_height::Any = nothing
+end
 
 function VerticalLayout(children::Vector;
                         horizontal_align::Symbol=:left,
@@ -260,15 +260,6 @@ line height = max `h` of children on that line. `horizontal_align`
 controls intra-line justification (`:left`, `:center`, `:right`);
 `vertical_align` controls cross-axis alignment within a line
 (`:top`, `:center`, `:bottom`).
-"""
-@document struct FlowLayout <: LayoutDocument
-    children::CellVector = CellVector()
-    max_width::Int = 400
-    horizontal_align::Symbol = :left
-    vertical_align::Symbol = :top
-    horizontal_gap::Int = 0
-    vertical_gap::Int = 0
-end
 
 Use it to put many widgets in a row that wraps to the next line when it is full
 — a gallery of cards, a set of badges — within `max_width`.
@@ -278,6 +269,15 @@ Use it to put many widgets in a row that wraps to the next line when it is full
     open_pane!(editor, FlowLayout(cards; max_width = 800); title = "Cards")
 
 See also `GridLayout` for fixed columns.
+"""
+@document struct FlowLayout <: LayoutDocument
+    children::CellVector = CellVector()
+    max_width::Int = 400
+    horizontal_align::Symbol = :left
+    vertical_align::Symbol = :top
+    horizontal_gap::Int = 0
+    vertical_gap::Int = 0
+end
 
 function FlowLayout(children::Vector;
                     max_width::Integer=400,
@@ -303,13 +303,6 @@ canvas has width = max of child widths and height = max of child
 heights. Per-child `(x, y)` is derived from `horizontal_align` /
 `vertical_align` against the outer extent. Used for overlays,
 badges, and composing background / foreground layers.
-"""
-@document struct StackLayout <: LayoutDocument
-    children::CellVector = CellVector()
-    horizontal_align::Symbol = :left
-    vertical_align::Symbol = :top
-    active::Int = 0
-end
 
 Use it to put widgets one over another at the same place — a badge on a card, a
 label over a plot — the last child on top.
@@ -319,6 +312,13 @@ label over a plot — the last child on top.
     StackLayout([plot, badge])
 
 See also `GridLayout`, `VerticalLayout`.
+"""
+@document struct StackLayout <: LayoutDocument
+    children::CellVector = CellVector()
+    horizontal_align::Symbol = :left
+    vertical_align::Symbol = :top
+    active::Int = 0
+end
 
 function StackLayout(children::Vector;
                      horizontal_align::Symbol=:left,

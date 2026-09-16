@@ -13,12 +13,6 @@ One tab: a `title` document and a `content` document. `PaneTab("name", doc)`
 wraps the title in a [`PrimitiveString`](@ref), which is what makes the in-place
 rename an ordinary text edit — the tab strip prints the title through an editable
 widget and the existing `PrimitiveString` gestures do the editing.
-"""
-@document struct PaneTab <: PaneDocument
-    title::Any
-    content::Any
-    icon::Any = nothing
-end
 
 Use it to give a document a title in a group; `open_pane!` makes one for you,
 and a `PaneSplit` you write by hand needs them.
@@ -28,6 +22,12 @@ and a `PaneSplit` you write by hand needs them.
     PaneTab("Delay", make_result_plot(frame))
 
 See also `PaneGroup`, `open_pane!`.
+"""
+@document struct PaneTab <: PaneDocument
+    title::Any
+    content::Any
+    icon::Any = nothing
+end
 
 # String sugar. More specific than the macro's positional form, so the two
 # coexist (a caller passing a document keeps reaching the raw constructor).
@@ -95,12 +95,6 @@ An inner node. `orientation` is `:vertical` (children side by side) or
 `:horizontal` (children stacked). `elements` holds two or more
 [`PaneGroup`](@ref)/[`PaneSplit`](@ref) children, and `weights` holds one
 `Float64` per child. An empty `weights` means equal weights.
-"""
-@document struct PaneSplit <: PaneDocument
-    orientation::Symbol
-    elements::CellVector
-    weights::CellVector = CellVector()
-end
 
 Use it to put panes side by side, `:vertical`, or one above the other,
 `:horizontal`, with `weights` for their share of the space: write it at a
@@ -112,6 +106,12 @@ reference with `replace_referenced_value!` to split the window.
         PaneSplit(:vertical, [PaneGroup([PaneTab("Plot", plot)]), get_window_tree(editor).root]; weights = [0.4, 0.6]))
 
 See also `PaneGroup`, `PaneTab`, `replace_referenced_value!`.
+"""
+@document struct PaneSplit <: PaneDocument
+    orientation::Symbol
+    elements::CellVector
+    weights::CellVector = CellVector()
+end
 
 # Vector sugar. Two collection-typed fields mean the macro emits no wrapping
 # constructor of its own, so this is the one that takes plain vectors.

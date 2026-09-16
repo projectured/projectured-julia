@@ -419,8 +419,6 @@ end
 
 The value a formula's result stands for: a number, a bool, or the text of an
 error or a cycle. Reading it inside a reactive cell subscribes to the result.
-"""
-get_formula_value(formula::FormulaFormula) = _result_value(formula.result)
 
 Use it to read the number a formula of a study's sheet computed — a blocking
 probability, a mean queue length — to compare it with a result, to print it, or
@@ -432,6 +430,8 @@ to state an expectation from it.
     println(get_formula_value(p_block))
 
 See also `add_study_formula!`, `add_expectation!`.
+"""
+get_formula_value(formula::FormulaFormula) = _result_value(formula.result)
 
 # Read the scalar value out of a result document (a TextBlock of one TextString).
 # This is what a dependent formula consumes; parse it back to a number/bool/string.
