@@ -1,8 +1,8 @@
 # The assistant finds the API for what it means
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
-> [three-kinds-of-search.md](../done/three-kinds-of-search.md),
-> [declared-api-is-a-list-of-names.md](../done/declared-api-is-a-list-of-names.md),
+> **Kind:** plan · **Status:** done 2026-09-16 · **Stands on:**
+> [three-kinds-of-search.md](three-kinds-of-search.md),
+> [declared-api-is-a-list-of-names.md](declared-api-is-a-list-of-names.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
 > [naming-rules.md](../../documentation/rule/naming-rules.md),
 > [code-quality-rules.md](../../documentation/rule/code-quality-rules.md)
@@ -456,7 +456,7 @@ every Julia process.
       `max_rounds` is 8, from 5. Eight is what a turn that searches, reads a hit
       in full and writes needs, with a wrong guess and a read after it to spare.
       Measured once more below, "After Step 7".
-- [ ] Move this plan to `plan/done/` with the benchmark tables.
+- [x] Move this plan to `plan/done/` with the benchmark tables. Done 2026-09-16.
 
 ## 5. Findings
 
@@ -754,3 +754,44 @@ say more. The three interface problems:
 fifth round. A cap of eight would have cost `table_beside_plot` one more round
 and given it its pane; it would cost a turn that has lost its way three rounds
 more. The proposal of Step 5 stands, and it is the prompt owner's call.
+
+### After Step 7 — the cap of eight, 2026-09-16
+
+The same eleven problems, the same seed, `Agent`'s `max_rounds` 8:
+
+| problem | solved | rounds | calls | tokens in / out | seconds |
+| --- | --- | --- | --- | --- | --- |
+| simulation_count | yes | 3 | 3 | 17,432 / 589 | 69.0 |
+| simulation_run | yes | 5 | 5 | 36,502 / 433 | 46.6 |
+| scalar_result_table | yes | 8 | 10 | 37,283 / 835 | 62.2 |
+| vector_result_plot | yes | 6 | 5 | 32,273 / 476 | 43.3 |
+| added_plot_series | yes | 5 | 4 | 36,785 / 876 | 63.9 |
+| pane_arrangement | yes | 3 | 2 | 9,709 / 1,079 | 64.5 |
+| simulation_stop | yes | 7 | 7 | 36,560 / 560 | 48.3 |
+| result_frame_columns | yes | 5 | 4 | 24,986 / 838 | 70.8 |
+| card_around_table | no | 5 | 6 | 20,153 / 748 | 52.9 |
+| table_beside_plot | no | 8 | 11 | 65,274 / 1,687 | 138.2 |
+| button_runs_again | yes | 6 | 9 | 36,494 / 989 | 73.5 |
+
+Solved 9 of 11: 61 rounds, 66 calls, 353,451 tokens in and 9,110 out, 733 s.
+**The cap bought nothing on this seed.** The same nine pass and the same two
+fail; the rounds grew from 51 to 61 and the tokens by a third, because a turn
+that had its answer at round five went on checking it. `card_around_table` ends
+by itself at five rounds, as before, with the tab taken for the card.
+`table_beside_plot` used all eight and still failed, and its transcript says
+what the extra rounds bought:
+
+- Round six read `resource://function/ResultVerbsModule/get_simulation_scalar_results`
+  — the model's guess of the module — and the reader answered "not one of the
+  names you may write", which is false: the name is declared, in another
+  module. Fixed after this run: a read under the wrong module now says where
+  the name is declared and the URI that reads it there.
+- Round seven wrote the whole solution — `HorizontalLayout([table, plot])`
+  in `open_pane!` — with the filter `name =~ "delay"`, an exact match that
+  matched nothing; the example says `"*delay*"`.
+- Round eight guessed a column `:scalar` that the frame does not have.
+
+The cap stands at eight, as decided: it is not what fails these turns, and
+a turn that needs six rounds has them. What fails them is a wrong guess
+answered with less than the truth, which the fix above addresses, and the
+model's own habit of shortening an example.
