@@ -42,6 +42,8 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
                                   "- Call the `search_api` tool to find the right module, struct, or function.\n" *
                                   "- Call the `search_documentation` tool to find the relevant guide section.\n" *
+                                  "- When you know what you want to do but not what it is called, call either " *
+                                  "search with mode \"description\" and say it in a sentence.\n" *
                                   "- Read full text with `read_resource(uri)`; read a function's full docs with " *
                                   "`read_function_documentation(\"Module\", \"name\")`.\n" *
                                   "- `list_resources` enumerates documentation/module/class resources if you need to browse.\n\n" *

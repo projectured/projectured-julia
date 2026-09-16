@@ -636,6 +636,9 @@ function _run_agent_loop!(editor, a::Assistant)
             "tests/examples).")
         llm = _build_llm(a.backend, key, a.model, a.context)
     end
+    # A backend that has a meaning model ranks the searches of this turn by the
+    # meaning of a description. One that has none leaves the tool set as it is.
+    Base.invokelatest(bind_meaning_model!, set, llm)
     turn_t0 = time()
     @info "[assistant] turn start" llm=nameof(typeof(llm)) backend=a.backend model=a.model
 

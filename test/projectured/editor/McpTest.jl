@@ -1,6 +1,6 @@
 using Test
 using ProjecturedKernel.ToolModule
-using ProjecturedAssistant.AssistantModule: SubmitJuliaOperation, _eval_result
+using ProjecturedAssistant.AssistantModule: SubmitJuliaOperation, SubmitProseOperation, _eval_result
 
 function test_list_guides()
     @testset "list_guides" begin
@@ -481,6 +481,42 @@ function test_workbench_editor_reference()
     end
 end
 
+# Wait for an assistant turn to end, for at most `seconds`.
+function _wait_for_turn_end(a; seconds = 10.0)
+    deadline = time() + seconds
+    while a.status === :streaming && time() < deadline
+        sleep(0.01)
+    end
+    a.status
+end
+
+# A turn whose backend has a meaning model gives it to the editor's tools, so that
+# the searches of the turn rank a description by its meaning. A backend without
+# one leaves the tools as they are.
+function test_assistant_turn_binds_meaning_model()
+    @testset "an assistant turn binds its meaning model" begin
+        ToolModule._MEANING_FOLDER[] = mktempdir()
+        try
+            tools = register_default_tools!(ToolSet())
+            a = Assistant(; llm = FakeLlm("ok"; meaning_model = "assistant-turn"))
+            a.input.value = "hello"
+            evaluate_operation((document = a, tools = tools), SubmitProseOperation(a))
+            @test _wait_for_turn_end(a) === :idle
+            @test tools.meaning_model isa MeaningModel
+            @test tools.meaning_model.name == "fake/assistant-turn"
+
+            plain_tools = register_default_tools!(ToolSet())
+            plain = Assistant(; llm = FakeLlm("ok"))
+            plain.input.value = "hello"
+            evaluate_operation((document = plain, tools = plain_tools), SubmitProseOperation(plain))
+            @test _wait_for_turn_end(plain) === :idle
+            @test plain_tools.meaning_model === nothing
+        finally
+            ToolModule._MEANING_FOLDER[] = ""
+        end
+    end
+end
+
 function test_function_availability()
     @testset "function_availability" begin
         # Need a mock editor for this test
@@ -583,6 +619,7 @@ function test_mcp_tools()
         test_function_availability()
         test_base_extensions()
         test_workbench_editor_reference()
+        test_assistant_turn_binds_meaning_model()
         test_search_documentation()
         test_search_api()
         test_search_tools_registered()
@@ -597,6 +634,6 @@ export test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_execute_julia_code, test_function_availability, test_base_extensions
-export test_workbench_editor_reference
+export test_workbench_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_documentation, test_search_api, test_search_tools_registered
 export test_workbench_b1, test_print_object_options, test_search_object

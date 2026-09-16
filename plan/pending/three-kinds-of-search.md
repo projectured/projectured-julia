@@ -472,10 +472,14 @@ Work in a worktree. Commit each step with explicit paths. Land with
 
 ### Step 5. Bind the meaning model where a backend is chosen
 
-- [ ] `AssistantTurn.jl`: `bind_meaning_model!(set, llm)` after the backend
-      resolves.
-- [ ] `AssistantDocument.jl`: the default system prompt names the description
+- [x] `AssistantTurn.jl`: `bind_meaning_model!(set, llm)` after the backend
+      resolves, through `Base.invokelatest`, as `_build_llm` calls `make_llm`,
+      because the backend's methods can come from a package loaded later.
+- [x] `AssistantDocument.jl`: the default system prompt names the description
       mode in one line.
+- [x] Test: `test_assistant_turn_binds_meaning_model()` in `McpTest.jl`, in
+      `test_mcp_tools()`. The umbrella search tests, the editor reference test,
+      the new test and the composer panel test: 49 pass.
 - [ ] Land projectured on `main` first. omnet resolves projectured through its
       `main` checkout.
 - [ ] omnet `CampaignWindow.jl`: bind in `on_start` when `llm !== :none` and
@@ -552,4 +556,13 @@ Work in a worktree. Commit each step with explicit paths. Land with
   chunks. The texts hold about 1.04 million characters: 132,000 for the API and
   905,000 for the guides. A test process has one default thread and one
   interactive thread, so a spawned task really runs beside the caller.
+
+**Step 5, 2026-09-16.**
+
+- **A turn with no editor fails before it starts, and a test does not see it.**
+  `_run_agent_loop!` reads `editor.tools` on its first line, and
+  `test_assistant_composer_panel` runs a turn with `nothing` as the editor. The
+  turn fails with a `FieldError`, and the error turn it leaves counts as the
+  reply the test waits for. The line dates from 2026-07-14 and is outside this
+  plan.
 
