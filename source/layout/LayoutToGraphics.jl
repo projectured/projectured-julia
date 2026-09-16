@@ -1328,15 +1328,23 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # Rebuild children + geometry inside one build cell (the H/V/Constraint sibling
     # pattern) so a structural edit to `doc.children` re-flows; the outer canvas's
     # extent + membership derive from `build[]` (PAR-STABLE-IOMAP-IDENTITY).
+    # A flow's children are their content on both axes — a line is as tall as
+    # its tallest child and holds as many as fit — so neither extent is offered
+    # to them. The flow breaks its lines at `max_width`, or at the width it was
+    # offered when that is less: a flow in a card breaks at the card's edge.
+    child_ctx = ctx === nothing ? nothing : withhold_offer(withhold_offer(ctx, :x), :y)
+    avail_w = ctx === nothing ? nothing : ctx.available_width
     build = ComputedCell(() -> begin
         n = length(doc.children)
         child_iomaps = Any[]
         for i in 1:n
             cim = _recurse_child(recursion, doc.children[i],
-                                 make_child_context(ctx, doc, (@reference_step children), (@reference_step [i])))
+                                 make_child_context(child_ctx, doc, (@reference_step children), (@reference_step [i])))
             push!(child_iomaps, cim)
         end
-        max_w_cell = getfield(doc, :max_width)
+        authored_w = getfield(doc, :max_width)
+        max_w_cell = avail_w === nothing ? authored_w :
+                     ComputedCell(() -> min(Int(authored_w[]), max(0, Int(avail_w[]))))
         hgap_cell  = getfield(doc, :horizontal_gap)
         vgap_cell  = getfield(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)

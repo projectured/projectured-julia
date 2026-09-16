@@ -93,6 +93,29 @@ end
     @test !(second isa GraphicsViewport)
 end
 
+@testset "a flow breaks at the width it is offered, and its children are their content" begin
+    words() = Any[WidgetBadge(Point2D(0, 0), w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
+    wide = with_available_size(PrinterContext(EmptyReference());
+                               width=_LC_Cell(600), height=_LC_Cell(400))
+    narrow = with_available_size(PrinterContext(EmptyReference());
+                                 width=_LC_Cell(150), height=_LC_Cell(400))
+    flow() = FlowLayout(words(); max_width=400, horizontal_gap=4, vertical_gap=4)
+    at_wide = print_document(proj, nothing, flow(), wide)
+    at_narrow = print_document(proj, nothing, flow(), narrow)
+    # Offered more than its own width, the flow keeps its own; offered less, it
+    # takes the offer, and more lines.
+    @test Int(at_wide.output.w[]) == 400
+    @test Int(at_narrow.output.w[]) == 150
+    @test Int(at_narrow.output.h[]) > Int(at_wide.output.h[])
+    # A child is as wide as its word, not as wide as the offer.
+    drawn = collect(at_narrow.output.elements)
+    @test length(drawn) == 5
+    for wrapper in drawn
+        child = only(collect(wrapper.elements))
+        @test Int(child.w) < 150
+    end
+end
+
 @testset "a Fixed column is exactly what it was told" begin
     cells = Any[WidgetLabel(Point2D(0, 0), "a-very-long-label"), WidgetLabel(Point2D(0, 0), "b")]
     g = GridLayout(cells, 2; column_policies=Any[Fixed(40), Content])
