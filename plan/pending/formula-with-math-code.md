@@ -8,7 +8,7 @@ half, and the block that draws the equation with its value.
 **Stands on:** [math-linear-form-reader.md](math-linear-form-reader.md), for
 the reader that turns a line into a tree;
 [math.md](../../documentation/package/math/math.md).
-**Serves:** omnet-julia `plan/pending/assistant-develops-a-study.md`, section
+**Serves:** omnet-julia `plan/done/assistant-develops-a-study.md`, section
 4.2b: the closed form of a study is one block, an equation with its value.
 
 ## 1. The problem

@@ -3,7 +3,7 @@
 **Status:** Steps 1 to 4 done on 2026-09-15; Step 5, type-in, is open.
 **Scope:** `ProjecturedMath`, slice `source/math/`: a parser of the linear
 form, a `.math` file type, and the guide.
-**Serves:** omnet-julia `plan/pending/assistant-develops-a-study.md`, Step 2b,
+**Serves:** omnet-julia `plan/done/assistant-develops-a-study.md`, Step 2b,
 where an assistant writes the closed form of a queue as one line and the study
 page draws it. Also every person who types a formula.
 **Stands on:** [math.md](../../documentation/package/math/math.md).
