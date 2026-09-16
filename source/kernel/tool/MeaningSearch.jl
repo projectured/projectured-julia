@@ -1,5 +1,6 @@
 # Fragment of `ToolModule` — search by meaning: the vectors a meaning model
-# computes, where they are kept, and how a description is ranked by them.
+# computes, where they are kept, how a description is ranked by them, and how a
+# guide section's meaning rank joins the rank of its words.
 
 # ═══════════════════════════════════════════════════════════════════════
 # The store of vectors
@@ -418,3 +419,33 @@ function _rank_guide_sections_by_meaning(query::_DescriptionQuery,
     end
     (_get_best_items(sections, scores), nothing)
 end
+
+# **Reciprocal rank fusion, for guide sections.** An item's score is the sum, over
+# the two rankings, of `weight / (_FUSION_RANK_OFFSET + its rank there)`, over the
+# first `_MEANING_RANK_COUNT` items of each; the meaning rank weighs 1. It needs no
+# calibration between a count of words and a cosine, and an item that only one
+# ranking finds still ranks.
+#
+# **A guide's words count twice.** A heading says what its section is about in
+# the words a person uses, and the keyword scorer counts a heading five times, so
+# for a guide the words are a strong ranking, where for a verb's name they are
+# noise. Measured on eight sentences, 2026-09-16: the expected section came first
+# five times by the words, six times by the meaning, seven times by both merged
+# this way, and the eighth second. With equal weights the eighth came fourth.
+const _FUSION_RANK_OFFSET = 60
+const _GUIDE_WORD_WEIGHT = 2.0
+
+function _fuse_rankings(word_ranking::Vector{T}, meaning_ranking::Vector{T};
+                        word_weight::Real) where {T}
+    scores = Dict{T,Float64}()
+    order = T[]
+    for (weight, ranking) in ((word_weight, word_ranking), (1.0, meaning_ranking))
+        for (rank, item) in enumerate(Iterators.take(ranking, _MEANING_RANK_COUNT))
+            haskey(scores, item) || push!(order, item)
+            scores[item] = get(scores, item, 0.0) + weight / (_FUSION_RANK_OFFSET + rank)
+        end
+    end
+    # A tie keeps the order the rankings gave, the words before the meaning.
+    sort!(order; by = item -> -scores[item], alg = MergeSort)
+end
+

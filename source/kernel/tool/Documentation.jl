@@ -689,10 +689,11 @@ URIs, each with a short excerpt. Read the full text with `read_resource(set, uri
   phrase. A section ranks by its heading first and by its body second.
 - `"regex"` — a regular expression, matched against the text as it is written;
   a `(?i)` prefix ignores case. A `Regex` query is read this way in every mode.
-- `"description"` — a sentence that says what the reader wants to do.
-  `meaning_model` ranks the sections by what the sentence means. Without a
-  meaning model, or when it fails, the words of the sentence rank them as
-  keywords do, and the first line of the answer says why.
+- `"description"` — a sentence that says what the reader wants to do. The words
+  of the sentence rank the sections as keywords do, and `meaning_model` ranks
+  them by what the sentence means; the two ranks are merged, and the words count
+  twice. Without a meaning model, or when it fails, the words alone rank them,
+  and the first line of the answer says why.
 
 A query that can not be read answers the reason as text, and never throws.
 """
@@ -707,7 +708,8 @@ function search_documentation(query::Union{AbstractString,Regex}; mode = "keywor
     note = nothing
     if read isa _DescriptionQuery
         by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
+        by_meaning === nothing ||
+            (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).")
     terms = _get_scored_terms(read)

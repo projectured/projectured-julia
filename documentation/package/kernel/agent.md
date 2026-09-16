@@ -84,9 +84,14 @@ required and the optional terms.
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
 guide section rank the hits by cosine. An entry's vector is computed from its
-qualified name and its whole documentation. The words of the description do not
-join that rank: merged with it, words such as "value" and "runs" put unrelated
-names above the verb that was meant. A backend gives a tool set its model
+qualified name and its whole documentation.
+
+- **For an entry, the meaning alone decides.** Merged with the rank of the
+  description's words, words such as "value" and "runs" put unrelated names
+  above the verb that was meant.
+- **For a guide section, the two ranks are merged**, by reciprocal rank fusion,
+  and the words count twice. A heading says what its section is about in a
+  person's words, so there the words are a strong ranking. A backend gives a tool set its model
 through `bind_meaning_model!`. The assistant binds at every turn, and a window
 that serves MCP binds when it starts, because an MCP client runs no turn.
 

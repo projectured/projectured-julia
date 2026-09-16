@@ -150,6 +150,16 @@ function test_meaning_search()
         @test occursin("resource://guide/", found)
     end
 
+    @testset "a guide's words count twice when its ranks are merged" begin
+        fuse = _MeaningTools._fuse_rankings
+        # With equal weights, `y` is first: it is first by meaning and second by
+        # words. With the words counting twice, the first by words wins.
+        @test fuse(["x", "y"], ["y", "z", "x"]; word_weight = 1.0) == ["y", "x", "z"]
+        @test fuse(["x", "y"], ["y", "z", "x"]; word_weight = 2.0) == ["x", "y", "z"]
+        # An item only one ranking holds still ranks.
+        @test "z" in fuse(["x"], ["z"]; word_weight = 2.0)
+    end
+
     @testset "a guide section longer than a chunk is cut at its paragraphs" begin
         paragraph = repeat("word ", 300)                  # 1500 characters
         section = _MeaningTools._GuideSection("guide", "Heading",
