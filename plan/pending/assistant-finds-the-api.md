@@ -446,3 +446,80 @@ every Julia process.
 - **A docstring's signature paragraph can be fenced, and can hold several
   signatures.** `_read_doc_heading` removes the fence and cuts at the second
   signature; `DataFrames.subset` opens with two.
+
+**The baseline, 2026-09-16, `qwen3.8:27b`**, with the tools of Step 1: the
+two-line hits, no `detail`, no footers, `search_documentation` still so named.
+The seed and the context are the harness's own. The machine ran nothing else.
+
+| problem | solved | rounds | calls | tokens in / out | seconds | first verb | tools |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| simulation_count | yes | 5 | 4 | 15,839 / 417 | 56.7 | `select_simulations!` | search_api, read_function_documentation, execute_julia_code, search_documentation |
+| simulation_run | no | 5 | 6 | 34,811 / 429 | 46.1 | `select_simulations!` | search_api, read_resource, read_function_documentation ×2, execute_julia_code, … |
+| scalar_result_table | no | 5 | 5 | 15,205 / 496 | 36.5 | — | search_api, read_function_documentation, search_api, read_function_documentation, search_api |
+| vector_result_plot | yes | 4 | 4 | 12,993 / 319 | 27.3 | `open_pane!` | search_api ×2, read_function_documentation, execute_julia_code |
+| added_plot_series | yes | 5 | 5 | 30,743 / 973 | 84.3 | `show_layout` | search_documentation, read_resource, execute_julia_code ×3 |
+| pane_arrangement | yes | 4 | 4 | 28,231 / 2,048 | 143.3 | `show_layout` | search_api, read_resource, execute_julia_code ×2 |
+| simulation_stop | no | 5 | 6 | 20,417 / 1,027 | 74.7 | `show_layout` | search_api, read_function_documentation, execute_julia_code ×2, search_api, execute_julia_code |
+| result_frame_columns | yes | 2 | 1 | 4,815 / 133 | 13.2 | `get_simulation_scalar_results` | execute_julia_code |
+
+Solved 5 of 8; 35 rounds, 35 calls, 163,054 tokens in and 5,842 out, 482 s.
+
+What the table says:
+
+- **The round cap decides.** Five of the eight turns ran to the fifth round,
+  the cap `Agent` sets, and all three failures are among them. A turn that
+  searches, reads and then writes code has spent three rounds before its
+  first call; a wrong first call leaves it one.
+- **A search is followed by a read.** `read_function_documentation` follows
+  `search_api` in five of eight turns, and `scalar_result_table` spent its five
+  rounds in three searches and two reads and never wrote code. The whole
+  docstring of one clear hit was meant to end this pair; the model asks with
+  words that give several hits.
+- **The prompt is the cost.** 163,054 tokens in against 5,842 out: every round
+  re-reads the conversation, so a turn of five rounds reads its transcript five
+  times. A shorter answer per tool call is worth more than a shorter prompt.
+
+**After Steps 3 and 4, 2026-09-16**, the same eight problems, the same seed:
+the two-line hits, `detail`, footers, section and function URIs,
+`search_guides`, the last value described, the nearest names. One model per
+process, the other unloaded first.
+
+`qwen3.8:27b`:
+
+| problem | solved | rounds | calls | tokens in / out | seconds | first verb | tools |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| simulation_count | yes | 4 | 4 | 15,626 / 477 | 57.9 | `select_simulations!` | search_api, search_guides, read_resource, execute_julia_code |
+| simulation_run | yes | 4 | 4 | 27,765 / 433 | 45.4 | `select_simulations!` | read_resource, search_api, execute_julia_code ×2 |
+| scalar_result_table | yes | 3 | 2 | 9,876 / 318 | 28.7 | `open_pane!` | search_api, execute_julia_code |
+| vector_result_plot | yes | 5 | 4 | 17,870 / 416 | 32.6 | `open_pane!` | search_api, read_function_documentation, search_api, execute_julia_code |
+| added_plot_series | yes | 5 | 9 | 28,697 / 1,298 | 78.7 | `show_layout` | search_api ×2, search_guides, read_resource, show_layout, execute_julia_code, … |
+| pane_arrangement | yes | 5 | 5 | 36,779 / 2,878 | 186.3 | `show_layout` | read_resource, execute_julia_code, read_function_documentation, search_api, execute_julia_code |
+| simulation_stop | no | 5 | 6 | 19,491 / 762 | 57.8 | `show_layout` | search_api, read_function_documentation, search_api, execute_julia_code ×2, search_api |
+| result_frame_columns | yes | 2 | 1 | 5,632 / 179 | 14.7 | — | search_api |
+
+Solved 7 of 8, from 5; 33 rounds, 35 calls, 161,736 tokens in and 6,761 out,
+502 s. `scalar_result_table` went from five rounds of searches and reads to one
+search and one call: the two-line hit told it what `make_scalar_result_table`
+was for. `simulation_run` was solved in four rounds. `simulation_stop` still
+fails: the model reaches for `show_layout` and never finds the set to stop.
+
+`qwen3-coder:30b-a3b-q8_0`, its first table; the server says it has the
+`tools` capability and no `thinking`:
+
+| problem | solved | rounds | calls | tokens in / out | seconds |
+| --- | --- | --- | --- | --- | --- |
+| simulation_count | yes | 2 | 1 | 5,464 / 77 | 24.4 |
+| simulation_run | no | 1 | 0 | 2,612 / 31 | 0.7 |
+| scalar_result_table | no | 5 | 5 | 18,273 / 493 | 17.4 |
+| vector_result_plot | no | 1 | 0 | 2,609 / 34 | 0.9 |
+| added_plot_series | no | 1 | 0 | 2,620 / 94 | 2.1 |
+| pane_arrangement | no | 5 | 6 | 17,588 / 175 | 7.9 |
+| simulation_stop | no | 1 | 0 | 2,616 / 76 | 2.1 |
+| result_frame_columns | yes | 1 | 0 | 2,622 / 36 | 0.9 |
+
+Solved 2 of 8; 17 rounds, 12 calls, 54,404 tokens in and 1,016 out, 56 s. Five
+of eight turns ended in one round with no tool call and under a hundred tokens
+written; the two it solved it solved without running code. The turns it did
+call tools in read the resource list and searched, and never wrote code. This
+is a model that does not use the tools, and no change to the tools is measured
+by it until it does. The transcripts of the next run say what it wrote.
