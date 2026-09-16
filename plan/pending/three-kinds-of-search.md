@@ -410,17 +410,24 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] `test_declared_api()`, `test_search_query()`, `test_kernel_layering()`:
       164 pass. The three MCP search tests in `environment/all`: 24 pass.
 
-### Step 2. The meaning seam (kernel, example)
+### Step 2. The meaning seam (kernel, example) — done 2026-09-16
 
-- [ ] `Llm.jl`: `has_meaning_model`, `compute_meaning_vectors`, their
-      docstrings, and the exports in `LlmModule.jl`.
-- [ ] `Tool.jl`: `MeaningModel`, the `meaning_model` field, the keyword
-      constructor. Find every positional `ToolSet(…)` call and fix it.
-- [ ] `LlmModule`: `bind_meaning_model!(set, llm)`.
-- [ ] `example/kernel/LlmFake.jl`: `FakeLlm(; meaning_model)` computes a
-      bag-of-words vector.
-- [ ] Tests: `bind_meaning_model!` with a `FakeLlm` that has a meaning model
-      sets the field; with one that has none, the field stays as it was.
+- [x] `Llm.jl`: `has_meaning_model` (default `false`),
+      `get_meaning_model_name` and `compute_meaning_vectors` (defaults that
+      throw and name the backend), their docstrings, and the exports in
+      `LlmModule.jl`. The name is a third seam function, because a
+      `MeaningModel` needs it and only the adapter knows it.
+- [x] `Tool.jl`: `MeaningModel(name, compute)`, the `meaning_model` field, the
+      keyword constructor. The keyword constructor was the only caller of the
+      positional one, in all three repositories.
+- [x] `ToolSet.jl`: `set_meaning_model!(set, model)`, which step 3 makes start
+      the vectors.
+- [x] `LlmModule`: `bind_meaning_model!(set, llm)`, in `Llm.jl`.
+- [x] `example/kernel/LlmFake.jl`: `FakeLlm(; meaning_model)` computes a
+      bag-of-words vector of 64 places, placed by FNV-1a so that the places do
+      not change between Julia versions.
+- [x] Tests: `test/kernel/tool/MeaningSearchTest.jl`, `test_meaning_search()`.
+      The kernel tests of steps 1 and 2 and `test_agent_seam()`: 183 pass.
 
 ### Step 3. The description mode (kernel)
 

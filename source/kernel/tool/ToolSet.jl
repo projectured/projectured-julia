@@ -44,6 +44,17 @@ function declare_api!(set::ToolSet, declaration)
 end
 
 """
+    set_meaning_model!(set, model) -> set
+
+Give `set` the [`MeaningModel`](@ref) its searches by description rank with.
+`nothing` takes the model away, and such a search then ranks by its words.
+"""
+function set_meaning_model!(set::ToolSet, model::Union{Nothing,MeaningModel})
+    set.meaning_model = model
+    set
+end
+
+"""
     register_tool!(set, tool) -> tool
 
 Add `tool` to `set`, replacing any tool already registered under the same name.

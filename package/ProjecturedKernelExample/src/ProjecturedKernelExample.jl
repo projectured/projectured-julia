@@ -27,6 +27,7 @@ using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule
 import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
+    has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,

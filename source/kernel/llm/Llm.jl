@@ -11,6 +11,9 @@ and implements two methods:
 - `render_tool_schema(llm, tools)` — render `Tool`s into whatever shape this provider's
   API wants for them.
 
+A backend that also has a meaning model implements three more:
+`has_meaning_model`, `get_meaning_model_name` and `compute_meaning_vectors`.
+
 Configuration lives on the struct rather than in the call because it is not
 universal: a local model has no API key, a hosted one may need a region, and the
 model name is the backend's identity, not a parameter of "have a conversation".
@@ -46,6 +49,57 @@ This is the provider adapter's job. A `Tool` itself describes its parameters
 abstractly and knows no wire format at all.
 """
 function render_tool_schema end
+
+# ── The meaning model a backend can have ────────────────────────────────────
+
+"""
+    has_meaning_model(llm::Llm) -> Bool
+
+Whether `llm` can compute meaning vectors, the vectors a search by description
+ranks with — see `MeaningModel`. A backend that can not keeps this default,
+`false`.
+"""
+has_meaning_model(::Llm) = false
+
+"""
+    get_meaning_model_name(llm::Llm) -> String
+
+Which model computes the meaning vectors of `llm`, as `"ollama/nomic-embed-text"`.
+The vectors of two models can not be compared, so the name keeps them apart.
+"""
+get_meaning_model_name(llm::Llm) = error(_describe_missing_meaning_model(llm))
+
+"""
+    compute_meaning_vectors(llm::Llm, texts; purpose = :document) -> Matrix{Float32}
+
+The meaning vectors of `texts`, one column per text. `purpose` is `:query` for
+the text a search looks for and `:document` for the texts it looks in; a model
+that reads the two differently is told which by its adapter.
+
+Throws when the vectors can not be computed, with a message that says why — a
+server that does not answer, or a model that is not installed.
+"""
+compute_meaning_vectors(llm::Llm, texts; purpose::Symbol = :document) =
+    error(_describe_missing_meaning_model(llm))
+
+_describe_missing_meaning_model(llm::Llm) =
+    string(nameof(typeof(llm))) * " has no meaning model."
+
+"""
+    bind_meaning_model!(set::ToolSet, llm::Llm) -> set
+
+Give `set` the meaning model of `llm`, so that its searches by description rank
+by meaning, and start computing the vectors of what they look in.
+
+A backend that has no meaning model leaves `set` as it is. A model that was bound
+before goes on answering: the backend a chat talks to is not what decides how a
+search ranks.
+"""
+function bind_meaning_model!(set::ToolSet, llm::Llm)
+    has_meaning_model(llm) || return set
+    compute = (texts, purpose) -> compute_meaning_vectors(llm, texts; purpose = purpose)
+    set_meaning_model!(set, MeaningModel(get_meaning_model_name(llm), compute))
+end
 
 # ── Selecting a backend by name ──────────────────────────────────────────────
 # A backend lives in an opt-in package, so nothing here can name its type. The

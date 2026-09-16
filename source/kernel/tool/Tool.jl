@@ -137,7 +137,30 @@ names.
 get_api_modules(set) = Module[entry.module_ for entry in set.api]
 
 """
-    ToolSet(; api = ApiEntry[])
+    MeaningModel(name, compute)
+
+What turns a text into a **meaning vector**: a list of numbers that lies close to
+the list of another text when the two texts mean nearly the same thing. A search
+by description ranks what it finds by these vectors.
+
+- `name` says which model computes them, as `"ollama/nomic-embed-text"`. The
+  vectors of two models can not be compared, so the name keeps them apart, and it
+  names the file they are kept in.
+- `compute(texts, purpose)` answers a `Matrix{Float32}` with one column per text.
+  `purpose` is `:query` for the text a search looks for, and `:document` for the
+  texts it looks in.
+
+A `ToolSet` holds one or none. `bind_meaning_model!` makes one from a language
+model backend that has one, so the tool layer holds a function and never the
+backend.
+"""
+struct MeaningModel
+    name::String
+    compute::Function
+end
+
+"""
+    ToolSet(; api = ApiEntry[], meaning_model = nothing)
 
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
@@ -168,6 +191,10 @@ in scope, as they do in every Julia module, and code that means to reach `Main`
 can. What it buys is that a name outside the list fails in the round that used it,
 with an error the model reads and corrects, instead of the model choosing among
 thousands of names that mean nothing to the task.
+
+`meaning_model` is the [`MeaningModel`](@ref) a search by description ranks with,
+or `nothing`, where such a search ranks by its words alone.
+[`set_meaning_model!`](@ref) gives one.
 """
 mutable struct ToolSet
     tools::Vector{Tool}
@@ -179,10 +206,11 @@ mutable struct ToolSet
     # of it a model may use, or `nothing` for every name it exports. An empty
     # `api` is the whole surface — see `declare_api!`.
     api::Vector{ApiEntry}
+    meaning_model::Union{Nothing,MeaningModel}
 end
 
-ToolSet(; api = ApiEntry[]) =
-    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api))
+ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing) =
+    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model)
 
 """
     observe_evaluations!(f, set) -> f

@@ -4,8 +4,9 @@
 The **capability surface**: what the editor can be asked to do, and what it can
 be asked to read. Seven fragments share this namespace:
 
-- [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), and
-  the `ToolSet` that holds them.
+- [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
+  `MeaningModel` a search by description ranks with, and the `ToolSet` that holds
+  them.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — the `execute_julia_code` tool and its
   persistent scratch namespace.
@@ -32,7 +33,8 @@ process never share a tool registry or evaluate into each other's namespace.
 """
 module ToolModule
 
-export Tool, Resource, ToolSet, ApiEntry, get_api_modules, get_api_entry_names,
+export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
+       get_api_modules, get_api_entry_names,
        api_entry_bindings, api_source_name, describe_api, register_guide_root!,
        register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, register_resources!, list_resources, find_resource,
