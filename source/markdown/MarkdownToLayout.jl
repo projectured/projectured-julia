@@ -38,8 +38,15 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     # what makes a paragraph break its lines at the edge of the page rather
     # than at the length of its longest sentence. A block that authored a width
     # of its own keeps it: an offer is a promise about space, not a constraint.
+    #
+    # An embedded file stands in a card of its own (below), built once for the
+    # element and found again by it, so a fold survives a block added above.
     elements = root.elements::CellVector
-    out = VerticalLayout(CellVector(getfield(elements, :elements), Cell(nothing)),
+    cards = IdDict{Any,Any}()
+    block_of(element) = _is_carded_block(element) ?
+        get!(() -> make_embed_card(element, get_filename(element)), cards, element) : element
+    children = ComputedCellVector(() -> Any[block_of(element) for element in elements])
+    out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(Fill), Cell(nothing), sel)
     iomap = SimpleIoMap(p, root, out)
@@ -47,7 +54,23 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     iomap
 end
 
-# elements[i] + rest  →  children[i] + rest
+# ── An embedded file wears a card ────────────────────────────────────────────
+#
+# A page element that is a file of another domain — a NED network, an INI
+# configuration, a JSON value — is where the page stops and the file starts. It
+# stands in a card titled with the file's name (`make_embed_card`), which a
+# person can fold, and both maps add and drop the card's one step.
+#
+# A block that is not a file draws what it draws. A run card or a table is a
+# card already, and a second one around it would say the same thing twice.
+
+_is_carded_block(element) = is_file_document(element) && !(element isa MarkdownDocument)
+
+_get_page_element(root::MarkdownRoot, i::Int) =
+    1 <= i <= length(root.elements) ? root.elements[i] : nothing
+
+# elements[i] + rest  →  children[i] + rest, and children[i].content + rest
+# for a block in a card. The whole block is the whole card.
 function map_reference_forward(::MarkdownRootToVerticalLayout, iomap, reference)
     reference === nothing && return nothing
     reference isa EmptyReference && return EmptyReference()
@@ -57,10 +80,15 @@ function map_reference_forward(::MarkdownRootToVerticalLayout, iomap, reference)
     t = reference.tail
     t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
-    ConcreteReference(FieldReferenceStep("children"), t)
+    rest = t.tail
+    _is_carded_block(_get_page_element(iomap.input, t.head.start + 1)) &&
+        (rest = make_embed_card_path(rest))
+    ConcreteReference(FieldReferenceStep("children"), ConcreteReference(t.head, rest))
 end
 
-# children[i] + rest  →  elements[i] + rest
+# children[i] + rest  →  elements[i] + rest. Through a card, the body's path
+# loses the card's `content` step, and a path into the card's header — its
+# title — names the whole block.
 function map_reference_backward(::MarkdownRootToVerticalLayout, iomap, reference)
     reference === nothing && return nothing
     reference isa EmptyReference && return EmptyReference()
@@ -70,7 +98,12 @@ function map_reference_backward(::MarkdownRootToVerticalLayout, iomap, reference
     t = reference.tail
     t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
-    ConcreteReference(FieldReferenceStep("elements"), t)
+    rest = t.tail
+    if _is_carded_block(_get_page_element(iomap.input, t.head.start + 1))
+        rest = find_embed_card_path_inside(rest)
+        rest === nothing && return nothing
+    end
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(t.head, rest))
 end
 
 # The whole point of the rewrap is that a page's embedded card is a real widget
@@ -80,6 +113,10 @@ end
 # operation type it does not recognise, which is where a card's Run button used
 # to die: it rendered, took the press, answered, and the answer stopped here.
 read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
+
+# A press on an embedded file's card header folds the card. The operation names
+# the card it folds, so it needs no re-rooting either.
+read_intent(::MarkdownRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
 
 # And the same for a click that lands IN an embedded card rather than on one of
 # its buttons. A card that takes the keyboard — a conversation, a form — needs

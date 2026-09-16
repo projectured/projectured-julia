@@ -37,10 +37,12 @@ function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ct
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, root.selection)
     end)
-    # The page's own element cells are reused, not copied: the layout's children
-    # share the root's element storage, and the layout renderer recurses each one.
+    # The page's blocks, each in its own domain; an embedded file stands in a
+    # card, built once for the block (see `_rst_block`).
     elements = root.elements::CellVector
-    out = VerticalLayout(CellVector(getfield(elements, :elements), Cell(nothing)),
+    cards = IdDict{Any,Any}()
+    children = ComputedCellVector(() -> Any[_rst_block(element, cards) for element in elements])
+    out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, root, out)
@@ -49,9 +51,11 @@ function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ct
 end
 
 map_reference_forward(::RstRootToVerticalLayout, iomap, reference) =
-    _relocate_head(reference, "elements", "children")
+    _relocate_head(reference, "elements", "children";
+                   carded = i -> _is_rst_carded(iomap.input, i))
 map_reference_backward(::RstRootToVerticalLayout, iomap, reference) =
-    _relocate_head(reference, "children", "elements")
+    _relocate_head(reference, "children", "elements";
+                   carded = i -> _is_rst_carded(iomap.input, i))
 
 # ── RstSectionToVerticalLayout ─────────────────────────────────────────────
 
@@ -70,9 +74,10 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
     # The title line, then the section's own blocks — which keep their cells, so
     # each block renders in its own domain and an embed reaches the widget
     # renderer. The title is rebuilt reactively: editing it re-renders the line.
+    cards = IdDict{Any,Any}()
     children = ComputedCellVector(() -> begin
         stack = Any[_title_block(section)]
-        append!(stack, collect(section.elements))
+        append!(stack, [_rst_block(element, cards) for element in section.elements])
         stack
     end)
     out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap),
@@ -104,15 +109,40 @@ _title_run!(::IO, ::Any) = nothing
 # The title takes the first slot, so a block sits one further along than it does
 # in the section. A path into the title itself has no image: the line is flat.
 map_reference_forward(::RstSectionToVerticalLayout, iomap, reference) =
-    _relocate_head(reference, "elements", "children"; shift = 1)
+    _relocate_head(reference, "elements", "children"; shift = 1,
+                   carded = i -> _is_rst_carded(iomap.input, i))
 map_reference_backward(::RstSectionToVerticalLayout, iomap, reference) =
-    _relocate_head(reference, "children", "elements"; shift = -1)
+    _relocate_head(reference, "children", "elements"; shift = -1,
+                   carded = i -> _is_rst_carded(iomap.input, i))
+
+# ── An embedded file wears a card ──────────────────────────────────────────
+#
+# A block that is a file of another domain stands in a card titled with the
+# file's name, as it does on a markdown page (`make_embed_card`). A block that
+# is not a file draws what it draws.
+
+_is_rst_carded_block(element) = is_file_document(element) && !(element isa RstDocument)
+
+_rst_block(element, cards::IdDict) = _is_rst_carded_block(element) ?
+    get!(() -> make_embed_card(element, get_filename(element)), cards, element) : element
+
+# Whether block `i` (1-based, of the root's or the section's own elements)
+# stands in a card.
+function _is_rst_carded(container, i::Int)
+    elements = container.elements
+    1 <= i <= length(elements) || return false
+    _is_rst_carded_block(elements[i])
+end
 
 # ── The shared head relocation ─────────────────────────────────────────────
 
 # `from[i] + rest` → `to[i + shift] + rest`. Everything below the head is
-# carried unchanged, because the rewrap moves the blocks without touching them.
-function _relocate_head(reference, from::String, to::String; shift::Int = 0)
+# carried unchanged, because the rewrap moves the blocks without touching them —
+# except the one step of a card a block stands in, which `carded` says of the
+# block by its own 1-based index, and which is added going to the layout and
+# dropped coming back.
+function _relocate_head(reference, from::String, to::String; shift::Int = 0,
+                        carded = i -> false)
     reference === nothing && return nothing
     reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
@@ -124,8 +154,14 @@ function _relocate_head(reference, from::String, to::String; shift::Int = 0)
     (step isa RangeReferenceStep && is_element_reference_step(step)) || return nothing
     index = step.start + shift
     index >= 0 || return nothing
+    rest = tail.tail
+    block = from == "elements" ? step.start + 1 : index + 1
+    if carded(block)
+        rest = from == "elements" ? make_embed_card_path(rest) : find_embed_card_path_inside(rest)
+        rest === nothing && return nothing
+    end
     ConcreteReference(FieldReferenceStep(to),
-                      ConcreteReference(RangeReferenceStep(index, index + 1), tail.tail))
+                      ConcreteReference(RangeReferenceStep(index, index + 1), rest))
 end
 
 # A card inside a page is a real widget whose header and controls can be pressed,
@@ -135,6 +171,10 @@ end
 # button would die.
 read_intent(::RstRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
 read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
+# A press on an embedded file's card header folds the card, and the operation
+# names the card it folds.
+read_intent(::RstRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
+read_intent(::RstSectionToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # An RST page is a stack of blocks, for the reason a markdown page is. It takes

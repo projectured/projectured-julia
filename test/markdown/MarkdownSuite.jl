@@ -24,7 +24,8 @@ function test_markdown()
     @testset "ProjecturedMarkdown" begin
         test_markdown_layering()
         test_markdown_page_wrap()
+        test_markdown_embed_card()
     end
 end
 
-export test_markdown, test_markdown_layering, test_markdown_page_wrap
+export test_markdown, test_markdown_layering, test_markdown_page_wrap, test_markdown_embed_card

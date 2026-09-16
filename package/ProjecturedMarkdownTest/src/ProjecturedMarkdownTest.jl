@@ -66,6 +66,7 @@ end
 
 
 include("../../../test/markdown/MarkdownWrapTest.jl")
+include("../../../test/markdown/MarkdownEmbedCardTest.jl")
 include("../../../test/markdown/MarkdownSuite.jl")
 
 end # module ProjecturedMarkdownTest

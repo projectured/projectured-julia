@@ -75,6 +75,7 @@ export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
+export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
@@ -84,6 +85,7 @@ export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, W
 include("WidgetDocument.jl")
 include("WidgetToGraphics.jl")
 include("WidgetTableList.jl")
+include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
 include("CellTableToWidgetTable.jl")
