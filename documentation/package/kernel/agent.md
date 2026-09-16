@@ -27,10 +27,12 @@ on both.
 ## Layer 14 — `tool/`: what the editor can be asked to do
 
 ```
-Tool.jl           Tool (an action), Resource (a read-only datum), ToolSet
+Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
 ToolSet.jl        register / list / find / call — all on a ToolSet
 CodeExecution.jl  execute_julia_code, and its persistent scratch namespace
+SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
+MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
 DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 ```
 
@@ -45,15 +47,62 @@ resource list, not the scratch module `execute_julia_code` evaluates into, not i
 last result. Two editors in one process therefore cannot see each other's tools or
 evaluate code into each other's namespace.
 
-*The one carve-out*, stated where it lives: the guide and API indexes are
-process-global lazily-built caches. They are derived read-only from source files
-that do not change while the process runs, and are identical for every editor —
-the same principled exception PAR-PER-EDITOR-STATE grants the wall clock.
+*The one carve-out*, stated where it lives: the guide and API indexes, and the
+stores of meaning vectors, are process-global lazily-built caches. They are
+derived from source files that do not change while the process runs, and from
+the model a store is named for, so they are identical for every editor — the same
+principled exception PAR-PER-EDITOR-STATE grants the wall clock.
+
+### Three kinds of query
+
+`search_api` and `search_documentation` read their query in one of three modes.
+The `mode` argument names the mode, and a `Regex` value is a pattern in every
+mode.
+
+| mode | the query | use it when |
+| --- | --- | --- |
+| `"keywords"`, the default | words, in the forms below | you know a word of the name or of its documentation |
+| `"regex"` | a regular expression, matched as written; `(?i)` ignores case | you know the shape of the name |
+| `"description"` | a sentence that says what you want to do | you do not know what it is called |
+
+`parse_keyword_query` reads a keyword query into terms of three classes:
+
+| form | the term |
+| --- | --- |
+| `word` | ranks a hit, and does not filter |
+| `+word` | must match, or the hit is dropped |
+| `-word` | must not match where a word starts, or the hit is dropped |
+| `a\|b` | matches when one of its alternatives matches |
+| `"two words"` | matches the words together and in order, also written with `_` |
+
+A word matches without case, as a substring, with or without a final `s`. A
+forbidden word matches only where a word starts, because a forbidden substring
+removes hits that nobody sees: `-test` would drop every entry that says
+`invokelatest`. The name score and the prose score of a hit count only the
+required and the optional terms.
+
+**A description is ranked twice.** Its words rank the hits, all of them optional.
+When the `ToolSet` has a `MeaningModel`, the vector of the description and the
+vector of each entry or guide section rank the hits by cosine as well, and
+reciprocal rank fusion merges the two ranks. A backend gives a tool set its model
+through `bind_meaning_model!`. The assistant binds at every turn, and a window
+that serves MCP binds when it starts, because an MCP client runs no turn.
+
+A task per model computes the vectors of the documents and keeps them in
+`build/meaning/<model>.bin`, keyed by their text, so a changed guide section
+costs one new vector. The first search of a build waits for it, for at most 30
+seconds; a later search during the same build does not wait.
+
+**A description never fails for want of a model.** When the tool set has no
+meaning model, when the model throws, or when its vectors are not ready, the
+words alone rank the hits, and the first line of the answer says why. For a model
+that is not installed, the reason says how to install it: `Run ollama pull
+nomic-embed-text`.
 
 ## Layer 15 — `llm/`: how the editor talks to a model
 
 ```
-Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams
+Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams; the meaning model
 LlmMessage.jl  LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
 LlmEvent.jl    LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
 ```
@@ -128,6 +177,27 @@ the model rather than with a request. Each adapter says in its own documentation
 what it ignores. That is the price of a seam a caller can use with no provider in
 mind, and it is smaller than the price of a caller that must know.
 
+### A backend's meaning model
+
+A backend can also have a **meaning model**, which turns a text into a vector
+for a search by description. Three functions carry it, and a backend that has
+none keeps their defaults:
+
+| function | what it answers |
+| --- | --- |
+| `has_meaning_model(llm)` | whether the backend has one; `false` by default |
+| `get_meaning_model_name(llm)` | which model, as `"ollama/nomic-embed-text"` |
+| `compute_meaning_vectors(llm, texts; purpose)` | one vector per text, as the columns of a `Matrix{Float32}` |
+
+`purpose` is `:query` or `:document`, because some models want a different
+prefix for each, and the adapter knows which. `OllamaLlm` has `nomic-embed-text`
+unless its `meaning_model` keyword names another, and asks `/api/embed`.
+Anthropic has no such API, so `AnthropicLlm` has no meaning model.
+
+`bind_meaning_model!(set, llm)` turns the three into a `MeaningModel` on a
+`ToolSet`: a name and a function, never the backend, so `tool/` stays below
+`llm/`. A backend that has no meaning model leaves the tool set as it is.
+
 ### What each adapter must answer for itself
 
 The two adapters show how far providers differ below this seam, and what a third
@@ -142,6 +212,7 @@ one would have to decide.
 | the context window | comes with the model | `options.num_ctx`, and the server's own answer until a caller sets one |
 | a reasoning block's signature | required back, unchanged | none exists |
 | the stop reason for a tool call | the provider says `tool_use` | the provider says `stop`; the adapter counts the calls |
+| meaning vectors | no API | `/api/embed`, with the prefix the model family wants |
 
 The last row is the one that fails silently. `run_turn!` runs a tool only when the
 turn ends in `:tool_use`, so an adapter that passes its provider's word through

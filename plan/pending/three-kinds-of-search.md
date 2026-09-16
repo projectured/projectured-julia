@@ -480,21 +480,29 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] Test: `test_assistant_turn_binds_meaning_model()` in `McpTest.jl`, in
       `test_mcp_tools()`. The umbrella search tests, the editor reference test,
       the new test and the composer panel test: 49 pass.
-- [ ] Land projectured on `main` first. omnet resolves projectured through its
-      `main` checkout.
+- [x] Land projectured on `main` first. omnet resolves projectured through its
+      `main` checkout. Before the landing: `test_kernel()` has 1,755 passes and
+      the known 3 failures and 3 errors (five Rule C assertions in
+      `DocumentMacroTest.jl` and one in `ReferenceEvalTest.jl`);
+      `test_mcp_tools()`, `test_mcp_resources()` and `test_assistant_mvp()`
+      have 227 passes and 2 failures, and clean `main` has the same 2 failures
+      in `test_assistant_mvp()` (79 passes).
 - [ ] omnet `CampaignWindow.jl`: bind in `on_start` when `llm !== :none` and
       `mcp`. Update the `run_campaign_window` docstring.
 - [ ] omnet `test/build.jl` and `CampaignControlTest.jl` stay green.
 
 ### Step 6. Guides
 
-- [ ] `agent.md`: the Layer 14 file list gains `SearchQuery.jl` and
-      `MeaningSearch.jl`; a new subsection "Three kinds of query" with the
-      syntax table and the fallback rule; the Layer 15 section names the two
-      new seam functions.
-- [ ] `orientation.md` lines 30–31: one line per mode.
-- [ ] `architecture-invariants.md`, `PAR-PER-EDITOR-STATE`: the meaning store
-      joins the carve-out list, in one sentence.
+- [x] `agent.md`: the Layer 14 file list gains `SearchQuery.jl` and
+      `MeaningSearch.jl`; the carve-out names the stores of vectors; a new
+      subsection "Three kinds of query" holds the two syntax tables and the
+      fallback rule; a new Layer 15 subsection "A backend's meaning model"
+      names the three seam functions and `bind_meaning_model!`; the adapter
+      table gains a row for meaning vectors.
+- [x] `orientation.md`: one line names the three modes and the keyword forms.
+- [x] `architecture-invariants.md`, `PAR-PER-EDITOR-STATE`: the stores of
+      meaning vectors join the carve-out, in one sentence.
+- [x] `test_naming()` and `test_tree()` pass with the new files and exports.
 - [ ] omnet `assistant-guide.md`: the `mode` argument in the example call.
 
 ### Step 7. Measure

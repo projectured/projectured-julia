@@ -830,7 +830,10 @@ qualify:
   reflection over the loaded code and the guide files on disk. Lazily populated,
   read-only thereafter, and identical for all editors, so — like the wall clock —
   it introduces no cross-editor write conflict; giving each editor its own copy
-  would only duplicate identical work.
+  would only duplicate identical work. The stores of meaning vectors behind a
+  search by description (`tool/MeaningSearch.jl`) are the same kind: a vector is
+  derived from such a text and from the model its store is named for, so every
+  editor that names that model reads the same vectors.
 
 A shared read of one such value does not reintroduce the cross-editor *write*
 conflict PAR-PER-EDITOR-STATE targets.

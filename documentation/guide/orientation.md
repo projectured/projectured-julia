@@ -29,6 +29,9 @@ browsing tools below. Do not guess names — search for them.
 
 - `search_api("name")` — find a module, struct, or function by name/topic.
 - `search_documentation("topic")` — find the relevant guide section.
+- Both take `mode`: `"keywords"` by default (`+word` must match, `-word` must
+  not, `a|b` is either, `"a phrase"`), `"regex"`, or `"description"` for a
+  sentence that says what you want to do.
 - `read_guide("editor/reference")` / `read_resource(uri)` — read full text on demand.
 - `resource://guides`, `resource://modules` — the full catalogues.
 
