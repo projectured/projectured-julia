@@ -1090,8 +1090,9 @@ slice", for MVP scope. See [terminology.md](division-terminology.md).
 
 ### PAR-NEVER-GUESS-NAMES
 
-**Do not guess names or signatures — search for them.** Use `search_api`, the
-`resource://modules`/`classes`/`functions` catalogues, the [orientation
+**Do not guess names or signatures — search for them.** Use `search_api`,
+`read_function_documentation`, the `resource://modules` catalogue and the
+`resource://module/…` and `resource://type/…` resources, the [orientation
 index](../guide/orientation.md), or ripgrep before naming a type or function; a
 hallucinated name is worse than an admitted gap. Property access already
 unwraps cells — write `node.field`, not `node.field[]`.

@@ -119,12 +119,12 @@ function test_declared_api()
         # A sentence that lives below the signature, which the old answer cut.
         @test occursin("person", answer)
         # And it does not ask for another round.
-        @test !occursin("→ read full", answer)
+        @test !occursin("Read a function with", answer)
 
         # A query that matches several still lists them, one line each.
         many = ask("toy")
         @test occursin("API matches for", many)
-        @test occursin("→ read full", many)
+        @test occursin("Read a function with", many)
 
         # A plural is the same question as its singular. The verb is named
         # `toy_arrange` and the docstring says "panes"; both spellings find it.
@@ -145,13 +145,13 @@ function test_declared_api()
         # `toy_count` is the one named for counting, whatever the prose says.
         counted = ask_both("count toy")
         @test occursin("toy_count", first(l for l in split(counted, "\n")
-                                          if startswith(l, "- **")))
+                                          if startswith(l, "- `")))
 
         # **A hit shows the name a caller writes.** A declared name arrives
         # unqualified, so a hit that led with `Module.name` invited a caller to
         # copy that shape and guess the module — measured, one did, and lost the
         # turn to an `UndefVarError`. The module is context, after the name.
-        @test occursin("`toy_count` (in ToyApi)", counted)
+        @test occursin("`toy_count` — function in ToyApi", counted)
         @test !occursin("`ToyApi.toy_count`", counted)
 
         # A miss says what there IS, in the round that asked.

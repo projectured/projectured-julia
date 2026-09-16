@@ -223,14 +223,13 @@ end
 """
 What a search scores an entry on: the signature and the sentence under it.
 
-**The first paragraph is the signature**, not the description. Julia strips a
+**The first paragraph is the signature**, not the description: Julia strips a
 docstring's common indentation before it is stored, so the indented signature
-block arrives flush left and `_first_paragraph`'s guard against it never fires.
-That is right for what a hit *shows* — the prompt promises a one-line signature,
-and a model calls a verb off it without reading more — and wrong for what a hit
-is *found* by: scored on the signature alone, no word of the description is
-searchable, and a verb is reachable only through its name. `show_layout`'s
-docstring says "Which panes are open"; a search for "panes" answered nothing.
+block arrives flush left. A hit shows it, and `_read_doc_heading` reads the
+sentence under it; but scored on the signature alone, no word of the
+description is searchable, and a verb is reachable only through its name.
+`show_layout`'s docstring says "Which panes are open"; a search for "panes"
+answered nothing.
 
 Two paragraphs, not the whole text: the sentence under the signature is where a
 docstring says what the thing does, and the rest is detail that would only blur
@@ -253,23 +252,108 @@ function _search_text(doc::AbstractString)
     join(paragraphs, " ")
 end
 
-function _first_paragraph(doc::AbstractString)
-    isempty(doc) && return ""
-    para = String[]
-    started = false
+# ── What a docstring opens with ───────────────────────────────────────────────
+#
+# A hit and a catalogue line show a signature and a sentence. A docstring here
+# opens with an indented signature block and then says what the thing does, and
+# `_first_paragraph` answers the block, so these read the two apart.
+
+# The paragraphs of a docstring, each as its lines. A blank line ends a
+# paragraph, except inside a fenced code block, which is one paragraph.
+function _split_doc_paragraphs(doc::AbstractString)
+    paragraphs = Vector{String}[]
+    current = String[]
+    fenced = false
     for line in split(doc, '\n')
-        s = strip(line)
-        if isempty(s)
-            started && break
-            continue
+        startswith(strip(line), "```") && (fenced = !fenced)
+        if !fenced && isempty(strip(line))
+            isempty(current) || (push!(paragraphs, current); current = String[])
+        else
+            push!(current, String(line))
         end
-        if !started && startswith(line, "  ")
-            continue
-        end
-        started = true
-        push!(para, s)
     end
-    join(para, " ")
+    isempty(current) || push!(paragraphs, current)
+    paragraphs
+end
+
+# The lines of a paragraph, without the fence around them.
+_get_unfenced_lines(lines::Vector{String}) =
+    length(lines) >= 2 && startswith(strip(lines[1]), "```") &&
+    startswith(strip(lines[end]), "```") ? lines[2:end-1] : lines
+
+# Whether a paragraph is the signature of `name`, or the name alone, which is
+# how a docstring opens.
+function _is_signature_paragraph(lines::Vector{String}, name::AbstractString)
+    inner = _get_unfenced_lines(lines)
+    isempty(inner) && return false
+    line = strip(first(inner))
+    line == name || startswith(line, name * "(") || startswith(line, name * "{") ||
+        (startswith(name, "@") && startswith(line, name * " "))
+end
+
+# Whether a paragraph is prose: not code, a heading, a table, a list, a quote or
+# an admonition.
+function _is_prose_paragraph(lines::Vector{String})
+    line = first(lines)
+    startswith(line, "    ") && return false
+    stripped = lstrip(line)
+    !any(prefix -> startswith(stripped, prefix), ("```", "#", "|", "!!!", "- ", "* ", "+ ", ">")) &&
+        !occursin(r"^\d+\. ", stripped)
+end
+
+# The first signature of a signature paragraph, as one line. A third-party
+# docstring runs several together, and a hit shows one.
+function _get_first_signature(lines::Vector{String}, name::AbstractString; limit::Int = 200)
+    text = replace(join(strip.(_get_unfenced_lines(lines)), ' '), r"\s+" => " ")
+    cuts = [first(found) for found in (findnext(" " * name * "(", text, 1),
+                                        findnext(" " * name * "{", text, 1))
+            if found !== nothing]
+    isempty(cuts) || (text = rstrip(text[1:prevind(text, minimum(cuts))]))
+    length(text) > limit ? first(text, limit - 1) * "…" : String(text)
+end
+
+# A prose paragraph as one line without bold: its first sentence, or all of it.
+# A sentence ends at `.`, `!` or `?` after two word characters, before a capital,
+# a backtick, a `*`, an `_` or a bracket, so "e.g." ends none.
+function _get_prose_text(lines::Vector{String}; whole::Bool, limit::Int)
+    text = replace(replace(join(strip.(lines), ' '), "**" => ""), r"\s+" => " ")
+    if !whole
+        found = match(r"^.*?(?<=[\w`)\]]{2})[.!?](?=\s+[A-Z`*_(\[])", text)
+        found === nothing || (text = found.match)
+    end
+    length(text) > limit ? first(text, limit - 1) * "…" : String(text)
+end
+
+"""
+    _read_doc_heading(doc, source, shown = source; whole = false) -> (signature, summary)
+
+What a docstring opens with: its first signature, and the first sentence of its
+first prose paragraph, or that whole paragraph with `whole`. The signature is
+empty when the docstring opens without one, and both are empty for no docstring.
+
+`source` is the name the docstring uses, and `shown` the name the signature
+shows; they differ where a declaration renamed a function.
+"""
+function _read_doc_heading(doc::AbstractString, source::AbstractString,
+                           shown::AbstractString = source; whole::Bool = false)
+    paragraphs = _split_doc_paragraphs(doc)
+    signature = ""
+    if !isempty(paragraphs) && _is_signature_paragraph(paragraphs[1], source)
+        signature = _get_first_signature(paragraphs[1], source)
+        source == shown || (signature = shown * chop(signature; head = length(source), tail = 0))
+        paragraphs = paragraphs[2:end]
+    end
+    prose = findfirst(_is_prose_paragraph, paragraphs)
+    summary = prose === nothing ? "" :
+        _get_prose_text(paragraphs[prose]; whole = whole, limit = whole ? 400 : 160)
+    (signature, summary)
+end
+
+# The paragraph a catalogue line shows for `name`.
+function _get_catalogue_summary(doc::AbstractString, name::AbstractString)
+    isempty(strip(doc)) && return "No documentation available."
+    summary = last(_read_doc_heading(doc, name; whole = true))
+    isempty(summary) ? "No description." : summary
 end
 
 function _submodules(proj::Module)
@@ -345,10 +429,9 @@ function list_modules(; api = ApiEntry[])
     modules_info = String[]
     for (name, mod) in (isempty(api) ? _submodules(_projectured()) :
                         [(nameof(e.module_), e.module_) for e in api])
-        doc = _doc_string(mod)
-        summary = isempty(doc) ? "No documentation available." : _first_paragraph(doc)
+        summary = _get_catalogue_summary(_doc_string(mod), String(name))
         structs = [String(n) for (n, _) in _struct_types(mod)]
-        struct_list = isempty(structs) ? "" : "\n\nClasses: $(join(structs, ", "))"
+        struct_list = isempty(structs) ? "" : "\n\nTypes: $(join(structs, ", "))"
         push!(modules_info, "**$name**: $summary$struct_list")
     end
     isempty(modules_info) && return "No modules found."
@@ -365,8 +448,7 @@ function list_types(module_name)
     isnothing(mod) && return "Module '$module_name' not found."
     types_info = String[]
     for (name, T) in _struct_types(mod)
-        doc = _doc_string(T)
-        summary = isempty(doc) ? "No documentation available." : _first_paragraph(doc)
+        summary = _get_catalogue_summary(_doc_string(T), String(name))
         mutable_str = ismutabletype(T) ? "mutable " : ""
         push!(types_info, "**$mutable_str$name**: $summary")
     end
@@ -388,8 +470,7 @@ function list_functions(module_name, type_name = nothing)
         if type_name !== nothing && !any(occursin(type_name, string(m.sig)) for m in methods(fn))
             continue
         end
-        doc = _doc_string(fn)
-        summary = isempty(doc) ? "No documentation available." : _first_paragraph(doc)
+        summary = _get_catalogue_summary(_doc_string(fn), String(name))
         push!(functions_info, "**$name**: $summary")
     end
     isempty(functions_info) && return "No functions found in module '$module_name'."
@@ -522,12 +603,35 @@ function _index_guide_sections()
 end
 
 struct _ApiEntry
-    kind::String      # "module" | "type" | "function"
-    qualname::String  # "Mod" or "Mod.Name"
-    doc::String       # what a hit SHOWS: the first paragraph, which is the signature
-    text::String      # what a hit is SCORED on: the signature and the description
-    full::String      # the whole documentation, for a search that answers one thing
-    locator::String   # how to read the full docs
+    kind::String       # "module" | "type" | "function"
+    qualname::String   # "Mod" or "Mod.Name"
+    signature::String  # what a hit shows first: its first signature, or nothing
+    summary::String    # what a hit shows under it: the first sentence of its description
+    text::String       # what a hit is SCORED on: the signature and the description
+    full::String       # the whole documentation, for a search that answers one thing
+end
+
+# An entry named `qualname`, read from its documentation. `source` is the name the
+# documentation uses, which a declaration can have renamed; every text of the
+# entry then shows the name the model writes.
+function _make_api_entry(kind::String, qualname::String, doc::AbstractString,
+                         source::AbstractString = last(split(qualname, '.')))
+    shown = String(last(split(qualname, '.')))
+    doc = source == shown ? String(doc) : _rename_signature_paragraph(doc, source, shown)
+    signature, summary = _read_doc_heading(doc, shown)
+    _ApiEntry(kind, qualname, signature, summary, _search_text(doc), doc)
+end
+
+# The docstring with `shown` in place of `source` in its signature paragraph, and
+# nowhere else: the prose keeps its words, and a model that copies the signature
+# writes a name it may write.
+function _rename_signature_paragraph(doc::AbstractString, source::AbstractString,
+                                     shown::AbstractString)
+    paragraphs = _split_doc_paragraphs(doc)
+    (isempty(paragraphs) || !_is_signature_paragraph(paragraphs[1], source)) && return String(doc)
+    pattern = Regex("(?<![\\w!@])" * escape_string(source) * "(?=[({\\s]|\$)")
+    renamed = [replace(line, pattern => shown) for line in paragraphs[1]]
+    join(vcat([join(renamed, '\n')], [join(lines, '\n') for lines in paragraphs[2:end]]), "\n\n")
 end
 
 # The index of a declared API: each named module, and the names it exports. It
@@ -565,7 +669,7 @@ function describe_api(api; signatures::Bool = true)
                 push!(own, text)
                 continue
             end
-            signature = _first_paragraph(_binding_doc(mod, source))
+            signature = first(_read_doc_heading(_binding_doc(mod, source), String(source), text))
             # A name whose documentation opens with its own signature says it
             # once; anything else is named with what it is.
             push!(own, isempty(signature) ? text :
@@ -585,12 +689,13 @@ end
 
 function _index_declared(api)
     entries = _ApiEntry[]
+    indexed = Set{Module}()
     for declared in api
         mod = declared.module_
         mn = String(nameof(mod))
-        raw = _doc_string(mod)
-        push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
-                                 raw, "resource://module/$mn"))
+        # A module two entries name is one module, and one hit.
+        mod in indexed || push!(entries, _make_api_entry("module", mn, _doc_string(mod)))
+        push!(indexed, mod)
         # The names the declaration gives, and no others. A name a model finds
         # here is a name it can write, which is the whole point of the list.
         # Indexed under the name the MODEL writes, and read from the module by
@@ -600,16 +705,12 @@ function _index_declared(api)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
             value = getfield(mod, source)
-            nn = String(sym)
-            raw = _binding_doc(mod, source)
-            doc = _first_paragraph(raw)
-            text = _search_text(raw)
+            qualname = "$mn." * String(sym)
+            doc = _binding_doc(mod, source)
             if value isa Type
-                push!(entries, _ApiEntry("type", "$mn.$nn", doc, text, raw,
-                                         "resource://type/$mn/$nn"))
+                push!(entries, _make_api_entry("type", qualname, doc, String(source)))
             elseif value isa Function
-                push!(entries, _ApiEntry("function", "$mn.$nn", doc, text, raw,
-                                         "read_function_documentation(\"$mn\", \"$nn\")"))
+                push!(entries, _make_api_entry("function", qualname, doc, String(source)))
             end
         end
     end
@@ -621,23 +722,15 @@ function _index_api()
     entries = _ApiEntry[]
     for (mod_sym, mod) in _submodules(proj)
         mn = String(mod_sym)
-        raw = _binding_doc(proj, mod_sym)
-        push!(entries, _ApiEntry("module", mn, _first_paragraph(raw), _search_text(raw),
-                                 raw, "resource://module/$mn"))
-        for (cls_sym, _) in _struct_types(mod)
-            cn = String(cls_sym)
-            raw = _binding_doc(mod, cls_sym)
-            push!(entries, _ApiEntry("type", "$mn.$cn", _first_paragraph(raw), _search_text(raw),
-                                     raw, "resource://type/$mn/$cn"))
+        push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
+        for (type_sym, _) in _struct_types(mod)
+            push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
         end
-        for (fn_sym, _) in _module_functions(mod)
-            fnn = String(fn_sym)
-            # Per-function resources are not pre-registered (that would fan out to
-            # hundreds); full docs are read on demand via this call instead.
-            raw = _binding_doc(mod, fn_sym)
-            push!(entries, _ApiEntry("function", "$mn.$fnn",
-                                     _first_paragraph(raw), _search_text(raw), raw,
-                                     "read_function_documentation(\"$mn\", \"$fnn\")"))
+        # A function has no resource of its own: a resource per function fans out
+        # to hundreds, so a hit is read with `read_function_documentation`.
+        for (function_sym, _) in _module_functions(mod)
+            push!(entries, _make_api_entry("function", "$mn.$function_sym",
+                                           _binding_doc(mod, function_sym)))
         end
     end
     entries
@@ -812,10 +905,9 @@ _prefix_note(note, text::AbstractString) = note === nothing ? String(text) : not
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
-hits. Each hit shows its kind, qualified name, one-line doc, and how to read the
-full docs: a `resource://…` URI for modules and types, or a
-`read_function_documentation(…)` call for functions. Pass `kind` (`"module"`,
-`"type"`, or `"function"`) to filter.
+hits. Each hit shows its signature, its kind and module, and the first sentence
+of its description; one line at the end says how to read a hit in full. Pass
+`kind` (`"module"`, `"type"`, or `"function"`) to filter.
 
 `api` is the declared API of a `ToolSet`. Named, the search sees those modules
 and nothing else — the same names the code the model writes can resolve. Empty, it
@@ -886,25 +978,66 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind 
     end
 
     println(io, "# API matches for $(repr(query))\n")
-    for entry in first(ranked, min(limit, length(ranked)))
-        # One line. A third-party docstring can open with four overloads run
-        # together, and eight of those bury the verb the model came for.
-        doc = isempty(entry.doc) ? "(no documentation)" : first(split(entry.doc, '\n'))
-        length(doc) > 160 && (doc = first(doc, 157) * "…")
-        # **The writable name first, the module after it.** A declared name
-        # arrives unqualified, and a hit that leads with `Module.name` invites a
-        # caller to copy that shape: measured 2026-09-13, a model read
-        # `CampaignVerbsModule.select_simulations!`, wrote
-        # `PaneProgramModule.select_simulations!`, and lost the turn to an
-        # `UndefVarError`. What is shown is now what works.
-        parts = split(entry.qualname, '.')
-        name = last(parts)
-        where = length(parts) > 1 ? " (in " * join(parts[1:end-1], '.') * ")" : ""
-        println(io, "- **$(entry.kind)** `$name`$where — $doc")
-        println(io, "  → read full: `$(entry.locator)`")
+    shown = first(ranked, min(limit, length(ranked)))
+    for entry in shown
+        println(io, _format_api_hit(entry))
     end
+    print(io, _format_api_footer(shown))
     String(take!(io))
 end
+
+# A hit is two lines: what a caller writes, and what it does.
+#
+# **The signature first, and the name is in it.** A declared name arrives
+# unqualified, and a hit that led with `Module.name` invited a caller to copy
+# that shape: measured 2026-09-13, a model read
+# `CampaignVerbsModule.select_simulations!`, wrote
+# `PaneProgramModule.select_simulations!`, and lost the turn to an
+# `UndefVarError`. The module follows the kind, as context.
+function _format_api_hit(entry::_ApiEntry)
+    parts = split(entry.qualname, '.')
+    name = String(last(parts))
+    head = isempty(entry.signature) ? name : entry.signature
+    where = length(parts) > 1 ? " in " * join(parts[1:end-1], '.') : ""
+    summary = isempty(entry.summary) ? "(no documentation)" : entry.summary
+    "- `" * head * "` — " * entry.kind * where * "\n  " * summary
+end
+
+# How to read a hit in full, said once, for the kinds the answer holds. A
+# function has no resource of its own; a type and a module have one.
+function _format_api_footer(entries)
+    kinds = Set(entry.kind for entry in entries)
+    parts = String[]
+    "function" in kinds &&
+        push!(parts, "a function with `read_function_documentation(module, name)`")
+    "type" in kinds &&
+        push!(parts, "a type with `read_resource(\"resource://type/<module>/<name>\")`")
+    "module" in kinds &&
+        push!(parts, "a module with `read_resource(\"resource://module/<module>\")`")
+    isempty(parts) ? "" : "\nRead " * join(parts, "; ") * ".\n"
+end
+
+"""
+    search_api(set::ToolSet, query; mode = "keywords", kind = nothing, limit = 8) -> String
+
+Search what the tools of `set` search: its declared API, ranked by its meaning
+model when it has one. This is what the `search_api` tool answers, so a call
+from the REPL and a call from a model answer the same text.
+"""
+search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
+           kind = nothing, limit::Integer = 8) =
+    search_api(query; mode = mode, kind = kind, limit = limit, api = set.api,
+               meaning_model = set.meaning_model)
+
+"""
+    search_documentation(set::ToolSet, query; mode = "keywords", limit = 8) -> String
+
+Search the guides as the tools of `set` search them, ranked by its meaning model
+when it has one. This is what the `search_documentation` tool answers.
+"""
+search_documentation(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
+                     limit::Integer = 8) =
+    search_documentation(query; mode = mode, limit = limit, meaning_model = set.meaning_model)
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
 # A tool argument arrives from JSON, so it may be a number, a string, or nothing.

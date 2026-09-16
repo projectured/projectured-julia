@@ -147,10 +147,10 @@ function test_search_query()
     @testset "a description without a meaning model is searched by its words" begin
         found = search_api("put the panes where the person wants them";
                            mode = "description", api = api)
-        @test startswith(found, "This editor has no meaning model")
+        @test startswith(found, "No meaning model was given")
         @test occursin("arrange_panes", found)
         guides = search_documentation("how the selection moves"; mode = "description")
-        @test startswith(guides, "This editor has no meaning model")
+        @test startswith(guides, "No meaning model was given")
         @test occursin("resource://guide/", guides)
     end
 
@@ -173,7 +173,7 @@ function test_search_query()
         @test occursin("draw_arrow", search.handler(nothing, Dict("query" => "arrow")))
         @test startswith(search.handler(nothing, Dict("query" => "the arrow between boxes",
                                                       "mode" => "description")),
-                         "This editor has no meaning model")
+                         "No meaning model was given")
     end
 
     @testset "the code a model writes can not widen the declared search" begin

@@ -55,7 +55,7 @@ _make_toy_meaning_model(name; compute = _compute_toy_meaning) = MeaningModel(nam
 
 # The name of the first hit in a list answer.
 function _get_first_hit(answer::AbstractString)
-    found = match(r"- \*\*\w+\*\* `([^`]+)`", answer)
+    found = match(r"^- `([^`(\s{]+)"m, answer)
     found === nothing ? nothing : found.captures[1]
 end
 
@@ -260,7 +260,7 @@ function test_meaning_search()
         code = execute_julia_code(set, nothing,
                                   "search_api(\"how busy was it\"; mode = \"description\")")
         @test occursin("measure_utilization", code)
-        @test !occursin("no meaning model", code)
+        @test !occursin("No meaning model", code)
     end
 
     @testset "binding a backend starts the vectors of the guides and the API" begin

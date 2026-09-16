@@ -81,6 +81,27 @@ removes hits that nobody sees: `-test` would drop every entry that says
 `invokelatest`. The name score and the prose score of a hit count only the
 required and the optional terms.
 
+**What a hit shows.** Two lines: the signature in code, with the kind and the
+module after it, and the first sentence of the description under it.
+
+```
+- `replace_referenced_value!(editor, reference, value) -> Text` — function in PaneModule
+  Put `value` where `reference` points, and answer the window's new program.
+```
+
+The signature leads because a model copies what it reads first, and a
+`Module.name` at the front made one write `Module.name` (measured 2026-09-13).
+A declared name that a declaration renamed shows the name the model writes, in
+the list and in the whole docstring of one clear hit. One line at the end of
+the list says how to read a hit in full: a function with
+`read_function_documentation(module, name)`, a type or a module with
+`read_resource` and its `resource://` URI. A description search that no
+meaning model ranked says so in its first line, and says what to do instead.
+
+`search_api(set, query; …)` and `search_documentation(set, query; …)` search as
+the tools of `set` do, with its declaration and its meaning model, so a call
+from the REPL answers what a model is answered.
+
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
 guide section rank the hits by cosine. An entry's vector is computed from its

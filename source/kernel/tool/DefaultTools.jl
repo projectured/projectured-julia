@@ -130,10 +130,9 @@ function register_default_tools!(set::ToolSet)
             (name = "limit", type = "number",
              description = "Maximum number of results (default 8)", required = false),
         ],
-        (target, args) -> search_documentation(_get_query_argument(args);
+        (target, args) -> search_documentation(set, _get_query_argument(args);
                                                mode = get(args, "mode", nothing),
-                                               limit = _arg_int(get(args, "limit", 8), 8),
-                                               meaning_model = set.meaning_model),
+                                               limit = _arg_int(get(args, "limit", 8), 8)),
     ))
 
     register_tool!(set, Tool(
@@ -151,12 +150,10 @@ function register_default_tools!(set::ToolSet)
             (name = "limit", type = "number",
              description = "Maximum number of results (default 8)", required = false),
         ],
-        (target, args) -> search_api(_get_query_argument(args);
+        (target, args) -> search_api(set, _get_query_argument(args);
                                      mode  = get(args, "mode", nothing),
                                      kind  = _arg_kind(get(args, "kind", nothing)),
-                                     limit = _arg_int(get(args, "limit", 8), 8),
-                                     api   = set.api,
-                                     meaning_model = set.meaning_model),
+                                     limit = _arg_int(get(args, "limit", 8), 8)),
     ))
 
     # A function's docstring is reachable *as a tool*, and it is the one piece of

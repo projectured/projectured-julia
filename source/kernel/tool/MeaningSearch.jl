@@ -335,16 +335,17 @@ end
 
 # The first line of a description search that the words alone ranked.
 const _NO_MEANING_MODEL_NOTE =
-    "This editor has no meaning model, so the words of the description were " *
-    "searched as keywords."
+    "No meaning model was given, so the words of the description ranked these " *
+    "hits. When you know a word of the name, mode \"keywords\" with that word " *
+    "does better."
 
 _describe_unready_vectors(model::MeaningModel) =
     "The meaning vectors of the $(model.name) model are not ready yet, so the " *
-    "words of the description were searched as keywords. Search again in a minute."
+    "words of the description ranked these hits. Search again in a minute."
 
 _describe_meaning_failure(model::MeaningModel, reason::AbstractString) =
-    "The meaning model $(model.name) failed, so the words of the description were " *
-    "searched as keywords. The reason: " * reason
+    "The meaning model $(model.name) failed, so the words of the description " *
+    "ranked these hits. The reason: " * reason
 
 # The vector of the description, or the note that says why there is none.
 function _compute_query_vector(model::MeaningModel, text::String)

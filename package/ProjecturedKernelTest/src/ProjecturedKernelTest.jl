@@ -75,6 +75,7 @@ include("../../../test/kernel/agent/AgentSeamTest.jl")
 include("../../../test/kernel/tool/DeclaredApiTest.jl")
 include("../../../test/kernel/tool/SearchQueryTest.jl")
 include("../../../test/kernel/tool/MeaningSearchTest.jl")
+include("../../../test/kernel/tool/SearchAnswerTest.jl")
 
 # ── generic drivers (document, projection) — reused by every layer above ────
 include("../../../test/kernel/editor/PrinterTest.jl")

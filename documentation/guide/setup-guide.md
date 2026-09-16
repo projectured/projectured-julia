@@ -108,5 +108,6 @@ Recommended workflow:
 4. Build reference paths with `@reference` and apply changes with
    `replace_selection!`, `set_selection!`, or domain operations.
 
-Do not guess names or signatures. Look them up via `resource://modules`,
-`resource://classes`, and `resource://functions`.
+Do not guess names or signatures. Find them with `search_api`, read a function
+with `read_function_documentation`, and browse `resource://modules` and
+`resource://module/<name>` and `resource://type/<module>/<name>`.

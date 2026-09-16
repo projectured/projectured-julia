@@ -339,15 +339,22 @@ Work in the worktree `../projectured-julia-format` and in an omnet worktree.
 Commit each step with explicit paths; land with `git merge --ff-only`; cap
 every Julia process.
 
-### Step 1. The answer of a search (§3a) — in progress
+### Step 1. The answer of a search (§3a) — done 2026-09-16
 
-- [ ] `Documentation.jl`: `signature` and `summary`, the heading reader, the
-      hit format, the footer of the reader, the set methods, one module entry.
-- [ ] `MeaningSearch.jl`: the three notes. `DefaultTools.jl`: the tools call
-      the set methods.
-- [ ] Tests for the format, the summary rules, the notes, the set methods, the
-      module entry; the tests that read the old format follow the new one.
-- [ ] `agent.md`, `setup-guide.md`, `PAR-NEVER-GUESS-NAMES`.
+- [x] `Documentation.jl`: `_ApiEntry.signature` and `summary`, read by
+      `_read_doc_heading` from the paragraphs of the docstring; the two-line
+      hit, `_format_api_hit`; the footer by kind, `_format_api_footer`; the set
+      methods `search_api(set, …)` and `search_documentation(set, …)`; one
+      module entry per module; the catalogues show the description and say
+      "Types:" instead of "Classes:"; `describe_api` shows the first signature.
+      `_first_paragraph` has no caller left and is gone.
+- [x] `MeaningSearch.jl`: the three notes say what ranked the hits, and never
+      "this editor". `DefaultTools.jl`: the tools call the set methods.
+- [x] Tests: `test/kernel/tool/SearchAnswerTest.jl`, `test_search_answer()`,
+      registered in `KernelSuite.jl` and `ProjecturedKernelTest`; the tests that
+      read the old format follow the new one. The kernel search tests: 260 pass.
+- [x] `agent.md` says what a hit shows and how to read one; `setup-guide.md`
+      and `PAR-NEVER-GUESS-NAMES` name the catalogues that exist.
 - [ ] omnet: `measure_meaning_search!` parses the new hit line; the live
       table prints the same ranks.
 
@@ -393,4 +400,17 @@ every Julia process.
 
 ## 5. Findings
 
-Filled in during the work.
+**Step 1, 2026-09-16.**
+
+- **The whole docstring of one clear hit showed a name the model may not
+  write.** A declaration that renames a function — `describe` as
+  `summarize_frame` — got the hit under the new name, and the docstring under
+  it opened with `describe(df)`. The signature paragraph of a renamed entry now
+  carries the model's name, and the prose keeps its words. Found by the new
+  test, not by a model.
+- **`string(@doc f)` is not the docstring on Julia 1.13.** It is the `repr` of
+  a `DocStr`. The index reads a docstring through `Base.Docs._doc` on a
+  `Binding`, in `_binding_doc`, and a test must read it the same way.
+- **A docstring's signature paragraph can be fenced, and can hold several
+  signatures.** `_read_doc_heading` removes the fence and cuts at the second
+  signature; `DataFrames.subset` opens with two.

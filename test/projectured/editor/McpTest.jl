@@ -144,7 +144,7 @@ function test_search_api()
         # kind filter restricts results to classes (structs)
         result_class = search_api("workbench"; kind="class")
         @test isa(result_class, String)
-        @test !occursin("**function**", result_class)
+        @test !occursin("— function", result_class)
 
         # No match
         @test occursin("No API matches", search_api("zzzznotarealword"))
