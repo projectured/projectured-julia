@@ -2,9 +2,11 @@ export OllamaLlm
 
 const _OLLAMA_URL    = "http://localhost:11434"
 const _DEFAULT_MODEL = "qwen3.8:27b"
+const _DEFAULT_MEANING_MODEL = "nomic-embed-text"
 
 """
-    OllamaLlm(; model, base_url, max_tokens, context, thinking)
+    OllamaLlm(; model, base_url, max_tokens, context, thinking, temperature, seed,
+                meaning_model)
 
 A model that runs on this machine, served by Ollama. It carries its own
 configuration, because that configuration is *this backend's identity* and not a
@@ -33,6 +35,12 @@ its oldest messages, which on a chat means the system prompt goes first.
 The question matters. Ollama rejects the **whole request** with HTTP 400 when a
 model that cannot reason is asked to, so a guess from the model's name — which is
 what a hosted provider's adapter can afford — would kill the turn.
+
+`meaning_model` is the model that computes meaning vectors for a search by
+description, `nomic-embed-text` unless it is named. It is a second model on the
+same server, asked through `/api/embed`, and an empty name means none. The
+server answers with an error until the model is pulled, and the error says how
+to pull it.
 """
 struct OllamaLlm <: Llm
     model::String
@@ -46,6 +54,7 @@ struct OllamaLlm <: Llm
     # leaves the server as it was.
     temperature::Union{Nothing,Float64}
     seed::Union{Nothing,Int}
+    meaning_model::String
     # The answer of the capability question, kept per instance. Never a module
     # global: one process runs many editors, and each holds its own backend.
     thinking_answer::Ref{Union{Nothing,Bool}}
@@ -57,12 +66,14 @@ OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
             context::Integer = 0,
             thinking::Union{Nothing,Bool} = nothing,
             temperature::Union{Nothing,Real} = nothing,
-            seed::Union{Nothing,Integer} = nothing) =
+            seed::Union{Nothing,Integer} = nothing,
+            meaning_model::AbstractString = _DEFAULT_MEANING_MODEL) =
     OllamaLlm(String(isempty(model) ? _DEFAULT_MODEL : model),
               String(rstrip(base_url, '/')),
               Int(max_tokens), Int(context), thinking,
               temperature === nothing ? nothing : Float64(temperature),
               seed === nothing ? nothing : Int(seed),
+              String(meaning_model),
               Ref{Union{Nothing,Bool}}(nothing))
 
 # This package's registration on the kernel's factory seam. `api_key` is accepted
@@ -404,4 +415,82 @@ function _drain_lines!(buf::IOBuffer, handle::Function; final::Bool = false)
         write(buf, parts[end])
     end
     nothing
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# Meaning vectors — /api/embed
+# ═══════════════════════════════════════════════════════════════════════
+
+has_meaning_model(llm::OllamaLlm) = !isempty(llm.meaning_model)
+
+get_meaning_model_name(llm::OllamaLlm) =
+    has_meaning_model(llm) ? "ollama/" * llm.meaning_model :
+                             error("This Ollama backend has no meaning model.")
+
+# How many texts go to the server in one request.
+const _MEANING_BATCH_SIZE = 64
+
+# The words a model wants in front of a text, by what the text is for. Each was
+# trained with them, and its vectors are worse without them. A model that is not
+# listed gets the text as it is.
+const _MEANING_PREFIXES = Dict(
+    "nomic-embed-text" => (query = "search_query: ", document = "search_document: "),
+    "mxbai-embed-large" =>
+        (query = "Represent this sentence for searching relevant passages: ", document = ""),
+)
+
+# The family is the name without its tag and its namespace:
+# `library/nomic-embed-text:latest` is `nomic-embed-text`.
+function _get_meaning_prefix(model::AbstractString, purpose::Symbol)
+    family = last(split(first(split(model, ':')), '/'))
+    prefixes = get(_MEANING_PREFIXES, family, nothing)
+    prefixes === nothing && return ""
+    purpose === :query ? prefixes.query : prefixes.document
+end
+
+"""
+    compute_meaning_vectors(llm::OllamaLlm, texts; purpose = :document) -> Matrix{Float32}
+
+Ask the server for the meaning vectors of `texts`, in batches of 64, with the
+prefix the meaning model wants for `purpose`. A server that does not answer
+throws the connection error; a model that is not installed throws a message that
+says how to install it.
+"""
+function compute_meaning_vectors(llm::OllamaLlm, texts; purpose::Symbol = :document)
+    has_meaning_model(llm) || error("This Ollama backend has no meaning model.")
+    purpose in (:query, :document) ||
+        error("A meaning vector is for a :query or a :document, not for $(repr(purpose)).")
+    prefix = _get_meaning_prefix(llm.meaning_model, purpose)
+    columns = Vector{Float32}[]
+    for batch in Iterators.partition(texts, _MEANING_BATCH_SIZE)
+        append!(columns, _request_meaning_vectors(llm, String[prefix * text for text in batch]))
+    end
+    isempty(columns) ? Matrix{Float32}(undef, 0, 0) : reduce(hcat, columns)
+end
+
+function _request_meaning_vectors(llm::OllamaLlm, inputs::Vector{String})
+    response = HTTP.post(llm.base_url * "/api/embed",
+                         ["content-type" => "application/json"],
+                         JSON3.write(Dict("model" => llm.meaning_model, "input" => inputs));
+                         status_exception = false, retry = false,
+                         connect_timeout = 5, readtimeout = 300)
+    response.status == 200 || error(_describe_meaning_refusal(llm, response))
+    vectors = [Vector{Float32}(vector) for vector in JSON3.read(response.body).embeddings]
+    length(vectors) == length(inputs) ||
+        error("Ollama answered $(length(vectors)) meaning vectors for $(length(inputs)) texts.")
+    vectors
+end
+
+# What a refused request means. A model that is not pulled is the usual reason,
+# and the answer says how to pull it.
+function _describe_meaning_refusal(llm::OllamaLlm, response)
+    message = try
+        String(get(JSON3.read(response.body), :error, ""))
+    catch
+        String(response.body)
+    end
+    (response.status == 404 || occursin("not found", message)) &&
+        return "Ollama has no model $(llm.meaning_model). " *
+               "Run `ollama pull $(llm.meaning_model)` to install it."
+    "Ollama refused to compute meaning vectors (HTTP $(response.status)): " * message
 end

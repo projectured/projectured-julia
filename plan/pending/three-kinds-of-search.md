@@ -453,15 +453,22 @@ Work in a worktree. Commit each step with explicit paths. Land with
       guides and the API. The kernel tests: 221 pass. The umbrella search
       tests: 24 pass.
 
-### Step 4. Ollama computes meaning vectors (ollama package)
+### Step 4. Ollama computes meaning vectors (ollama package) — done 2026-09-16
 
-- [ ] `Ollama.jl`: `meaning_model`, `has_meaning_model`,
+- [x] `Ollama.jl`: `meaning_model` (default `nomic-embed-text`),
+      `has_meaning_model`, `get_meaning_model_name` (`ollama/<model>`),
       `compute_meaning_vectors` with `/api/embed` in batches of 64, the
-      prefixes of `nomic-embed-text`, and the `model not found` message.
-- [ ] `test/ollama/OllamaTest.jl`: the request body and the prefixes, offline;
-      `test_ollama_meaning`, which skips when no server answers or when
-      `/api/tags` does not list the meaning model. It does not pull a model.
-- [ ] `test_ollama_layering()` green.
+      prefixes of `nomic-embed-text` and `mxbai-embed-large`, and a refusal
+      that says `Run \`ollama pull <model>\``. `make_llm(:ollama; meaning_model)`
+      needed no change: it passes its keywords to the constructor.
+- [x] `test/ollama/OllamaTest.jl`: `test_ollama_meaning()` asks a stand-in
+      server that the test starts with `HTTP.serve!` on a free port, and checks
+      the path, the model, the prefixes, the batches, a short answer, a model
+      that is not pulled and a server that does not answer.
+      `test_ollama_meaning_live()` skips itself when the server does not list
+      the model. It does not pull one.
+- [x] `test_ollama()`, with its layering guard: 97 pass. Both live tests
+      skipped: no chat model is in memory, and `nomic-embed-text` is not pulled.
 
 ### Step 5. Bind the meaning model where a backend is chosen
 
@@ -540,4 +547,9 @@ Work in a worktree. Commit each step with explicit paths. Land with
   model.** The scratch module gets the exported function there, which has no
   set. A description falls back to keywords in that case, and says so. The
   tools are the path a model uses.
+- **The whole surface is smaller than §2 says.** Measured in `environment/all`:
+  797 API entries, built in 0.46 s, and 1,033 guide sections, which make 1,159
+  chunks. The texts hold about 1.04 million characters: 132,000 for the API and
+  905,000 for the guides. A test process has one default thread and one
+  interactive thread, so a spawned task really runs beside the caller.
 

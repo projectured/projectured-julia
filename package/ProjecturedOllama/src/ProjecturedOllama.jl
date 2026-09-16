@@ -3,8 +3,8 @@
 
 Opt-in package: the Ollama adapter, for a model that runs on this machine. Depends
 on `ProjecturedKernel` plus HTTP/JSON3, and implements the kernel's `LlmModule`
-seam — `OllamaLlm`, its `stream_turn`, its `render_tool_schema`, and its `make_llm`
-method.
+seam — `OllamaLlm`, its `stream_turn`, its `render_tool_schema`, its `make_llm`
+method, and the meaning vectors it asks the server for.
 
 **Every piece of Ollama's wire format lives here and nowhere else.** The kernel's
 `LlmMessage` / `LlmEvent` / `Tool` vocabulary is the project's own; this package
@@ -28,6 +28,7 @@ using JSON3
 import ProjecturedKernel.ToolModule: Tool
 import ProjecturedKernel.LlmModule:
     Llm, stream_turn, render_tool_schema, make_llm, default_llm_model,
+    has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
     LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
     LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop,

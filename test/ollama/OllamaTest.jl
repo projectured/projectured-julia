@@ -244,3 +244,131 @@ stream_turn(llm, LlmRequest(system = "Answer in three words.",
 
 end
 end
+
+# A server on this machine that answers `/api/embed` with `answer(body)`, and
+# keeps every request it was sent.
+function _serve_meaning_requests(answer::Function)
+    requests = Any[]
+    server = HTTP.serve!("127.0.0.1", 0; listenany = true) do request
+        body = JSON3.read(request.body)
+        push!(requests, (target = request.target, body = body))
+        answer(body)
+    end
+    (server, requests)
+end
+
+_get_local_url(server) = "http://127.0.0.1:$(HTTP.port(server))"
+
+function test_ollama_meaning()
+@testset "OllamaMeaning" begin
+
+# ── the backend has a meaning model unless it is told it has none ──
+@test OllamaLlm().meaning_model == "nomic-embed-text"
+@test has_meaning_model(OllamaLlm())
+@test get_meaning_model_name(OllamaLlm()) == "ollama/nomic-embed-text"
+@test !has_meaning_model(OllamaLlm(; meaning_model = ""))
+@test_throws ErrorException compute_meaning_vectors(OllamaLlm(; meaning_model = ""), ["x"])
+@test make_llm(:ollama; meaning_model = "mxbai-embed-large").meaning_model == "mxbai-embed-large"
+
+# ── each model family gets its own prefixes, and an unknown model none ──
+prefix = ProjecturedOllama._get_meaning_prefix
+@test prefix("nomic-embed-text", :query) == "search_query: "
+@test prefix("library/nomic-embed-text:latest", :document) == "search_document: "
+@test startswith(prefix("mxbai-embed-large:335m", :query), "Represent this sentence")
+@test prefix("mxbai-embed-large", :document) == ""
+@test prefix("all-minilm", :query) == ""
+
+# ── the request: the model, the texts with their prefix, batches of 64 ──
+server, requests = _serve_meaning_requests(body ->
+    HTTP.Response(200, JSON3.write(Dict("embeddings" => [[1.0, 2.0] for _ in body.input]))))
+try
+    llm = OllamaLlm(; base_url = _get_local_url(server))
+    vectors = compute_meaning_vectors(llm, ["text $i" for i in 1:70])
+    @test size(vectors) == (2, 70)
+    @test eltype(vectors) == Float32
+    @test length(requests) == 2
+    @test all(request -> request.target == "/api/embed", requests)
+    @test requests[1].body.model == "nomic-embed-text"
+    @test length(requests[1].body.input) == 64
+    @test length(requests[2].body.input) == 6
+    @test requests[1].body.input[1] == "search_document: text 1"
+    @test size(compute_meaning_vectors(llm, ["busy"]; purpose = :query)) == (2, 1)
+    @test collect(requests[3].body.input) == ["search_query: busy"]
+    @test size(compute_meaning_vectors(llm, String[])) == (0, 0)
+    @test length(requests) == 3
+    @test_throws ErrorException compute_meaning_vectors(llm, ["x"]; purpose = :answer)
+finally
+    close(server)
+end
+
+# ── a server that answers too few vectors is refused ──
+short, _ = _serve_meaning_requests(body ->
+    HTTP.Response(200, JSON3.write(Dict("embeddings" => [[1.0]]))))
+try
+    llm = OllamaLlm(; base_url = _get_local_url(short))
+    @test_throws ErrorException compute_meaning_vectors(llm, ["a", "b"])
+finally
+    close(short)
+end
+
+# ── a model that is not pulled: the error says how to pull it ──
+refusing, _ = _serve_meaning_requests(body ->
+    HTTP.Response(404, JSON3.write(Dict(
+        "error" => "model \"$(body.model)\" not found, try pulling it first"))))
+try
+    llm = OllamaLlm(; base_url = _get_local_url(refusing))
+    failure = try
+        compute_meaning_vectors(llm, ["x"])
+        ""
+    catch err
+        sprint(showerror, err)
+    end
+    @test occursin("Run `ollama pull nomic-embed-text`", failure)
+finally
+    close(refusing)
+end
+
+# ── a server that does not answer throws ──
+@test_throws Exception compute_meaning_vectors(OllamaLlm(; base_url = "http://127.0.0.1:1"), ["x"])
+
+end
+end
+
+# Whether the server lists `model`, with or without a tag.
+function _ollama_has_model(model::AbstractString, base_url::AbstractString = "http://localhost:11434")
+    try
+        r = HTTP.get(base_url * "/api/tags"; status_exception = false,
+                     readtimeout = 2, retry = false)
+        r.status == 200 || return false
+        names = [String(get(one, :name, "")) for one in get(JSON3.read(r.body), :models, ())]
+        any(name -> name == model || startswith(name, model * ":"), names)
+    catch
+        false
+    end
+end
+
+function test_ollama_meaning_live(; model::AbstractString = "nomic-embed-text")
+@testset "OllamaMeaningLive" begin
+
+if !_ollama_is_up()
+    @info "[ollama] no server on http://localhost:11434; skipping the live meaning test"
+    @test true
+    return
+end
+if !_ollama_has_model(model)
+    @info "[ollama] the meaning model is not pulled; skipping the live meaning test" model
+    @test true
+    return
+end
+
+llm = OllamaLlm(; meaning_model = model)
+vectors = compute_meaning_vectors(llm, ["plot a value over time",
+                                        "draw a chart of a time series",
+                                        "close the window"])
+cosine(a, b) = sum(a .* b) / sqrt(sum(abs2, a) * sum(abs2, b))
+@test cosine(vectors[:, 1], vectors[:, 2]) > cosine(vectors[:, 1], vectors[:, 3])
+query = compute_meaning_vectors(llm, ["show how a number changes"]; purpose = :query)
+@test size(query) == (size(vectors, 1), 1)
+
+end
+end
