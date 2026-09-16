@@ -1,7 +1,8 @@
 # A collapsible WidgetCard shows its fold state. A chevron sits before the
 # title, pointing down while the card is open and right while it is collapsed;
-# the whole header band is the fold target; and a collapsed card draws its
-# header and nothing else. A card that names its own padding draws with it.
+# the chevron's column is the fold target, and nothing else is; and a collapsed
+# card draws its header and nothing else. A card that names its own padding
+# draws with it.
 
 _fold_font = font_ubuntu_monospace_regular_20
 _fold_stub(t, f) = (length(t) * 10, 24)
@@ -62,14 +63,18 @@ function test_widget_card_fold()
         @test length(entries) == 2
         @test entries[2][1] == entries[1][1]
 
-        # A click on the chevron folds, and so does one on the title.
+        # A click on the chevron folds, and so does one at the right edge of its
+        # column. A click on the title does not.
+        title_x = _fold_title_x(iomap)
         on_chevron = read_intent(proj, iomap, MousePress(:left, 20, 28, ModifierKeys()))
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
-        on_title = read_intent(proj, iomap, MousePress(:left, 40, 28, ModifierKeys()))
-        @test on_title isa ToggleCollapseOperation && on_title.target === card
+        on_column = read_intent(proj, iomap, MousePress(:left, title_x - 1, 28, ModifierKeys()))
+        @test on_column isa ToggleCollapseOperation && on_column.target === card
+        on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys()))
+        @test !(on_title isa ToggleCollapseOperation)
 
         # Folded: the mark points right, and the body is not drawn.
-        evaluate_operation(nothing, on_title)
+        evaluate_operation(nothing, on_chevron)
         @test card.collapsed == true
         lines, texts = _fold_collect(canvas)
         @test _chevron_direction(lines) === :right
@@ -83,8 +88,28 @@ function test_widget_card_fold()
         iomap = print_document(proj, proj, card, PrinterContext())
         lines, _ = _fold_collect(iomap.output)
         @test isempty(lines)
-        # A click left of the title is a click on the padding, not a fold.
+        # A click left of the title is a click on the padding, not a fold, and a
+        # click on the title is not a fold either: a card that draws no chevron
+        # does not fold from a click.
         @test !(read_intent(proj, iomap, MousePress(:left, 4, 28, ModifierKeys())) isa ToggleCollapseOperation)
+        title_x = _fold_title_x(iomap)
+        @test !(read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys())) isa ToggleCollapseOperation)
+    end
+
+    # A container routes a press to a card only over something the card drew. A
+    # `:plain` card draws no panel, and the two strokes of the mark leave most of
+    # the chevron's column empty, so the column carries a hit target of its own.
+    @testset "a plain card folds from anywhere in its chevron's column" begin
+        proj = _fold_proj()
+        make_card() = WidgetCard(Point2D(0, 0); title = _fold_title(), content = "x",
+                                 variant = :plain, collapsible = true)
+        title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
+        card = make_card()
+        iomap = print_document(proj, proj, WidgetComposite(Point2D(0, 0), Any[card]), PrinterContext())
+        on_column = read_intent(proj, iomap, MousePress(:left, title_x - 1, 28, ModifierKeys()))
+        @test on_column isa ToggleCollapseOperation && on_column.target === card
+        on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys()))
+        @test !(on_title isa ToggleCollapseOperation)
     end
 
     @testset "a card with its own padding" begin

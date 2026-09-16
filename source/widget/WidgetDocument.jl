@@ -1333,18 +1333,20 @@ A surface with an optional title / description header, a content body and an
 optional footer, stacked vertically.
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
-header click emits `ToggleCollapseOperation(card)`, whose default handler flips
-this cell. A collapsed card draws its header and nothing else.
+click on the chevron of a collapsible card emits `ToggleCollapseOperation(card)`,
+whose default handler flips this cell. A collapsed card draws its header and
+nothing else.
 
 `collapsible` says that the card shows its fold state: the renderer draws a
 chevron before the title, pointing down when the card is open and right when it
-is collapsed, and the whole header band is the fold target. The chevron takes
-a column of its own, and the title, the body and the footer all start past it,
-so the body lines up under the title's word. A card that folds
-without saying so is a card a person can not read, so a producer that folds a
-card sets this. It needs a `Document` title, because the header band is the
-title's own box. A producer whose fold state lives elsewhere — a domain node's
-flag — makes `collapsed` a computed cell that reads it.
+is collapsed, and the chevron is the fold target. A click on the title is a click
+on the title. The chevron takes a column of its own, as tall as the title, and
+the title, the body and the footer all start past it, so the body lines up under
+the title's word. A card that folds without saying so is a card a person can not
+read, so a card that is not collapsible does not fold from a click. It needs a
+`Document` title, because the chevron's column is as tall as the title's own
+box. A producer whose fold state lives elsewhere — a domain node's flag — makes
+`collapsed` a computed cell that reads it.
 
 `padding` is the card's own padding: a number of pixels on every side, or an
 `Inset` with a number per side. A negative number, the default, means the
@@ -1364,7 +1366,7 @@ and its header in every variant — only the panel behind them changes:
 
 A quiet variant is for a surface that groups without announcing itself — one
 band of a transcript, where a border around every message would be noise. It is
-still a card, so it still folds from its header, and the collapse reader does
+still a card, so it still folds from its chevron, and the collapse reader does
 not care which variant drew it.
 
 `:tinted` and `:muted` differ so that one can sit INSIDE the other and still be

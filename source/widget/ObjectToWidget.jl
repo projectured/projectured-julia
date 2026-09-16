@@ -22,10 +22,9 @@
 #
 # **Collapse.** Each nested card is collapsible. Collapse is transient *view* state
 # stored on the output `WidgetCard.collapsed` cell (like `WidgetScrollPane`'s scroll
-# offset): the card's `title`/`content` are reactive `CellVector`s that read
-# `card.collapsed`, so a header click — which `WidgetCardToGraphicsCanvas` turns into
-# `ToggleCollapseOperation(card)`, flipped by the default operation handler —
-# re-renders the chevron and shows/hides the body.
+# offset): a click on the card's chevron — which `WidgetCardToGraphicsCanvas` turns
+# into `ToggleCollapseOperation(card)`, flipped by the default operation handler —
+# turns the chevron and shows or hides the body.
 #
 # **Editing.** Controls edit the *object's own* cells. A checkbox click or a text
 # edit is matched (by control identity, or by the top-level grid row) and converted
@@ -72,13 +71,10 @@ ObjectToWidget(; fields=nothing,
 
 # Inter-column / inter-row gaps for the parameter form. The label column width
 # and row heights are content-driven by GridLayout; only these spacing tokens are
-# fixed. Card chrome: header gap, default card width, fold markers.
+# fixed. Card chrome: the default card width.
 const _COLUMN_GAP = 12
 const _ROW_GAP = 6
-const _HEADER_GAP = 4
 const _CARD_WIDTH = 480
-const _EXPANDED_MARKER = "▾"
-const _COLLAPSED_MARKER = "▸"
 # Recursion bound: stop descending into composite values past this depth and show
 # them read-only, so a cyclic or pathologically deep object graph can't loop
 # forever (the editor would otherwise hang printing it).
@@ -196,23 +192,13 @@ function _print_vector(p::ObjectToWidget, vec, path::Reference, controls, depth:
 end
 
 # Wrap `body` in a collapsible card titled `title`. Collapse lives on the card's
-# own `collapsed` cell: a header click → `ToggleCollapseOperation(card)` (emitted by
-# WidgetCardToGraphicsCanvas) → default handler flips `card.collapsed`. The title
-# (chevron) and content (body vs empty) are reactive `CellVector`s reading
-# `card.collapsed`, so the toggle re-renders without reprinting the projection.
-function _collapsible_card(p::ObjectToWidget, title::AbstractString, body)
-    card = WidgetCard(Point2D(0, 0); width=_CARD_WIDTH)
-    header = HorizontalLayout(ComputedCellVector(() -> Any[
-        WidgetLabel(Point2D(0, 0),
-                    (card.collapsed ? _COLLAPSED_MARKER : _EXPANDED_MARKER) * " " * title)
-    ]), Cell(:top), Cell(_HEADER_GAP), Cell(nothing), Cell(nothing), Cell(nothing))
-    content = VerticalLayout(ComputedCellVector(() -> card.collapsed ? Any[] : Any[body]),
-                             Cell(:left), Cell(0), Cell(nothing), Cell(nothing),
-                             Cell(nothing))
-    card.title = header
-    card.content = content
-    card
-end
+# own `collapsed` cell: a click on the chevron → `ToggleCollapseOperation(card)`
+# (emitted by WidgetCardToGraphicsCanvas) → the default handler flips
+# `card.collapsed`. The card reads that cell as it draws: it turns the chevron and
+# drops the body, so the toggle re-renders without reprinting the projection.
+_collapsible_card(p::ObjectToWidget, title::AbstractString, body) =
+    WidgetCard(Point2D(0, 0); title = WidgetLabel(Point2D(0, 0), title),
+               content = body, width = _CARD_WIDTH, collapsible = true)
 
 _type_title(obj) = String(nameof(typeof(obj)))
 _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items")

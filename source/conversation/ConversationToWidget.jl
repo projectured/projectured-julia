@@ -186,7 +186,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # A turn is a band and not a box. The user's band is tinted and the model's
     # is plain, which is what tells the two apart — the same job a border did,
     # done by a channel the content does not already use. It stays a card, so
-    # the header click still folds it and the collapse reader below still finds
+    # its chevron still folds it and the collapse reader below still finds
     # the turn that a produced card came from.
     card = WidgetCard(Point2D(0, 0);
                       title = _role_header(t.role),
@@ -216,7 +216,7 @@ end
 
 # The IO map of a part. `folds` lists the cards inside the part that fold on
 # their own — the two sections of an evaluation — each with the domain operation
-# its fold means, so the reader can say a header click back to the domain.
+# its fold means, so the reader can say a chevron click back to the domain.
 @iomap struct ConversationPartToWidgetIoMap
     projection::Any
     input::Any
@@ -446,7 +446,7 @@ for P in (ConversationConversationToWidgetComposite,
     @eval read_intent(::$P, iomap, op) = nothing
 end
 
-# The WidgetCard header-click reader emits `ToggleCollapseOperation(card)` where
+# The WidgetCard chevron-click reader emits `ToggleCollapseOperation(card)` where
 # `card` is the produced widget. Say what that fold means in the conversation
 # domain by walking the iomap tree: a card that is the output of an iomap folds
 # the node that iomap printed, and a card a part listed among its `folds` means

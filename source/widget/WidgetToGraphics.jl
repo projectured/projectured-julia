@@ -4072,6 +4072,16 @@ end
 _card_chevron_column(p, w::WidgetCard) =
     (w.collapsible === true && w.title !== nothing) ? 2 * _sc(p.chevron_size) + _sc(p.title_gap) : 0
 
+# The box a card folds from, as `(x0, y0, x1, y1)`: the chevron's column, as tall
+# as the header row. `nothing` for a card that does not fold from a click. Only
+# a collapsible card with a Document title folds, and only from its chevron, so a
+# click on the title is a click on the title.
+function _card_fold_box(p, w::WidgetCard, header_h::Integer)
+    (w.collapsible === true && w.title isa Document) || return nothing
+    pad_top, _, pad_left, _ = _card_padding(p, w)
+    (pad_left, pad_top, pad_left + _card_chevron_column(p, w), pad_top + Int(header_h))
+end
+
 # The padding a card draws with, as `(top, bottom, left, right)`: its own when it
 # names one — one number for every side, or an `Inset` — else the theme's.
 function _card_padding(p, w::WidgetCard)
@@ -4135,6 +4145,14 @@ function _card_build(p, w, ctx, tim, cim)
         _push_chevron!(elements, pad_left + chevron_size, pad_top + header_h ÷ 2 + _sc(1), chevron_size,
                        w.collapsed === true ? :right : :down, p.chevron.color;
                        stroke = max(1, _sc(p.chevron.width)))
+    end
+    fold_box = _card_fold_box(p, w, header_h)
+    if fold_box !== nothing
+        # A container routes a press to the card only over something the card
+        # drew, and the two strokes of the mark cover little of its column. A
+        # transparent rectangle makes the whole column the target.
+        x0, y0, x1, y1 = fold_box
+        push!(elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, _WT_HIT_COLOR, 0))
     end
     if w.description !== nothing
         description_width, description_height =
@@ -4318,23 +4336,21 @@ function _card_route(w::WidgetCard, entries::Vector, x::Int, y::Int, make_evt)
     nothing
 end
 
-# A click on the card's header (a Document title — its first child entry) is a
-# fold gesture → toggle the card. Clicks elsewhere route into the card content.
+# A click on a collapsible card's chevron is a fold gesture → toggle the card.
+# Every other click routes into the card: the title and the content each read
+# their own. A Document title is the card's first child entry, and its
+# height is the height of the chevron's column.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
     if w.title isa Document && !isempty(entries)
-        tx, ty, tim = entries[1]
+        _, _, tim = entries[1]
         tcanvas = tim.output
-        if tcanvas isa GraphicsCanvas
-            tw = Int(tcanvas.w[]); th = Int(tcanvas.h[])
-            # A collapsible card folds from its whole header band: the chevron
-            # sits left of the title, and a click on it must fold too.
-            folds_everywhere = w.collapsible === true
-            x0 = folds_everywhere ? 0 : tx
-            x1 = folds_everywhere ? Int(iomap.output.w[]) : tx + tw
-            (x0 <= evt.x < x1 && ty <= evt.y < ty + th) && return ToggleCollapseOperation(w)
+        box = tcanvas isa GraphicsCanvas ? _card_fold_box(p, w, Int(tcanvas.h)) : nothing
+        if box !== nothing
+            x0, y0, x1, y1 = box
+            (x0 <= evt.x < x1 && y0 <= evt.y < y1) && return ToggleCollapseOperation(w)
         end
     end
     _card_route(w, entries, evt.x, evt.y,
@@ -5644,7 +5660,8 @@ const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
 # selection alpha, so a selected+hovered row still reads as selected).
 const _WT_HOVER_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x20 / 255)
 const _WT_HL_RADIUS = 4
-# Fully transparent fill for the tree's whole-canvas hit target (see the printer).
+# Fully transparent fill for a hit target: the whole canvas of a tree or a table,
+# and the chevron column of a collapsible card.
 const _WT_HIT_COLOR = StyleColor(0.0, 0.0, 0.0, 0.0)
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus

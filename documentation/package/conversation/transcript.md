@@ -58,8 +58,8 @@ failed. The arguments of a tool draw one `key: value` line each.
 Every card with a chrome folds: a turn, a code part, a thinking part, an
 evaluation, and each section of an evaluation. A card that folds is a
 `collapsible` `WidgetCard`: a chevron before its title points down while it is
-open and right while it is folded, the whole header band is the fold target, and
-a folded card draws its header and nothing else.
+open and right while it is folded, the chevron is the fold target, and a folded
+card draws its header and nothing else.
 
 The fold state lives on the domain node, never on the widget: `turn.collapsed`,
 `part.collapsed`, and `form_collapsed` / `result_collapsed` on an
@@ -68,10 +68,11 @@ the node's flag. A turn's part cards are rebuilt whenever its part list changes,
 which happens on every streamed part, so state on a widget would reset while
 the model answers.
 
-A header click makes `ToggleCollapseOperation(card)` in the widget renderer. The
-transcript reader walks its IO maps and says what that fold means: a card that
-is the output of an IO map folds the node that IO map printed, and a section
-card means the `ToggleEvaluatorSectionOperation` its part listed in `folds`.
+A click on a chevron makes `ToggleCollapseOperation(card)` in the widget
+renderer. The transcript reader walks its IO maps and says what that fold means:
+a card that is the output of an IO map folds the node that IO map printed, and a
+section card means the `ToggleEvaluatorSectionOperation` its part listed in
+`folds`.
 
 | Node | Starts |
 | --- | --- |
@@ -83,6 +84,6 @@ card means the `ToggleEvaluatorSectionOperation` its part listed in `folds`.
 | a resource read (`read_resource`, `list_resources`) | folded as a whole; its sections open |
 
 A prose part has no chrome, so it has no header and does not fold. A folded
-part shows only its header, and the header is the fold, so a click on it
-unfolds the part rather than naming it; a person selects a part after unfolding
-it.
+part shows only its header. A click on its chevron unfolds the part. A click on
+its title does not fold, and it names the conversation, the same as a click
+between two parts.

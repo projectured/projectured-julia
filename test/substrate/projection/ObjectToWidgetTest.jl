@@ -128,39 +128,40 @@ end # @testset
     @test length(cards) == 2
     window_card, tags_card = cards[1], cards[2]
 
-    # A card's body is the reactive content wrapper; when expanded it holds one
-    # child (the composite/list body). Cards default to expanded.
+    # A card folds from its chevron, is titled with what it holds, and starts
+    # expanded. Its body is the window's own grid composite.
+    @test window_card.collapsible == true
     @test window_card.collapsed == false
-    @test window_card.content isa VerticalLayout
-    @test length(window_card.content.children) == 1
-    @test window_card.content.children[1] isa WidgetComposite   # window's own grid composite
+    @test window_card.title isa WidgetLabel
+    @test window_card.content isa WidgetComposite
 
     # The vector card holds a VerticalLayout of its (read-only) elements.
+    @test tags_card.collapsible == true
     @test tags_card.content isa VerticalLayout
-    tags_body = tags_card.content.children[1]
-    @test tags_body isa VerticalLayout
-    @test length(tags_body.children) == 2                       # "alpha", "beta"
+    @test length(tags_card.content.children) == 2               # "alpha", "beta"
 
 end # @testset
 
-@testset "ObjectToWidget collapse hides the body and is reversible" begin
+@testset "ObjectToWidget collapse is the card's own and is reversible" begin
 
     app = make_nested_object_to_widget_document_example()
     iomap = print_document(ObjectToWidget(), app)
     grid = iomap.output.elements[1]
     window_card = first(c for c in collect(grid.children) if c isa WidgetCard)
+    body = window_card.content
+    @test window_card.collapsible == true
 
-    @test length(window_card.content.children) == 1            # expanded
-
-    # The card-graphics reader turns a header click into ToggleCollapseOperation(card);
+    # The card-graphics reader turns a chevron click into ToggleCollapseOperation(card);
     # the default handler flips the card's own `collapsed` cell (output view state).
+    # The card drops its body as it draws (see "WidgetCard folds a Document body"
+    # below), so the body itself stays as it was.
     evaluate_operation(nothing, ToggleCollapseOperation(window_card))
     @test window_card.collapsed == true
-    @test isempty(window_card.content.children)                # body hidden reactively
+    @test window_card.content === body
 
     evaluate_operation(nothing, ToggleCollapseOperation(window_card))
     @test window_card.collapsed == false
-    @test length(window_card.content.children) == 1            # restored
+    @test window_card.content === body
 
 end # @testset
 
