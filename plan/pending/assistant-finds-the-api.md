@@ -75,9 +75,10 @@ the call (`execute_julia_code`), and read the result.
    lines in the IDE; `resource://guides` describes every guide in a paragraph;
    `resource://modules` describes every declared module. The first is the
    longest and says the least.
-2. **Two search tools have the same modes over two corpora**, and a model must
-   choose the corpus before it knows where the answer is. A sentence that means
-   a verb and a sentence that means a recipe look alike.
+2. **The word "documentation" means two things.** `search_documentation`
+   searches the guides, and `read_function_documentation` reads a docstring;
+   `list_guides`, `read_guide` and `resource://guide/<name>` say "guide". One
+   word for two corpora is a wrong turn a model takes at no fault of its own.
 3. **Two readers for one job.** A module or a type has a URI and is read with
    `read_resource`; a function has none and is read with
    `read_function_documentation`. The tool exists because a model, told in
@@ -97,8 +98,8 @@ The `kind` filter of `search_api` is seldom useful and costs little; it stays.
 
 | change | extends or reduces | why |
 | --- | --- | --- |
-| one `search` tool over both corpora, with `scope`, `detail`, `mode` | reduces two tools to one, extends the answer | one call answers a verb and a recipe; one description instead of two |
-| `detail` levels | extends | the model chooses between many names and few whole docstrings |
+| `search_documentation` becomes `search_guides`, tool and function | neither | one word, "guide", for that corpus everywhere |
+| `detail` levels on both searches | extends | the model chooses between many names and few whole docstrings |
 | a footer of next actions on a long answer | extends | the instructions move from every request into the answers that need them |
 | guide sections as resources | extends | a hit reads one section, not a whole guide |
 | `execute_julia_code`: `nothing` advice, a cut result, "did you mean" | extends | the round after a wrong guess or a long result is not wasted |
@@ -132,35 +133,46 @@ sentence ends at `.`, `!` or `?` after two word characters and before a capital,
 a backtick or a bracket, so "e.g." ends none. `list_modules`, `list_types` and
 `list_functions` show the same summary, whole, instead of the signature.
 
-### 3b. One search
+### 3b. Two searches, one shape
+
+The two searches stay two tools. They rank differently on purpose — a verb by
+its name first, and by meaning alone in description mode; a guide section by
+its heading first, and by words and meaning merged — and they answer different
+intents: `search_api` when the model wants to write code, `search_guides` when
+it wants to understand how things fit together. A model that is unsure calls
+both in one round. One tool over both corpora was considered and refused: it
+would only call both and print two lists, so every answer would be longer, for
+the rare call that does not know its corpus.
+
+`search_documentation` becomes `search_guides`, the tool and the Julia
+function, with `workspace/bin/julia-rename.jl` and the two sweeps its blind
+spots need. The word "documentation" then means a docstring, as in
+`read_function_documentation`, and "guide" means a guide, as in `list_guides`,
+`read_guide` and `resource://guide/<name>`.
 
 ```
-search(query; scope = "all", mode = "keywords", detail = "summary", kind, limit)
+search_api(query; mode = "keywords", detail = "summary", kind, limit)
+search_guides(query; mode = "keywords", detail = "summary", limit)
 ```
 
-- `scope` is `"api"`, `"guides"` or `"all"`. With `"all"` the answer has two
-  parts, `## Names` and `## Guides`, each ranked as today; `limit` applies to
-  each. The Julia functions `search_api` and `search_documentation` stay, and
-  `search` calls both.
 - `mode` is as today: `"keywords"`, `"regex"`, `"description"`.
-- `detail` is `"names"`, `"summary"` or `"full"`:
+- `detail` is `"names"`, `"summary"` or `"full"`, the same on both:
 
-  | detail | a hit | default `limit` |
-  | --- | --- | --- |
-  | `names` | one line: the signature, or the guide and heading | 25 |
-  | `summary` | the two lines of §3a, or the heading and an excerpt | 8 |
-  | `full` | the whole docstring, or the whole section | 3 |
+  | detail | a hit of `search_api` | a hit of `search_guides` | default `limit` |
+  | --- | --- | --- | --- |
+  | `names` | one line: the signature | one line: the guide and heading | 25 |
+  | `summary` | the two lines of §3a | the heading and an excerpt | 8 |
+  | `full` | the whole docstring | the whole section | 3 |
 
   A model that wants the lie of the land asks for names; one that has narrowed
   the search asks for full. The "one clear hit answers in full" rule stays at
   every level.
-- `kind` filters the names part as today.
+- `kind` filters `search_api` as today.
+- Each description says in one sentence when to use the tool: "to find the
+  name to call" and "to learn how the parts fit together". A miss in one
+  search gets a footer that names the other (§3c).
 
-The two old tools are removed from the set. omnet's prompts, guides and tests
-name `search_api` and `search_documentation` as tools in several places, and
-each is changed to `search`.
-
-**Decision 1.** One tool, or the two that exist. Recommended: one.
+**Decision 1, taken 2026-09-16:** two tools, and the rename.
 
 ### 3c. A footer of next actions
 
@@ -171,6 +183,9 @@ that apply, and a shorter answer ends with none:
   hit>\")`. Narrow the search with +word or -word, or ask with mode
   \"description\"."
 - a list of guides: the same, with the first section's URI.
+- a miss: the other search, in one line — "No name says this; a guide may:
+  `search_guides` with the same words." — and for `search_api` also the names
+  that exist, as today.
 - a guide read whole: "Sections: a · b · c. Read one with
   `resource://guide/<name>#<heading>`."
 - a `describe_api` miss: as today, the names that exist.
@@ -324,12 +339,13 @@ every Julia process.
       problems.
 - [ ] Ask the user; run the baseline; record it in §5.
 
-### Step 3. One search, footers, sections (§3b, §3c, §3d, §3h)
+### Step 3. The two searches, footers, sections (§3b, §3c, §3d, §3h)
 
-- [ ] `search` with `scope`, `detail`, `mode`, `kind`, `limit`; the two tools
-      removed; `_make_footer`; section and function URIs in `read_resource`;
+- [ ] `search_documentation` → `search_guides`, with `julia-rename.jl` and the
+      two sweeps, in projectured and omnet; `detail` on both tools;
+      `_make_footer`; section and function URIs in `read_resource`;
       `list_resources` by kind.
-- [ ] omnet: prompts, guides and tests say `search`.
+- [ ] omnet: prompts, guides and tests say `search_guides`.
 - [ ] Tests; guides; the benchmark run again.
 
 ### Step 4. `execute_julia_code` (§3e)
