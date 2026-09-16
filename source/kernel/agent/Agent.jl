@@ -2,7 +2,7 @@
 # model's own.
 
 """
-    Agent(llm, tools; system = "", max_rounds = 5, thinking = true)
+    Agent(llm, tools; system = "", max_rounds = 8, thinking = true)
 
 A language model, the tools it may call, and how a turn with it is run.
 
@@ -10,7 +10,10 @@ A language model, the tools it may call, and how a turn with it is run.
 - `tools`      — the `ToolSet` it may call; in practice an editor's own.
 - `system`     — the system prompt.
 - `max_rounds` — a hard cap on rounds in one turn, so a model that keeps asking for
-                 tools can never run away. Hitting it ends the turn with a warning.
+                 tools can never run away. Eight is what a turn that searches,
+                 reads a hit in full and then writes needs, with a wrong guess
+                 and a read after it to spare. Hitting it ends the turn with a
+                 warning.
 - `thinking`   — ask for extended reasoning where the backend has it.
 
 An `Agent` holds no transcript. What was said is the caller's — it already has a
@@ -25,7 +28,7 @@ mutable struct Agent
 end
 
 Agent(llm::Llm, tools::ToolSet; system::AbstractString = "",
-      max_rounds::Integer = 5, thinking::Bool = true) =
+      max_rounds::Integer = 8, thinking::Bool = true) =
     Agent(llm, tools, String(system), Int(max_rounds), thinking)
 
 """

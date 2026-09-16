@@ -442,16 +442,20 @@ every Julia process.
 
 ### Step 7. Reduce (§3h) and close
 
-- [ ] `SimulationToolsModule` and its test, after decision 3. **Blocked, and
-      the premise was half wrong.** The module holds the eleven tools no window
-      registers, and it also holds `build_campaign_session` and
+- [x] `SimulationToolsModule` and its test, after decision 3. **The premise
+      was half wrong, and the reduction is a move.** The module held the eleven
+      tools no window registers, and also `build_campaign_session` and
       `SimulationToolContext`, which `run_campaign_window`, the precompile
-      workload and the test fixture build the window with. The reduction is
-      therefore a move, not a deletion: a `CampaignSessionModule` with
+      workload and the test fixture build the window with. Decided by the user
+      2026-09-16 ("yes, continue"): `CampaignSessionModule` in omnet holds
       `CampaignSession(editor, tree, filter)` and `build_campaign_session`,
-      whose Run wiring is `run_filter_in_new_pane!`, and the tools file and its
-      test deleted. The deletion was refused by the sandbox as irreversible,
-      and decision 3 has no word from the user yet; both are for the user.
+      whose Run wiring is `run_filter_in_new_pane!`; the tools file and
+      `test_simulation_tools` are deleted, and `test_campaign_session` presses
+      Run on a stub project. `batches`, which only the tools read, is gone.
+- [x] **The round cap.** Decided by the user 2026-09-16: `Agent`'s default
+      `max_rounds` is 8, from 5. Eight is what a turn that searches, reads a hit
+      in full and writes needs, with a wrong guess and a read after it to spare.
+      Measured once more below, "After Step 7".
 - [ ] Move this plan to `plan/done/` with the benchmark tables.
 
 ## 5. Findings
