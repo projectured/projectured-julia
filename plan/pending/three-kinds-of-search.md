@@ -525,6 +525,18 @@ Work in a worktree. Commit each step with explicit paths. Land with
 
 ### Step 7. Measure
 
+- [x] The measurement is ready. It runs in omnet's `environment/all` against
+      `get_assistant_api()`, which declares 88 entries, and prints for each
+      sentence the rank of the expected name under keywords, under the meaning
+      alone, and fused. A rank of 0 means not in the first 50.
+- [x] A dry run without the model, 2026-09-16: the build failed after 3.4 s,
+      and every description answer began with "The meaning model
+      ollama/nomic-embed-text failed, so the words of the description were
+      searched as keywords. The reason: Ollama has no model nomic-embed-text.
+      Run `ollama pull nomic-embed-text` to install it." The words alone rank
+      `stop_simulations!` first and do not find the other three verbs in the
+      first 50; they rank a section of `omnet/assistant-guide` first for the
+      guide sentence.
 - [ ] Ask before `ollama pull nomic-embed-text`. It is 274 MB.
 - [ ] Run the golden table live and record the ranks in §6.
 - [ ] Decide the BM25 normalization of §3b on that table, and record the
