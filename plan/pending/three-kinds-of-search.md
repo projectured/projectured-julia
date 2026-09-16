@@ -385,26 +385,30 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] `test_ollama()` in `package/ProjecturedOllamaTest`: 69 pass. The live
       turn skips itself, because the server holds no model in memory.
 
-### Step 1. The mode argument and the keyword query (kernel)
+### Step 1. The mode argument and the keyword query (kernel) — done 2026-09-16
 
-- [ ] `SearchQuery.jl`: `SearchTerm`, `KeywordQuery`, `parse_keyword_query`,
+- [x] `SearchQuery.jl`: `SearchTerm`, `KeywordQuery`, `parse_keyword_query`,
       `is_keyword_match`, `_read_search_query`, and the scored terms and fold
-      of each kind of query. Include it in `ToolModule.jl` before
-      `Documentation.jl`.
-- [ ] `Documentation.jl`: `search_api` and `search_documentation` take `mode`;
-      the filter runs before the score; `_excerpt` takes the scored terms; the
-      description mode searches its words as keywords and says that no meaning
-      model is present.
-- [ ] `DefaultTools.jl`: `mode` replaces `regex`; the four-line syntax help in
-      the `mode` parameter; one sentence in `_WHOLE_SURFACE_DESCRIPTION` and
-      `_execute_julia_code_description` that names the description mode.
-- [ ] Tests: a new `test/kernel/tool/SearchQueryTest.jl` with the parser
-      cases, the three classes, a phrase, alternatives, a forbidden word at a
-      word start, an unknown mode, and `mode = "regex"` with a valid and an
-      invalid pattern. Update the two `"regex" => true` assertions in
-      `McpTest.jl`. Register the test in `KernelSuite.jl` and in
-      `ProjecturedKernelTest`.
-- [ ] `test_kernel_layering()` green.
+      of each kind of query. Included in `ToolModule.jl` before
+      `Documentation.jl`. `_STOP_WORDS`, `_query_terms` and `_term_forms` moved
+      here from `Documentation.jl`; `_matchers` is gone.
+- [x] `Documentation.jl`: `search_api` and `search_documentation` take `mode`;
+      the filter runs before the score, and each text is folded once for both;
+      `_excerpt` takes the scored terms; the description mode searches its words
+      as keywords and says in its first line that no meaning model is present.
+- [x] `MeaningSearch.jl` already exists after this step, with the note for a
+      missing meaning model and `_fuse_rankings`. Step 3 fills in the rest.
+- [x] `DefaultTools.jl`: `mode` replaces `regex` in both tools, through the
+      shared `_QUERY_PARAMETER` and `_MODE_PARAMETER`; the handlers pass `mode`
+      through and compile no pattern; one sentence in
+      `_WHOLE_SURFACE_DESCRIPTION` and `_execute_julia_code_description` names
+      the description mode.
+- [x] Tests: `test/kernel/tool/SearchQueryTest.jl`, `test_search_query()`, 62
+      assertions, registered in `KernelSuite.jl` and `ProjecturedKernelTest`.
+      The two `"regex" => true` calls in `McpTest.jl` use `"mode" => "regex"`.
+      `SEALING.md` lists the two new kernel files, unsealed.
+- [x] `test_declared_api()`, `test_search_query()`, `test_kernel_layering()`:
+      164 pass. The three MCP search tests in `environment/all`: 24 pass.
 
 ### Step 2. The meaning seam (kernel, example)
 
@@ -490,4 +494,20 @@ Work in a worktree. Commit each step with explicit paths. Land with
 
 ## 6. Findings
 
-Filled in during the work.
+**Step 1, 2026-09-16.**
+
+- **The declared `search_api` in the scratch module could widen its own view.**
+  It was bound as `search_api(query; api = declared, kwargs...)`, and of two
+  equal keywords Julia keeps the later one, so `search_api("x"; api = [])`
+  searched the whole surface. The comment above it said the opposite. The
+  declared list is now written after the splat, and a test holds it.
+- **`register_default_tools!` had no documentation.** Its docstring stood above
+  `const _WHOLE_SURFACE_DESCRIPTION`, so Julia attached it to the constant. It
+  now stands above the function, and a test reads it through `@doc`.
+- **A term is a `SearchTerm`, not a `KeywordTerm`,** because a regex is a term
+  of the same shape: its one alternative is the pattern. One scorer serves both.
+- **A phrase has a second spelling with `_` for each space**, so a quoted
+  phrase finds the name that spells it. This is not a stem form: the words stay
+  in their order.
+- **A forbidden word matches only where a word starts.** Plain substring
+  matching would make `-test` drop every entry that says `invokelatest`.

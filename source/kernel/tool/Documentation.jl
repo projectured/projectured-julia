@@ -463,62 +463,24 @@ end
 # Two read-only search functions, so a caller can find the right guide section or
 # API entry in one call instead of listing and reading every resource.
 
-# Split a query into lowercase alphanumeric/underscore terms (drop 1-char noise).
-# The words a person says to join the words they mean. In a heading they score
-# as loudly as the subject does — "change the layout" scored `the` five points
-# against every heading holding it — and they name nothing, so they are dropped.
-const _STOP_WORDS = Set([
-    "the", "a", "an", "and", "or", "of", "in", "on", "to", "for", "with", "from",
-    "by", "as", "is", "are", "be", "it", "its", "this", "that", "these", "those",
-    "at", "into", "how", "what", "when", "which", "do", "does", "can", "me",
-    "my", "you", "your", "all", "any", "some", "one", "up", "out",
-])
-
-function _query_terms(q::AbstractString)
-    words = filter(t -> length(t) >= 2, split(lowercase(q), r"[^a-z0-9_]+"))
-    kept = filter(t -> !(t in _STOP_WORDS), words)
-    # A query of nothing but joining words still has to search for something.
-    isempty(kept) ? words : kept
-end
-
-# Turn a query into `(patterns, fold)`: `patterns` is what we match against text,
-# `fold` is applied to both query and haystack first. The query *type* selects the
-# mode — a String searches keywords case-insensitively, a Regex matches
-# original-case text (use the `i` flag for case-insensitivity). `findall` /
-# `occursin` / `findfirst` accept both, so the scoring below is shared.
-# Each term becomes the forms it could be written in, and a score counts the best
-# of them once. A person asks to "plot the vectors" and the verb is called
-# `plot_vector`; a person asks about "a result" and the column is `results`. The
-# fold is one `s` either way, which is the whole of the difference that was
-# costing a round.
-function _term_forms(term::AbstractString)
-    forms = String[String(term)]
-    length(term) > 3 && endswith(term, "s") && push!(forms, String(term[1:end-1]))
-    length(term) > 2 && !endswith(term, "s") && push!(forms, String(term) * "s")
-    forms
-end
-
-_matchers(q::AbstractString) = ([_term_forms(t) for t in _query_terms(q)], lowercase)
-_matchers(q::Regex)          = (Any[Any[q]], identity)
-
-# Count occurrences of every pattern in `text` (after `fold`), scaled by `weight`.
-function _term_score(groups, text::AbstractString, weight::Int, fold)
+# Count how often each term occurs in `text`, which is folded already, and scale
+# the count by `weight`. A term counts its best form once.
+function _term_score(terms, text::AbstractString, weight::Int)
     isempty(text) && return 0
-    ft = fold(text)
-    s = 0
-    for forms in groups
-        s += weight * maximum(length(findall(t, ft)) for t in forms)
+    score = 0
+    for term in terms
+        score += weight * maximum(length(findall(form, text)) for form in term.forms)
     end
-    s
+    score
 end
 
 # A short, whitespace-collapsed excerpt of `body` centred on the first match.
-function _excerpt(body::AbstractString, patterns, fold; width::Int = 240)
+function _excerpt(body::AbstractString, terms, fold; width::Int = 240)
     isempty(body) && return ""
     fb = fold(body)
     pos = nothing
-    for forms in patterns, t in forms
-        r = findfirst(t, fb)
+    for term in terms, form in term.forms
+        r = findfirst(form, fb)
         r === nothing && continue
         (pos === nothing || first(r) < pos) && (pos = first(r))
     end
@@ -705,47 +667,75 @@ function _api_index(api = ApiEntry[])
 end
 
 """
-    search_documentation(query; limit = 8) -> String
+    search_documentation(query; mode = "keywords", limit = 8, meaning_model = nothing) -> String
 
-Search the guide documentation. Splits guides into heading-delimited sections,
-ranks them by how often the query matches (headings weighted higher than body),
-and returns the top `limit` hits as a markdown list of `resource://guide/{name}`
-URIs plus a short excerpt. Read the full text with `read_resource(set, uri)`.
+Search the guide documentation. The guides are split into sections at their
+headings, and the first `limit` sections come back as `resource://guide/{name}`
+URIs, each with a short excerpt. Read the full text with `read_resource(set, uri)`.
 
-The **query type selects the mode** (Julia dispatch):
+`mode` says how a `String` query is read:
 
-- `query::AbstractString` — plain keywords (**not** a regex, no boolean
-  operators): lowercased and split into tokens (alphanumeric/underscore, 2+
-  characters) matched case-insensitively as substrings. Any token matching
-  includes the section (OR semantics); more — and heading — matches rank higher.
-- `query::Regex` — regular-expression match against the original-case text (add
-  the `i` flag for case-insensitivity), e.g. `search_documentation(r"replace.*range")`.
+- `"keywords"`, the default — words, read by [`parse_keyword_query`](@ref):
+  `+word` must match, `-word` must not, `a|b` is either, and `"two words"` is a
+  phrase. A section ranks by its heading first and by its body second.
+- `"regex"` — a regular expression, matched against the text as it is written;
+  a `(?i)` prefix ignores case. A `Regex` query is read this way in every mode.
+- `"description"` — a sentence that says what the reader wants to do. Its words
+  rank a section as keywords do, and `meaning_model` ranks it by meaning too.
+  Without a meaning model the words alone decide, and the first line of the
+  answer says so.
+
+A query that can not be read answers the reason as text, and never throws.
 """
-function search_documentation(query::Union{AbstractString,Regex}; limit::Integer = 8)
-    patterns, fold = _matchers(query)
-    isempty(patterns) && return "Provide a search query (two or more characters)."
-    # **Two numbers, as in `search_api`.** A heading is what a section is about
-    # and a body is where words happen to fall, so the heading decides and the
-    # body only separates what it could not. Added into one number, the longest
-    # document wins: "change the layout" answered `design/system-anatomy` while a
-    # guide held a section of that name. Measured 2026-09-13.
-    scored = Tuple{Tuple{Int,Int},_GuideSection}[]
-    for sec in _guide_index()
-        heading = _term_score(patterns, sec.heading, 5, fold)
-        body = _term_score(patterns, sec.body, 1, fold)
-        (heading > 0 || body > 0) && push!(scored, ((heading, body), sec))
+function search_documentation(query::Union{AbstractString,Regex}; mode = "keywords",
+                              limit::Integer = 8, meaning_model = nothing)
+    read = _read_search_query(query, mode)
+    read isa String && return read
+    refusal = _find_query_refusal(read)
+    refusal === nothing || return refusal
+    sections = _guide_index()
+    ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    note = nothing
+    if read isa _DescriptionQuery
+        by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
+        by_meaning === nothing || (ranked = _fuse_rankings(ranked, by_meaning))
     end
-    isempty(scored) && return "No documentation matches $(repr(query))."
-    sort!(scored; by = x -> (-x[1][1], -x[1][2]))
+    isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).")
+    terms = _get_scored_terms(read)
+    fold = _get_query_fold(read)
     io = IOBuffer()
+    note === nothing || println(io, note, "\n")
     println(io, "# Documentation matches for $(repr(query))\n")
-    for (_, sec) in first(scored, min(limit, length(scored)))
-        head = isempty(sec.heading) ? "" : " — $(sec.heading)"
-        println(io, "## resource://guide/$(sec.guide)$head")
-        println(io, _excerpt(sec.body, patterns, fold))
+    for section in first(ranked, min(limit, length(ranked)))
+        head = isempty(section.heading) ? "" : " — $(section.heading)"
+        println(io, "## resource://guide/$(section.guide)$head")
+        println(io, _excerpt(section.body, terms, fold))
         println(io)
     end
     String(take!(io))
+end
+
+# The sections a query finds, best first, each with its two scores.
+#
+# **Two numbers, as in `search_api`.** A heading is what a section is about and a
+# body is where words happen to fall, so the heading decides and the body only
+# separates what it could not. Added into one number, the longest document wins:
+# "change the layout" answered `design/system-anatomy` while a guide held a
+# section of that name. Measured 2026-09-13.
+function _rank_guide_sections(query, sections::Vector{_GuideSection})
+    terms = _get_scored_terms(query)
+    fold = _get_query_fold(query)
+    scored = Tuple{Tuple{Int,Int},_GuideSection}[]
+    for section in sections
+        heading = fold(section.heading)
+        body = fold(section.body)
+        _is_passing(query, heading, body) || continue
+        heading_score = _term_score(terms, heading, 5)
+        body_score = _term_score(terms, body, 1)
+        (heading_score > 0 || body_score > 0) &&
+            push!(scored, ((heading_score, body_score), section))
+    end
+    sort!(scored; by = x -> (-x[1][1], -x[1][2]))
 end
 
 # Rank: exact name match > name substring > qualified-name substring; doc hits add
@@ -764,24 +754,50 @@ end
 # precision in the name, where it is not. Measured the same day: with a stem
 # allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
 # `stop_simulations`, because `run` is inside almost every verb of that module.
-function _api_score(groups, e::_ApiEntry, fold)
-    name = fold(last(split(e.qualname, '.')))
-    qualified = fold(e.qualname)
-    doc  = fold(e.text)
+#
+# Every text is folded already.
+function _api_score(terms, name::AbstractString, qualified::AbstractString,
+                    prose::AbstractString)
     named = 0
-    prose = 0
-    for forms in groups
-        written = first(forms)
-        named += (written isa AbstractString && name == written) ? 100 :
-                 occursin(written, name) ? 20 :
-                 occursin(written, qualified) ? 10 : 0
-        prose += maximum(length(findall(t, doc)) for t in forms)
+    said = 0
+    for term in terms
+        named += maximum(_compute_name_score(written, name, qualified)
+                         for written in term.written)
+        said += maximum(length(findall(form, prose)) for form in term.forms)
     end
-    (named, prose)
+    (named, said)
 end
 
+_compute_name_score(written, name::AbstractString, qualified::AbstractString) =
+    (written isa AbstractString && name == written) ? 100 :
+    occursin(written, name) ? 20 :
+    occursin(written, qualified) ? 10 : 0
+
+# The entries a query finds, best first, each with its two scores.
+#
+# **A tie goes to the shorter name.** `run_simulations` and
+# `run_simulations_in_conversation` both hold every word of "run simulation", and
+# the first is what the words say; the second says them and more. Length is the
+# whole of that difference, so it is the tie-break.
+function _rank_api_entries(query, entries::Vector{_ApiEntry})
+    terms = _get_scored_terms(query)
+    fold = _get_query_fold(query)
+    scored = Tuple{Tuple{Int,Int},_ApiEntry}[]
+    for entry in entries
+        qualified = fold(entry.qualname)
+        prose = fold(entry.text)
+        _is_passing(query, qualified, prose) || continue
+        score = _api_score(terms, last(split(qualified, '.')), qualified, prose)
+        (score[1] > 0 || score[2] > 0) && push!(scored, (score, entry))
+    end
+    sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
+end
+
+_prefix_note(note, text::AbstractString) = note === nothing ? String(text) : note * "\n\n" * text
+
 """
-    search_api(query; kind = nothing, limit = 8) -> String
+    search_api(query; mode = "keywords", kind = nothing, limit = 8, api = ApiEntry[],
+               meaning_model = nothing) -> String
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
@@ -790,40 +806,48 @@ full docs: a `resource://…` URI for modules and types, or a
 `read_function_documentation(…)` call for functions. Pass `kind` (`"module"`,
 `"type"`, or `"function"`) to filter.
 
-`modules` is the declared API of a `ToolSet`. Named, the search sees those modules
+`api` is the declared API of a `ToolSet`. Named, the search sees those modules
 and nothing else — the same names the code the model writes can resolve. Empty, it
 sees the whole project.
 
-The **query type selects the mode**, exactly as in `search_documentation` — a
-`String` is keywords, a `Regex` is a pattern (the exact-name bonus does not apply
-to a regex; ranking is by where it matches).
+`mode` reads the query exactly as in [`search_documentation`](@ref): keywords by
+default, a pattern with `"regex"` or a `Regex`, and a sentence with
+`"description"`, which `meaning_model` ranks by meaning as well. The exact-name
+bonus is for a written word only: a pattern and a sentence rank by where they
+match.
 """
-function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::Integer = 8,
-                    api = ApiEntry[])
-    patterns, fold = _matchers(query)
-    isempty(patterns) && return "Provide a search query (two or more characters)."
-    scored = Tuple{Tuple{Int,Int},_ApiEntry}[]
-    for e in _api_index(api)
-        (kind === nothing || e.kind == kind) || continue
-        s = _api_score(patterns, e, fold)
-        (s[1] > 0 || s[2] > 0) && push!(scored, (s, e))
+function search_api(query::Union{AbstractString,Regex}; mode = "keywords", kind = nothing,
+                    limit::Integer = 8, api = ApiEntry[], meaning_model = nothing)
+    read = _read_search_query(query, mode)
+    read isa String && return read
+    refusal = _find_query_refusal(read)
+    refusal === nothing || return refusal
+    entries = _ApiEntry[entry for entry in _api_index(api)
+                        if kind === nothing || entry.kind == kind]
+    scored = _rank_api_entries(read, entries)
+    ranked = _ApiEntry[entry for (_, entry) in scored]
+    note = nothing
+    if read isa _DescriptionQuery
+        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
+        by_meaning === nothing || (ranked = _fuse_rankings(ranked, by_meaning))
+        # A sentence names no verb, so only a single hit is a clear answer.
+        alone = length(ranked) == 1
+    else
+        # One hit, or one whose NAME is exactly what was asked while no other's is.
+        alone = length(scored) == 1 ||
+                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
     end
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
     # the declaration are short, and they are the answer to "then what may I
     # write?" — so they are said here, where the question was asked, rather than
     # carried in every prompt.
-    if isempty(scored)
+    if isempty(ranked)
         suffix = kind === nothing ? "" : " (kind=$kind)"
         names = isempty(api) ? "" : describe_api(api; signatures = false)
-        return "No API matches $(repr(query))$suffix." *
-               (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names)
+        return _prefix_note(note, "No API matches $(repr(query))$suffix." *
+                                  (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
     end
-    # **A tie goes to the shorter name.** `run_simulations` and
-    # `run_simulations_in_conversation` both hold every word of "run simulation",
-    # and the first is what the words say; the second says them and more. Length
-    # is the whole of that difference, so it is the tie-break.
-    sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
 
     # **One clear answer is answered in full.** A hit shows its signature and a
     # locator, and a model that wanted the verb then spends a whole round calling
@@ -831,26 +855,24 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
     # whose name is what was asked — the documentation comes back with it and
     # that round is not spent. Measured 2026-09-13: half of a turn's tool calls
     # were this lookup pair.
-    best = scored[1]
-    # One hit, or one whose NAME is exactly what was asked while no other's is.
-    alone = length(scored) == 1 || (best[1][1] >= 100 && scored[2][1][1] < 100)
-    if alone && !isempty(best[2].full)
-        io = IOBuffer()
-        println(io, "# `", last(split(best[2].qualname, '.')),
+    best = ranked[1]
+    io = IOBuffer()
+    note === nothing || println(io, note, "\n")
+    if alone && !isempty(best.full)
+        println(io, "# `", last(split(best.qualname, '.')),
                     "` — the one API match for ", repr(query), "\n")
-        println(io, best[2].full)
-        rest = [e.qualname for (_, e) in scored[2:min(limit, length(scored))]]
+        println(io, best.full)
+        rest = [entry.qualname for entry in ranked[2:min(limit, length(ranked))]]
         isempty(rest) ||
             println(io, "\nAlso matched, by name: " * join(rest, ", ") * ".")
         return String(take!(io))
     end
 
-    io = IOBuffer()
     println(io, "# API matches for $(repr(query))\n")
-    for (_, e) in first(scored, min(limit, length(scored)))
+    for entry in first(ranked, min(limit, length(ranked)))
         # One line. A third-party docstring can open with four overloads run
         # together, and eight of those bury the verb the model came for.
-        doc = isempty(e.doc) ? "(no documentation)" : first(split(e.doc, '\n'))
+        doc = isempty(entry.doc) ? "(no documentation)" : first(split(entry.doc, '\n'))
         length(doc) > 160 && (doc = first(doc, 157) * "…")
         # **The writable name first, the module after it.** A declared name
         # arrives unqualified, and a hit that leads with `Module.name` invites a
@@ -858,18 +880,17 @@ function search_api(query::Union{AbstractString,Regex}; kind = nothing, limit::I
         # `CampaignVerbsModule.select_simulations!`, wrote
         # `PaneProgramModule.select_simulations!`, and lost the turn to an
         # `UndefVarError`. What is shown is now what works.
-        parts = split(e.qualname, '.')
+        parts = split(entry.qualname, '.')
         name = last(parts)
         where = length(parts) > 1 ? " (in " * join(parts[1:end-1], '.') * ")" : ""
-        println(io, "- **$(e.kind)** `$name`$where — $doc")
-        println(io, "  → read full: `$(e.locator)`")
+        println(io, "- **$(entry.kind)** `$name`$where — $doc")
+        println(io, "  → read full: `$(entry.locator)`")
     end
     String(take!(io))
 end
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
-# A tool argument arrives from JSON, so it may be a Bool, a number, or a string
-# spelling of either.
+# A tool argument arrives from JSON, so it may be a number, a string, or nothing.
 
 function _arg_int(v, default::Int)
     v === nothing && return default
@@ -885,16 +906,6 @@ function _arg_kind(v)
     isempty(s) ? nothing : s
 end
 
-function _arg_bool(v, default::Bool)
-    v === nothing && return default
-    v isa Bool && return v
-    v isa Real && return v != 0
-    lowercase(strip(string(v))) in ("true", "1", "yes")
-end
-
-# The search query from tool args: a plain `String` (keywords), or a `Regex` when
-# `regex=true`. Compiling an invalid pattern throws — the tool handlers catch it
-# and return a readable error.
-_query_arg(args) =
-    _arg_bool(get(args, "regex", false), false) ?
-        Regex(String(args["query"])) : String(args["query"])
+# The query of a search tool call. A value that is not text is read as its text,
+# and a missing one is empty, which the search answers.
+_get_query_argument(args) = string(something(get(args, "query", ""), ""))

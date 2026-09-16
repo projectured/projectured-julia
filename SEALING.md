@@ -158,7 +158,9 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/Tool.jl`
   - ⬜ `tool/ToolSet.jl`
   - ⬜ `tool/CodeExecution.jl`
+  - ⬜ `tool/SearchQuery.jl`
   - ⬜ `tool/Documentation.jl`
+  - ⬜ `tool/MeaningSearch.jl`
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 15 — llm** (`llm/`)
   - ⬜ `llm/LlmLayer.jl`

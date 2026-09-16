@@ -2,15 +2,19 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Five fragments share this namespace:
+be asked to read. Seven fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), and
   the `ToolSet` that holds them.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — the `execute_julia_code` tool and its
   persistent scratch namespace.
+- [`SearchQuery.jl`](SearchQuery.jl) — what a search query says: keywords with
+  their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
   documentation readers and the two search functions over them.
+- [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
+  means, and how that rank joins the rank of its words.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
@@ -39,12 +43,15 @@ export Tool, Resource, ToolSet, ApiEntry, get_api_modules, get_api_entry_names,
        list_guides, read_guide,
        list_modules, list_types, list_functions,
        read_module_documentation, read_type_documentation, read_function_documentation,
-       search_documentation, search_api
+       search_documentation, search_api,
+       SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 
 include("Tool.jl")
 include("ToolSet.jl")
 include("CodeExecution.jl")
+include("SearchQuery.jl")
 include("Documentation.jl")
+include("MeaningSearch.jl")
 include("DefaultTools.jl")
 
 end # module

@@ -1,19 +1,5 @@
 # Fragment of `ToolModule` — the tools and resources an editor ships with.
 
-"""
-    register_default_tools!(set) -> set
-
-Populate `set` with the editor's built-in tools — code execution, documentation
-and API search, and the two that expose the resource list itself — plus the
-read-only documentation resources (the guides, and each module/type's docs).
-
-Idempotent: registering again replaces entries rather than duplicating them.
-
-Every handler **closes over `set`**, which is how the code-execution tool reaches
-its own scratch namespace and last value without a registry global
-(PAR-PER-EDITOR-STATE) and without threading a context argument through the
-`(target, args)` handler signature every other tool is happy with.
-"""
 # What the model is told about the code it may write. It follows the declaration,
 # because a description that names a surface the `ToolSet` does not have is an
 # instruction to waste a round.
@@ -36,6 +22,8 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "- Call the `search_api` tool to find the right module, struct, or function " *
     "(it ranks by name and docstring and returns how to read full docs).\n" *
     "- Call the `search_documentation` tool to find the relevant guide section.\n" *
+    "- When you know what you want to do but not what it is called, call either " *
+    "search with mode \"description\" and say it in a sentence.\n" *
     "- Read full text with the `read_resource` tool, and a function's full docs " *
     "with the `read_function_documentation` tool.\n\n" *
     "NEVER guess names or signatures — search for them.\n" *
@@ -80,7 +68,9 @@ function _execute_julia_code_description(set::ToolSet)
     _declared_sentence(set) * "in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
     "FIND THEM BEFORE YOU WRITE ANY CODE, with the two tools that answer that:\n" *
-    "- `search_api` lists them, with one line of description each.\n" *
+    "- `search_api` lists them, with one line of description each. When you know " *
+    "what you want to do but not its name, call it with mode \"description\" and " *
+    "say it in a sentence.\n" *
     "- `read_function_documentation` reads one in full and says what its " *
     "arguments are.\n\n" *
     "Returns the repr of the last expression's value (if any), followed by any " *
@@ -88,6 +78,34 @@ function _execute_julia_code_description(set::ToolSet)
     "NEVER guess a name — search for it. NEVER call print(). NEVER write comments."
 end
 
+# The two parameters both search tools share. A tool description is sent with
+# every request, so the syntax is said here in four lines, and the guide says the
+# rest.
+const _QUERY_PARAMETER = (name = "query", type = "string",
+    description = "What to look for. `mode` says how it is read.", required = true)
+
+const _MODE_PARAMETER = (name = "mode", type = "string",
+    description = "How `query` is read. \"keywords\" (the default): words that rank a " *
+                  "hit; +word must match, -word must not, a|b is either, \"two words\" " *
+                  "is a phrase. \"regex\": a regular expression; a (?i) prefix ignores " *
+                  "case. \"description\": a sentence that says what you want to do, when " *
+                  "you do not know what it is called.",
+    required = false)
+
+"""
+    register_default_tools!(set) -> set
+
+Populate `set` with the editor's built-in tools — code execution, documentation
+and API search, and the two that expose the resource list itself — plus the
+read-only documentation resources (the guides, and each module/type's docs).
+
+Idempotent: registering again replaces entries rather than duplicating them.
+
+Every handler **closes over `set`**, which is how the code-execution tool reaches
+its own scratch namespace and last value without a registry global
+(PAR-PER-EDITOR-STATE) and without threading a context argument through the
+`(target, args)` handler signature every other tool is happy with.
+"""
 function register_default_tools!(set::ToolSet)
     register_tool!(set, Tool(
         "execute_julia_code",
@@ -101,30 +119,20 @@ function register_default_tools!(set::ToolSet)
 
     register_tool!(set, Tool(
         "search_documentation",
-        "Search the ProjecturEd guide documentation by keyword. Returns ranked guide " *
-        "sections with their resource:// URIs and a short excerpt. Read the full text " *
-        "with the `read_resource` tool. Call this to locate the relevant guide section " *
+        "Search the ProjecturEd guide documentation by keywords, by a pattern, or by " *
+        "a sentence that says what you want to do. Returns ranked guide sections " *
+        "with their resource:// URIs and a short excerpt. Read the full text with " *
+        "the `read_resource` tool. Call this to locate the relevant guide section " *
         "BEFORE reading whole guides.",
         NamedTuple[
-            (name = "query", type = "string",
-             description = "Keywords by default (case-insensitive substring match against guide " *
-                           "headings and body; more matching terms rank higher). With regex=true " *
-                           "it is a regular expression instead (use a (?i) prefix for " *
-                           "case-insensitivity).", required = true),
-            (name = "regex", type = "boolean",
-             description = "Treat `query` as a regular expression instead of keywords (default false)",
-             required = false),
+            _QUERY_PARAMETER,
+            _MODE_PARAMETER,
             (name = "limit", type = "number",
              description = "Maximum number of results (default 8)", required = false),
         ],
-        (target, args) -> begin
-            q = try
-                _query_arg(args)
-            catch e
-                return "Invalid regex: $(sprint(showerror, e))"
-            end
-            search_documentation(q; limit = _arg_int(get(args, "limit", 8), 8))
-        end,
+        (target, args) -> search_documentation(_get_query_argument(args);
+                                               mode = get(args, "mode", nothing),
+                                               limit = _arg_int(get(args, "limit", 8), 8)),
     ))
 
     register_tool!(set, Tool(
@@ -135,30 +143,18 @@ function register_default_tools!(set::ToolSet)
         "call for functions. Use this to find the right type or function and NEVER guess " *
         "names or signatures.",
         NamedTuple[
-            (name = "query", type = "string",
-             description = "Keywords by default (case-insensitive substring match against names " *
-                           "and docstrings; exact name matches rank highest). With regex=true it " *
-                           "is a regular expression instead (use a (?i) prefix for " *
-                           "case-insensitivity).", required = true),
-            (name = "regex", type = "boolean",
-             description = "Treat `query` as a regular expression instead of keywords (default false)",
-             required = false),
+            _QUERY_PARAMETER,
+            _MODE_PARAMETER,
             (name = "kind", type = "string",
              description = "Optional filter: \"module\", \"type\", or \"function\"", required = false),
             (name = "limit", type = "number",
              description = "Maximum number of results (default 8)", required = false),
         ],
-        (target, args) -> begin
-            q = try
-                _query_arg(args)
-            catch e
-                return "Invalid regex: $(sprint(showerror, e))"
-            end
-            search_api(q;
-                       kind    = _arg_kind(get(args, "kind", nothing)),
-                       limit   = _arg_int(get(args, "limit", 8), 8),
-                       api = set.api)
-        end,
+        (target, args) -> search_api(_get_query_argument(args);
+                                     mode  = get(args, "mode", nothing),
+                                     kind  = _arg_kind(get(args, "kind", nothing)),
+                                     limit = _arg_int(get(args, "limit", 8), 8),
+                                     api   = set.api),
     ))
 
     # A function's docstring is reachable *as a tool*, and it is the one piece of
