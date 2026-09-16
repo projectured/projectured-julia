@@ -374,9 +374,10 @@ vectors come from a table of synonyms, so it proves that a description finds a
 name that shares no word with it. A second offline test binds a `FakeLlm` that
 has a meaning model. The live test in `ProjecturedOllamaTest` checks that the
 real model puts two sentences of one meaning closer than two of different
-meanings. The table above needs the omnet names, so it runs as a measurement in
-omnet's `environment/all`: it prints the rank each sentence gets under keywords
-and under description. The description rank must never be worse than the keyword
+meanings. The table above needs the omnet names, so it runs in omnet:
+`measure_meaning_search!()` in `OmnetIdeExample` prints the rank each sentence
+gets under keywords and under description, and `MEANING_SEARCH_SENTENCES` holds
+the sentences, which a test holds to the declaration and the guides. The description rank must never be worse than the keyword
 rank. The numbers are in §6: the rule holds for the eight verbs and for seven of
 the eight guide sentences; the eighth is second by description and first by its
 words.
@@ -532,10 +533,12 @@ Work in a worktree. Commit each step with explicit paths. Land with
 
 ### Step 7. Measure — done 2026-09-16
 
-- [x] The measurement runs in omnet's `environment/all` against
-      `get_assistant_api()`, which declares 88 entries, and prints for each
-      sentence the rank of the expected name or guide under its words and under
-      the description mode.
+- [x] The measurement runs against `get_assistant_api()`, which declares 88
+      entries, and prints for each sentence the rank of the expected name or
+      guide under its words and under the description mode. It is
+      `measure_meaning_search!` in omnet's `OmnetIdeExample`, added after the
+      plan closed, so it can run again when the declaration grows; its live run
+      printed the final table below unchanged.
 - [x] A dry run without the model: the build failed after 3.4 s, and every
       description answer began with "The meaning model ollama/nomic-embed-text
       failed, so the words of the description were searched as keywords. The
