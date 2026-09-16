@@ -413,11 +413,22 @@ every Julia process.
 - [x] `test/kernel/tool/CodeExecutionTest.jl`, `test_code_execution()`. The
       kernel search tests: 304 pass.
 
-### Step 5. The docstring standard (§3f)
+### Step 5. The docstring standard (§3f) — done 2026-09-16
 
-- [ ] The rule and its grep in `code-quality-rules.md`.
-- [ ] The 88 declared names, in omnet and projectured; the golden table before
-      and after; the benchmark run again.
+- [x] The rule and its grep in `code-quality-rules.md`, under §1.
+- [x] The 66 declared names of the omnet IDE that are not `DataFrames`': 48
+      in omnet (the campaign verbs, the result verbs, the six readers, the six
+      selections and the two views, the study verbs and the four study
+      types) and 18 in projectured (the pane verbs and types, the five
+      layouts, `get_formula_value`, `@reference`). Each gained its "Use it to"
+      paragraph in a person's words, an example that runs in the window, and
+      its neighbours. A tool, `add_use.py` in the scratchpad, put them under
+      the first paragraph.
+- [x] `_search_text` reads the "Use it to" paragraph wherever it stands, so
+      the keyword scorer counts a person's words too.
+- [x] The harness keeps every problem's transcript, one markdown file per
+      problem, headed by its sentence and its outcome.
+- [ ] The golden table before and after; the benchmark run again.
 
 ### Step 6. The interface vocabulary (§3g)
 
@@ -523,3 +534,20 @@ written; the two it solved it solved without running code. The turns it did
 call tools in read the resource list and searched, and never wrote code. This
 is a model that does not use the tools, and no change to the tools is measured
 by it until it does. The transcripts of the next run say what it wrote.
+
+**Step 5, 2026-09-16.**
+
+- **A tool that edits docstrings must parse what it wrote.** The first pattern
+  of `add_use.py` took the first prose paragraph as "every line to the next
+  blank line", and a docstring whose first paragraph is its last has no blank
+  line before its closing quotes: the paragraph ran into the code below, the
+  paragraph landed after the code, and three projectured files did not parse
+  on `main` for eleven minutes. A line of three quotes is now never part of a
+  paragraph, and every touched file goes through `Meta.parseall` before it is
+  committed.
+- **Two characters end or break a docstring from inside an example.** Three
+  quotes, as in a `raw"""…"""` file, end the docstring; a `$`, as in an INI
+  iteration variable `${K=1..10}`, starts an interpolation. Both are written
+  escaped, `\"\"\"` and `\$`, and the docstring of `write_ini_file!` had said
+  so of the second already.
+
