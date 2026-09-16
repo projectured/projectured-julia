@@ -89,13 +89,15 @@ function test_ollama_stream()
 evs = _events_of([
     """{"message":{"role":"assistant","content":" Hello"},"done":false}""",
     """{"message":{"role":"assistant","content":" there"},"done":false}""",
-    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}""",
+    """{"message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":42,"eval_count":7}""",
 ])
 @test evs[1] isa LlmTextStart
 @test evs[2] == LlmTextDelta(" Hello")
 @test evs[3] == LlmTextDelta(" there")
 @test evs[4] isa LlmTextStop
-@test evs[5] == LlmTurnEnd(:end_turn)
+# The last line says what the round cost, and the turn end carries it.
+@test evs[5] == LlmTurnEnd(:end_turn, 42, 7)
+@test LlmTurnEnd(:end_turn) == LlmTurnEnd(:end_turn, 0, 0)
 
 # ── a tool call: three events out of one line, arguments already parsed ──
 evs = _events_of([
@@ -196,22 +198,38 @@ function _ollama_is_up(base_url::AbstractString = "http://localhost:11434")
     end
 end
 
-# A model the server already holds in memory, or nothing.
+# A model the server already holds in memory and that can chat, or nothing.
 #
 # **The suite must not load a second model.** A model is gigabytes, and a machine
 # that is already running one for an editor has no room for the test's own choice —
 # naming a favourite here once took a 61 GB machine down to 3 GB free. Whatever is
 # resident answers "Say OK." as well as any other.
+#
+# **A resident model is not always a chat model.** A meaning model stays in
+# memory after a search by description, and the server refuses it a chat with
+# HTTP 400, so only a model whose capabilities say `completion` is taken.
 function _ollama_resident_model(base_url::AbstractString = "http://localhost:11434")
     try
         r = HTTP.get(base_url * "/api/ps"; status_exception = false,
                      readtimeout = 2, retry = false)
         r.status == 200 || return nothing
-        models = get(JSON3.read(r.body), :models, ())
-        isempty(models) ? nothing : String(get(first(models), :name, ""))
+        for model in get(JSON3.read(r.body), :models, ())
+            name = String(get(model, :name, ""))
+            isempty(name) && continue
+            _ollama_can_chat(name, base_url) && return name
+        end
+        nothing
     catch
         nothing
     end
+end
+
+function _ollama_can_chat(model::AbstractString, base_url::AbstractString)
+    r = HTTP.post(base_url * "/api/show", ["content-type" => "application/json"],
+                  JSON3.write(Dict("model" => model));
+                  status_exception = false, readtimeout = 5, retry = false)
+    r.status == 200 || return false
+    any(c -> String(c) == "completion", get(JSON3.read(r.body), :capabilities, ()))
 end
 
 function test_ollama_live(; model::Union{Nothing,AbstractString} = nothing)
@@ -240,7 +258,9 @@ stream_turn(llm, LlmRequest(system = "Answer in three words.",
 # A reasoning model puts its reasoning in its own block, so the text is what is
 # left; either way the turn ends and prose arrives.
 @test any(e -> e isa LlmTextDelta, evs)
-@test evs[end] == LlmTurnEnd(:end_turn)
+@test evs[end].stop_reason == :end_turn
+# A real server counts what it read and wrote.
+@test evs[end].input_tokens > 0 && evs[end].output_tokens > 0
 
 end
 end

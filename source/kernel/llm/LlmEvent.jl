@@ -121,7 +121,7 @@ struct LlmToolUseStop <: LlmEvent
 end
 
 """
-    LlmTurnEnd(stop_reason)
+    LlmTurnEnd(stop_reason, input_tokens = 0, output_tokens = 0)
 
 The turn is over. `stop_reason` is normalised across providers:
 
@@ -130,10 +130,19 @@ The turn is over. `stop_reason` is normalised across providers:
                   and goes again.
 - `:max_tokens` — it ran out of budget mid-answer.
 - `:error`      — the turn failed (an `LlmFailure` carries the message).
+
+`input_tokens` and `output_tokens` are what this round cost, as the provider
+counted them: the prompt it read, and the text and tool calls it wrote. A
+provider that does not say, or a double, leaves them 0. A measurement of a turn
+adds the rounds up.
 """
 struct LlmTurnEnd <: LlmEvent
     stop_reason::Symbol
+    input_tokens::Int
+    output_tokens::Int
 end
+
+LlmTurnEnd(stop_reason::Symbol) = LlmTurnEnd(stop_reason, 0, 0)
 
 """
     LlmFailure(message)

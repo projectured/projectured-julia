@@ -115,8 +115,16 @@ end
 # `emit(nothing)` signals a `content_block_stop`: Anthropic closes every kind of
 # block with the same event, so which block is closing is not in the event — the
 # caller tracks the open block and turns it into the right typed stop.
-function _translate_sse!(emit::Function, type::Symbol, data)
-    if type === :content_block_start
+#
+# The counts of a round arrive in two events: `message_start` says what the model
+# read, and `message_delta` says what it wrote. `input_tokens` holds the first
+# until the second, so the turn end carries both.
+function _translate_sse!(emit::Function, type::Symbol, data; input_tokens::Ref{Int} = Ref(0))
+    if type === :message_start
+        message = get(data, :message, nothing)
+        usage = message === nothing ? nothing : get(message, :usage, nothing)
+        usage === nothing || (input_tokens[] = Int(get(usage, :input_tokens, 0)))
+    elseif type === :content_block_start
         block = get(data, :content_block, nothing)
         block === nothing && return
         bt = get(block, :type, "")
@@ -149,7 +157,9 @@ function _translate_sse!(emit::Function, type::Symbol, data)
         delta = get(data, :delta, nothing)
         delta === nothing && return
         sr = get(delta, :stop_reason, nothing)
-        sr === nothing || emit(LlmTurnEnd(Symbol(sr)))
+        usage = get(data, :usage, nothing)
+        output_tokens = usage === nothing ? 0 : Int(get(usage, :output_tokens, 0))
+        sr === nothing || emit(LlmTurnEnd(Symbol(sr), input_tokens[], output_tokens))
     elseif type === :error
         err = get(data, :error, nothing)
         msg = err === nothing ? "unknown streaming error" :
@@ -194,6 +204,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
     tool_id    = Ref("")
     tool_name  = Ref("")
     tool_input = Ref(IOBuffer())
+    # What the model read this round, said at the start and carried to the end.
+    input_tokens = Ref(0)
     emit = function (ev)
         if ev === nothing                            # a content_block_stop
             b = open_block[]
@@ -306,7 +318,7 @@ function _drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false)
         end
         parsed === nothing && continue
         type = Symbol(isempty(event_name) ? get(parsed, :type, "") : event_name)
-        _translate_sse!(emit, type, parsed)
+        _translate_sse!(emit, type, parsed; input_tokens = input_tokens)
     end
     # Put the incomplete tail back for the next read.
     if !final && length(parts) > n

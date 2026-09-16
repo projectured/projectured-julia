@@ -319,9 +319,13 @@ function _line_handler(on_event::Function)
             # `:tool_use`, so the calls this turn made decide the reason, and the
             # server's word decides only the rest.
             reason = String(get(obj, :done_reason, "stop"))
+            # The last line carries the counts of the round: the prompt the model
+            # read, and what it wrote.
             on_event(LlmTurnEnd(saw_tool[]         ? :tool_use :
                                 reason == "length" ? :max_tokens :
-                                                     :end_turn))
+                                                     :end_turn,
+                                Int(get(obj, :prompt_eval_count, 0)),
+                                Int(get(obj, :eval_count, 0))))
         end
         nothing
     end

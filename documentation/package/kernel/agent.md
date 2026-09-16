@@ -154,6 +154,11 @@ key, model name, endpoint, and token budget live on the concrete `Llm`, because
 they are its identity and not parameters of "have a conversation": a local model
 has no API key, and a hosted one may want a region.
 
+A round ends in an `LlmTurnEnd`, which carries the stop reason and what the round
+cost, `input_tokens` and `output_tokens`, as the provider counted them. A double
+leaves the counts 0. A measurement of a turn adds the rounds up; nothing else
+reads them.
+
 A finished tool call arrives **already parsed**, in `LlmToolUseStop`. Turning
 argument JSON into a `Dict` is the adapter's job and nobody else's — every adapter
 necessarily has a JSON parser, because it speaks a JSON protocol, while the kernel

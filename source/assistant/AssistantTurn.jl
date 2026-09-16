@@ -614,7 +614,11 @@ function _backend_list()
     join(map(n -> ":" * String(n), names), ", ")
 end
 
-function _run_agent_loop!(editor, a::Assistant)
+# `observe`, when given, sees every event of the turn before the conversation
+# does: each `LlmEvent` as it streams, and each `AgentToolResult`. A measurement
+# counts the rounds, the tool calls and the tokens there, and the conversation is
+# not made to carry them.
+function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function} = nothing)
     set = editor.tools
     # Resolve the backend now, not at construction. Reading ENV here — rather than
     # baking it into the precompiled document — is what lets a key exported before
@@ -664,7 +668,10 @@ function _run_agent_loop!(editor, a::Assistant)
     agent = Agent(llm, set; system = a.system, thinking = true)
     turn.stop_reason = run_turn!(agent, editor;
         messages = () -> build_messages(a.conversation),
-        on_event = ev -> _handle_agent_event!(ev, a, turn, state, set))
+        on_event = ev -> begin
+            observe === nothing || observe(ev)
+            _handle_agent_event!(ev, a, turn, state, set)
+        end)
 
     @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2) parts=length(turn.parts)
 
