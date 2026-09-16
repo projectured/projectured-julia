@@ -428,7 +428,8 @@ every Julia process.
       the keyword scorer counts a person's words too.
 - [x] The harness keeps every problem's transcript, one markdown file per
       problem, headed by its sentence and its outcome.
-- [ ] The golden table before and after; the benchmark run again.
+- [x] The golden table before and after, and the benchmark run again; the
+      numbers are in §5.
 
 ### Step 6. The interface vocabulary (§3g)
 
@@ -550,4 +551,46 @@ by it until it does. The transcripts of the next run say what it wrote.
   iteration variable `${K=1..10}`, starts an interpolation. Both are written
   escaped, `\"\"\"` and `\$`, and the docstring of `write_ini_file!` had said
   so of the second already.
+
+**After Step 5, 2026-09-16.** The search measurement, the sixteen sentences of
+`measure_meaning_search!`, before and after the use paragraphs:
+
+| | verbs found by words | verbs first by words | verbs first by description | guides first by description |
+| --- | --- | --- | --- | --- |
+| before | 5 of 8 | 4 | 5 | 7 |
+| after | 8 of 8 | 3 | 5 | 7 |
+
+The words now find every verb, because the use paragraph says the words a
+person says and the keyword scorer reads it. By meaning, `add_finding!` rose
+from 25th to 5th and `get_simulation_scalar_results` from 4th to 4th, and
+`make_result_plot` fell from 12th to 14th: with every verb's docstring saying
+"value" and "over time" somewhere, the meaning of a sentence is spread thinner.
+
+`qwen3.8:27b`, the eight problems, the same seed: solved 5 of 8; 31 rounds, 31
+calls, 157,280 tokens in and 6,079 out, 464 s. Two problems that Steps 3 and 4
+had solved failed, and the transcripts say why:
+
+- `scalar_result_table`: the model read the example of
+  `get_simulation_scalar_results`, which the docstring rendered as
+  `filter_expression = "name =~ "*delay*""` — a docstring turns `\"` into `"`,
+  and the example had been written with one backslash. The model wrote in its
+  reasoning "example weird escaping", chose `"name =~ \"delay\""`, an exact
+  match on the name `delay`, and opened an empty table. The twelve example
+  lines with a quoted match are written with `\\"` now, and the run below is
+  after that fix.
+- `added_plot_series`: five rounds and eight calls, three of them code, and the
+  plot still held one series at the cap.
+
+`vector_result_plot` went from four rounds to three and from four calls to two:
+the search answered `get_simulation_vector_results` in full, with its example,
+and the model wrote the call at once.
+
+`qwen3-coder:30b-a3b-q8_0` solved 2 of 8 again, in 46 s. Its transcript of
+`simulation_run` is one sentence: "None of the provided functions can be used
+to run TandemQueue simulations. They are all related to reading documentation
+resources, not executing simulations." It reads the six tools as readers and
+does not see `execute_julia_code` as the way to act, although the prompt says
+the verbs are called through it. A tool change is not measured by this model;
+a prompt whose first line says that everything is done by writing Julia into
+`execute_julia_code` might be, and is a question for the prompt's owner.
 
