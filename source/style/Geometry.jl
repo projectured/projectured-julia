@@ -8,8 +8,18 @@
 """
     Inset(top, bottom, left, right)
 
-A reactive spacing descriptor used for margin, border, and padding.
-Each side is a `Cell` holding a number.
+Four spacings: top, bottom, left and right.
+
+Use it to give a widget a margin, a border width or a padding, one number per
+side. `Inset(0, 0, 12, 0)` indents by 12 pixels on the left and nothing else.
+Each side is a `Cell` that holds a number.
+
+# Example
+
+    open_pane!(editor, WidgetCard(Point2D(0, 0); title = "Note", content = WidgetLabel(Point2D(0, 0), "Indented"), padding = Inset(8, 8, 24, 8));
+               title = "Padded")
+
+See also `Point2D` for a position or a size.
 """
 struct Inset
     top::Cell     # Number
@@ -34,8 +44,17 @@ const inset_default = Inset(0, 0, 0, 0)
 """
     Point2D(x, y)
 
-A reactive 2-D coordinate or dimension.  Each axis is a `Cell` holding a
-number.  Used for widget positions, sizes, and scroll offsets.
+A pair of numbers: a position or a size.
+
+Use it to give a widget its position, which is `Point2D(0, 0)` inside a layout
+that places it, or a size such as a button's `Point2D(120, 32)`. Each axis is
+a `Cell` that holds a number, so a widget moves when the cell changes.
+
+# Example
+
+    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), "Run"); title = "Button")
+
+See also `Inset` for a spacing per side.
 """
 struct Point2D
     x::Cell  # Number

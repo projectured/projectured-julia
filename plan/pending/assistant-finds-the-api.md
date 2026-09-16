@@ -431,9 +431,11 @@ every Julia process.
 - [x] The golden table before and after, and the benchmark run again; the
       numbers are in §5.
 
-### Step 6. The interface vocabulary (§3g)
+### Step 6. The interface vocabulary (§3g) — started 2026-09-16
 
-- [ ] The survey: names, collisions, the verbs a case needs; the user chooses.
+- [x] The survey: names, collisions, the verbs a case needs; the user chooses.
+      The set is in §5, "The interface survey". The user was asked twice and
+      said "continue with the plan", so the proposed set stands.
 - [ ] The declaration, the docstrings, the golden sentences, the benchmark
       problems; the benchmark run again.
 
@@ -614,3 +616,56 @@ the verbs are called through it. A tool change is not measured by this model;
 a prompt whose first line says that everything is done by writing Julia into
 `execute_julia_code` might be, and is a question for the prompt's owner.
 
+### The interface survey (Step 6)
+
+The survey read `WidgetDocument.jl`, forty-four widget types, `LayoutDocument.jl`
+and `Geometry.jl`, and chose by one question: does a person ask for it by name
+when they say what a pane shows. Thirty-one names are declared, by
+`make_interface_api()` in `PaneProgram.jl`, beside `make_pane_api()`:
+
+| kind | names |
+| --- | --- |
+| containers, 7 | `WidgetCard`, `WidgetTitlePane`, `WidgetTabbedPane`, `WidgetSplitPane`, `WidgetScrollPane`, `WidgetAccordion`, `WidgetComposite` |
+| content, 8 | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetTable`, `WidgetBadge`, `WidgetAlert`, `WidgetProgress`, `WidgetSeparator` |
+| controls, 10 | `WidgetButton` with `Action`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSelect`, `WidgetSlider`, `WidgetSpinBox`, `WidgetList` |
+| geometry, 2 | `Point2D`, `Inset` |
+| size policies, 4 | `Fixed`, `Content`, `Relative`, `Fill` |
+
+§3g named a policy `Weight`; no such name exists. `Relative(weight)` and
+`Fill`, which is `Relative(1.0)`, are the names. The five layouts are declared
+already, by `make_pane_api()`.
+
+Left out, and why:
+
+- `WidgetTabPage`, `WidgetAccordionItem`, `WidgetOption`: a tuple builds each,
+  and the container's docstring says so.
+- `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`,
+  `WidgetStatusBar`, `WidgetShell`, `WidgetDialog`, `WidgetTooltip`: the
+  window's chrome, which the window builds, not a pane's content.
+- `WidgetTree`, `WidgetToggle`, `WidgetAvatar`, `WidgetSkeleton`,
+  `WidgetHighlight`, `WidgetTransformPane`, `WidgetScrollBar`,
+  `WidgetInsertion`, the constraint layouts and every projection: no problem of
+  the table asks for one. A declared name is a name in every search, so a name
+  without a problem costs the ranking and buys nothing.
+
+**Collisions:** none. `declare_api!` builds the omnet declaration with the
+thirty-one names, and `select` is not among them. **Verbs:** none added.
+`open_pane!` places a widget as it places a document, and
+`replace_referenced_value!` swaps one; no case of the table needs a pane closed.
+
+**The docstrings.** Each of the thirty-one has the §3f shape: the first
+sentence, "Use it to", an example that runs in the omnet window, "See also".
+The prose the docstrings held for a person — transient state, the variants of
+a card, the fields of a table — stays under the example. The example of
+`WidgetTextarea` carries `\\n`, because a docstring renders `\n` as a line break
+inside the copied code (the lesson of Step 5). The example of `WidgetButton` binds a callback that
+takes the editor; the by-hand case clicks it and gets a set of runs.
+
+**The problems.** Three join the table, eleven in all: `card_around_table`
+("Open a card titled "Delay" that holds a table of the delay scalars"),
+`table_beside_plot` ("Show a table of the delay scalars and a plot of the delay
+vectors side by side, in one pane") and `button_runs_again` ("Add a button
+labelled "Run again" that runs the TandemQueue simulations when it is
+clicked"). A check walks every field of what a tab holds, so a card inside a
+row inside a card is found where the model put it. The golden table gains four
+sentences: a row, a card, a button, an alert.

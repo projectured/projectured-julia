@@ -39,6 +39,18 @@ end
     Fixed(n) -> SizePolicy
 
 `n` pixels on this axis, whatever is offered.
+
+Use it to give every child of a layout a fixed width or height: a label column
+of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
+`child_width` or `child_height`; a `GridLayout` takes it per column or per row.
+
+# Example
+
+    open_pane!(editor, VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Runs"), WidgetLabel(Point2D(0, 0), "Results")];
+                                      gap = 4, child_width = Fixed(200));
+               title = "Fixed width")
+
+See also `Content`, `Relative` and `Fill`, the other three policies.
 """
 Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
 
@@ -47,6 +59,17 @@ Fixed(n::Integer) = SizePolicy(Int(n), Int(n), Int(n), 0.0)
 
 Grow with the content on this axis. The child keeps its intrinsic extent, and an
 offer does not stretch it.
+
+Use it to keep a child as wide or as tall as what it shows: a label, a badge, a
+button beside a field that fills the rest. It is the default of every layout.
+
+# Example
+
+    open_pane!(editor, GridLayout(Any[WidgetLabel(Point2D(0, 0), "Filter"), WidgetText(Point2D(0, 0), ""; width = 120)], 2;
+                                  column_policies = [Content, Fill]);
+               title = "Form")
+
+See also `Fixed`, `Relative` and `Fill`.
 """
 const Content = SizePolicy(nothing, nothing, nothing, 0.0)
 
@@ -55,6 +78,18 @@ const Content = SizePolicy(nothing, nothing, nothing, 0.0)
 
 A share of what the parent offers on this axis, in proportion to `weight` against
 its siblings' weights.
+
+Use it to divide a width or a height between children by ratio: a table that
+takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
+
+# Example
+
+    root = get_project_result_directory(editor)
+    table = make_result_table(get_simulation_scalar_results(root))
+    plot = make_result_plot(get_simulation_vector_results(root))
+    open_pane!(editor, GridLayout(Any[table, plot], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
+
+See also `Fill`, `Fixed` and `Content`.
 """
 Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
 
@@ -63,6 +98,17 @@ Relative(weight::Real) = SizePolicy(0, 0, nothing, Float64(weight))
 
 All of what the parent offers on this axis — `Relative(1.0)`. Two `Fill` siblings
 share the offer equally, which is what a weight of one each means.
+
+Use it to stretch a child to the width or the height of its layout: a table
+that takes the whole pane, two plots that share a row equally.
+
+# Example
+
+    root = get_project_result_directory(editor)
+    table = make_result_table(get_simulation_scalar_results(root))
+    open_pane!(editor, VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
+
+See also `Relative`, `Fixed` and `Content`.
 """
 const Fill = Relative(1.0)
 

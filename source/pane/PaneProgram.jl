@@ -110,6 +110,36 @@ make_pane_api() = Any[
     ReferenceModule => (Symbol("@reference"),),
 ]
 
+"""
+    make_interface_api() -> Vector
+
+What a model needs declared to build what a pane shows: the widgets a person
+asks for by name, the policies a layout sizes a child with, and the two geometry
+values a widget takes. The layouts are in [`make_pane_api`](@ref), because the
+layout program says them.
+
+Every name is listed, as `make_pane_api` lists its borrowed ones. `WidgetModule`
+exports about a hundred names, and most of them are projections, operations and
+readers a model has no use for; a search for "a card around the plot" must answer
+`WidgetCard` and not `WidgetCardToGraphicsCanvas`.
+"""
+make_interface_api() = Any[
+    WidgetModule => (
+        # What holds other widgets.
+        :WidgetCard, :WidgetTitlePane, :WidgetTabbedPane, :WidgetSplitPane,
+        :WidgetScrollPane, :WidgetAccordion, :WidgetComposite,
+        # What shows a value.
+        :WidgetLabel, :WidgetText, :WidgetTextarea, :WidgetTable, :WidgetBadge,
+        :WidgetAlert, :WidgetProgress, :WidgetSeparator,
+        # What a person acts on.
+        :WidgetButton, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
+        :WidgetRadioGroup, :WidgetSelect, :WidgetSlider, :WidgetSpinBox, :WidgetList,
+        # A position or a size, and a spacing.
+        :Point2D, :Inset),
+    # How a layout sizes a child on an axis.
+    LayoutModule => (:Fixed, :Content, :Relative, :Fill),
+]
+
 # ── The window a verb acts on ───────────────────────────────────────────────
 
 """

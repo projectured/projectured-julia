@@ -15,7 +15,17 @@ end
 """
     WidgetLabel(position, content; <base kwargs>)
 
-A positioned, non-interactive label..
+A line of text a person reads and does not edit.
+
+Use it to put a caption, a heading or a short note beside another widget, in a
+card, a row or a column. `content` is a string or a document.
+
+# Example
+
+    open_pane!(editor, WidgetLabel(Point2D(0, 0), "The delay of every run"); title = "Note")
+
+See also `WidgetText`, which a person edits, `WidgetBadge` for one status word,
+and `WidgetAlert` for a message with a title.
 """
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
@@ -62,13 +72,23 @@ set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w
 """
     WidgetText(position, content; width, content_fill_color, <base kwargs>)
 
-An editable text widget..
+One line of text a person edits.
+
+Use it to take a name, a filter expression or a value from a person, in a form
+or beside a button that uses it.
+
+# Example
+
+    open_pane!(editor, WidgetText(Point2D(0, 0), "name =~ *delay*"; width = 240); title = "Filter")
 
 `width` is a floor and not a size: the box is at least that many pixels wide and
 grows with what is typed into it. It is `0` by default, which is the box that
 fits its content exactly — and which is a box of nothing at all when the content
 is empty. A form gives its fields a width so that an empty one can still be
 clicked. `WidgetSpinBox` carries the same field for the same reason.
+
+See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
+only read, and `WidgetSpinBox` for a number.
 """
 @document struct WidgetText <: WidgetDocument
     position::Point2D
@@ -136,9 +156,20 @@ end
     WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=0,
                   validator=make_numeric_validator(), <enabled/visible>)
 
-A numeric stepper (Qt's `QSpinBox`): shows `value` with up/down steppers that add
-/ subtract `step`, clamped to `[min, max]` (a `nothing` bound is unbounded). The
-`validator` is a hook for future typed entry; stepping is always numeric. Stage 6.
+A number with a stepper up and a stepper down.
+
+Use it to let a person choose a number by steps: a run count, a seed, a
+repetition. A step adds or subtracts `step` and stays inside `[min, max]`; a
+bound of `nothing` is no bound. `width` is a floor, as it is on `WidgetText`.
+
+# Example
+
+    open_pane!(editor, WidgetSpinBox(Point2D(0, 0), 10; min = 1, max = 100, width = 80); title = "Runs")
+
+The `validator` is a hook for typed entry; a step is always numeric.
+
+See also `WidgetSlider` for a share between zero and one, and `WidgetText` for
+a value typed as text.
 """
 @document struct WidgetSpinBox <: WidgetDocument
     position::Point2D
@@ -165,10 +196,15 @@ end
 """
     WidgetList(position, items; selected=0, width=0, <enabled/visible>)
 
-A single-column selectable list (Qt's `QListWidget`): `items` are stringified
-rows; the selected row draws a selection band and the row under the pointer a
-lighter hover band. A click selects the hit row; Up/Down move the selection.
-Stage 6.
+A column of rows where one row is selected.
+
+Use it to show the names of the runs, the configurations or the files, and let
+a person pick one. `items` are shown as strings; a click selects the row it
+hits, and Up and Down move the selection.
+
+# Example
+
+    open_pane!(editor, WidgetList(Point2D(0, 0), ["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
 
 `hovered` is the 1-based row under the pointer (`0` = none). Like a button's
 `hovered` it is **transient UI state**, not content: the reader writes it from
@@ -181,6 +217,9 @@ so a reader returns a `ReplaceSelectionOperation` like every other widget and an
 enclosing projection can map the reference across domains. The `selected`
 keyword is 1-based sugar (`0` = none) that builds that reference; read the
 selection back with [`get_widget_list_selected`](@ref).
+
+See also `WidgetTable` for rows with columns, `WidgetSelect` for a list that
+opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
 """
 @document struct WidgetList <: WidgetDocument
     position::Point2D
@@ -235,11 +274,25 @@ end
 """
     WidgetCheckbox(position, content; <base kwargs>)
 
-A checkbox widget..
+A box a person ticks on or off.
+
+Use it to let a person turn one option on or off: whether a plot shows a
+legend, whether a run keeps its vectors. `content` is `true` or `false`, and a
+click flips it. Put a `WidgetLabel` beside it in a `HorizontalLayout` to say
+what it means.
+
+# Example
+
+    open_pane!(editor, HorizontalLayout(Any[WidgetCheckbox(Point2D(0, 0), true),
+                                            WidgetLabel(Point2D(0, 0), "Record vectors")]; gap = 8);
+               title = "Option")
 
 `enabled` (default `true`) is a shared interactivity flag alongside `visible`:
 when `false` the checkbox renders muted and its reader refuses to emit the toggle
 operation.
+
+See also `WidgetSwitch`, which is the same choice drawn as a slide, and
+`WidgetToggleGroup` for one choice among several.
 """
 @document struct WidgetCheckbox <: WidgetDocument
     position::Point2D
@@ -280,8 +333,19 @@ get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 """
     WidgetButton(position, size, content; action, <base kwargs>)
 
-A clickable button — a view of an [`Action`], the single home of what the
-command *is* (label, icon, availability, shortcut, callback).
+A button a person clicks to run a command.
+
+Use it to put an act a person repeats where they can click it: run the sweep
+again, stop the runs, open a table. `content` is the label; `action` is what
+the click does, a function that takes the editor, or an [`Action`](@ref) that a
+menu item or a shortcut shares. `size` is the button's width and height in
+pixels.
+
+# Example
+
+    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), "Run again";
+                                    action = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")));
+               title = "Runner")
 
 `action` is that command. Pass an `Action` to bind a shared one: the button
 shows its `label`/`icon`, follows its `enabled`, and fires its callback (the
@@ -313,6 +377,9 @@ them to pick the surface fill, so changing them re-renders only this button.
 They are written by the `WidgetButton` reader (a `ReplaceReferencedValueOperation` into the
 `hovered` / `pressed` cell) and are not part of the document's content — they
 are not meant to be serialised.
+
+See also `Action`, `WidgetSwitch` for a state that stays, and `WidgetToggleGroup`
+for one choice among several.
 """
 @document struct WidgetButton <: WidgetDocument
     position::Point2D
@@ -642,8 +709,19 @@ set_cell_function!(w::WidgetMenuItem, f::Function) = (set_cell_function!(getfiel
 """
     WidgetComposite(position, elements; <base kwargs>)
 
-A positioned container holding an ordered sequence of child widgets.
+A container that holds child widgets in order, each at its own position.
 
+Use it to group a few widgets that are placed by hand, each with a `position`
+of its own. When a row, a column or a grid is wanted, a layout places its
+children itself: `HorizontalLayout`, `VerticalLayout` or `GridLayout`.
+
+# Example
+
+    open_pane!(editor, WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "Delay"),
+                                                          WidgetLabel(Point2D(0, 24), "Throughput")]);
+               title = "Placed")
+
+See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`.
 """
 @document struct WidgetComposite <: WidgetDocument
     position::Point2D
@@ -957,7 +1035,19 @@ set_cell_function!(w::WidgetShell, f::Function) = (set_cell_function!(getfield(w
     WidgetTitlePane(title, content; title_fill_color, content_fill_color,
                     <base kwargs>)
 
-A pane with a title bar and a content area..
+A pane with a title bar over a content area.
+
+Use it to put a title over one widget or document when the border and the
+padding of a card are not wanted. `title` and `content` are strings or
+documents.
+
+# Example
+
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    open_pane!(editor, WidgetTitlePane("Delay", table); title = "Delay")
+
+See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
+whose `title` names a tab.
 """
 @document struct WidgetTitlePane <: WidgetDocument
     title::Any
@@ -998,8 +1088,21 @@ set_cell_function!(w::WidgetTitlePane, f::Function) = (set_cell_function!(getfie
 """
     WidgetSplitPane(orientation, elements; sizes, <base kwargs>)
 
-A container that divides its area among child widgets along an axis.
-`orientation` is `:horizontal` or `:vertical`..
+A container that divides its area between its children along one axis, with a
+splitter a person drags.
+
+Use it to put two or more widgets side by side or one above the other and let
+a person change how much each gets. `orientation` is `:horizontal` or
+`:vertical`; `sizes` gives each child its first size in pixels. For a fixed
+arrangement without a splitter, use `HorizontalLayout` or `VerticalLayout`; for
+two documents in tabs of their own, use `show_layout` and the panes.
+
+# Example
+
+    root = get_project_result_directory(editor)
+    table = make_result_table(get_simulation_scalar_results(root))
+    plot = make_result_plot(get_simulation_vector_results(root))
+    open_pane!(editor, WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
 
 `active_splitter` and `drag_anchor` are **transient UI state** holding an
 in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
@@ -1011,6 +1114,8 @@ size was set by a drag — in the constrained layout regime those slots are laid
 out at their `sizes` extent exactly (their layout weight is ignored) so a drag
 sticks instead of being undone by weighted redistribution. They are not part of
 the document's content and are not meant to be serialised.
+
+See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
 """
 @document struct WidgetSplitPane <: WidgetDocument
     orientation::Symbol
@@ -1077,15 +1182,31 @@ _as_tab_page(p::Tuple) = WidgetTabPage(p[1], p[2], length(p) >= 3 ? p[3] : nothi
 """
     WidgetTabbedPane(selector_element_pairs; closable, new_tab, <base kwargs>)
 
-A tabbed container.  `selector_element_pairs` is a `Vector` of
-`(selector, element)` or `(selector, element, icon)` tuples (each wrapped in a
-[`WidgetTabPage`](@ref)).
+A container with a tab strip: one child is shown, and a click on a tab shows
+another.
 
-`closable` draws a close button on every tab, `new_tab` draws a new-tab button
-after the last one, and `draggable` makes a button down on a tab a grab. All three
-are off by default, and none of them decides what the gesture *means*: the strip
-answers with [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref)
-/ [`DragTabOperation`](@ref), and the projection that owns the tabs decides.
+Use it to put several widgets in one place when a person needs one at a time.
+`selector_element_pairs` is a `Vector` of `(selector, element)` or
+`(selector, element, icon)` tuples, and the selector is the tab's label. The
+window already gives each document a tab of its own through `open_pane!`, so
+this is for tabs inside a widget.
+
+# Example
+
+    root = get_project_result_directory(editor)
+    table = make_result_table(get_simulation_scalar_results(root))
+    plot = make_result_plot(get_simulation_vector_results(root))
+    open_pane!(editor, WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
+
+Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` draws a close
+button on every tab, `new_tab` draws a new-tab button after the last one, and
+`draggable` makes a button down on a tab a grab. All three are off by default,
+and none of them decides what the gesture *means*: the strip answers with
+[`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
+[`DragTabOperation`](@ref), and the projection that owns the tabs decides.
+
+See also `WidgetAccordion` for sections in a column, and `WidgetSplitPane` for
+children shown at once.
 """
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
@@ -1138,15 +1259,28 @@ set_cell_function!(w::WidgetTabbedPane, f::Function) = (set_cell_function!(getfi
     WidgetScrollPane(content; content_fill_color, position, size,
                      scroll_position, follow_end, <base kwargs>)
 
-A scrollable viewport. With `follow_end=true` the pane sticks to the *bottom* of
-its content — newly appended content (e.g. streaming chat turns) stays in view
-instead of scrolling below the fold — ignoring `scroll_position` on the vertical
-axis.
+A viewport a person scrolls over content that is taller or wider than its
+space.
+
+Use it to show a long table or a long text inside a bounded `size`. With
+`follow_end = true` the pane keeps the end of its content in view as content is
+added, which is what a log or a transcript wants.
+
+# Example
+
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    open_pane!(editor, WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
+
+With `follow_end=true` the pane sticks to the *bottom* of its content — newly
+appended content (e.g. streaming chat turns) stays in view instead of scrolling
+below the fold — ignoring `scroll_position` on the vertical axis.
 
 `follow_end` may be a cell instead of a value, and the pane then uses that very
 cell. A document that owns whether its view follows its end passes its own
 field's cell: a scroll that leaves the end writes it, and the document's owner
 writes it back to bring the end into view.
+
+See also `WidgetCard`, whose `height` bounds a body that scrolls.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
@@ -1299,8 +1433,19 @@ end
 """
     WidgetBadge(position, content; variant=:default)
 
-A small pill-shaped status label. `variant` ∈
-`:default | :secondary | :destructive | :outline`.
+A small pill with one word: a status.
+
+Use it to mark a state beside a title or in a row: "running", "failed",
+"done". `variant` sets its color, one of `:default`, `:secondary`,
+`:destructive` and `:outline`.
+
+# Example
+
+    open_pane!(editor, HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "TandemQueue"),
+                                            WidgetBadge(Point2D(0, 0), "running")]; gap = 8);
+               title = "Status")
+
+See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
 """
 @document struct WidgetBadge <: WidgetDocument
     position::Point2D
@@ -1316,7 +1461,19 @@ WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=
 """
     WidgetSeparator(position; orientation=:horizontal, length=200)
 
-A 1px divider rule.
+A thin rule that divides two parts.
+
+Use it to put a line between two groups in a column or a row. `orientation` is
+`:horizontal` or `:vertical`, and `length` is its extent in pixels.
+
+# Example
+
+    open_pane!(editor, VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Runs"),
+                                          WidgetSeparator(Point2D(0, 0); length = 300),
+                                          WidgetLabel(Point2D(0, 0), "Results")]; gap = 8);
+               title = "Divided")
+
+See also `WidgetCard`, which frames a group instead of dividing two.
 """
 @document struct WidgetSeparator <: WidgetDocument
     position::Point2D
@@ -1334,8 +1491,18 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
     WidgetCard(position; title, description, content, footer, width=0, collapsed=false,
                variant=:card, collapsible=false, padding=-1)
 
-A surface with an optional title / description header, a content body and an
-optional footer, stacked vertically.
+A surface with a title, a description, a content body and a footer, stacked
+from top to bottom; each part is optional.
+
+Use it to frame one thing with a title: a table, a plot, a form, a note. The
+`content` is any widget or document, and `width` in pixels bounds it. A card
+folds to its title when `collapsible` is `true`, and `variant` says how loud its
+surface is.
+
+# Example
+
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    open_pane!(editor, WidgetCard(Point2D(0, 0); title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 click on the chevron of a collapsible card emits `ToggleCollapseOperation(card)`,
@@ -1378,6 +1545,9 @@ not care which variant drew it.
 seen. A transcript nests them: the band that says who spoke is tinted, and the
 panel around a block of code inside that band is muted. Two quiet surfaces that
 shared a color would draw one shape.
+
+See also `WidgetTitlePane` for a title bar alone, `WidgetAccordion` for several
+folding sections, and `VerticalLayout` to stack cards.
 """
 @document struct WidgetCard <: WidgetDocument
     position::Point2D
@@ -1421,14 +1591,28 @@ WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothin
 """
     WidgetSwitch(position, checked; duration=0)
 
-An on/off toggle switch (rounded track + knob). When `duration` is greater than
-zero the knob *slides* between the off and on positions over `duration`
-milliseconds on each toggle; `duration = 0` (the default) snaps instantly. The
-slide is armed by the switch's reader (see `WidgetSwitchToGraphicsCanvas`): a
-toggle becomes a `CompoundOperation` that records `anim_from` (the knob fraction
-at the moment of the toggle) and `anim_t0` (the editor time when it started),
-then flips `checked`. `anim_from`/`anim_t0` are presentation state, not part of
-the logical on/off value.
+An on/off switch, drawn as a knob on a track.
+
+Use it to let a person turn a setting on or off where a checkbox would look
+small: a live update, a dark theme. `checked` is the state, and a click flips
+it.
+
+# Example
+
+    open_pane!(editor, HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Live update"),
+                                            WidgetSwitch(Point2D(0, 0), true)]; gap = 8);
+               title = "Setting")
+
+When `duration` is greater than zero the knob *slides* between the off and on
+positions over `duration` milliseconds on each toggle; `duration = 0` (the
+default) snaps instantly. The slide is armed by the switch's reader (see
+`WidgetSwitchToGraphicsCanvas`): a toggle becomes a `CompoundOperation` that
+records `anim_from` (the knob fraction at the moment of the toggle) and
+`anim_t0` (the editor time when it started), then flips `checked`.
+`anim_from`/`anim_t0` are presentation state, not part of the logical on/off
+value.
+
+See also `WidgetCheckbox` and `WidgetToggleGroup`.
 """
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
@@ -1451,7 +1635,17 @@ get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 """
     WidgetProgress(position, value; width=240)
 
-A horizontal progress bar. `value` ∈ [0, 1].
+A bar filled to a share between zero and one.
+
+Use it to show how far a set of runs or a long job is; write `value` as it
+advances. `width` is the bar's length in pixels.
+
+# Example
+
+    open_pane!(editor, WidgetProgress(Point2D(0, 0), 0.4; width = 300); title = "Progress")
+
+See also `WidgetSlider`, which a person drags, and `WidgetBadge` for a state
+in one word.
 """
 @document struct WidgetProgress <: WidgetDocument
     position::Point2D
@@ -1467,7 +1661,17 @@ WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::
 """
     WidgetSlider(position, value; width=240)
 
-A slider with a track, filled portion and a draggable knob. `value` ∈ [0, 1].
+A knob a person drags along a track to choose a share between zero and one.
+
+Use it to let a person choose a share: an opacity, a threshold, a fraction of
+the runs. `value` is the share, and `width` is the track's length in pixels.
+
+# Example
+
+    open_pane!(editor, WidgetSlider(Point2D(0, 0), 0.5; width = 300); title = "Threshold")
+
+See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgress` for
+a share that is only shown.
 """
 @document struct WidgetSlider <: WidgetDocument
     position::Point2D
@@ -1523,8 +1727,18 @@ end
 """
     WidgetRadioGroup(position, options; selected=1)
 
-A vertical group of radio options (`options` is a `Vector` of labels);
-`selected` is the 1-based selected index.
+A column of round options where one is selected.
+
+Use it to let a person pick one of a few named choices when every choice must
+stay visible: a kind of result, a configuration. `options` is a `Vector` of
+labels, and `selected` is the 1-based index of the chosen one.
+
+# Example
+
+    open_pane!(editor, WidgetRadioGroup(Point2D(0, 0), ["Scalars", "Vectors", "Histograms"]; selected = 2); title = "Kind")
+
+See also `WidgetToggleGroup` for the same choice in one row, and `WidgetSelect`
+for many choices that open on a click.
 """
 @document struct WidgetRadioGroup <: WidgetDocument
     position::Point2D
@@ -1558,8 +1772,19 @@ WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) 
 """
     WidgetAlert(position, title, description; variant=:default, width=0)
 
-A rounded, bordered callout with a bold title and muted description.
-`variant` ∈ `:default | :destructive`.
+A bordered message with a bold title and a muted description.
+
+Use it to tell a person something that needs attention: a run failed, a file
+is missing, a check passed. `variant = :destructive` draws it in the color of a
+fault; `:default` is calm.
+
+# Example
+
+    open_pane!(editor, WidgetAlert(Point2D(0, 0), "Run failed", "TandemQueue run 3 stopped with an error."; variant = :destructive, width = 400);
+               title = "Alert")
+
+See also `WidgetBadge` for one word of status, and `WidgetLabel` for a plain
+line.
 """
 @document struct WidgetAlert <: WidgetDocument
     position::Point2D
@@ -1637,10 +1862,18 @@ WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true
 """
     WidgetToggleGroup(position, options; selected=1, values=nothing, target=nothing, field="selected")
 
-A segmented control: a row of options with one selected segment.
+A row of segments where one is pressed.
 
-`options` is what each segment says. `values` is what each one **means** — the
-value written when it is picked — and with none the value is the segment's index.
+Use it to let a person pick one of a few short choices in one row: scalars,
+vectors, histograms. `options` is what each segment says, and `selected` is the
+1-based index of the pressed one.
+
+# Example
+
+    open_pane!(editor, WidgetToggleGroup(Point2D(0, 0), ["Scalars", "Vectors", "Histograms"]; selected = 1); title = "Kind")
+
+`values` is what each one **means** — the value written when it is picked — and
+with none the value is the segment's index.
 
 `target` is what a pick writes to and `field` is which of its fields. With no
 target the group writes its own `selected`, which is a control that remembers its
@@ -1648,6 +1881,9 @@ own state and tells nobody. A target is how a segmented control says what it is
 *for*: [`WidgetOption`](@ref) carries its `select` the same way, so a pick names
 what it changes instead of leaving an enclosing projection to work out which
 control was pressed.
+
+See also `WidgetRadioGroup` for the same choice in a column, and `WidgetSwitch`
+for on or off.
 """
 @document struct WidgetToggleGroup <: WidgetDocument
     position::Point2D
@@ -1684,11 +1920,23 @@ end
 """
     WidgetSelect(position, value; options=[], width=0)
 
-A select / combobox: an input-like box showing `value` with a trailing chevron.
-`options` lists the selectable values; clicking the box opens a dropdown of those
-options as a floating popup window (see `WidgetSelectToGraphicsCanvas`'s reader and
-[`WidgetOption`]). Picking an option writes it back to `value` and dismisses the
-popup. With no options the box is inert (renders the closed state only).
+A box that shows a value and opens a list of options to pick from.
+
+Use it to let a person pick one of many values without showing them all: a
+configuration name, a module path. `value` is the current pick, and `options`
+lists what can be picked.
+
+# Example
+
+    open_pane!(editor, WidgetSelect(Point2D(0, 0), "TandemQueue"; options = ["Fifo", "TandemQueue"], width = 200); title = "Configuration")
+
+A click on the box opens a dropdown of those options as a floating popup window
+(see `WidgetSelectToGraphicsCanvas`'s reader and [`WidgetOption`]). Picking an
+option writes it back to `value` and dismisses the popup. With no options the
+box is inert (renders the closed state only).
+
+See also `WidgetRadioGroup` and `WidgetToggleGroup` for a few choices that stay
+visible, and `WidgetList` for a list that stays open.
 """
 @document struct WidgetSelect <: WidgetDocument
     position::Point2D
@@ -1736,7 +1984,18 @@ WidgetOption(position::Point2D, select, value; label=string(value),
 """
     WidgetTextarea(position, content; width=0, rows=4)
 
-A multi-line text surface. `content` is a string (newlines split into rows).
+Several lines of text.
+
+Use it to show or take a paragraph: a note, a NED fragment, a finding.
+`content` is a string, and its newlines split the rows; `rows` is the height in
+lines and `width` a floor in pixels.
+
+# Example
+
+    open_pane!(editor, WidgetTextarea(Point2D(0, 0), "The delay grows with the load.\\nThe queue is the bottleneck."; width = 400, rows = 4); title = "Note")
+
+See also `WidgetText` for one line, and `WidgetLabel` for text that is only
+read.
 """
 @document struct WidgetTextarea <: WidgetDocument
     position::Point2D
@@ -1768,9 +2027,25 @@ _as_accordion_item(it::Tuple) = WidgetAccordionItem(it[1], it[2])
 """
     WidgetAccordion(position, items; expanded=1, width=0)
 
-A vertical accordion. `items` is a `Vector` of `(title, body)` tuples (each wrapped
-in a [`WidgetAccordionItem`](@ref)); `expanded` is the 1-based index of the open
-item (0 = all collapsed).
+A column of titled sections where one is open and the others show their title
+only.
+
+Use it to put several sections in one column when a person reads one at a
+time: the runs, the results, the findings of a study. `items` is a `Vector` of
+`(title, body)` tuples, and `expanded` is the 1-based index of the open one, or
+`0` for none.
+
+# Example
+
+    root = get_project_result_directory(editor)
+    table = make_result_table(get_simulation_scalar_results(root))
+    plot = make_result_plot(get_simulation_vector_results(root))
+    open_pane!(editor, WidgetAccordion(Point2D(0, 0), Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
+
+Each item is wrapped in a [`WidgetAccordionItem`](@ref).
+
+See also `WidgetTabbedPane` for sections behind tabs, and `WidgetCard` for one
+section that folds.
 """
 @document struct WidgetAccordion <: WidgetDocument
     position::Point2D
@@ -1788,6 +2063,17 @@ WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::In
 """
     WidgetTable(position, column_headers, row_headers, rows, column_count; ...)
     WidgetTable(position, headers::Vector, rows::Vector)   # string convenience shim
+
+A grid of cells with optional column headers and row headers.
+
+Use it to show rows of values by hand, when no verb gives a frame for them:
+`headers` is a `Vector` of strings and `rows` a `Vector` of rows of strings,
+and each string becomes a `WidgetLabel`. The result verbs make their own tables:
+`make_result_table` answers a frame the window draws as this widget.
+
+# Example
+
+    open_pane!(editor, WidgetTable(Point2D(0, 0), ["run", "delay"], [["Fifo-0", "0.12"], ["Fifo-1", "0.15"]]); title = "By hand")
 
 The single table abstraction. A grid of **document cells** (each cell is a
 `Document`, recursed through the shared recursion — so a cell can be a
@@ -1823,6 +2109,8 @@ layout iomap ("layout is just layout").
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
+
+See also `make_result_table` and `WidgetList` for one column.
 """
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
@@ -2125,12 +2413,25 @@ end
 """
     Action(label; icon=nothing, enabled=true, shortcut=nothing, callback=nothing)
 
-A shared command object (Qt's `QAction`): a menu item, a toolbar button, and a
-keyboard shortcut can all reference the same `Action`, so its `label`/`enabled`
-drive every presenter and toggling `enabled` disables all of them at once.
-`shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `callback` runs on
-invocation (called with the editor when it accepts one argument, else with none).
-`icon` is a slot populated by Stage 5. Invoked via [`InvokeActionOperation`].
+A command with a label, a callback and an enabled flag, shared by every control
+that shows it.
+
+Use it to name one command once and show it in a button, a menu item and a
+keyboard shortcut; the `label` and `enabled` drive every one of them, and
+setting `enabled` to `false` disables all of them at once. The `callback` runs
+when the command is invoked, with the editor when it accepts one argument and
+with none otherwise.
+
+# Example
+
+    again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")))
+    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), again); title = "Runner")
+
+`shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the
+name of an icon drawn before the label. A click invokes it through
+[`InvokeActionOperation`].
+
+See also `WidgetButton`, which shows one.
 """
 @document struct Action
     label::Any

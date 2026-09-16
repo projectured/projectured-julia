@@ -68,7 +68,7 @@ export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pa
 export show_layout, get_referenced_value, replace_referenced_value!,
        open_pane!, focus_pane!,
        get_window_tree, describe_document, get_document_title,
-       pane_group_to_avoid, make_pane_api
+       pane_group_to_avoid, make_pane_api, make_interface_api
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneSplitToWidgetSplitPane, PaneSplitToWidgetSplitPaneIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
