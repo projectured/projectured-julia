@@ -384,7 +384,8 @@ function run_editor!(editor::Editor; mcp::Bool=false,
 end
 
 """
-    run_editor!(backend::Backend, projection, document; mcp::Bool=false)
+    run_editor!(backend::Backend, projection, document; mcp::Bool=false,
+                mcp_instructions=nothing)
 
 Bootstrap overload: initialise the backend, wire up an `Editor` with
 the given projection and document, and run the read-eval-print loop
@@ -413,6 +414,7 @@ frame. It is how something that will post operations gets hold of the editor to
 post them to, since this overload is what constructs it.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
+              mcp_instructions::Union{AbstractString,Nothing}=nothing,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
               on_start=nothing)
     initialize_backend!(backend)
@@ -424,7 +426,7 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
         # nothing.
         open_native_windows!(backend, document)
         editor = Editor(backend, document, projection, devices)
-        run_editor!(editor; mcp=mcp, on_start=on_start)
+        run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions, on_start=on_start)
     finally
         quit_backend!(backend)
     end

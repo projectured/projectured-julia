@@ -24,7 +24,9 @@ function test_filesystem()
     @testset "ProjecturedFileSystem" begin
         test_filesystem_layering()
         test_filesystem_to_syntax()
+        test_filesystem_to_widget()
     end
 end
 
-export test_filesystem, test_filesystem_layering, test_filesystem_to_syntax
+export test_filesystem, test_filesystem_layering, test_filesystem_to_syntax,
+       test_filesystem_to_widget

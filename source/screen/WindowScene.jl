@@ -70,7 +70,8 @@ function make_window_scene_projection(projection)
 end
 
 """
-    run_window_editor(document, projection, title; backend, width, height, on_start, mcp)
+    run_window_editor(document, projection, title; backend, width, height, on_start,
+                      mcp, mcp_instructions)
 
 Open the window and run the loop until the person closes it.
 
@@ -85,10 +86,16 @@ umbrella back.
 `on_start` runs once the editor exists. A document that drives itself needs it:
 the thing that hands its progress to the editor cannot be built before there is
 an editor to hand it to.
+
+`mcp` starts an MCP server beside the loop, so an external client drives the
+same editor with the same tools; `mcp_instructions` is the prompt that server
+gives the client, and the server's own generic one answers when it is `nothing`.
+The server needs `ProjecturedMcp` loaded, which registers it.
 """
 function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
-                           on_start = nothing, mcp::Bool = false)
+                           on_start = nothing, mcp::Bool = false,
+                           mcp_instructions::Union{AbstractString,Nothing} = nothing)
     backend === nothing &&
         error("run_window_editor: name the backend to draw on, " *
               "for example `backend = SdlBackend()`")
@@ -99,5 +106,6 @@ function run_window_editor(document, projection, title::AbstractString;
     end
     scene = make_window_scene(document, title; width = width, height = height)
     run_editor!(backend, make_window_scene_projection(projection), scene;
-                             mcp = mcp, on_start = on_start)
+                             mcp = mcp, mcp_instructions = mcp_instructions,
+                             on_start = on_start)
 end

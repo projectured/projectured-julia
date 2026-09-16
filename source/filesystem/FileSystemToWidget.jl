@@ -30,6 +30,10 @@ function _fs_icon(f::FileSystemFile)
     ext == ".jl"            ? "λ"  :
     ext == ".json"          ? "{}" :
     ext in (".md", ".txt")  ? "¶"  :
+    ext == ".pred"          ? "◆"  :   # a document written as its constructor
+    ext == ".ned"           ? "⬡"  :   # a network: nodes and the links between them
+    ext == ".ini"           ? "≡"  :   # a configuration: lines of keys and values
+    ext == ".math"          ? "∑"  :
     "·"
 end
 
