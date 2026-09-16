@@ -370,7 +370,10 @@ every Julia process.
       `test_assistant_session` prints it after its assertions; the study arc
       prints the same table for its seven turns; `test_assistant_problem_table`
       runs the table with a `FakeLlm` and needs no server. 64 assertions pass.
-- [ ] Ask the user; run the baseline; record it in §5.
+- [x] The user said go on 2026-09-16 and named a second model,
+      `qwen3-coder:30b-a3b-q8_0`. The baseline of `qwen3.8:27b` is in §5. The
+      second model's run was cut off by a crash of the user's session and waits
+      for an idle machine.
 
 ### Step 3. The two searches, footers, sections (§3b, §3c, §3d, §3h)
 
