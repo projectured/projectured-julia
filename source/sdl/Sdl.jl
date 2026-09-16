@@ -681,63 +681,53 @@ function _get_font(font::StyleFont)
     end
 end
 
-# ── Emoji fallback font ────────────────────────────────────────────────
+# ── Fallback fonts ─────────────────────────────────────────────────────
 #
-# The bundled text fonts (Ubuntu, DejaVu, Liberation) carry no emoji glyphs, and
-# SDL2_ttf has no fallback-font mechanism, so emoji codepoints would otherwise
-# rasterize as `.notdef` boxes. We bundle a *monochrome* emoji font — it renders
-# through the same blended path, with none of SDL2's fragile colour-emoji
-# plumbing — and route glyphs the primary font lacks to it (see `_font_runs`).
-const _EMOJI_FONT_FILE = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
+# SDL2_ttf draws a character only in the font it is given, and a font it lacks
+# draws as a `.notdef` box. So a text is split into runs, one per font, and
+# `find_glyph_font_file` says which font draws each character. The measurer
+# `measure_truetype_text` asks the same question, so a line is drawn as wide as
+# the layout measured it. The fallback fonts are monochrome, so every run draws
+# through the same blended path.
 
-# Open (and cache) the emoji font at `size` device px. Returns C_NULL when the
-# font is absent or fails to load, so callers transparently degrade to the
-# primary font (i.e. today's box behaviour) instead of erroring.
-function _get_emoji_font(size::Int)
-    key = (_EMOJI_FONT_FILE, size)
+# Open (and cache) the font file at `path` at `size` device px. C_NULL when the
+# file is absent or fails to load, so a caller draws in the primary font.
+function _get_fallback_font(path::String, size::Int)
+    key = (path, size)
     get!(_font_cache, key) do
-        isfile(_EMOJI_FONT_FILE) ? TTF_OpenFont(_EMOJI_FONT_FILE, size) : Ptr{TTF_Font}(C_NULL)
+        file = font_file(path)
+        isfile(file) ? TTF_OpenFont(file, size) : Ptr{TTF_Font}(C_NULL)
     end
 end
 
-# Which font should render codepoint `cp`? SDL2_ttf does no shaping and
-# `TTF_GlyphIsProvided` is BMP-only (UInt16), so: astral-plane codepoints (nearly
-# all pictographic emoji) go to the emoji font; for BMP codepoints we keep glyphs
-# the primary font actually has (✓ ★ → and box-drawing render best there) and
-# fall back to the emoji font only for the ones it lacks.
-@inline function _glyph_font(cp::UInt32, primary::Ptr{TTF_Font}, emoji::Ptr{TTF_Font})
-    emoji == C_NULL && return primary
-    if cp > 0xFFFF
-        return emoji
-    elseif TTF_GlyphIsProvided(primary, UInt16(cp)) != 0
-        return primary
-    elseif TTF_GlyphIsProvided(emoji, UInt16(cp)) != 0
-        return emoji
-    else
-        return primary
-    end
+# The font that draws codepoint `cp` in a text set in `font`, whose handle is
+# `primary`.
+function _glyph_font(cp::UInt32, font::StyleFont, primary::Ptr{TTF_Font})
+    file = find_glyph_font_file(font.filename, cp)
+    (file === nothing || file == font.filename) && return primary
+    handle = _get_fallback_font(file, font_device_size(font))
+    handle == C_NULL ? primary : handle
 end
 
-# Split `text` into maximal consecutive runs that share one font. Variation
-# selectors (U+FE0E/U+FE0F) are dropped — zero-width presentation hints that
-# would otherwise draw a stray box in the emoji font; ZWJ (U+200D) and skin-tone
-# modifiers stay in the current run so they bind to the preceding emoji. With no
-# emoji font loaded this returns a single primary-font run (the fast path). Note:
-# without shaping, ZWJ/skin-tone sequences render as their separate base glyphs.
-function _font_runs(text::AbstractString, primary::Ptr{TTF_Font}, emoji::Ptr{TTF_Font})
+# Split `text` into maximal consecutive runs that share one font. Presentation
+# selectors (U+FE0E/U+FE0F) are dropped — zero-width hints that would otherwise
+# draw a stray box; ZWJ (U+200D) and skin-tone modifiers stay in the current run
+# so they bind to the preceding emoji. A text the primary font carries in full is
+# a single run. Without shaping, ZWJ and skin-tone sequences draw as their
+# separate base glyphs.
+function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font})
     runs = Tuple{Ptr{TTF_Font},String}[]
-    if emoji == C_NULL
-        push!(runs, (primary, String(text)))
-        return runs
-    end
+    carried = load_truetype_font(font.filename)
     buf = IOBuffer()
     cur = primary
     started = false
     for ch in text
         cp = UInt32(ch)
-        (cp == 0xFE0E || cp == 0xFE0F) && continue          # drop variation selectors
+        is_presentation_selector(cp) && continue
         sticky = started && (cp == 0x200D || 0x1F3FB <= cp <= 0x1F3FF)
-        f = sticky ? cur : _glyph_font(cp, primary, emoji)
+        f = sticky ? cur :
+            (cp <= 0xFFFF && has_font_glyph(carried, cp)) ? primary :
+            _glyph_font(cp, font, primary)
         if !started
             cur = f
         elseif f !== cur
@@ -813,8 +803,7 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     entry = get(_text_texture_cache, key, nothing)
     if entry === nothing
         font = _get_font(font_style)
-        emoji = _get_emoji_font(font_device_size(font_style))
-        runs = _font_runs(text, font, emoji)
+        runs = _font_runs(text, font_style, font)
         surface = length(runs) == 1 ?
             TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)) :
             _render_runs_blended(runs, color)
@@ -2096,11 +2085,10 @@ size (for crispness) and the device measurement is divided back by
 function BackendModule.measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
     isempty(text) && return (0, font_logical_size(font))
     primary = _get_font(font)
-    emoji = _get_emoji_font(font_device_size(font))
-    runs = _font_runs(text, primary, emoji)
-    # Fast path: a single run — all-text (the common case, font == primary) or
-    # all-emoji. Measure with that run's own font, not `primary`, otherwise a
-    # pure-emoji span would be sized from the text font's `.notdef` box.
+    runs = _font_runs(text, font, primary)
+    # Fast path: a single run — all in the primary font (the common case) or all
+    # in one fallback font. Measure with that run's own font, not `primary`,
+    # otherwise a pure-emoji span would be sized from the text font's `.notdef` box.
     if length(runs) == 1
         f, s = runs[1]
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2519,8 +2507,8 @@ function BackendModule.quit_backend!(backend::SdlBackend)
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()
     for font in values(_font_cache)
-        # `_get_emoji_font` caches C_NULL when the emoji font is absent; skip those
-        # (TTF_CloseFont(NULL) dereferences a null pointer).
+        # `_get_fallback_font` caches C_NULL when a fallback font is absent; skip
+        # those (TTF_CloseFont(NULL) dereferences a null pointer).
         font != C_NULL && TTF_CloseFont(font)
     end
     empty!(_font_cache)

@@ -103,7 +103,9 @@ export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_dev
        font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
        font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
 export measure_truetype_text, font_ascent, font_descent, font_line_height,
-       font_x_height, font_cap_height, font_glyph_bounds, font_file
+       font_x_height, font_cap_height, font_glyph_bounds, font_file,
+       get_fallback_font_files, find_glyph_font_file, has_font_glyph,
+       is_presentation_selector
 export Inset, Point2D, inset_default,
        inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,

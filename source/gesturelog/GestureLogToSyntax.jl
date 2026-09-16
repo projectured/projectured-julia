@@ -8,9 +8,9 @@
 # operation. A line that records a selection operation is muted, because a
 # selection is context and not a change.
 #
-# The panel uses the DejaVu monospace font. The Ubuntu font has no glyph for the
-# arrow keys or for the empty reference, and SDL draws no fallback: a missing
-# glyph becomes a box.
+# The panel uses the DejaVu monospace font, which has a glyph for the arrow keys
+# and for the empty reference. The Ubuntu font has neither, and a glyph drawn by
+# a fallback font has a width of its own, so the columns would not line up.
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer with
 # no reader and no reference mappers.

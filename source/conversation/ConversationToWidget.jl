@@ -79,12 +79,10 @@ const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
 # behind a letter that overflows it, and a letter is not an icon. The glyph
 # stands on its own, in the role's own color.
 #
-# Both glyphs come from DejaVu, which the chrome font does not cover. Each was
-# checked by rendering it at the size it is drawn at, twice over: the font has no
-# fallback, so a glyph it lacks draws as an empty box — which is how `∴` was found
-# and dropped from the thinking tag — and a glyph it draws as a thin OUTLINE
-# disappears beside a bold word. `👤` and `✦` are both in the font and both are
-# outlines; at 18 px they read as smudges. The pair below is solid at this size.
+# Both glyphs come from DejaVu, which the chrome font does not cover. A glyph
+# that DejaVu draws as a thin OUTLINE disappears beside a bold word: `👤` and `✦`
+# are both in the font and both are outlines, and at 18 px they read as smudges.
+# The pair below is solid at this size.
 #
 # Bold, because the word beside it is bold and a regular mark reads as a mistake.
 const _ICON_FONT = font_dejavu_monospace_bold_20
@@ -257,9 +255,7 @@ _code_card(content, part::ConversationPart) =
     _part_card(_kind_label(content), content, part)
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.
-# The tag is a word like every other tag: the `∴` it carried first drew as a
-# missing-glyph box, because the chrome font holds no such character and the
-# renderer falls back to nothing.
+# The tag is a word like every other tag.
 _thinking_card(t::ConversationThinking, part::ConversationPart) =
     _part_card("thinking", _thinking_body(t), part)
 

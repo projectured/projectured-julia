@@ -288,6 +288,82 @@ end
 
 get_ascent_pixels(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 
+# ════════════════════════════════════════════════════════════════════════
+# Fallback fonts
+# ════════════════════════════════════════════════════════════════════════
+#
+# A font draws only the characters it carries. For a character it lacks, a
+# renderer draws with the font `find_glyph_font_file` names, and
+# `measure_truetype_text` measures with the same font, so a line is drawn as wide
+# as it was measured.
+
+const _EMOJI_FONT_FILE       = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
+const _DEJAVU_MONO_FILE      = joinpath(_FONT_DIR, "DejaVuSansMono.ttf")
+const _DEJAVU_MONO_BOLD_FILE = joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf")
+
+const _FALLBACK_FONT_FILES = [_DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
+# DejaVu Sans Mono Bold lacks some glyphs of the regular face, so the regular
+# face follows it.
+const _BOLD_FALLBACK_FONT_FILES = [_DEJAVU_MONO_BOLD_FILE, _DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
+
+"""
+    get_fallback_font_files(path) -> Vector{String}
+
+The fonts that a text set in the font at `path` falls back to, in order: DejaVu
+Sans Mono, which carries arrows, check marks, stars, geometric shapes and box
+drawing, and then Noto Emoji. A bold font, whose file name ends in `-B` or
+`-Bold`, takes the bold face of DejaVu first.
+"""
+get_fallback_font_files(path::AbstractString) =
+    occursin(r"-B(old)?(I|Italic|Oblique)?\.[ot]tf$", basename(path)) ?
+        _BOLD_FALLBACK_FONT_FILES : _FALLBACK_FONT_FILES
+
+const _FONT_AVAILABLE = Dict{String,Bool}()
+
+_is_font_available(path::AbstractString) =
+    get!(() -> isfile(font_file(path)), _FONT_AVAILABLE, String(path))
+
+"""
+    has_font_glyph(font::TrueTypeFont, character) -> Bool
+
+Whether `font` carries a glyph for `character`.
+"""
+has_font_glyph(font::TrueTypeFont, character::UInt32) = get_glyph_id(font, character) != 0
+
+"""
+    find_glyph_font_file(path, character) -> String or nothing
+
+The file of the font that draws `character` in a text set in the font at `path`:
+that font when it carries the character, else the first font of
+[`get_fallback_font_files`](@ref) that does. `nothing` when no font carries it,
+and the caller then draws the character in its own font, which draws the
+missing-glyph box. A fallback file that is not installed is skipped.
+
+A character outside the basic plane is nearly always a pictograph, and Noto
+Emoji draws it even when the font carries one: DejaVu Sans does, in a style of
+its own.
+"""
+function find_glyph_font_file(path::AbstractString, character::UInt32)
+    character > 0xFFFF && _has_file_glyph(_EMOJI_FONT_FILE, character) && return _EMOJI_FONT_FILE
+    has_font_glyph(load_truetype_font(path), character) && return String(path)
+    for fallback in get_fallback_font_files(path)
+        _has_file_glyph(fallback, character) && return fallback
+    end
+    nothing
+end
+
+_has_file_glyph(path::AbstractString, character::UInt32) =
+    _is_font_available(path) && has_font_glyph(load_truetype_font(path), character)
+
+"""
+    is_presentation_selector(character) -> Bool
+
+Whether `character` is a variation selector that asks for text or emoji
+presentation (U+FE0E, U+FE0F). It has no width, and a renderer that does no
+shaping drops it, so a measurer drops it too.
+"""
+is_presentation_selector(character::UInt32) = character == 0xFE0E || character == 0xFE0F
+
 """
     measure_truetype_text(text, font::StyleFont) -> (Int, Int)
 
@@ -303,10 +379,34 @@ which reads the reactive `_FONT_ZOOM` cell — exactly like `measure_sdl_text`
 (which rasterizes at `font_device_size` and divides back by `_DISPLAY_SCALE`).
 This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
 A no-op at the default zoom (`font_logical_size == size`).
+
+A character the font lacks is measured in the font that draws it, which
+[`find_glyph_font_file`](@ref) names, and a presentation selector measures
+nothing: the SDL renderer draws the text the same way.
 """
-measure_truetype_text(text, font::StyleFont) =
-    (round(Int, measure_text_width(load_truetype_font(font.filename), font_logical_size(font), String(text))),
-     font_logical_size(font))
+function measure_truetype_text(text, font::StyleFont)
+    size = font_logical_size(font)
+    path = font.filename
+    primary = load_truetype_font(path)
+    primary_units = 0
+    fallback_width = 0.0
+    for c in String(text)
+        character = UInt32(c)
+        is_presentation_selector(character) && continue
+        glyph = get_glyph_id(primary, character)
+        if glyph == 0 || character > 0xFFFF
+            file = find_glyph_font_file(path, character)
+            if file !== nothing && file != path
+                other = load_truetype_font(file)
+                fallback_width += _advance_units(other, get_glyph_id(other, character)) *
+                                  size / other.units_per_em
+                continue
+            end
+        end
+        primary_units += _advance_units(primary, glyph)
+    end
+    (round(Int, primary_units * size / primary.units_per_em + fallback_width), size)
+end
 
 # ════════════════════════════════════════════════════════════════════════
 # Vertical metrics

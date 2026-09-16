@@ -263,8 +263,9 @@ const font_liberation_serif_bold_42    = StyleFont(joinpath(_FONT_DIR, "Liberati
 
 # ── DejaVu monospace ────────────────────────────────────────────────────────────
 # Broad Unicode coverage (geometric shapes ▾▸▼►, arrows, emoticons ☺♥) absent
-# from the Ubuntu/Liberation faces. Used for the fold markers and anywhere a glyph
-# outside basic Latin must render under the monochrome SDL_ttf pipeline.
+# from the Ubuntu/Liberation faces. A text in any font falls back to it for a
+# glyph its own font lacks (`get_fallback_font_files`). A text whose glyphs must
+# all share one face, such as a column of monospaced marks, uses it directly.
 
 const font_dejavu_monospace_regular_14 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 14)
 const font_dejavu_monospace_italic_14  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 14)
