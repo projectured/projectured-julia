@@ -3372,6 +3372,24 @@ function _pane_frozen_region(cox::Int, coy::Int, vw, vh, frozen,
                      Cell(affine_identity), Cell(nothing))
 end
 
+# How far down a pane shows its content, in pixels. The printer draws the content
+# at this offset and the reader routes a pointer event by it, so a press lands on
+# what is drawn under it.
+#
+# A pane that follows the end shows the end, whatever `scroll_position` holds. A
+# stored offset is clamped as it is read, because the content can shrink under a
+# position that was valid when it was written. A content with no end has no
+# extent to clamp against: its offset is measured from the head of its list, in
+# either direction, and following an end it does not have means staying where it
+# is.
+function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer)
+    y = Int((getfield(w, :scroll_position)[]::Point2D).y[])
+    is_infinite_canvas(content) && return y
+    room = max(0, Int(content.h) - Int(view_h))
+    getfield(w, :follow_end)[] === true && return room
+    clamp(y, 0, room)
+end
+
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
     w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
     pos = w.position
@@ -3405,7 +3423,6 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) : nothing
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
-    follow_cell = getfield(w, :follow_end)
     inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     # Recurse into the content before the extent cells exist: on an unclipped axis
     # the viewport extent is the content's own, so the content must come first.
@@ -3417,8 +3434,11 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
     end
-    vw_cell = _pane_extent(offer_w, inner_canvas === nothing ? nothing : inner_canvas.w)
-    vh_cell = _pane_extent(offer_h, inner_canvas === nothing ? nothing : inner_canvas.h)
+    # The content's extent cells and not their values: a value read here would
+    # make the pane's own print depend on it, and a content that grows would
+    # print the pane and everything in it again.
+    vw_cell = _pane_extent(offer_w, inner_canvas === nothing ? nothing : getfield(inner_canvas, :w))
+    vh_cell = _pane_extent(offer_h, inner_canvas === nothing ? nothing : getfield(inner_canvas, :h))
     elems = Any[]
     cfc = w.content_fill_color
     bgc = cfc isa StyleColor ? cfc : p.background_color
@@ -3431,26 +3451,10 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(nothing)))
     if inner_canvas !== nothing
         inner_elems_cv = inner_canvas.elements
-        # Vertical offset of the content inside the viewport. Normally this is the
-        # negated `scroll_position.y`; with `follow_end` the pane sticks to the
-        # bottom of its content — offset by `viewport - content` (≤ 0), so newly
-        # appended content (a streaming chat) stays in view as the content grows.
-        content_h_cell = inner_canvas.h
-        inner_y = ComputedCell(() -> begin
-            # A content with no end has no extent to clamp against: its offset
-            # is measured from the head of its list, in either direction, and
-            # following an end it does not have means staying where it is.
-            if is_infinite_canvas(inner_canvas)
-                sp = scroll_cell[]::Point2D
-                return Int32(-Int(sp.y[]))
-            end
-            room = max(0, Int(content_h_cell[]) - Int(vh_cell[]))
-            follow_cell[] && return Int32(-room)
-            # A stored offset is clamped as it is read too: the content can shrink
-            # under a position that was valid when it was written.
-            sp = scroll_cell[]::Point2D
-            Int32(-clamp(Int(sp.y[]), 0, room))
-        end)
+        # Vertical offset of the content inside the viewport. With `follow_end`
+        # the pane sticks to the bottom of its content, so newly appended content
+        # (a streaming chat) stays in view as the content grows.
+        inner_y = ComputedCell(() -> Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[])))
         held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
         # A content that holds a prefix of itself still is drawn in four regions;
         # every other content is the one viewport it has always been, and pays
@@ -3598,11 +3602,16 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     # WOULD be under the pointer if it had never been scrolled, while a click on
     # the same pixel correctly selected the row that was actually there. The
     # viewport variant of this projection already translates the whole set.
+    #
+    # The vertical offset is the one the printer drew with, so a pane that
+    # follows the end routes a press to what is drawn at the end.
     _local(x, y) = begin
         w = iomap.input
         cox, coy = _content_offset(w)
         sp = getfield(w, :scroll_position)[]::Point2D
-        (x - cox + Int(sp.x[]), y - coy + Int(sp.y[]))
+        _, ty = _inset_total(w)
+        sy = _pane_scroll_y(w, content_iomap.output, Int(iomap.output.h) - ty)
+        (x - cox + Int(sp.x[]), y - coy + sy)
     end
     op = @event_case evt begin
         MousePress(button, x, y) => begin
@@ -3639,12 +3648,9 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         # it like a press and let the content refuse first; see the viewport
         # variant for why intercepting here would strand a nested pane.
         MouseScroll(dx, dy, x, y) => begin
-            w = iomap.input
-            cox, coy = _content_offset(w)
-            sp = getfield(w, :scroll_position)[]::Point2D
-            sx, sy = Int(sp.x[]), Int(sp.y[])
+            lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseScroll(dx, dy, x - cox + sx, y - coy + sy, evt.modifiers))
+                             MouseScroll(dx, dy, lx, ly, evt.modifiers))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
