@@ -1,6 +1,6 @@
 # Three kinds of search: keywords, a pattern, a description
 
-> **Kind:** plan · **Status:** pending, in progress · **Stands on:**
+> **Kind:** plan · **Status:** done 2026-09-16 · **Stands on:**
 > [declared-api-is-a-list-of-names.md](../done/declared-api-is-a-list-of-names.md),
 > [ollama-backend.md](../done/ollama-backend.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
@@ -377,7 +377,9 @@ real model puts two sentences of one meaning closer than two of different
 meanings. The table above needs the omnet names, so it runs as a measurement in
 omnet's `environment/all`: it prints the rank each sentence gets under keywords
 and under description. The description rank must never be worse than the keyword
-rank. The numbers go in §6 of this plan.
+rank. The numbers are in §6: the rule holds for the eight verbs and for seven of
+the eight guide sentences; the eighth is second by description and first by its
+words.
 
 ## 4. Steps
 
@@ -528,25 +530,29 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] omnet `assistant-guide.md`: a paragraph names the three modes, gives an
       example of a description, and says how to install `nomic-embed-text`.
 
-### Step 7. Measure
+### Step 7. Measure — done 2026-09-16
 
-- [x] The measurement is ready. It runs in omnet's `environment/all` against
+- [x] The measurement runs in omnet's `environment/all` against
       `get_assistant_api()`, which declares 88 entries, and prints for each
-      sentence the rank of the expected name under keywords, under the meaning
-      alone, and fused. A rank of 0 means not in the first 50.
-- [x] A dry run without the model, 2026-09-16: the build failed after 3.4 s,
-      and every description answer began with "The meaning model
-      ollama/nomic-embed-text failed, so the words of the description were
-      searched as keywords. The reason: Ollama has no model nomic-embed-text.
-      Run `ollama pull nomic-embed-text` to install it." The words alone rank
-      `stop_simulations!` first and do not find the other three verbs in the
-      first 50; they rank a section of `omnet/assistant-guide` first for the
-      guide sentence.
-- [ ] Ask before `ollama pull nomic-embed-text`. It is 274 MB.
-- [ ] Run the golden table live and record the ranks in §6.
-- [ ] Decide the BM25 normalization of §3b on that table, and record the
-      decision.
-- [ ] Move this plan to `plan/done/`.
+      sentence the rank of the expected name or guide under its words and under
+      the description mode.
+- [x] A dry run without the model: the build failed after 3.4 s, and every
+      description answer began with "The meaning model ollama/nomic-embed-text
+      failed, so the words of the description were searched as keywords. The
+      reason: Ollama has no model nomic-embed-text. Run `ollama pull
+      nomic-embed-text` to install it."
+- [x] The user pulled `nomic-embed-text` and asked for the vectors of what the
+      omnet IDE assistant can search: its declared verbs, and, as the user added,
+      every guide it can read. The store holds them in
+      `projectured-julia/build/meaning/ollama_nomic-embed-text.bin`, the file
+      `bin/omnet_ide` reads.
+- [x] The golden table ran live. Two design changes came from it: a verb's
+      vector reads its whole documentation, and a description ranks verbs by
+      meaning alone and guide sections by both ranks, the words counted twice.
+      The numbers are in §6.
+- [x] The BM25 normalization of §3b is not adopted: it made the guide ranks no
+      better. The numbers are in §6.
+- [x] Moved to `plan/done/`.
 
 ## 5. Out of scope
 
@@ -619,4 +625,80 @@ Work in a worktree. Commit each step with explicit paths. Land with
   runs only when Ollama holds a model in memory, so it has not failed where
   anyone saw it. This plan did not change that keyword, and the test is left as
   it is.
+
+**Step 7, 2026-09-16.** All ranks below are live, against `nomic-embed-text` on
+this machine's Ollama 0.33.1, with no GPU. A rank of 0 means not in the first 50.
+
+- **The build.** The omnet IDE assistant can search 88 declared entries, 59,111
+  characters, and 1,230 guide sections cut into 1,390 chunks, 1,136,142
+  characters. The first build computed all 1,478 texts in 20.0 s; the file is
+  5.8 MB. After two guide files changed, the next build computed the 2 new
+  chunks in 3.7 s. The 88 verbs alone took 4.8 s, when the server had not yet
+  loaded the model.
+- **A store keeps the vectors of texts that no longer exist.** It appends, and
+  it does not know which texts another tool set still asks for. After the edits
+  above it held 1,479 vectors for 1,478 texts. Deleting the file rebuilds it in
+  about 20 s. A compaction is left for when the file grows enough to matter.
+- **The verb text.** With the meaning alone, the eight verb sentences ranked:
+
+  | text of a verb | ranks | mean | first |
+  | --- | --- | --- | --- |
+  | qualified name + signature and one sentence (the plan) | 28 1 13 18 1 2 1 1 | 8.1 | 4 |
+  | name words + signature and one sentence | 26 1 15 17 1 2 1 1 | 8.0 | 4 |
+  | name words + first sentence | 15 1 14 28 1 4 1 1 | 8.1 | 4 |
+  | first sentence only | 33 1 20 22 1 10 1 1 | 11.1 | 4 |
+  | name words + whole docstring | 7 1 4 27 1 2 1 2 | 5.6 | 3 |
+  | name words + module words + whole docstring | 8 1 4 38 1 1 1 2 | 7.0 | 4 |
+  | name words + whole docstring without its signature | 6 1 6 41 1 1 1 2 | 7.4 | 4 |
+  | **qualified name + whole docstring (taken)** | 12 1 4 25 1 1 1 1 | 5.8 | 5 |
+
+  A cut at 4,000 characters gave the same ranks as one at 2,000.
+- **The verb rank is the meaning alone.** Merged with the rank of the
+  description's words, every weighting put three or four of the eight verbs
+  lower and none higher. With the plan's text: equal weights 31 1 31 36 1 2 1 1,
+  words weighed 0.5 31 1 31 35 1 2 1 1, words weighed 0.25 31 1 23 31 2 2 1 1,
+  offset 10 with words weighed 0.5 31 1 21 31 1 2 1 1, only the first five words
+  counted 0 1 0 0 1 2 1 1. The words alone found five of the eight.
+- **The guide rank merges both, and the words count twice.** Section ranks of
+  eight guide sentences:
+
+  | rank | ranks | mean | first |
+  | --- | --- | --- | --- |
+  | words | 1 1 1 4 2 3 1 1 | 1.8 | 5 |
+  | meaning | 1 6 1 2 1 1 1 1 | 1.8 | 6 |
+  | merged, equal weights | 1 4 1 1 1 1 1 1 | 1.4 | 7 |
+  | merged, offset 10 | 1 3 1 1 1 1 1 1 | 1.2 | 7 |
+  | merged, words weighed 0.5 | 1 5 2 2 1 1 1 1 | 1.8 | 5 |
+  | **merged, words weighed 2 (taken)** | 1 2 1 1 1 1 1 1 | 1.1 | 7 |
+  | words with a BM25 body score | 1 1 1 3 5 2 1 1 | 1.9 | 5 |
+  | merged with BM25 words, weighed 2 | 1 3 1 1 1 1 1 1 | 1.2 | 7 |
+
+  The order of the sentences: the plot guide, the testing guide, the cell guide,
+  the editor guide, the naming rules, the package rules, the debugging guide,
+  the new-domain guide.
+- **The final table**, with the code as it landed, ranks at the level of guides:
+
+  | description | expected | words | description |
+  | --- | --- | --- | --- |
+  | draw how a value changes over time | `make_result_plot` | 0 | 12 |
+  | stop every simulation that is running | `stop_simulations!` | 1 | 1 |
+  | the single numbers the runs recorded | `get_simulation_scalar_results` | 0 | 4 |
+  | write down what the runs taught us | `add_finding!` | 0 | 25 |
+  | open a table of the histograms | `make_histogram_result_table` | 1 | 1 |
+  | start a new study with a question | `make_study!` | 4 | 1 |
+  | check the results against what we expected | `check_expectations!` | 1 | 1 |
+  | run the simulations the filter selects | `run_simulations!` | 1 | 1 |
+  | how do I plot results after a run | `omnet/assistant-guide` | 1 | 1 |
+  | how should I name a new function | `rule/naming-rules` | 2 | 1 |
+  | what a package may depend on | `rule/package-rules` | 3 | 1 |
+  | how to look at a printer's output in the REPL while debugging | `guide/debugging-guide` | 1 | 1 |
+  | how to add support for a new file format as a domain | `guide/new-domain-guide` | 1 | 1 |
+  | which test should I run after I change a file | `guide/testing-guide` | 1 | 2 |
+  | how a cell computes its value again when its inputs change | `kernel/cell` | 1 | 1 |
+  | how the editor turns a key press into an edit | `kernel/editor` | 4 | 1 |
+
+  `add_finding!` is the weak row: its docstring says "Append a finding: what
+  the study learned", and the model ranks `run_card!` and `StudyFinding` above
+  it. The sentences are few, so these weights are a start and not a proof; a
+  wider whitelist is the moment to measure again.
 
