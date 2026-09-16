@@ -99,13 +99,16 @@ function _scratch_module(set::ToolSet)
         # They arrive with the declaration already applied, so what they answer and
         # what the code can call are the same set, and a model cannot widen its own
         # view by passing a different one. The declaration is written after the
-        # splat, because of two equal keywords the later one wins.
+        # splat, because of two equal keywords the later one wins. The meaning
+        # model is read from the set when the search runs, so a model bound after
+        # this module was built still ranks it.
         declared = copy(srcs)
         Core.eval(m, :(const read_function_documentation =
             (mod, name, type_name = nothing) ->
                 $(read_function_documentation)(mod, name, type_name; api = $declared)))
         Core.eval(m, :(const search_api =
-            (query; kwargs...) -> $(search_api)(query; kwargs..., api = $declared)))
+            (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
+                                                kwargs..., api = $declared)))
     end
     set.scratch = m
 end

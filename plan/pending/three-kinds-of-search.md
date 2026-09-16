@@ -429,22 +429,29 @@ Work in a worktree. Commit each step with explicit paths. Land with
 - [x] Tests: `test/kernel/tool/MeaningSearchTest.jl`, `test_meaning_search()`.
       The kernel tests of steps 1 and 2 and `test_agent_seam()`: 183 pass.
 
-### Step 3. The description mode (kernel)
+### Step 3. The description mode (kernel) — done 2026-09-16
 
-- [ ] `MeaningSearch.jl`: `_MeaningStore`, the chunks, the cache file, the
-      build task with its bound, the rank by meaning, the fusion. Include it
-      after `Documentation.jl`.
-- [ ] `Documentation.jl`: the description mode in both functions, the fallback
-      and its first line.
-- [ ] `CodeExecution.jl`: the declared `search_api` reads the set's meaning
-      model when it runs.
-- [ ] Tests, offline: a description finds a name that shares no word with it,
-      through a `MeaningModel` made from a table of synonyms; the fallback line
-      appears when the set has no meaning model; a model that throws falls back
-      and says so; a build slower than the bound falls back and says so; a
-      cache file round-trips in a temporary folder, and a record cut short is
-      dropped.
-- [ ] `test_kernel_layering()` green.
+- [x] `MeaningSearch.jl`: `_MeaningStore`, the chunks, the cache file, the
+      build task with its bound, the rank by meaning, the fusion.
+      `set_meaning_model!` calls `_start_meaning_vectors!`, which gathers the
+      texts on a task of its own, because the first gathering reads every
+      docstring and every guide.
+- [x] `Documentation.jl`: the description mode in both functions, the fallback
+      and its first line. One lock, `_INDEX_LOCK`, now guards the lazy build of
+      the guide and API indexes, because the gathering task reads them from
+      another thread.
+- [x] `CodeExecution.jl`: the declared `search_api` reads the set's meaning
+      model when it runs. `DefaultTools.jl`: both tools pass it.
+- [x] Tests, offline, in `MeaningSearchTest.jl`: a description finds a name that
+      shares no word with it, through a synonym table; the guides rank by
+      meaning; a long section is cut into chunks; a model that throws on the
+      description, and one that throws on the documents, fall back and say why;
+      only the first search of a slow build waits; the file round-trips, a
+      record cut short is cut off, a foreign file is written again; a change of
+      vector length starts the store again; the tools and the scratch module
+      use the set's model; binding a `FakeLlm` computes the vectors of the
+      guides and the API. The kernel tests: 221 pass. The umbrella search
+      tests: 24 pass.
 
 ### Step 4. Ollama computes meaning vectors (ollama package)
 
@@ -518,3 +525,19 @@ Work in a worktree. Commit each step with explicit paths. Land with
   in their order.
 - **A forbidden word matches only where a word starts.** Plain substring
   matching would make `-test` drop every entry that says `invokelatest`.
+
+**Step 3, 2026-09-16.**
+
+- **"Only the first search waits" is per build.** Traced by hand before the
+  first run: with one flag per store, a search of the guides after a search of
+  the API found its texts missing and did not wait, because the API search had
+  waited already. A store now clears the flag whenever it starts a build.
+- **The lazy indexes needed a lock.** The gathering task calls `_api_index`
+  and `_guide_index` from another thread, and `_DECLARED_INDEX` is a `Dict`
+  that `get!` changes. One lock guards both builds; a build is the only slow
+  part, and a second caller would wait for it anyway.
+- **With the whole surface, a Julia call of `search_api` has no meaning
+  model.** The scratch module gets the exported function there, which has no
+  set. A description falls back to keywords in that case, and says so. The
+  tools are the path a model uses.
+

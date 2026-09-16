@@ -655,15 +655,24 @@ const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 # above still holds — every entry is read-only and identical for every editor that
 # declares that list.
 const _DECLARED_INDEX = Dict{Vector{ApiEntry},Vector{_ApiEntry}}()
+# The indexes are built on first use, and the task that computes meaning vectors
+# reads them too, so one lock guards the building.
+const _INDEX_LOCK = ReentrantLock()
 
-_guide_index() =
-    (_GUIDE_INDEX[] === nothing && (_GUIDE_INDEX[] = _index_guide_sections()); _GUIDE_INDEX[])
+function _guide_index()
+    lock(_INDEX_LOCK) do
+        _GUIDE_INDEX[] === nothing && (_GUIDE_INDEX[] = _index_guide_sections())
+        _GUIDE_INDEX[]
+    end
+end
 
 function _api_index(api = ApiEntry[])
-    isempty(api) || return get!(() -> _index_declared(api),
-                                _DECLARED_INDEX, collect(ApiEntry, api))
-    _API_INDEX[] === nothing && (_API_INDEX[] = _index_api())
-    _API_INDEX[]
+    lock(_INDEX_LOCK) do
+        isempty(api) || return get!(() -> _index_declared(api),
+                                    _DECLARED_INDEX, collect(ApiEntry, api))
+        _API_INDEX[] === nothing && (_API_INDEX[] = _index_api())
+        _API_INDEX[]
+    end
 end
 
 """

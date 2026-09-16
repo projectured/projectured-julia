@@ -46,11 +46,14 @@ end
 """
     set_meaning_model!(set, model) -> set
 
-Give `set` the [`MeaningModel`](@ref) its searches by description rank with.
-`nothing` takes the model away, and such a search then ranks by its words.
+Give `set` the [`MeaningModel`](@ref) its searches by description rank with,
+and start computing the vectors of what those searches look in: the entries of
+its API and the sections of the guides. `nothing` takes the model away, and such
+a search then ranks by its words.
 """
 function set_meaning_model!(set::ToolSet, model::Union{Nothing,MeaningModel})
     set.meaning_model = model
+    _start_meaning_vectors!(set)
     set
 end
 
