@@ -165,6 +165,18 @@ end
 Build a `Reference` from the construction DSL. `@reference(path)` parses a
 rootless chain of steps, left = outermost:
 
+Use it to name a place in the window — a tab, what a pane holds, a split, the
+root — for `get_referenced_value`, `replace_referenced_value!` and
+`focus_pane!`. `show_layout` prints the path of every part, so copy a path from
+there: `@reference(window, root.elements[1].tabs[2].content)`.
+
+# Example
+
+    show_layout(editor)
+    plot = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1].content))
+
+See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
+
 - `a.b`               — `FieldReferenceStep` steps (`.a` then `.b`)
 - `xs[i]`             — 1-based `ElementReferenceStep` (a single-element range)
 - `xs{k}` / `xs{s:e}` — 0-based `PositionReferenceStep` (cursor) / `RangeReferenceStep`

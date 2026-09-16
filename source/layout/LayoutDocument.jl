@@ -85,6 +85,14 @@ heights.
     child_height::Any = nothing
 end
 
+Use it to put widgets or documents side by side in one row, from left to right.
+
+# Example
+
+    open_pane!(editor, HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
+
+See also `VerticalLayout`, `GridLayout`.
+
 function HorizontalLayout(children::Vector;
                           vertical_align::Symbol=:top,
                           gap::Integer=0,
@@ -112,6 +120,15 @@ of child widths; outer height = sum of child heights + gaps.
     child_height::Any = nothing
 end
 
+Use it to put widgets or documents one under another in one column, from top to
+bottom.
+
+# Example
+
+    open_pane!(editor, VerticalLayout([plot, table]; gap = 8); title = "Stacked")
+
+See also `HorizontalLayout`, `GridLayout`.
+
 function VerticalLayout(children::Vector;
                         horizontal_align::Symbol=:left,
                         gap::Integer=0,
@@ -131,6 +148,16 @@ end
 
 A grid of children in row-major order. `horizontal_align` / `vertical_align`
 apply within each cell.
+
+Use it to arrange widgets or documents in rows and columns — a table of cards, a
+dashboard of plots, a form — as the content of a pane. `children` go row by row,
+and `columns` says how many in a row.
+
+# Example
+
+    open_pane!(editor, GridLayout([plot_a, plot_b, table_a, table_b], 2); title = "Overview")
+
+See also `HorizontalLayout`, `VerticalLayout`, `FlowLayout`.
 
 **A column and a row take the same `SizePolicy` a stack's children take.**
 `column_policy` and `row_policy` say what every column and every row is, and
@@ -243,6 +270,15 @@ controls intra-line justification (`:left`, `:center`, `:right`);
     vertical_gap::Int = 0
 end
 
+Use it to put many widgets in a row that wraps to the next line when it is full
+— a gallery of cards, a set of badges — within `max_width`.
+
+# Example
+
+    open_pane!(editor, FlowLayout(cards; max_width = 800); title = "Cards")
+
+See also `GridLayout` for fixed columns.
+
 function FlowLayout(children::Vector;
                     max_width::Integer=400,
                     horizontal_align::Symbol=:left,
@@ -274,6 +310,15 @@ badges, and composing background / foreground layers.
     vertical_align::Symbol = :top
     active::Int = 0
 end
+
+Use it to put widgets one over another at the same place — a badge on a card, a
+label over a plot — the last child on top.
+
+# Example
+
+    StackLayout([plot, badge])
+
+See also `GridLayout`, `VerticalLayout`.
 
 function StackLayout(children::Vector;
                      horizontal_align::Symbol=:left,

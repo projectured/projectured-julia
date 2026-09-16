@@ -117,6 +117,16 @@ make_pane_api() = Any[
 
 The pane tree the editor shows.
 
+Use it to read the whole pane tree when no verb answers the part you need, and
+to write a reference against it with `@reference`.
+
+# Example
+
+    tree = get_window_tree(editor)
+    println(length(get_pane_groups(tree)), " groups")
+
+See also `show_layout`, which prints the tree with its references.
+
 A running editor draws a screen of windows, and a headless caller — a test, a
 workload — holds the tree itself. Both arrive at a verb, so both are read.
 `document.windows`, not `getfield`: the field holds a cell and the property is
@@ -138,6 +148,16 @@ end
     describe_document(document) -> String
 
 One short line saying what a document is.
+
+Use it to ask what a value is or how far it has come — how many runs a set holds
+and how many are done, what a study holds, what a table shows — in one sentence,
+without opening anything.
+
+# Example
+
+    println(describe_document(batch))
+
+See also `show_layout`, which says it for every pane.
 
 It is the comment `show_layout` writes beside each pane, and it is the sentence a
 caller asks for about a value it holds: `describe_document(batch)` says how far a
@@ -216,6 +236,18 @@ get_document_title(document) = nothing
     open_pane!(editor, document; title = nothing) -> Reference
 
 Put `document` in a new tab, and answer a reference to the tab it made.
+
+Use it to show, display or place a value on the screen: a table, a plot, a set
+of runs, a layout of widgets, any document, in a tab of its own beside what is
+open. It answers the reference of the new tab, which the other pane verbs take.
+
+# Example
+
+    reference = open_pane!(editor, make_result_plot(frame); title = "Delay")
+    focus_pane!(editor, reference)
+
+See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,
+`show_layout`.
 
 **This is the one placement verb.** Everything else a layout can be asked for —
 move a pane, resize a split, close a tab, change what a pane holds — is
@@ -325,6 +357,18 @@ end
 
 The node `reference` names, resolved against the window's pane tree.
 
+Use it to read what a pane holds — a set of runs, a plot, a table, a card — by
+the reference `show_layout` printed or `open_pane!` answered, so that you can
+act on it: stop the set, add a series to the plot, ask the table how many rows
+it has.
+
+# Example
+
+    plot = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1].content))
+    println(describe_document(plot))
+
+See also `show_layout`, `replace_referenced_value!`.
+
 The reference is rooted at the **tree**, not at the editor, so `root` is the
 tree's own field whether the editor holds a screen of windows or the bare tree.
 Write it with the reference macro against the window:
@@ -352,6 +396,18 @@ end
     replace_referenced_value!(editor, reference, value) -> Text
 
 Put `value` where `reference` points, and answer the window's new program.
+
+Use it to change the layout: move a pane beside another in a split, resize a
+split by its weights, close a tab, or replace what a pane holds, by writing a
+value at a reference `show_layout` printed. One call, one undo.
+
+# Example
+
+    show_layout(editor)
+    replace_referenced_value!(editor, @reference(window, root.elements[1].tabs[2, 2]), [])
+
+See also `open_pane!` to add a pane, `focus_pane!`, `PaneSplit`, `PaneGroup`,
+`PaneTab`.
 
 This is one `ReplaceReferencedValueOperation`, so the person undoes it with one
 press. A reference whose last step is a range **splices**: replacing
@@ -488,6 +544,15 @@ end
 Show the pane `reference` names and give it the focus, and answer the window's
 new program.
 
+Use it to bring a pane to the front, select its tab, or show the person a pane
+that is open behind another.
+
+# Example
+
+    focus_pane!(editor, @reference(window, root.elements[1].tabs[2]))
+
+See also `open_pane!`, `show_layout`.
+
 **Focus is the one thing a replace cannot say.** Every other change to a layout
 is a value written at a reference — a pane moved, a split resized, a tab closed,
 what a pane holds — and [`replace_referenced_value!`](@ref) is that verb. Focus
@@ -532,6 +597,17 @@ end
 
 Which panes are open, where each one sits and what it holds, as the Julia
 program that rebuilds the window.
+
+Use it to see the layout of the window — its splits, its groups, the tabs of
+each group and what each holds — with the reference of every part, before you
+move, close, replace or focus a pane. It answers the layout as a program, so a
+`replace_referenced_value!` at one of its references edits it.
+
+# Example
+
+    show_layout(editor)
+
+See also `get_referenced_value`, `replace_referenced_value!`, `focus_pane!`.
 
 It answers a `Text`, not a `String`, so the program arrives as the lines it is.
 A `String` would reach a model through `repr` and arrive as one line of `\n`

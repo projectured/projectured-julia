@@ -422,6 +422,17 @@ error or a cycle. Reading it inside a reactive cell subscribes to the result.
 """
 get_formula_value(formula::FormulaFormula) = _result_value(formula.result)
 
+Use it to read the number a formula of a study's sheet computed — a blocking
+probability, a mean queue length — to compare it with a result, to print it, or
+to state an expectation from it.
+
+# Example
+
+    p_block = add_study_formula!(get_study(editor), "p_{block}", "((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")
+    println(get_formula_value(p_block))
+
+See also `add_study_formula!`, `add_expectation!`.
+
 # Read the scalar value out of a result document (a TextBlock of one TextString).
 # This is what a dependent formula consumes; parse it back to a number/bool/string.
 function _result_value(result)

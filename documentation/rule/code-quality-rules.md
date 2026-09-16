@@ -69,6 +69,49 @@ last because it is the outward face of the file. The `import` it needs sits in
 the module file with the rest of the header, so one file holds every import of
 the module.
 
+**A name a window declares to a model documents its use.** A declared name is
+what a model finds by searching, and the searches read its docstring: the
+keyword scorer reads the signature and the first sentence, the meaning model
+reads the whole text. A docstring that says only what the thing is, in the
+words of its implementation, is not found by the words a person uses. So a
+declared function or type has four parts, in this order:
+
+```julia
+"""
+    make_result_plot(frames::DataFrame...; title) -> SimulationPlotDocument
+
+A chart of every `frame` given, as a document.
+
+Use it to draw a value over time, to compare the runs of a sweep, or to see
+the shape of a histogram. The frame decides the chart: …
+
+# Example
+
+    vectors = get_simulation_vector_results(get_project_result_directory(editor))
+    open_pane!(editor, make_result_plot(vectors; title = "Delay"))
+
+See also `make_result_table`, which shows the same frame as rows.
+"""
+```
+
+- The first sentence says what it is; a search hit shows it.
+- The **Use it to** paragraph says the goals it serves, in the words a person
+  says: "draw", "over time", "compare". The meaning vector and the keyword
+  prose score read it.
+- The **Example** is one call that runs in the window that declares the name;
+  a model copies a shape more than it reads a signature.
+- **See also** names the neighbours a model confuses it with.
+
+A docstring of a declared name without its "Use it to" paragraph is found by:
+
+```bash
+grep -rlE '^Use it to ' --include='*.jl' source | sort > /tmp/documented
+grep -rhoE ':[a-z_]+!?' source/campaign/*Verbs.jl source/ide/*Verbs.jl | sort -u  # the names a window declares
+```
+
+The second list against the first is the work left; the omnet IDE's
+`get_assistant_api()` is the list that matters.
+
 ## 2. A comment says what is, never what was
 
 **Source describes the code as it stands.** A comment, a docstring and a

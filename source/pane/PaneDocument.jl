@@ -20,6 +20,15 @@ widget and the existing `PrimitiveString` gestures do the editing.
     icon::Any = nothing
 end
 
+Use it to give a document a title in a group; `open_pane!` makes one for you,
+and a `PaneSplit` you write by hand needs them.
+
+# Example
+
+    PaneTab("Delay", make_result_plot(frame))
+
+See also `PaneGroup`, `open_pane!`.
+
 # String sugar. More specific than the macro's positional form, so the two
 # coexist (a caller passing a document keeps reaching the raw constructor).
 PaneTab(title::AbstractString, content) = PaneTab(PrimitiveString(String(title)), content)
@@ -61,6 +70,15 @@ A tab group. `tabs` is a `CellVector` of [`PaneTab`](@ref); `PaneGroup([t1, t2])
 wraps a plain vector. A group can be empty — `PaneGroup(PaneTab[])` is the start
 state of a fresh layout.
 
+Use it to hold tabs in one place on the screen; a split divides groups, and
+`open_pane!` adds a tab to a group.
+
+# Example
+
+    PaneGroup([PaneTab("Runs", batch), PaneTab("Delay", plot)])
+
+See also `PaneSplit`, `PaneTab`.
+
 The tab the group shows is the tab its own `selection` names. There is no
 `active` field.
 """
@@ -84,6 +102,17 @@ An inner node. `orientation` is `:vertical` (children side by side) or
     weights::CellVector = CellVector()
 end
 
+Use it to put panes side by side, `:vertical`, or one above the other,
+`:horizontal`, with `weights` for their share of the space: write it at a
+reference with `replace_referenced_value!` to split the window.
+
+# Example
+
+    replace_referenced_value!(editor, @reference(window, root),
+        PaneSplit(:vertical, [PaneGroup([PaneTab("Plot", plot)]), get_window_tree(editor).root]; weights = [0.4, 0.6]))
+
+See also `PaneGroup`, `PaneTab`, `replace_referenced_value!`.
+
 # Vector sugar. Two collection-typed fields mean the macro emits no wrapping
 # constructor of its own, so this is the one that takes plain vectors.
 function PaneSplit(orientation::Symbol, elements::AbstractVector; weights = nothing)
@@ -97,6 +126,16 @@ end
     PaneTree(root)
 
 The whole layout. `root` is a [`PaneGroup`](@ref) or a [`PaneSplit`](@ref).
+
+Use it to read the whole layout: its `root` is the group or the split that holds
+everything, and `@reference(window, root)` names it for a replace.
+
+# Example
+
+    tree = get_window_tree(editor)
+    println(typeof(tree.root))
+
+See also `PaneSplit`, `PaneGroup`, `show_layout`.
 
 `drag` is transient state holding a tab drag in progress, or `nothing`. It is
 not part of the layout and is not meant to be serialized.

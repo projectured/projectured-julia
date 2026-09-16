@@ -233,22 +233,23 @@ answered nothing.
 
 Two paragraphs, not the whole text: the sentence under the signature is where a
 docstring says what the thing does, and the rest is detail that would only blur
-the ranking.
+the ranking. **And the "Use it to" paragraph**, wherever it stands: a declared
+name says there what a person wants it for, in the person's words, which is what
+a person then searches for.
 """
 function _search_text(doc::AbstractString)
     isempty(doc) && return ""
     paragraphs = String[]
-    current = String[]
-    for line in split(doc, '\n')
-        stripped = strip(line)
-        if isempty(stripped)
-            isempty(current) || (push!(paragraphs, join(current, " ")); current = String[])
-            length(paragraphs) == 2 && break
-        else
-            push!(current, String(stripped))
+    for lines in _split_doc_paragraphs(doc)
+        paragraph = join(strip.(lines), " ")
+        isempty(paragraph) && continue
+        if length(paragraphs) < 2
+            push!(paragraphs, paragraph)
+        elseif startswith(paragraph, "Use it to")
+            push!(paragraphs, paragraph)
+            break
         end
     end
-    (isempty(current) || length(paragraphs) == 2) || push!(paragraphs, join(current, " "))
     join(paragraphs, " ")
 end
 
