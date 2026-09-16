@@ -476,7 +476,17 @@ linklayer expectations now disagree with.
 
 ### Stage 5 — what is left open
 
-- [ ] The embed card, keyed on a domain boundary.
+- [x] The embed card, keyed on a domain boundary. Done 2026-09-16, for
+      omnet's study plan. **The key is the block being a file of another
+      domain**: `is_file_document(block)` and not the page's own document
+      type. The markdown and RST page layouts put such a block in a foldable
+      card titled with its file name, built once for the block and found again
+      by it, so a fold survives a block added above. The card and the two
+      functions that add and drop its `content` reference step are the widget
+      package's (`make_embed_card`, `make_embed_card_path`,
+      `find_embed_card_path_inside`), so both page domains share one card. A
+      block that is not a file draws what it draws: a run card or a table is a
+      card already, and omnet gives a plot view a card of its own.
 
 ## What the tests must keep proving
 
@@ -528,4 +538,5 @@ domain can be wrong. Each gets a round-trip test of its own before the switch.
 ## Decisions left open
 
 - Whether the save context is built from the workspace document.
-- When the embed card returns, and on what key.
+- ~~When the embed card returns, and on what key.~~ Answered 2026-09-16: on
+  the page layout, keyed on the block being a file (Stage 5).
