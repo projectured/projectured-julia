@@ -3081,11 +3081,26 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         Cell(affine_identity),
         Cell(nothing))
 
+    # The ring over the page, while the document the page shows is selected as a
+    # whole. The page's document is in the tree, so its own selection says so.
+    ring = make_selection_ring(() -> begin
+        cims = all_cims[]
+        idx = _active_idx(get_stored_selection(w), length(cims))
+        (1 <= idx <= length(cims) && cims[idx] !== nothing) || return nothing
+        page = _get_page_document(w, idx)
+        _is_whole_selected_page(page) || return nothing
+        reach_w, reach_h = get_graphics_size(cims[idx].output)
+        page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
+        page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
+        (cox, coy + geom[][4], page_w, page_h)
+    end)
+
     # A tabbed pane offered an extent reports that extent, not what its strip and
     # its page happen to reach: it bounded them, so its box is its own (§3b).
     inner = _make_canvas(0, 0, Any[
         selector_viewport,
         GraphicsCanvas(content_cv,  layout_none, true),
+        ring,
     ])
     canvas = (avail_w === nothing && avail_h === nothing) ? inner :
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
@@ -3358,13 +3373,32 @@ end
 # So the step is added exactly for that case. This is deliberately narrow: writing
 # it unconditionally is the correct path, and it would need both decoders changed
 # in the same commit.
+#
+# A selection of the whole page takes the step too, whatever the page holds. A
+# bare `selector_element_pairs[i]` is what a click on the tab strip answers, and
+# the page as a whole is a different thing: the document the tab holds.
 function _tab_prefix(res, widget)
     res === nothing && return nothing
     op, idx = res
     steps = (FieldReferenceStep("selector_element_pairs"), RangeReferenceStep(idx - 1, idx))
-    reroot_operation(op, _descends_into_page(widget, idx) ?
+    whole_page = op isa ReplaceSelectionOperation && op.path isa EmptyReference
+    reroot_operation(op, (whole_page || _descends_into_page(widget, idx)) ?
                          (steps..., FieldReferenceStep("element")) : steps)
 end
+
+# The document tab `idx` shows, or `nothing`.
+function _get_page_document(widget::WidgetTabbedPane, idx::Int)
+    pairs = widget.selector_element_pairs
+    (1 <= idx <= length(pairs)) || return nothing
+    page = pairs[idx]
+    page isa WidgetTabPage ? page.element : page
+end
+
+# Whether a page's document is selected as a whole. A control draws its own
+# focus ring, so its page draws none.
+_is_whole_selected_page(page) =
+    page isa Document && hasproperty(page, :selection) && !is_focusable_document(page) &&
+    page.selection isa EmptyReference
 
 # True when tab `idx` holds a document that is not a widget — the case with no
 # upstream decoder to compensate for the missing `.element` step.

@@ -7,9 +7,11 @@ authors = []
 # tabbed panes: the generic way to organize documents on the screen.
 
 [deps]
+ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedDragging = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
+ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
@@ -19,6 +21,8 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedClipboard = {path = "../ProjecturedClipboard"}
+ProjecturedFocus = {path = "../ProjecturedFocus"}
 ProjecturedDomain = {path = "../ProjecturedDomain"}
 ProjecturedDragging = {path = "../ProjecturedDragging"}
 ProjecturedLayout = {path = "../ProjecturedLayout"}

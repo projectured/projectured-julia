@@ -158,18 +158,24 @@ to write a reference against it with `@reference`.
 See also `show_layout`, which prints the tree with its references.
 
 A running editor draws a screen of windows, and a headless caller — a test, a
-workload — holds the tree itself. Both arrive at a verb, so both are read.
+workload — holds the tree itself. Both arrive at a verb, so both are read. A
+window whose content a clipboard wraps holds the tree inside the clipboard.
 `document.windows`, not `getfield`: the field holds a cell and the property is
 what reads through it.
 """
 get_window_tree(tree::PaneTree) = tree
 
+# A window whose content is wrapped in a clipboard holds the tree inside it.
+get_window_tree(slice::ClipboardSlice) = get_window_tree(slice.content)
+
 function get_window_tree(editor)
+    hasfield(typeof(editor), :document) ||
+        error("A " * String(nameof(typeof(editor))) * " holds no pane tree.")
     document = getfield(editor, :document)
     document isa PaneTree && return document
     windows = document.windows
     isempty(windows) && error("The editor shows no window.")
-    first(windows).content
+    get_window_tree(first(windows).content)
 end
 
 # ── What a pane holds ───────────────────────────────────────────────────────

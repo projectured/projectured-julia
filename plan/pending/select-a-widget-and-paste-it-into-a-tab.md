@@ -1,7 +1,7 @@
 # Select any widget, and paste the selected object into a tab
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
-worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b, 3 and 4 are done.
+worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b, 3, 4 and 5 are done.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -563,13 +563,45 @@ done here. Run only the tests that each step names.
 - **Counts:** `test_conversation_transcript()` 113 (51 before);
   `test_conversation()` 158 (96 before).
 
-### Step 5 — the new tab (projectured, pane slice)
+### Step 5 — the new tab and the page (projectured, pane and widget slices)
 
-- [ ] `Ctrl+T` and the `+` button select the placeholder (D8).
-- [ ] `get_window_tree` finds a tree under a wrapper (D7).
-- [ ] Tests: the eight pane tests keep their counts, except the assertions on
+- [x] `Ctrl+T` and the `+` button select the placeholder (D8). A split that
+      opens a new tab does the same.
+- [x] `get_window_tree` finds a tree under a wrapper (D7).
+- [x] Tests: the eight pane tests keep their counts, except the assertions on
       the new-tab cursor, which change to the new path. `F2`, `Ctrl+W` and
       `Ctrl+PageDown` still act on a tab whose placeholder holds the selection.
+
+**Done 2026-09-17.** What the step found and decided:
+
+- **The cursor of a new tab** is built by `_make_new_tab_cursor`: the tab's
+  content when it is the placeholder, the tab otherwise. `open_pane!` opens a
+  real document, so its cursor stays on the tab. No existing pane assertion
+  named the new-tab cursor, so none changed.
+- **The tree under a wrapper.** `get_window_tree(::ClipboardSlice)` unwraps,
+  and `get_window_tree(editor)` asks the window's content. The pane package now
+  depends on `ProjecturedClipboard` and `ProjecturedFocus`.
+- **An Alt+click on a page.** The tabbed pane now adds the page's `element`
+  step to a whole-page answer, so it differs from a click on the tab strip. The
+  pane tree's reader then turns an Alt+click inside a page whose answer is not
+  a whole document — the tab, a caret, or a place the content's projection
+  introduced — into the tab's content as a whole (`_select_page_content`).
+  This is the floor of D5: any tab content can be selected, whatever its
+  projection maps.
+- **The ring over a page.** The tabbed pane rings its page while the page's
+  document holds a whole-element selection. That document is in the tree, so
+  the editor writes its selection cell. A noted object in two places rings in
+  both, as D12 accepts.
+- **A lie the ring showed.** The pane tree's root composite held the constant
+  selection `elements[1]` only to route keys, and the ring rule read it as
+  "the pane layer, selected whole": every window was ringed. The composite now
+  holds the tree's selection mapped forward, which routes keys exactly as
+  before when the focus is in a group.
+- **Counts:** `test_pane_reader()` 41 (32 before); `test_pane_gestures()` 60
+  (42 before, 52 after Step 2). The ten suites of Step 1 keep the baseline's
+  failures and no other: substrate 62295 pass, 3 fail, 2 error, 1 broken (the
+  split-pane drag test); workbench 108 pass, 3 fail, 2 error (the assistant
+  and tab-strip scroll tests).
 
 ### Step 6 — the IDE and its projections (omnet)
 

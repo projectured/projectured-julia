@@ -10,9 +10,11 @@ relative `..XxxModule` references.
 """
 module ProjecturedPane
 
+using ProjecturedClipboard
 using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedDragging
+using ProjecturedFocus
 using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
@@ -36,6 +38,8 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const FocusModule = ProjecturedFocus.FocusModule
 
 include("../../../source/pane/PaneModule.jl")
 

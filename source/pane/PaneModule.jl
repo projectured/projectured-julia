@@ -29,11 +29,13 @@ slice declares no operation of its own.
 module PaneModule
 
 using ..CellModule
+using ..ClipboardModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..DraggingModule
 using ..EventModule
+using ..FocusModule
 using ..GestureBindingModule
 using ..IntentModule
 using ..IoMapModule

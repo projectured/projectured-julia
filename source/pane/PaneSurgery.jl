@@ -362,7 +362,9 @@ end
     make_pane_open_tab_operation(tree, group, tab; index) -> Operation | Nothing
 
 Insert `tab` into `group` at the 1-based `index` (the end by default) and focus
-it. One `insert_elements` splice with its cursor move.
+it. One `insert_elements` splice with its cursor move. A tab whose content is
+the empty placeholder takes the selection on that content, as a whole, so a
+paste fills it.
 """
 function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
                                  index = nothing)
@@ -370,8 +372,19 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     tabs_path === nothing && return nothing
     n = length(group.tabs)
     at = index === nothing ? n + 1 : clamp(Int(index), 1, n + 1)
-    cursor = _element_path(tree, group, :tabs, at, tab)
-    insert_elements(tabs_path, at - 1, Any[tab], cursor)
+    pairs = _pairs_to(tree, group)
+    pairs === nothing && return nothing
+    push!(pairs, (group, FieldReferenceStep("tabs")))
+    push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
+    insert_elements(tabs_path, at - 1, Any[tab], _make_new_tab_cursor(pairs, tab))
+end
+
+# Where the selection goes in a tab that is about to exist, given the pairs that
+# lead to it: its content, when the content is the empty placeholder a paste
+# fills, and the tab itself otherwise.
+function _make_new_tab_cursor(pairs, tab::PaneTab)
+    tab.content isa DocumentNothing || return _reference_from(pairs, tab)
+    _reference_from(vcat(pairs, Any[(tab, FieldReferenceStep("content"))]), tab.content)
 end
 
 # A title no other tab carries. A person reads a title, so two panes reading the
@@ -550,7 +563,7 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup, orientation
         push!(pairs, (owner.elements, ElementReferenceStep(at)))
         push!(pairs, (new_group, FieldReferenceStep("tabs")))
         push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-        cursor = _reference_from(pairs, tab)
+        cursor = _make_new_tab_cursor(pairs, tab)
         return CompoundOperation(Any[
             insert_elements(elements_path, at - 1, Any[new_group]),
             _write_weights(tree, owner, weights),
@@ -565,7 +578,7 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup, orientation
     pairs === nothing && return nothing
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-    cursor = _reference_from(pairs, tab)
+    cursor = _make_new_tab_cursor(pairs, tab)
     CompoundOperation(Any[write, ReplaceSelectionOperation(cursor)])
 end
 

@@ -324,5 +324,78 @@ end
     @test read_intent(stage, iomap, op) === op
 end
 
+# ── A whole page ─────────────────────────────────────────────────────────
+
+_alt_press(x, y) = MousePress(:left, x, y, ModifierKeys(alt = true))
+_page_context() = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
+
+# Where a text is drawn, and the drawn box of every selection ring.
+function _page_walk(f, node, x = 0, y = 0)
+    node isa ReactiveCell && return _page_walk(f, node[], x, y)
+    if node isa GraphicsCanvas
+        for element in node.elements
+            _page_walk(f, element, x + Int(node.x), y + Int(node.y))
+        end
+    elseif node isa GraphicsViewport
+        _page_walk(f, node.content, x + Int(node.x), y + Int(node.y))
+    else
+        f(node, x, y)
+    end
+end
+function _page_text_at(root, text)
+    found = nothing
+    _page_walk(root) do node, x, y
+        (found === nothing && node isa GraphicsText && occursin(text, String(node.text))) || return
+        found = (x + Int(node.x), y + Int(node.y))
+    end
+    found
+end
+function _page_rings(root)
+    rings = Tuple{Int,Int,Int,Int}[]
+    _page_walk(root) do node, x, y
+        (node isa GraphicsRect && Int(node.border_width) > 0 &&
+         node.border_color.blue == SELECTION_RING_COLOR.blue &&
+         node.border_color.red == SELECTION_RING_COLOR.red) || return
+        push!(rings, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    rings
+end
+_is_content_selected(tree, group, i) =
+    string(strip_reference_types(get_selection(tree))) ==
+    string(strip_reference_types(get_pane_content_path(tree, group, i)))
+
+@testset "an Alt+click on a page selects what the tab holds, as a whole" begin
+    for content in (WidgetLabel(Point2D(0, 0), "label"), DocumentNothing())
+        group = PaneGroup(PaneTab[PaneTab("t", content)])
+        tree = PaneTree(group)
+        editor = _PaneReaderMockEditor(tree)
+        evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
+        proj = make_pane_projection_example(measure = _stub)
+        iomap = print_document(proj, nothing, tree, _page_context())
+        at = _page_text_at(iomap.output, content isa DocumentNothing ? "Nothing" : "label")
+        @test at !== nothing
+        op = read_intent(proj, iomap, _alt_press(at[1] + 2, at[2] + 2))
+        @test op isa ReplaceSelectionOperation
+        _apply!(editor, op)
+        @test _is_content_selected(tree, group, 1)
+        @test evaluate_reference(tree, get_selection(tree)) === content
+        # The page draws the ring, around the text that was pressed.
+        rings = _page_rings(iomap.output)
+        @test length(rings) == 1
+        (rx, ry, rw, rh) = only(rings)
+        @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
+        # A whole tab is not its page: the ring goes.
+        _apply!(editor, make_pane_focus_operation(tree, group, 1))
+        @test isempty(_page_rings(iomap.output))
+    end
+end
+
+@testset "a window whose content a clipboard wraps still holds its tree" begin
+    tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
+    @test get_window_tree(ClipboardSlice(tree)) === tree
+    @test get_window_tree(tree) === tree
+    @test get_window_tree(_PaneReaderMockEditor(tree)) === tree
+end
+
 end # testset
 end # function

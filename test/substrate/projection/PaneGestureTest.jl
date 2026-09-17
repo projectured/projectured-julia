@@ -43,6 +43,26 @@ end
     @test length(group.tabs) == 3
     @test get_pane_focus(tree) == (group, 3)
     @test get_pane_tab_title_string(group.tabs[3]) == "untitled"
+    # The selection is on the new tab's empty content, as a whole, so a paste
+    # fills it.
+    @test string(strip_reference_types(get_selection(tree))) ==
+          string(strip_reference_types(get_pane_content_path(tree, group, 3)))
+    @test evaluate_reference(tree, get_selection(tree)) isa DocumentNothing
+    # The tab's own keys still work from there.
+    @test _press!(editor, KeyDown(:f2, ModifierKeys())) !== nothing
+    @test get_pane_focus_title(tree) == (group, 3)
+    _press!(editor, KeyDown(:escape, ModifierKeys()))
+    _press!(editor, _ctrl(:w))
+    @test length(group.tabs) == 2
+end
+
+@testset "a split selects the empty content of its new tab" begin
+    tree, group, editor = _seeded()
+    _press!(editor, _ctrl(:backslash))
+    right = tree.root.elements[2]
+    @test get_pane_focus(tree) == (right, 1)
+    @test evaluate_reference(tree, get_selection(tree)) === right.tabs[1].content
+    @test right.tabs[1].content isa DocumentNothing
 end
 
 @testset "Ctrl+W closes the focused tab" begin

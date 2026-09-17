@@ -1246,7 +1246,7 @@ uuid = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 version = "0.1.0"
 
 [[deps.ProjecturedPane]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedWidget"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedWidget"]
 path = "../../package/ProjecturedPane"
 uuid = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 version = "0.1.0"

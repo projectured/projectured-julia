@@ -178,13 +178,16 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     composite = WidgetComposite(Point2D(0, 0), Any[])
     set_cell_function!(getfield(composite.elements, :elements),
                        () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
-    # The pane layer is slot 1, always. The indicator never takes a keystroke, so
-    # a constant selection is the whole of what the composite's coordless routing
-    # needs — the pane widget routes on from there by its own.
-    getfield(composite, :selection)[] =
-        @reference ::WidgetComposite.elements::CellVector[1]::WidgetDocument
-
-    PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
+    iomap = PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
+    # The pane layer is slot 1, and the indicator never takes a keystroke. The
+    # composite's selection is the tree's, mapped forward, so a key reaches the
+    # pane layer whenever the focus is in a group, and the composite names the
+    # layer as a whole — and rings it — only when the selection says so.
+    set_cell_function!(getfield(composite, :selection), () -> begin
+        selection = get_selection(tree)
+        selection === nothing ? nothing : map_reference_forward(p, iomap, selection)
+    end)
+    iomap
 end
 
 # ── The drop indicator ─────────────────────────────────────────────────────
@@ -425,8 +428,41 @@ end
 
 # A tab click arrives as a ReplaceSelectionOperation, which the generic reader
 # re-targets through `map_reference_backward`: its bare
-# `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`. No method of our
-# own is needed.
+# `selector_element_pairs[i]` case answers `tabs[i]::PaneTab`.
+#
+# An Alt+click inside a page names an object in the tab's document. When the
+# content's projection maps it back to a whole document, the answer is that
+# document. Any other answer — the tab, because the content maps nothing back; a
+# caret; a place the content's projection introduced — names the tab's content,
+# as a whole.
+function _select_page_content(tree::PaneTree, widget_operation, answer)
+    (widget_operation isa ReplaceSelectionOperation && _is_inside_page(widget_operation.path)) ||
+        return answer
+    answer isa ReplaceSelectionOperation || return answer
+    target = try_evaluate_reference(tree, answer.path, nothing)
+    (target isa Document && !(target isa PaneDocument)) && return answer
+    rest = _after_field(answer.path, "root")
+    rest === nothing && return answer
+    found = _focus_walk(tree.root, rest)
+    found === nothing && return answer
+    group, index = found[1], found[2]
+    index == 0 && return answer
+    content = get_pane_content_path(tree, group, index)
+    content === nothing ? answer : ReplaceSelectionOperation(content)
+end
+
+# Whether a widget path goes into a tab's page: past `selector_element_pairs[i]`
+# into its `element`.
+function _is_inside_page(path)
+    steps = get_reference_steps(strip_reference_types(path))
+    for k in (length(steps) - 2):-1:1
+        step = steps[k]
+        (step isa FieldReferenceStep && step.name == "selector_element_pairs") || continue
+        next = steps[k + 2]
+        return next isa FieldReferenceStep && next.name == "element"
+    end
+    false
+end
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::CloseTabOperation)
@@ -497,6 +533,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     end
     payload = change.operation === nothing ? change.gesture : change.operation
     answer = read_intent(p, iomap, payload)
+    is_whole_selection_press(change.gesture) &&
+        (answer = _select_page_content(tree, change.operation, answer))
     # A press that nothing claimed still says which pane the user pointed at. A
     # pane is mostly empty space — its content is a document that ends where its
     # text ends — so without this a click beside the text would focus nothing.
