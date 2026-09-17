@@ -97,11 +97,16 @@ function test_widget_selection()
         # A child's whole selection is kept; anything else selects the child.
         inside = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
         @test convert_to_whole_selection(inside, t.card) === inside
-        for answer in (nothing, ReplaceSelectionOperation(letter), InvokeActionOperation(Action("go")))
-            converted = convert_to_whole_selection(answer, t.card)
+        for (answer, child) in ((nothing, t.card), (InvokeActionOperation(Action("go")), t.card),
+                                (ReplaceSelectionOperation(letter), text))
+            converted = convert_to_whole_selection(answer, child)
             @test converted isa ReplaceSelectionOperation
             @test converted.path isa EmptyReference
         end
+        # A path the child's document does not have is the container's own
+        # spelling, and the level above maps it: it is kept.
+        own = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("nowhere"), EmptyReference()))
+        @test convert_to_whole_selection(own, t.card) === own
 
         # The container's own view of a whole selection.
         second = ConcreteReference(FieldReferenceStep("children"),

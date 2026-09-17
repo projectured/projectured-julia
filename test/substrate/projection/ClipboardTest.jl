@@ -399,6 +399,13 @@ end
     op = read_intent(p, iomap, KeyDown(:v, ctrl))
     @test op isa CompoundOperation
     @test _rd_ref(op.operations[1]) == cpath(content, FieldReferenceStep("right"))
+    # A record is never pasted, even where a paste may write.
+    held = ClipboardSlice(_ClipboardPair(PrimitiveString("x"), PrimitiveString("y")),
+                          _ClipboardRecord(PrimitiveString("kept")))
+    held.selection = cpath(content, FieldReferenceStep("right"))
+    io = print_document(p, IdentityProjection(), held, PrinterContext())
+    @test !(read_intent(p, io, KeyDown(:v, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, io, KeyDown(:v, ctrl_shift)) isa CompoundOperation)
 end
 
 @testset "a paste writes only a value its slot takes" begin

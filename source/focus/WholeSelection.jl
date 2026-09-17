@@ -33,15 +33,24 @@ is_whole_selection(document, reference) =
 The answer a container gives for an Alt+press that hit `child`, where
 `operation` is what `child` itself answered.
 
-A whole selection inside `child` is kept, so the innermost object under the
-pointer wins. Any other answer becomes the selection of `child` as a whole:
-nothing, a caret, and a control's action alike. An Alt+press therefore never
-acts, because the action a button answered is dropped here, and a reader has no
-side effect of its own.
+A selection inside `child` is kept, so the innermost object under the pointer
+wins. Any other answer becomes the selection of `child` as a whole: nothing, a
+control's action, and a selection that names a value inside `child` rather than
+a document, such as a caret. An Alt+press therefore never acts, because the
+action a button answered is dropped here, and a reader has no side effect of its
+own.
+
+A selection that does not resolve in `child` is kept too. A container can answer
+a path in its own terms that is not a path of its document — a tabbed pane names
+a widget page without the page's `element` step — and the level above maps it
+back.
 """
-convert_to_whole_selection(operation, child) =
-    (operation isa ReplaceSelectionOperation && is_whole_selection(child, operation.path)) ?
-        operation : ReplaceSelectionOperation(EmptyReference())
+function convert_to_whole_selection(operation, child)
+    operation isa ReplaceSelectionOperation || return ReplaceSelectionOperation(EmptyReference())
+    target = try_evaluate_reference(child, operation.path, missing)
+    (target === missing || target isa Document) ? operation :
+        ReplaceSelectionOperation(EmptyReference())
+end
 
 """
     find_whole_selected_index(selection, field) -> Int | Nothing

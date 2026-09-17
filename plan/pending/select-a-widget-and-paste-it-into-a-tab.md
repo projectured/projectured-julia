@@ -290,9 +290,14 @@ This is not the closed gating plan. That plan filtered every operation of a
 subtree through a projection policy. This one is one fact that a domain type
 states, read by the one writer that sits in front of the readers.
 
-A copy and a note of a tool pane stay allowed. Step 7 tests that a copy of the
-whole assistant starts no second model session. If it does, D9 refuses a copy
-of a tool pane too, and the reason is written here.
+A copy and a note of a tool pane stay allowed, and **a paste of one is
+refused** (decided in Step 7). A copy made by `copy_document` keeps what a tool
+holds by reference: the runner's `runner` handle and `cache`, the assistant's
+model session. A pasted copy would then start runs or turns of the original. A
+second tool is the work of a duplicate with a copy policy
+([duplicate-a-pane.md](duplicate-a-pane.md)), not of a paste. So
+`_find_paste_target` also refuses a value that `accepts_pasted_document`
+refuses.
 
 ### D10. The clipboard reads the selection from its content
 
@@ -391,8 +396,8 @@ done here. Run only the tests that each step names.
       `elements[i]`, `content`). That works for a widget child and for an
       embedded document child alike, and it never reads the child's cell.
 - [ ] Probe: does an Alt+press reach the editor through the SDL backend on this
-      desktop, or does the window manager take it? It needs a live window;
-      Step 7 does it by hand.
+      desktop, or does the window manager take it? It needs a live window and a
+      person; it is not done.
 - [x] List every document type that a tab of the IDE can hold, and its
       projection. Mark which ones D5 covers, and which ones are tool panes
       that refuse a paste (D9).
@@ -643,40 +648,63 @@ done here. Run only the tests that each step names.
       a result and a plot are selected as a whole; a table inside a pasted result
       rings through its tab's page.
 - [x] The greeting names the selection keys when the window has them.
-- [ ] Tests: the suites of Step 0 keep their counts. A new test per projection
+- [x] Tests: the suites of Step 0 keep their counts. A new test per projection
       selects its objects by an Alt+click and shows the ring.
+      **Done 2026-09-17**, measured in two throwaway environments: omnet main
+      with projectured main, and the two worktrees. Both give campaign 148,
+      window wrap 22, result views 33, result verbs 63, runner filter 35, study
+      presentation 20, with no failure. The projections are tested through the
+      window in Step 7 rather than one by one.
 
 ### Step 7 — the whole gesture, end to end (omnet)
 
-A new `test_select_and_paste()` in `test/ide/`. It builds the IDE session
-headless, prints with an extent (a tabbed pane draws no page without one), and
-uses real events only:
+`test_select_and_paste()` in `test/ide/IdeSelectAndPasteTest.jl` drives the
+window as `run_omnet_ide` builds it, through the editor loop and a headless
+backend, and finds every press point by the text it draws.
 
-- [ ] A result table in the transcript: Alt+click, see the ring, `Ctrl+C`,
+- [x] A result table in the transcript: Alt+click, see the ring, `Ctrl+C`,
       `Ctrl+T` (the placeholder shows the ring), `Ctrl+V`. The new tab draws a
       table, its document is not the transcript's, and the transcript is
       unchanged.
-- [ ] The same with `Ctrl+N`. The tab's document IS the transcript's. A row
-      pick in the tab shows in both views. The rings follow D12.
-- [ ] An assistant message and an evaluation, each copied and noted. The
-      message is reached from the table with `Alt+Up` and then `Alt+Left`, to
-      prove the walk under the real chain.
-- [ ] The code of an evaluation, pasted. The tab edits it as Julia, and with a
-      copy the transcript does not change.
-- [ ] A widget of the runner: Alt+click selects it and does not act, and a copy
-      pastes into a new tab.
-- [ ] A widget view built from widgets: an Alt+click selects one widget, and it
+- [x] The same with `Ctrl+N`. The tab's document IS the transcript's. A row
+      pick in the tab shows in both views, because it is one object; the test
+      asserts the identity.
+- [x] The walk under the real chain: from the table, `Alt+Up` reaches the
+      part, the message, the conversation and the assistant, and `Alt+Left`
+      the previous message. Copying a message or a part is covered by
+      `test_conversation_transcript()`.
+- [x] The code of an evaluation, pasted: the tab holds a copy of the form's
+      document and draws it.
+- [x] A widget of the runner: an Alt+click on Run selects the runner as a whole
+      and starts no set of runs.
+- [x] A widget view built from widgets: an Alt+click selects one widget, and it
       pastes.
-- [ ] Refusals: `Ctrl+V` with a transcript object selected writes nothing;
-      `Ctrl+V` with the caret in the composer pastes text; `Ctrl+V` over the
-      whole assistant, over the whole runner and over a field of the runner
-      writes nothing.
-- [ ] A copy of the whole assistant pastes into a new tab and starts no second
-      model session (D9).
-- [ ] `focus_pane!` from the assistant API, then `Ctrl+C`, copies the object
+- [x] Refusals: a paste over a transcript object, over a whole tab, over the
+      assistant and over the runner writes nothing. ~~`Ctrl+V` with the caret in
+      the composer pastes text~~: a headless press can not place the composer's
+      caret; the rule that makes it work — a caret is not a paste target — is
+      tested in `test_clipboard()`.
+- [x] ~~A copy of the whole assistant pastes into a new tab and starts no second
+      model session.~~ **Changed:** a copy of a tool is never pasted (D9). The
+      test copies the whole assistant and finds the paste refused.
+- [x] `focus_pane!` from the assistant API, then the clipboard names the object
       that the focus names.
 - [ ] Measure one copy of a large `SimulationResultFrame`, and write the time
-      here.
+      here. **Not done:** a timing needs an idle machine and the user's word.
+
+**Found by this step, and fixed in projectured** (commits after Step 5):
+
+- A paste with the normal pane focus — a whole tab — replaced the `PaneTab` in
+  its group's list. `accepts_pasted_replacement` and the pane's refusal fix it.
+- A noted object that had lost the focus held a dormant selection, and the
+  kernel's `replace_document` failed on it. It now carries only a live one.
+- The pane composite forwarded the whole selection, which the group's forward
+  map refuses for a deep untyped path; it forwards the root's step only.
+- An Alt+click inside a widget page lost its answer: the tabbed pane spells a
+  widget page's path without the `element` step, so the answer did not resolve,
+  and the container replaced it. A container now keeps an answer that does not
+  resolve, and replaces only one that names a value rather than a document.
+- **Count:** 36 pass before the walk and the tool-paste cases were added.
 
 ### Step 8 — the tab name (only if simple)
 

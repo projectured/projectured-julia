@@ -120,6 +120,9 @@ part, and a section card rings its form or result.
 
 The history of a conversation is a record, so
 `accepts_pasted_document(::ConversationConversation)` answers `false`, and so
-does the assistant as a whole. A clipboard pastes and cuts nothing there. The
-composer's own text paste is not a pasted document, and it still works.
+does the assistant as a whole. A clipboard pastes and cuts nothing there, and it
+does not paste a whole conversation or a whole assistant elsewhere either: a
+copy of an assistant would share its model session. A message, a part, a form
+and a result paste anywhere a paste may write. The composer's own text paste is
+not a pasted document, and it still works.
 

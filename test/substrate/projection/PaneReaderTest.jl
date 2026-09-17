@@ -390,6 +390,30 @@ _is_content_selected(tree, group, i) =
     end
 end
 
+@testset "an Alt+click inside a widget page selects the widget, not the page" begin
+    label = WidgetLabel(Point2D(0, 0), "inner")
+    view = WidgetCard(Point2D(0, 0); title = "a view",
+                      content = HorizontalLayout(Any[label, WidgetLabel(Point2D(0, 0), "other")]))
+    group = PaneGroup(PaneTab[_tab("a"), PaneTab("view", view)])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 2))
+    proj = make_pane_projection_example(measure = _stub)
+    iomap = print_document(proj, nothing, tree, _page_context())
+    at = _page_text_at(iomap.output, "inner")
+    @test at !== nothing
+    op = read_intent(proj, iomap, _alt_press(at[1] + 2, at[2] + 2))
+    @test op isa ReplaceSelectionOperation
+    _apply!(editor, op)
+    @test evaluate_reference(tree, get_selection(tree)) === label
+    # The ring is the layout's, around the label, and not the page's.
+    rings = _page_rings(iomap.output)
+    @test length(rings) == 1
+    (rx, ry, rw, rh) = only(rings)
+    @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
+    @test rw < 200
+end
+
 @testset "a paste fills a tab's content and never replaces a pane" begin
     group = PaneGroup(PaneTab[_tab("a"), PaneTab("", DocumentNothing())])
     tree = PaneTree(group)
