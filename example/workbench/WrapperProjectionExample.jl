@@ -67,46 +67,6 @@ function make_introspection_projection(projection; measure=measure_truetype_text
     )))
 end
 
-# Stack the clipboard projection on top of an arbitrary example projection, as a
-# two-stage ChainingProjection (mirroring the hand-written
-# `make_clipboard_projection_example`, but domain-generic):
-#
-#   stage 1: the clipboard dispatcher exposes the *active child document* (the
-#            wrapped content, or the stored slice once toggled) unchanged — its `Any`
-#            branch is a IdentityProjection, so the recursion just hands the child
-#            document back.
-#   stage 2: the example's own projection (isolated in a NestingProjection) renders
-#            that document all the way to graphics.
-#
-# Why not collapse to a single RecursiveProjection that renders to graphics inside
-# the clipboard's `Any` branch? Because `ClipboardSliceToAnyProjection.output` is a
-# reactive `Cell` (it has to be, so the display toggle propagates without dropping
-# `editor.iomap`). A ChainingProjection de-references a stage's cell-valued output
-# before feeding the next stage, but the *last* stage's output is returned raw — so a
-# clipboard projection used as the outermost stage would leak a `Cell` to the
-# backend (which expects a `GraphicsCanvas`). Keeping the example projection as a
-# trailing stage both renders to graphics and forces that de-reference.
-#
-# `to_text`/`from_text` are the optional OS-clipboard converters; they default to
-# `nothing` (OS bridge off), because pasting OS text into an arbitrary domain is not
-# generally type-safe. A caller that knows the wrapped domain accepts the converted
-# node can opt in. `collection=true` uses the elements view instead of a slice (the
-# collection display mode exposes a CellVector, which only the matching example
-# projection can render — slice mode is the general case).
-function make_clipboard_projection(projection; collection=false,
-                                   to_text=nothing, from_text=nothing, text=false)
-    clip = collection ?
-        ClipboardCollectionToAnyProjection() :
-        ClipboardSliceToAnyProjection(; to_text=to_text, from_text=from_text, text=text)
-    ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
-            (collection ? ClipboardCollection : ClipboardSlice) => clip,
-            Any => IdentityProjection(),
-        ])),
-        NestingProjection(projection; recursion=IdentityProjection()),
-    )
-end
-
 # Wrap a Text→Text projection (TextHighlighting / TextFiltering) in a
 # ProjectionConfiguringProjection so a control bar for its parameters stacks
 # above the projected text, then render the resulting widget+text tree. The

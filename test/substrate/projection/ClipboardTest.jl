@@ -1,3 +1,19 @@
+# Documents for the paste rules: a record that refuses a pasted document, a pair
+# that holds one, and a document whose field cell takes only a primitive string.
+@document struct _ClipboardRecord <: Document
+    item::Any
+end
+DomainModule.accepts_pasted_document(::_ClipboardRecord) = false
+
+@document struct _ClipboardPair <: Document
+    left::Any
+    right::Any
+end
+
+@document MutableCell struct _ClipboardTyped <: Document
+    label::PrimitiveString
+end
+
 function test_clipboard()
 
 # A reference path built from raw steps.
@@ -345,6 +361,110 @@ end
     finally
         reset_os_clipboard_backend!()
     end
+end
+
+@testset "a paste needs a whole document, and a caret goes on to the content" begin
+    slice = ClipboardSlice(PrimitiveString("hello"), PrimitiveString("stored"))
+    # A caret between the second and the third letter.
+    slice.selection = cpath(FieldReferenceStep("content"), RangeReferenceStep(2, 2))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+end
+
+@testset "a document that refuses a paste protects itself and what it holds" begin
+    record = _ClipboardRecord(PrimitiveString("kept"))
+    pair = _ClipboardPair(record, PrimitiveString("free"))
+    slice = ClipboardSlice(pair, PrimitiveString("stored"))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    content = FieldReferenceStep("content")
+    for refused in (cpath(content, FieldReferenceStep("left")),
+                    cpath(content, FieldReferenceStep("left"), FieldReferenceStep("item")))
+        slice.selection = refused
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+        # A copy only reads, so a record can still be copied.
+        @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
+    end
+    slice.selection = cpath(content, FieldReferenceStep("right"))
+    op = read_intent(p, iomap, KeyDown(:v, ctrl))
+    @test op isa CompoundOperation
+    @test _rd_ref(op.operations[1]) == cpath(content, FieldReferenceStep("right"))
+end
+
+@testset "a paste writes only a value its slot takes" begin
+    typed = _ClipboardTyped(PrimitiveString("name"))
+    content = FieldReferenceStep("content")
+    at_label = cpath(content, FieldReferenceStep("label"))
+    for (stored, taken) in ((PrimitiveString("other"), true), (DocumentNothing(), false))
+        slice = ClipboardSlice(typed, stored)
+        slice.selection = at_label
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        @test (read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation) == taken
+        # A cut writes an empty document, which this slot does not take either.
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+    end
+end
+
+@testset "a gesture the host does not offer goes on to the content" begin
+    slice = ClipboardSlice(PrimitiveString("hello"), PrimitiveString("stored"))
+    slice.selection = cpath(FieldReferenceStep("content"))
+    offered = (:copy, :note, :paste, :paste_copy)
+    p = ClipboardSliceToAnyProjection(offered_gestures = offered)
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:slash, ctrl)) isa ToggleClipboardSliceOperation)
+    @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:n, ctrl)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa CompoundOperation
+    @test Set(CLIPBOARD_GESTURES) == Set((:toggle, :copy, :cut, :note, :paste, :paste_copy))
+end
+
+@testset "an operation from the content is re-rooted under it" begin
+    slice = ClipboardSlice(_ClipboardPair(PrimitiveString("a"), PrimitiveString("b")))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    right = cpath(FieldReferenceStep("right"))
+    write = ReplaceReferencedValueOperation(nothing, right, PrimitiveString("c"))
+    moved = read_intent(p, iomap, CompoundOperation(Any[write, ReplaceSelectionOperation(right)]))
+    @test moved isa CompoundOperation
+    @test moved.operations[1].reference == cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
+    @test moved.operations[2].path == cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
+    # A write that carries its own document is not re-rooted.
+    own = ReplaceReferencedValueOperation(slice.content, "right", PrimitiveString("d"))
+    @test read_intent(p, iomap, own) === own
+end
+
+@testset "the clipboard reads the selection from its content" begin
+    left, right = PrimitiveString("a"), PrimitiveString("b")
+    pair = _ClipboardPair(left, right)
+    slice = ClipboardSlice(pair)
+    # The clipboard's own cell names the whole content, and then the content's
+    # selection is written directly, as a pane verb does.
+    slice.selection = cpath(FieldReferenceStep("content"))
+    set_selection!(pair, cpath(FieldReferenceStep("right")))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    op = read_intent(p, iomap, KeyDown(:n, ctrl))
+    @test op isa CompoundOperation
+    @test _rd_val(op.operations[1]) === right
+end
+
+@testset "the wrapper helpers build the clipboard and its chain" begin
+    document = make_clipboard_document(PrimitiveString("x"))
+    @test document isa ClipboardSlice
+    @test make_clipboard_document(PrimitiveString("x"); collection = true) isa ClipboardCollection
+    projection = make_clipboard_projection(IdentityProjection(); offered_gestures = (:copy,))
+    @test projection isa ChainingProjection
+    dispatch = projection.projections[1].child
+    clipboard = only(q for (t, q) in dispatch.dispatch if t === ClipboardSlice)
+    @test clipboard isa ClipboardSliceToAnyProjection
+    @test clipboard.offered_gestures == (:copy,)
 end
 
 end # test_clipboard

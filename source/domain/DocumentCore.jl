@@ -66,3 +66,18 @@ DocumentReference(path::Reference; selection=nothing) =
 # The load/save/import/export document operations now live with the serializers
 # (see the module docstring): binary in `SerializationModule`, natural in
 # `FileFormatModule`.
+
+# ── What a paste may replace ──────────────────────────────────────────────────
+
+"""
+    accepts_pasted_document(document) -> Bool
+
+Whether a pasted document may replace `document`, or a document inside it.
+`true` by default. A domain answers `false` for a document that a paste must
+leave alone: a record, such as the history of a conversation, or a tool, such as
+an assistant pane or the form that starts a run.
+
+It speaks only to a pasted document. An edit that a document's own reader
+answers, such as typing into a form, does not ask.
+"""
+accepts_pasted_document(::Any) = true

@@ -30,7 +30,17 @@
 # clipboard tool. With both converters `nothing`, the default, there is no OS
 # interaction at all.
 """
-    ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing)
+    CLIPBOARD_GESTURES
+
+The six gestures a clipboard slice can offer, by name: `:toggle` (`Ctrl+/`),
+`:copy` (`Ctrl+C`), `:cut` (`Ctrl+X`), `:note` (`Ctrl+N`), `:paste` (`Ctrl+V`) and
+`:paste_copy` (`Ctrl+Shift+V`).
+"""
+const CLIPBOARD_GESTURES = (:toggle, :copy, :cut, :note, :paste, :paste_copy)
+
+"""
+    ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing,
+                                    text=false, offered_gestures=CLIPBOARD_GESTURES)
 
 Projects a `ClipboardSlice`. When `display_slice` is `false` the output is the
 projection of `content`; when `true` it is the projection of the stored `slice`
@@ -47,15 +57,27 @@ copy/cut/paste operate on **character ranges** instead of document nodes: copy/c
 store the selected substring (as a `TextString`) in the slice and mirror it to the
 OS clipboard; paste splices the slice's text (or, if the slice is empty, the OS
 clipboard's text) in at the caret. `text` defaults to `false`.
+
+`offered_gestures` names the gestures the projection answers, out of
+[`CLIPBOARD_GESTURES`](@ref); a gesture left out goes on to the content. A host
+whose content must not be cut, or whose whole view must not be swapped for the
+stored slice, leaves out `:cut` or `:toggle`.
+
+A paste and a cut write only where the paste rules allow: the selection names a
+whole document, every document from the content down to it accepts a pasted
+document (`accepts_pasted_document`), and the slot takes the value. Otherwise
+the gesture goes on to the content.
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
     to_text::Any          # Document -> String, or nothing  (copy/cut/note mirror → OS)
     from_text::Any        # String -> Document, or nothing   (paste fallback ← OS)
     text::Bool            # text-range copy/cut/paste over a TextBlock content (+ OS)
+    offered_gestures::Tuple   # the names, out of CLIPBOARD_GESTURES, this projection answers
 end
-ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from_text=nothing, text::Bool=false) =
-    ClipboardSliceToAnyProjection(Cell(display_slice), to_text, from_text, text)
+ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from_text=nothing, text::Bool=false,
+                              offered_gestures::Tuple=CLIPBOARD_GESTURES) =
+    ClipboardSliceToAnyProjection(Cell(display_slice), to_text, from_text, text, offered_gestures)
 
 # ── IoMaps ────────────────────────────────────────────────────────────────────
 
@@ -188,7 +210,7 @@ function _text_clipboard_cut(p, input)
     del === nothing && return nothing
     CompoundOperation(Any[
         replace_document(_field_path("slice"), TextString(sub)),
-        _prefix_op(del, (FieldReferenceStep("content"),)),
+        reroot_operation(del, (FieldReferenceStep("content"),)),
         WriteOsClipboardOperation(sub),
     ])
 end
@@ -201,7 +223,7 @@ function _text_clipboard_paste(p, input)
     str === nothing && return nothing
     op = make_text_insert_operation(content, str)
     op === nothing && return nothing
-    _prefix_op(op, (FieldReferenceStep("content"),))
+    reroot_operation(op, (FieldReferenceStep("content"),))
 end
 
 # Copy: store an independent deep copy of the selected object in the slice. The
@@ -230,6 +252,7 @@ function _clipboard_cut(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_cut(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
+    _find_paste_target(input, DocumentNothing()) === nothing && return nothing
     ops = Any[
         replace_document(_field_path("slice"), obj),
         replace_document(sel, DocumentNothing()),
@@ -259,17 +282,19 @@ end
 # empty, fall back to the OS clipboard via the projection's `from_text` converter.
 function _clipboard_paste(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
-    sel = input.selection
-    (sel === nothing || sel isa EmptyReference) && return nothing
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)
         doc === nothing && return nothing
+        sel = _find_paste_target(input, doc)
+        sel === nothing && return nothing
         return CompoundOperation(Any[
             replace_document(sel, doc),
             ReplaceSelectionOperation(sel),
         ])
     end
+    sel = _find_paste_target(input, slice)
+    sel === nothing && return nothing
     CompoundOperation(Any[
         replace_document(sel, slice),
         ReplaceSelectionOperation(sel),
@@ -281,17 +306,19 @@ end
 # identical to paste (splicing a string needs no copy).
 function _clipboard_paste_copy(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
-    sel = input.selection
-    (sel === nothing || sel isa EmptyReference) && return nothing
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)
         doc === nothing && return nothing
+        sel = _find_paste_target(input, doc)
+        sel === nothing && return nothing
         return CompoundOperation(Any[
             replace_document(sel, doc),
             ReplaceSelectionOperation(sel),
         ])
     end
+    sel = _find_paste_target(input, slice)
+    sel === nothing && return nothing
     fresh = copy_document(slice)
     clear_selection!(fresh)                    # pasted content starts with no cursor
     CompoundOperation(Any[
@@ -310,6 +337,12 @@ end
 # ModifierKeys are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
+    named = (:toggle, :copy, :cut, :note, :paste_copy, :paste)
+    GestureBinding[binding for (name, binding) in zip(named, _make_clipboard_bindings(p))
+                   if name in p.offered_gestures]
+end
+
+function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
             (doc, event) -> ToggleClipboardSliceOperation(p),
@@ -343,12 +376,12 @@ function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent
                 read_intent(cim.projection, recursion, change, cim).operation
         return Intent(change.gesture,
                       merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(_prefix_op(child, (FieldReferenceStep("content"),)))))
+                                              _collected_intents(reroot_operation(child, (FieldReferenceStep("content"),)))))
     end
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
+    Intent(change.gesture, reroot_operation(inner.operation, (FieldReferenceStep("content"),)))
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

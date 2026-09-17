@@ -13,6 +13,7 @@ using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedKernel
 using ProjecturedPrimitive
+using ProjecturedProjection
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule

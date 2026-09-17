@@ -1,7 +1,7 @@
 # Select any widget, and paste the selected object into a tab
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
-worktree `projectured-julia-select-paste`. Steps 0, 1, 2 and 2b are done.
+worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b and 3 are done.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -485,17 +485,35 @@ done here. Run only the tests that each step names.
 
 ### Step 3 — the paste rules and the clipboard (projectured, domain and clipboard slices)
 
-- [ ] `accepts_pasted_document` in `ProjecturedDomain` (D9).
-- [ ] The three paste rules of D9.
-- [ ] Read the selection from the content (D10).
-- [ ] Replace `_prefix_op` with `reroot_operation` (D11).
-- [ ] Add `offered_gestures` (D7).
-- [ ] Move `make_clipboard_projection` out of the example (D7).
-- [ ] Tests, in `test_clipboard()`: each rule refuses and then falls through to
+- [x] `accepts_pasted_document` in `ProjecturedDomain` (D9).
+      **Done 2026-09-17**, in `DocumentCore.jl`.
+- [x] The three paste rules of D9.
+      **Done 2026-09-17:** `_find_paste_target` in `Clipboard.jl`. Paste,
+      paste-copy and cut use it, and the paste from the host's clipboard too.
+      Rule 3 reads the value type of the slot's own cell
+      (`AbstractCell{T}`), and an `ImmutableCell` takes nothing; an element
+      of a vector takes any document. The kernel keeps the declared field
+      types in the private `_declared_value_types`, and the plan does not
+      open it, because another session changes the same kernel files.
+- [x] Read the selection from the content (D10).
+      **Done 2026-09-17:** `_get_clipboard_selection`. The clipboard's own
+      cell decides only when it names a field other than `content`.
+- [x] Replace `_prefix_op` with `reroot_operation` (D11).
+- [x] Add `offered_gestures` (D7).
+      **Done 2026-09-17**, with `CLIPBOARD_GESTURES` naming the six.
+- [x] Move `make_clipboard_projection` out of the example (D7).
+      **Done 2026-09-17:** `ClipboardWrapper.jl` holds it and
+      `make_clipboard_document`, as `DraggingWrapper.jl` does for dragging.
+      `ProjecturedClipboard` now depends on `ProjecturedProjection`, and
+      `environment/all/Manifest.toml` is resolved. The workbench example
+      re-exports both for the gallery.
+- [x] Tests, in `test_clipboard()`: each rule refuses and then falls through to
       the content; a caret paste reaches the content; each gesture of
       `offered_gestures` is on and off; a pane edit under a wrapper re-roots; a
       copy after a direct write to the content's selection copies the right
       object.
+      **Done 2026-09-17: 135 pass** (102 before). `test_command_palette_decorator`
+      and `test_gesture_help`, which build the wrapper, pass (105).
 
 ### Step 4 — objects in the transcript (projectured, conversation slice)
 

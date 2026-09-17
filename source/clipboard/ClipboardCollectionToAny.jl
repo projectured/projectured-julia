@@ -180,12 +180,12 @@ function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::I
                 read_intent(cim.projection, recursion, change, cim).operation
         return Intent(change.gesture,
                       merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(_prefix_op(child, (FieldReferenceStep("content"),)))))
+                                              _collected_intents(reroot_operation(child, (FieldReferenceStep("content"),)))))
     end
     own !== nothing && return Intent(change.gesture, own)
     cim = iomap.content_iomap
     inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, _prefix_op(inner.operation, (FieldReferenceStep("content"),)))
+    Intent(change.gesture, reroot_operation(inner.operation, (FieldReferenceStep("content"),)))
 end
 read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

@@ -19,12 +19,6 @@ function make_introspection_document(document, projection; title="content")
     ])
 end
 
-# Wrap any example document in a clipboard so the copy/cut/paste flow can operate
-# over it. `collection=true` uses a ClipboardCollection (the elements view), else a
-# ClipboardSlice (the single-slice view). Pairs with `make_clipboard_projection`.
-make_clipboard_document(document; collection=false) =
-    collection ? ClipboardCollection(document) : ClipboardSlice(document)
-
 # Dragging's two helpers moved into `ProjecturedDragging`, where the types they
 # name live, so a program can drag without this package's 52 dependencies. The
 # gallery re-exports them from there; see `DraggingModule`.

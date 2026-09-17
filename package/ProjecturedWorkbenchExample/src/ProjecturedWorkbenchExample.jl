@@ -107,6 +107,10 @@ export make_scrolling_document, make_introspection_document, make_clipboard_docu
 # the gallery's own call sites keep working.
 using ProjecturedDragging.DraggingModule: make_dragging_document,
                                                  make_dragging_projection
+# The clipboard's two wrapper helpers live in `ProjecturedClipboard`, where its
+# types are, and are re-exported here for the gallery's call sites.
+using ProjecturedClipboard.ClipboardModule: make_clipboard_document,
+                                            make_clipboard_projection
 export make_dragging_document, make_shell_document, make_workbench_document
 export make_assistant_projection_example, make_navigator_projection_example, make_workbench_projection_example
 export make_graphics_caching, make_scrolling_projection, make_dragging_projection

@@ -52,11 +52,14 @@ export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
        ToggleClipboardSliceOperation, ToggleClipboardCollectionOperation,
        WriteOsClipboardOperation
 export ClipboardSlice, ClipboardCollection
+export CLIPBOARD_GESTURES
+export make_clipboard_document, make_clipboard_projection
 
 
 include("Clipboard.jl")
 include("ClipboardDocument.jl")
 include("ClipboardSliceToAny.jl")
 include("ClipboardCollectionToAny.jl")
+include("ClipboardWrapper.jl")
 
 end # module

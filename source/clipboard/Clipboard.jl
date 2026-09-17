@@ -116,52 +116,74 @@ evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!
 _field_path(name::AbstractString) =
     ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
+# The selection the clipboard acts on, as a path from the clipboard document.
+#
+# A pane verb writes the selection of the content directly, below the clipboard,
+# so the clipboard's own cell can hold an old path. The content's selection is
+# the current one; the clipboard's own cell decides only when it names a field
+# other than `content`, such as the stored slice on display.
+function _get_clipboard_selection(input)
+    own = input.selection
+    if own isa ConcreteReference
+        head = get_reference_head(own)
+        (head isa FieldReferenceStep && head.name != "content") && return own
+    end
+    content = input.content
+    inner = (content isa Document && hasproperty(content, :selection)) ? content.selection : nothing
+    inner === nothing ? own : ConcreteReference(FieldReferenceStep("content"), inner)
+end
+
 # The selected sub-document and its path, or (nothing, nothing) when there is no
 # usable (non-empty) selection.
 function _selected(input)
-    sel = input.selection
+    sel = _get_clipboard_selection(input)
     (sel === nothing || sel isa EmptyReference) && return nothing, nothing
     obj = try_evaluate_reference(input, sel, missing)
     obj === missing && return nothing, nothing
     sel, obj
 end
 
-# ── Operation re-rooting ───────────────────────────────────────────────────────
-# Prepend `steps` to the reference path carried by a delegated content operation,
-# so it is rooted at the clipboard document rather than at `content`.
+# The path a paste (or a cut) writes `value` to, or `nothing` when it must not
+# write. Three rules hold, each checked against the tree as it stands:
+#
+# 1. The selection names a whole document. A caret or a range names none, so the
+#    key goes on to the content, whose own reader pastes text.
+# 2. Every document from the content down to the target accepts a pasted
+#    document (`accepts_pasted_document`). A record or a tool refuses, and so
+#    does everything inside it.
+# 3. The slot takes `value`: a field cell whose value type `value` is not, or an
+#    immutable one, refuses. An element of a vector takes any document.
+function _find_paste_target(input, value)
+    sel = _get_clipboard_selection(input)
+    (sel === nothing || sel isa EmptyReference) && return nothing
+    try_evaluate_reference(input, sel, missing) isa Document || return nothing
+    steps = get_reference_steps(strip_reference_types(sel))
+    node = input
+    for i in eachindex(steps)
+        parent = node
+        node = try_evaluate_reference(input, _make_steps_path(steps[1:i]), missing)
+        node === missing && return nothing
+        (node isa Document && !accepts_pasted_document(node)) && return nothing
+        i == length(steps) && !_is_slot_accepting(parent, steps[i], value) && return nothing
+    end
+    sel
+end
+
+_make_steps_path(steps) =
+    foldr((step, tail) -> ConcreteReference(step, tail), steps; init = EmptyReference())
+
+function _is_slot_accepting(parent, step, value)
+    step isa FieldReferenceStep || return true
+    name = Symbol(step.name)
+    hasfield(typeof(parent), name) || return false
+    cell = getfield(parent, name)
+    cell isa AbstractCell || return true
+    cell isa ImmutableCell && return false
+    value isa _get_cell_value_type(cell)
+end
+
+_get_cell_value_type(::AbstractCell{T}) where {T} = T
 
 # Only a real collection merges; anything else a reader returned is not one.
 _collected_intents(op::CollectedIntentsOperation) = op
 _collected_intents(::Any) = nothing
-
-function _prefix_op(op, steps::Tuple)
-    op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        ReplaceSelectionOperation(_prepend(steps, op.path))
-    elseif op isa ReplaceStringRangeOperation
-        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceNumberRangeOperation
-        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceReferencedValueOperation
-        op.document === nothing ?
-            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
-    elseif op isa CompoundOperation
-        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
-    elseif op isa CollectedIntentsOperation
-        # Every seam that prefixes a compound must prefix a collection the same
-        # way, or the operations a listing carries arrive rooted one level too deep.
-        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
-                                          i.description, i.domain)
-                                   for i in op.intents])
-    else
-        op
-    end
-end
-
-function _prepend(steps::Tuple, path::Reference)
-    result = path
-    for step in reverse(steps)
-        result = ConcreteReference(step, result)
-    end
-    result
-end
