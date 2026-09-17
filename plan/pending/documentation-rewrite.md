@@ -15,10 +15,10 @@ its strengths are, and what does not work yet.
 `projectured.github.io` (D13). The private downstream repositories change only
 if a rule document gets a new name (§3.9).
 
-**Private names:** the public documents must not name the private downstream
-repositories or their products (D9). This plan and its survey file name them,
-because the cleanup needs the names. Step 11 cleans both files, with the rest of
-`plan/`, before the repository becomes public.
+**Private names:** the public documents do not name the private downstream
+repositories or their products (D9). The public documents are the README,
+`CONTRIBUTING.md`, `documentation/`, the web site and the posts. `plan/`, the
+git history, code comments and tests can keep the names (D16).
 
 **Sealed files:** no Markdown file is sealed. Step 1 changes code in
 `source/kernel/tool/`, and no file there is sealed. `SEALING.md` changes only
@@ -202,7 +202,7 @@ rewrite depends on them.
 - **The licence text conflicts with contributions.** `LICENCE-PD` §3 gives no
   right to modify the software, also not for non-commercial use. The owner wants
   forks and pull requests (D1). Neither licence file has a clause about
-  contributions (§4.2, D1a and D1b).
+  contributions. The owner decided both points (D1a, D1b).
 - **The README headline is "a projectional editor".** The AI material exists,
   but it is the second section.
 - **The README says that the assistant falls back to an offline backend.** This
@@ -400,8 +400,9 @@ paragraph in `system-anatomy.md` is enough for each.
   `source/dragging/DraggingWrapper.jl`, three test files, 13 pending plans,
   28 done plans and 129 commit messages. The name patterns are `omnet-julia`,
   `omnetpp-julia`, `inet-julia`, `omnet-team`, `omnetpp-team` and `OMNET-NG`.
-  `OMNeT++` and `INET` are public products; they can stay. Do not write the
-  patterns into a file that becomes public, also not into a guard.
+  `OMNeT++` and `INET` are public products; they can stay. Only the public
+  documents must lose the names; plans, commit messages, code comments and
+  tests can keep them (D16).
 - **The seal audit reads `architecture-invariants.md`.** A change must not
   change the meaning of a `PAR-…` rule without the owner's approval.
 - **The fixtures** under `example/filesystem/fixture/` are test data.
@@ -457,20 +458,30 @@ paragraph in `system-anatomy.md` is enough for each.
 | D11 | Merge the two "start here" documents | Yes: `design/concepts.md` and `design/engineer-tour.md` (§7). |
 | D13 | The web site | In scope, for the text (Step 9). |
 
+The second answers of 2026-09-17:
+
+> for 1, yes for non-commercial purposes the code can be modified
+> for 2, yes
+> for 3, it's ok to keep the private names there, we just no advertise it
+> for 4, that is also private, but the name doesn't matter
+
+| # | Question | Decision |
+| --- | --- | --- |
+| D1a | Modification | Non-commercial use includes modification. `LICENCE-PD` §3 gets a clause that allows it (Step 11). |
+| D1b | Contribution terms | `CONTRIBUTING.md` states terms under which a contribution can be offered under both licences (Step 8). |
+| D16 | Private names in `plan/` and in the history | They can stay. The repository becomes public as it is. Only the public documents do not name the private repositories. |
+| D17 | The name "omnest" | Private, like the others. It can stay where it is; no public document advertises it. |
+
 ### 4.2 Open questions
 
 Each one has my recommendation. Each one comes before the step that it names.
 
 | # | Question | Recommendation | Before |
 | --- | --- | --- | --- |
-| D1a | `LICENCE-PD` §3 gives no right to modify the software, also not for non-commercial use. A fork and a pull request are modifications. Does the licence text get a clause that allows them? | Yes. Without the clause, `CONTRIBUTING.md` invites an act that the licence forbids. A lawyer can confirm the wording. The plan does not change the licence files. | Step 11 |
-| D1b | A pull request adds code that the contributor wrote. The author can sell a commercial licence for that code only if the contributor gives the right to do so. Which contribution terms apply? | A short contributor agreement, or a sentence in `CONTRIBUTING.md` that a contribution is given under terms that allow both licences. A lawyer can confirm the wording. | Step 8 |
 | D7 | Which Julia version do the documents name? | The version that the quick start is tested with. Add a `julia` compat entry to match. The manifest of `environment/all` is from Julia 1.13.0. | Step 4 |
 | D12 | Where do the drafts of the two posts go? | In §9 of this plan. They are one-time text, not documentation. | Step 11 |
 | D14 | Which forums? | r/Julia and the Julia Discourse. A wider forum only after the first feedback. | Step 11 |
 | D15 | Videos? | Yes. Three short recordings (Step 9). | Step 9 |
-| D16 | The repository becomes public with its `plan/` folder and its git history. 41 plan files and 129 commit messages name the private repositories. How is the public repository made? | Publish a new history: one first commit of the cleaned tree, in a new public repository or a new branch that becomes the default. The private history stays private. The other ways, a rewrite of 129 commit messages or a public history with the names in it, cost more or leak the names. | Step 11 |
-| D17 | Is the name "omnest" private too? It occurs in two plan files. | The owner decides. | Step 11 |
 
 ## 5. Steps
 
@@ -507,9 +518,7 @@ Each part is one commit with its test.
       that no description starts with `> **Kind:**`.
 - [ ] Make the docstring of `DEFAULT_ASSISTANT_SYSTEM` true about MCP.
 - [ ] Fix the dead references in code comments and the docstring of
-      `precompile_workload` (§3.2). Remove the private names from the comment in
-      `source/dragging/DraggingWrapper.jl` and from the three test files
-      (§3.9).
+      `precompile_workload` (§3.2).
 
 **D4: a window on any Julia value.**
 
@@ -596,9 +605,8 @@ model.**
 - [ ] The guard also prints a report that does not fail: sentences with the
       verbs of the personification list, and the slices under `source/` that no
       guide names.
-- [ ] The guard does not check the private names of §3.9. The guard is public
-      code, and a list of the names in it would publish them. Step 11 checks
-      the names with a command that is not in the repository.
+- [ ] The check for the private names of §3.9 is not part of the guard. It
+      runs in Step 11 on the public documents.
 - [ ] Add `test_documentation()` to `test_all()`, as `test_naming()` is.
 - [ ] Run the guard on the old documents. Record the counts in this plan.
 
@@ -769,12 +777,11 @@ Each guide has runnable code. Run each snippet once, in one warm session.
 ### Step 11: the posts, and close
 
 - [ ] Write the drafts of §9: one for r/Julia, one for Julia Discourse.
-- [ ] Remove the private names of §3.9 from `plan/`, including this plan and
-      the survey file, after D17. Check the whole tree with a `git grep` that is
-      not stored in the repository. The result must be empty.
-- [ ] D1a: the owner changes the licence text, if needed.
+- [ ] Check that the public documents do not name the private repositories or
+      products (§3.9, D16, D17). The result of the `git grep` must be empty.
+- [ ] D1a: change `LICENCE-PD` §3 so that it allows modification for
+      non-commercial purposes. The owner approves the wording.
 - [ ] Move this plan and the survey file to `plan/done/`.
-- [ ] D16: make the public repository from the cleaned tree.
 - [ ] The owner reads the drafts, makes the repository public (D2) and posts.
 
 ## 6. The writing rules
@@ -909,9 +916,9 @@ documentation/
   uses.
 - **Concurrent commits on `main`.** Work in the worktree, rebase often, and
   commit with explicit paths.
-- **A private name reaches the public.** New plans and commits on `main` can add
-  the names again after the cleanup. Run the check of Step 11 on the exact tree
-  that becomes public, immediately before D16.
+- **A public document names a private repository.** New work on `main` can add
+  a name after the check. Run the check of Step 11 immediately before the
+  repository becomes public.
 - **The newest Claude model is not the expected one.** The rule of Step 1 can
   choose a model of a higher price tier, or a new small model. The assistant
   guide states the rule, the status shows the model in use, and the `model`
