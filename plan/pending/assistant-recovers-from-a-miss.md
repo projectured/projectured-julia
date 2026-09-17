@@ -10,8 +10,9 @@
 problems and four open items. This plan closes the four items. Each item is a
 place where the model missed, and each candidate fix puts the way out into the
 answer the model reads: a short search says how to ask, an empty result says
-which names exist, and the prompt names only words that exist. **No candidate
-lands unless a measurement first proves that it is worth doing** (§2).
+which names exist, and the prompt names only words that exist. **A change that
+bets on what the model will do lands only when a measurement first proves it
+worth doing; a change that corrects something false lands with a test** (§2).
 
 **The measure** stays the benchmark of eleven problems,
 `measure_assistant_problems` in omnet. It changes in one way: a stage runs on
@@ -23,7 +24,7 @@ that twice.
 ### 1a. A rank probe
 
 A probe ranked the omnet IDE's declared names with `nomic-embed-text`. It
-reads ranks only, so it needs no idle machine (§5).
+reads ranks only, and needs no model but the meaning model (§5).
 
 What one or two words answer, first five hits:
 
@@ -117,8 +118,13 @@ plan is corrected.
 ## 2. The rule: measure first
 
 Decided by the user on 2026-09-17: "don't change anything unless a measurement
-proves that it's worth doing it first". Every item of §3 is therefore a
-candidate, and a candidate passes two gates before it lands.
+proves that it's worth doing it first", and then, for the changes that correct
+something false: "fold it in".
+
+**A benchmark is needed when a change is a bet on what the model will do.** The
+note of §3b, the printed line and the `name` keyword of §3c, and the meaning
+model of §3e each add text the model reads and bet that it acts on it. Each is a
+candidate, and a candidate passes two gates before it lands:
 
 1. **The miss is real.** The baseline — `qwen3.8:27b` on three seeds, 33 turns
    — is counted for the miss the candidate is for. §3 names the count for each
@@ -136,13 +142,23 @@ One candidate per trial, so that a result names its cause. The candidate whose
 miss fails the most turns goes first. The trial stage of a merged candidate is
 the baseline of the next trial.
 
-**The instrument is not a candidate.** The seeds of §3a change no behavior the
-model sees, and every gate above needs them. Their proof is measured already:
-between Step 5 and Step 6 of the last plan, `simulation_stop` and
-`added_plot_series` went from failed to solved, although nothing in Step 6
-touched their verbs. One seed can not tell a fix from that.
+**A test is enough when a change corrects something false.** These land before
+the baseline, each with its test, so that the baseline is the state the
+candidates are compared with:
 
-## 3. The candidates
+- the seeds of the benchmark (§3a), the instrument every gate needs. Their
+  proof is measured already: between Step 5 and Step 6 of the last plan,
+  `simulation_stop` and `added_plot_series` went from failed to solved,
+  although nothing in Step 6 touched their verbs;
+- the pane sentence of the prompt and its guard test (§3d). No problem of the
+  eleven asks to close, move or resize a pane, so no baseline would ever show
+  the miss, and the first gate would keep a false prompt;
+- the plot with no series (§3c), a behavior the user chose, which makes the
+  plot answer an empty frame as the table does;
+- the test that writes into the real vector folder, and the limits of the
+  vector store in `agent.md` (§3f).
+
+## 3. The changes
 
 ### 3a. The instrument: the benchmark runs on seeds
 
@@ -158,8 +174,8 @@ touched their verbs. One seed can not tell a fix from that.
 - `_session` takes the meaning model of its Ollama backend, so that a trial of
   §3e can name `mxbai-embed-large`.
 - `count_transcript_misses(folder)` reads the transcripts of a stage and counts
-  the misses of §3b, §3c and §3d, each with the turns it occurred in and
-  whether those turns were solved. The counts go into §7 beside the table.
+  the misses of §3b and §3c, each with the turns it occurred in and whether
+  those turns were solved. The counts go into §7 beside the table.
 - `test_assistant_problem_table` runs the fake backend on two seeds. It checks
   the `k/n` column, the sums and the folders, and it still needs no server. A
   test gives `count_transcript_misses` a folder of written transcripts with one
@@ -167,7 +183,7 @@ touched their verbs. One seed can not tell a fix from that.
 - Cost: `qwen3.8:27b` took 637 s and 733 s for one seed, so a stage of three
   seeds takes about 35 minutes.
 
-### 3b. A short description says how to ask
+### 3b. A short description says how to ask — a candidate
 
 **The miss:** a `search_api` or `search_guides` call with mode `description`
 and a query of one content word, a word that is not in `_STOP_WORDS`.
@@ -187,16 +203,18 @@ sentence what the <word> is and what it does, and the meaning ranks it."
 
 ### 3c. An empty result says which names exist
 
+**The plot with no series — with a test, before the baseline.** Decided by the
+user 2026-09-17: an empty result is shown and not refused. A table maker opens
+an empty table, as it does now. `make_result_plot` answers a plot with no
+series instead of the error "Nothing matched, so there is nothing to plot." The
+test draws the plot, so that the plot projection is proven to take no series.
+
 **The miss:** code that writes a pattern after `=~` with no `*` or `?`, and a
-turn whose answer holds "Nothing matched" or whose check says that a table is
-empty.
+turn whose check says that a table or a plot is empty.
 
 **Two candidates**, tried one at a time, in this order:
 
-1. **An empty result is shown, and says why it is empty.** Decided by the user
-   2026-09-17: no refusal. A table maker opens an empty table, as it does now,
-   and `make_result_plot` answers a plot with no series instead of the error it
-   throws now. A reader keeps the filter it read with: it writes
+1. **The printed line.** A reader keeps the filter it read with: it writes
    `filter_expression` and `source` as frame metadata of style `:note`, which
    `filter` and `subset` carry along. A view maker — `make_result_table`, the
    six table makers and `make_result_plot` — that gets an empty frame prints
@@ -212,8 +230,7 @@ empty.
    The line names eight names at most. A frame without the metadata prints
    "The frame is empty. Read it again with a wider filter_expression." A
    printed line and not a log record: the code tool captures what the code
-   prints, and a log record goes to the logger the process started with. The
-   plot projection must draw a plot with no series; the test checks it.
+   prints, and a log record goes to the logger the process started with.
 2. **`make_result_filter_expression(; name)`**, tried only when the miss
    remains after the first candidate. `name` is a word that the name of a
    statistic contains. `name = "delay"` writes `name =~ "*delay*"`. A `name`
@@ -224,32 +241,28 @@ empty.
 
 - Where: `source/ide/ResultVerbs.jl` and `source/legacy/result/ResultReader.jl`
   in omnet.
-- Test: `test/ide/ResultVerbsTest.jl` checks the printed line and the empty
-  plot, and the keyword when the second candidate is tried. The by-hand cases
-  gain one: an exact pattern opens an empty table and prints the names.
+- Test: `test/ide/ResultVerbsTest.jl` checks the empty plot, then the printed
+  line and the keyword when their candidates are tried. The by-hand cases gain
+  one: an exact pattern opens an empty table.
 
-### 3d. The prompt names only what exists
-
-**The miss:** code that calls `close_pane`, `move_pane`, `resize_pane`, or
-`focus_pane` without `!`, and an `UndefVarError` that names one of them.
-
-**The candidate:**
+### 3d. The prompt names only what exists — with a test, before the baseline
 
 1. **The pane sentence.** It becomes: "To bring a pane forward, call
    `focus_pane!(editor, reference)` with a reference `open_pane!` answered or
    `show_layout` printed. To close, move or resize a pane, edit the program
    `show_layout` prints and send it back with `replace_referenced_value!`."
-2. **A guard test**, which lands with the sentence. Every backticked word in
-   `CAMPAIGN_SYSTEM` and `IDE_SYSTEM` that has the shape of a Julia name is a
-   declared name, a tool name, a declared module or `editor`. The test lists
-   what else it allows: a resource URI and a file name.
+2. **A guard test.** Every backticked word in `CAMPAIGN_SYSTEM` and
+   `IDE_SYSTEM` that has the shape of a Julia name is a declared name, a tool
+   name, a declared module or `editor`. The test lists what else it allows: a
+   resource URI and a file name. It fails on the prompt as it is now, and
+   passes with the new sentence.
 
-**Not a candidate: a second model, and a first line for it.** Decided by the
-user 2026-09-17: no second model. The first line — "You act by writing Julia" —
-was for a model that calls no tool, and without such a model nothing measures
-what it is for.
+**Not done: a second model, and a first line for it.** Decided by the user
+2026-09-17: no second model. The first line — "You act by writing Julia" — was
+for a model that calls no tool, and without such a model nothing measures what
+it is for.
 
-### 3e. A second meaning model
+### 3e. A second meaning model — a candidate
 
 **The first gate is a rank measurement.** `measure_meaning_search!(; backend =
 OllamaLlm(; meaning_model = "mxbai-embed-large"))` ranks the same twenty
@@ -265,43 +278,56 @@ changes only when the solved turns are at least as many as in the baseline.
 The sentence "draw how a value changes over time" stays in the golden table
 either way, as a known miss: the words "plot" and "chart" find the verb first.
 
+### 3f. The vector store — with a test, before the baseline
+
+- `test_campaign_assistant` in omnet points `_MEANING_FOLDER` at a temporary
+  folder, as the measurement test does, and projectured's
+  `build/meaning/fake_campaign.bin` is deleted. The test checks that the
+  folder it was given holds the fake model's file.
+- `agent.md` says the three limits of §1c: an edited docstring is seen after a
+  restart of the process, a model pulled again under its name keeps its old
+  vectors, and the file never shrinks. It says how to rebuild: delete the
+  model's file, and the next binding computes every vector again.
+
 ## 4. Steps
 
 Work in the worktree `../projectured-julia-format` and in the omnet worktree
 `../omnet-julia-answer`. A candidate is committed on a branch of its own, which
 is merged into the worktree's branch only when §2 says so. Commit with explicit
-paths. Land with `git merge --ff-only`. Cap every Julia process. Every stage
-run needs the user's word (§5).
+paths. Land with `git merge --ff-only`. Cap every Julia process. A stage runs
+under the conditions of §5.
 
-### Step 1. The instrument (§3a)
+### Step 1. What lands with a test (§3a, §3c, §3d, §3f)
 
 - [ ] The seed and the meaning model through `_session`, `_run_problem` and
-      `measure_assistant_problems`; the `k/n` table; the folders per seed.
-- [ ] `count_transcript_misses`, and the tests of both.
+      `measure_assistant_problems`; the `k/n` table; the folders per seed;
+      `count_transcript_misses`; their tests.
+- [ ] The plot with no series, and its test.
+- [ ] The pane sentence, and the guard test.
+- [ ] The campaign test in a temporary folder, the fake file deleted, and the
+      limits in `agent.md`.
 
 ### Step 2. The baseline
 
-- [ ] `qwen3.8:27b` on three seeds, with the user's word.
+- [ ] `qwen3.8:27b` on three seeds.
 - [ ] The table and the counts of the misses in §7, and the first gate of
-      §3b, §3c and §3d decided from them.
+      §3b and §3c decided from them.
 
-### Step 3. The trials, one candidate each (§3b, §3c, §3d)
+### Step 3. The trials, one candidate each (§3b, §3c)
 
 In the order of §2, and only for a candidate that passed the first gate:
 
 - [ ] §3b, the note for a one-word description.
-- [ ] §3c, the empty result that says why.
+- [ ] §3c, the printed line.
 - [ ] §3c, the `name` keyword, when the miss remains.
-- [ ] §3d, the pane sentence and its guard test.
 
-Each: the branch with the change and its tests, the trial stage with the user's
-word, the counts, and the merge or not.
+Each: the branch with the change and its tests, the trial stage, the counts,
+and the merge or not.
 
 ### Step 4. The meaning model (§3e)
 
 - [ ] The rank measurement with `mxbai-embed-large`.
-- [ ] If it passes: the trial stage, with the user's word, and the default
-      changed or not.
+- [ ] If it passes: the trial stage, and the default changed or not.
 
 ### Step 5. Close
 
@@ -309,14 +335,26 @@ word, the counts, and the merge or not.
 
 ## 5. Rule of running a stage
 
-- A benchmark stage needs an idle machine and the user's word for that run. A
-  test and a rank measurement do not.
-- One Julia process at a time, and one Ollama model in it. Before a run, read
-  `free -g`: the free memory must hold the Julia cap (20 GB), the model and
-  10 GB more. Unload every other model before the run and the run's own model
-  after it.
-- If the machine is busy at the moment of a run, say so and wait for the user.
-  Do not start a loop that polls for an idle machine.
+A stage measures what the model does, not how fast: solved turns, misses,
+rounds, calls and tokens. The load of the machine changes none of them. Two
+runs of 2026-09-16 on the same seed gave six turns with the same rounds, calls
+and tokens, and the chat request to Ollama has no read time limit, so a slow
+machine slows a turn and does not fail it. The seconds are reported and are no
+gate. Decided by the user 2026-09-17: a stage needs no idle machine and no word
+before it.
+
+A stage starts only when both of these hold, and otherwise it does not start
+and the report says why:
+
+- **The memory.** `free -g` shows room for the Julia cap (20 GB), the model and
+  10 GB more. A full memory crashed the user's machine twice on 2026-09-16.
+- **Ollama is free.** `/api/ps` shows no model but the meaning model. A model
+  that another session loaded is that session's, and is not unloaded; a second
+  client can load or evict a model during the stage, and its requests can
+  change the output for the same seed (expected, not measured).
+
+One Julia process at a time, one chat model in it, and that model unloaded when
+the stage ends. No loop polls for the conditions.
 
 ## 6. Decisions
 
@@ -325,18 +363,15 @@ Made by the user on 2026-09-17:
 1. **Seeds:** three per stage.
 2. **A second model:** none. §3d says what goes with it.
 3. **An empty result:** shown, as an empty table or a plot with no series, and
-   not refused. §3c says how the model learns why it is empty.
+   not refused. §3c says how the model may learn why it is empty.
 4. **`mxbai-embed-large`:** downloaded; §3e stays.
-5. **Measure first:** no change lands unless a measurement proves first that it
-   is worth doing. §2 says how.
+5. **Measure first:** a change that bets on what the model will do lands only
+   when a measurement first proves it worth doing. §2 says how.
+6. **A test is enough** for a change that corrects something false: the seeds,
+   the pane sentence, the empty plot, and the vector store. §2 lists them.
+7. **A stage needs no idle machine and no word before it**, only the memory and
+   a free Ollama. §5 says why.
 
 ## 7. Findings
 
 Nothing yet beyond §1.
-
-**Found, and not scheduled.** These change no behavior the model sees, so the
-benchmark can not prove them worth doing, and this plan does not change them:
-
-- `test_campaign_assistant` in omnet writes the vectors of its fake model into
-  projectured's `build/meaning/`, as `fake_campaign.bin`.
-- `agent.md` does not say the three limits of the vector store in §1c.
