@@ -138,22 +138,40 @@ projectured [files...] [--window pane|workbench] [--backend sdl|web]
 
 ### 4.2 The builder
 
-`ProjecturedBuilder` holds the generic builder that moves from omnet-julia
-(D21):
+**D31 (the owner, 2026-09-17: "move only the stable core").** omnet's
+`build_executable` mixes the generic steps with reactive rebuilds, trimming,
+sealing and prelinking, and its plain path links a custom launcher from an
+object archive that only the patched PackageCompiler keeps. A public build must
+work with the released PackageCompiler. So only the stable core moves to
+`ProjecturedBuilder`. omnet's `OmnetBuilder` keeps the custom launcher, the
+prelink, the reactive rebuild, the trim and the seal, as an extension that calls
+the core.
+
+The core, as fragments of the `ProjecturedBuilder` package in `source/builder/`:
 
 | File | Holds |
 | --- | --- |
-| `Root.jl` | Finds a package directory by name. The calling repository gives its package roots, so the builder names no repository. |
-| `Preference.jl` | Build-time preferences of the generated package. |
-| `Usage.jl` | The option table of a binary: its `--help` text and its refusal of an unknown option. |
-| `AppPackage.jl` | Writes a fresh app package: the packages, the `julia_main` expression, the workload, the usage, the log level. It does not write a file again when only a time stamp changes. |
-| `Executable.jl` | Compiles with `create_app`: `incremental`, `cpu_target`, fonts, assets, the build report, `strip_bundle!`. Prelink and the custom launcher are options that are off by default. |
-| `Distribution.jl` | A full build, a copy under `/var/tmp`, a start with an empty depot, and an archive with a checksum and a short README. |
+| `BuildContext.jl` | `BuildContext`: the repository a build writes into (`build/app/`, `build/<name>/`), the folders to find packages in, the environment variable of the log level, the precompile statements file, and the version text. `get_package_directory(context, name)` and `get_package_uuid(directory)`. A caller makes the context, so the builder names no repository. |
+| `Preference.jl` | `Preference`, `make_baked_preference`, `make_exposed_preferences` (omnet's `exposed`, with a verb-first name), `write_preferences`. |
+| `Usage.jl` | `Usage`, `format_usage`, `format_version_line`, `collect_option_flags`. |
+| `AppPackage.jl` | `write_app_package(context; name, packages, imports, init, main, workload, info, usage, log_level)` and `write_if_changed`. `imports` are packages the module imports but does not use, and `init` is Julia code at module level. omnet passes `OmnetSimulator` and its module-union pin through these two; the core names neither. |
+| `Executable.jl` | `resolve_app_project`, `build_info`, `build_executable(context; …; compile_app = compile_app!)`, `compile_app!` (the plain `create_app` with PackageCompiler's own launcher), `bundle_fonts!`, `bundle_assets!`, `print_build_report!`, `get_smoke_flag`, `PORTABLE_CPU_TARGET`, `INCREMENTAL_MARK`. A caller passes its own `compile_app` to compile another way; omnet passes its launcher, prelink, reactive and trim step. |
+| `Distribution.jl` | `build_distribution(context; …)`, `get_staging_root`, `check_relocation`, `write_readme`, `report_distribution`. |
+| `ProjecturedProgram.jl` | The projectured binaries: `build_projectured_executable`, `build_projectured_distribution`, and the context of this repository. |
+
+`BuildSpec` and `Builder.jl` stay until Step 3 replaces them. The two
+`build_executable` methods differ in their first argument, so they can live
+side by side for that time.
 
 - `environment/build` holds `ProjecturedBuilder` (by `[sources]`) and the
   released PackageCompiler (D23). No other environment holds PackageCompiler.
-  The reactive rebuild needs the patched PackageCompiler, so it stays out of
-  this plan.
+  The reactive rebuild needs the patched PackageCompiler, so it stays in
+  omnet-julia.
+- `strip_bundle!` stays in omnet: it moves `lib/julia/sys.so` out of the
+  bundle, which is right only when the image is linked into the executable.
+- The application function stays in the example package for now, because its
+  content projections use example factories. Moving it into product code is a
+  later cleanup.
 - One function for each projectured binary: the application, and the JSON
   file editor if it is still wanted. The shell front end `build_binary.jl`
   dispatches to them: `julia --project=environment/build <path>/build_binary.jl
@@ -273,15 +291,16 @@ domains that the documentation survey found. They are not this plan's.
 
 ### Step 2: the generic builder in projectured (builder slice)
 
-- [ ] Copy the six generic files, `launcher.c` and the generic tests of
-      `test/build.jl` into the builder slice and its test folder. omnet-julia
-      keeps its own copy until Step 6.
-- [ ] Remove the simulator names. Give `Root.jl` the package roots as an
-      argument.
+- [ ] Port the stable core of §4.2 into the builder slice, from omnet's
+      `source/build/`. omnet-julia keeps its own files until Step 6.
+- [ ] Remove the simulator names; pass what omnet needs through
+      `BuildContext`, `imports`, `init` and `compile_app`.
 - [ ] Give `ProjecturedBuilder` the dependencies that the files need: `Dates`,
       `Pkg`, `Preferences`, `SHA`, `TOML`.
 - [ ] Make `environment/build` (D23).
-- [ ] Test: the builder tests, which compile nothing.
+- [ ] Port the tests of omnet's `test/build.jl` that cover the core, into
+      `test/builder/`. They compile nothing.
+- [ ] Test: `test_builder()`, `test_package_graph()`, `test_naming()`.
 
 ### Step 3: the projectured targets and the front end
 
