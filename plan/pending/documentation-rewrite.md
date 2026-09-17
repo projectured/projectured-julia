@@ -657,18 +657,27 @@ Each part is one commit with its test.
 - [ ] Fix the dead references in code comments and the docstring of
       `precompile_workload` (§3.2).
 
-**D4: a window on any Julia value.**
+**D4: a window on any Julia value.** Done on 2026-09-17 in `b83a6567`:
+`run_value_viewer(value)` and `make_value_viewer(value)` in
+`example/projectured/ValueViewer.jl`, with `test_value_viewer()`. The default
+is the reflected tree, which opens one level at a time and draws a struct, a
+dictionary, a vector and a value that refers to itself. `tree = false` draws
+the value itself through `NaturalToGraphics`, and that path still raises for a
+dictionary, because it reflects the fields of the implementation; the test
+marks it broken.
 
-- [ ] Add one function that opens a window on any value. It uses
+- [x] Add one function that opens a window on any value. It uses
       `NaturalToGraphics`, which shows a struct with no view of its own through
       the reflection table of `ObjectToSyntax`. A keyword selects the tree view
       of `reflect_document` and `ReflectionToWidget` for a large or running
       object, which opens one level at a time.
-- [ ] Put the function beside `run_example` and `run_file_editor` in
+- [x] Put the function beside `run_example` and `run_file_editor` in
       `example/projectured/`, unless `package-rules.md` gives it another home.
       Name it by the naming rules, for example `run_value_viewer`.
-- [ ] Test without a window: write an image of the view of a plain struct, a
-      `Dict`, a `Vector`, and a struct that refers to itself.
+- [x] Test without a window: the view of a plain struct, a `Dict`, a `Vector`,
+      and a struct that refers to itself. The test prints the view instead of
+      writing an image, because the printed output is what a reader of a
+      failure can act on.
 
 **D5: Ollama is the default backend, and the assistant example can use a real
 model.**
@@ -770,14 +779,31 @@ commands as they are:
 
 ### Step 3: the mechanical sweep
 
-- [ ] A Sonnet subagent fixes the patterns of §3.4 and the broken links, one
+- [x] A Sonnet subagent fixes the patterns of §3.4 and the broken links, one
       commit for each group of documents.
-- [ ] Remove the history sentences that the survey lists.
-- [ ] The guard reports zero broken links and zero dead paths.
+- [x] Remove the history sentences that the survey lists.
+- [x] The guard reports zero broken links and zero dead paths.
+
+Done on 2026-09-17, in seven commits (`1059da75` to `e8af10c8`): 115
+violations to 0, over 49 files, 163 lines added and 162 removed. The agent
+also found three faults outside its brief, which a later step must answer:
+
+- `naming-rules.md` still describes an `Api` layer marker and `*Api.jl` files;
+  no such file is in `source/` (the real ones are `*Interface.jl`).
+- `architecture-rules.md` shows the label `package/kernel/test/layering/
+  CheckLayering.jl`, although the link beside it is right.
+- The stage table of `system-anatomy.md` names `Sdl.jl`, `Web.jl`,
+  `backend/Console.jl` and `backend/Pdf.jl`, which are not the file names.
+
+I corrected one thing the sweep wrote: the slide deck claimed thirty domains
+(its own older claim), and there are about twenty.
 
 ### Step 4: the front door
 
-- [ ] `README.md`, at most about 300 lines, in this order:
+Done on 2026-09-17 in `e70040b0`, except the roadmap, the requirements, the
+decisions and the two older guides, which are the rest of this step.
+
+- [x] `README.md`, at most about 300 lines, in this order:
   1. The tagline and the preface of §2.1.
   2. The introduction of §2.1, as approved.
   3. A video or an animated image, and three screenshots.
@@ -796,16 +822,16 @@ commands as they are:
      included; a commercial licence from the author; forks and pull requests
      are welcome (D1, D1a, D1b). Author: Levente Mészáros. Contact:
      `projectured@gmail.com` (D8).
-- [ ] `design/concepts.md` (D11): the one "start here" document, made from
+- [x] `design/concepts.md` (D11): the one "start here" document, made from
       `editor-concepts.md` and §5.4 of `editor-derivation.md`. No code. The
       statement, the words of §2.2, the five ideas, a designed view and a view
       on demand, the assistant, one walk from a key press to the screen, what
       works and what does not.
-- [ ] `design/engineer-tour.md` (D11): `editor-derivation.md` with a new name,
+- [x] `design/engineer-tour.md` (D11): `editor-derivation.md` with a new name,
       the new framing at the start, and its §5 moved forward. Use `git mv`.
       Update every link to the two old names. The guard finds the links that
       remain.
-- [ ] `requirement/product-vision.md`: why a user interface on demand, why the AI
+- [x] `requirement/product-vision.md`: why a user interface on demand, why the AI
       is in the core, and a comparison with tools that the audience knows:
       Pluto, Jupyter, VS Code with an AI extension, Makie with Observables, the
       Julia GUI and web packages. MPS, Lamdu and Hazel move to a short
@@ -824,28 +850,28 @@ commands as they are:
 - [ ] `guide/examples-tour.md`: the examples in groups (data files, widgets and
       layout, charts, models, the assistant, the workbench), and the REPL call
       that lists every name.
-- [ ] `documentation/README.md`: the new documents and the reading paths.
+- [x] `documentation/README.md`: the new documents and the reading paths.
 
 ### Step 5: the new user guides
 
 Each guide has runnable code. Run each snippet once, in one warm session.
 
-- [ ] `guide/assistant-guide.md`: open the assistant; Ollama as the default
+- [x] `guide/assistant-guide.md`: open the assistant; Ollama as the default
       backend, the server address, the default model, `ollama pull`; the
       Anthropic backend, the key and the rule that chooses the newest Claude
       model; how to name a model; the meaning search; what to ask; what the
       assistant can change; the limits.
-- [ ] `guide/mcp-guide.md`: start the server (`mcp = true`), the address, a
+- [x] `guide/mcp-guide.md`: start the server (`mcp = true`), the address, a
       client configuration for Claude Code and for a generic MCP client, the
       tools and resources that the client gets, one client for each editor.
-- [ ] `guide/view-your-data-guide.md`: first a designed user interface: a small
+- [x] `guide/view-your-data-guide.md`: first a designed user interface: a small
       tool window from widgets and domain views, a form from a `@document`
       struct, a chart of your numbers. Then the views on demand: a window on
       your own value (D4), and the reflection view of a running object.
 - [ ] `guide/keyboard-and-mouse-guide.md`: the common keys (arrows, `Alt` +
       arrows, clipboard, tabs, zoom, collapse), and F1 and Ctrl+Shift+P for the
       full live list.
-- [ ] `guide/own-project-guide.md`: use the packages from your own project,
+- [x] `guide/own-project-guide.md`: use the packages from your own project,
       which package to load, `run_editor!`, a backend.
 
 ### Step 6: the reference documents
