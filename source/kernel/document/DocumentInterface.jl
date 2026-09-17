@@ -139,16 +139,136 @@ becomes one.
 function get_cell_layout_field_type end
 
 """
-    copy_document(value)     -> value      # preserve every cell's kind
-    copy_document(K, value)  -> value      # rebuild every cell as kind K
+    copy_document(value)          -> value      # preserve every cell's kind
+    copy_document(policy, value)  -> value      # preserve every cell's kind, as `policy` says
+    copy_document(K, value)       -> value      # rebuild every cell as kind K
 
 Deep-copy a document subtree, allocating fresh `Cell`s and containers so the
 result shares no mutable state with the source. The one-argument form preserves
-each cell's kind; the two-argument form rebuilds every cell as kind `K`
+each cell's kind; the form with a cell type `K` rebuilds every cell as kind `K`
 (`ReactiveCell` / `MutableCell` / `ImmutableCell`). Plain immutable leaves
 (strings, numbers, symbols) pass through unchanged.
+
+The form with a [`CopyPolicy`](@ref) is the walk that preserves the kind, steered.
+`copy_document(value)` is that walk under [`PlainCopyPolicy`](@ref). A policy
+steers it in two ways:
+
+- **A method on the pair.** `copy_document(::MyPolicy, ::MyDocument)` replaces
+  one step of the walk and keeps the others, because dispatch selects the most
+  specific method. Such a method can rebuild the node with
+  [`copy_document_fields`](@ref).
+- **The stop hooks.** At each child document the walk asks
+  [`is_descendable_for_copy`](@ref), and where it stops,
+  [`make_copy_placeholder`](@ref) gives what stands there.
+  [`copy_computed_cell`](@ref) copies a cell that computes, and
+  [`get_copy_memo`](@ref) gives the table that makes a document met twice one
+  copy.
+
+A hook refuses the whole copy with a [`DocumentCopyException`](@ref).
+
+The policy comes first, and a cell type never is a policy, so no method of one
+form is ambiguous with a method of the other.
 """
 function copy_document end
+
+"""
+    CopyPolicy
+
+The supertype of what steers [`copy_document`](@ref). A concrete policy is made
+for one copy and can carry the state of that copy, such as the memo of
+[`get_copy_memo`](@ref).
+"""
+abstract type CopyPolicy end
+
+"""
+    DocumentCopyException(value, reason)
+
+A copy refused `value`, for `reason`: a sentence that says what `value` holds
+that the copy can not own. A hook throws it, and the walk lets it through at
+any depth.
+"""
+struct DocumentCopyException <: Exception
+    value::Any
+    reason::String
+end
+
+"""
+    copy_document_fields(policy, document; replacements...) -> Document
+
+Rebuild `document` with each field copied through `copy_document(policy, …)`.
+A field named in `replacements` takes the value given instead: a value for a
+field that holds a cell is put in a new cell of the same kind, and a cell is
+used as it is.
+
+This is the step the walk takes at a document it descends into, and the step a
+method for one kind calls when that kind needs one field made by hand.
+
+With a memo, a document that the rebuild meets again inside its own copy stops
+the copy with a [`DocumentCopyException`](@ref), and a document it already
+copied answers the same copy.
+"""
+function copy_document_fields end
+
+"""
+    is_descendable_for_copy(policy, document) -> Bool
+    make_copy_placeholder(policy, document) -> value
+
+The **stop control** of [`copy_document`](@ref) under a policy. The walk asks the
+first at each child document, and where the answer is `false` the slot takes
+what the second gives: a marker, or `document` itself, which the copy then
+shares with the source.
+
+Unlike [`is_descendable_for_sync`](@ref), the question receives the child, so a
+policy can stop at a kind. The defaults descend everywhere, and the second
+raises an error, because a policy that stops must say what stands there.
+"""
+function is_descendable_for_copy end
+function make_copy_placeholder end
+
+"""
+    copy_computed_cell(policy, cell) -> AbstractCell
+
+The copy of a cell that computes. The default is a cell of the same kind that
+stores the value the cell has now, so the copy no longer follows what the
+thunk reads. A policy that can not accept that throws a
+[`DocumentCopyException`](@ref).
+"""
+function copy_computed_cell end
+
+"""
+    has_document_duplicate(document) -> Bool
+    make_document_duplicate(document) -> Document
+
+A **duplicate** is the copy a person gets when they duplicate a pane: a new
+document of the same kind that they control on its own. It owns what the person
+controls in it, shares what it reads, and copies no process.
+
+`has_document_duplicate` says whether the kind of `document` has one. A strip
+asks it each time it prints a tab, so a method answers from the type and never
+walks the tree. The default is `false`.
+
+`make_document_duplicate` makes the duplicate with
+`copy_document(DuplicatePolicy(), document)`. It throws a
+[`DocumentCopyException`](@ref) when the kind declares no duplicate, or when the
+tree holds something the duplicate can not own.
+
+A kind declares its duplicate with `has_document_duplicate(::Kind) = true`, and
+the walk copies its fields. A kind that needs one field made by hand also adds
+`copy_document(::DuplicatePolicy, ::Kind)`, which can call
+[`copy_document_fields`](@ref).
+"""
+function has_document_duplicate end
+function make_document_duplicate end
+
+"""
+    get_copy_memo(policy) -> IdDict | Nothing
+
+The table in which [`copy_document_fields`](@ref) records each document it
+copies, keyed by the source. `nothing`, the default, records nothing: a document
+met twice is copied twice, and a document that holds itself makes the walk
+endless.
+"""
+function get_copy_memo end
 
 """
     sync_document!(shadow, source) -> shadow

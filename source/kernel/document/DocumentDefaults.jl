@@ -1,7 +1,8 @@
 # Fragment of `DocumentModule` — the default behaviours every document inherits
 # unless it overrides them: the two walk-steering traits (`is_element_collection`
 # / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
-# for the three sync/copy policy hooks, and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
+# for the three sync/copy policy hooks, the defaults of the `CopyPolicy` hooks,
+# and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
 # collection type — a document opts into a shape by overriding one, and the walk
 # reads the shape off the trait, so it sits below every collection it descends.
 
@@ -34,6 +35,18 @@ is_descendable_for_sync(policy, depth::Int, slot) = true
 sync_element_limit(policy, source, shadow) = length(source)
 make_unsynced_placeholder(policy, source, current) =
     error("make_unsynced_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
+
+# The copy policy's defaults: descend everywhere, keep a moment of a computed
+# cell, and record nothing.
+is_descendable_for_copy(policy::CopyPolicy, document) = true
+make_copy_placeholder(policy::CopyPolicy, document) =
+    error("make_copy_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
+copy_computed_cell(policy::CopyPolicy, cell) =
+    copy_cell_as(cell, copy_document(policy, cell[]))
+get_copy_memo(policy::CopyPolicy) = nothing
+
+# A kind has no duplicate until it declares one.
+has_document_duplicate(document) = false
 
 # A plain type is its own family — its type-name wrapper. `@document` overrides this
 # per schema so all variant layouts of one schema (the isbits stem, the native

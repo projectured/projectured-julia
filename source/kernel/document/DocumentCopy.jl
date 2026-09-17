@@ -1,52 +1,138 @@
 # Fragment of `DocumentModule` — deep copy of document subtrees. The Julia
 # counterpart of Lisp's `deep-copy`. Unlike `Base.deepcopy` it understands the
 # Cell-wrapped field convention and allocates fresh `Cell`s, so the copy is
-# independent of the original's reactive graph. Two arities:
+# independent of the original's reactive graph. Two forms:
 #
-#   copy_document(doc)     -> Document              # preserve every cell's kind
-#   copy_document(K, doc)  -> Document              # rebuild every cell as kind K
+#   copy_document(policy, doc) -> Document          # preserve every cell's kind
+#   copy_document(K, doc)      -> Document          # rebuild every cell as kind K
 #
-# The two arities also differ in **layout**. The plain form preserves it: a native
-# document copies into a native one. The kinded form targets the schema's cell
-# layout, read from `get_document_cell_type`, because a kind is a property of a cell
-# and a native tree has none. So a native source converts, which is what a shadow
-# needs.
+# `copy_document(doc)` is the first form under `PlainCopyPolicy`.
 #
-# The kinded form is optionally **bounded** by a `policy` (see
-# `DocumentInterface.jl`), which is what lets a shadow be *born* stopping short
-# of a large subtree rather than copied whole and cut back. The default policy
-# (`nothing`) descends everywhere, so an un-policed copy is the whole copy.
+# The two forms also differ in **layout**. The form with a policy preserves it: a
+# native document copies into a native one. The kinded form targets the schema's
+# cell layout, read from `get_document_cell_type`, because a kind is a property of
+# a cell and a native tree has none. So a native source converts, which is what a
+# shadow needs.
+#
+# The form with a policy is steered by the `CopyPolicy` hooks and by the methods
+# a policy or a kind adds on the pair (see `copy_document` in
+# `DocumentInterface.jl`). The kinded form is optionally **bounded** by a sync
+# `policy`, which is what lets a shadow be *born* stopping short of a large
+# subtree rather than copied whole and cut back. Its default policy (`nothing`)
+# descends everywhere, so an un-policed copy is the whole copy.
 #
 # The walk is generic over structure — struct fields (`fieldnames`), Vector
 # elements, and per-slot cells inside a Vector are all traversed uniformly.
 
-# Leaf: pass through unchanged. Contract documented at `copy_document` in
-# `DocumentInterface.jl`; the two arities are sketched in the file header above.
-copy_document(value) = value
+"""
+    PlainCopyPolicy()
+
+The policy of `copy_document(value)`. Every hook answers its default: the walk
+descends into every document, a cell that computes becomes a cell that stores
+its value, and nothing is recorded, so a document met twice is copied twice.
+"""
+struct PlainCopyPolicy <: CopyPolicy end
+
+copy_document(value) = copy_document(PlainCopyPolicy(), value)
+
+# Leaf: shared. Contract documented at `copy_document` in `DocumentInterface.jl`.
+copy_document(policy::CopyPolicy, value) = value
 
 # Vector: struct-with-integer-fields. Recurse per element; a `Vector{Cell}`'s
 # slot cells dispatch to the `AbstractCell` method and are cloned per-slot, so
 # the caller-visible shape (per-slot cells vs. plain values) is preserved.
-copy_document(v::AbstractVector) = [copy_document(x) for x in v]
+copy_document(policy::CopyPolicy, v::AbstractVector) = [copy_document(policy, x) for x in v]
 
-# Cell: fresh cell of the same kind + declared value type, holding the copied
-# inner value. Used by the Vector walk for slot cells; the Document walk
-# handles struct-field cells directly so it can consult declared field types.
-copy_document(c::AbstractCell) = copy_cell_as(c, copy_document(c[]))
+# A list of slot cells stays a `Vector{Cell}` even when it is empty, which the
+# comprehension above can not promise: a collection keys its storage on that type.
+copy_document(policy::CopyPolicy, v::Vector{Cell}) = Cell[copy_document(policy, c) for c in v]
 
-function copy_document(doc::Document)
-    T = typeof(doc)
-    base = Base.typename(T).wrapper   # the UnionAll: its ctor accepts cells/values
-    args = Any[]
-    for nm in fieldnames(T)
-        raw = getfield(doc, nm)
-        if raw isa AbstractCell
-            push!(args, copy_cell_as(raw, copy_document(raw[])))
-        else
-            push!(args, copy_document(raw))
-        end
+# Cell: a fresh cell of the same kind and value type, holding the copied inner
+# value. A cell that computes is the policy's to copy.
+copy_document(policy::CopyPolicy, cell::AbstractCell) =
+    is_computed_cell(cell) ? copy_computed_cell(policy, cell) :
+                             copy_cell_as(cell, copy_document(policy, cell[]))
+
+# Document: rebuilt, unless the policy stops here.
+copy_document(policy::CopyPolicy, document::Document) =
+    is_descendable_for_copy(policy, document) ? copy_document_fields(policy, document) :
+                                                make_copy_placeholder(policy, document)
+
+# What a memo holds for a document whose copy is not finished yet.
+struct _CopyInProgress end
+
+function copy_document_fields(policy::CopyPolicy, document::Document; replacements...)
+    T = typeof(document)
+    field_names = fieldnames(T)
+    for name in keys(replacements)
+        name in field_names ||
+            throw(ArgumentError("copy_document_fields: $(T) has no field `$(name)`"))
     end
-    base(args...)
+    memo = get_copy_memo(policy)
+    if memo !== nothing
+        earlier = get(memo, document, nothing)
+        earlier isa _CopyInProgress &&
+            throw(DocumentCopyException(document, "it holds itself through a back-link"))
+        earlier === nothing || return earlier
+        memo[document] = _CopyInProgress()
+    end
+    base = Base.typename(T).wrapper   # the UnionAll: its ctor accepts cells/values
+    arguments = Any[]
+    for name in field_names
+        raw = getfield(document, name)
+        push!(arguments, haskey(replacements, name) ?
+                         _get_replacement_field(raw, replacements[name]) :
+                         copy_document(policy, raw))
+    end
+    result = base(arguments...)
+    memo === nothing || (memo[document] = result)
+    result
+end
+
+# A replacement for a field that holds a cell goes in a new cell of the same
+# kind; a cell given as the replacement is used as it is.
+_get_replacement_field(raw, value) =
+    value isa AbstractCell ? value :
+    raw isa AbstractCell   ? copy_cell_as(raw, value) :
+                             value
+
+Base.showerror(io::IO, e::DocumentCopyException) =
+    print(io, "DocumentCopyException: a copy of a ", nameof(typeof(e.value)),
+          " is refused: ", e.reason)
+
+# ── The duplicate ──────────────────────────────────────────────────────────
+
+"""
+    DuplicatePolicy()
+
+The policy of [`make_document_duplicate`](@ref). Made for one duplicate, because
+it records every document it copies.
+
+- It descends into a document whose kind declares a duplicate, and shares every
+  other document: what the duplicate does not own, it reads.
+- It refuses a cell that computes, because a copy of its value looks live and is
+  not.
+- It refuses a function, a `Ref` and a `Task`, because the walk can not know
+  what they capture, and an action that captures the original acts on it.
+- It refuses a document that holds itself, unless the kind makes its own copy.
+"""
+struct DuplicatePolicy <: CopyPolicy
+    copies::IdDict{Any,Any}
+end
+DuplicatePolicy() = DuplicatePolicy(IdDict{Any,Any}())
+
+is_descendable_for_copy(::DuplicatePolicy, document) = has_document_duplicate(document)
+make_copy_placeholder(::DuplicatePolicy, document) = document
+copy_computed_cell(::DuplicatePolicy, cell) =
+    throw(DocumentCopyException(cell, "it computes its value, and a copy would not follow what it reads"))
+get_copy_memo(policy::DuplicatePolicy) = policy.copies
+copy_document(::DuplicatePolicy, value::Union{Function, Base.RefValue, Task}) =
+    throw(DocumentCopyException(value, "it holds an action, and a copy of it would act on the original"))
+
+function make_document_duplicate(document)
+    has_document_duplicate(document) ||
+        throw(DocumentCopyException(document, "its kind declares no duplicate"))
+    copy_document(DuplicatePolicy(), document)
 end
 
 # The kind-converting variant: every cell rebuilt as kind `K`. Cell value types:

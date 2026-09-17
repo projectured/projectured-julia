@@ -36,6 +36,48 @@ end
     content::Union{Document, Nothing} = nothing
 end
 
+# Two slots that can hold one child twice, or the pair itself.
+@document struct ContractPair
+    first::Any
+    second::Any
+end
+
+# Stops at the node that carries `label`, and puts a node labelled "stopped" there.
+struct ContractStopPolicy <: CopyPolicy
+    label::String
+end
+ProjecturedKernel.DocumentModule.is_descendable_for_copy(p::ContractStopPolicy, document::ToyNode) =
+    document.label != p.label
+ProjecturedKernel.DocumentModule.make_copy_placeholder(::ContractStopPolicy, document) =
+    ToyNode("stopped", nothing, nothing)
+
+# Records each copy, so a child met twice is one copy.
+struct ContractMemoPolicy <: CopyPolicy
+    copies::IdDict{Any,Any}
+end
+ContractMemoPolicy() = ContractMemoPolicy(IdDict{Any,Any}())
+ProjecturedKernel.DocumentModule.get_copy_memo(p::ContractMemoPolicy) = p.copies
+
+# Refuses the node that carries `label`, and every cell that computes.
+struct ContractRefusePolicy <: CopyPolicy
+    label::String
+end
+function ProjecturedKernel.DocumentModule.is_descendable_for_copy(p::ContractRefusePolicy, document::ToyNode)
+    document.label == p.label && throw(DocumentCopyException(document, "it is refused"))
+    true
+end
+ProjecturedKernel.DocumentModule.copy_computed_cell(::ContractRefusePolicy, cell) =
+    throw(DocumentCopyException(cell, "it computes"))
+
+# The toy kinds that declare a duplicate. `ToyBox` declares none.
+ProjecturedKernel.DocumentModule.has_document_duplicate(::ToyNode) = true
+ProjecturedKernel.DocumentModule.has_document_duplicate(::ContractPair) = true
+
+# Copies every node with its label in upper case: a method on the pair.
+struct ContractShoutPolicy <: CopyPolicy end
+ProjecturedKernel.DocumentModule.copy_document(p::ContractShoutPolicy, document::ToyNode) =
+    copy_document_fields(p, document; label = uppercase(document.label))
+
 function test_document_contract()
 @testset "DocumentContract" begin
 
@@ -141,6 +183,139 @@ function test_document_contract()
         @test_throws ErrorException sync_document!(MToyBox(nothing, nothing), source)
         # A cell shadow of the same schema takes the very same source.
         @test sync_document!(ToyBox(nothing, nothing), source).content isa ToyNode
+    end
+
+    @testset "copy_document under a policy" begin
+        tree() = ToyNode("root", ToyNode("middle", ToyNode("leaf", nothing, nothing), nothing), nothing)
+
+        @testset "the plain copy is the walk under PlainCopyPolicy" begin
+            root = tree()
+            clone = copy_document(PlainCopyPolicy(), root)
+            @test clone isa ToyNode
+            @test clone !== root
+            @test clone.child !== root.child
+            @test clone.child.child.label == "leaf"
+            @test getfield(clone, :label) !== getfield(root, :label)
+        end
+
+        @testset "a policy stops at a kind and puts its placeholder there" begin
+            root = tree()
+            clone = copy_document(ContractStopPolicy("middle"), root)
+            @test clone.label == "root"
+            @test clone.child.label == "stopped"
+            @test clone.child.child === nothing
+            # The root is asked too.
+            @test copy_document(ContractStopPolicy("root"), root).label == "stopped"
+        end
+
+        @testset "a memo makes a child met twice one copy" begin
+            shared = ToyNode("shared", nothing, nothing)
+            pair = ContractPair(shared, shared, nothing)
+            clone = copy_document(ContractMemoPolicy(), pair)
+            @test clone.first === clone.second
+            @test clone.first !== shared
+            # With no memo, each slot gets a copy of its own.
+            plain = copy_document(pair)
+            @test plain.first !== plain.second
+        end
+
+        @testset "a memo stops a document that holds itself" begin
+            pair = ContractPair(nothing, nothing, nothing)
+            pair.second = pair
+            @test_throws DocumentCopyException copy_document(ContractMemoPolicy(), pair)
+        end
+
+        @testset "a hook refuses the whole copy from any depth" begin
+            exception = try
+                copy_document(ContractRefusePolicy("leaf"), tree())
+                nothing
+            catch e
+                e
+            end
+            @test exception isa DocumentCopyException
+            @test exception.value.label == "leaf"
+            @test occursin("is refused", sprint(showerror, exception))
+        end
+
+        @testset "a cell that computes is the policy's to copy" begin
+            node = ToyNode("", nothing, nothing)
+            set_cell_function!(getfield(node, :label), () -> "computed")
+            @test is_computed_cell(getfield(node, :label))
+            # The plain copy keeps a moment of it, in a cell that stores.
+            clone = copy_document(node)
+            @test clone.label == "computed"
+            @test !is_computed_cell(getfield(clone, :label))
+            @test_throws DocumentCopyException copy_document(ContractRefusePolicy("none"), node)
+        end
+
+        @testset "a method on the pair replaces one step and keeps the walk" begin
+            clone = copy_document(ContractShoutPolicy(), tree())
+            @test clone.label == "ROOT"
+            @test clone.child.child.label == "LEAF"
+        end
+
+        @testset "a replacement takes the value given, in a new cell" begin
+            root = tree()
+            clone = copy_document_fields(PlainCopyPolicy(), root; label = "renamed")
+            @test clone.label == "renamed"
+            @test root.label == "root"
+            @test getfield(clone, :label) isa AbstractCell
+            @test clone.child !== root.child
+            @test_throws ArgumentError copy_document_fields(PlainCopyPolicy(), root; lable = "x")
+        end
+    end
+
+    @testset "the duplicate of a document" begin
+        # The reason a refusal gives, or `nothing` when the duplicate is made.
+        refusal(document) = try
+            make_document_duplicate(document)
+            nothing
+        catch e
+            e isa DocumentCopyException || rethrow()
+            e.reason
+        end
+
+        @testset "a kind that declares one gets an equal and independent copy" begin
+            root = ToyNode("root", ToyNode("leaf", nothing, nothing), nothing)
+            duplicate = make_document_duplicate(root)
+            @test duplicate.child.label == "leaf"
+            duplicate.child.label = "changed"
+            @test root.child.label == "leaf"
+            @test has_document_duplicate(root)
+        end
+
+        @testset "the selection is copied" begin
+            path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
+            root = with_selection(ToyNode("root", nothing, nothing), path)
+            duplicate = make_document_duplicate(root)
+            @test strip_reference_types(get_selection(duplicate)) ==
+                  strip_reference_types(get_selection(root))
+            @test getfield(duplicate, :selection) !== getfield(root, :selection)
+        end
+
+        @testset "a child whose kind declares none is shared" begin
+            box = ToyBox(nothing, nothing)
+            pair = ContractPair(box, ToyNode("own", nothing, nothing), nothing)
+            duplicate = make_document_duplicate(pair)
+            @test duplicate.first === box
+            @test duplicate.second !== pair.second
+            @test !has_document_duplicate(box)
+            @test occursin("declares no duplicate", refusal(box))
+        end
+
+        @testset "what the duplicate can not own refuses it" begin
+            computed = ToyNode("", nothing, nothing)
+            set_cell_function!(getfield(computed, :label), () -> "computed")
+            @test occursin("computes", refusal(computed))
+            @test occursin("action", refusal(ToyNode(() -> "called", nothing, nothing)))
+            @test occursin("action", refusal(ContractPair(Ref{Any}(1), nothing, nothing)))
+            looped = ContractPair(nothing, nothing, nothing)
+            looped.second = looped
+            @test occursin("back-link", refusal(looped))
+            # A plain value and a shared data object are no reason to refuse.
+            data = Dict(:a => 1)
+            @test make_document_duplicate(ContractPair(data, 2, nothing)).first === data
+        end
     end
 
 end

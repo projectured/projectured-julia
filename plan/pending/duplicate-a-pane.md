@@ -419,7 +419,13 @@ Do the work in a git worktree of each repository, as a sibling in
 `~/workspace/`. Commit each step. Mark the step done here, and record each
 decision that the work finds.
 
-- [ ] **Step 1. The policy walk.** Add `is_computed_cell`, `CopyPolicy`,
+**The baseline**, against projectured-julia `bce0084e` in the worktree
+`projectured-julia-duplicate`: `test_document_contract` 31, `test_clipboard`
+102, `test_pane_surgery` 79, `test_pane_gestures` 42, `test_widget_tab_strip`
+18, `test_pane_reader` 32, `test_pane_to_widget` 44, `test_pane_construct` 45.
+All pass, with no failure and no error.
+
+- [x] **Step 1. The policy walk.** Add `is_computed_cell`, `CopyPolicy`,
   `PlainCopyPolicy`, the four hooks, `copy_document_fields`,
   `DocumentCopyException`, and the `CellVector` methods. Make
   `copy_document(value)` use the walk. Test in `test_document_contract`: a test
@@ -427,7 +433,23 @@ decision that the work finds.
   copy of a shared child; a hook that throws leaves the walk from depth three;
   a replacement field takes the value given. Run `test_document_contract` and
   `test_clipboard`. Both must pass with no change to their assertions.
-- [ ] **Step 2. The duplicate policy.** Add `DuplicatePolicy`,
+  - **Done.** `test_document_contract` 72 pass, `test_clipboard` 102,
+    `test_collection` 47, `test_bounded_sync` 84, `test_document_reflection` 33.
+  - Both methods of `is_computed_cell` are in `CellDefaults.jl`, the file that
+    has every cell kind in scope, as `copy_cell_as` is.
+  - The default `copy_computed_cell(policy, cell)` does not type `cell`. A typed
+    default made a policy method `(::MyPolicy, cell)` ambiguous, and the first
+    run of the test found it.
+  - The walk has a method for `Vector{Cell}`. A comprehension can not promise
+    that type for an empty list, and a collection keys its storage on it.
+  - The `CellVector` step asks the stop hook itself, sends its `elements` cell
+    through the cell step, and keeps one difference of the plain copy: the
+    plain copy of a list starts with no selection, as before. Under any other
+    policy the list keeps its selection.
+  - A replacement value goes into a new cell of the kind of the field, and a
+    replacement that names no field throws an `ArgumentError`.
+  - Steps 1 and 2 are one commit, because they change the same kernel files.
+- [x] **Step 2. The duplicate policy.** Add `DuplicatePolicy`,
   `has_document_duplicate` and `make_document_duplicate`. Test in
   `test_document_contract`: a value-only document gives an equal and independent
   duplicate; a computed cell, a `Function` leaf, a `Ref` leaf and a cycle each
@@ -435,6 +457,14 @@ decision that the work finds.
   object; the selection is copied. Show that the plain `copy_document` of a
   document with a back-link does not end, with a bound on the time, or record
   that the reading of §2b was wrong.
+  - **Done**, in the same test run as Step 1.
+  - The reading of §2b was right. The plain `copy_document` of an `Assistant`
+    ends in a `StackOverflowError` after 0.13 s, and Julia warns that the state
+    of the process can be corrupt after it. So no test keeps this check; it was
+    run once by hand.
+  - `SelectionDocument` declares a duplicate, in `SelectionDocument.jl`, because
+    that file loads after `DocumentCopy.jl`. So the duplicate owns its
+    selection value, as it owns its selection cell.
 - [ ] **Step 3. The substrate kinds.** Add the declarations for
   `DocumentNothing`, the primitive documents, the conversation documents and the
   widget documents (§3e). Test each family with one document, and a widget card

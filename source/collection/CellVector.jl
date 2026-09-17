@@ -233,13 +233,18 @@ end
 # Same-kind deep copy: preserve the storage shape of the source's `elements`
 # field, cloning each slot cell (reactive convention) or each raw value
 # (immutable/mutable convention) into a fresh Cell/value; the outer field cells
-# are rebuilt of the same kind by `_rebuild_with`.
-function copy_document(cv::CellVector)
-    elems = _plain(cv)
-    slots = elems isa Vector{Cell} ? Cell[Cell(copy_document(c[])) for c in elems] :
-                                     Any[copy_document(x) for x in elems]
-    _rebuild_with(cv, slots)   # same field-cell kinds
+# are rebuilt of the same kind. The `elements` cell goes through the walk's own
+# cell step, so a list that computes is the policy's to copy.
+function copy_document(policy::CopyPolicy, cv::CellVector)
+    is_descendable_for_copy(policy, cv) || return make_copy_placeholder(policy, cv)
+    CellVector(copy_document(policy, getfield(cv, :elements)),
+               _copy_collection_selection(policy, getfield(cv, :selection)))
 end
+
+# The plain copy starts the list with no selection; a policy keeps it, because a
+# selection is a path relative to the list and is valid in the copy.
+_copy_collection_selection(::PlainCopyPolicy, cell) = copy_cell_as(cell, nothing)
+_copy_collection_selection(policy::CopyPolicy, cell) = copy_document(policy, cell)
 
 # Kind-converting deep copy: the target storage follows the kind convention —
 # reactive → per-element slot Cells (via `CellVector(items)`), immutable/mutable

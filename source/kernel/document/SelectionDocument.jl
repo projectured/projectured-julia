@@ -63,3 +63,7 @@ macro from injecting a field whose type names this very type.
 end
 
 unwrap_selection(value::SelectionDocument) = value.live ? value.primary : nothing
+
+# A selection is a value, so the duplicate of a document gets a selection of its
+# own, of the same place.
+has_document_duplicate(::SelectionDocument) = true
