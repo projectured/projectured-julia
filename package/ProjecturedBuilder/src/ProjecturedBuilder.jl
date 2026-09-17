@@ -41,7 +41,9 @@ export write_app_package, write_if_changed, LOG_LEVEL_NAMES
 export build_executable, compile_app!, resolve_app_project, build_info, get_smoke_flag
 export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
 export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
+export get_hidden_directories, make_hidden_command
 export PROJECTURED_BACKENDS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS, make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
+export PROJECTURED_ASSETS, check_projectured_copy
 
 end # module ProjecturedBuilder

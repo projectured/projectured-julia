@@ -47,6 +47,16 @@ const PROJECTURED_REQUIREMENTS = [
 ]
 
 """
+    PROJECTURED_ASSETS
+
+The folders of the repository that a `projectured` binary reads while it runs,
+as `"<folder>" => "<folder in the bundle>"`: the web client, and the guides
+that the assistant reads. The binary reads them from the bundle.
+"""
+const PROJECTURED_ASSETS = ["asset/web" => "share/projectured/web",
+                            "documentation" => "share/projectured/documentation"]
+
+"""
     make_projectured_usage(backends) -> Usage
 
 The `--help` text of a `projectured` binary that holds `backends`.
@@ -108,6 +118,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                      workload = workload ? :(ProjecturedExample.warm_application()) : nothing,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
+                     assets = PROJECTURED_ASSETS,
                      kwargs...)
 end
 
@@ -116,7 +127,7 @@ end
 
 Build the application for other machines, check that the copy runs outside
 this checkout, and write it as an archive with a README. Answer the path of the
-archive.
+archive. [`check_projectured_copy`](@ref) is the check.
 
 The image is fresh and holds code for several processor families, as a
 distribution must. The keywords go to
@@ -133,5 +144,107 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                                           kwargs...)
     build_distribution(context; name = name, bundle = bundle,
                        requirements = PROJECTURED_REQUIREMENTS,
-                       expect = ["share/projectured/font"])
+                       expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
+                       check = check_projectured_copy)
+end
+
+const _CHECK_WEB = "http://127.0.0.1:8080"
+const _CHECK_MCP = "http://127.0.0.1:9876/mcp"
+
+"""
+    check_projectured_copy(executable, directory, hidden) -> Nothing
+
+Start a copied `projectured` with the web backend and the MCP server, with the
+folders in `hidden` out of its sight, and check the files that it reads from
+its bundle:
+
+- the web client and a font, through the web server at port 8080;
+- the list of guides, through the tool `read_resource` of the MCP server at
+  port 9876.
+
+The check opens no window and starts no assistant. It fails when one of the
+two ports is in use.
+"""
+function check_projectured_copy(executable::AbstractString, directory::AbstractString, hidden)
+    for url in (_CHECK_WEB, _CHECK_MCP)
+        _is_http_free(url) ||
+            error("check_projectured_copy: a program uses $url, and the check needs it")
+    end
+    file = joinpath(directory, "check.json")
+    write(file, "{\"name\": \"check\"}")
+    log = joinpath(directory, "check.log")
+    depot = mktempdir()
+    environment = copy(ENV)
+    environment["JULIA_DEPOT_PATH"] = depot
+    environment["JULIA_LOAD_PATH"] = ""
+    command = make_hidden_command(`$executable --backend=web --mcp --assistant=none $file`, hidden)
+    output = open(log, "w")
+    process = run(pipeline(setenv(command, environment; dir = directory);
+                           stdout = output, stderr = output); wait = false)
+    try
+        for url in (_CHECK_WEB, _CHECK_MCP)
+            _wait_for_http(url, process, log)
+        end
+        occursin("<html", lowercase(_read_http("$_CHECK_WEB/"))) ||
+            error("check_projectured_copy: the copy serves no web client")
+        isempty(_read_http("$_CHECK_WEB/client.js")) &&
+            error("check_projectured_copy: the copy serves an empty client.js")
+        font = match(r"\"fonts\"\s*:\s*\[\s*\"([^\"]+)\"", _read_http("$_CHECK_WEB/fonts.json"))
+        font === nothing && error("check_projectured_copy: the copy finds no font")
+        sizeof(_read_http("$_CHECK_WEB/font/$(font.captures[1])")) > 1000 ||
+            error("check_projectured_copy: the copy serves no data for $(font.captures[1])")
+        guides = _call_mcp_tool("read_resource", "{\"uri\": \"resource://guides\"}")
+        occursin("editor-concepts", guides) ||
+            error("check_projectured_copy: the list of guides of the copy does not name " *
+                  "editor-concepts:\n" * guides)
+        @info "The copy reads the web client, the fonts and the guides from its bundle"
+    finally
+        kill(process)
+        timedwait(() -> !process_running(process), 10.0)
+        process_running(process) && kill(process, Base.SIGKILL)
+        close(output)
+        rm(depot; recursive = true, force = true)
+    end
+    nothing
+end
+
+# Whether no program answers at `url`. curl ends with 7 when nothing listens.
+function _is_http_free(url::AbstractString)
+    run(ignorestatus(`curl -s -o /dev/null --max-time 5 $url`)).exitcode == 7
+end
+
+function _read_http(url::AbstractString)
+    read(`curl -sf --max-time 30 $url`, String)
+end
+
+# Wait until `url` answers, for two minutes at most.
+function _wait_for_http(url::AbstractString, process, log::AbstractString)
+    deadline = time() + 120
+    while time() < deadline
+        process_running(process) ||
+            error("check_projectured_copy: the copy stopped:\n" * read(log, String))
+        success(`curl -sf -o /dev/null --max-time 5 $url`) && return nothing
+        sleep(0.5)
+    end
+    error("check_projectured_copy: nothing answers at $url after two minutes:\n" *
+          read(log, String))
+end
+
+# Call one tool of the MCP server, and answer the text of the reply.
+function _call_mcp_tool(name::AbstractString, arguments::AbstractString)
+    options = ["-sf", "--max-time", "30", "-H", "Content-Type: application/json",
+               "-H", "Accept: application/json, text/event-stream"]
+    headers = tempname()
+    initialize = """{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": """ *
+                 """{"protocolVersion": "2025-06-18", "capabilities": {}, """ *
+                 """"clientInfo": {"name": "check", "version": "0"}}}"""
+    read(`curl $options -D $headers -d $initialize $_CHECK_MCP`, String)
+    session = match(r"(?im)^mcp-session-id:\s*(\S+)", read(headers, String))
+    rm(headers; force = true)
+    session === nothing || append!(options, ["-H", "Mcp-Session-Id: $(session.captures[1])"])
+    initialized = """{"jsonrpc": "2.0", "method": "notifications/initialized"}"""
+    read(`curl $options -d $initialized $_CHECK_MCP`, String)
+    call = """{"jsonrpc": "2.0", "id": 2, "method": "tools/call", """ *
+           """"params": {"name": "$name", "arguments": $arguments}}"""
+    read(`curl $options -d $call $_CHECK_MCP`, String)
 end

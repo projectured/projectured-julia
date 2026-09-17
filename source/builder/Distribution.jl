@@ -26,6 +26,13 @@ archive. Answers the path of the archive.
 - `staging` — where the bundle is copied to be tested. **Outside `context.root`**,
   because a copy tested in place proves nothing about a copy.
   [`get_staging_root`](@ref) chooses it when a caller does not.
+- `hidden` — folders that look empty to the copy while it is tested, so that a
+  copy that still reads the checkout or the depot fails here. The default is
+  [`get_hidden_directories`](@ref).
+- `check` — a test of its own that the program needs, or `nothing`. It is
+  called as `check(executable, directory, hidden)` with the copied executable,
+  a folder it can write into, and `hidden`, after the start test and before
+  the archive.
 
 The archive unpacks into `<name>-<version>/` and never into the directory it was
 unpacked in.
@@ -36,7 +43,9 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               expect = String[],
                               version::AbstractString = context.version,
                               output::AbstractString = joinpath(context.root, "build"),
-                              staging::Union{AbstractString,Nothing} = nothing)
+                              staging::Union{AbstractString,Nothing} = nothing,
+                              hidden = get_hidden_directories(context),
+                              check = nothing)
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -64,7 +73,12 @@ function build_distribution(context::BuildContext; name::AbstractString,
     @info "Copying the bundle out to test it" staged
     cp(bundle, staged)
 
-    check_relocation(joinpath(staged, "bin", String(name)), root)
+    check_relocation(joinpath(staged, "bin", String(name)), root; hidden = hidden)
+    if check !== nothing
+        check_directory = mkpath(joinpath(root, "check"))
+        check(joinpath(staged, "bin", String(name)), check_directory, hidden)
+        rm(check_directory; recursive = true, force = true)
+    end
     write_readme(staged; name, version, requirements)
 
     mkpath(output)
@@ -96,7 +110,43 @@ function get_staging_root()
 end
 
 """
-    check_relocation(executable, working_directory) -> Nothing
+    get_hidden_directories(context) -> Vector{String}
+
+The folders that a copied binary must not need: the repository of `context`,
+the repository of each of its package folders, and the depot of this Julia.
+"""
+function get_hidden_directories(context::BuildContext)
+    directories = vcat([context.root],
+                       [dirname(abspath(root)) for root in context.package_roots],
+                       [first(DEPOT_PATH)])
+    unique(filter(isdir, [normpath(directory) for directory in directories]))
+end
+
+"""
+    make_hidden_command(command, hidden) -> Cmd
+
+`command`, run so that each folder in `hidden` looks empty to it. `bwrap` puts
+an empty folder over each one and leaves the rest of the file system as it is.
+With no folder in `hidden`, the answer is `command`. Set the environment and
+the directory on the answer, not on `command`.
+
+`bwrap` stops the program when `bwrap` itself stops, so a signal to the answer
+reaches the program too.
+"""
+function make_hidden_command(command::Cmd, hidden)
+    isempty(hidden) && return command
+    Sys.which("bwrap") === nothing &&
+        error("make_hidden_command: install bubblewrap (`bwrap`). The test of a copy " *
+              "needs it to hide " * join(hidden, ", "))
+    arguments = ["--dev-bind", "/", "/", "--die-with-parent"]
+    for directory in hidden
+        append!(arguments, ["--tmpfs", String(directory)])
+    end
+    `bwrap $arguments -- $(command.exec)`
+end
+
+"""
+    check_relocation(executable, working_directory; hidden = String[]) -> Nothing
 
 Start the copied binary where it now stands, with no depot, and make it answer.
 
@@ -109,18 +159,20 @@ a directory it was not built in.
 to bundle every artifact a binary opens; a binary that still reaches into the
 depot that built it fails here and nowhere else.
 
-**What this does not prove.** The checkout is still on the disk, so this cannot
-show that nothing reads it by an absolute path. Only a machine without the
-checkout shows that. It proves the depot is not needed and that the bundle starts
-somewhere else, which is what fails first.
+**`hidden` puts the checkout out of sight.** The checkout is still on the
+disk, and a binary that reads a file of it by an absolute path finds it on this
+machine. With the folders of [`get_hidden_directories`](@ref) hidden, that
+binary fails here as it fails on another machine.
 """
-function check_relocation(executable::AbstractString, working_directory::AbstractString)
+function check_relocation(executable::AbstractString, working_directory::AbstractString;
+                          hidden = String[])
     depot = mktempdir()
     try
         environment = copy(ENV)
         environment["JULIA_DEPOT_PATH"] = depot
         environment["JULIA_LOAD_PATH"] = ""
-        command = setenv(`$executable $(get_smoke_flag())`, environment; dir = working_directory)
+        command = setenv(make_hidden_command(`$executable $(get_smoke_flag())`, hidden),
+                         environment; dir = working_directory)
         answer = IOBuffer()
         start = time()
         process = run(pipeline(command; stdout = answer, stderr = answer); wait = false)
@@ -141,7 +193,7 @@ function check_relocation(executable::AbstractString, working_directory::Abstrac
             error("build_distribution: this binary says it was built incrementally, and " *
                   "an incremental image is for a rebuild while developing. Build it " *
                   "again without `incremental` before you archive it.")
-        @info "The copied bundle starts with no depot" seconds
+        @info "The copied bundle starts with no depot" seconds hidden
     finally
         rm(depot; recursive = true, force = true)
     end

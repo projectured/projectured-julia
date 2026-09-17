@@ -12,9 +12,22 @@
 # PAR-PER-EDITOR-STATE grants to such values. Every field of a store is read and
 # written under its lock, because its build runs on a task of its own.
 
-# The folder the vector files go in. Empty means `build/meaning/` under the
-# repository root. A test points it at a folder of its own.
+# The folder the vector files go in. Empty means the folder that
+# `_get_default_meaning_folder` answers. A test points it at a folder of its own.
 const _MEANING_FOLDER = Ref("")
+
+# Where the vector files go when `_MEANING_FOLDER` is empty. A Julia session
+# keeps them in `build/meaning/` under the repository root. A binary is a copy
+# that can be in a folder the user can not write, so it keeps them in the cache
+# folder of the user: `$XDG_CACHE_HOME/projectured/meaning`, or
+# `~/.cache/projectured/meaning`.
+function _get_default_meaning_folder(bundle = _get_bundle_directory())
+    bundle === nothing &&
+        return normpath(joinpath(@__DIR__, "..", "..", "..", "build", "meaning"))
+    cache = get(ENV, "XDG_CACHE_HOME", "")
+    isempty(cache) && (cache = joinpath(homedir(), ".cache"))
+    joinpath(cache, "projectured", "meaning")
+end
 
 # How long the first search that finds vectors missing waits for a build, in
 # seconds. A later search during the same build does not wait.
@@ -55,9 +68,7 @@ const _MEANING_STORES = Dict{String,_MeaningStore}()
 const _MEANING_STORES_LOCK = ReentrantLock()
 
 function _get_meaning_file(name::AbstractString)
-    folder = isempty(_MEANING_FOLDER[]) ?
-        normpath(joinpath(@__DIR__, "..", "..", "..", "build", "meaning")) :
-        _MEANING_FOLDER[]
+    folder = isempty(_MEANING_FOLDER[]) ? _get_default_meaning_folder() : _MEANING_FOLDER[]
     joinpath(folder, replace(name, r"[/:\\]" => "_") * ".bin")
 end
 

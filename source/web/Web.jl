@@ -1,4 +1,4 @@
-export WebBackend, convert_web_key_to_symbol
+export WebBackend, convert_web_key_to_symbol, get_web_asset_directory
 
 # ════════════════════════════════════════════════════════════════════════
 # Connection + backend state
@@ -56,14 +56,24 @@ mutable struct WebBackend <: Backend
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
-    # Both are shared assets at the repository root, three levels up from the
-    # directory that holds this package's root file: the web client the browser
-    # loads, and the fonts every backend measures with.
-    webdir  = normpath(joinpath(@__DIR__, "..", "..", "asset", "web"))
-    fontdir = normpath(joinpath(@__DIR__, "..", "..", "asset", "font"))
-    WebBackend(String(host), Int(port), webdir, fontdir,
+    WebBackend(String(host), Int(port), get_web_asset_directory("web"),
+               get_web_asset_directory("font"),
                nothing, Channel{Any}(256), nothing,
                Dict{Symbol,WebWindowState}(), Symbol[], false)
+end
+
+"""
+    get_web_asset_directory(name, bindir = Sys.BINDIR) -> String
+
+The folder of the shared assets called `name`: `web`, the client that the
+browser loads, or `font`, the fonts that every backend measures with. A binary
+that a build made carries them in `share/projectured/<name>` beside its
+executable, and reads them there. A Julia session reads `asset/<name>` in the
+checkout, two levels above this file.
+"""
+function get_web_asset_directory(name::AbstractString, bindir::AbstractString = Sys.BINDIR)
+    bundled = normpath(joinpath(bindir, "..", "share", "projectured", name))
+    isdir(bundled) ? bundled : normpath(joinpath(@__DIR__, "..", "..", "asset", name))
 end
 
 # ════════════════════════════════════════════════════════════════════════

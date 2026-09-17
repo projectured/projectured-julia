@@ -50,10 +50,30 @@ function register_guide_root!(directory::AbstractString; prefix::AbstractString 
     nothing
 end
 
+"""
+    _get_bundle_directory(bindir = Sys.BINDIR) -> Union{String,Nothing}
+
+The folder `share/projectured/` beside the running executable, or `nothing`.
+A binary that a build made has this folder, and the folder holds the files that
+the binary reads while it runs. A Julia session has no such folder, and it reads
+those files in the checkout.
+"""
+function _get_bundle_directory(bindir::AbstractString = Sys.BINDIR)
+    directory = normpath(joinpath(bindir, "..", "share", "projectured"))
+    isdir(directory) ? directory : nothing
+end
+
+# The guides of the editor: `documentation/` in the bundle of a binary, or in
+# the checkout, three levels above this file.
+function _get_documentation_directory(bundle = _get_bundle_directory())
+    bundled = bundle === nothing ? "" : joinpath(bundle, "documentation")
+    isdir(bundled) ? bundled : normpath(joinpath(@__DIR__, "..", "..", "..", "documentation"))
+end
+
 function _guide_roots()
-    repo = joinpath(@__DIR__, "../../..")
-    roots = Tuple{String,String}[(joinpath(repo, "documentation"), "")]
-    pkg_dir = joinpath(repo, "documentation", "package")
+    documentation = _get_documentation_directory()
+    roots = Tuple{String,String}[(documentation, "")]
+    pkg_dir = joinpath(documentation, "package")
     if isdir(pkg_dir)
         for pkg in sort(readdir(pkg_dir))
             d = joinpath(pkg_dir, pkg)

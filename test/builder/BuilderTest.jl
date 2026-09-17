@@ -483,6 +483,24 @@ function test_builder()
             @test isdir(root)
         end
 
+        @testset "a copy is tested with the checkout out of sight" begin
+            context = _test_context()
+            hidden = get_hidden_directories(context)
+            @test context.root in hidden
+            @test dirname(dirname(@__DIR__)) in hidden    # the repository
+            @test all(isdir, hidden)
+            @test make_hidden_command(`true`, String[]) == `true`
+            if Sys.which("bwrap") !== nothing
+                secret = mktempdir()
+                write(joinpath(secret, "file"), "x")
+                command = make_hidden_command(`ls -A $secret`, [secret])
+                @test first(command.exec) == "bwrap"
+                @test isempty(read(command, String))
+                @test read(`ls -A $secret`, String) == "file\n"
+                rm(secret; recursive = true)
+            end
+        end
+
         @testset "the projectured build writes its package and compiles nothing" begin
             context = _test_context()
             project = build_projectured_executable(; context = context, compile = false)

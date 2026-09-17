@@ -84,6 +84,35 @@ function test_meaning_search()
     _MeaningTools._MEANING_FOLDER[] = folder
     try
 
+    @testset "a binary reads its guides and keeps its vectors outside the checkout" begin
+        # A Julia session has no bundle, so it uses the checkout.
+        @test _MeaningTools._get_bundle_directory() === nothing
+        @test endswith(_MeaningTools._get_default_meaning_folder(nothing),
+                       joinpath("build", "meaning"))
+        @test isfile(joinpath(_MeaningTools._get_documentation_directory(nothing), "README.md"))
+
+        # A binary has `share/projectured/` beside its `bin/`.
+        root = mktempdir()
+        bin = joinpath(root, "bin")
+        mkpath(bin)
+        @test _MeaningTools._get_bundle_directory(bin) === nothing
+        shared = joinpath(root, "share", "projectured")
+        mkpath(shared)
+        @test _MeaningTools._get_bundle_directory(bin) == shared
+        # A bundle without guides reads the checkout.
+        @test _MeaningTools._get_documentation_directory(shared) ==
+              _MeaningTools._get_documentation_directory(nothing)
+        mkpath(joinpath(shared, "documentation"))
+        @test _MeaningTools._get_documentation_directory(shared) ==
+              joinpath(shared, "documentation")
+        @test withenv(() -> _MeaningTools._get_default_meaning_folder(shared),
+                      "XDG_CACHE_HOME" => "/cache") == "/cache/projectured/meaning"
+        @test withenv(() -> _MeaningTools._get_default_meaning_folder(shared),
+                      "XDG_CACHE_HOME" => nothing) ==
+              joinpath(homedir(), ".cache", "projectured", "meaning")
+        rm(root; recursive = true)
+    end
+
     @testset "a backend with a meaning model gives it to a tool set" begin
         llm = FakeLlm("ok"; meaning_model = "bag-of-words")
         @test has_meaning_model(llm)
