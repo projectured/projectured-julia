@@ -120,12 +120,13 @@ controls: a text box, a checkbox, and a button.
 
 <img width="397" alt="Table example" src="../asset/image/example/table.png">
 
-**What it demonstrates:** `TableToGraphics` is a *direct* projection — it skips
-the text intermediate and renders a 2-D grid directly to graphics primitives,
-using rectangle fills and positioned text.
+**What it demonstrates:** a `WidgetTable`, the table abstraction, with each
+cell recursed through its own domain to graphics. `NaturalToGraphics`
+dispatches the grid layout, the widgets, and each cell's document type (JSON,
+Primitive, Math, …) the same way it dispatches any other value.
 
 ```
-TableTable ──TableToGraphics──▶ GraphicsCanvas
+WidgetTable ──NaturalToGraphics──▶ GraphicsCanvas
 ```
 
 The example shows a small data table with headers and typed cells.

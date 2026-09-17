@@ -59,7 +59,7 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [packages.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
-twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
+twenty-one domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its seventeen layers depend only downward, and
 the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
@@ -95,11 +95,11 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
         │                      is in [packages.md](../rule/package-rules.md).
-The twenty domain packages     one package per concrete source domain
+The twenty-one domain packages one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ filesystem/ graph/ chart/
         │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
-        │                      conversation/ workbench/. Each holds its
+        │                      conversation/ assistant/ workbench/. Each holds its
         │                      documents, its parser and its projections.
         │                      Deps: the kernel, the substrate packages it uses,
         │                      and the domains it embeds. See
@@ -286,7 +286,6 @@ composes with any higher-order projection.
 | `SyntaxToText` | `Syntax` → `Text` |
 | `TextToGraphics` | `Text` → `Graphics` |
 | `TextToString` | `Text` → `String` |
-| `TableToGraphics` | `Table` → `Graphics` (direct) |
 | `WidgetToGraphics` | `Widget` → `Graphics` |
 | `WorkbenchToWidget` | `Workbench` → `Widget` |
 | `GraphicsCaching` | `Graphics` → `Graphics` (caching projection) |
@@ -298,7 +297,7 @@ composes with any higher-order projection.
 | `TextHighlighting` | `Text` → `Text` (highlight matches) |
 | `SqlToSyntax` | `Sql` → `Syntax` |
 | `SqlToCellTable` | `Sql` → `CellTable` |
-| `CellTableToTable` | `CellTable` → `Table` |
+| `CellTableToWidgetTable` | `CellTable` → `WidgetTable` |
 | `ConversationToSyntax` | `Conversation` → `Syntax` |
 | `ConversationToWidget` | `Conversation` → `Widget` |
 | `LayoutToGraphics` | `Layout` → `Graphics` |
@@ -311,7 +310,7 @@ composes with any higher-order projection.
 
 | Module | Role |
 |---|---|
-| `Editor.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
+| `EditorModule.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
 | `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../../asset/web) |
@@ -320,7 +319,7 @@ composes with any higher-order projection.
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
-| `agent/AgentServer.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `agent/AgentServerModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
 
@@ -341,7 +340,7 @@ ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains �
    (opt-in)                    (opt-in)                 (opt-in)
 ```
 
-The substrate packages form their own DAG, and so do the twenty domains.
+The substrate packages form their own DAG, and so do the twenty-one domains.
 [packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
 has the domain table.
 
@@ -419,9 +418,10 @@ concept, and each declares the exact set of packages it imports:
    pdf             the vector PDF backend
 ```
 
-**The twenty domain packages** — one package per concrete source domain, each
-holding one slice: its documents, its parser and its projections. Fourteen need
-only the engine packages; five build on one layer of domains; the workbench
+**The twenty-one domain packages** — one package per concrete source domain,
+each holding one slice: its documents, its parser and its projections.
+Fourteen need only the engine packages; five build on one layer of domains;
+the assistant panel builds on the conversation domain; the workbench
 application sits on top. [domains.md](domain-inventory.md) has the table and the rules
 for adding one.
 
@@ -438,7 +438,6 @@ for adding one.
 | Book / Math / Julia / Primitive / Collection → Syntax | ✅ |
 | Syntax → Text (leaf and node with word-wrap) | ✅ |
 | Text → GraphicsCanvas (SDL2 text + cursor rect) | ✅ |
-| Table → GraphicsCanvas (direct) | ✅ |
 | Widget → GraphicsCanvas | ✅ |
 | Workbench → Widget → GraphicsCanvas | ✅ |
 | SDL2 window rendering | ✅ |
@@ -479,7 +478,7 @@ for adding one.
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 8) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
-| Editor REPL | `Editor.jl` | ✅ |
+| Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
 | Insert / delete operations | `Operations.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | — | ❌ |

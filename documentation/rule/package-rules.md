@@ -5,7 +5,7 @@
 What a package here is for, what it may depend on, and which one you load.
 
 - [architecture.md](../design/system-anatomy.md) — what the layers hold and how they stack.
-- [domains.md](../design/domain-inventory.md) — the twenty domain packages, and what makes one.
+- [domains.md](../design/domain-inventory.md) — the twenty-one domain packages, and what makes one.
 - [terminology.md](division-terminology.md) — package, layer, slice, module, leaf.
 
 This document is the shape those are arranged in.
@@ -51,8 +51,8 @@ says why. `test_package_graph()` asserts it, along with two more:
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
-`Projectured` aggregates its layers — Kernel, Base, Visual and the twenty domain
-packages, none of which has a third-party dependency. It deliberately does not
+`Projectured` aggregates its layers — Kernel, Base, Visual and the twenty-one
+domain packages, none of which has a third-party dependency. It deliberately does not
 aggregate `ProjecturedSdl`, `ProjecturedOdbc`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMcp`,
 `ProjecturedWeb` or
@@ -106,7 +106,7 @@ julia> set_workload!(:recorded)  # then restart
 | level | what the build does |
 | --- | --- |
 | `:none` | nothing; for a day spent editing the kernel |
-| `:recorded` | replays `package/repl/PrecompileStatements.jl` — the default |
+| `:recorded` | replays `asset/precompile/PrecompileStatements.jl` — the default |
 | `:live` | runs `ProjecturedExample.precompile_workload()` |
 
 `:recorded` replays a list that a person recorded by driving the editor, rather
@@ -197,7 +197,7 @@ dependency.
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
 
-### The twenty domains
+### The twenty-one domains
 
 Each domain depends on the kernel, on the substrate packages it uses, and on
 the domains it embeds. [domains.md](../design/domain-inventory.md) has the table.
@@ -220,7 +220,7 @@ the domains it embeds. [domains.md](../design/domain-inventory.md) has the table
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | Kernel, the 28 substrate packages, the 20 domains |
+| `Projectured` (umbrella) | Kernel, the 28 substrate packages, the 21 domains |
 | `ProjecturedSubstrateExample` | the 28 substrate packages, KernelExample |
 | `ProjecturedSubstrateTest` | the 28 substrate packages, KernelTest, SubstrateExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |

@@ -228,7 +228,7 @@ projections](documentation/package/kernel/higher-order-projections.md) guides fo
 
 ## What works today
 
-There are twenty domain packages. Each one owns its document types, its parser
+There are twenty-one domain packages. Each one owns its document types, its parser
 where it has a text syntax, and its projection.
 
 | Domain | What it holds |
@@ -252,6 +252,7 @@ where it has a text syntax, and its projection.
 | **FSM** | States, transitions and the diagram that lays them out |
 | **Process** | A flowchart language: the step documents and the runtime that walks them |
 | **Conversation** | The AI chat as a domain: messages, blocks, code executions |
+| **Assistant** | The AI assistant panel: a conversation, a turn, and a composer, usable beside any panes |
 | **Workbench** | The IDE shell: navigator, console, descriptor, operator, searcher, evaluator, assistant |
 
 The substrate under them carries what no single domain owns:

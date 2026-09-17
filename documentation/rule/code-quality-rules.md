@@ -212,7 +212,7 @@ one section out into its own fragment.
 A test function is exempt. `test_reference_rules()` is 1049 lines, and it reads
 better as one list.
 
-`package/repl/PrecompileStatements.jl` is generated. No rule applies to it.
+`asset/precompile/PrecompileStatements.jl` is generated. No rule applies to it.
 
 ## 5. The measured baseline
 
