@@ -213,7 +213,7 @@ package whose document walk can express them.
   behaviour; it belongs beside the concrete methods, as `get_reference_step_kind`'s default belongs
   in `ReferenceStep.jl`). No concrete structs, no state, no algorithms. Everything an
   interface file declares is exported: the export list *is* the layer's API surface.
-  See architecture requirement #72.
+  See architecture requirement PAR-INTERFACE-DECLARES-ONLY.
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
 - **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted
@@ -227,7 +227,7 @@ package whose document walk can express them.
   behaviour that used to lean on a `main` fallback moves to the example that wants
   it (pass an explicit fake `llm`); a `main` path with no real backend fails
   loudly instead. Precedent: `FakeLlm` / `ScriptedLlm` moved from kernel `main`
-  to `ProjecturedKernelExample`. See architecture requirement #68.
+  to `ProjecturedKernelExample`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
 
 ## Enforcement
 
@@ -244,7 +244,7 @@ cross-*layer* case today; the same-layer case (a sibling module reaching into a
 neighbour's internals) is the next enforcement phase, turned on per package once
 its same-layer internal imports are cleaned up. It also parses each file a package
 names as an **interface file** and asserts it declares without implementing, and
-exports every name it declares (requirement #72) — the kernel's nine contract files
+exports every name it declares (requirement PAR-INTERFACE-DECLARES-ONLY) — the kernel's nine contract files
 today. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
