@@ -411,14 +411,69 @@ Decisions and facts of Step 3:
 
 ### Step 4: the first build
 
-- [ ] Ask the owner, then build the application with one process and a memory
-      cap.
-- [ ] Start the binary with a file of each format and each `--window`.
-- [ ] Record the size and the start time of the build report in this plan.
+- [x] Ask the owner, then build the application with one process and a memory
+      cap. The owner approved it on 2026-09-17 ("yes").
+- [x] Start the binary with a file of each format and each `--window`.
+- [x] Record the size and the start time of the build report in this plan.
+
+Done on 2026-09-17, with the stock Julia 1.13.0 and PackageCompiler 2.4.2:
+
+```
+JULIA_IMAGE_THREADS=2 systemd-run --user --scope -q -p MemoryMax=20G -p MemorySwapMax=0 \
+  timeout 5400 nice -n 10 taskset -c 16-23 \
+  julia --startup-file=no --project=environment/build source/builder/build_binary.jl projectured
+```
+
+The first try stopped in `Pkg.resolve`: `ProjecturedExample` gave no
+`[sources]` path for `Projectured`, `ProjecturedAnthropic` and
+`ProjecturedOllama`. `environment/all` gives these paths, but the generated
+package has only its own. Commit `79881fe6` adds the three paths, and
+`build_executable` now stops before it writes anything when a local dependency
+in the tree has no path (`collect_missing_sources`). Other upper packages
+(`ProjecturedTest`, `ProjecturedRepl`, the native example and test packages)
+have the same gap. No build holds them, so they stay as they are.
+
+| What | Value |
+| --- | --- |
+| Wall time of the build | 8 min 6 s (incremental, native). Other sessions used the machine, so this is not a measurement. |
+| Bundle | 1413 MB (`du -sb`): 530 MB of artifacts, 290 MB of libraries, 37 fonts. |
+| Start in the build report | 0.38 s to answer the smoke flag, one run on a busy machine. |
+| `--help`, `--version`, `--build-info` | exit 0, correct text. |
+| `--window=tiles`, `--backend=x11`, `--colour`, `--log-level=loud` | exit 1 with a message that names the fault. |
+| `--window=pane` with 11 files (json, xml, yaml, md, rst, math, jl, sql, txt, a file without an extension, pdoc) | The window was there after about 1.1 s. It shows the navigator, 11 tabs, the JSON file in colour, and the assistant with its greeting. No warning in the log. |
+| `--window=workbench` with the same files | The same, in the workbench layout with the console at the bottom. |
+
+The binary shows only the first tab of each start. `test_application()`
+checks that every format draws, in both windows, in a Julia session.
+
+Faults that Step 4 found, still open:
+
+- `--build-info` shows the time of the last write of the generated module,
+  not the time of the build. `write_if_changed` ignores the time stamp, so a
+  build that changes nothing else keeps the old time.
+- `xprop` found no `WM_NAME` on the window of the binary. The code gives the
+  title `ProjecturEd` to `SDL_CreateWindow`. Check `_NET_WM_NAME` the next
+  time a window is open.
+- The stop by `SIGTERM` prints a backtrace, and the exit code is 15.
+- The large artifacts (x264, x265, libfdk_aac and the rest of FFMPEG) come in
+  through the SDL backend: `ProjecturedSdl` → `SDL2_jll` →
+  `alsa_plugins_jll` → `FFMPEG_jll`. The application plays no sound. If the
+  archive must be smaller, look at this chain in Step 5.
 
 ### Step 5: the distribution build and the release
 
-- [ ] A distribution build. The relocation test must pass.
+- [ ] Make the binary read three more things from the bundle, as it reads the
+      fonts from `share/projectured/font`. Each one is now a path relative to
+      the source file, so a copy on another machine does not find it:
+  - the web client, `asset/web` (`WebBackend` in `source/web/Web.jl`), and the
+    fonts that the web backend sends;
+  - the guides that the assistant reads, `documentation/`
+    (`_guide_roots` in `source/kernel/tool/Documentation.jl`);
+  - the folder of the meaning index, `build/meaning`
+    (`_get_meaning_file` in `source/kernel/tool/MeaningSearch.jl`). This folder
+    must be writable, so it goes to a user folder, not into the bundle.
+- [ ] A distribution build. The relocation test must pass. Start the copy with
+      `--backend=web` too, because the relocation test does not open a window.
 - [ ] D22: the owner approves the GitHub release. The documentation plan
       attaches the archive in its Step 11.
 
