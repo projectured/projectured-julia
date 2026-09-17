@@ -100,7 +100,9 @@ export default_backend
 # application: all three compose several domains, so they live at the umbrella.
 include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
+include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
 include(joinpath(_EXAMPLE_DIR, "Application.jl"))
+export run_value_viewer, make_value_viewer
 export run_application, make_application_document, make_application_projection,
        make_application_assistant, make_application_content_projections,
        get_application_greeting_text, APPLICATION_WINDOWS, APPLICATION_ASSISTANTS,
