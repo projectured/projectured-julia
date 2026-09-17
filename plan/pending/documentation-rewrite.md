@@ -25,8 +25,12 @@ git history, code comments and tests can keep the names (D16).
 after decision D10.
 
 **Companion file:** [documentation-rewrite-survey.md](documentation-rewrite-survey.md)
-holds the ten survey reports, with one findings table for each document. It is
-the checklist for Steps 3, 6 and 7.
+holds the ten survey reports, with one findings table for each document, and
+the comparison of the two binary builds (section J). It is the checklist for
+Steps 3, 6 and 7.
+
+**Split plan:** the application and its build are in
+[application-and-build.md](application-and-build.md) (D18, D20 to D25).
 
 ## 1. The request
 
@@ -90,7 +94,7 @@ Points that the owner set during the drafts:
 > An application to view and edit structured data with an AI assistant, and a
 > generic user interface for Julia programs.
 
-**Preface** (draft, not yet approved). A short note directly under the tagline:
+**Preface** (approved, D19). A short note directly under the tagline:
 
 > **Status: under development.** Most features work, but ProjecturEd is not a
 > finished product. Some parts are incomplete, and names and interfaces can
@@ -156,7 +160,7 @@ Points that the owner set during the drafts:
 one again:
 
 - "an application" and "in one window, in tabs and split panes": the
-  application entry point of Step 1 (D18).
+  application of [application-and-build.md](application-and-build.md) (D18).
 - "the values of a running program" and "a generic view ... by reflection":
   the call of Step 1 that opens a window on any value (D4).
 - "a view that the assistant opens for you": `open_pane!` exists; Step 1 adds
@@ -242,10 +246,10 @@ the rest.
 - Commercial use needs a licence from the author (D1).
 - "Duplicate a pane" and "select any widget with Alt+click" are plans, not code.
 
-Three more limits are true today, and Step 1 removes them (D4, D5, D18): no
-single call opens a window on any Julia value, no example uses a real language
-model, and no single command opens files of every supported format in one
-window.
+Three more limits are true today. Step 1 removes the first two (D4, D5), and
+`application-and-build.md` removes the third (D18): no single call opens a
+window on any Julia value, no example uses a real language model, and no single
+command opens files of every supported format in one window.
 
 ## 3. The survey
 
@@ -569,8 +573,22 @@ The third answers of 2026-09-17, after the three drafts of §2.1:
 
 | # | Question | Decision |
 | --- | --- | --- |
-| D18 | An application entry point before the posts | Yes. One command and one binary open any number of files, in every supported format, in one window with the assistant. The existing build system (`ProjecturedBuilder`, `ProjecturedExecutable`) becomes more general, and it takes what applies from the binary build of omnet-julia (Step 1). |
+| D18 | An application entry point before the posts | Yes. One command and one binary open any number of files, in every supported format, in one window with the assistant. The existing build system (`ProjecturedBuilder`, `ProjecturedExecutable`) becomes more general, and it takes what applies from the binary build of omnet-julia ([application-and-build.md](application-and-build.md)). |
 | D19 | A preface | Yes: the project is under development, most features work, and it is not a finished product (§2.1). |
+
+The fourth answers of 2026-09-17:
+
+> for 1, yes
+> for 2, we can have both using command line arguments to select
+> for 3, move and call the environment build not tool, makes more sense
+> for 4, should
+>
+> put the build thing into a separate plan from the documentation plan
+
+| # | Question | Decision |
+| --- | --- | --- |
+| D19 | The text of the preface | Approved as written in §2.1. |
+| D20 to D23 | The application window, the builder, the binary release, the build environment | See §2.1 of [application-and-build.md](application-and-build.md). That plan holds the application and build work from now on. |
 
 ### 4.2 Open questions
 
@@ -582,10 +600,6 @@ Each one has my recommendation. Each one comes before the step that it names.
 | D12 | Where do the drafts of the two posts go? | In §9 of this plan. They are one-time text, not documentation. | Step 11 |
 | D14 | Which forums? | r/Julia and the Julia Discourse. A wider forum only after the first feedback. | Step 11 |
 | D15 | Videos? | Yes. Three short recordings (Step 9). | Step 9 |
-| D19 | Is the preface of §2.1 right? | The draft in §2.1. | Step 4 |
-| D20 | Which window is the application: the older `Workbench` (`source/workbench/`: navigator, `Ctrl+S` on a `WorkbenchEditor` tab), or the newer pane program (`source/pane/`: `PaneTree`, `open_pane!`, the planned "duplicate a pane")? | The pane program. The assistant opens views with `open_pane!`, and the newer pane work goes there. The file tab gestures of `WorkbenchFile.jl` move to a file tab that a `PaneTab` can hold. The `Workbench` stays as an example until a later plan decides. | Step 1 |
-| D21 | Copy the generic half of the omnet builder into `ProjecturedBuilder`, or move it there? omnet-julia already depends on projectured-julia. | Move it: `ProjecturedBuilder` gets the generic half, and omnet-julia keeps only its `Program.jl` and its front end, and calls the shared code. One builder does not drift. This changes omnet-julia too, so it is a step of its own after the copy works here. | Step 1 |
-| D22 | Publish a Linux x86-64 binary with the posts, for example as a GitHub release? | Yes, if the distribution build of Step 1 passes its relocation test. A reader can then try the application without a Julia installation. The quick start names both ways. | Step 11 |
 
 ## 5. Steps
 
@@ -685,73 +699,10 @@ model.**
       `test/ollama/` and `ProjecturedOllamaTest` are made, under
       `package-rules.md`.
 
-**D18: the application, and a more general build.**
-
-The facts come from a read-only comparison of the two builds on 2026-09-17.
-
-| Fact | Where |
-| --- | --- |
-| A build starts only from a Julia session: `build_executable(make_workbench_app(SdlBackend))`. | [Builder.jl](../../source/builder/Builder.jl), `documentation/package/executable/README.md` |
-| A target is a `BuildSpec`. Two exist: `default_json_app` and `make_workbench_app`. | `Builder.jl:268`, `:277` |
-| Every build compiles the one fixed package `ProjecturedExecutable`, whose `[deps]` always hold SDL, Anthropic, Ollama and PackageCompiler. | `Builder.jl:39`, `package/ProjecturedExecutable/Project.toml` |
-| `_compile!` passes three keywords to `create_app`. There is no `incremental`, no font copy, no size or start-time report, and no test of the builder. | `Builder.jl:215-249` |
-| The runtime already looks for fonts in `share/projectured/font` beside the binary. The build does not copy them there. | [TrueType.jl:101](../../source/style/TrueType.jl#L101) |
-| `julia_main` reads one file argument and `--backend`. It returns 0 or 1. | `source/executable/Executable.jl:53-183` |
-| `run_file_editor` knows 4 formats and cannot save without the workbench. `read_document_file` and `write_document_file` know all 8 natural formats, `.pdoc` and `.pred`. A workbench tab saves with `Ctrl+S`. | `example/projectured/FileEditor.jl:56`, `source/fileformat/DocumentFile.jl`, `source/workbench/WorkbenchFile.jl` |
-| omnet-julia builds from a shell: `julia --project=environment/tool source/tool/build_binary.jl <what>`. One Julia function for each binary calls a generic `build_executable` that writes a fresh app package with only the packages that the binary needs. | omnet `source/tool/build_binary.jl`, `source/build/Program.jl`, `source/build/AppPackage.jl` |
-| The generic half of the omnet builder names no simulator package: `Root.jl`, `Preference.jl`, `Usage.jl`, `AppPackage.jl`, `Executable.jl`, `Distribution.jl`, and `test/build.jl`, which tests the builder without a compile. | omnet `source/build/`, `package/OmnetBuilder/` |
-| omnet measured an incremental `create_app` at 390 s and 741 MB, against 741 s and 736 MB for a full one. A `create_app` compile once died because another build used the memory. | omnet `source/build/Executable.jl:293-309`, `plan/done/build-programs.md:746` |
-
-The application (runtime):
-
-- [ ] One function opens the application window with any number of files, and
-      the compiled binary calls it: `projectured [files...] [--backend sdl|web]
-      [--assistant ollama|anthropic|none] [--model NAME] [--mcp]`. Name the
-      function by the naming rules.
-- [ ] The window has file tabs and split panes, a file navigator, and the
-      assistant beside the tabs (D20).
-- [ ] A file opens in the format that its extension names: the 8 natural
-      formats, `.pdoc` and `.pred`. Use the registry of
-      `read_document_file`, not a second list like `EDITOR_DOMAINS`.
-- [ ] A file opens from the navigator and from the command palette. `Ctrl+S`
-      saves a tab. "Save as" asks for a path.
-- [ ] The binary answers `--help`, `--version` and `--build-info`, refuses an
-      unknown flag, and returns 0 (done), 1 (bad command line) or 2 (failure).
-- [ ] Test the application without a window: open a file of each format, change
-      it, save it, and read it back.
-
-The build (what to copy from omnet-julia):
-
-- [ ] A shell front end, `build_binary.jl`, over one Julia function for each
-      binary, with its own environment `environment/tool` that holds
-      PackageCompiler. The same option table gives the `--help` text and the
-      refusal of an unknown option.
-- [ ] A fresh app package for each build, with only the packages that the
-      binary needs. The fixed `ProjecturedExecutable` package goes away or
-      becomes the template (D21).
-- [ ] `incremental = true` by default. A full build only for a distribution.
-- [ ] Copy the fonts to `share/projectured/font`.
-- [ ] After each build, print the size of the bundle and the time that the
-      binary takes to answer `--build-info`. A timing is a measurement: it
-      needs an idle machine and the owner's approval.
-- [ ] Do not write a generated file again if only its time stamp changed.
-- [ ] A distribution build: a full `create_app`, `strip_bundle!`, a copy
-      outside the repository (under `/var/tmp`, not `/tmp`), and a start of
-      the copy with an empty `JULIA_DEPOT_PATH`. The copy must answer
-      `--build-info` (D22).
-- [ ] A test of the builder that compiles nothing: the generated text, the
-      option table, the refusals.
-- [ ] Later, and only if wanted: prelink with the special Julia (the build
-      works without it), the custom launcher (about 90 ms of start time), and
-      the reactive rebuild (it needs a patched PackageCompiler).
-- [ ] Do not copy the simulator parts: the program names, `-u Cmdenv`, the
-      `-f`/`-c` options, the model packaging rule, the module union pin, the
-      requirement texts.
-- [ ] Update `documentation/package/executable/README.md` into a build guide,
-      and cross-link it with `static-compilation-guide.md`.
-
-A build uses much memory. Run one build at a time, with a memory cap and a
-timeout, and never beside another build or a large model.
+**D18: the application and its build** are in
+[application-and-build.md](application-and-build.md). This plan needs its
+Steps 1 to 5: the application command for the README quick start (Step 4 here),
+and the binary for the release (Step 11 here).
 
 **Close of the step.**
 
@@ -796,9 +747,10 @@ timeout, and never beside another build or a large model.
   2. The introduction of §2.1, as approved.
   3. A video or an animated image, and three screenshots.
   4. What you can do with it: the list of §2.3, each item with a link.
-  5. Quick start: install the application binary or clone the repository;
-     open files with the application command (D18); the assistant with Ollama
-     (the default) or with an Anthropic key; a window on your own value.
+  5. Quick start: download the application binary (D22) or clone the
+     repository; open files with the application command (D18, from
+     `application-and-build.md`); the assistant with Ollama (the default) or
+     with an Anthropic key; a window on your own value.
   6. How it works: the text of §2.1, then data, views, edits, cells and the tool
      set. One diagram. A link to `design/concepts.md`.
   7. Status and limits: the list of §2.5.
@@ -954,7 +906,7 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       products (§3.9, D16, D17). The result of the `git grep` must be empty.
 - [ ] D1a: change `LICENCE-PD` §3 so that it allows modification for
       non-commercial purposes. The owner approves the wording.
-- [ ] D22: make the distribution build, and attach the archive to a GitHub
+- [ ] D22: attach the archive of `application-and-build.md` Step 5 to a GitHub
       release. The owner approves the release.
 - [ ] Move this plan and the survey file to `plan/done/`.
 - [ ] The owner reads the drafts, makes the repository public (D2) and posts.
