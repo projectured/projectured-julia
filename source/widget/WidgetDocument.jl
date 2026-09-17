@@ -1167,8 +1167,7 @@ set_cell_function!(w::WidgetSplitPane, f::Function) = (set_cell_function!(getfie
 # optional `icon`, and whether the tab offers a duplicate button (`duplicable`,
 # drawn only when the pane is `duplicable` too). A first-class Document rather
 # than a raw `(selector, element, icon)` tuple, so the selection chain descends
-# Document→Document through a tabbed
-# pane. With a tuple in the path, the in-place selection sync (`replace_selection!`)
+# Document→Document through a tabbed pane. With a tuple in the path, the in-place selection sync (`replace_selection!`)
 # could not step past the non-Document tuple and diverged, re-pointing the pane's
 # active-tab path on every within-tab caret move — a printer-locality dimension-A
 # violation (see plan/pending/printer-locality.md). With a Document the in-place

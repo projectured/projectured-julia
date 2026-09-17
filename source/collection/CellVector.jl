@@ -223,28 +223,14 @@ end
 
 # ── CellVector: deep copy / sync / reference steps ────────────────────────
 # ── Deep copy ──────────────────────────────────────────────────────────────
-# `CellVector`-specific cases of `DocumentModule.copy_document`. The generic
-# `Document` path would share the `elements`' inner slot `Cell`s (the fallback
-# `copy_document(::Vector) = [copy_document(x) for x in v]` returns each cell
-# unchanged when the vector is non-`Vector{Cell}`, and slot-cell kind against
-# the enclosing CellVector's kind convention is the storage decision this
-# override makes explicit).
+# `CellVector`-specific cases of `DocumentModule.copy_document`. The walk that
+# keeps the cell kind copies a list as it copies any document: the `elements`
+# cell and each slot cell in it are rebuilt of their own kind.
 
-# Same-kind deep copy: preserve the storage shape of the source's `elements`
-# field, cloning each slot cell (reactive convention) or each raw value
-# (immutable/mutable convention) into a fresh Cell/value; the outer field cells
-# are rebuilt of the same kind. The `elements` cell goes through the walk's own
-# cell step, so a list that computes is the policy's to copy.
-function copy_document(policy::CopyPolicy, cv::CellVector)
-    is_descendable_for_copy(policy, cv) || return make_copy_placeholder(policy, cv)
-    CellVector(copy_document(policy, getfield(cv, :elements)),
-               _copy_collection_selection(policy, getfield(cv, :selection)))
-end
-
-# The plain copy starts the list with no selection; a policy keeps it, because a
-# selection is a path relative to the list and is valid in the copy.
-_copy_collection_selection(::PlainCopyPolicy, cell) = copy_cell_as(cell, nothing)
-_copy_collection_selection(policy::CopyPolicy, cell) = copy_selection_cell(policy, cell)
+# The plain copy starts the list with no selection. Every other policy keeps it,
+# because a selection is a path relative to the list and is valid in the copy.
+copy_document(policy::PlainCopyPolicy, cv::CellVector) =
+    copy_document_fields(policy, cv; selection = nothing)
 
 # Kind-converting deep copy: the target storage follows the kind convention —
 # reactive → per-element slot Cells (via `CellVector(items)`), immutable/mutable

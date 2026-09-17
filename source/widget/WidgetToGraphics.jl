@@ -2846,9 +2846,9 @@ end
 # scroll-clamping agree exactly (including any per-tab icon width — measuring text
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
 # a NamedTuple of the content offset, the tab padding, the strip height, the natural
-# strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, close_w,
+# strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, button_w,
 # buttons)`, where `x`/`rw` are the tab's left edge and full width in strip
-# coordinates, `close_w` is the width of its button column (0 when it has none), and
+# coordinates, `button_w` is the width of its button column (0 when it has none), and
 # `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or `:both`,
 # the `+` above the `x` — and the new-tab button's box (`new_x`/`new_w`, `new_w` 0
 # when the pane has no `new_tab`).
@@ -2863,7 +2863,7 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     _, em_h = _text_size(p.measure, p.font, "M")
     closable = w.closable === true
     duplicable = w.duplicable === true
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, close_w, buttons)
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons)
     tab_h = em_h
     x = cox
     for pair in w.selector_element_pairs
@@ -2873,10 +2873,10 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
         iw  = icon_width(icon, th)
         gap = iw > 0 ? _sc(6) : 0
         buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
-        cw  = buttons === :none ? 0 : th
-        cgap = cw > 0 ? _sc(6) : 0
-        rw  = tw + iw + gap + cw + cgap + 2 * sel_pad
-        push!(tabs, (label, icon, iw, gap, x, rw, cw, buttons))
+        button_w = buttons === :none ? 0 : th
+        button_gap = button_w > 0 ? _sc(6) : 0
+        rw  = tw + iw + gap + button_w + button_gap + 2 * sel_pad
+        push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons))
         x += rw
         tab_h = max(tab_h, th)
     end
@@ -2895,26 +2895,26 @@ _get_tab_buttons(closable::Bool, duplicable::Bool) =
 
 # The button column's box inside a tab tuple: its left edge and its width, or
 # `nothing` when the tab has none.
-function _tab_close_box(tab, sel_pad::Int)
-    cw = tab[7]
-    cw > 0 ? (tab[5] + tab[6] - sel_pad - cw, cw) : nothing
+function _get_tab_button_box(tab, sel_pad::Int)
+    button_w = tab[7]
+    button_w > 0 ? (tab[5] + tab[6] - sel_pad - button_w, button_w) : nothing
 end
 
 # The part of the strip a point on tab `tab` lands on: `:close`, `:duplicate`, or
 # `:tab` for the rest. A column that holds both buttons is split across the strip's
 # height: the `+` above, the `x` below.
 function _get_tab_part(g, tab, xx::Int, yy::Int)
-    box = _tab_close_box(tab, g.pad)
+    box = _get_tab_button_box(tab, g.pad)
     (box !== nothing && xx >= box[1] && xx < box[1] + box[2]) || return :tab
     buttons = tab[8]
     buttons === :both || return buttons
     yy < g.coy + g.height ÷ 2 ? :duplicate : :close
 end
 
-# Draw the button column of a tab. A single button is drawn as the close button
-# always was; two share the column, each centred in its half of the strip.
+# Draw the button column of a tab. A single button fills the column at the
+# height of the label; two share it, each centred in its half of the strip.
 function _push_tab_buttons!(result, g, tab, color)
-    box = _tab_close_box(tab, g.pad)
+    box = _get_tab_button_box(tab, g.pad)
     box === nothing && return
     x, w = box
     buttons = tab[8]
@@ -2965,7 +2965,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         # Muted track behind the whole tab row.
         _push_panel!(result, cox, coy, g.strip_w, sel_h; fill=p.track_color, radius=tab_radius)
         for i in eachindex(tabs)
-            label, icon, iw, gap, tx, rw, cw = tabs[i]
+            label, icon, iw, gap, tx, rw = tabs[i]
             if i == active
                 # Active tab: a raised background pill.
                 _push_panel!(result, tx, coy, rw, sel_h; fill=p.active_color, radius=tab_radius)

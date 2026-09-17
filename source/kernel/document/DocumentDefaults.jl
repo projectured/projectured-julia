@@ -1,8 +1,8 @@
 # Fragment of `DocumentModule` — the default behaviours every document inherits
 # unless it overrides them: the two walk-steering traits (`is_element_collection`
 # / `is_walk_opaque`, declared in `DocumentInterface.jl`), the unbounded default
-# for the three sync/copy policy hooks, the defaults of the `CopyPolicy` hooks,
-# and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
+# for the three sync policy hooks, the defaults of the `CopyPolicy` hooks and of
+# `has_document_duplicate`, and the depth-limited debug `show`. The trait defaults keep the walk from ever naming a concrete
 # collection type — a document opts into a shape by overriding one, and the walk
 # reads the shape off the trait, so it sits below every collection it descends.
 

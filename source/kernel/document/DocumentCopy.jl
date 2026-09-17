@@ -59,6 +59,10 @@ copy_document(policy::CopyPolicy, v::AbstractVector) = [copy_document(policy, x)
 # comprehension above can not promise: a collection keys its storage on that type.
 copy_document(policy::CopyPolicy, v::Vector{Cell}) = Cell[copy_document(policy, c) for c in v]
 
+# A list of any value stays one, so the copy accepts any value that the source
+# accepts. The comprehension above narrows to the type of the values it holds.
+copy_document(policy::CopyPolicy, v::Vector{Any}) = Any[copy_document(policy, x) for x in v]
+
 # Cell: a fresh cell of the same kind and value type, holding the copied inner
 # value. A cell that computes is the policy's to copy.
 copy_document(policy::CopyPolicy, cell::AbstractCell) =
@@ -93,7 +97,7 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
     for name in field_names
         raw = getfield(document, name)
         push!(arguments, haskey(replacements, name) ?
-                             _get_replacement_field(raw, replacements[name]) :
+                             _make_replacement_field(raw, replacements[name]) :
                          name === :selection && raw isa AbstractCell ?
                              copy_selection_cell(policy, raw) :
                              copy_document(policy, raw))
@@ -105,14 +109,19 @@ end
 
 # A replacement for a field that holds a cell goes in a new cell of the same
 # kind; a cell given as the replacement is used as it is.
-_get_replacement_field(raw, value) =
+_make_replacement_field(raw, value) =
     value isa AbstractCell ? value :
     raw isa AbstractCell   ? copy_cell_as(raw, value) :
                              value
 
 Base.showerror(io::IO, e::DocumentCopyException) =
-    print(io, "DocumentCopyException: a copy of a ", nameof(typeof(e.value)),
+    print(io, "DocumentCopyException: a copy of a ", _get_refused_value_word(e.value),
           " is refused: ", e.reason)
+
+# A word for what was refused. A closure's type has no name a person can read.
+_get_refused_value_word(value::Function) = "function"
+_get_refused_value_word(value::AbstractCell) = "cell"
+_get_refused_value_word(value) = String(nameof(typeof(value)))
 
 # ── The duplicate ──────────────────────────────────────────────────────────
 

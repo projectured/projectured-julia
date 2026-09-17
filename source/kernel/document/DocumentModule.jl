@@ -15,7 +15,7 @@ its own definition:
 | Fragment | Contract |
 |---|---|
 | [`DocumentInterface.jl`](DocumentInterface.jl) | the `Document` supertype + the contract generics (`is_element_collection` / `is_walk_opaque` / `copy_document` / `sync_document!` / `search_documents`) |
-| [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` trait answers and the depth-limited debug `show` |
+| [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` trait answers, the defaults of the sync and copy policy hooks, and the depth-limited debug `show` |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving under a `CopyPolicy`, or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |

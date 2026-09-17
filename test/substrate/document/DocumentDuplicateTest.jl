@@ -87,6 +87,30 @@ end
     @test !is_computed_cell(getfield(duplicate, :selection))
 end
 
+@testset "the plain copy of a mutable list still takes a value of any type" begin
+    list = copy_document(MutableCell, CellVector(Any[1, 2]))
+    copied = copy_document(list)
+    push!(copied, "three")
+    @test length(copied) == 3
+    @test length(list) == 2
+end
+
+@testset "a list met twice is one duplicate, and a list that holds itself refuses" begin
+    inner = CellVector(Any[PrimitiveString("a")])
+    duplicate = make_document_duplicate(CellVector(Any[inner, inner]))
+    @test duplicate[1] === duplicate[2]
+    @test duplicate[1] !== inner
+    looped = CellVector(Any[nothing])
+    looped[1] = looped
+    @test occursin("back-link", _refusal(looped))
+end
+
+@testset "a matrix and a linked list declare no duplicate" begin
+    @test !has_document_duplicate(CellMatrix(["a" "b"]))
+    @test !has_document_duplicate(ListNode(1))
+    @test has_document_duplicate(CellTable(1, 1))
+end
+
 @testset "a computed list refuses" begin
     source = PrimitiveString("x")
     list = ComputedCellVector(() -> Any[source])

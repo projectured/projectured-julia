@@ -378,9 +378,24 @@ end
 # duplicate.
 function _make_pane_tab_duplicate(tree::PaneTree, tab::PaneTab)
     content = make_document_duplicate(tab.content)
-    PaneTab(PrimitiveString(_unique_pane_title(tree, get_pane_tab_title_string(tab))),
-            content, tab.icon)
+    title = _unique_pane_title(tree, _get_pane_title_stem(get_pane_tab_title_string(tab)))
+    PaneTab(PrimitiveString(title), content, tab.icon)
 end
+
+# The title a duplicate is numbered from: the title without the number a
+# duplicate got, so the duplicate of "Runner (2)" is "Runner (3)".
+_get_pane_title_stem(title::AbstractString) = replace(String(title), r" \(\d+\)$" => "")
+
+# Why a content has no duplicate, as a sentence that names what was refused:
+# the content itself, or a value inside it.
+_format_duplicate_refusal(content, e::DocumentCopyException) =
+    e.value === content ? e.reason :
+        "a $(_get_refused_word(e.value)) inside it is refused: $(e.reason)"
+
+# A word for what was refused. A closure's type has no name a person can read.
+_get_refused_word(value::Function) = "function"
+_get_refused_word(value::AbstractCell) = "cell"
+_get_refused_word(value) = String(nameof(typeof(value)))
 
 """
     make_pane_duplicate_tab_operation(tree, group, index) -> Operation | Nothing
@@ -400,7 +415,7 @@ function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, ind
         _make_pane_tab_duplicate(tree, tab)
     catch e
         e isa DocumentCopyException || rethrow()
-        @warn "The pane has no duplicate" kind = nameof(typeof(tab.content)) reason = e.reason
+        @warn "The pane has no duplicate" kind = nameof(typeof(tab.content)) reason = _format_duplicate_refusal(tab.content, e)
         return nothing
     end
     make_pane_open_tab_operation(tree, group, duplicate; index = index + 1)

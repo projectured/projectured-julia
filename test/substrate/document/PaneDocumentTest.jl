@@ -87,14 +87,25 @@ end
     @test duplicate.content.value == "content of b"
     @test group.tabs[2] === tabs[2]
     @test group.tabs[4] === tabs[3]
-    # A second duplicate of the same tab takes the next number.
+    # A second duplicate of the same tab takes the next number, and so does the
+    # duplicate of a duplicate.
     _apply!(editor, make_pane_duplicate_tab_operation(tree, group, 2))
     @test get_pane_tab_title_string(group.tabs[3]) == "b (3)"
+    _apply!(editor, make_pane_duplicate_tab_operation(tree, group, 3))
+    @test get_pane_tab_title_string(group.tabs[4]) == "b (4)"
     @test make_pane_duplicate_tab_operation(tree, group, 9) === nothing
     # A content whose kind declares no duplicate gives no edit, and says why.
     inner = PaneTree(PaneGroup([PaneTab("layout", PaneGroup(PaneTab[]))]))
     @test (@test_logs (:warn, "The pane has no duplicate") make_pane_duplicate_tab_operation(
                inner, inner.root, 1)) === nothing
+    # A value inside the content that refuses is named in the reason.
+    field = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    refusing = PaneTree(PaneGroup([PaneTab("field", field)]))
+    logger = Test.TestLogger()
+    Base.CoreLogging.with_logger(logger) do
+        make_pane_duplicate_tab_operation(refusing, refusing.root, 1)
+    end
+    @test occursin("a function inside it is refused", logger.logs[1].kwargs[:reason])
 end
 
 @testset "close a tab, others remain" begin

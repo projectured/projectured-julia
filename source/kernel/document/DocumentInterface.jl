@@ -144,9 +144,11 @@ function get_cell_layout_field_type end
     copy_document(K, value)       -> value      # rebuild every cell as kind K
 
 Deep-copy a document subtree, allocating fresh `Cell`s and containers so the
-result shares no mutable state with the source. The one-argument form preserves
-each cell's kind; the form with a cell type `K` rebuilds every cell as kind `K`
-(`ReactiveCell` / `MutableCell` / `ImmutableCell`). Plain immutable leaves
+result shares no cell with the source. A value that is not a document, a vector
+or a cell is shared, and a policy can share a document it does not descend
+into. The one-argument form preserves each cell's kind; the form with a cell
+type `K` rebuilds every cell as kind `K` (`ReactiveCell` / `MutableCell` /
+`ImmutableCell`). Plain immutable leaves
 (strings, numbers, symbols) pass through unchanged.
 
 The form with a [`CopyPolicy`](@ref) is the walk that preserves the kind, steered.

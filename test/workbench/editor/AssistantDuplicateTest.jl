@@ -67,5 +67,19 @@ function test_assistant_duplicate()
         @test fork.status === :idle
     end
 
+    @testset "a fork leaves out the reply that streams" begin
+        a = make_assistant_mvp_setup(reply = "Unused")
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("Go")]))
+        push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart("Half")]))
+        a.status = :streaming
+        fork = make_document_duplicate(a)
+        @test length(fork.conversation.turns) == 1
+        @test fork.conversation.turns[1].role === :user
+        @test length(a.conversation.turns) == 2
+        # An idle assistant's last reply is finished, and the fork keeps it.
+        a.status = :idle
+        @test length(make_document_duplicate(a).conversation.turns) == 2
+    end
+
     end
 end

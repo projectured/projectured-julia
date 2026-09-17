@@ -130,13 +130,19 @@ set_cell_function!(a::Assistant, f::Function) = (set_cell_function!(getfield(a, 
 # The duplicate of an assistant is a fork: the conversation so far and the text
 # in the composer, and a draft of its own that links back to the fork. The
 # backend, the model, the prompt, the key and the `llm` are values it shares. The
-# fork starts idle. A turn that streams goes on writing to the assistant that
-# started it, because its task holds that assistant.
+# fork starts idle. A reply that streams stays with the assistant that started
+# it: its task writes there, and it is the last turn, pushed when the stream
+# began, so the fork leaves it out.
 has_document_duplicate(::Assistant) = true
 
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
     fork = copy_document_fields(policy, assistant; draft = draft, status = :idle)
     draft.assistant = fork
+    turns = fork.conversation.turns
+    if assistant.status === :streaming && !isempty(turns) &&
+       turns[length(turns)].role === :assistant
+        deleteat!(turns, length(turns))
+    end
     fork
 end

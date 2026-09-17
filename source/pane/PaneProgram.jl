@@ -631,8 +631,8 @@ reads what the original reads.
 
 # Example
 
-    copy = duplicate_pane!(editor, @reference(window, root.elements[2].tabs[1]))
-    focus_pane!(editor, copy)
+    second = duplicate_pane!(editor, @reference(window, root.elements[2].tabs[1]))
+    focus_pane!(editor, second)
 
 See also `open_pane!`, `focus_pane!`, `show_layout`.
 
@@ -656,7 +656,8 @@ function duplicate_pane!(editor, reference::Reference)
         _make_pane_tab_duplicate(tree, source)
     catch e
         e isa DocumentCopyException || rethrow()
-        throw(ArgumentError("A $(nameof(typeof(source.content))) pane has no duplicate: $(e.reason)."))
+        throw(ArgumentError("A $(nameof(typeof(source.content))) pane has no duplicate: " *
+                            _format_duplicate_refusal(source.content, e) * "."))
     end
     target = group === pane_group_to_avoid(tree) ? _find_placement_group(tree) : group
     operation = target === group ?
