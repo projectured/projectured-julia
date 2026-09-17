@@ -279,6 +279,19 @@ function test_builder()
             @test isempty(collect_missing_sources(context, ["Top"]))
         end
 
+        @testset "a caller puts its own file into the package before it is resolved" begin
+            context = _test_context()
+            seen = String[]
+            project = build_executable(context; name = "extra", packages = [A_PACKAGE],
+                main = :(begin 0 end), compile = false,
+                after_write = directory -> begin
+                    push!(seen, directory)
+                    write(joinpath(directory, "extra.jl"), "# a file of the caller\n")
+                end)
+            @test seen == [project]
+            @test isfile(joinpath(project, "extra.jl"))
+        end
+
         @testset "a build that would write the same module again leaves it alone" begin
             # A rewrite is a recompile: Julia decides a cache is stale from the
             # source file, and the generated module is the top of the tree.

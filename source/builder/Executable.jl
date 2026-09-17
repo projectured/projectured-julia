@@ -148,7 +148,8 @@ end
                        fonts, assets, usage, log_level, imports, init,
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
-                       precompile, force, logfile, extra_info, compile_app) -> String
+                       precompile, force, logfile, extra_info, after_write,
+                       compile_app) -> String
 
 Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
@@ -170,6 +171,10 @@ output directory.
   `:debug`, `:info`, `:warn`, `:error` or `:none`. Every binary answers
   `--log-level=<level>` over it, so this is the default and not the answer.
 - `imports` and `init` — passed on to [`write_app_package`](@ref) unchanged.
+- `after_write` — a function called with the directory of the written package,
+  after the package and its preferences are there and before it is resolved.
+  A caller that must put another file into the package, or read what the last
+  build wrote there, uses it.
 - `resolve` — make the written package loadable, by
   [`resolve_app_project`](@ref). It follows `compile`, because a caller that only
   wants to see what a build would write pays nothing for it; a caller that will
@@ -213,6 +218,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             log_level::Symbol = :warn,
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
+                            after_write = nothing,
                             incremental::Bool = true,
                             filter_stdlibs::Bool = false,
                             optimization::Integer = 3,
@@ -249,6 +255,7 @@ function build_executable(context::BuildContext; name::AbstractString,
     project = write_app_package(context; name, packages, imports, init, main, workload,
                                  info, usage, log_level)
     write_preferences(preferences, project)
+    after_write === nothing || after_write(project)
     @info "build_executable: wrote $project\n" * info
     # A caller that only wants to SEE what a build would write pays nothing for
     # it. A caller that will compile the package, or run it, needs it resolved.
