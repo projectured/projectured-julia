@@ -40,7 +40,7 @@ import ..SelectionModule: has_dormant_selection
 
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, SelectTabOperation, CloseTabOperation, OpenTabOperation,
-       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+       DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, Shortcut, matches_action_shortcut,
        InvokeActionOperation, resolve_action,
        make_numeric_validator, evaluate_operation, inset_default, inset_size,

@@ -1,5 +1,6 @@
-# The three things a tab strip reports beside a tab click: a close button, a
-# new-tab button, and the grab that may become a drag. Each is opt-in on the pane.
+# The four things a tab strip reports beside a tab click: a close button, a
+# duplicate button, a new-tab button, and the grab that may become a drag. Each is
+# opt-in on the pane.
 #
 # The tests never hardcode a pixel: they sweep the strip and assert on *which*
 # operations appear and in what order along the x axis. So they check the seam
@@ -120,6 +121,62 @@ end
     @test evaluate_operation(nothing, CloseTabOperation(pane, 1)) === nothing
     @test evaluate_operation(nothing, OpenTabOperation(pane)) === nothing
     @test evaluate_operation(nothing, DragTabOperation(pane, 1)) === nothing
+    @test evaluate_operation(nothing, DuplicateTabOperation(pane, 1)) === nothing
+end
+
+# A pane whose first page offers a duplicate and whose second does not.
+function _duplicable_pane(; kwargs...)
+    WidgetTabbedPane(Any[("one", WidgetLabel(Point2D(0, 0), "1"), nothing, true),
+                         ("two", WidgetLabel(Point2D(0, 0), "2"), nothing, false)]; kwargs...)
+end
+
+# Every press or down in the strip band that answers a strip report, with where.
+function _sweep_points(proj, iomap, event_of)
+    found = Tuple{Int,Int,Any}[]
+    for y in 0:1:40, x in 0:1:400
+        op = read_intent(proj, iomap, event_of(x, y))
+        op isa Union{CloseTabOperation, DuplicateTabOperation, DragTabOperation} || continue
+        push!(found, (x, y, op))
+    end
+    found
+end
+
+@testset "a duplicable page splits its close column: the + above the x" begin
+    pane = _duplicable_pane(closable = true, duplicable = true)
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    found = _sweep_points(proj, iomap, _press)
+    duplicates = [(x, y) for (x, y, op) in found if op isa DuplicateTabOperation]
+    closes1 = [(x, y) for (x, y, op) in found if op isa CloseTabOperation && op.tab_index == 1]
+    @test !isempty(duplicates)
+    @test !isempty(closes1)
+    # Every duplicate report names the first tab and the pane it came from.
+    @test all(op -> op.tab_index == 1 && op.widget === pane,
+              [op for (_, _, op) in found if op isa DuplicateTabOperation])
+    # One column: the same x range, the + wholly above the x.
+    @test extrema(first.(duplicates)) == extrema(first.(closes1))
+    @test maximum(last.(duplicates)) < minimum(last.(closes1))
+    # The second page keeps its whole close button.
+    @test any(op -> op isa CloseTabOperation && op.tab_index == 2, last.(found))
+end
+
+@testset "a pane that is not duplicable offers no +, whatever its pages say" begin
+    pane = _duplicable_pane(closable = true)
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    @test !any(op -> op isa DuplicateTabOperation, last.(_sweep_points(proj, iomap, _press)))
+end
+
+@testset "a down on the + is not a grab" begin
+    pane = _duplicable_pane(closable = true, duplicable = true, draggable = true)
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    presses = _sweep_points(proj, iomap, _press)
+    downs = _sweep_points(proj, iomap, _down)
+    plus = Set((x, y) for (x, y, op) in presses if op isa DuplicateTabOperation)
+    @test !isempty(plus)
+    @test !any((x, y) in plus for (x, y, op) in downs if op isa DragTabOperation)
+    @test any(op -> op isa DragTabOperation && op.tab_index == 1, last.(downs))
 end
 
 end # testset

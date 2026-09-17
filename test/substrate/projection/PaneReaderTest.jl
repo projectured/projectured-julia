@@ -1,6 +1,6 @@
 # What the pane tree does with what the widgets report: a tab click focuses, a
-# close button closes, the new-tab button opens, and a splitter drag becomes a
-# weight change.
+# close button closes, a duplicate button duplicates, the new-tab button opens,
+# and a splitter drag becomes a weight change.
 #
 # Every case drives the whole chain — a real pixel goes in at the graphics end and
 # a pane-domain operation comes out — because that is the only way to see the two
@@ -35,8 +35,12 @@ _starts_drag(op) = op isa StartSplitterDragOperation ||
                    (op isa CompoundOperation && any(_starts_drag, op.operations))
 
 _is_delete(op) = any(w -> w.value isa AbstractVector && isempty(w.value), _writes(op))
-_is_insert(op) = any(w -> w.value isa AbstractVector && length(w.value) == 1 &&
-                          w.value[1] isa PaneTab, _writes(op))
+_inserted_titles(op) = [get_pane_tab_title_string(w.value[1]) for w in _writes(op)
+                        if w.value isa AbstractVector && length(w.value) == 1 &&
+                           w.value[1] isa PaneTab]
+# A duplicate is an insert too; its title carries a number.
+_is_duplicate(op) = any(t -> occursin(r" \(\d+\)$", t), _inserted_titles(op))
+_is_insert(op) = !isempty(_inserted_titles(op)) && !_is_duplicate(op)
 
 # Sweep the pane's top band and collect `x => operation` for every press that
 # answered. The band covers the tab strip whatever the theme's padding is.
@@ -83,6 +87,37 @@ end
     _apply!(editor, closes[1])
     @test length(group.tabs) == 1
     @test group.tabs[1] === kept          # the first tab's button closed the first tab
+end
+
+@testset "the + above a close button duplicates its own tab" begin
+    group = PaneGroup(PaneTab[_tab("a"), _tab("b")])
+    tree = PaneTree(group)
+    editor = _PaneReaderMockEditor(tree)
+    proj = _chain()
+    iomap = print_document(proj, tree)
+    # The pane asks each content whether it has a duplicate.
+    pane = getfield(iomap, :step_iomaps)[][1][].output.elements[1]
+    @test pane.duplicable
+    @test pane.selector_element_pairs[1].duplicable
+
+    duplicates = [op for (_, op) in _sweep(proj, iomap) if _is_duplicate(op)]
+    @test !isempty(duplicates)
+    original = group.tabs[1]
+    _apply!(editor, duplicates[1])
+    @test length(group.tabs) == 3
+    @test get_pane_tab_title_string(group.tabs[2]) == "a (2)"
+    @test group.tabs[2].content !== original.content
+    @test get_pane_focus(tree) == (group, 2)
+end
+
+@testset "a + whose content refuses its duplicate gives no edit" begin
+    field = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("field", field)]))
+    proj = _chain()
+    iomap = print_document(proj, tree)
+    found = @test_logs (:warn, "The pane has no duplicate") match_mode = :any _sweep(proj, iomap)
+    @test !any(op -> _is_duplicate(op), last.(found))
+    @test length(tree.root.tabs) == 1
 end
 
 @testset "the new-tab button opens a tab and focuses it" begin

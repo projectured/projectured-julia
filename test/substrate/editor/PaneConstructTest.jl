@@ -214,5 +214,34 @@ end
     @test get_pane_focus(tree)[1] === right_group
 end
 
+@testset "duplicate a tab with a press on its +" begin
+    group = get_pane_groups(tree)[2]
+    count = length(group.tabs)
+    shown = get_pane_tab_title_string(group.tabs[1])
+    # The first press in the group's strip that answers a duplicate: an insert
+    # of one tab whose title carries a number.
+    writes(op) = op isa CompoundOperation ? reduce(vcat, map(writes, op.operations); init = Any[]) :
+                 op isa ReplaceReferencedValueOperation ? Any[op] : Any[]
+    is_duplicate(op) = any(w -> w.value isa AbstractVector && length(w.value) == 1 &&
+                                w.value[1] isa PaneTab &&
+                                endswith(get_pane_tab_title_string(w.value[1]), " (2)"),
+                           writes(op))
+    r = get_pane_rectangle(tree, group)
+    x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
+    target = nothing
+    for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
+        if is_duplicate(read_intent(projection, iomap, MousePress(:left, x, y, ModifierKeys())))
+            target = (x, y)
+            break
+        end
+    end
+    @test target !== nothing
+    press!(MousePress(:left, target[1], target[2], ModifierKeys()))
+    @test length(group.tabs) == count + 1
+    @test get_pane_tab_title_string(group.tabs[2]) == shown * " (2)"
+    @test get_pane_focus(tree) == (group, 2)
+    assert_rendered!()
+end
+
 end # testset
 end # function

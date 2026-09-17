@@ -498,13 +498,32 @@ All pass, with no failure and no error.
   - The pane edit and `duplicate_pane!` share `_make_pane_tab_duplicate`, which
     throws the `DocumentCopyException`: the edit logs it and answers `nothing`,
     and the verb turns it into an `ArgumentError`.
-- [ ] **Step 5. The button.** Add the flag, the page field, the stacked
+- [x] **Step 5. The button.** Add the flag, the page field, the stacked
   drawing, the hit test and `DuplicateTabOperation`. The pane printer sets the
   flags, and the pane reader answers the report. Test in `test_widget_tab_strip`
   (the seam between `+` and `x` along y, the full `x` on a page whose field is
   false, a down on the `+` is not a drag), in `test_pane_reader`, and in
   `test_pane_construct` (the standing render equals a fresh print after a
   duplicate). Look for a message line (§3c).
+  - **Done.** `test_widget_tab_strip` 29 pass (18 before), `test_pane_reader` 42
+    (32 before), `test_pane_construct` 50 (45 before), `test_pane_to_widget` 44,
+    `test_pane_drag` 251, `test_pane_rename` 19, `test_widget_icon` 26,
+    `test_widget_tree` 31, `test_widget_table` 16.
+  - Three suites fail, and they fail the same way at `bce0084e`, measured in a
+    detached worktree `projectured-julia-dupbase`: `test_split_pane_drag` 24
+    pass, 3 fail, 2 error; `test_workbench_tab_click` 16, 1, 2 (the strip
+    scroll); `test_assistant_mvp` 79, 2 (the evaluator round trip). The same
+    lines fail in both.
+  - The tab tuple of `_tab_strip_geometry` gets an eighth part, `buttons`:
+    `:none`, `:close`, `:duplicate` or `:both`. A tab with one button draws it
+    as the close button was drawn. `_find_tab_at_strip_point` replaces the
+    x-only hit test and answers `:tab`, `:close` or `:duplicate`.
+  - The pane printer passes each page as `(title, widget, nothing,
+    has_document_duplicate(content))`. The pane reader test tells a duplicate
+    from a new tab by the number in its title, because both insert one tab.
+  - **No message line exists.** The editor has a `WidgetStatusBar` widget, but
+    the pane window has no line that an edit writes to. A refusal is one log
+    warning.
 - [ ] **Step 6. The assistant fork.** Add the `Assistant` method (§3e). Test: an
   edit of the composer in one assistant does not reach the other; a turn
   submitted in the duplicate goes to the duplicate; a duplicate made while a

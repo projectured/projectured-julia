@@ -336,13 +336,17 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
             (iomap = child, pane = child.output)
         end)
 
-    # Every group offers the whole vocabulary: close a tab, open one, grab one.
+    # Every group offers the whole vocabulary: close a tab, open one, grab one, and
+    # duplicate one whose content has a duplicate. That question is answered from
+    # the type of the content, so the strip reads no cell of the content to ask it.
     pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
-                            border = _PANE_BORDER)
+                            duplicable = true, border = _PANE_BORDER)
     set_cell_function!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[(get_pane_tab_title_string(tabs[i]), entries[i].pane) for i in eachindex(entries)]
+        Any[(get_pane_tab_title_string(tabs[i]), entries[i].pane, nothing,
+             has_document_duplicate(entries[i].iomap.input))
+            for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
@@ -436,6 +440,13 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     make_pane_open_tab_operation(iomap.input, group, p.new_tab())
+end
+
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+                     operation::DuplicateTabOperation)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    make_pane_duplicate_tab_operation(iomap.input, group, operation.tab_index)
 end
 
 function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
