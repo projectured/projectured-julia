@@ -111,8 +111,8 @@ and in `substrate` — which the slice folder separates.
   for the slice: every file under `source/json/` is a fragment of `JsonModule`,
   and only one of them carries the `module` line. The kernel is layered rather
   than sliced, so there a module belongs to a layer and its file is named for
-  it: `Clock.jl` declares `ClockModule`, `ProjectionApi.jl` declares
-  `ProjectionApiModule`. Grep-by-guess must work in both directions: a reader
+  it: `ClockModule.jl` declares `ClockModule`, `ProjectionModule.jl` declares
+  `ProjectionModule`. Grep-by-guess must work in both directions: a reader
   who knows the slice knows the module, and a reader who has the module name
   finds the one file that declares it.
 - **A fragment declares no module.** It opens with a comment saying which file

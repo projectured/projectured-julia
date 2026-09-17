@@ -10,7 +10,7 @@ and about 51 000 lines — and every one of those files parses and round-trips.
 Files:
 
 ```
-rst/  Rst.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
+rst/  RstDocument.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
 ```
 
 The slice depends on no other domain slice.

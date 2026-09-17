@@ -266,7 +266,7 @@ itself never sees the backend type.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
 3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
-   document)` bootstrap in `editor/Editor.jl` (`Device[Display(), Keyboard(), Mouse()]`).
+   document)` bootstrap in `editor/EditorModule.jl` (`Device[Display(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs in
    `source/kernel/event/` so projection readers can match on them.
 
@@ -302,7 +302,7 @@ Layer 3 of the kernel — **input events and the pattern language**. The layer
 depends on nothing: an event is data, and knows neither the device that
 produced it nor the document it will end up changing.
 
-The layer lives in [main/event/](../../../source/kernel/event/):
+The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
 ```
 EventModule.jl   (EventModule)        — the input event vocabulary, five fragments:
@@ -312,7 +312,7 @@ EventModule.jl   (EventModule)        — the input event vocabulary, five fragm
         │                       MouseEnter, MouseLeave, MouseScroll
         ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
         └─ WindowInput.jl   — an event plus the id of the window it came from
-EventPattern.jl  (EventPatternModule) — the event pattern language: the reified
+EventPatternModule.jl  (EventPatternModule) — the event pattern language: the reified
                                         EventPattern, matches/describe, the
                                         @event_case macro, and the parser API
                                         @gestures is built on

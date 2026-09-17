@@ -375,7 +375,7 @@ search `editor.document` when you intend to select.
 
 **The four functions are the entire projection interface.** Every projection
 implements exactly `print_document`, `read_intent`, `map_reference_forward`,
-and `map_reference_backward` (declared in `ProjectionApi.jl`, dispatched on the
+and `map_reference_backward` (declared in `ProjectionInterface.jl`, dispatched on the
 concrete struct). Nothing else is universal across projections. Do not add a
 fifth generic function that projections are expected to implement. (Ordinary
 local recursion is fine — a projection may use a private helper that walks a
@@ -801,7 +801,7 @@ global to task-local storage, so concurrent evaluations never cross-register
 dependencies. `PerformanceCounterModule` was likewise migrated off its
 process-global `_perf` dict onto a task-local `with_performance_counters`
 binding (each editor frame binds its own store). The animation clock is a
-per-editor `Clock` (a `@cell_struct`, not a document — `cell/Clock.jl`);
+per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
 cross-invalidate each other's animation graph.

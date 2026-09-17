@@ -279,11 +279,11 @@ every lower layer into the frame-by-frame drive — read from the device, evalua
 the gesture into an operation, apply the operation to the document, print the
 document through the projection, tick the clock.
 
-The layer lives in [main/editor/](../../../source/kernel/editor/):
+The layer lives in [source/kernel/editor/](../../../source/kernel/editor/):
 
 ```
-Editor.jl    (EditorModule)    — the run_editor! loop and Editor struct
-Playback.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
+EditorModule.jl    (EditorModule)    — the run_editor! loop and Editor struct
+PlaybackModule.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
 ```
 
 The gesture recognizer that synthesises `MousePress` from MouseDown/MouseUp

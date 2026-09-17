@@ -13,7 +13,7 @@ vectors, so a data-frame column can be handed to a series directly.
 
 ## Types
 
-Semantic content, in `chart/Chart.jl`:
+Semantic content, in `chart/ChartDocument.jl`:
 
 | Type | What it holds |
 |---|---|

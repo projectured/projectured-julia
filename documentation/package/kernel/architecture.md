@@ -75,7 +75,7 @@ the shape is more interesting than "N depends on N−1":
 `document/DocumentInterface.jl` (the `Document` supertype), `reference/ReferenceInterface.jl` (the
 `ReferenceStep` / `Reference` types and the step seam), `selection/SelectionInterface.jl`,
 `operation/Interface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
-`IoMapInterface.jl`, and the projection layer's `ProjectionApi.jl`. These hold abstract types plus open
+`IoMapInterface.jl`, and the projection layer's `ProjectionInterface.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer — or a
 higher *package* — extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
@@ -85,7 +85,7 @@ text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`Text
 their navigation through `evaluate_reference_step`, with no edit to layer 8.
 
 **The agent stack is a side-stack.** The editor (layer 17) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServer.jl`
+the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServerModule.jl`
 (`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.

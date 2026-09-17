@@ -177,7 +177,7 @@ The layer bundles everything at **cell dependency height**: `PerformanceCounter`
 is a store the engine calls (so it loads first), and `CellStructModule` is
 codegen *over* `Cell`. The animation clock — a `@cell_struct` that is a *client*
 of the engine rather than part of it — is **its own layer directly above** (layer
-2, `clock/Clock.jl`); it imports `CellModule`/`CellStructModule` and nothing
+2, `clock/ClockModule.jl`); it imports `CellModule`/`CellStructModule` and nothing
 else, and its `ClockModule` docstring carries the full API.
 
 The load order is the dependency order the include-order guard checks.
@@ -265,5 +265,5 @@ binds a fresh store and reports it every frame (see
 easiest way to profile what work a particular edit triggered.
 
 Animation clock: `ClockModule` is its own kernel layer (layer 2, `clock/`),
-directly above this one. See `clock/Clock.jl` for the API (`Clock`,
+directly above this one. See `clock/ClockModule.jl` for the API (`Clock`,
 `get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`, `get_wall_clock`).
