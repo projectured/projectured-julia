@@ -160,6 +160,23 @@ A task per model computes the vectors of the documents and keeps them in
 costs one new vector. The first search of a build waits for it, for at most 30
 seconds; a later search during the same build does not wait.
 
+**Three cases need a hand.** The vectors are computed without a manual step,
+but not in these:
+
+- **A docstring or a guide edited in a running process.** The index of the
+  declared names and the index of the guide sections are read once per
+  process, so Revise does not reach them. Restart the process, and the next
+  binding computes the new texts.
+- **A model pulled again under the same name.** A vector of a new length
+  empties the store, but a vector of the same length is taken as the model's.
+  Delete the model's file.
+- **A file that grew.** The vector of a text that is gone stays in the file.
+  Delete the file, and the next binding computes every vector again.
+
+The folder is read when a store is made, on the task that builds it. A test
+that points `_MEANING_FOLDER` at a folder of its own makes its store before it
+sets the folder back, or the build writes into `build/meaning/`.
+
 **A description never fails for want of a model.** When the tool set has no
 meaning model, when the model throws, or when its vectors are not ready, the
 words of the description rank the hits as optional keywords, and the first line
