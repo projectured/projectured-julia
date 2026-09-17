@@ -67,7 +67,7 @@ export get_pane_path, get_pane_collection_path,
 export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,
        get_pane_group_at_point, get_pane_drop_zone, get_pane_zone_orientation
 export show_layout, get_referenced_value, replace_referenced_value!,
-       open_pane!, focus_pane!,
+       open_pane!, focus_pane!, duplicate_pane!,
        get_window_tree, describe_document, get_document_title,
        pane_group_to_avoid, make_pane_api, make_interface_api
 export PaneTreeToWidget, PaneTreeToWidgetIoMap,

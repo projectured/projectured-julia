@@ -103,7 +103,7 @@ make_pane_api() = Any[
     # that set is in a pane or in a hand.
     PaneModule => (:show_layout, :get_window_tree, :get_referenced_value,
                           :replace_referenced_value!, :open_pane!, :focus_pane!,
-                          :describe_document),
+                          :duplicate_pane!, :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
@@ -279,13 +279,15 @@ open. It answers the reference of the new tab, which the other pane verbs take.
 See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,
 `show_layout`.
 
-**This is the one placement verb.** Everything else a layout can be asked for —
-move a pane, resize a split, close a tab, change what a pane holds — is
-[`replace_referenced_value!`](@ref) at a reference, and the program
+**This is the placement verb of a new document.** Everything else a layout can
+be asked for — move a pane, resize a split, close a tab, change what a pane
+holds — is [`replace_referenced_value!`](@ref) at a reference, and the program
 [`show_layout`](@ref) prints is the text to edit. What a replace cannot say
 without naming a group by hand is *where a new pane goes*, and that policy is
 this verb: the focused group, and never the one
-[`pane_group_to_avoid`](@ref) names.
+[`pane_group_to_avoid`](@ref) names. [`duplicate_pane!`](@ref) places a
+duplicate beside its original, by the same policy when the original is in that
+group.
 
 **It answers a reference, not a title.** A reference names any part of any
 document and a title names a tab, so the reference is what the next call takes:
@@ -304,13 +306,7 @@ caller to address the pane by.
 """
 function open_pane!(editor, document; title = nothing)
     tree = get_window_tree(editor)
-    groups = get_pane_groups(tree)
-    isempty(groups) && error("The window has no group to open a pane in.")
-    avoid = pane_group_to_avoid(tree)
-    elsewhere = avoid === nothing ? groups : [g for g in groups if g !== avoid]
-    isempty(elsewhere) && (elsewhere = groups)
-    group = get_pane_focused_group(tree)
-    (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
+    group = _find_placement_group(tree)
 
     # What the pane is called: what the caller said, else the name the document
     # carries, else what it is. A description is the last resort, because it
@@ -329,6 +325,19 @@ function open_pane!(editor, document; title = nothing)
     reference === nothing &&
         error("The pane was opened and then could not be found again.")
     reference
+end
+
+# The group a new pane goes to: the focused group, and never the one
+# `pane_group_to_avoid` names while another group exists.
+function _find_placement_group(tree::PaneTree)
+    groups = get_pane_groups(tree)
+    isempty(groups) && error("The window has no group to open a pane in.")
+    avoid = pane_group_to_avoid(tree)
+    elsewhere = avoid === nothing ? groups : [g for g in groups if g !== avoid]
+    isempty(elsewhere) && (elsewhere = groups)
+    group = get_pane_focused_group(tree)
+    (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
+    group
 end
 
 """
@@ -550,10 +559,11 @@ end
 
 # ── The focus ───────────────────────────────────────────────────────────────
 #
-# The one act that is not a value written at a reference. Moving a pane, resizing
-# a split and closing a tab all are, and `replace_referenced_value!` says them
-# from the program `show_layout` prints — one verb for every level, which is what
-# keeps a new kind of change from needing a new word.
+# Focus is one of the two acts that are not a value written at a reference; the
+# duplicate below is the other. Moving a pane, resizing a split and closing a tab
+# all are, and `replace_referenced_value!` says them from the program
+# `show_layout` prints — one verb for every level, which is what keeps a new kind
+# of change from needing a new word.
 
 """
     focus_pane!(editor, reference::Reference) -> Text
@@ -570,11 +580,11 @@ that is open behind another.
 
 See also `open_pane!`, `show_layout`.
 
-**Focus is the one thing a replace cannot say.** Every other change to a layout
-is a value written at a reference — a pane moved, a split resized, a tab closed,
-what a pane holds — and [`replace_referenced_value!`](@ref) is that verb. Focus
-is not a value in the tree; it is the selection, which is why it keeps a word of
-its own.
+**Focus is a thing a replace cannot say.** A change to a layout is a value
+written at a reference — a pane moved, a split resized, a tab closed, what a
+pane holds — and [`replace_referenced_value!`](@ref) is that verb. Focus is not
+a value in the tree; it is the selection, which is why it keeps a word of its
+own. [`duplicate_pane!`](@ref) is the other word.
 
 The reference is what [`open_pane!`](@ref) answered, or one the program
 [`show_layout`](@ref) printed.
@@ -606,6 +616,60 @@ function _pane_referenced(tree::PaneTree, reference::Reference)
     throw(ArgumentError("That pane is no longer in the window."))
 end
 
+# ── The duplicate ───────────────────────────────────────────────────────────
+
+"""
+    duplicate_pane!(editor, reference::Reference) -> Reference
+
+Make a second pane like the one `reference` names, and answer a reference to
+the new pane.
+
+Use it to duplicate, copy or clone a pane: another plot like this one, a second
+runner, or another assistant that knows this conversation. The duplicate is a
+pane the person controls on its own. It owns what they can change in it, and it
+reads what the original reads.
+
+# Example
+
+    copy = duplicate_pane!(editor, @reference(window, root.elements[2].tabs[1]))
+    focus_pane!(editor, copy)
+
+See also `open_pane!`, `focus_pane!`, `show_layout`.
+
+**A duplicate is a thing a replace cannot say.** A replace writes a value the
+caller made, and a correct duplicate is not a value a caller can make: a copy of
+a pane can share an action with the original and act on it. The kind of the
+content decides what its duplicate owns.
+
+The duplicate is the next tab of the original's group, with the focus. When that
+group is the one [`pane_group_to_avoid`](@ref) names, the duplicate goes where
+[`open_pane!`](@ref) puts a pane, so the conversation stays in view. A pane
+whose content has no duplicate, such as a set of runs that goes on, raises an
+`ArgumentError` that says why.
+"""
+function duplicate_pane!(editor, reference::Reference)
+    tree = get_window_tree(editor)
+    _refuse_stale(reference)
+    group, index = _pane_referenced(tree, reference)
+    source = group.tabs[index]
+    duplicate = try
+        _make_pane_tab_duplicate(tree, source)
+    catch e
+        e isa DocumentCopyException || rethrow()
+        throw(ArgumentError("A $(nameof(typeof(source.content))) pane has no duplicate: $(e.reason)."))
+    end
+    target = group === pane_group_to_avoid(tree) ? _find_placement_group(tree) : group
+    operation = target === group ?
+        make_pane_open_tab_operation(tree, group, duplicate; index = index + 1) :
+        make_pane_open_tab_operation(tree, target, duplicate)
+    operation === nothing && error("The window has no group to open the duplicate in.")
+    apply_pane_operation!(tree, operation)
+    found = _reference_of_tab(tree, duplicate)
+    found === nothing &&
+        error("The duplicate was opened and then could not be found again.")
+    found
+end
+
 
 # ── The program ─────────────────────────────────────────────────────────────
 
@@ -617,7 +681,7 @@ program that rebuilds the window.
 
 Use it to see the layout of the window — its splits, its groups, the tabs of
 each group and what each holds — with the reference of every part, before you
-move, close, replace or focus a pane. It answers the layout as a program, so a
+move, close, replace, focus or duplicate a pane. It answers the layout as a program, so a
 `replace_referenced_value!` at one of its references edits it.
 
 # Example
