@@ -2,11 +2,11 @@
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
 worktree `projectured-julia-select-paste`, and in omnet on the branch
-`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 9 are
-done and landed on `main` (projectured `41b15f2c`, omnet `937b0cd8`). Step 10,
-the copy of a tool, is done on the same branches. Two items wait for the user: the Alt+press
-probe of Step 0 needs a live window and a person, and the timing of Step 7 needs
-an idle machine and the user's word. Nothing is pushed.
+`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 10
+are done and landed on `main`; Steps 0 to 9 landed first (projectured
+`41b15f2c`, omnet `937b0cd8`), and Step 10 after them. Two items wait for the
+user: the Alt+press probe of Step 0 needs a live window and a person, and the
+timing of Step 7 needs an idle machine and the user's word. Nothing is pushed.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
