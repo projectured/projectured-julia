@@ -35,7 +35,7 @@ answer=$(julia --project="$root/environment/build" -e '
     using Pkg; Pkg.resolve(); Pkg.instantiate()
     using ProjecturedBuilder
     print(build_projectured_executable(; compile = false, resolve = true), "\n",
-          ProjecturedBuilder._module_name("projectured"))' 2>"$problem")
+          get_app_module_name("projectured"))' 2>"$problem")
 if [ -z "$answer" ]; then
     # SAY WHAT FAILED. A guessed cause helps nobody: a fresh checkout whose
     # environment was never resolved fails here, and the message says so.

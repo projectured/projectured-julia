@@ -406,7 +406,7 @@ function test_builder()
             build(; kw...) = build_executable(context; packages = [A_PACKAGE],
                                                main = :(begin; 0; end),
                                                compile = false, resolve = false, kw...)
-            record(d) = read(joinpath(d, "src", ProjecturedBuilder._module_name(basename(d)) * ".jl"),
+            record(d) = read(joinpath(d, "src", get_app_module_name(basename(d)) * ".jl"),
                              String)
             @test occursin("for native", record(build(; name = "cpu_a")))
             @test occursin("for native", record(build(; name = "cpu_b", incremental = false)))

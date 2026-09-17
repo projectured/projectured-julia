@@ -12,9 +12,17 @@ _app_uuid(name) = Base.UUID(bytes2hex(sha256(name))[1:32] |>
                             s -> string(s[1:8], "-", s[9:12], "-", s[13:16], "-",
                                         s[17:20], "-", s[21:32]))
 
-# A name is a word per `_`, and a `-` counts as one too, because `--name` takes
-# whatever a person types.
-_module_name(name::AbstractString) =
+"""
+    get_app_module_name(name) -> String
+
+The name of the module that a build writes for the binary called `name`:
+`ProjecturedApp` for `projectured`. A name is a word per `_`, and a `-` counts
+as one too, because `--name` takes whatever a person types.
+
+A script that runs the program from the checkout asks for this name: it starts
+`julia_main` of that module.
+"""
+get_app_module_name(name::AbstractString) =
     replace(titlecase(replace(String(name), "-" => " ", "_" => " ")), " " => "") * "App"
 
 """
@@ -76,7 +84,7 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     init isa Expr && (init = Base.remove_linenums!(copy(init)))
     directory = joinpath(context.root, "build", "app", String(name))
     mkpath(joinpath(directory, "src"))
-    module_name = _module_name(name)
+    module_name = get_app_module_name(name)
 
     deps = Dict{String,Any}("PrecompileTools" => "aea7be01-6a6a-4083-8856-8a6e6704d82a")
     sources = Dict{String,Any}()
