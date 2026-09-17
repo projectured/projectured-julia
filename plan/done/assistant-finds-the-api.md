@@ -701,7 +701,10 @@ table and the plot side by side" ranks `HorizontalLayout` fifteenth by words
 — "table" is `WidgetTable`'s word — and second by description, after `Fill`.
 The eight old verb sentences keep their ranks, but "draw how a value changes
 over time" fell from twelfth to twentieth by description: thirty-one more names
-share the ranking, and that docstring still says "chart".
+share the ranking. The docstring is not the cause — since Step 5 it says "draw"
+and "a value over time" — and the rank probe of
+[assistant-recovers-from-a-miss.md](../pending/assistant-recovers-from-a-miss.md)
+shows the small meaning model matching "value" to the names that hold it.
 
 `qwen3.8:27b` on the eleven problems, seed and context as before:
 
