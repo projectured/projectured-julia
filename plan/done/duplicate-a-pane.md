@@ -1,6 +1,6 @@
 # Duplicate a pane
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
+> **Kind:** plan · **Status:** done · **Stands on:**
 > [pane.md](../../documentation/package/pane/pane.md),
 > [selection.md](../../documentation/package/kernel/selection.md),
 > [widget.md](../../documentation/package/widget/widget.md),
@@ -213,7 +213,8 @@ The walk is a set of generic methods:
 type. Dispatch selects the most specific one, so a kind or a policy changes one
 step of the walk and keeps the rest.
 
-**Stop control** is four hooks. The policy comes first, as in the sync hooks:
+**Stop control** is five hooks. The policy comes first, as in the sync hooks.
+The fifth, `copy_selection_cell`, came from Step 9 (see the note there):
 
 - `is_descendable_for_copy(policy, document) -> Bool`. The default is `true`.
   It receives the child, so a policy can stop by kind.
@@ -221,6 +222,9 @@ step of the walk and keeps the rest.
   stopped. The default raises an error, as `make_unsynced_placeholder` does.
 - `copy_computed_cell(policy, cell)`. The default gives a cell that stores the
   value that the cell has now. That is what `copy_document` does today.
+- `copy_selection_cell(policy, cell)`. The copy of a document's `selection`
+  cell. The default gives a cell that stores the selection that the cell has
+  now, even when a projection computes it.
 - `get_copy_memo(policy) -> IdDict | Nothing`. The default is `nothing`. With a
   memo, a document that the walk meets twice gets one copy. A document that the
   walk meets inside its own copy stops the walk with a
@@ -247,8 +251,7 @@ keeps the cell kind. The form that converts the cell kind and its `SyncPolicy`
 hooks do not change in this plan.
 
 **One predicate goes in the cell layer:** `is_computed_cell(cell) -> Bool`.
-The default `false` goes in `CellDefaults.jl`, the `ReactiveCell` method in
-`ReactiveCell.jl`, and the export in `CellModule.jl`. The contract of the cell
+Both methods go in `CellDefaults.jl`, and the export in `CellModule.jl`. The contract of the cell
 interface is in the sealed `CellInterface.jl`, and this plan does not change
 that file. If the declaration must go there, the user gives permission for that
 file first.
@@ -276,7 +279,8 @@ and does not depend on the pane slice. It answers the hooks so:
   `copy_document(::DuplicatePolicy, ::Union{Function, Base.RefValue, Task})`.
 - `get_copy_memo` gives `copies`.
 
-The selection cell is a cell that stores, so the walk copies it.
+The selection cell is view state, so the walk copies the selection it holds now
+and never refuses it, even when a projection computes it.
 
 `has_document_duplicate` is the question that the tab strip asks at print time.
 The default is `false`. It must not walk the tree: a walk makes the strip read
@@ -341,15 +345,17 @@ there too.
 
 | Kind | Declaration | Where |
 | --- | --- | --- |
-| `DocumentNothing` | `has_document_duplicate` only | projectured, primitive |
+| `DocumentNothing` | `has_document_duplicate` only | projectured, domain |
 | primitive documents | `has_document_duplicate` only | projectured, primitive |
-| conversation documents | `has_document_duplicate` only; a draft that links to an assistant is copied by the `Assistant` method | projectured, conversation |
-| widget documents | `has_document_duplicate` only; a card that holds a button throws "an action" | projectured, widget |
+| conversation documents | `has_document_duplicate`; a draft keeps the assistant it links back to | projectured, conversation |
+| widget documents | `has_document_duplicate` only; a button shares its `Action`; a widget that holds a bare function refuses | projectured, widget |
+| layout documents, `CellVector`, `CellTable` | `has_document_duplicate` only; a `CellMatrix` and a `ListNode` declare none | projectured, layout and collection |
+| `SelectionDocument` | `has_document_duplicate` only | projectured, kernel |
 | `Assistant` | both; the fork below | projectured, assistant |
 | `SimulationFilter` | both; the runner below | omnet |
-| `SimulationPlotDocument` | `has_document_duplicate` only | omnet |
-| `ResultPlotView`, `ResultTableView` | `has_document_duplicate` only; `revision` starts at the value of the original | omnet |
-| `SimulationResultFrame` | both; `frame` and `source` are shared by replacement; `plotter` is read first | omnet |
+| `SimulationPlotDocument`, `PlotSeries` | `has_document_duplicate` only | omnet |
+| `ResultPlotView`, `ResultTableView`, `ResultSelection` | `has_document_duplicate` only; `revision` starts at the value of the original | omnet |
+| `SimulationResultFrame` | both; the frame and the source are plain values, so the walk shares them; the plotter goes in a `Ref` of its own | omnet |
 
 **The assistant fork (D2).** The method copies `conversation` and `input`
 through the walk. It makes a new draft whose parts go through the walk and whose
@@ -365,7 +371,7 @@ duplicate, so the fork shares it. It is history, and the run exists once.
 **The runner.** The action changes from `_ -> run_filter_in_new_pane!(tree,
 filter)` to `form -> run_filter_in_new_pane!(tree, form)`. The action then
 receives the form it acts on and captures no form. The method is
-`copy_document_fields(policy, form; runner = Cell(Ref{Any}(filter_runner(form))))`:
+`copy_document_fields(policy, form; runner = Ref{Any}(filter_runner(form)))`:
 the duplicate has a new `Ref` that holds the same function, and the walk never
 meets the `Ref` of the original. This is the rule for an action in a document
 that has a duplicate: **an action receives the document it acts on; it does not
@@ -449,6 +455,10 @@ All pass, with no failure and no error.
   - A replacement value goes into a new cell of the kind of the field, and a
     replacement that names no field throws an `ArgumentError`.
   - Steps 1 and 2 are one commit, because they change the same kernel files.
+  - `test_kernel_layering` refused the concrete struct `DocumentCopyException`
+    in `DocumentInterface.jl`: an interface file declares only abstract types.
+    The struct is in `DocumentCopy.jl` since `d85588be`; the commits before it
+    fail that one guard.
 - [x] **Step 2. The duplicate policy.** Add `DuplicatePolicy`,
   `has_document_duplicate` and `make_document_duplicate`. Test in
   `test_document_contract`: a value-only document gives an equal and independent
@@ -539,7 +549,16 @@ All pass, with no failure and no error.
   - The streaming test forks right after the submit: the turn runs on a task
     that has not started, so the fork holds the user turn and never the
     reply.
-- [ ] **Step 7. The verb.** Add `duplicate_pane!`, declare it in
+**How omnet was tested.** omnet-julia reaches projectured-julia through the main
+checkout, so it can not see a projectured worktree. The omnet tests ran in a
+scratch environment: the omnet environment's `Project.toml` and `Manifest.toml`,
+with every path made absolute into the two worktrees, and `OmnetCampaignUiTest`
+and `OmnetIdeTest` added as direct dependencies. In that environment
+`OmnetQtenvTest` does not precompile, because its test file
+`test/qtenv/QtenvWindowTest.jl` does not exist at the omnet base commit; no test
+of this plan uses it.
+
+- [x] **Step 7. The verb.** Add `duplicate_pane!`, declare it in
   `make_pane_api()`, and change the docstring of `open_pane!` and the comment
   above `focus_pane!`. Test in omnet `test_pane_program`: the verb answers the
   reference of the duplicate; the duplicate of a plot is the next tab of its
@@ -547,17 +566,66 @@ All pass, with no failure and no error.
   gives the `ArgumentError`. Run the tests of the prompt names, because the
   declared names change. Run the rank probe of §3f. It needs Ollama with no
   other model loaded and room for the meaning model in memory.
-- [ ] **Step 8. The omnet kinds.** Change the runner action to receive the form.
+  - **Done.** projectured `6a3603d7`, omnet `48512401`. `test_pane_program` 49
+    pass, `test_prompt_names` 3.
+  - The refusal test uses a tab that holds `nothing`, not a run set, because a
+    run set needs a started batch. The error reads "A Nothing pane has no
+    duplicate: its kind declares no duplicate."
+  - `open_pane!` and the verb share `_find_placement_group`.
+  - **The rank probe.** `nomic-embed-text`, in the scratch environment, with the
+    vector store copied from the main checkout. No other model was loaded, and
+    the meaning model was unloaded after the probe.
+
+    | sentence | rank of `duplicate_pane!` by words | by description | first three by description |
+    | --- | --- | --- | --- |
+    | duplicate this plot | 1 | 1 | `duplicate_pane!`, `make_result_plot`, `ResultPlotView` |
+    | another assistant like this one | 1 | 3 | `Action`, `WidgetList`, `duplicate_pane!` |
+    | a second runner | 1 | 2 | `make_run_card`, `duplicate_pane!`, `RunResultSelection` |
+    | make a copy of this pane | 1 | 1 | `duplicate_pane!`, `show_layout`, `focus_pane!` |
+
+    Every sentence finds the verb in the first five hits. Of the twelve verb
+    sentences of §1a of `assistant-recovers-from-a-miss.md`, eleven keep their
+    rank by description. **One moved:** "draw how a value changes over time"
+    ranks `make_result_plot` 26th, and §1a says 20th. Of the 25 names above it,
+    only `show_layout` has a docstring that this plan changed, by one word;
+    `duplicate_pane!`, `open_pane!` and `focus_pane!` are not among them. So
+    this plan moves that rank by one place at most, and the rest of the move
+    came before the branch point. The user decides what to do with it.
+- [x] **Step 8. The omnet kinds.** Change the runner action to receive the form.
   Read `SimulationResultFrame.plotter` and decide its rule. Add the declarations
   of §3e. Test: the Run button of a duplicate form runs the parameters of the
   duplicate, and the original form does not change; a duplicate plot view reads
   the same files.
-- [ ] **Step 9. The real window.** Drive the campaign window headless through
+  - **Done.** omnet `c8af88fa`. `test_campaign_session` 18 pass,
+    `test_result_views` 45, `test_simulation_window` 13.
+  - `SimulationResultFrame.plotter` is called as `(editor, doc)` with the table
+    it plots, so it follows the rule of the runner: the duplicate holds the same
+    function in a `Ref` of its own.
+  - `ResultSelection` declares a duplicate, because a view owns its query.
+  - `test_campaign_session` called the Run action with `nothing`. It now passes
+    the form, as the button does.
+- [x] **Step 9. The real window.** Drive the campaign window headless through
   real presses on the rendered strip: duplicate the Runner, type a filter in the
   duplicate, press its Run, and assert that the new run set holds the jobs of
   the duplicate. Duplicate the Assistant and a plot the same way. Write one
   screenshot of the strip with the stacked button.
-- [ ] **Step 10. The guides.** Update
+  - **Done.** omnet `895947ca`, projectured `f61100d9`. `test_campaign_ui` 184
+    pass (164 before); it holds the new `test_campaign_duplicate`.
+  - **The window found a fault that the unit tests did not.** The form printer
+    wires the `selection` cell of each parameter document to a computation
+    (`_wire_carets!`), so in the real window the runner refused its duplicate:
+    the control census pressed the `+` and logged the refusal 1050 times. The
+    fix is the hook `copy_selection_cell`: a selection is view state, and the
+    copy takes the selection as it is now. After the fix, no run logs a
+    refusal.
+  - The test finds the `+` by what a press answers, an insert of a tab with the
+    expected title, and finds Run by what the button does, as
+    `test_campaign_actions` does. The filter of the duplicate is written with
+    `set_filter!`, the write a typed key makes, and not with key presses.
+  - The screenshot, 800 × 600, shows "Runner" and "Runner (2)" each with a `+`
+    above an `x`, and "Assistant" with the same. Each glyph is about 6 pixels
+    high.
+- [x] **Step 10. The guides.** Update
   [pane.md](../../documentation/package/pane/pane.md) (the mouse and keyboard
   tables, a section on what a duplicate is),
   [widget.md](../../documentation/package/widget/widget.md) (the flag, the page
@@ -565,6 +633,41 @@ All pass, with no failure and no error.
   `DocumentInterface.jl`, and the verb list in
   [agent.md](../../documentation/package/kernel/agent.md) if it lists the pane
   verbs. Move this plan to `plan/done/`.
+  - **Done.** pane.md, widget.md, and
+    [document.md](../../documentation/package/kernel/document.md), which gets a
+    section "A copy under a policy". The contract in `DocumentInterface.jl` was
+    written in Step 1. agent.md lists no pane verbs, so it does not change.
+
+**The review.** A review of both diffs found these, and projectured `72a8ba82`
+fixes them. After the fixes the tests of Steps 1 to 9 pass again with the same
+counts, except `test_document_duplicate` 33, `test_pane_surgery` 92 and
+`test_assistant_duplicate` 29, which gained the new checks.
+
+- **The plain copy of a mutable list narrowed its storage.** The walk's vector
+  step is a comprehension, so a `Vector{Any}` became a `Vector{Int64}` and the
+  copy refused a value of another type. A `Vector{Any}` now stays one.
+- **The list had a second copy path that skipped the memo.** A list met twice
+  got two copies, and a list that held itself overflowed the stack. The walk
+  now copies a list as any document; only `PlainCopyPolicy` keeps a method, to
+  start the list with no selection.
+- **`CellMatrix` and `ListNode` declared a duplicate that could not work.** The
+  walk does not descend into a `Matrix{Cell}`, so the duplicate shared the slot
+  cells, and a `ListNode`'s `prev` is a back-link, so every list of two nodes
+  refused. Neither declares a duplicate now.
+- **A fork made during a stream copied the half-written reply as finished.**
+  The fork now leaves out the last turn when the assistant streams and that turn
+  is the assistant's.
+- **A refusal named the pane's kind with the reason of a value inside it.** It
+  now says "a function inside it is refused: …", with a word for a function or
+  a cell, because a closure's type has no readable name.
+- **The duplicate of "Runner (2)" was "Runner (2) (2)".** It is "Runner (3)".
+- Names and comments: the button column's box is `_get_tab_button_box`, a
+  history phrase went, and three header comments state the copy hooks.
+
+One point stays as it is: the reader makes the whole duplicate when it answers
+a press on a `+`, so a kind that declares a duplicate and then refuses logs one
+warning per press. A person presses once; a test that sweeps the strip presses
+many times.
 
 ## 6. What this plan does not do
 
@@ -578,7 +681,13 @@ All pass, with no failure and no error.
   `SyncPolicy` hooks. A later plan can make it a `CopyPolicy` too.
 - **A duplicate of a run set, a study or a run card.** They hold a process. A
   "run the same set again" gesture is a different feature.
-- **A duplicate of a card with a button.** A widget action captures its
-  document. The rule of §3e for the runner can apply to widget actions later.
+- **A duplicate of a widget that holds a bare function**, such as a
+  `WidgetText` with a `validator`. The walk can not know what the function
+  captures. The rule of §3e for the runner can apply to such widgets later. A
+  button is not in this case: it holds an `Action`, which the duplicate shares.
+- **A `+` that refuses on a press.** `has_document_duplicate` answers from the
+  type, so a widget card that holds a validator shows a `+` that only logs.
+- **The rank of `make_result_plot`** for "draw how a value changes over time"
+  (Step 7). It belongs to `assistant-recovers-from-a-miss.md`.
 - **The assistant drives the focused runner.** The verbs find the tab titled
   "Runner". A follow-up can make them use the runner that has the focus.

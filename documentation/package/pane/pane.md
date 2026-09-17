@@ -67,6 +67,7 @@ sit inside another document.
 | Edit | Generic form |
 |---|---|
 | `make_pane_open_tab_operation` | `insert_elements` plus the focus move |
+| `make_pane_duplicate_tab_operation` | the open of a new tab that holds the duplicate, right after the original |
 | `make_pane_close_tab_operation` | `delete_elements`, or a collapse write, plus the focus move |
 | `make_pane_split_operation` | `ReplaceReferencedValueOperation` writing a new `PaneSplit` at the group's slot |
 | `make_pane_move_tab_operation` | `MoveRangeOperation` plus the focus move |
@@ -115,6 +116,7 @@ The table is `@gestures PaneTree` in
 |---|---|
 | `Ctrl+T` | Open a new tab in the focused group |
 | `Ctrl+W` | Close the focused tab |
+| `Ctrl+Shift+D` | Duplicate the focused tab |
 | `Ctrl+\` | Split vertically — the new pane on the right |
 | `Ctrl+Shift+\` | Split horizontally — the new pane below |
 | `Ctrl+Alt+Left/Right/Up/Down` | Move the focus to the group in that direction |
@@ -138,7 +140,8 @@ the focused tab. Two need more than that:
 | Gesture | Effect |
 |---|---|
 | Click a tab | Focus that tab |
-| Click a tab's close button | Close it |
+| Click a tab's close button, the `x` | Close it |
+| Click the `+` above a tab's `x` | Duplicate it |
 | Click the new-tab button | Open a tab |
 | Click a pane's content | Place the caret in the document the tab holds |
 | Click anywhere else in a pane | Focus that group |
@@ -226,16 +229,50 @@ code, and declares no rename operation.
 strip prints the title as a label. Drawing it needs the strip to print the title
 as a child document, which is follow-up work.)*
 
+## A duplicate is a pane of its own
+
+A duplicate of a tab is a second pane that the person controls on its own. The
+kind of the content decides how deep the copy goes, by three rules:
+
+1. **The duplicate owns what the person controls in the pane**: the form fields
+   of a runner, the transcript and the composer of an assistant, the title and
+   the query of a plot. An edit in one pane does not change the other.
+2. **The duplicate shares what the pane reads**: the project, the result files,
+   a data frame, the model backend.
+3. **The duplicate does not copy a process.** A run that goes on and a turn that
+   streams stay with the original, and the duplicate starts idle.
+
+The copy is `make_document_duplicate` (see
+[document.md](../kernel/document.md#the-duplicate)). A tab whose content has no
+duplicate shows no `+`, and `Ctrl+Shift+D` on it does nothing and logs the
+reason. The duplicate is the next tab of the same group, with the focus, and its
+title gets a number: the duplicate of "Runner" is "Runner (2)", and the
+duplicate of "Runner (2)" is "Runner (3)".
+
+**A duplicate is not a mirror.** A mirror is the same document in two panes. Each
+document node stores its own `selection`, so two panes that hold one document
+share one caret, and a mirror with two carets needs a view state apart from the
+document.
+
+The assistant duplicates a pane with `duplicate_pane!(editor, reference)`. It
+places the duplicate as the gesture does, except in the group that
+`pane_group_to_avoid` names: there it places it as `open_pane!` does, so the
+conversation stays in view.
+
 ## The widget layer reports; the pane decides
 
-`WidgetTabbedPane` grew three opt-in flags and three event-like operations for
-this domain, and every other consumer can use them too:
+`WidgetTabbedPane` has four opt-in flags and four event-like operations that
+this domain uses, and every other consumer can use them too:
 
 | Flag | Draws | Reports |
 |---|---|---|
 | `closable` | a close button on each tab | `CloseTabOperation(pane, index)` |
 | `new_tab` | a button after the last tab | `OpenTabOperation(pane)` |
 | `draggable` | nothing | `DragTabOperation(pane, index)` on a button down |
+| `duplicable` | a `+` above the close button of each page that offers a duplicate | `DuplicateTabOperation(pane, index)` |
+
+The pane printer sets `duplicable` on every group, and sets each page's own flag
+from `has_document_duplicate` of the tab's content.
 
 None of them decides what the gesture *means* — the strip knows a button was
 pressed and nothing about tabs of a layout. `PaneTreeToWidget`'s reader answers

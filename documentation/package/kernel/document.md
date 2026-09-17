@@ -77,7 +77,9 @@ uniformly:
 
 - **`copy_document`** ([DocumentCopy.jl](../../../source/kernel/document/DocumentCopy.jl)) —
   deep-copies a subtree, allocating fresh `Cell`s so the copy shares no reactive
-  state with the source. `copy_document(doc)` preserves each cell's kind;
+  state with the source. `copy_document(policy, doc)` preserves each cell's kind,
+  steered by a `CopyPolicy` (see [A copy under a policy](#a-copy-under-a-policy));
+  `copy_document(doc)` is that walk under `PlainCopyPolicy`.
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
   immutable).
 - **`sync_document!`** ([DocumentSync.jl](../../../source/kernel/document/DocumentSync.jl)) — the
@@ -90,8 +92,9 @@ uniformly:
   through the vector protocol.
 
 Both walks are optionally **bounded**. A full walk per frame of an object with
-thousand-entry collections is wasted work, so `sync_document!` and
-`copy_document` take a `policy` and consult three generics at every child —
+thousand-entry collections is wasted work, so `sync_document!` and the
+kind-converting `copy_document(K, doc)` take a `policy` and consult three
+generics at every child —
 `is_descendable_for_sync`, `sync_element_limit`, `make_unsynced_placeholder` (declared in
 `DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
 `nothing` descends everywhere and keeps every element, so an un-policed walk is
@@ -103,6 +106,65 @@ Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own k
 the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are
 built from; the cell-struct toolkit) — since a document's kind lives in its field
 cells, not in its type name.
+
+## A copy under a policy
+
+`copy_document(policy, value)` is the copy that keeps each cell's kind. The
+policy is a `CopyPolicy`, and it comes first, so no method is ambiguous with the
+kind-converting form. A policy steers the walk in two ways:
+
+- **A method on the pair.** `copy_document(::MyPolicy, ::MyDocument)` replaces
+  one step of the walk, and dispatch keeps the other steps. The method can
+  rebuild the node with `copy_document_fields(policy, document; replacements...)`,
+  which copies each field through the walk and puts the value given in a field
+  named in `replacements`.
+- **Five hooks**, each with the policy first:
+
+| Hook | Asked | Default |
+|---|---|---|
+| `is_descendable_for_copy(policy, document)` | at each document, the root included | `true` |
+| `make_copy_placeholder(policy, document)` | where the walk stops | an error |
+| `copy_computed_cell(policy, cell)` | at a cell that computes (`is_computed_cell`) | a cell that stores the value it has now |
+| `copy_selection_cell(policy, cell)` | at a document's `selection` cell | a cell that stores the selection it has now, even when a projection computes it |
+| `get_copy_memo(policy)` | once per rebuild | `nothing`: no record |
+
+With a memo, a document met twice is one copy, and a document met inside its
+own copy stops the walk. A hook refuses the whole copy with
+`throw(DocumentCopyException(value, reason))`.
+
+A `CellVector` keeps one difference: the plain copy starts the list with no
+selection, and every other policy copies the selection.
+
+### The duplicate
+
+A **duplicate** is the copy a person gets when they duplicate a pane: a document
+of the same kind that they control on its own.
+`make_document_duplicate(document)` makes it with `DuplicatePolicy`, which:
+
+- descends into a document whose kind declares a duplicate, and shares every
+  other document, so what the duplicate does not own, it reads;
+- refuses a cell that computes, because a copy of its value looks live and is
+  not;
+- refuses a `Function`, a `Ref` and a `Task`, because an action that captures the
+  original acts on it;
+- refuses a document that holds itself.
+
+`has_document_duplicate(document)` says whether a kind has a duplicate. A pane
+asks it each time it prints a tab, so a method answers from the type and never
+walks the tree. A kind declares its duplicate in one line, and adds a
+`copy_document(::DuplicatePolicy, ::Kind)` method when one field needs a hand:
+
+```julia
+has_document_duplicate(::SimulationFilter) = true
+copy_document(policy::DuplicatePolicy, form::SimulationFilter) =
+    copy_document_fields(policy, form; runner = Ref{Any}(filter_runner(form)))
+```
+
+**An action that a duplicate shares receives the document it acts on; it does
+not capture it.** The runner's action above is called with the form whose Run
+was pressed, so one function serves the original and its duplicate. An `Action`
+declares no duplicate, and a button's duplicate shares it, as every control
+that shows one command does.
 
 ## The reflection walk
 
