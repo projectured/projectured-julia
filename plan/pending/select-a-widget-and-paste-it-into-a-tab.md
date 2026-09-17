@@ -417,9 +417,9 @@ done here. Run only the tests that each step names.
       that the container's OWN selection names as a whole (`children[i]`,
       `elements[i]`, `content`). That works for a widget child and for an
       embedded document child alike, and it never reads the child's cell.
-- [ ] Probe: does an Alt+press reach the editor through the SDL backend on this
-      desktop, or does the window manager take it? It needs a live window and a
-      person; it is not done.
+- [x] Probe: does an Alt+press reach the editor through the SDL backend on this
+      desktop, or does the window manager take it? **Answered by the user on
+      2026-09-17:** Alt+click works on the desktop (Step 11).
 - [x] List every document type that a tab of the IDE can hold, and its
       projection. Mark which ones D5 covers, and which ones are tool panes
       that refuse a paste (D9).
@@ -823,6 +823,61 @@ while this plan was in progress. Both branches are rebased over it.
   sequence chart 279 against 270; markdown, graph, book, rst and math equal
   (39, 358, 24, 76, 173); kernel 1895 pass, 3 fail and 3 error on both. No
   suite has a failure that `main` does not have.
+
+### Step 11 — the innermost object under the pointer (projectured and omnet)
+
+The user's test on a real desktop (2026-09-17): Alt+click works, so the window
+manager does not take it (the probe of Step 0 is answered), and copy and paste
+of widgets works. But an Alt+click "selects the outermost, not the innermost":
+the result table in the runner tab could not be selected, and a card of a
+running simulation could not be selected, only the whole set.
+
+A headless probe that Alt+clicks every drawn text of the window found four
+causes. Branch `innermost-selection`, worktrees `*-innermost`.
+
+- [x] **A set of runs maps no card to its run.** `SimulationBatchToWidget`
+      answered the default, a place the projection introduced, so the pane took
+      the whole set. The projection now maps a card, or a widget in it, named as
+      a whole, to `tasks[i]`, and the list of runs rings it. A caret in a card
+      keeps what a plain click did.
+      A run is now a tool (it starts and stops a process): it refuses a paste,
+      its copy is the same run not started, and a note is the run itself. A run
+      alone in a tab draws its card through a row of its own
+      (`SimulationTaskDocumentToWidgetPage`).
+- [x] **A runner box named as a whole mapped to nothing.** An Alt+click turns
+      the caret in a box into the box as a whole, and the runner's places
+      matched only a path into the box's content. A path that ends at a box now
+      names its parameter as a whole, and a whole parameter maps to its box.
+      A box takes the focus, so it draws its own focus ring when it is selected,
+      and the grid draws none (Step 1).
+- [x] **The pane's floor was the whole content.** A caret, or a place a
+      projection introduced, now selects the innermost document on its path:
+      the document that holds the caret, or the one the projection printed the
+      place for. Only an answer with no document inside the page takes the whole
+      content.
+- [x] **An Alt+click on the bracket of a code line selected the evaluation.**
+      The code's projection answers a place it introduced for the bracket.
+      `convert_to_whole_selection` found that the place resolves to no
+      document, and made the section card the selection, so the part's map saw
+      no section and named the part. The rule now cuts an answer at the first
+      place a projection introduced: the node the place was printed for is the
+      selection.
+- [x] Tests. `test_widget_selection()` (a cut place), `test_pane_reader()` (the
+      innermost document of a caret and of an introduced place), and
+      `test_select_and_paste()` 69 (57 before): a runner box, a bracket, a run
+      card with its ring, a copy and a note of a run. `test_batch_widget_layout()`
+      picks the row of a set of runs, because the entry has two rows now.
+      Substrate 62560, conversation 164, workbench 143, with the known failures
+      only; campaign 185, window wrap 22, result views 45, result verbs 63, study
+      presentation 21, and the runner, filter, set-of-runs, simulation and
+      legacy-run suites pass.
+- [ ] **Open: an Alt+click on a tab title of a group without the focus** brings
+      back the selection the tab kept, because the kernel revives a dormant
+      selection on any write that ends at its keeper. The kernel file is sealed.
+- [ ] **Open, for the user: the runner's result table** has no document. D1
+      makes such a widget select the document that encloses it. Selecting the
+      table itself needs a decision: the drawn widget (a copy is a snapshot) or a
+      view document that refers to the runner (a copy is a live table).
 
 ## 5. Risks
 

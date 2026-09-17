@@ -107,6 +107,14 @@ function test_widget_selection()
         # spelling, and the level above maps it: it is kept.
         own = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("nowhere"), EmptyReference()))
         @test convert_to_whole_selection(own, t.card) === own
+        # A place a projection introduced names the node it was printed for.
+        place = ProjecturedKernel.ProjectionModule.ProjectionReferenceStep(nothing, EmptyReference())
+        bracket = ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"),
+                      ConcreteReference(place, EmptyReference())))
+        cut = convert_to_whole_selection(bracket, t.card)
+        @test evaluate_reference(t.card, cut.path) === t.layout
+        @test convert_to_whole_selection(ReplaceSelectionOperation(
+                  ConcreteReference(place, EmptyReference())), t.card).path isa EmptyReference
 
         # The container's own view of a whole selection.
         second = ConcreteReference(FieldReferenceStep("children"),

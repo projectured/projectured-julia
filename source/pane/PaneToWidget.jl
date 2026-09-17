@@ -441,15 +441,18 @@ end
 #
 # An Alt+click inside a page names an object in the tab's document. When the
 # content's projection maps it back to a whole document, the answer is that
-# document. Any other answer — the tab, because the content maps nothing back; a
-# caret; a place the content's projection introduced — names the tab's content,
-# as a whole.
+# document. A caret, or a place the content's projection introduced, names the
+# innermost document on its path: the one that holds the caret, or the one the
+# projection printed the place for. Any other answer — the tab, because the
+# content maps nothing back — names the tab's content, as a whole.
 function _select_page_content(tree::PaneTree, widget_operation, answer)
     (widget_operation isa ReplaceSelectionOperation && _is_inside_page(widget_operation.path)) ||
         return answer
     answer isa ReplaceSelectionOperation || return answer
     target = try_evaluate_reference(tree, answer.path, nothing)
     (target isa Document && !(target isa PaneDocument)) && return answer
+    innermost = _find_innermost_document_path(tree, answer.path)
+    innermost === nothing || return ReplaceSelectionOperation(innermost)
     rest = _after_field(answer.path, "root")
     rest === nothing && return answer
     found = _focus_walk(tree.root, rest)
@@ -458,6 +461,23 @@ function _select_page_content(tree::PaneTree, widget_operation, answer)
     index == 0 && return answer
     content = get_pane_content_path(tree, group, index)
     content === nothing ? answer : ReplaceSelectionOperation(content)
+end
+
+# The longest prefix of `path` that names a document inside a tab, or `nothing`.
+# The walk stops before a place a projection introduced, skips a collection, and
+# gives up at a pane.
+function _find_innermost_document_path(tree::PaneTree, path)
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    introduced = findfirst(step -> step isa ProjectionReferenceStep, steps)
+    longest = introduced === nothing ? length(steps) - 1 : introduced - 1
+    for n in longest:-1:1
+        prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+        node = try_evaluate_reference(tree, prefix, nothing)
+        node isa PaneDocument && return nothing
+        (node isa Document && !(node isa CollectionDocument)) &&
+            return annotate_reference_types(tree, prefix)
+    end
+    nothing
 end
 
 # Whether a widget path goes into a tab's page: past `selector_element_pairs[i]`

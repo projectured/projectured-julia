@@ -414,6 +414,33 @@ end
     @test rw < 200
 end
 
+@testset "an Alt answer that names no whole document selects the innermost one on its path" begin
+    inner = PrimitiveString("x")
+    content = HorizontalLayout(Any[inner])
+    group = PaneGroup(PaneTab[PaneTab("page", content)])
+    tree = PaneTree(group)
+    select = ProjecturedPane.PaneModule._select_page_content
+    path_of(steps) = foldr(ConcreteReference, steps; init = EmptyReference())
+    # What the widget layer answered: a press inside the tab's page.
+    page_press = ReplaceSelectionOperation(path_of(Any[
+        FieldReferenceStep("selector_element_pairs"), RangeReferenceStep(0, 1),
+        FieldReferenceStep("element")]))
+    at_content(steps...) = ReplaceSelectionOperation(
+        concat_references(get_pane_content_path(tree, group, 1), path_of(Any[steps...])))
+    target(op) = evaluate_reference(tree, op.path)
+    first_child = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
+    # A caret in the string names the string.
+    caret = at_content(first_child..., FieldReferenceStep("value"), RangeReferenceStep(0, 0))
+    @test target(select(tree, page_press, caret)) === inner
+    # A place a projection introduced names the document it was printed for.
+    introduced = at_content(first_child...,
+        ProjecturedKernel.ProjectionModule.ProjectionReferenceStep(nothing, EmptyReference()))
+    @test target(select(tree, page_press, introduced)) === inner
+    # The tab holds no document inside the page, so the content is taken.
+    tab = ReplaceSelectionOperation(get_pane_tab_reference(tree, group, 1))
+    @test target(select(tree, page_press, tab)) === content
+end
+
 @testset "a paste fills a tab's content and never replaces a pane" begin
     group = PaneGroup(PaneTab[_tab("a"), PaneTab("", DocumentNothing())])
     tree = PaneTree(group)

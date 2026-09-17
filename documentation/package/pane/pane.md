@@ -184,9 +184,11 @@ content. A group, a split and the tree give a copy nothing.
 An Alt+click inside a page selects the object under the pointer (see
 [widget.md](../widget/widget.md#selecting-a-whole-object)). When the content's
 projection maps that object back to a whole document, the selection is that
-document. Otherwise — the content maps nothing back, or it answers a caret or a
-place of its own — the selection is the tab's content as a whole. So any tab's
-content can be selected, whatever its projection maps.
+document. When it answers a caret, or a place it introduced, the selection is
+the innermost document on that path: the document that holds the caret, or the
+one the place was printed for. When it maps nothing back, the selection is the
+tab's content as a whole. So any tab's content can be selected, whatever its
+projection maps.
 
 The tabbed pane rings its page while the page's document is selected as a
 whole. The tree's own widget, the composite that carries the drop indicator,

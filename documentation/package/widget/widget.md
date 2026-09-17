@@ -739,6 +739,10 @@ selects the child as a whole. So the innermost object under the pointer wins,
 a table cell's own Alt+click keeps its cell, and a control never acts: the
 action a button answered is dropped, and a reader has no side effect.
 
+A place that a projection introduced, such as the bracket of a call, names the
+node that the projection printed it for. The rule cuts the answer there, so an
+Alt+click on a bracket selects the call.
+
 A whole-element selection is a path that ends at a document. A caret and a text
 range name no document (`is_whole_selection`).
 
