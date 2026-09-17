@@ -119,7 +119,7 @@ are stored as `Cell` but are read and written *transparently*: `obj.f` reads the
 underlying cell's value, `obj.f = v` writes into it, and `getfield(obj, :f)` is the
 escape hatch that returns the raw `Cell`. This is why the bulk of the code reads
 like ordinary Julia struct manipulation even though every field is reactive. The
-kernel codegen behind this is [`@cell_struct`](#cellstructmodule--the-transparent-cell-struct-codegen)
+kernel codegen behind this is [`@cell_struct`](#cellstructmodule-the-transparent-cell-struct-codegen)
 below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Idioms you will encounter
@@ -261,7 +261,7 @@ Public surface: `with_performance_counters(f, store=…)` (bind a store for `f`)
 `@performance_time key expr` (time `expr`, record the elapsed ns under `key`), and
 `@count_performance key` (the hot-path bump). The editor's read-eval-print loop
 binds a fresh store and reports it every frame (see
-[Editor.run_editor!](../../../source/kernel/editor/Editor.jl)), which is the
+[EditorModule.run_editor!](../../../source/kernel/editor/EditorModule.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
 Animation clock: `ClockModule` is its own kernel layer (layer 2, `clock/`),

@@ -32,7 +32,7 @@ The gallery lives at
 [domain/example/Gallery.jl](../../example/projectured/Gallery.jl) (the
 `Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
-[projectured/example/Examples.jl](../../example/projectured/Examples.jl), and
+[projectured/example/ProjecturedExamples.jl](../../example/projectured/ProjecturedExamples.jl), and
 `using ProjecturedExample` provides all of them. It accepts a
 few keyword arguments worth knowing:
 
@@ -52,7 +52,7 @@ always the first thing to try — the `Example` struct caches one shared
 instance per example.
 
 To drive the same example from a browser instead of an SDL window, pass a
-[web backend](../package/kernel/devices-and-backends.md#web-backend) to
+[web backend](../package/kernel/devices-and-backends.md#webbackend) to
 `run_example` (after `using ProjecturedWeb`, so `WebBackend` is in scope):
 
 ```julia

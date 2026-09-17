@@ -55,7 +55,7 @@ Three rules keep the vocabulary from saying the same thing twice:
 `MathScript` covers `x²`, `P_t` and `A_i^n`; `MathSubscript(base, index)` and
 `MathSuperscript(base, exponent)` build one with a single script.
 
-One table in [Math.jl](../../../source/math/Math.jl) holds three columns per operator:
+One table in [MathModule.jl](../../../source/math/MathModule.jl) holds three columns per operator:
 the text the linear form writes (ASCII where ASCII exists, a backslash name
 where it does not), the glyph the page shows, and the class — `:binary`,
 `:relation` or `:punctuation` — that decides the space around it.
@@ -213,6 +213,6 @@ loop and the arrow keys.
 formula offers none; every position would be reported as a failure. Use
 `run_example(math_display_example)` and the domain test for it.
 
-The examples are in [example/document/Math.jl](../../../example/math/document/Math.jl):
+The examples are in [example/math/MathDocumentExample.jl](../../../example/math/MathDocumentExample.jl):
 one function per formula of the scope table, and
 `make_math_display_document_example` stacks them all.

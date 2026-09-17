@@ -134,7 +134,7 @@ evaluate_reference(document, path) -> node
 The inverse of searching: walk `path` from `document` and return the node it
 points at (unwrapping cells, descending fields and elements). This is the
 `(document, reference) → node` direction. See the
-[reference guide](reference.md#resolving-a-reference-to-a-node) for details and
+[reference guide](reference.md#resolving-and-validating-a-reference) for details and
 the type-checkpoint validity rules.
 
 ## The round trip
@@ -194,7 +194,7 @@ isempty(refs) || replace_selection!(editor.document, first(refs))
 To select just the character range rather than the whole value, extend the found
 path with the cursor/range step the domain uses (for a JSON string value, a
 `RangeReferenceStep` over the text — see the [reference guide](reference.md) and the
-JSON section of the [selection guide](selection.md#json-domain)).
+JSON section of the [reference guide](reference.md#json-domain)).
 
 ## Scoping a search to one domain
 

@@ -85,7 +85,7 @@ Each span has:
 ## Gesture mapping (`read_gesture`)
 
 The geometry-free half of the Text reader lives on the document itself:
-`read_gesture(::TextBlock, gesture)` ([text/Text.jl](../../../source/text/Text.jl))
+`read_gesture(::TextBlock, gesture)` ([text/TextModule.jl](../../../source/text/TextModule.jl))
 maps an input gesture to an operation expressed against the `TextBlock`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 

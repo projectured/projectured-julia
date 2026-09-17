@@ -18,7 +18,7 @@ map_reference_backward(projection, iomap, reference)                      → in
 The four functions come in two symmetric pairs, one per direction of data flow.
 Forward, `print_document` produces the output **and** wires the cursor by
 calling `map_reference_forward`. Backward, `read_intent` consumes a
-backward-flowing [`Intent`](#the-change-the-reader-threads) (a gesture plus the
+backward-flowing [`Intent`](#the-intent-the-reader-threads) (a gesture plus the
 operation produced so far) **and** maps the cursor by calling
 `map_reference_backward`.
 The rule of thumb that follows from this symmetry — and that the rest of this
@@ -107,7 +107,7 @@ The two extra arguments are essential:
   `EmptyReference()`).
 
 A two-argument convenience overload `print_document(p, input)` is defined in
-[projection/Projection.jl](../../../source/kernel/projection/Projection.jl) and supplies
+[projection/ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl) and supplies
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
@@ -136,7 +136,7 @@ reader route events by selection — see below and
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([projection/Intent.jl](../../../source/kernel/operation/Intent.jl)) —
+The reader's payload is a **`Intent`** ([operation/IntentModule.jl](../../../source/kernel/operation/IntentModule.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
@@ -208,7 +208,7 @@ lightest touch to the most involved:
   that answer to decide its own final operation — e.g. to choose among
   alternatives, or to act only when the child declines (returns `nothing`).
 - **Route by selection.** When the printer forward-projected the selection onto
-  this node (see [Wiring the selection](#print_document--the-printer)), a
+  this node (see [Wiring the selection](#print_document-the-printer)), a
   reader can read its node's `selection` to forward a coordless event (a
   keystroke) *only* to the child the selection points at, rather than
   broadcasting to every child. This is the usual desired behavior — the

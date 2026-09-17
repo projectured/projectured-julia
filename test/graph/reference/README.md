@@ -7,7 +7,7 @@ produce the numbers the test asserts.
 Each links against the layout library of an OMNeT++ checkout, builds the same
 graph the Julia test builds, and prints the placed centre of every node. Paste
 the output into the matching `@testset` in
-[../projection/GraphTest.jl](../projection/GraphTest.jl).
+[../projection/GraphProjectionTest.jl](../projection/GraphProjectionTest.jl).
 
 ## Build and run
 

@@ -17,7 +17,7 @@ mouse.
 ## Document types
 
 All subtype `PaneDocument` (`<: Document`), defined in
-[pane/Pane.jl](../../../source/pane/Pane.jl).
+[pane/PaneModule.jl](../../../source/pane/PaneModule.jl).
 
 | Type | Role |
 |---|---|

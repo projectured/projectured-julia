@@ -199,7 +199,7 @@ shows them together.
   reproduce the previous content-sized, single-`horizontal_align` behaviour, so
   existing grids are unchanged. The field column only stretches when a parent
   seeded an `available_width`. `FormLayout` lives in
-  [layout/Layout.jl](../../../source/layout/Layout.jl) (not Widget.jl)
+  [layout/LayoutModule.jl](../../../source/layout/LayoutModule.jl) (not Widget.jl)
   because layouts load before widgets — hence it takes pre-built label documents
   rather than wrapping strings itself.
 - **`StackLayout(children; active=0)`** — `active = 0` keeps the original z-stack
@@ -279,7 +279,7 @@ re-insert.
 Most widget edits are a **single-field write into a carried widget**, so the
 `WidgetToGraphics` reader emits a self-contained
 `ReplaceReferencedValueOperation(widget, "field", value)` (see
-[operation.md](../kernel/operation.md#the-generic-write-operation-replacereferencedvalue))
+[operation.md](../kernel/operation.md#the-generic-write-operation-replacereferencedvalueoperation))
 rather than a bespoke operation. Because the widget is carried by identity
 (`document !== nothing`), the write bubbles up through every container unchanged.
 
@@ -296,7 +296,7 @@ rather than a bespoke operation. Because the widget is carried by identity
 
 The operations that remain bespoke (genuinely not single-slot writes) are defined
 alongside the widget types in
-[widget/Widget.jl](../../../source/widget/Widget.jl):
+[widget/WidgetDocument.jl](../../../source/widget/WidgetDocument.jl):
 
 | Operation | Effect |
 |---|---|

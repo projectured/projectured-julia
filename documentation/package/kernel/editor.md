@@ -131,7 +131,7 @@ run_editor!(backend, proj, document)
 
 The backend is pluggable: swap `SdlBackend()` for `WebBackend()` to run the same
 editor in a browser instead of a native window (see the
-[devices and backends guide](devices-and-backends.md#web-backend)), or
+[devices and backends guide](devices-and-backends.md#webbackend)), or
 `ConsoleBackend()` for the terminal. Nothing else changes.
 
 This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default

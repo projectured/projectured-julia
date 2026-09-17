@@ -103,7 +103,7 @@ cell to hand on, so the two are reactive by different means.
 
 The syntax tree's keyboard navigation is entirely geometry-free — it walks the
 `SyntaxNode` tree and its selection paths — so it lives on the document:
-`read_gesture(::SyntaxNode, gesture)` ([syntax/Syntax.jl](../../../source/syntax/Syntax.jl))
+`read_gesture(::SyntaxNode, gesture)` ([syntax/SyntaxModule.jl](../../../source/syntax/SyntaxModule.jl))
 maps an input gesture to a `ReplaceSelectionOperation` on the tree:
 
 - `Ctrl+Alt+Home` → select the root node (`∅`)

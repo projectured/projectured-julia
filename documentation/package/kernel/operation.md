@@ -170,7 +170,7 @@ This pattern — **`search_documents` / `search_references` → build `Operation
 three steps apply in every domain. Prefer it over bespoke imperative helpers;
 the operation is the durable, composable unit. See the
 [finding-and-selecting guide](finding-and-selecting.md) for the search
-half, and [`evaluate_operation`'s flow](#reader--operation--evaluate-flow) for
+half, and [`evaluate_operation`'s flow](#reader-operation-evaluate-flow) for
 how the editor itself uses it.
 
 This is also how a **timeline** scripts a session: `record_video` (headless) and
@@ -206,7 +206,7 @@ SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► In
                        print_document refreshes the iomap lazily
 ```
 
-The reader threads a [`Intent`](projection-system.md#the-change-the-reader-threads)
+The reader threads a [`Intent`](projection-system.md#the-intent-the-reader-threads)
 (the originating `gesture` plus the `operation` produced so far) and walks the
 pipeline last-to-first, calling `read_intent` on each step. The `gesture`
 rides along unchanged; the first step that fills in a non-nothing `operation`
@@ -273,7 +273,7 @@ When you do need a new one:
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
   `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
   is handled in **both** the default `read_intent`
-  ([projection/Projection.jl](../../../source/kernel/projection/Projection.jl)) **and**
+  ([projection/ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl)) **and**
   `reroot_operation`
   ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing

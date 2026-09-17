@@ -56,7 +56,7 @@ happened and decides no meaning, so it must not turn one key into a quit before
 any reader has seen it — a dialog, an insertion and the command palette all bind
 Escape, and a quit cannot be declined. The editor loop quits on an unmodified
 Escape that the pipeline did not handle, in the same place it recognises the
-readability zoom (`read!` in [editor/Editor.jl](../../../source/kernel/editor/Editor.jl)).
+readability zoom (`read!` in [editor/EditorModule.jl](../../../source/kernel/editor/EditorModule.jl)).
 
 ## Backends
 
@@ -336,11 +336,11 @@ vocabulary, not a document type; the window *document* and its operations
 
 One surface syntax for saying "this kind of event, with these field values
 and these modifiers held", ridden by two consumers: an
-[`EventPattern`](../../../source/kernel/event/EventPattern.jl) is
+[`EventPattern`](../../../source/kernel/event/EventPatternModule.jl) is
 *data* answering `matches(pattern, event)` and `describe(pattern)` — the
 per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
 type and its most-constrained field, all producing the one generic
-`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventPattern.jl)
+`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventPatternModule.jl)
 compiles a table of `pattern => result` rules straight to `isa`/field tests,
 first match wins. Both ride on one parser — exported as a macro-authoring API
 (`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the

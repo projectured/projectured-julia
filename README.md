@@ -265,7 +265,7 @@ The substrate under them carries what no single domain owns:
 | **Collection** | `CellVector`, a reactive indexed vector, and `ListNode`, a lazy doubly-linked list |
 
 Selection and cursor movement work in every domain. The SDL backend is the
-primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#web-backend)
+primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#webbackend)
 renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
 after `using ProjecturedWeb`). The assistant and the MCP server are built in.
 Character type-in and range editing work in the field-addressed domains; the

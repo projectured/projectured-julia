@@ -6,7 +6,7 @@ Three macros — `@document`, `@projection`, and `@iomap` — generate the
 boilerplate that makes the cell-based code in the rest of the codebase look
 like ordinary Julia. They are defined in
 [document/DocumentMacro.jl](../../../source/kernel/document/DocumentMacro.jl),
-[projection/Projection.jl](../../../source/kernel/projection/Projection.jl), and
+[projection/ProjectionMacro.jl](../../../source/kernel/projection/ProjectionMacro.jl), and
 [iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl) respectively.
 
 All three share the same core pattern: declared field types are *what you

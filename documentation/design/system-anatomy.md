@@ -72,7 +72,7 @@ as separate packages under the same directory. The substrate shares one
 example package and one test package
 (`ProjecturedSubstrateExample`, `ProjecturedSubstrateTest`), because the files
 of both were written against the flat namespace. See
-[architecture-rules.md](../rule/architecture-rules.md#the-triad--every-main-package-has-its-code-its-tests-and-its-examples)
+[architecture-rules.md](../rule/architecture-rules.md#the-triad-every-main-package-has-its-code-its-tests-and-its-examples)
 for the rules.
 
 ```

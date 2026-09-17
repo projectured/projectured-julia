@@ -58,7 +58,7 @@ perf!(editor)      # report the reactive counters of this frame
 ```
 
 The loop lives in
-[Editor.jl](../../source/kernel/editor/Editor.jl). Every concept in the next
+[EditorModule.jl](../../source/kernel/editor/EditorModule.jl). Every concept in the next
 part is a part of one of these four steps.
 
 ---

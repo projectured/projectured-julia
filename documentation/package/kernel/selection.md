@@ -236,7 +236,7 @@ selection — the selection only directs *coordless* events such as keystrokes.
 ## How the reader translates the selection backward
 
 The reader chain walks right-to-left, threading an
-[`Intent`](projection-system.md#the-change-the-reader-threads) (gesture +
+[`Intent`](projection-system.md#the-intent-the-reader-threads) (gesture +
 operation) and translating its `ReplaceSelectionOperation` from the output
 domain back to the input domain at each step. Each reader is the 4-arg
 `read_intent(p, recursion, change::Intent, iomap) → Intent`; the `gesture` rides
