@@ -4,6 +4,7 @@
     item::Any
 end
 DomainModule.accepts_pasted_document(::_ClipboardRecord) = false
+DomainModule.accepts_pasted_text(::_ClipboardRecord) = false
 
 @document struct _ClipboardPair <: Document
     left::Any
@@ -377,6 +378,133 @@ end
         # Declines (no range): no copy compound is produced — it falls through to the
         # content child, which echoes the event rather than a clipboard operation.
         @test !(read_intent(p, iom, KeyDown(:c, ctrl)) isa CompoundOperation)
+    finally
+        reset_os_clipboard_backend!()
+    end
+end
+
+@testset "a text target takes the system clipboard's text, and a range is copied as text" begin
+    buf = Ref("")
+    set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
+    try
+        content_step = FieldReferenceStep("content")
+        value_step = FieldReferenceStep("value")
+        # A slice over `document`, with the selection `content.<steps>` set the way
+        # an editor sets it, so every document on the path holds its part.
+        function text_slice(document, steps...; stored = nothing)
+            slice = stored === nothing ? ClipboardSlice(document) : ClipboardSlice(document, stored)
+            set_selection!(slice, cpath(content_step, steps...))
+            p = ClipboardSliceToAnyProjection()
+            (slice, p, print_document(p, IdentityProjection(), slice, PrinterContext()))
+        end
+        apply!(slice, op) = evaluate_operation((document = slice,), op)
+        ends(document) = (steps = get_reference_steps(strip_reference_types(getfield(document, :selection)[]));
+                          (last(steps).start, last(steps).stop))
+
+        @test accepts_pasted_text(PrimitiveString("x"))
+
+        # A caret takes the text, and the caret follows it.
+        buf[] = "XY"
+        text = PrimitiveString("hello")
+        (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(2, 2))
+        op = read_intent(p, iomap, KeyDown(:v, ctrl))
+        @test op isa ReplaceStringRangeOperation
+        @test op.replacement == "XY"
+        apply!(slice, op)
+        @test text.value == "heXYllo"
+        @test ends(text) == (4, 4)
+        # Paste-copy is the same edit.
+        @test read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa ReplaceStringRangeOperation
+
+        # A range is replaced.
+        buf[] = "Z"
+        text = PrimitiveString("hello")
+        (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        @test text.value == "hZo"
+
+        # A copy and a note of a range store its characters in the slice and on
+        # the system clipboard, and the selection stays.
+        for key in (:c, :n)
+            buf[] = ""
+            text = PrimitiveString("hello")
+            (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
+            op = read_intent(p, iomap, KeyDown(key, ctrl))
+            @test op isa CompoundOperation
+            apply!(slice, op)
+            @test buf[] == "ell"
+            @test slice.slice isa PrimitiveString && slice.slice.value == "ell"
+            @test ends(text) == (1, 4)
+            @test text.value == "hello"
+        end
+
+        # A copy at a caret has nothing to take: the slice and the system
+        # clipboard stay as they are.
+        buf[] = "kept"
+        text = PrimitiveString("hello")
+        (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(2, 2);
+                                       stored = PrimitiveString("stored"))
+        op = read_intent(p, iomap, KeyDown(:c, ctrl))
+        op isa Operation && apply!(slice, op)
+        @test buf[] == "kept"
+        @test slice.slice.value == "stored"
+
+        # A cut of a range takes it out.
+        buf[] = ""
+        text = PrimitiveString("hello")
+        (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
+        apply!(slice, read_intent(p, iomap, KeyDown(:x, ctrl)))
+        @test text.value == "ho"
+        @test buf[] == "ell"
+        @test ends(text) == (1, 1)
+
+        # A number takes digits and refuses letters.
+        number = PrimitiveNumber(42)
+        (slice, p, iomap) = text_slice(number, value_step, RangeReferenceStep(1, 1))
+        buf[] = "7"
+        op = read_intent(p, iomap, KeyDown(:v, ctrl))
+        @test op isa ReplaceNumberRangeOperation
+        apply!(slice, op)
+        @test number.value == 472
+        buf[] = "x"
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
+        @test number.value == 472
+
+        # A string with no line break drops the ones the text ends with; a string
+        # that holds one keeps them.
+        buf[] = "X\n"
+        one_line = PrimitiveString("ab")
+        (slice, p, iomap) = text_slice(one_line, value_step, RangeReferenceStep(1, 1))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        @test one_line.value == "aXb"
+        two_lines = PrimitiveString("a\nb")
+        (slice, p, iomap) = text_slice(two_lines, value_step, RangeReferenceStep(1, 1))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        @test two_lines.value == "aX\n\nb"
+
+        # A document that refuses pasted text protects its strings from a paste
+        # and a cut; a copy only reads, and takes the text.
+        record = _ClipboardRecord(PrimitiveString("kept"))
+        buf[] = "no"
+        (slice, p, iomap) = text_slice(record, FieldReferenceStep("item"), value_step,
+                                       RangeReferenceStep(1, 3))
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+        apply!(slice, read_intent(p, iomap, KeyDown(:c, ctrl)))
+        @test buf[] == "ep"
+        @test record.item.value == "kept"
+
+        # With no system clipboard, the text the slice holds is pasted, and any
+        # other slice is refused.
+        set_os_clipboard_backend!(read = () -> nothing, write = t -> false)
+        text = PrimitiveString("ab")
+        (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 1);
+                                       stored = PrimitiveString("S"))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        @test text.value == "aSb"
+        (slice, p, iomap) = text_slice(PrimitiveString("ab"), value_step, RangeReferenceStep(1, 1);
+                                       stored = _ClipboardPair(PrimitiveString("l"), PrimitiveString("r")))
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
     finally
         reset_os_clipboard_backend!()
     end

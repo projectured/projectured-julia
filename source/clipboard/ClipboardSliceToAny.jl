@@ -234,6 +234,35 @@ function _text_clipboard_paste(p, input)
     reroot_operation(op, (FieldReferenceStep("content"),))
 end
 
+# ── Text targets ────────────────────────────────────────────────────────────────
+# A selection that ends in a range of a field's text (`_find_text_target`) is
+# answered before the rules for a whole document. A paste takes the text of the
+# system clipboard, or the text the slice holds when the system clipboard has
+# none, and makes the edit that typing it would make. A copy, a note and a cut of
+# a range store its characters in the slice and on the system clipboard. A copy
+# at a caret has nothing to take, and goes on to the rules below.
+
+function _text_target_paste(p, input)
+    target = _find_text_target(input; writes = true)
+    target === nothing && return nothing
+    text = read_os_clipboard()
+    (text === nothing || isempty(text)) && (text = _slice_text(input.slice))
+    text === nothing && return nothing
+    pasted = _make_pasted_text(target, text)
+    pasted === nothing && return nothing
+    _make_text_target_edit(target, pasted)
+end
+
+function _text_target_copy(p, input; cut::Bool = false)
+    target = _find_text_target(input; writes = cut)
+    (target === nothing || target.start == target.stop) && return nothing
+    text = _get_text_target_text(target)
+    ops = Any[replace_document(_field_path("slice"), PrimitiveString(text)),
+              cut ? _make_text_target_edit(target, "") : ReplaceSelectionOperation(target.path),
+              WriteOsClipboardOperation(text)]
+    CompoundOperation(ops)
+end
+
 # Copy: store an independent copy of the selected object in the slice, made with
 # `ClipboardCopyPolicy`, so a tool is stored as its duplicate. The
 # write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
@@ -244,6 +273,8 @@ function _clipboard_copy(p, input)
     # Text mode is exclusive over a TextBlock content: never fall through to the node
     # path (which would `evaluate_reference` a character selection).
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
+    text = _text_target_copy(p, input)
+    text === nothing || return text
     sel, selected = _selected(input)
     obj = find_clipboard_document(selected)
     obj === nothing && return nothing
@@ -261,6 +292,8 @@ end
 # Cut: store the live object in the slice and blank out its source position.
 function _clipboard_cut(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_cut(p, input)
+    text = _text_target_copy(p, input; cut = true)
+    text === nothing || return text
     sel, obj = _selected(input)
     obj isa Document || return nothing
     _find_paste_target(input, DocumentNothing()) === nothing && return nothing
@@ -277,6 +310,8 @@ end
 function _clipboard_note(p, input)
     # for text, "note" == copy the substring (text mode is exclusive)
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
+    text = _text_target_copy(p, input)
+    text === nothing || return text
     sel, selected = _selected(input)
     obj = find_clipboard_document(selected)
     obj === nothing && return nothing
@@ -294,6 +329,8 @@ end
 # empty, fall back to the OS clipboard via the projection's `from_text` converter.
 function _clipboard_paste(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+    text = _text_target_paste(p, input)
+    text === nothing || return text
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)
@@ -318,6 +355,8 @@ end
 # identical to paste (splicing a string needs no copy).
 function _clipboard_paste_copy(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+    text = _text_target_paste(p, input)
+    text === nothing || return text
     slice = input.slice
     if !(slice isa Document)
         doc = _os_paste_document(p)

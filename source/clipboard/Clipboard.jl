@@ -232,6 +232,99 @@ end
 
 _get_cell_value_type(::AbstractCell{T}) where {T} = T
 
+# ── Text targets ──────────────────────────────────────────────────────────────
+#
+# A selection that ends in a field and a range of that field's text is a text
+# target: a text cursor, or a range of characters. A paste there puts text in,
+# a copy of a range takes its characters, and the edit is the one that typing
+# makes. The field holds a string, nothing, or a number; any other value, such
+# as a span of the text domain, is not a text target.
+
+"""
+    TextTarget
+
+A place a paste puts text: the selection `path` (rooted at the clipboard
+document), the `document` and the `field` it ends in, that field's `value`, the
+selected characters `start..stop`, and whether the field holds text or a number
+(`kind` is `:text` or `:number`).
+"""
+struct TextTarget
+    path::Reference
+    document::Any
+    field::Symbol
+    value::Any
+    start::Int
+    stop::Int
+    kind::Symbol
+end
+
+# The text target the clipboard's selection names, or `nothing`. For an edit
+# (`writes`), every document from the content down to the target must accept
+# pasted text; a copy reads, and asks none.
+function _find_text_target(input; writes::Bool)
+    sel = _get_clipboard_selection(input)
+    sel isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(sel))
+    length(steps) >= 3 || return nothing
+    range, field = steps[end], steps[end - 1]
+    (range isa RangeReferenceStep && field isa FieldReferenceStep) || return nothing
+    document = nothing
+    for i in 1:(length(steps) - 2)
+        document = try_evaluate_reference(input, _make_steps_path(steps[1:i]), missing)
+        document === missing && return nothing
+        (writes && document isa Document && !accepts_pasted_text(document)) && return nothing
+    end
+    document isa Document || return nothing
+    name = Symbol(field.name)
+    hasfield(typeof(document), name) || return nothing
+    value = getproperty(document, name)
+    kind = _find_text_kind(document, name, value)
+    kind === nothing && return nothing
+    TextTarget(sel, document, name, value, range.start, range.stop, kind)
+end
+
+# Whether a field takes text or a number, or `nothing` when it takes neither. An
+# empty field says it by its document, or by the value type of its cell.
+function _find_text_kind(document, name::Symbol, value)
+    value isa AbstractString && return :text
+    value isa Number && return :number
+    value === nothing || return nothing
+    document isa PrimitiveNumber && return :number
+    cell = getfield(document, name)
+    T = cell isa AbstractCell ? _get_cell_value_type(cell) : Any
+    String <: T ? :text : Int <: T ? :number : nothing
+end
+
+# The characters `start+1 .. stop` of a target's value.
+function _get_text_target_text(target::TextTarget)
+    value = target.value
+    chars = collect(value isa AbstractString ? value : value === nothing ? "" : string(value))
+    n = length(chars)
+    String(chars[(clamp(target.start, 0, n) + 1):clamp(target.stop, 0, n)])
+end
+
+# The edit that puts `text` over a target's range: the one typing makes.
+_make_text_target_edit(target::TextTarget, text::AbstractString) =
+    target.kind === :number ? ReplaceNumberRangeOperation(target.path, String(text)) :
+                              ReplaceStringRangeOperation(target.path, String(text))
+
+# The text a paste puts at `target`, from `text`, or `nothing` when it puts none.
+# A field that holds no line break drops the line breaks `text` ends with, and a
+# number field takes only a result that is a number.
+function _make_pasted_text(target::TextTarget, text::AbstractString)
+    text = replace(String(text), "\r\n" => "\n")
+    value = target.value
+    (value isa AbstractString && occursin('\n', value)) || (text = rstrip(text, ('\n', '\r')))
+    isempty(text) && return nothing
+    if target.kind === :number
+        old = value === nothing ? "" : string(value)
+        result = splice_string(old, target.start, target.stop, text)
+        splice_number(old, target.start, target.stop, text) === nothing &&
+            !isempty(result) && return nothing
+    end
+    String(text)
+end
+
 # Only a real collection merges; anything else a reader returned is not one.
 _collected_intents(op::CollectedIntentsOperation) = op
 _collected_intents(::Any) = nothing

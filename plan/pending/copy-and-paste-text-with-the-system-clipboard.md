@@ -233,9 +233,11 @@ it.
 #### T12. A document can refuse pasted text
 
 A new predicate `accepts_pasted_text(document)` goes into `ProjecturedDomain`,
-beside `accepts_pasted_document`. It answers `true` by default. A text paste, copy
-or cut is refused unless every document from the content down to `D` answers
-`true`.
+beside `accepts_pasted_document`. It answers `true` by default. A text paste or
+cut is refused unless every document from the content down to `D` answers
+`true`. **Changed in step 4:** a copy and a note only read, and ask no document,
+as a copy of a whole document asks none either; so text is copied out of a
+record.
 
 | Document | Answer | Why |
 | --- | --- | --- |
@@ -433,28 +435,32 @@ These are the hard parts, and none of them is in this plan:
 
 ### Step 4 — the text branch (projectured, clipboard slice)
 
-- [ ] Find a text target (T8).
-- [ ] Paste and paste-copy at a text target (T7, T9, T13), before the rules of D9
-      (T11), refused by T12.
-- [ ] Copy and note of a range cursor, and cut (T10).
-- [ ] Tests in `test_clipboard()`, with the in-memory system clipboard of
-      `set_os_clipboard_backend!`:
-      - a text cursor in a `PrimitiveString` takes the text, and the caret moves
-        to its end;
-      - a range cursor is replaced;
-      - a copy and a note of a range write the system clipboard and the slice,
-        and the selection stays;
-      - a copy at a text cursor goes on, and changes nothing;
-      - a cut of a range, where `:cut` is offered;
-      - a JSON string of the gallery's JSON example takes a paste at its cursor;
-      - a number field takes digits and refuses letters;
-      - a trailing line break is dropped in a one-line string and kept in a
-        string that holds a line break;
-      - a string inside a `ConversationConversation` refuses;
-      - with no system clipboard, a text slice is pasted, and any other slice is
-        refused;
-      - a whole-element selection still goes through D9: every count of the
-        other plan's tests stays the same.
+- [x] Find a text target (T8): `_find_text_target` in `Clipboard.jl` answers a
+      `TextTarget` with the path, the document, the field, its value, the range
+      and whether the field takes text or a number. An empty field is a number
+      field when its document is a `PrimitiveNumber`, or when its cell's value
+      type takes an `Int` and not a `String`.
+- [x] Paste and paste-copy at a text target (T7, T9, T13), before the rules of D9
+      (T11), refused by T12. A number field gets a `ReplaceNumberRangeOperation`,
+      as typing gives it, because the string splice would put a `String` into it.
+      `\r\n` is read as `\n`.
+- [x] Copy and note of a range cursor, and cut (T10).
+- [x] Tests:
+      - `test_clipboard()` 197 (163 before): a caret takes the text and the
+        caret follows it; paste-copy is the same edit; a range is replaced; a
+        copy and a note store the characters and keep the selection; a copy at a
+        caret changes nothing; a cut takes the range out; a number takes digits
+        and refuses letters; the line-break rule both ways; a record refuses a
+        paste and a cut and gives its text to a copy; with no system clipboard
+        a text slice is pasted and a whole-document slice is refused; the
+        default of `accepts_pasted_text`. The D9 cases keep their counts.
+      - `test_text_clipboard()` 8, new, in the umbrella suite, through the
+        editor loop: a press in the JSON example's `"Alice"` and `Ctrl+V` put
+        the text in, and `Ctrl+C` at the caret takes nothing; a plain string
+        copies a range made with `Shift+Left` and a paste replaces it.
+      - Unchanged: `test_gesture_help()` 42,
+        `test_command_palette_decorator()` 63, `test_conversation()` 167,
+        `test_gallery_wrappers()` 13.
 
 ### Step 5 — the chat draft and the runner in the IDE (omnet)
 
