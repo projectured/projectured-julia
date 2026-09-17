@@ -143,10 +143,47 @@ function _selected(input)
     sel, obj
 end
 
-# Whether `document` can be held by the clipboard, by a copy or a note. A record
-# or a tool can not: it is never pasted, and a deep copy of one can share what
-# drives it, or follow a back-link without end.
-_is_clipboard_value(document) = document isa Document && accepts_pasted_document(document)
+"""
+    find_clipboard_document(document) -> Document | Nothing
+
+The document that a copy or a note takes when `document` is selected, or
+`nothing` when there is none. By default `document` itself, when it is a
+document. A domain answers another document when a selection names a frame
+around what a person sees, such as a pane tab around the document it shows.
+"""
+find_clipboard_document(document) = document isa Document ? document : nothing
+
+"""
+    ClipboardCopyPolicy()
+
+The policy of the copy that a copy gesture stores. It copies as the plain copy
+does, except at a document that refuses a paste (`accepts_pasted_document`),
+such as a tool: there it puts the duplicate that the document's kind declares,
+so that the copy works apart from the original. The copy is refused when such a
+kind declares no duplicate, and when a document holds itself through a
+back-link. Made for one copy, because it records every document it copies.
+"""
+struct ClipboardCopyPolicy <: CopyPolicy
+    copies::IdDict{Any,Any}
+end
+ClipboardCopyPolicy() = ClipboardCopyPolicy(IdDict{Any,Any}())
+
+is_descendable_for_copy(::ClipboardCopyPolicy, document) = accepts_pasted_document(document)
+make_copy_placeholder(::ClipboardCopyPolicy, document) =
+    has_document_duplicate(document) ? make_document_duplicate(document) :
+    throw(DocumentCopyException(document, "it refuses a paste, and its kind declares no duplicate"))
+get_copy_memo(policy::ClipboardCopyPolicy) = policy.copies
+
+# The copy the clipboard stores for `document`, or `nothing` when the copy is
+# refused.
+function _make_clipboard_copy(document)
+    try
+        copy_document(ClipboardCopyPolicy(), document)
+    catch exception
+        exception isa DocumentCopyException || rethrow()
+        nothing
+    end
+end
 
 # The path a paste (or a cut) writes `value` to, or `nothing` when it must not
 # write. Three rules hold, each checked against the tree as it stands:
@@ -155,16 +192,14 @@ _is_clipboard_value(document) = document isa Document && accepts_pasted_document
 #    key goes on to the content, whose own reader pastes text.
 # 2. Every document from the content down to the target accepts a pasted
 #    document (`accepts_pasted_document`). A record or a tool refuses, and so
-#    does everything inside it. Such a document is never pasted either: a copy
-#    of a tool can share what drives the original, and a second tool is the
-#    work of a duplicate, not of a paste.
+#    does everything inside it. Such a document can still be the pasted value:
+#    a noted tool, or the duplicate that a copy of one stores.
 # 3. The slot takes `value`: a field cell whose value type `value` is not, or an
 #    immutable one, refuses, and so does the document in the slot when it does
 #    not accept `value` as its replacement (`accepts_pasted_replacement`).
 function _find_paste_target(input, value)
     sel = _get_clipboard_selection(input)
     (sel === nothing || sel isa EmptyReference) && return nothing
-    accepts_pasted_document(value) || return nothing
     try_evaluate_reference(input, sel, missing) isa Document || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
     node = input

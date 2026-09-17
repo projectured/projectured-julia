@@ -66,9 +66,15 @@ stored slice, leaves out `:cut` or `:toggle`.
 A paste and a cut write only where the paste rules allow: the selection names a
 whole document, every document from the content down to it accepts a pasted
 document (`accepts_pasted_document`), the slot takes the value, and the document
-in the slot accepts it as a replacement (`accepts_pasted_replacement`). A
-document that refuses a paste is not copied, noted or pasted either. Otherwise the gesture goes
-on to the content.
+in the slot accepts it as a replacement (`accepts_pasted_replacement`).
+Otherwise the gesture goes on to the content.
+
+A copy and a note take the selected document or, when the selection names a
+frame such as a pane tab, the document that [`find_clipboard_document`](@ref)
+answers. A copy stores an independent copy made with
+[`ClipboardCopyPolicy`](@ref): a document that refuses a paste, such as a tool,
+is copied as the duplicate its kind declares, and the copy is refused when the
+kind declares none. A note stores the document itself, a tool too.
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
@@ -228,7 +234,8 @@ function _text_clipboard_paste(p, input)
     reroot_operation(op, (FieldReferenceStep("content"),))
 end
 
-# Copy: store an independent deep copy of the selected object in the slice. The
+# Copy: store an independent copy of the selected object in the slice, made with
+# `ClipboardCopyPolicy`, so a tool is stored as its duplicate. The
 # write retargets the selection to `.slice` (ReplaceDocumentOperation moves the
 # selection to where it writes), so a trailing ReplaceSelectionOperation restores
 # the user's original selection on the copied source. When the projection has a
@@ -237,9 +244,11 @@ function _clipboard_copy(p, input)
     # Text mode is exclusive over a TextBlock content: never fall through to the node
     # path (which would `evaluate_reference` a character selection).
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
-    sel, obj = _selected(input)
-    _is_clipboard_value(obj) || return nothing
-    payload = copy_document(obj)
+    sel, selected = _selected(input)
+    obj = find_clipboard_document(selected)
+    obj === nothing && return nothing
+    payload = _make_clipboard_copy(obj)
+    payload === nothing && return nothing
     clear_selection!(payload)                  # clipboard payload carries no cursor
     ops = Any[
         replace_document(_field_path("slice"), payload),
@@ -268,8 +277,9 @@ end
 function _clipboard_note(p, input)
     # for text, "note" == copy the substring (text mode is exclusive)
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
-    sel, obj = _selected(input)
-    _is_clipboard_value(obj) || return nothing
+    sel, selected = _selected(input)
+    obj = find_clipboard_document(selected)
+    obj === nothing && return nothing
     ops = Any[
         replace_document(_field_path("slice"), obj),
         ReplaceSelectionOperation(sel),
@@ -321,7 +331,8 @@ function _clipboard_paste_copy(p, input)
     end
     sel = _find_paste_target(input, slice)
     sel === nothing && return nothing
-    fresh = copy_document(slice)
+    fresh = _make_clipboard_copy(slice)
+    fresh === nothing && return nothing
     clear_selection!(fresh)                    # pasted content starts with no cursor
     CompoundOperation(Any[
         replace_document(sel, fresh),

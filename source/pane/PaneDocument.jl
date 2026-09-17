@@ -81,6 +81,11 @@ accepts_pasted_replacement(::PaneDocument, ::Any) = false
 accepts_pasted_replacement(::Any, ::PaneDocument) = false
 accepts_pasted_replacement(::PaneDocument, ::PaneDocument) = false
 
+# A copy or a note of a focused tab takes what the tab shows. A group, a split
+# and the tree of a window show no document of their own.
+find_clipboard_document(tab::PaneTab) = tab.content
+find_clipboard_document(::PaneDocument) = nothing
+
 # ── PaneGroup ──────────────────────────────────────────────────────────────
 
 """

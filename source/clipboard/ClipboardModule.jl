@@ -41,6 +41,7 @@ using ..SelectionModule
 using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_copy_memo
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -54,6 +55,7 @@ export ClipboardSliceToAnyProjection, ClipboardCollectionToAnyProjection,
 export ClipboardSlice, ClipboardCollection
 export CLIPBOARD_GESTURES
 export make_clipboard_document, make_clipboard_projection
+export find_clipboard_document, ClipboardCopyPolicy
 
 
 include("Clipboard.jl")

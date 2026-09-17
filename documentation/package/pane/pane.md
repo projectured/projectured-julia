@@ -174,6 +174,11 @@ empty name after its content: the content's `get_document_title`, and
 "untitled" when there is none. A pasted object therefore names its tab. `F2`
 still writes a name of the tab's own.
 
+A paste never replaces a pane, and a pane is never pasted. When a whole tab
+has the focus, a copy and a note take what the tab shows
+(`find_clipboard_document`), so `Ctrl+C` after a click on a tab copies its
+content. A group, a split and the tree give a copy nothing.
+
 ## Selecting inside a page
 
 An Alt+click inside a page selects the object under the pointer (see

@@ -3,10 +3,10 @@
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
 worktree `projectured-julia-select-paste`, and in omnet on the branch
 `select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 9 are
-done, and both branches sit on the current `main` (see "Rebase over main" after
-Step 9). Two items wait for the user: the Alt+press probe of Step 0 needs a live
-window and a person, and the timing of Step 7 needs an idle machine and the
-user's word. The branches are not on `main`, and nothing is pushed.
+done and landed on `main` (projectured `41b15f2c`, omnet `937b0cd8`). Step 10,
+the copy of a tool, is in progress. Two items wait for the user: the Alt+press
+probe of Step 0 needs a live window and a person, and the timing of Step 7 needs
+an idle machine and the user's word. Nothing is pushed.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -42,6 +42,8 @@ The user's rulings on the first draft, 2026-09-17:
 | `Alt+Left` / `Alt+Right` | Move between siblings. |
 | The two charts turn the `Alt` arrows the other way | Change them to the syntax meaning. |
 | A paste over a whole tool pane (the assistant, the runner) | Refuse it, as for the conversation. |
+| A second `Ctrl+V` after one `Ctrl+C` pastes the same stored copy again (asked 2026-09-17) | Keep this rule. `Ctrl+Shift+V` pastes a new copy each time. |
+| A copy of a runner or an assistant (asked 2026-09-17) | "When I copy a runner or an assistant, I want a separately working copy. When I note and paste it, then it's the same thing." |
 
 The words mean this in the code:
 
@@ -50,7 +52,7 @@ The words mean this in the code:
 | select | a `ReplaceSelectionOperation` whose path ends AT the object: a whole-element selection, the path tail is `EmptyReference()` |
 | visible | the selected widget draws a selection ring |
 | normal selection path | the document's `selection` cells, written by the editor from a reader's operation. No second selection state. |
-| copy-paste | `Ctrl+C`, then `Ctrl+V`. The tab gets an independent deep copy (`copy_document`). |
+| copy-paste | `Ctrl+C`, then `Ctrl+V`. The tab gets an independent deep copy (`copy_document` with `ClipboardCopyPolicy`; a tool is copied as its duplicate, Step 10). |
 | note-paste | `Ctrl+N`, then `Ctrl+V`. The tab gets the same live object. |
 | empty new tab | `Ctrl+T` or the `+` button: `PaneTab("untitled", DocumentNothing())` |
 
@@ -299,16 +301,25 @@ This is not the closed gating plan. That plan filtered every operation of a
 subtree through a projection policy. This one is one fact that a domain type
 states, read by the one writer that sits in front of the readers.
 
-**A record or a tool is neither copied, noted nor pasted** (decided in Step 7;
-the first decision allowed a copy and a note). A copy made by `copy_document`
-keeps what a tool holds by reference: the runner's `runner` handle and `cache`,
-the assistant's model session. A pasted copy would then start runs or turns of
-the original, and a deep copy of the assistant follows the draft's back-link to
-the assistant and overflows the stack. A second tool is the work of a duplicate
-with a copy policy ([duplicate-a-pane.md](duplicate-a-pane.md)), not of a paste.
-So `_find_paste_target` refuses such a value, and copy and note refuse such a
-document (`_is_clipboard_value`). What a record or a tool holds — a message, a
-result, a parameter — is copied and noted as any other document.
+**A copy of a record or a tool is its duplicate, and a note is the document
+itself** (Step 10, after the user's ruling). The plain copy is wrong for a
+tool: it keeps what a tool holds by reference, such as the runner's `runner`
+handle, and a plain copy of the assistant follows the draft's back-link to the
+assistant and overflows the stack. So a copy uses `ClipboardCopyPolicy`: it
+copies as the plain copy does, and at a document that refuses a paste it puts
+the duplicate that the kind declares ([duplicate-a-pane.md](../done/duplicate-a-pane.md)).
+A kind that declares no duplicate, such as a set of runs or a study, is not
+copied. The policy records what it copies, so a back-link is a refusal and not
+a stack overflow. A note stores the document itself, a tool too, and a paste
+writes a tool wherever the three rules allow. (Step 7 first refused a copy, a
+note and a paste of a record or a tool; the user's ruling replaced that.)
+
+**A focused tab gives what it shows.** The normal pane focus names a whole tab,
+so a copy with that focus copied the `PaneTab`, and the tab of the assistant
+overflowed the stack. `find_clipboard_document(document)` in the clipboard slice
+answers the document that a copy or a note takes: the document itself by
+default, a tab's content for a `PaneTab`, and nothing for a group, a split or a
+tree.
 
 ### D10. The clipboard reads the selection from its content
 
@@ -762,6 +773,28 @@ backend, and finds every press point by the text it draws.
       duplicate of the tab.
 - [ ] Move this plan to `plan/done/`, after the probe of Step 0 and the timing
       of Step 7.
+
+### Step 10 — a copy of a tool works on its own (projectured and omnet)
+
+The user's ruling of 2026-09-17: a copy of a runner or an assistant is a
+separately working copy, and a note of one pastes the same object. The branches
+were landed on `main` (`41b15f2c` and `937b0cd8`) before this step.
+
+- [x] `ClipboardCopyPolicy` and `_make_clipboard_copy` in `Clipboard.jl`. Copy
+      and paste-copy use them; note stores any document; the paste target no
+      longer refuses a record or a tool as the value (D9).
+- [x] `find_clipboard_document`, with the pane's methods: a tab gives its
+      content, and a group, a split and a tree give nothing.
+      **Found by a probe on `main`:** `Ctrl+C` with the assistant's tab focused
+      threw `StackOverflowError` out of the editor loop, and with the runner's
+      tab focused it made a plain copy of the tab in 2.55 s.
+- [ ] Tests: `test_clipboard()` (a record with no duplicate, a tool with one, a
+      document that holds itself, a frame), `test_pane_reader()` (a focused
+      tab), and `test_select_and_paste()` (the runner and the assistant copied
+      by an Alt selection and by a tab focus, and a noted assistant pasted).
+- [x] Guides: `transcript.md`, `pane.md`, the omnet `assistant-guide.md`, and
+      the docstrings of `accepts_pasted_document` and
+      `ClipboardSliceToAnyProjection`.
 
 ### Rebase over main (2026-09-17)
 

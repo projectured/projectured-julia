@@ -14,6 +14,19 @@ end
     label::PrimitiveString
 end
 
+# A tool: it refuses a paste, and its kind declares a duplicate.
+@document struct _ClipboardTool <: Document
+    item::Any
+end
+DomainModule.accepts_pasted_document(::_ClipboardTool) = false
+DocumentModule.has_document_duplicate(::_ClipboardTool) = true
+
+# A frame around a document: a copy or a note of the frame takes what it shows.
+@document struct _ClipboardFrame <: Document
+    shown::Any
+end
+ProjecturedClipboard.ClipboardModule.find_clipboard_document(frame::_ClipboardFrame) = frame.shown
+
 # A document that only another of its kind may replace.
 @document struct _ClipboardKeeper <: Document
     value::Any
@@ -393,23 +406,94 @@ end
         @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
         @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
     end
-    # The record itself is neither copied nor noted; what it holds is.
+    # A record whose kind declares no duplicate is not copied, and it is noted
+    # as itself. What it holds is copied.
     slice.selection = cpath(content, FieldReferenceStep("left"))
     @test !(read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation)
-    @test !(read_intent(p, iomap, KeyDown(:n, ctrl)) isa CompoundOperation)
+    noted = read_intent(p, iomap, KeyDown(:n, ctrl))
+    @test noted isa CompoundOperation
+    @test _rd_val(noted.operations[1]) === record
     slice.selection = cpath(content, FieldReferenceStep("left"), FieldReferenceStep("item"))
     @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
     slice.selection = cpath(content, FieldReferenceStep("right"))
     op = read_intent(p, iomap, KeyDown(:v, ctrl))
     @test op isa CompoundOperation
     @test _rd_ref(op.operations[1]) == cpath(content, FieldReferenceStep("right"))
-    # A record is never pasted, even where a paste may write.
+    # A noted record pastes as itself where a paste may write. A paste of a new
+    # copy is refused, because the record has no duplicate.
     held = ClipboardSlice(_ClipboardPair(PrimitiveString("x"), PrimitiveString("y")),
                           _ClipboardRecord(PrimitiveString("kept")))
     held.selection = cpath(content, FieldReferenceStep("right"))
     io = print_document(p, IdentityProjection(), held, PrinterContext())
-    @test !(read_intent(p, io, KeyDown(:v, ctrl)) isa CompoundOperation)
+    pasted = read_intent(p, io, KeyDown(:v, ctrl))
+    @test pasted isa CompoundOperation
+    @test _rd_val(pasted.operations[1]) === held.slice
     @test !(read_intent(p, io, KeyDown(:v, ctrl_shift)) isa CompoundOperation)
+end
+
+@testset "a copy of a tool is its duplicate, and a note is the tool itself" begin
+    content = FieldReferenceStep("content")
+    p = ClipboardSliceToAnyProjection()
+    tool = _ClipboardTool(PrimitiveString("state"))
+    slice = ClipboardSlice(_ClipboardPair(tool, PrimitiveString("free")))
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    slice.selection = cpath(content, FieldReferenceStep("left"))
+    copied = read_intent(p, iomap, KeyDown(:c, ctrl))
+    @test copied isa CompoundOperation
+    duplicate = _rd_val(copied.operations[1])
+    @test duplicate isa _ClipboardTool
+    @test duplicate !== tool
+    noted = read_intent(p, iomap, KeyDown(:n, ctrl))
+    @test _rd_val(noted.operations[1]) === tool
+    # A document that holds a tool is copied, and the tool inside it is the
+    # duplicate. A document that holds a record with no duplicate is not copied.
+    slice.selection = cpath(content)
+    whole = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    @test whole isa _ClipboardPair && whole !== slice.content
+    @test whole.left isa _ClipboardTool && whole.left !== tool
+    kept = ClipboardSlice(_ClipboardPair(_ClipboardRecord(PrimitiveString("r")), PrimitiveString("s")))
+    kept.selection = cpath(content)
+    io = print_document(p, IdentityProjection(), kept, PrinterContext())
+    @test !(read_intent(p, io, KeyDown(:c, ctrl)) isa CompoundOperation)
+    # A stored tool pastes as itself, and a paste of a new copy pastes a new
+    # duplicate each time.
+    held = ClipboardSlice(_ClipboardPair(PrimitiveString("x"), PrimitiveString("y")), tool)
+    held.selection = cpath(content, FieldReferenceStep("right"))
+    io = print_document(p, IdentityProjection(), held, PrinterContext())
+    @test _rd_val(read_intent(p, io, KeyDown(:v, ctrl)).operations[1]) === tool
+    fresh = _rd_val(read_intent(p, io, KeyDown(:v, ctrl_shift)).operations[1])
+    @test fresh isa _ClipboardTool && fresh !== tool
+end
+
+@testset "a copy refuses a document that holds itself" begin
+    content = FieldReferenceStep("content")
+    looped = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))
+    looped.right = _ClipboardPair(PrimitiveString("c"), looped)
+    slice = ClipboardSlice(_ClipboardPair(looped, PrimitiveString("d")))
+    slice.selection = cpath(content, FieldReferenceStep("left"))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    @test !(read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation)
+    # A document met twice without a loop is copied once.
+    shared = _ClipboardKeeper(PrimitiveString("shared"))
+    twice = ClipboardSlice(_ClipboardPair(_ClipboardPair(shared, shared), PrimitiveString("e")))
+    twice.selection = cpath(content, FieldReferenceStep("left"))
+    io = print_document(p, IdentityProjection(), twice, PrinterContext())
+    copy = _rd_val(read_intent(p, io, KeyDown(:c, ctrl)).operations[1])
+    @test copy.left === copy.right
+end
+
+@testset "a copy and a note of a frame take what the frame shows" begin
+    content = FieldReferenceStep("content")
+    shown = PrimitiveString("shown")
+    slice = ClipboardSlice(_ClipboardPair(_ClipboardFrame(shown), PrimitiveString("f")))
+    slice.selection = cpath(content, FieldReferenceStep("left"))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    @test copied isa PrimitiveString && copied !== shown
+    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl)).operations[1]) === shown
+    @test ProjecturedClipboard.ClipboardModule.find_clipboard_document(42) === nothing
 end
 
 @testset "a paste writes only a value its slot takes" begin

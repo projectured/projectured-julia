@@ -51,6 +51,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
+import ..ClipboardModule: find_clipboard_document
 import ..DomainModule: accepts_pasted_replacement
 
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,

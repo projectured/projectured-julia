@@ -75,8 +75,8 @@ DocumentReference(path::Reference; selection=nothing) =
 Whether a pasted document may replace `document`, or a document inside it.
 `true` by default. A domain answers `false` for a document that a paste must
 leave alone: a record, such as the history of a conversation, or a tool, such as
-an assistant pane or the form that starts a run. Such a document is not copied,
-noted or pasted either.
+an assistant pane or the form that starts a run. Such a document can still be
+pasted somewhere else: a copy of it is the duplicate that its kind declares.
 
 It speaks only to a pasted document. An edit that a document's own reader
 answers, such as typing into a form, does not ask.

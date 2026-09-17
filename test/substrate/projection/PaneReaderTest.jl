@@ -442,6 +442,26 @@ end
     @test !(paste(tab_slice) isa CompoundOperation)
 end
 
+@testset "a copy or a note of a focused tab takes what the tab shows" begin
+    label = WidgetLabel(Point2D(0, 0), "shown")
+    group = PaneGroup(PaneTab[PaneTab("shown", label)])
+    tree = PaneTree(group)
+    root = FieldReferenceStep("content")
+    slice = ClipboardSlice(tree)
+    p = ClipboardSliceToAnyProjection()
+    io = print_document(p, IdentityProjection(), slice, PrinterContext())
+    press(key) = read_intent(p, io, KeyDown(key, ModifierKeys(ctrl = true)))
+    stored(op) = op.operations[1].operations[1].value
+    slice.selection = ConcreteReference(root, get_pane_tab_reference(tree, group, 1))
+    copied = stored(press(:c))
+    @test copied isa WidgetLabel && copied !== label
+    @test stored(press(:n)) === label
+    # A group shows no document of its own.
+    slice.selection = ConcreteReference(root, get_pane_path(tree, group))
+    @test !(press(:c) isa CompoundOperation)
+    @test !(press(:n) isa CompoundOperation)
+end
+
 @testset "a window whose content a clipboard wraps still holds its tree" begin
     tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
     @test get_window_tree(ClipboardSlice(tree)) === tree
