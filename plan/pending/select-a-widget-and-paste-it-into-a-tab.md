@@ -31,6 +31,7 @@ The user's rulings on the first draft, 2026-09-17:
 | The tab takes the name of the pasted object | Only if it is simple. |
 | A note puts one object in two views, and both show its selection | Accepted. |
 | `Alt+Up` / `Alt+Down` walk the objects, `Ctrl+N` notes | Accepted. |
+| `Alt+Left` / `Alt+Right` | Move between siblings. |
 
 The words mean this in the code:
 
@@ -53,6 +54,8 @@ The words mean this in the code:
 | A new tab holds `DocumentNothing()`. Its docstring promises that Alt+click selects it whole and that a paste replaces it. | [PaneDocument.jl:38-52](../../source/pane/PaneDocument.jl#L38-L52) |
 | `Ctrl+T` puts the cursor on the TAB (`tabs[k]`), not on its placeholder. A paste there replaces the whole `PaneTab`. | [PaneSurgery.jl:351](../../source/pane/PaneSurgery.jl#L351) |
 | Alt+click is already the whole-element gesture: a syntax node, a table cell, the placeholder. | [SyntaxDocument.jl:626-641](../../source/syntax/SyntaxDocument.jl#L626-L641), [WidgetToGraphics.jl:6166](../../source/widget/WidgetToGraphics.jl#L6166) |
+| The syntax walk binds all four `Alt` + arrows: up is the parent, down is the first child, left and right are the siblings. At the first or last sibling the selection stays. At its own root, left and right decline, so a walk above can answer. | [SyntaxDocument.jl:676-714](../../source/syntax/SyntaxDocument.jl#L676-L714) |
+| The chart and the sequence chart turn the arrows the other way: `Alt+Left` selects the whole chart, `Alt+Right` the first part, `Alt+Up` and `Alt+Down` the siblings. | [ChartDocument.jl:618-623](../../source/chart/ChartDocument.jl#L618-L623), [SequenceChartDocument.jl:1005](../../source/sequencechart/SequenceChartDocument.jl#L1005) |
 | No widget answers an Alt+click in general. `WidgetCard` and `WidgetComposite` answer `nothing` for a press that misses their children. | [WidgetToGraphics.jl:4343](../../source/widget/WidgetToGraphics.jl#L4343) |
 | No widget draws a whole-element selection, except `WidgetTable` (`_WT_HL_COLOR`). Controls draw `_push_focus_ring!` for ANY selection. | [WidgetToGraphics.jl:276](../../source/widget/WidgetToGraphics.jl#L276) |
 | The widget renderer has 41 printers and no one place that builds every canvas. `get_anchor_point` maps a document reference forward to a point in the root canvas. | [WidgetToGraphics.jl:25](../../source/widget/WidgetToGraphics.jl#L25) |
@@ -112,8 +115,10 @@ The evaluation object is its part, because a part draws alone and a bare
    table and the placeholder.
 2. The transcript keeps its plain click, which names a part. It changes nothing.
 3. **`Alt+Up`** selects the enclosing object. **`Alt+Down`** selects the first
-   object inside. The syntax domain keeps its own `Alt` + arrows. The pane
-   layer keeps `Ctrl+Alt` + arrows.
+   object inside. **`Alt+Left`** and **`Alt+Right`** select the previous and the
+   next sibling. These are the meanings of the syntax walk. The syntax domain
+   and the two charts keep their own `Alt` + arrows. The pane layer keeps
+   `Ctrl+Alt` + arrows.
 4. An Alt+click never acts. A button does not fire, and a row is not picked.
 
 ### D3. The widget layer answers an Alt+click
@@ -160,21 +165,39 @@ Step 0 lists the others that a tab of the IDE can hold. A projection that is
 not on the list keeps its behavior: an Alt+click inside it selects the nearest
 enclosing object that is mapped, at worst the tab.
 
-### D6. A generic walk for `Alt+Up` and `Alt+Down`
+### D6. A generic walk for the four `Alt` + arrows
 
-A small stage in front of the IDE chain answers the two keys when no inner
+A small stage in front of the IDE chain answers the four keys when no inner
 reader answered them:
 
 - `Alt+Up`: the nearest shorter prefix of the selection path that names a
-  document;
+  document. From a caret, this is the document that holds the caret.
 - `Alt+Down`: the first document inside the selected document, in the order of
   its fields, and the first element of a vector.
+- `Alt+Left` / `Alt+Right`: the previous / next sibling of the selected
+  document. A sibling is the neighbouring element of the same vector, or the
+  neighbouring document field of the same parent in the order of its fields.
+  At the first or the last sibling the selection stays, as in the syntax walk.
 
-An inner reader answers first, so the syntax domain keeps its tree walk and the
-transcript answers with the object walk of D1, which skips the bare
-`EvaluatorForm`. From the root of a tab's content, `Alt+Up` selects the tab,
-which is the pane focus. `Alt+Down` from a tab selects its content. The stage
-goes to the focus slice, which already walks child documents for `Tab`.
+`Alt+Left` and `Alt+Right` act only on a whole-element selection. With a caret
+they answer `nothing`, so the key goes on and a text reader can use it later.
+
+An inner reader answers first. So the syntax domain and the two charts keep
+their walks, and the transcript answers with the object walk of D1, which skips
+the bare `EvaluatorForm`. From the root of a tab's content, `Alt+Up` selects the
+tab, which is the pane focus. `Alt+Down` from a tab selects its content. The
+stage goes to the focus slice, which already walks child documents for `Tab`.
+
+The pane layer answers the sideways keys in two places, because the generic
+sibling of a tab's content is the tab's title, which is not an object of the
+content:
+
+- a whole tab: `Alt+Left` / `Alt+Right` focus the previous / next tab of its
+  group, as `Ctrl+PageUp` / `Ctrl+PageDown` do;
+- the root of a tab's content: the selection stays.
+
+The two charts turn the arrows the other way (see §2). The plan does not change
+them; a later change can make them follow the syntax walk.
 
 ### D7. The IDE gets the clipboard
 
@@ -318,12 +341,16 @@ done here. Run only the tests that each step names.
       away; a tree with no whole-element selection draws the same pixels as on
       main.
 
-### Step 2 — the `Alt+Up` / `Alt+Down` walk (projectured, focus slice)
+### Step 2 — the `Alt` + arrows walk (projectured, focus and pane slices)
 
 - [ ] The stage of D6, with a name that follows
       [naming-rules.md](../../documentation/rule/naming-rules.md).
-- [ ] Tests: the walk over a widget tree and over a pane tree; an inner reader
-      that answers first keeps its answer.
+- [ ] The two pane answers of D6: a whole tab moves to its neighbour tab, and
+      the root of a tab's content stays.
+- [ ] Tests: all four keys over a widget tree and over a pane tree; a vector
+      sibling and a field sibling; the first and the last sibling stay;
+      `Alt+Left` with a caret answers `nothing`; an inner reader that answers
+      first keeps its answer (a syntax tree and a chart in a tab).
 
 ### Step 3 — the paste rules and the clipboard (projectured, domain and clipboard slices)
 
@@ -346,10 +373,14 @@ done here. Run only the tests that each step names.
       `content.result` to the widget paths of the two section bodies, and back.
       Any path from inside a section body maps back to the section's object.
 - [ ] A plain host card for a prose part and for each result (D4).
-- [ ] The object walk for `Alt+Up` and `Alt+Down`.
+- [ ] The object walk for the four keys. `Alt+Left` / `Alt+Right` move from a
+      message to the previous / next message, from a part to the previous /
+      next part of its message, and between the code and the result of an
+      evaluation.
 - [ ] The fold reader works for a turn or a part that is the root of a tab.
 - [ ] Tests, in `test_conversation_transcript()`: each object of D1 is
-      selected by an Alt+click and by the walk; the ring shows on that object;
+      selected by an Alt+click and by the walk with all four keys; the walk
+      stays at the first and the last message; the ring shows on that object;
       an unselected transcript draws the same pixels as on main; an Alt+click
       in a result writes nothing; a paste over each object is refused.
 
@@ -386,7 +417,9 @@ uses real events only:
       unchanged.
 - [ ] The same with `Ctrl+N`. The tab's document IS the transcript's. A row
       pick in the tab shows in both views. The rings follow D12.
-- [ ] An assistant message and an evaluation, each copied and noted.
+- [ ] An assistant message and an evaluation, each copied and noted. The
+      message is reached from the table with `Alt+Up` and then `Alt+Left`, to
+      prove the walk under the real chain.
 - [ ] The code of an evaluation, pasted. The tab edits it as Julia, and with a
       copy the transcript does not change.
 - [ ] A widget of the runner: Alt+click selects it and does not act, and a copy
@@ -410,12 +443,14 @@ uses real events only:
 ### Step 9 — guides, and close
 
 - [ ] [widget.md](../../documentation/package/widget/widget.md): Alt+click, the
-      ring, the rule of D3.
+      ring, the rule of D3, the four `Alt` + arrows, and the other convention of
+      the two charts.
 - [ ] [transcript.md](../../documentation/package/conversation/transcript.md):
       the objects, the walk, the read-only record. Remove the claim that
       `Ctrl+C` copies a part in every host.
 - [ ] [pane.md](../../documentation/package/pane/pane.md): the new-tab
-      selection, the tree under a wrapper, the tab name.
+      selection, the tree under a wrapper, the tab name, and `Alt+Left` /
+      `Alt+Right` on a whole tab.
 - [ ] The clipboard guide or its module docstring: the three paste rules and
       `offered_gestures`.
 - [ ] omnet
@@ -433,6 +468,10 @@ uses real events only:
 - **The ring changes hit-testing.** A full-size ring over a selected widget is a
   drawn element, and containers route by drawn elements. Step 1 tests a plain
   click on a selected widget.
+- **Two arrow conventions.** Inside a chart, `Alt+Left` selects the whole chart,
+  and everywhere else it selects the previous sibling. A person who walks from a
+  transcript into a chart meets the other convention. The guide says so until
+  the charts change.
 - **Many projections need D5.** The list of Step 0 can be long. A projection
   left out still works, and selects a larger object.
 - **The new-tab selection breaks a pane assertion.** Step 5 changes only the
