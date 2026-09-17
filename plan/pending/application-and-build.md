@@ -547,15 +547,54 @@ For the release README, still open: the address of the web window
 
 ### Step 6: omnet-julia uses the shared builder
 
-- [ ] Land Steps 2 and 3 on projectured's `main` first. A change in a
+- [x] Land Steps 2 and 3 on projectured's `main` first. A change in a
       projectured worktree is not visible to omnet-julia.
-- [ ] `OmnetBuilder` keeps `Program.jl`, the front end and the simulator parts,
+- [x] `OmnetBuilder` keeps `Program.jl`, the front end and the simulator parts,
       and calls `ProjecturedBuilder` for the rest. Delete its copies of the
       generic files. Move the generic tests out of its `test/build.jl`.
-- [ ] D25: rename `environment/tool` to `environment/build`, and update the
+- [x] D25: rename `environment/tool` to `environment/build`, and update the
       commands in its README and guides.
-- [ ] Test: omnet's `test/build.jl`. Then, with the owner's approval, one
-      omnet build.
+- [x] Test: omnet's `test/build.jl`.
+- [ ] With the owner's approval, one omnet build.
+
+Done on 2026-09-17, in the worktree `workspace/omnet-julia-build`, branch
+`shared-builder`, commit `812a3928`. Not landed on omnet's `main` yet.
+
+- `OmnetBuilder` depends on `ProjecturedBuilder` by a `[sources]` path to the
+  sibling checkout, the way every other cross-repository dependency is named.
+- `source/build/Context.jl` replaces `Root.jl`: `ROOT`, the context of the
+  repository (`package_roots` are omnet's `package/` and then projectured's),
+  and the one-argument `get_package_directory`.
+- `AppPackage.jl`, `Preference.jl`, `Usage.jl` and `Distribution.jl` are
+  deleted. `Executable.jl` keeps the launcher, the object archive, the link,
+  the prelink, `strip_bundle!` and `_compile!`, and its `build_executable` is
+  now a wrapper: it validates its own keywords, then calls the shared builder
+  with a `compile_app` of its own — the trimmed build, the reactive rebuild,
+  or the plain path with the launcher.
+- **Two seams went into the core for this**: `precompile` (a trimmed build
+  compiles no system image, so its resolve must precompile) and `after_write`
+  (the reactive preparation writes the trace workload into the package and
+  reads what the last build wrote, and both must happen when `compile = false`
+  too). A first version put the reactive preparation in `compile_app`; omnet's
+  own test caught that `compile = false` then wrote no trace workload.
+- `test/build.jl` keeps what only omnet does: the prelink, the workload, what
+  each binary holds, the trimmed build, the wrappers, the reactive build and
+  the watch. The generic testsets are `test_builder()` in projectured.
+
+| Test | Result |
+| --- | --- |
+| omnet `test/build.jl` with the prelink Julia, on the branch | 53 pass, 2 errors |
+| the same on omnet's `main` | 124 pass, 2 errors |
+
+Both runs error in the same two reactive tests, for the same reason: the
+`[sources]` of the build environment names `workspace/package-compiler-reactive`,
+which has no `collect_tracked_sources`. That is the state of that checkout, not
+a fault of this change. The pass count differs because the generic testsets
+moved to projectured, where `test_builder()` now has 152 assertions.
+
+`bin/build_omnet_ide --help` answers from the renamed environment, and the
+`bin/` scripts of both repositories ask the builder for the module name of the
+generated package (`get_app_module_name`, which this step made public).
 
 ### Step 7: the documentation of the build
 
