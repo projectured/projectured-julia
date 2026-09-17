@@ -123,6 +123,20 @@ These do something other than a single-slot write, so they stay their own types:
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
 | `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
+
+### A text paste is a range edit
+
+The clipboard makes the same two range operations when it pastes text. A
+selection that ends in a field and a range of that field's text (a caret, or a
+range of characters) is a *text target*: `Ctrl+V` answers
+`ReplaceStringRangeOperation(path, text)`, or `ReplaceNumberRangeOperation` for a
+number field, with the text of the system clipboard, and the kernel applies it as
+it applies a typed character. `Ctrl+C`, `Ctrl+N` and `Ctrl+X` of a range store
+its characters in the slice and on the system clipboard. The branch runs before
+the rules for a whole document; `accepts_pasted_text` lets a document refuse the
+paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/clipboard/Clipboard.jl)
+and [clipboard/ClipboardSliceToAny.jl](../../../source/clipboard/ClipboardSliceToAny.jl).
+A field that holds a span of the text domain is not a text target yet.
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
 | `WriteOsClipboardOperation` | `clipboard/Clipboard.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
 | `InvokeActionOperation(action)` | `visual/widget/Widget.jl` | runs an `Action`'s callback — an effect, not a field write. The one activation operation: every control (button, menu item, toolbar entry, keyboard shortcut) is a view of an `Action` and answers a press with this. It names its own target, so a projection that hosts controls forwards it unchanged rather than re-rooting it |

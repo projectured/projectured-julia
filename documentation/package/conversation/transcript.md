@@ -111,8 +111,7 @@ and right move between messages, between the parts of a message, and between
 the form and the result of an evaluation. The first and the last object keep
 the selection. The transcript answers these keys itself, whatever a widget
 inside it said, because nothing in it is edited. Where the keys do not reach the
-transcript — the assistant's pane hands them to its composer — the generic walk
-answers with the same objects, because an evaluation says
+transcript, the generic walk answers with the same objects, because an evaluation says
 `is_selection_walk_stop(::EvaluatorForm) = false` and the walk passes through
 it.
 
@@ -120,12 +119,28 @@ The selected object is ringed. The transcript's containers follow the
 selection: the conversation's layout rings a message, a message's body rings a
 part, and a section card rings its form or result.
 
+## The draft has one selection
+
+A click in the draft selects a place in its value through the complete path from
+the root, and every document on that path holds its part of the path. A key goes
+where that path points: the assistant's split pane routes it to the draft, the
+active part's card and body follow the draft's selection, and the body is a text
+layer that answers the text keys — typing, `Backspace`, `Delete`, the arrows and
+their `Shift` twins. The composer turns the text layer's edits into edits of the
+draft's value. Its own table holds only `Return`, `Shift+Return`, `Alt+Return`,
+`Tab`, `Insert` and `Escape`, and every composer operation moves the complete
+selection to the caret of the active part (`sync_draft_selection!`). A key with
+no selection in the draft does not reach it.
+
 ## A paste is refused
 
 The history of a conversation is a record, so
 `accepts_pasted_document(::ConversationConversation)` answers `false`, and so
-does the assistant as a whole. A clipboard pastes and cuts nothing there. The
-composer's own text paste is not a pasted document, and it still works.
+does the assistant as a whole. A clipboard pastes and cuts nothing there.
+`accepts_pasted_text(::ConversationConversation)` answers `false` too, so no text
+is pasted into the history; a copy only reads, and takes its text. The draft
+takes pasted text: a caret or a range in its value is a text target of the
+clipboard, and `Ctrl+V` puts the system clipboard's text there.
 
 A whole conversation and a whole assistant are still copied, noted and pasted
 somewhere else. A copy is their duplicate: a copy of an assistant is a fork,

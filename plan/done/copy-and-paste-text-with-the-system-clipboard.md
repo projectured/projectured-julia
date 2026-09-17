@@ -1,7 +1,8 @@
 # Copy and paste text with the system clipboard
 
-**Status (2026-09-17): IN PROGRESS** in the worktree `projectured-julia-text-clipboard`
-(branch `text-clipboard`). Step 0 is done.
+**Status (2026-09-17): DONE.** Steps 0 to 6 are on `main` in both repositories,
+except the timing of one real system clipboard read, which waits for the user's
+word.
 
 **Start it only after** [select-a-widget-and-paste-it-into-a-tab.md](select-a-widget-and-paste-it-into-a-tab.md)
 is done and on `main`. This plan builds on its paste rules (D9), on its reading
@@ -473,34 +474,47 @@ These are the hard parts, and none of them is in this plan:
 
 ### Step 5 — the chat draft and the runner in the IDE (omnet)
 
-- [ ] A test in `test/ide/`, through the real editor loop, with the in-memory
-      system clipboard:
-      - a click into the draft, then `a`, `b`, then `Ctrl+V` of `"xyz\n"`: the
-        draft holds `"abxyz"`; then `!`: `"abxyz!"`;
-      - `Shift+Left` twice, then `Ctrl+C`: the system clipboard holds `"z!"`;
-        then `Ctrl+V` of `"Q"`: the draft holds `"abxyQ"`;
-      - a click into a text field of the runner, then `Ctrl+V`: the field holds
-        the text, and no run starts;
-      - `Ctrl+V` with nothing in the system clipboard and nothing in the slice
-        changes nothing.
-- [ ] The other plan's step 7 assertion "`Ctrl+V` with the caret in the composer
-      pastes text" passes.
-- [ ] Measure one real `read_os_clipboard` call on this machine, and write the
-      time here.
+- [x] `test_ide_text_clipboard()` in `test/ide/IdeTextClipboardTest.jl`, through
+      the real editor loop with the in-memory system clipboard: a press in the
+      draft, `a`, `b`, and `Ctrl+V` of `"xyz\n"` give `"abxyz"`, and `!` gives
+      `"abxyz!"`; `Shift+Left` twice and `Ctrl+C` put `"z!"` on the system
+      clipboard, and `Ctrl+V` of `"Q"` gives `"abxyQ"`; a press on the runner's
+      `release` and `Ctrl+V` of `"debug-"` give `"debug-release"` and open no
+      tab; with nothing to paste, `Ctrl+V` changes nothing. 9 pass.
+- [x] The other plan's crossed-out assertion, "`Ctrl+V` with the caret in the
+      composer pastes text", is the first case above.
+- [ ] Measure one real `read_os_clipboard` call on this machine. **Not done:** a
+      timing needs the user's word.
+- [x] Unchanged in omnet-julia: `test_ide_window_wrap()` 22,
+      `test_select_and_paste()` 86, `test_campaign_ui()` 185.
+- **Found:** the notebook page of the omnet catalog types through the assistant
+  card, and the card did not map the text layer's edits back (fixed in
+  projectured-julia, see step 3). With the fix, a press on the cell's text and
+  the keys of `test_notebook_types_a_cell()` type and evaluate two cells.
+- **Found, and not from this plan:** `test_notebook_types_a_cell()` fails before
+  its first key, for two reasons that other work of the same day introduced.
+  The page's `<<Assistant()>>` marker is left as it is, because no package calls
+  `register_pred_type!(Assistant)`, so the page holds no assistant. And the test
+  presses at x = 700, while the cell's card in the catalog is 132 pixels wide at
+  x = 443. The same card drawn by projectured-julia's natural renderer is 1158
+  pixels wide with the old composer and with the new one, so the width is the
+  catalog's.
 
 ### Step 6 — guides, and close
 
-- [ ] The text guide ([text.md](../../documentation/package/text/text.md)) names
-      the `Shift` keys, and says which ranges map.
-- [ ] The conversation guide
-      ([transcript.md](../../documentation/package/conversation/transcript.md))
-      says that the draft has one selection and takes the text domain's keys.
-- [ ] The guide that the other plan wrote for the clipboard says how a text paste
-      and a text copy work, and what is deferred. If there is none, a section in
-      [operation.md](../../documentation/package/kernel/operation.md) beside
-      `ReplaceStringRangeOperation`.
-- [ ] The omnet runner guide says that `Ctrl+V` pastes text at a text cursor.
-- [ ] Move this plan to `plan/done/`.
+- [x] [text.md](../../documentation/package/text/text.md) names the `Shift` keys
+      and says which projections map a range.
+- [x] [transcript.md](../../documentation/package/conversation/transcript.md)
+      says that the draft has one selection and takes the text domain's keys,
+      and that the history refuses pasted text.
+- [x] The other plan wrote no clipboard guide, so
+      [operation.md](../../documentation/package/kernel/operation.md) has a
+      section on the text paste beside the range operations.
+- [x] The omnet runner guide says that `Ctrl+V` pastes text at a text cursor and
+      that a key goes where the selection is.
+- [x] Move this plan to `plan/done/`.
+- **A visible change:** the draft draws a caret only where the selection is. The
+  old body drew one even with no selection in the draft.
 
 ## 6. Risks
 

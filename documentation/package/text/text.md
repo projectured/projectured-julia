@@ -89,16 +89,32 @@ The geometry-free half of the Text reader lives on the document itself:
 maps an input gesture to an operation expressed against the `TextBlock`'s own
 references (reading only `elements` and `selection`, never any pixel layout):
 
-- `KeyPress(c)` → `ReplaceStringRangeOperation` (character insert)
-- `Backspace` / `Delete` → `ReplaceStringRangeOperation`
-- `Left` / `Right` → cross-span character cursor movement
+- `KeyPress(c)` → `ReplaceTextRangeOperation` over the selected range (character insert)
+- `Backspace` / `Delete` → `ReplaceTextRangeOperation` (a non-empty range is deleted)
+- `Left` / `Right` → cross-span character cursor movement; a range collapses to its near end
+- `Ctrl+Left` / `Ctrl+Right` → word movement
 - `Ctrl+Home` / `Ctrl+End` → jump to the first/last span character
+- `Shift` with `Left`, `Right`, `Ctrl+Left`, `Ctrl+Right`, `Ctrl+Home` or `Ctrl+End`
+  → a range: the key moves one end and keeps the other. A range stays ordered, so
+  the left, word-left and start keys move its start, and the others move its stop
 - `Ctrl+.` → `ToggleCollapseOperation` (recognised here, resolved at the syntax layer)
 - the decline rules (Alt+arrows, plain arrows while structural, Tab) return
   `nothing` so an outer (syntax) layer can own the gesture
 
 `TextToGraphics` delegates to this and adds only the geometry-dependent arms
-(visual up/down, plain Home/End, mouse click). Any backend that renders a
+(visual up/down, plain Home/End, mouse click). `Shift+Home`, `Shift+End`,
+`Shift+Up` and `Shift+Down` move the start (Home, Up) or the stop (End, Down) of
+the range to the place the plain key would put the caret.
+
+## Ranges through a projection
+
+A range is the flat `TextRangeReferenceStep(start, stop)`. A projection carries it
+to its domain when the range lies in one span and the span maps to one field:
+`PrimitiveToText` maps it to `value{start:stop}`, `WordWrapping` maps it end by end
+across a soft break, and the chat composer maps it to its draft's value. The
+syntax chain maps a caret only, so its backward map declines a non-empty range: a
+`Shift` key in a syntax view leaves the selection where it was. An edit over a
+range that crosses spans declines when it is lowered, as before. Any backend that renders a
 `TextBlock` directly — e.g. the `ConsoleBackend` — therefore gets character-level
 editing without a graphics layout pass. See
 [projection-system.md](../kernel/projection-system.md) for the full reader split.
