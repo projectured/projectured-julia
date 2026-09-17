@@ -60,30 +60,112 @@ The owner set the framing on 2026-09-17 (D3):
 > nature is just an addition, projectured is a viewer and an editor and an AI
 > assistant using on-demand user interface, it's all of that
 
-### 2.1 The statement
+### 2.1 The texts
 
-> ProjecturEd is a generic viewer, editor and AI assistant for structured data,
-> written in Julia. The data can be a file, a document or a value in a running
-> program. A view shows the data. Every view is live: it shows the current
-> data. Every view is editable: an edit in the view changes the data.
->
-> You design a user interface from views: domain views such as a JSON tree, an
-> SQL statement, a chart or a state machine, widgets such as forms, tables and
-> tabs, and views that you write. When no view exists for your data, you can
-> get one on demand: a generic view by reflection over the value, or a view
-> that the assistant writes for you.
->
-> The AI assistant is part of the same system. It runs Julia inside the running
-> program. It reads the data and the views with the same functions that a
-> person calls from the REPL, and it changes them with the same operations that
-> a key press makes. An external AI client, for example Claude Code, gets the
-> same tools through MCP.
+The owner and I worked on these texts in three drafts on 2026-09-17. The owner
+approved the tagline and the introduction ("they are good texts"). Step 4 puts
+them into the README without changes of meaning. The web site (Step 9), the
+slide deck and the posts use the same texts.
 
-The three roles have equal weight: viewer, editor, assistant. A designed user
-interface comes first; a view on demand is an addition to it. Projectional
-editing stays in the documentation as the mechanism: a view is the output of a
-projection, and a projection maps an edit back to the data. The mechanism moves
-from the headline to the "how it works" section.
+Points that the owner set during the drafts:
+
+- ProjecturEd is an application first. It is also a generic user interface for
+  other Julia programs, and a set of packages.
+- Viewer, editor and AI assistant have equal weight. A designed user interface
+  comes first; a view on demand is an addition.
+- The REPL stays in the background: one clause in the introduction. It gets
+  more weight when it has its own view.
+- The extension paragraph speaks about developers: each works on a domain of
+  their own, without changes to the domains of others.
+- The word "projectional editor" appears only in "How it works".
+- The original Common Lisp ProjecturEd is not mentioned.
+
+**Tagline** (approved). The first line of the README, the post titles:
+
+> ProjecturEd: an application to view, edit and transform structured data with
+> an AI assistant, and a generic user interface for any Julia program.
+
+**Short tagline** (approved with the tagline). The GitHub description:
+
+> An application to view and edit structured data with an AI assistant, and a
+> generic user interface for Julia programs.
+
+**Preface** (draft, not yet approved). A short note directly under the tagline:
+
+> **Status: under development.** Most features work, but ProjecturEd is not a
+> finished product. Some parts are incomplete, and names and interfaces can
+> still change. The [roadmap](documentation/requirement/delivery-roadmap.md)
+> lists what works today and what comes next. Problem reports and questions
+> are welcome as GitHub issues.
+
+**Introduction** (approved). The first five paragraphs of the README:
+
+> ProjecturEd is an application to view, edit and transform structured data,
+> with an AI assistant. It works with about twenty kinds of data, among them
+> JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas,
+> charts, graphs and state machines. It shows them in one window, in tabs and
+> split panes, and one document can mix kinds: JSON inside XML inside prose.
+> ProjecturEd is written in Julia. So it is also a generic user interface for
+> your own Julia programs: it shows your documents, and the values of a running
+> program, in the same way.
+>
+> A view can be a tree, a statement with syntax colours, a chart, a diagram, a
+> form or a table. When the data changes, its views change with it. Most views
+> are also editors: an edit in a view changes the data itself, not a text copy
+> of it. You can design your own user interface from views and widgets. For data
+> that has no view yet, you get one on demand: a generic view that ProjecturEd
+> makes by reflection over the value, or a view that the assistant opens for
+> you.
+>
+> The same views work in a native window, in a web browser, in a terminal, and
+> without a screen for tests and scripts. A view can also go to a PDF file, an
+> image or a video. The data goes to text files or to binary files. A text file
+> uses the notation of its domain, and several files can refer to each other. So
+> data with shared parts and mutually recursive structures comes back unchanged
+> after a save and a load. Parts of a document that are not on the screen cost
+> nothing, so a view can show a part of a very large document, or of an
+> infinite list.
+>
+> The AI assistant runs inside the application, with a local model through
+> Ollama or with Claude. It searches the API of the loaded packages, writes
+> Julia code and runs it in the application. It changes the data with the same
+> operations as your key presses. The conversation is a document too, with its
+> own view, and you can also run Julia code in it yourself. An external AI
+> client, for example Claude Code, can use the same tools through MCP.
+>
+> You can extend ProjecturEd with your own domain: its document types, the
+> projections that make its views, its operations and its key bindings. A domain
+> is a package of its own, and no other domain depends on it. So you can work on
+> your domain without changes to other domains, while other developers work on
+> theirs. Your domain gets the general features with little or no extra code:
+> selection and navigation, search, copy and paste, filtered and sorted views, a
+> text notation and a file format, saving, every backend, and the AI assistant,
+> which can find and call your functions.
+
+**How it works** (draft). A later section of the README:
+
+> ProjecturEd is a projectional editor. The data is the source, and every view
+> is computed from it. A projection turns the data into a view, and it turns an
+> edit in the view back into an operation on the data. Projections compose: one
+> view can show several kinds of data, and one piece of data can have many
+> views. Each field of the data is a reactive cell. After a change, ProjecturEd
+> recomputes only the parts of the views that depend on the change and are on
+> the screen.
+
+**Claims that the code must support before the posts.** Step 10 checks each
+one again:
+
+- "an application" and "in one window, in tabs and split panes": the
+  application entry point of Step 1 (D18).
+- "the values of a running program" and "a generic view ... by reflection":
+  the call of Step 1 that opens a window on any value (D4).
+- "a view that the assistant opens for you": `open_pane!` exists; Step 1 adds
+  the application window where the assistant stands beside the panes.
+- "with a local model through Ollama or with Claude": Step 1 (D5, D6).
+- "about twenty kinds of data": the 20 domain packages of
+  `documentation/design/domain-inventory.md`.
+- "comes back unchanged after a save and a load": `source/serialization/`
+  (the file cut and splice for text, `Serialization` for `.pdoc`).
 
 ### 2.2 The words for a reader outside the project
 
@@ -160,8 +242,10 @@ the rest.
 - Commercial use needs a licence from the author (D1).
 - "Duplicate a pane" and "select any widget with Alt+click" are plans, not code.
 
-Two more limits are true today, and Step 1 removes them (D4, D5): no single call
-opens a window on any Julia value, and no example uses a real language model.
+Three more limits are true today, and Step 1 removes them (D4, D5, D18): no
+single call opens a window on any Julia value, no example uses a real language
+model, and no single command opens files of every supported format in one
+window.
 
 ## 3. The survey
 
@@ -472,6 +556,22 @@ The second answers of 2026-09-17:
 | D16 | Private names in `plan/` and in the history | They can stay. The repository becomes public as it is. Only the public documents do not name the private repositories. |
 | D17 | The name "omnest" | Private, like the others. It can stay where it is; no public document advertises it. |
 
+The third answers of 2026-09-17, after the three drafts of §2.1:
+
+> very good, save the tagline and the introduction, they are good texts!
+>
+> we should add a preface that this project is under development currently,
+> it's mostly working but it's not a finalized product
+>
+> for the question, yes, we already have a build system, but it should be
+> perhaps generalize a bit. take a look at how omnet-julia builds binaries and
+> copy what can be applied from there
+
+| # | Question | Decision |
+| --- | --- | --- |
+| D18 | An application entry point before the posts | Yes. One command and one binary open any number of files, in every supported format, in one window with the assistant. The existing build system (`ProjecturedBuilder`, `ProjecturedExecutable`) becomes more general, and it takes what applies from the binary build of omnet-julia (Step 1). |
+| D19 | A preface | Yes: the project is under development, most features work, and it is not a finished product (§2.1). |
+
 ### 4.2 Open questions
 
 Each one has my recommendation. Each one comes before the step that it names.
@@ -619,23 +719,24 @@ model.**
 
 ### Step 4: the front door
 
-- [ ] `README.md`, at most about 250 lines, in this order:
-  1. What ProjecturEd is: the statement of §2.1, short. Viewer, editor and
-     assistant have equal weight.
-  2. A video or an animated image, and three screenshots.
-  3. What you can do with it: the list of §2.3, each item with a link.
-  4. Quick start: clone, the environment, the first example, the assistant
-     with Ollama (the default) or with an Anthropic key, a window on your own
-     value.
-  5. How it works: data, views, edits, cells, the tool set. One diagram. A link
-     to `design/concepts.md`.
-  6. Status and limits: the list of §2.5.
-  7. Where to read next: one path for a user, one for a Julia developer, one for
+- [ ] `README.md`, at most about 300 lines, in this order:
+  1. The tagline and the preface of §2.1.
+  2. The introduction of §2.1, as approved.
+  3. A video or an animated image, and three screenshots.
+  4. What you can do with it: the list of §2.3, each item with a link.
+  5. Quick start: install the application binary or clone the repository;
+     open files with the application command (D18); the assistant with Ollama
+     (the default) or with an Anthropic key; a window on your own value.
+  6. How it works: the text of §2.1, then data, views, edits, cells and the tool
+     set. One diagram. A link to `design/concepts.md`.
+  7. Status and limits: the list of §2.5.
+  8. Where to read next: one path for a user, one for a Julia developer, one for
      a contributor.
-  8. The repository layout, short.
-  9. Licence, author and contact: free for non-commercial use; a commercial
-     licence from the author; forks and pull requests are welcome (D1, D1a).
-     Author: Levente Mészáros. Contact: `projectured@gmail.com` (D8).
+  9. The repository layout, short.
+  10. Licence, author and contact: free for non-commercial use, modification
+     included; a commercial licence from the author; forks and pull requests
+     are welcome (D1, D1a, D1b). Author: Levente Mészáros. Contact:
+     `projectured@gmail.com` (D8).
 - [ ] `design/concepts.md` (D11): the one "start here" document, made from
       `editor-concepts.md` and §5.4 of `editor-derivation.md`. No code. The
       statement, the words of §2.2, the five ideas, a designed view and a view
