@@ -81,8 +81,10 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
     for name in field_names
         raw = getfield(document, name)
         push!(arguments, haskey(replacements, name) ?
-                         _get_replacement_field(raw, replacements[name]) :
-                         copy_document(policy, raw))
+                             _get_replacement_field(raw, replacements[name]) :
+                         name === :selection && raw isa AbstractCell ?
+                             copy_selection_cell(policy, raw) :
+                             copy_document(policy, raw))
     end
     result = base(arguments...)
     memo === nothing || (memo[document] = result)
@@ -111,7 +113,8 @@ it records every document it copies.
 - It descends into a document whose kind declares a duplicate, and shares every
   other document: what the duplicate does not own, it reads.
 - It refuses a cell that computes, because a copy of its value looks live and is
-  not.
+  not. A selection is not refused: it is view state, and the duplicate takes the
+  selection as it is now (see [`copy_selection_cell`](@ref)).
 - It refuses a function, a `Ref` and a `Task`, because the walk can not know
   what they capture, and an action that captures the original acts on it.
 - It refuses a document that holds itself, unless the kind makes its own copy.

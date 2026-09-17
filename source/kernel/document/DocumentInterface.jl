@@ -160,7 +160,8 @@ steers it in two ways:
 - **The stop hooks.** At each child document the walk asks
   [`is_descendable_for_copy`](@ref), and where it stops,
   [`make_copy_placeholder`](@ref) gives what stands there.
-  [`copy_computed_cell`](@ref) copies a cell that computes, and
+  [`copy_computed_cell`](@ref) copies a cell that computes,
+  [`copy_selection_cell`](@ref) copies a document's selection, and
   [`get_copy_memo`](@ref) gives the table that makes a document met twice one
   copy.
 
@@ -234,6 +235,17 @@ thunk reads. A policy that can not accept that throws a
 [`DocumentCopyException`](@ref).
 """
 function copy_computed_cell end
+
+"""
+    copy_selection_cell(policy, cell) -> AbstractCell
+
+The copy of a document's `selection` cell. A selection is view state, and a
+projection can wire it to a computation that follows the selection of the
+document it prints. So the default is a cell of the same kind that stores the
+selection the cell has now, whether it computes or not, and the copy's own
+projection wires its own. A policy never refuses a document for its selection.
+"""
+function copy_selection_cell end
 
 """
     has_document_duplicate(document) -> Bool

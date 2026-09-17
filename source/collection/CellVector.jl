@@ -244,7 +244,7 @@ end
 # The plain copy starts the list with no selection; a policy keeps it, because a
 # selection is a path relative to the list and is valid in the copy.
 _copy_collection_selection(::PlainCopyPolicy, cell) = copy_cell_as(cell, nothing)
-_copy_collection_selection(policy::CopyPolicy, cell) = copy_document(policy, cell)
+_copy_collection_selection(policy::CopyPolicy, cell) = copy_selection_cell(policy, cell)
 
 # Kind-converting deep copy: the target storage follows the kind convention —
 # reactive → per-element slot Cells (via `CellVector(items)`), immutable/mutable

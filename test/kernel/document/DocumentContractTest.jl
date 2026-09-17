@@ -293,6 +293,17 @@ function test_document_contract()
             @test getfield(duplicate, :selection) !== getfield(root, :selection)
         end
 
+        @testset "a selection that a projection computes is copied as it is now" begin
+            path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
+            node = ToyNode("root", nothing, nothing)
+            set_cell_function!(getfield(node, :selection), () -> path)
+            @test is_computed_cell(getfield(node, :selection))
+            duplicate = make_document_duplicate(node)
+            @test !is_computed_cell(getfield(duplicate, :selection))
+            @test strip_reference_types(getfield(duplicate, :selection)[]) ==
+                  strip_reference_types(path)
+        end
+
         @testset "a child whose kind declares none is shared" begin
             box = ToyBox(nothing, nothing)
             pair = ContractPair(box, ToyNode("own", nothing, nothing), nothing)

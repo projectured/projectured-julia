@@ -44,6 +44,8 @@ make_copy_placeholder(policy::CopyPolicy, document) =
 copy_computed_cell(policy::CopyPolicy, cell) =
     copy_cell_as(cell, copy_document(policy, cell[]))
 get_copy_memo(policy::CopyPolicy) = nothing
+copy_selection_cell(policy::CopyPolicy, cell) =
+    copy_cell_as(cell, copy_document(policy, cell[]))
 
 # A kind has no duplicate until it declares one.
 has_document_duplicate(document) = false
