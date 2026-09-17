@@ -152,7 +152,8 @@ end
 #    document (`accepts_pasted_document`). A record or a tool refuses, and so
 #    does everything inside it.
 # 3. The slot takes `value`: a field cell whose value type `value` is not, or an
-#    immutable one, refuses. An element of a vector takes any document.
+#    immutable one, refuses, and so does the document in the slot when it does
+#    not accept `value` as its replacement (`accepts_pasted_replacement`).
 function _find_paste_target(input, value)
     sel = _get_clipboard_selection(input)
     (sel === nothing || sel isa EmptyReference) && return nothing
@@ -164,7 +165,9 @@ function _find_paste_target(input, value)
         node = try_evaluate_reference(input, _make_steps_path(steps[1:i]), missing)
         node === missing && return nothing
         (node isa Document && !accepts_pasted_document(node)) && return nothing
-        i == length(steps) && !_is_slot_accepting(parent, steps[i], value) && return nothing
+        i == length(steps) || continue
+        _is_slot_accepting(parent, steps[i], value) || return nothing
+        accepts_pasted_replacement(node, value) || return nothing
     end
     sel
 end

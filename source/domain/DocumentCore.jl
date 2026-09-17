@@ -81,3 +81,12 @@ It speaks only to a pasted document. An edit that a document's own reader
 answers, such as typing into a form, does not ask.
 """
 accepts_pasted_document(::Any) = true
+
+"""
+    accepts_pasted_replacement(document, value) -> Bool
+
+Whether a pasted `value` may take the place of `document`. `true` by default. A
+domain that keeps a structure answers `false` where a pasted value would break
+it: a pane of a window is never replaced by a paste, and a pane is never pasted.
+"""
+accepts_pasted_replacement(::Any, ::Any) = true

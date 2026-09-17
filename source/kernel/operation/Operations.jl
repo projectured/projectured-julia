@@ -272,7 +272,9 @@ re-rooting prepends the same steps to both as the operation bubbles up. An empty
 `editor.document` and drops the iomap).
 """
 function replace_document(path::Reference, document)
-    inner_sel = getfield(document, :selection)[]
+    # Only a live selection moves with the document. A dormant one belongs to a
+    # place the document was shown before, and the write starts it afresh.
+    inner_sel = unwrap_selection(getfield(document, :selection)[])
     inner_sel === nothing && (inner_sel = EmptyReference())
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(nothing, path, document),

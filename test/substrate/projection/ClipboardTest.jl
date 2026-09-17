@@ -14,6 +14,12 @@ end
     label::PrimitiveString
 end
 
+# A document that only another of its kind may replace.
+@document struct _ClipboardKeeper <: Document
+    value::Any
+end
+DomainModule.accepts_pasted_replacement(::_ClipboardKeeper, value) = value isa _ClipboardKeeper
+
 function test_clipboard()
 
 # A reference path built from raw steps.
@@ -410,6 +416,20 @@ end
     end
 end
 
+@testset "a document can say what may take its place" begin
+    content = FieldReferenceStep("content")
+    for (stored, taken) in ((_ClipboardKeeper(PrimitiveString("new")), true),
+                            (PrimitiveString("other"), false))
+        pair = _ClipboardPair(_ClipboardKeeper(PrimitiveString("old")), PrimitiveString("b"))
+        slice = ClipboardSlice(pair, stored)
+        slice.selection = cpath(content, FieldReferenceStep("left"))
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        @test (read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation) == taken
+    end
+    @test accepts_pasted_replacement(PrimitiveString("a"), PrimitiveString("b"))
+end
+
 @testset "a gesture the host does not offer goes on to the content" begin
     slice = ClipboardSlice(PrimitiveString("hello"), PrimitiveString("stored"))
     slice.selection = cpath(FieldReferenceStep("content"))
@@ -453,6 +473,25 @@ end
     op = read_intent(p, iomap, KeyDown(:n, ctrl))
     @test op isa CompoundOperation
     @test _rd_val(op.operations[1]) === right
+end
+
+@testset "a noted object that lost the focus still pastes" begin
+    # The noted object was selected where it was shown, and that selection went
+    # dormant when the focus moved on. The paste starts it afresh.
+    noted = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))
+    getfield(noted, :selection)[] =
+        SelectionDocument(primary = cpath(FieldReferenceStep("left")), live = false)
+    pair = _ClipboardPair(PrimitiveString("x"), PrimitiveString("y"))
+    slice = ClipboardSlice(pair, noted)
+    slice.selection = cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    op = read_intent(p, iomap, KeyDown(:v, ctrl))
+    @test op isa CompoundOperation
+    @test _rd_val(op.operations[1]) === noted
+    # The write's own selection move names the target and nothing inside it.
+    @test op.operations[1].operations[2].path ==
+          cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
 end
 
 @testset "the wrapper helpers build the clipboard and its chain" begin

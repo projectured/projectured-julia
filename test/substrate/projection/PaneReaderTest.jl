@@ -390,6 +390,34 @@ _is_content_selected(tree, group, i) =
     end
 end
 
+@testset "a paste fills a tab's content and never replaces a pane" begin
+    group = PaneGroup(PaneTab[_tab("a"), PaneTab("", DocumentNothing())])
+    tree = PaneTree(group)
+    root = FieldReferenceStep("content")
+    content_of(i) = ConcreteReference(root, get_pane_content_path(tree, group, i))
+    tab_at(i) = ConcreteReference(root, get_pane_tab_reference(tree, group, i))
+    paste(slice) = begin
+        p = ClipboardSliceToAnyProjection()
+        io = print_document(p, IdentityProjection(), slice, PrinterContext())
+        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true)))
+    end
+    stored = WidgetLabel(Point2D(0, 0), "stored")
+    slice = ClipboardSlice(tree, stored)
+    # The empty content takes the object.
+    slice.selection = content_of(2)
+    @test paste(slice) isa CompoundOperation
+    # A whole tab, the tab list's element, is a pane: the paste is refused.
+    slice.selection = tab_at(1)
+    @test !(paste(slice) isa CompoundOperation)
+    # A whole group, here the root, is a pane too.
+    slice.selection = ConcreteReference(root, get_pane_path(tree, group))
+    @test !(paste(slice) isa CompoundOperation)
+    # And a pane is never pasted, not even into an empty content.
+    tab_slice = ClipboardSlice(tree, PaneTab("copied", DocumentNothing()))
+    tab_slice.selection = content_of(2)
+    @test !(paste(tab_slice) isa CompoundOperation)
+end
+
 @testset "a window whose content a clipboard wraps still holds its tree" begin
     tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
     @test get_window_tree(ClipboardSlice(tree)) === tree

@@ -179,16 +179,25 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     set_cell_function!(getfield(composite.elements, :elements),
                        () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
     iomap = PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
-    # The pane layer is slot 1, and the indicator never takes a keystroke. The
-    # composite's selection is the tree's, mapped forward, so a key reaches the
-    # pane layer whenever the focus is in a group, and the composite names the
-    # layer as a whole — and rings it — only when the selection says so.
+    # The pane layer is slot 1, and the indicator never takes a keystroke. A key
+    # reaches the pane layer whenever the focus is in the tree, and the pane
+    # widgets route it on by their own selections. The composite names the layer
+    # as a whole — and rings it — only when the tree's root is selected whole;
+    # otherwise its selection is the image of the step the root takes, which is
+    # all the routing reads and all the forward maps below take.
     set_cell_function!(getfield(composite, :selection), () -> begin
         selection = get_selection(tree)
-        selection === nothing ? nothing : map_reference_forward(p, iomap, selection)
+        selection isa ConcreteReference || return nothing
+        rest = _after_field(selection, "root")
+        rest === nothing && return nothing
+        rest isa EmptyReference && return _PANE_LAYER
+        map_reference_forward(p, iomap,
+            ConcreteReference(selection.type, selection.head, _index_prefix(rest)))
     end)
     iomap
 end
+
+const _PANE_LAYER = @reference ::WidgetComposite.elements::CellVector[1]::WidgetDocument
 
 # ── The drop indicator ─────────────────────────────────────────────────────
 #

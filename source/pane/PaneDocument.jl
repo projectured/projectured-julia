@@ -61,6 +61,13 @@ _title_string(title::PrimitiveString) = something(title.value, "")
 _title_string(title::AbstractString) = String(title)
 _title_string(title) = string(title)
 
+# A paste never takes the place of a pane, and a pane is never pasted: the tree
+# of a window is changed by the pane's own edits, which keep it well formed. A
+# paste fills or replaces the content of a tab.
+accepts_pasted_replacement(::PaneDocument, ::Any) = false
+accepts_pasted_replacement(::Any, ::PaneDocument) = false
+accepts_pasted_replacement(::PaneDocument, ::PaneDocument) = false
+
 # ── PaneGroup ──────────────────────────────────────────────────────────────
 
 """
