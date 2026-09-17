@@ -36,6 +36,7 @@ using Projectured.MarkdownModule
 using Projectured.RstModule
 using Projectured.JuliaModule
 using ProjecturedKernel.DocumentModule: @document
+using ProjecturedKernel.CellModule: ImmutableCell
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,18 @@ end
 "A document with a collection of cells, written as the list of what they hold."
 @document struct TestBag
     items::CellVector = CellVector()
+end
+
+"A document offered by one of its concrete layouts."
+@document struct TestLayout
+    name::String
+    count::Int = 0
+end
+
+"A document whose name is bound to its native struct, `ITestMark`."
+@document ImmutableCell [I, C] struct TestMark
+    at::Int
+    selection::Nothing
 end
 
 "A document with a half it did not read: `width` and the panel it built."
@@ -411,6 +424,21 @@ function test_file_project()
             # the writer refuses it, and a call in the reader names a type.
             @test_throws FileCutException print_pred_text(TestState(kind = Symbol("a b")))
             @test_throws Exception parse_pred_text("TestState(kind = Symbol(\"a b\"))")
+        end
+
+        @testset "a file names a document by its schema, whatever layout was offered" begin
+            # A concrete layout has no keyword constructor, so the name builds
+            # the type that the schema's module binds to it.
+            register_pred_type!(typeof(TestLayout(name = "x")))
+            @test get_pred_type("TestLayout") === TestLayout
+            loaded = parse_pred_text("TestLayout(name = \"a\")")
+            @test loaded isa TestLayout && loaded.name == "a"
+            @test is_pred_type(typeof(loaded))
+            # The name a file writes is the schema's, also when the schema binds
+            # it to a native struct of another name.
+            register_pred_type!(TestMark)
+            @test get_pred_type("TestMark") === TestMark
+            @test parse_pred_text("TestMark(3)").at == 3
         end
 
         @testset "a collection of cells writes as a list" begin

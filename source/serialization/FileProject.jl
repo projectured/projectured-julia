@@ -239,11 +239,30 @@ Offer `T` to a file: a marker naming it constructs one, and a `.pred` file may
 hold one. Nothing is offered by default, so a file can never name a type the
 session did not put on this list.
 
+A file names a document by its schema, the name written after `struct`, and
+every layout of the schema answers to that name. The name builds the type that
+the schema's module binds to it, because that is the type a programmer calls. A
+layout whose own name is not the schema's is offered under its own name too,
+which is the name the writer prints.
+
 Runtime state, so register it from `__init__`.
 """
 function register_pred_type!(T::Type)
-    _PRED_TYPES[String(nameof(T))] = T
+    constructor = _get_schema_type(T)
+    _PRED_TYPES[String(get_document_schema_name(T))] = constructor
+    _PRED_TYPES[String(nameof(T))] = constructor
     T
+end
+
+# The type a module binds to the schema name of `T`, or `T` when the name is not
+# bound to a type there. A layout of a `@document` schema is a type of its own,
+# and a concrete layout has no keyword constructor.
+function _get_schema_type(T::Type)
+    home = parentmodule(T)
+    schema = get_document_schema_name(T)
+    isdefined(home, schema) || return T
+    bound = getfield(home, schema)
+    bound isa Type ? bound : T
 end
 
 "The type `name` names, or `nothing` when nothing offered it."
@@ -255,7 +274,7 @@ get_pred_type(name::AbstractString) = get(_PRED_TYPES, String(name), nothing)
 function is_pred_type(T::Type)
     registered = get(_PRED_TYPES, String(nameof(T)), nothing)
     registered === nothing && return false
-    registered === T || T <: registered
+    registered === T || T <: registered || _get_schema_type(T) === registered
 end
 
 is_pred_type(::Any) = false
