@@ -327,13 +327,13 @@ Documents and projections compose on two axes.
 
 # 📚 Many domains
 
-Over thirty domains ship with the editor.
+About twenty domains ship with the editor.
 
 ---
 
 ## 📚 Many domains, ready to use
 
-<span class="tag">30+ structured domains</span>
+<span class="tag">about twenty structured domains</span>
 
 <div class="cols">
 <div>

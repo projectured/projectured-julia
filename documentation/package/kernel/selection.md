@@ -16,7 +16,7 @@ and the recursion algorithm that ties them together. For the reference
 `@reference_case` DSLs, type checkpoints — see the sibling
 [reference guide](reference.md); this page cross-links to it rather than
 restating the vocabulary. For a gentler introduction see
-[§4 Selection in the concepts guide](../../design/editor-concepts.md).
+[§4 Selection in the concepts guide](../../design/concepts.md).
 
 ## The document contract
 

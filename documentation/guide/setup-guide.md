@@ -1,10 +1,10 @@
 # Getting Started
 
-> **Kind:** procedure · **Status:** current · **Stands on:** [editor-concepts.md](../design/editor-concepts.md)
+> **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 This guide covers prerequisites, setup, and the REPL helpers you will use
 every day. For the conceptual foundation (what projectional editing is, the
-five core ideas, the key event walkthrough) see [the concepts guide](../design/editor-concepts.md).
+five core ideas, the key event walkthrough) see [the concepts guide](../design/concepts.md).
 For a guided tour of the examples see [the examples tour](examples-tour.md).
 
 ## Prerequisites

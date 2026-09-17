@@ -194,9 +194,9 @@ function check_projectured_copy(executable::AbstractString, directory::AbstractS
         sizeof(_read_http("$_CHECK_WEB/font/$(font.captures[1])")) > 1000 ||
             error("check_projectured_copy: the copy serves no data for $(font.captures[1])")
         guides = _call_mcp_tool("read_resource", "{\"uri\": \"resource://guides\"}")
-        occursin("editor-concepts", guides) ||
+        occursin("design/concepts", guides) ||
             error("check_projectured_copy: the list of guides of the copy does not name " *
-                  "editor-concepts:\n" * guides)
+                  "design/concepts:\n" * guides)
         @info "The copy reads the web client, the fonts and the guides from its bundle"
     finally
         kill(process)

@@ -1,6 +1,6 @@
 # Orientation — read first, then search
 
-> **Kind:** reference · **Status:** current · **Stands on:** [editor-concepts.md](../design/editor-concepts.md), [system-anatomy.md](../design/system-anatomy.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md), [system-anatomy.md](../design/system-anatomy.md)
 
 ProjecturEd is a **projectional editor**: a structured `document` is shown through
 composable, bidirectional `projection`s, and you edit by acting on

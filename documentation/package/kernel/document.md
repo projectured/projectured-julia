@@ -6,7 +6,7 @@ Layer 7 of the kernel — the **document contract** every concrete document
 subtypes and every projection consumes. This page is the layer's structural
 overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
-[documentation/design/editor-concepts.md](../../design/editor-concepts.md).
+[documentation/design/concepts.md](../../design/concepts.md).
 
 The layer lives in [main/document/](../../../source/kernel/document/), inside one aggregator
 module (`DocumentModule`) split across fragments that share its namespace:

@@ -1,6 +1,6 @@
 # Architecture
 
-> **Kind:** design · **Status:** current · **Stands on:** [division-terminology.md](../rule/division-terminology.md), [editor-concepts.md](editor-concepts.md)
+> **Kind:** design · **Status:** current · **Stands on:** [division-terminology.md](../rule/division-terminology.md), [concepts.md](concepts.md)
 
 This document covers the conceptual pipeline, the package layout, the module
 inventory, and the projection pipeline status. The division vocabulary

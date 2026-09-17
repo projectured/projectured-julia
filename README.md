@@ -1,278 +1,20 @@
 # ProjecturEd
 
-A projectional editor, reimplemented in Julia from
-[the original ProjecturEd](https://github.com/projectured/projectured). A
-document is structured data — a tree, an AST, a graph. A projection renders it,
-and an edit on the projection is mapped back to the data.
+ProjecturEd: an application to view, edit and transform structured data with an AI assistant, and a generic user interface for any Julia program.
 
-<img width="1595" alt="ProjecturEd workbench" src="asset/image/example/workbench.png">
+> **Status: under development.** Most features work, but ProjecturEd is not a finished product. Some parts are incomplete, and names and interfaces can still change. The [roadmap](documentation/requirement/delivery-roadmap.md) lists what works today and what comes next. Problem reports and questions are welcome as GitHub issues.
 
-## What the design is for
+ProjecturEd is an application to view, edit and transform structured data, with an AI assistant. It works with about twenty kinds of data, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas, charts, graphs and state machines. It shows them in one window, in tabs and split panes, and one document can mix kinds: JSON inside XML inside prose. ProjecturEd is written in Julia. So it is also a generic user interface for your own Julia programs: it shows your documents, and the values of a running program, in the same way.
 
-**Editing through an AI.** The built-in AI conversation reads and changes both
-the document and the projection by running Julia against the live editor. You
-describe a change and it is applied as a structural operation, rather than as a
-sequence of keystrokes. The conversation is itself a ProjecturEd document, so
-the editor edits its own AI session with the machinery it uses for everything
-else.
+A view can be a tree, a statement with syntax colours, a chart, a diagram, a form or a table. When the data changes, its views change with it. Most views are also editors: an edit in a view changes the data itself, not a text copy of it. You can design your own user interface from views and widgets. For data that has no view yet, you get one on demand: a generic view that ProjecturEd makes by reflection over the value, or a view that the assistant opens for you.
 
-**Composition.** A document is built by nesting primitives, reactive
-collections and other documents; any field can hold another domain. A
-projection is a function over documents, and projections compose. One document
-can be shown several ways, and one view can mix domains. That is how a single
-mechanism covers JSON, XML, source code, prose, tables and graphics.
+The same views work in a native window, in a web browser, in a terminal, and without a screen for tests and scripts. A view can also go to a PDF file, an image or a video. The data goes to text files or to binary files. A text file uses the notation of its domain, and several files can refer to each other. So data with shared parts and mutually recursive structures comes back unchanged after a save and a load. Parts of a document that are not on the screen cost nothing, so a view can show a part of a very large document, or of an infinite list.
 
-**Lazy, incremental update.** A pull-based reactive cell system recomputes only
-what a change affects, and a projection is evaluated only where the screen
-pulls on it. A part of a document that nobody looks at costs nothing, so a very
-large document is an ordinary case. With a lazy structure such as `ListNode`,
-whose neighbours are re-projected on demand, an unbounded one is too: you
-project a finite slice of an infinite list and edit it without building the
-rest.
+The AI assistant runs inside the application, with a local model through Ollama or with Claude. It searches the API of the loaded packages, writes Julia code and runs it in the application. It changes the data with the same operations as your key presses. The conversation is a document too, with its own view, and you can also run Julia code in it yourself. An external AI client, for example Claude Code, can use the same tools through MCP.
 
----
+You can extend ProjecturEd with your own domain: its document types, the projections that make its views, its operations and its key bindings. A domain is a package of its own, and no other domain depends on it. So you can work on your domain without changes to other domains, while other developers work on theirs. Your domain gets the general features with little or no extra code: selection and navigation, search, copy and paste, filtered and sorted views, a text notation and a file format, saving, every backend, and the AI assistant, which can find and call your functions.
 
-## AI-assisted editing
-
-Open the assistant, type a request, and press **Enter**. Claude reads the live
-document structure, looks up the types and functions involved, writes Julia, and
-runs it against the editor — `editor.document` and `editor.projection` are both
-bound in scope. To run code yourself, press **Alt+Enter** to evaluate a Julia
-fragment directly. Either way the run is recorded in the conversation as a
-re-readable code execution.
-
-The conversation is a ProjecturEd domain
-([ConversationDocument.jl](source/conversation/ConversationDocument.jl)):
-messages, streaming response blocks and code executions are all structured
-documents, projected and selectable like everything else.
-
-The parts:
-
-- The AI's core tool, `execute_julia_code`, evaluates Julia in-process with
-  `Projectured` preloaded and `editor` bound — its handler lives in
-  [CodeExecution.jl](source/kernel/tool/CodeExecution.jl).
-- Before writing code, the AI reads the editor's own guides, modules, classes,
-  and functions, exposed as resources, so it works from real signatures
-  ([Documentation.jl](source/kernel/tool/Documentation.jl)).
-- The in-editor assistant and an external **MCP server** (`127.0.0.1:9876/mcp`)
-  share the editor's one tool set
-  ([ToolSet.jl](source/kernel/tool/ToolSet.jl)), so an external MCP
-  client can drive the editor too.
-- The assistant uses Claude when `ANTHROPIC_API_KEY` is set, and a
-  deterministic offline backend otherwise, so the example runs without a key
-  and without a network connection. The default model is named in
-  [Anthropic.jl](source/anthropic/Anthropic.jl); an Ollama backend is in
-  [Ollama.jl](source/ollama/Ollama.jl).
-
-> **Status.** The assistant and the MCP bridge work end to end, and both are
-> new. Selection and cursor movement work in every domain. Character type-in
-> and range editing work in the field-addressed domains; making them uniform
-> across every domain is the current work. See the
-> [roadmap](documentation/requirement/delivery-roadmap.md).
-
----
-
-## How a keystroke round-trips
-
-Most editors store the work as a flat sequence of characters. ProjecturEd
-stores it as **structured data** — a tree, a graph, a typed AST — and shows it
-through *bidirectional projections* that translate between domains. The printer
-renders the data as something you can read and edit. The reader maps each edit
-back into structural operations on the original data.
-
-```
-        ┌─────────────┐    printer    ┌──────────────┐    printer    ┌────────────┐
-        │   Document  │ ───────────▶  │  Intermediate│ ───────────▶  │  Graphics  │
-        │  (domain A) │  ◀─────────── │  (domain B)  │  ◀─────────── │  / Display │
-        └─────────────┘     reader    └──────────────┘     reader    └────────────┘
-```
-
-A keystroke arrives at the display; the reader chain walks back through each
-projection's IO map, and the corresponding domain operation is applied to the
-original document. The document re-projects forward, and the screen updates
-incrementally via a pull-based reactive cell system.
-
-An edit is an operation on the model, never a change to a text buffer. That
-holds for a keystroke and for an edit the AI issues.
-
----
-
-## Every field is a cell
-
-The cell is what makes the update incremental. The mechanism shapes every
-document type you write, so it comes first.
-
-`@document` stores each field in a **cell** and generates the accessors, so the
-reactivity stays invisible in ordinary code:
-
-```julia
-@document struct JsonString <: JsonDocument
-    value::String
-end
-
-s = JsonString("Alice")
-s.value               # reads through the cell
-s.value = "Bob"       # writes through the cell — and invalidates whoever read it
-getfield(s, :value)   # the escape hatch: the raw cell itself
-```
-
-### Three kinds of cell
-
-A field declares **which kind** of cell holds it. The kind decides what the field
-costs and what it can do.
-
-| Kind | Behaviour | Declare it for |
-|---|---|---|
-| `ReactiveCell` *(default)* | records every cell that reads it; a write invalidates all of them | editable content — the document data itself |
-| `MutableCell` | a plain box: a write costs nothing and tells nobody | high-frequency state that no view derives from |
-| `ImmutableCell` | read-only: a write is a `MethodError` | style and configuration values that never change |
-
-Name the cell type on one field, or lead the struct with a kind to set the
-default for every field:
-
-```julia
-@projection struct JsonStringToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-end
-
-@document ImmutableCell [DC] struct StyleText   # a value document: no field is reactive
-    font::StyleFont
-    color::StyleColor
-    selection::Nothing
-end
-```
-
-The marker before `struct` sets the kind of every field. The list after it says
-what the bare name means: `[DC]` makes `StyleText` the concrete default
-spelling, which is what lets a `StyleText`-typed field inline.
-
-Each type also gets spelling aliases: `RCFoo`, `MCFoo` and `ICFoo` put every
-field in one kind, and `DCFoo` names the default combination the bare
-constructor builds. `copy_document(doc)` copies a tree and keeps each cell's
-kind;
-`copy_document(K, doc)` rebuilds the whole tree in kind `K`. That conversion is
-what makes the double-buffer pattern possible: edit a `MutableCell` document at
-full speed with no reactive overhead, then `sync_document!` it into a
-`ReactiveCell` shadow, which writes only the cells whose value really changed.
-
-### Where the laziness comes from
-
-A cell holds a value or a thunk. While a thunk runs, every cell it reads becomes
-an upstream dependency — you declare nothing, because the read *is* the
-declaration. One rule then does the rest:
-
-> **A write invalidates eagerly. A read recomputes lazily.**
-
-```julia
-a = Cell(1)
-b = ComputedCell(() -> a[] + 1)   # a thunk — nothing runs yet
-b[]                               # 2  — the thunk runs, and its read of a records the edge
-a[] = 10                          # marks b invalid; b's thunk does NOT run
-b[]                               # 11 — the thunk runs now, because you asked for it
-```
-
-The same rule scales from two cells to a whole projection pipeline, and it
-gives two properties:
-
-- **Consistency.** Every view is exactly what the current model projects to.
-  There is no cache to invalidate by hand and no derived state that can drift.
-- **Cost follows attention.** One edited character invalidates a path of cells
-  and recomputes only the ones the screen pulls on. A subtree that is
-  off-screen, collapsed, or past the end of a lazy `ListNode` costs nothing.
-
-A deep pipeline is therefore affordable, which is what lets a projection stay
-small and pure.
-
-See the [reactive cells](documentation/package/kernel/cell.md) guide for the engine and its
-invariants, and the [macros](documentation/package/kernel/macros.md) guide for the codegen
-behind `@document`, `@projection`, and `@iomap`.
-
----
-
-## Composable data, composable projections
-
-Both layers compose, and they meet in the middle.
-
-**Documents compose.** A document is built by nesting primitives, reactive
-collections (`CellVector`, `ListNode`), and other documents; any field can hold
-another domain. A `Workbench` holds pages that hold panels; a `Book` holds
-chapters that hold paragraphs, lists, and embedded pictures; a `Conversation`
-holds messages that hold blocks that hold Julia and text documents. There is no
-privileged root type — you assemble domains out of smaller domains.
-
-**Projections compose.** A bidirectional projection is a function, and four
-things follow from that:
-
-- **Several views of one document.** Edit a JSON object as a tree, then render
-  the same data as a widget form, a table, or source. There is no second
-  representation to keep in sync.
-- **Computed views.** Insert a sorting, filtering or focusing projection and
-  the view is sorted, filtered or zoomed without a change to the model.
-  Removing the projection removes the view, not the data.
-- **Mixed-domain documents.** A `NestingProjection` embeds one domain inside
-  another, so one document can nest JSON inside XML inside styled prose. Every
-  cursor position round-trips across the boundaries.
-- **Backend-agnostic rendering.** The pipeline emits an abstract
-  `GraphicsCanvas`. SDL2 renders it in a native window and a web backend renders
-  it in the browser (the editor runs in an HTTP/WebSocket server; the browser
-  paints a JSON draw-list and sends back raw input) — the same projection code
-  drives both. A backend can also tap an earlier stage: the `ConsoleBackend`
-  renders the **Text** domain straight to the terminal (ANSI colors, keyboard
-  navigation, no graphics step). An IDE-plugin backend could follow the same way.
-
-See the [projection system](documentation/package/kernel/projection-system.md) and [higher-order
-projections](documentation/package/kernel/higher-order-projections.md) guides for the mechanics.
-
----
-
-## What works today
-
-There are twenty-one domain packages. Each one owns its document types, its parser
-where it has a text syntax, and its projection.
-
-| Domain | What it holds |
-|---|---|
-| **JSON** | Object, array and primitive tree, with a parser and a file wrapper |
-| **YAML** | The same data model, with indentation syntax |
-| **XML** | Element and attribute tree |
-| **Markdown** | Block and inline documents, rendered or as source |
-| **RST** | reStructuredText sections and directives, rendered or as source |
-| **Book** | Structured prose: chapters, paragraphs, lists, embedded pictures |
-| **Math** | Algebraic expression trees: variable, binary operator, parenthesis, assignment |
-| **Julia** | A subset of the Julia AST: identifier, integer, binary operator, call, if, function, block |
-| **SQL** | Select, insert, update and create statements, with a parser |
-| **Database** | Database and instance documents, and the `make_database_adapter` seam |
-| **DbCatalog** | Schema, table and column documents; a catalog query becomes SQL |
-| **FileSystem** | Directory and file tree |
-| **Graph** | Vertices, edges and the layout document that holds their geometry |
-| **Chart** | Line, bar, histogram, scatter and strip plots |
-| **SequenceChart** | Events on timelines, and the arrows between them |
-| **Formula** | A spreadsheet cell formula whose expression is a Julia document |
-| **FSM** | States, transitions and the diagram that lays them out |
-| **Process** | A flowchart language: the step documents and the runtime that walks them |
-| **Conversation** | The AI chat as a domain: messages, blocks, code executions |
-| **Assistant** | The AI assistant panel: a conversation, a turn, and a composer, usable beside any panes |
-| **Workbench** | The IDE shell: navigator, console, descriptor, operator, searcher, evaluator, assistant |
-
-The substrate under them carries what no single domain owns:
-
-| Package | What it holds |
-|---|---|
-| **Text** | Styled multi-span text, word wrapping, line numbering |
-| **Syntax** | The generic S-expression intermediate between a semantic domain and text |
-| **Graphics** | The render primitives every backend paints |
-| **Widget** | Labels, buttons, checkboxes, tabbed panes, scroll panes, split panes, toolbars, tables |
-| **Collection** | `CellVector`, a reactive indexed vector, and `ListNode`, a lazy doubly-linked list |
-
-Selection and cursor movement work in every domain. The SDL backend is the
-primary frontend; a [web backend](documentation/package/kernel/devices-and-backends.md#webbackend)
-renders the same editor in the browser (`run_example("json"; backend=WebBackend())`
-after `using ProjecturedWeb`). The assistant and the MCP server are built in.
-Character type-in and range editing work in the field-addressed domains; the
-[roadmap](documentation/requirement/delivery-roadmap.md) has the rest.
-
-### Screenshots
+## Screenshots
 
 | JSON editor | Widget forms | Table view |
 |---|---|---|
@@ -282,138 +24,116 @@ Character type-in and range editing work in the field-addressed domains; the
 |---|---|---|
 | <img width="586" alt="Syntax example" src="asset/image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="asset/image/example/julia.png"> | <img width="1285" alt="Workbench example" src="asset/image/example/workbench.png"> |
 
----
+## What you can do with it
+
+- **View and edit structured files as structures.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation open, change and save through their own parsers. See [the domain inventory](documentation/design/domain-inventory.md).
+- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. The [workbench](documentation/package/workbench/workbench.md) is a complete application of this kind.
+- **Look into a running Julia program.** A reflection view shows any object as a tree that opens one level at a time.
+- **Show results.** Line, bar, histogram, scatter and strip charts, and [sequence charts](documentation/package/sequencechart/sequencechart.md), are documents. A data point can be selected like any other part.
+- **Model behaviour and run it.** A [state machine](documentation/package/fsm/fsm.md) produces runnable Julia code. A [process flowchart](documentation/package/process/process.md) runs with breakpoints and a live trace.
+- **Ask for a change in plain words.** The assistant searches the API, writes Julia and runs it against the live editor. It works with a local model through Ollama, or with Claude.
+- **Drive the editor from outside.** An MCP client connects to `http://127.0.0.1:9876/mcp` and gets the same tools as the assistant in the window.
+- **Put a view somewhere else.** The same view goes to a native window, a browser, a terminal, a PDF file, a PNG file or an MP4 video.
 
 ## Quick start
 
-**Prerequisites**
-
-- Julia 1.11 or later. The `Project.toml` files use `[sources]` path
-  dependencies.
-- SDL2 and SDL_ttf, for the SDL backend.
-- `ANTHROPIC_API_KEY`, optional. Without it the assistant uses a deterministic
-  offline backend.
+You need Julia 1.11 or later, and SDL2 with SDL_ttf for a native window. The packages are not in the General registry, so clone the repository.
 
 ```sh
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
-julia --project=environment/all
+bin/projectured
 ```
+
+`bin/projectured` opens a window with a file navigator on the left, the open files in tabs in the middle, and the assistant on the right. The navigator lists the directory you start it in, and a double click opens a file. Name the files on the command line to open them at once: `bin/projectured notes.md data.json`. The first start compiles the code, which takes some minutes; later starts are fast.
+
+```sh
+bin/projectured --help                       # every option
+bin/projectured --window=workbench a.xml     # the workbench window
+bin/projectured --assistant=none notes.txt   # no assistant
+bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1:8080
+bin/projectured --mcp a.json                 # with an MCP server for an external client
+```
+
+**The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. Without a server and without a key, the assistant pane opens and says what it needs.
+
+**A binary.** `bin/build_projectured` compiles the application into `build/projectured/`, which runs without Julia and without this checkout. [build-guide.md](documentation/guide/build-guide.md) says what the build does and what it costs.
+
+**From a session.** Load the packages and open any value or example:
 
 ```julia
-julia> using Projectured, ProjecturedExample
-julia> run_example()                  # opens the JSON example
-julia> run_example("assistant")       # the built-in AI conversation
-julia> run_example("widget")          # widget form example
-julia> run_example("table")           # table view
-julia> run_example("julia")           # Julia AST editor
-julia> run_example("json"; backend=WebBackend())   # in the browser (after `using ProjecturedWeb`) → http://127.0.0.1:8080
-julia> print_example("syntax")        # dump a projection's output to stdout
-julia> write_example_image("json", "/tmp/snapshot.bmp")   # save to file
+julia --project=environment/all
+using Projectured, ProjecturedExample, ProjecturedSdl
+run_example("json")                          # one example in a window
 ```
 
-See the [debugging guide](documentation/guide/debugging-guide.md) for the full REPL helper catalogue
-and the [testing guide](documentation/guide/testing-guide.md) for running the test suite.
+[setup-guide.md](documentation/guide/setup-guide.md) says what to do when a load fails, and [examples-tour.md](documentation/guide/examples-tour.md) lists the examples.
 
----
+## How it works
+
+ProjecturEd is a projectional editor. The data is the source, and every view is computed from it. A projection turns the data into a view, and it turns an edit in the view back into an operation on the data. Projections compose: one view can show several kinds of data, and one piece of data can have many views. Each field of the data is a reactive cell. After a change, ProjecturEd recomputes only the parts of the views that depend on the change and are on the screen.
+
+Five ideas carry the whole system.
+
+| Idea | What it is |
+| --- | --- |
+| Document | The data: a tree of typed structures, each field a reactive cell. |
+| Projection | A pair of functions: a printer that makes the view, and a reader that turns an intent in the view into an operation. |
+| Selection | Where you are, as a path into the data, not as a caret in a text. |
+| Operation | A change of the data, from a key press or from the assistant. |
+| Tool set | What the assistant and an MCP client can call: search the API, read a guide, run Julia, change the data. |
+
+A key press goes through the projections to the data, and the change comes back through the same projections to the screen. [concepts.md](documentation/design/concepts.md) explains the five ideas without code, and [engineer-tour.md](documentation/design/engineer-tour.md) derives the system from them.
+
+## Status and limits
+
+ProjecturEd is under development. These limits are true today:
+
+- There is no undo and no redo.
+- Type-in of single characters does not work the same way in every domain.
+- The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
+- The packages are not in the General registry. You clone the repository and use `environment/all`.
+- SDL2 and SDL_ttf must be installed for a native window.
+- Commercial use needs a licence from the author.
+
+The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes next.
+
+## Where to read next
+
+**To use it**: [setup-guide.md](documentation/guide/setup-guide.md), then [examples-tour.md](documentation/guide/examples-tour.md) and [the assistant guide](documentation/guide/assistant-guide.md).
+
+**To show your own data**: [concepts.md](documentation/design/concepts.md), then [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) and [own-project-guide.md](documentation/guide/own-project-guide.md).
+
+**To work on ProjecturEd**: [concepts.md](documentation/design/concepts.md), [engineer-tour.md](documentation/design/engineer-tour.md), [system-anatomy.md](documentation/design/system-anatomy.md), then [CONTRIBUTING.md](CONTRIBUTING.md) and the rules in [documentation/rule/](documentation/rule/). [The guide index](documentation/README.md) lists every document.
 
 ## Repository layout
 
-One dimension per level: what a file **is** decides its top folder, and which
-**slice** it belongs to decides the folder under that. The slices are flat, and
-`kernel` is the one with layers inside it. See
-[plan/done/repository-tree.md](plan/done/repository-tree.md).
+One dimension per level: what a file **is** decides its top folder, and which **slice** it belongs to decides the folder under that.
 
 | Path | Contents |
 |---|---|
-| [source/](source/) | The system — one folder per slice, and `kernel/` with its seventeen layers |
+| [source/](source/) | The system — one folder per slice, and `kernel/` with its layers |
 | [test/](test/) | The suites, one folder per slice, plus `suite/` for what belongs to no package |
 | [example/](example/) | Documents, galleries and workload bodies, one folder per slice |
-| [package/](package/) | One directory per package, named for the package: a `Project.toml` and a `src/<Name>.jl`, and nothing else |
-| [environment/](environment/) | `all/` — the resolved closure the whole suite runs in. No code |
-| [documentation/](documentation/) | Cross-cutting guides, plus [package/](documentation/package/) for the per-slice ones — see [the guide index](documentation/README.md) |
+| [package/](package/) | One directory per package: a `Project.toml` and a `src/<Name>.jl`, and nothing else |
+| [environment/](environment/) | `all/` for the whole suite, `build/` for a build. No code |
+| [documentation/](documentation/) | The guides — see [the guide index](documentation/README.md) |
 | [asset/](asset/) | Fonts, screenshots, the web client, and the precompile recording |
+| [bin/](bin/) | The commands: run the application, build the binary |
 | [tool/](tool/) | Scripts that are not part of the system |
-| [plan/](plan/) | Design notes and work-in-progress plans |
+| [plan/](plan/) | Design notes and plans |
 
-A package and its code do not share a directory. `package/ProjecturedJson/` is a
-name and an include list; the code it includes is `source/json/`, its suite is
-`test/json/` and its documents are `example/json/`.
-
-## Guides
-
-Three reading orders.
-
-### Start here
-
-1. [Introduction](documentation/design/editor-derivation.md) — the engineer's introduction: every concept with its real code, how the concepts combine, and how to extrapolate what the system can do.
-2. [Concepts](documentation/design/editor-concepts.md) — plain-English introduction: what projectional editing is, the five core ideas, and a step-by-step walkthrough of what happens when you press a key.
-3. [Examples tour](documentation/guide/examples-tour.md) — guided tour of six examples, from simplest to most complex; what to try and what each one demonstrates.
-4. [Getting started](documentation/guide/setup-guide.md) — prerequisites, setup, and the REPL helpers.
-
-### Before you build something
-
-5. [Architecture](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, module inventory, and the projection pipeline. [Terminology](documentation/rule/division-terminology.md) defines the division vocabulary (package / layer / slice / module).
-6. [Reactive cells](documentation/package/kernel/cell.md) — the `Cell` system that powers incrementality.
-7. [Macros](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap` macros.
-8. [Projection system](documentation/package/kernel/projection-system.md) — the four projection interface functions and the printer/reader pair.
-9. [Tutorial: new domain](documentation/guide/new-domain-guide.md) — step-by-step: add a new domain from scratch.
-
-### Going deeper
-
-- [Higher-order projections](documentation/package/kernel/higher-order-projections.md) — `Sequential`, `Recursive`, the dispatchers, `Nesting`, `Alternative`.
-- [Generic projections](documentation/package/kernel/generic-projections.md) — `Preserving`, `Invariably`, `Copying`, `Sorting`, `Reversing`, `Focusing`.
-- [Operations](documentation/package/kernel/operation.md) — what an operation is and how the reader chain produces them.
-- [Editor](documentation/package/kernel/editor.md) — the REPL loop, event handling, and rendering pipeline.
-- [Reference guide](documentation/package/kernel/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
-- [Selection guide](documentation/package/kernel/selection.md) — how selection propagates through nested documents.
-- [Devices and backends](documentation/package/kernel/devices-and-backends.md) — the `Backend`/`Device` split.
-- [Build a binary](documentation/guide/build-guide.md) — the build command, what goes into a binary, what it reads from its bundle, and how a distribution is tested.
-- [Static compilation](documentation/guide/static-compilation-guide.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
-- [Design decisions](documentation/design/architecture-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
-
-### Per-slice guides
-
-Domains: [json](documentation/package/json/json.md) · [xml](documentation/package/xml/xml.md) · [rst](documentation/package/rst/rst.md) · [math](documentation/package/math/math.md) · [graph](documentation/package/graph/graph-layout.md) · [chart](documentation/package/chart/chart.md) · [sequencechart](documentation/package/sequencechart/sequencechart.md) · [fsm](documentation/package/fsm/fsm.md) · [process](documentation/package/process/process.md) · [workbench](documentation/package/workbench/workbench.md)
-
-Substrate: [text](documentation/package/text/text.md) · [syntax](documentation/package/syntax/syntax.md) · [graphics](documentation/package/graphics/graphics.md) · [widget](documentation/package/widget/widget.md) · [pane](documentation/package/pane/pane.md) · [collection](documentation/package/collection/collection.md) · [versioning](documentation/package/versioning/versioning.md) · [bounded sync](documentation/package/reflection/bounded-sync.md)
-
-Tooling: [adaptagrams](documentation/package/adaptagrams/README.md) · [build a binary](documentation/guide/build-guide.md)
-
-### Working in the REPL
-
-- [Debugging](documentation/guide/debugging-guide.md) — `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, forcing reactive cells.
-- [Testing](documentation/guide/testing-guide.md) — `test_all`, per-package helpers, walker utilities.
-
-## Roadmap
-
-See [the roadmap](documentation/requirement/delivery-roadmap.md) for the near,
-medium and long term. Four items are in progress: uniform character editing,
-click-to-select in every domain, undo and redo, and editable tables.
+A package and its code do not share a directory. `package/ProjecturedJson/` is a name and an include list; the code it includes is `source/json/`, its suite is `test/json/` and its documents are `example/json/`.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for repo conventions, the PR process,
-code style, and how to add a new domain.
+Forks and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how the repository is organised, what a change must keep, and how to add a domain of your own. If you are an AI assistant working in this repository, read [CLAUDE.md](CLAUDE.md) and [SEALING.md](SEALING.md) first.
 
-## Conventions
+## Licence, author and contact
 
-- All indexing is **1-based** (Julia convention).
-- Projections must be **bidirectional**: every printer needs a matching reader.
+ProjecturEd is free for non-commercial use, and you can modify it for that use. Commercial use needs a licence from the author.
 
-## Project context for agents
+- [LICENCE-PD](LICENCE-PD) — non-commercial use.
+- [LICENCE-COMMERCIAL](LICENCE-COMMERCIAL) — commercial use.
 
-If you are an AI assistant working in this repo, also read [CLAUDE.md](CLAUDE.md);
-it points at the same guides with a framing tuned for non-trivial changes.
-[SEALING.md](SEALING.md) says which files are sealed, and a sealed file must not
-be changed without permission.
-
-## Licence
-
-Dual-licensed:
-
-- [LICENCE-PD](LICENCE-PD) — free, public-domain-style dedication for
-  non-commercial use of unmodified copies only.
-- [LICENCE-COMMERCIAL](LICENCE-COMMERCIAL) — required for commercial use
-  or for any modification or derivative work. Contact
-  levente.meszaros@gmail.com.
+Author: Levente Mészáros. Contact: projectured@gmail.com.

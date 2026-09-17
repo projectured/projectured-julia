@@ -1,200 +1,68 @@
 # Vision
 
-> **Kind:** why · **Status:** current · **Stands on:** nothing; it is the head of the chain
+> **Kind:** requirement · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
-This document explains the long-term potential of ProjecturEd, the pain
-points it addresses, and how it relates to other tools in the structured
-editing space. For the current state and near-term priorities see
-[the roadmap](delivery-roadmap.md).
+Why ProjecturEd exists: data that is shown and edited as a structure, a user interface you design or get on demand, and a language model that works on the same data as you. It also says where ProjecturEd stands beside the tools a Julia developer already uses.
 
----
+## The problem
 
-## Why structured editing matters
+A program holds structured data: a configuration, a model, a measurement, an abstract syntax tree, a network of objects. To look at that data, a developer has three usual ways, and each one loses something.
 
-Traditional text editors have a fundamental mismatch: the things they edit
-(source code, configuration, data) have rich structure, but the editor sees
-only a flat sequence of characters. Consequences:
+1. **Print it as text.** A text of a large value is long, flat and read-only. A change means a new line of code and another print.
+2. **Write a user interface for it.** A toolkit asks for widgets, layout, event handlers and a way back from the widget to the value. The work is large, and it holds for one data type only.
+3. **Serialise it to a file and open the file in an editor.** The editor sees characters. It can not check the structure, and a change of the notation breaks every tool around it.
 
-- **Syntax errors are discovered after the fact**, not prevented at the point
-  of entry. Malformed JSON, unclosed parentheses, mis-indented Python — the
-  editor lets you type them and tells you later.
-- **Refactoring is string manipulation.** Rename a variable and your tool
-  must parse, analyse, transform, and re-serialise the entire file — and it
-  still gets confused by macros, string literals, and comments.
-- **Multiple views of the same data require multiple files.** If you want to
-  see your data as a table and as a tree, you maintain two separate
-  representations and keep them in sync manually.
-- **AI assistants work with line numbers and character offsets**, not with
-  the semantic structure of the document. They hallucinate positions and
-  produce diffs that fail to apply.
+The same three ways limit an AI assistant. A model that can only print, or only patch text, can not make a structured change and can not show a result.
 
-A projectional editor where the *model* is the truth eliminates all of these
-problems by construction:
+## What ProjecturEd does instead
 
-- The cursor never leaves a valid position in the model. You cannot type a
-  syntax error.
-- Rename is a single `FieldReferenceStep` update; the projection re-renders all
-  occurrences automatically.
-- Multiple projections of the same model give multiple views — switch
-  projections without touching the underlying data.
-- AI operations target reference paths, not line numbers; they cannot produce
-  structurally invalid edits.
+The data is the source. A view is computed from it, and an edit in the view is mapped back to the data. That single mechanism gives the three roles of ProjecturEd:
 
----
+- **A viewer.** Any value can be on the screen, as a tree, a table, a form, a chart or a diagram.
+- **An editor.** The view takes your edits, and each edit changes the data itself. There is no text copy to keep in step.
+- **An assistant.** A language model calls the same functions and makes the same edits as your key presses.
 
-## What bidirectional projections enable
+Two things follow that a toolkit does not give.
 
-ProjecturEd's projections are composable functions. This has non-obvious
-consequences:
+**A view on demand.** A value whose view nobody wrote still appears: ProjecturEd builds a view from the structure of the value, one level at a time. So a developer is never blocked by a missing user interface, and a designed view can replace it later, part by part.
 
-**1. Domain-crossing documents.** A `NestingProjection` lets you embed a
-domain inside another. A prose document can contain a rendered JSON value.
-A workbench pane can display a Math expression. Cursor navigation crosses
-domain boundaries transparently because each projection in the chain handles
-its own selection translation.
+**Composition.** A view definition is a pair of functions between two kinds of data, so view definitions chain. A filter, a sort, a search, a collapsed node, a copy of a part, a notation and a file format are steps in that chain, and each of them works for every domain. A new domain gets those features with no extra code.
 
-**2. Computed views.** A `SortingProjection` inserted before `JsonToSyntax`
-gives you a sorted view of a JSON object *without changing the model*. Undo
-removes the sort projection, not a data transformation. Similarly, a
-`FilteringProjection` gives a filtered view; a `FocusingProjection` zooms into
-a sub-document.
+## Why the assistant is in the core
 
-**3. Backend-agnostic rendering.** The projection pipeline produces a
-`GraphicsCanvas` — an abstract description of what to draw. Any backend that
-can render a `GraphicsCanvas` is a valid target: SDL2 today, a terminal
-renderer, a WebGL canvas, or an IDE extension tomorrow. The projection code
-does not change.
+The tool set is a layer of the kernel, beside the data and the views. It is not a plug-in beside the program, for three reasons.
 
-**4. Offline rendering.** `write_image` renders any projected document to a
-BMP/PNG file without opening a window, and `write_pdf` renders one to a
-resolution-independent, multi-page **vector** PDF with selectable text and
-embedded fonts. This enables automated documentation generation, screenshot
-testing, CI-based visual regression checks, and print-quality export.
+1. **The same edits.** The assistant changes the data with the operations that your keys make, so a change by a model is as safe and as testable as a change by a person.
+2. **The same views.** The assistant can open a view of a value it made, in the window you are looking at.
+3. **One tool set, two clients.** The assistant in the window and an external client over MCP call the same functions. A tool that a developer adds is there for both.
 
----
+The conversation is data too, with its own view, so it is saved, edited and searched like every other document.
 
-## The MCP bridge: AI-native editing
+## Where ProjecturEd stands beside the tools you know
 
-When the editor's `run_editor!` loop is active it exposes an MCP server on port 9876.
-An AI assistant connected to this server can:
+**Pluto and Jupyter.** A notebook runs code and shows the result of each cell, and Pluto also re-runs the cells that depend on a change. ProjecturEd starts from the data rather than from the cell: a value is on the screen with a view of its own, the view is editable, and the incremental step is per field of the data and per part of the screen. A notebook is the better place for a narrative of code and prose; ProjecturEd is the better place for a structure you look at and change.
 
-- **Read the live document structure** via `resource://guide/<name>` and
-  `print_object(editor.document)` — not a string, the actual typed tree.
-- **Build precise reference paths** using `@reference` — `entries[1].value{3}`
-  is unambiguous and cannot be confused with a line number.
-- **Apply structural operations** via `replace_selection!`, `set_selection!`,
-  and domain operations — no string parsing, no diffs, no patch failures.
-- **Inspect the projection output** at any stage to verify the visual
-  consequence of a structural change before committing it.
+**VS Code with an AI extension.** The editor sees files of characters, and the model writes patches of characters. ProjecturEd sees the structure, and the model makes the same typed edits as the user. The cost is that ProjecturEd is not a general code editor: it edits the domains it has.
 
-This makes ProjecturEd a natural substrate for AI-driven editing workflows:
-the assistant operates on the model, not the presentation, so its actions are
-always semantically coherent.
+**Makie with Observables.** An `Observable` gives a plot that follows a value, which is the same idea in one direction. ProjecturEd adds the way back — a click or a key press in the picture becomes a change of the data — and applies it to trees, text, forms and tables, not to plots alone.
 
----
+**The Julia GUI and web packages** (Gtk4, QML, Genie, Dash, Stipple). They give widgets and a browser page, and you write the mapping from your data to those widgets and back. ProjecturEd gives that mapping as its subject: you write a view definition, and the general features come with it. ProjecturEd also draws its own widgets, text and layout in Julia, so a view runs in a window, in a browser, in a terminal and in a file with no change.
 
-## Multi-backend architecture
+**Term and REPL display.** `show` prints a value, and ProjecturEd is not a replacement for it. It is what you reach for when the value is too large, too deep or too alive for a printed line.
 
-The platform abstraction is split in two: the `Backend` interface is
-`initialize_backend!` / `quit_backend!` / `measure_text`, and the `Device` interface is
-`write_to_device(s)` / `read_from_device(s)`. Any platform that can implement
-these is a valid backend.
+## Prior work
 
-Delivered:
-- **SDL backend** — native OS windows via SDL2 / SDL_ttf; the primary frontend.
-- **Terminal backend** — `ConsoleBackend`, renders the Text domain to the
-  terminal with ANSI colour and structural navigation. Enables SSH-accessible
-  editing and CI-friendly projections.
-- **Web backend** — `WebBackend`, HTTP + WebSocket with a JSON draw-list
-  rendered to a `<canvas>` client and incremental dirty-rect updates. Opens the
-  editor to browser-based workflows.
-- **Headless rendering** — `write_image`'s software renderer and the fully
-  SDL-free `write_pdf` vector exporter render projected documents to files for
-  testing and screenshot generation.
+**JetBrains MPS** is the large projectional editor: a language workbench with generators and an editor per language concept. ProjecturEd shares the idea that the data is the source and the view is computed. It differs in scale and host: MPS is a Java platform for language design; ProjecturEd is a Julia library for any structured data, with the composition of view definitions as its centre.
 
-Future:
-- **IDE plugin backend** — render into VS Code or JetBrains using their
-  custom renderer APIs while keeping the full projection pipeline in Julia.
+**Lamdu** is a projectional editor for a functional language, with type-driven editing. It shows what a structure editor can do for code. ProjecturEd is not tied to one language.
 
----
+**Hazel** is a structure editor with holes: an incomplete program still has a meaning. ProjecturEd has a placeholder for a missing part, but it does not evaluate an incomplete program.
 
-## Extensibility story
+**Tree-sitter** parses text into a tree for tools that still edit text. ProjecturEd keeps the tree and computes the text from it, which is the other direction.
 
-Adding a new domain in ProjecturEd is intentionally small:
+## The limits this vision accepts
 
-1. Define your document types (structs with `@document`, which injects the
-   `selection::Reference` field automatically).
-2. Write `print_document` methods mapping each type to the syntax domain.
-3. Write `read_intent` methods translating selection operations backward.
-4. Add an example and a test.
-
-Step 2–3 together are typically 50–150 lines for a simple domain. The
-framework — reactive cells, the editor REPL, higher-order projections,
-selection mechanism, MCP server — is already there. See
-[the tutorial](../guide/new-domain-guide.md) for a worked walkthrough.
-
----
-
-## Compared to other tools
-
-### JetBrains MPS
-
-MPS is the most mature projectional editor IDE available today. It is
-production-quality, supports many industrial domains, and has a large user
-base in embedded and safety-critical software.
-
-ProjecturEd differs in:
-- **Language:** Julia vs. Java/Kotlin. Easier to embed in scientific and
-  data-processing workflows.
-- **Architecture:** Composable pure-function projections vs. a more tightly
-  coupled AST-centric model. Projections in ProjecturEd can be combined
-  independently of the domain.
-- **Reactivity:** Pull-based incremental computation vs. a more imperative
-  update model.
-- **Scope:** MPS is a full IDE with a language workbench, build system, and
-  version control integration. ProjecturEd is a library and framework — you
-  compose your editor from it.
-
-### Lamdu
-
-Lamdu is a live-programming structured editor for a Haskell-like language.
-Its goal is type-safe editing with live execution.
-
-ProjecturEd differs in:
-- **Domain generality:** Lamdu edits one specific language; ProjecturEd edits
-  any domain you define.
-- **Projection composability:** Lamdu does not have the notion of composable
-  bidirectional projections as an abstraction of its own.
-
-### Hazel
-
-Hazel is a research language with a structured editor that maintains semantic
-meaning even in the presence of holes (incomplete programs).
-
-ProjecturEd shares the structural editing philosophy but differs in:
-- **Focus:** Hazel optimises for type-theoretic properties of incomplete
-  programs. ProjecturEd optimises for generality across arbitrary domains.
-- **Practicality:** ProjecturEd has a working SDL editor with multiple domains
-  today; Hazel is primarily a research prototype.
-
-### Tree-sitter
-
-Tree-sitter is a fast incremental parser, not an editor. It gives you a
-concrete syntax tree from text, but text remains the primary representation.
-Editing still mutates characters; Tree-sitter re-parses the result.
-
-ProjecturEd eliminates the text/parse round-trip entirely — the model is
-always the tree, and text is a derived view.
-
-### Traditional text editors (VS Code, Emacs, Vim, …)
-
-Traditional editors are fast, flexible, and have enormous ecosystem support.
-ProjecturEd does not compete with them for text editing. It targets a
-different problem space: domains where the structure matters more than the
-text serialisation, where multiple views of the same data are useful, and
-where AI-assisted editing benefits from operating on a typed model rather
-than on character offsets.
-
-In the long run, ProjecturEd's backend architecture allows it to *be* a VS
-Code extension or an Emacs mode — adding structured editing as a layer on
-top of an existing editor rather than replacing it.
+- ProjecturEd is under development. The [roadmap](delivery-roadmap.md) says what works and what is next.
+- There is no undo and no redo yet.
+- It is not a general text editor, and not a replacement for a notebook.
+- The packages are not in the General registry.

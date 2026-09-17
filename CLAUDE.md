@@ -18,7 +18,7 @@ Read the guides in [documentation/](documentation/) before making non-trivial ch
 The canonical reading order for contributors is in [README.md](README.md) under **"Before you build something"**. A quick summary:
 
 0. [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md) — **how everything is named.** Read it before you write a name.
-1. [documentation/design/editor-concepts.md](documentation/design/editor-concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
+1. [documentation/design/concepts.md](documentation/design/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
 2. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, and the module inventory.
 2b. [documentation/rule/package-rules.md](documentation/rule/package-rules.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
 3. [documentation/package/kernel/cell.md](documentation/package/kernel/cell.md) — the pull-based reactive cell system that powers incrementality.

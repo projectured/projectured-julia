@@ -8,7 +8,7 @@ prose out of `package/`, which now holds a name and an include list and nothing
 else — see [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
 The cross-cutting guides stay one level up, in [documentation/](../). Read those
-first: [concepts.md](../design/editor-concepts.md) explains what a document, a projection and
+first: [concepts.md](../design/concepts.md) explains what a document, a projection and
 an editor are, and [architecture.md](../design/system-anatomy.md) explains how the pieces
 stack.
 

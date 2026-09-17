@@ -56,13 +56,17 @@ In the order of the chain. The kind is the one in the document's header.
 | [naming-rules.md](rule/naming-rules.md) | rule | How is a package, a file, a module, a type or a function named? |
 | [writing-rules.md](rule/writing-rules.md) | rule | How is a document written, and what does `test_documentation()` check? |
 | [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
-| [editor-concepts.md](design/editor-concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
-| [editor-derivation.md](design/editor-derivation.md) | design | How do the concepts combine into a system, each one with its real code? |
+| [concepts.md](design/concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
+| [engineer-tour.md](design/engineer-tour.md) | design | How do the concepts combine into a system, each one with its real code? |
 | [system-anatomy.md](design/system-anatomy.md) | design | What is the editor made of? The pipeline, the package graph, the layers, the module inventory. |
 | [domain-inventory.md](design/domain-inventory.md) | reference | What are the twenty domains, what depends on what, and what makes one? |
 | [package/README.md](package/README.md) | reference | The guide of each slice, one folder per slice. |
 | [orientation.md](guide/orientation.md) | reference | Where do I look first, and what do I search for? |
 | [setup-guide.md](guide/setup-guide.md) | procedure | How do I install it and open a session? |
+| [assistant-guide.md](guide/assistant-guide.md) | procedure | How do I run the assistant, with Ollama or with Claude? |
+| [mcp-guide.md](guide/mcp-guide.md) | procedure | How does an external AI client drive a running editor? |
+| [view-your-data-guide.md](guide/view-your-data-guide.md) | procedure | How do I put my own values on the screen, designed or on demand? |
+| [own-project-guide.md](guide/own-project-guide.md) | procedure | How do I use ProjecturEd from my own project? |
 | [examples-tour.md](guide/examples-tour.md) | reference | Which examples exist, what does each show, and what should I try? |
 | [debugging-guide.md](guide/debugging-guide.md) | procedure | How do I drive the printer and the reader by hand, and force a cell? |
 | [testing-guide.md](guide/testing-guide.md) | procedure | Which test covers my change, and how do I read the summary? |
@@ -128,8 +132,9 @@ section of the file you are reading; cite any other file by name.
 
 ## Where to start
 
-1. New to projectional editing: [editor-concepts.md](design/editor-concepts.md), then [examples-tour.md](guide/examples-tour.md).
-2. New and an engineer: [editor-derivation.md](design/editor-derivation.md), then [system-anatomy.md](design/system-anatomy.md).
+1. New to ProjecturEd: [concepts.md](design/concepts.md), then [setup-guide.md](guide/setup-guide.md) and [examples-tour.md](guide/examples-tour.md).
+1b. Here to show your own data: [view-your-data-guide.md](guide/view-your-data-guide.md), then [own-project-guide.md](guide/own-project-guide.md).
+2. New and an engineer: [engineer-tour.md](design/engineer-tour.md), then [system-anatomy.md](design/system-anatomy.md).
 3. About to open a session: [setup-guide.md](guide/setup-guide.md), then [debugging-guide.md](guide/debugging-guide.md).
 4. About to change code: [architecture-invariants.md](rule/architecture-invariants.md), then [architecture-rules.md](rule/architecture-rules.md), [package-rules.md](rule/package-rules.md) and [naming-rules.md](rule/naming-rules.md).
 5. About to add a domain: [domain-inventory.md](design/domain-inventory.md), then [new-domain-guide.md](guide/new-domain-guide.md).
