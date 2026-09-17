@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Build the application as a native binary.
+#
+#     bin/build_projectured
+#     bin/build_projectured --backends=sdl --no-workload
+#     bin/build_projectured --distribution
+#
+# The bundle goes to `build/projectured/`, and the executable to
+# `build/projectured/bin/projectured`.
+#
+# It is `source/builder/build_binary.jl projectured` under a name of its own, so
+# a build is reached the way the program is.
+#
+# **One script for both forms.** `--distribution` is a flag of the build. The
+# bare command builds for this machine; with the flag it builds a fresh image
+# for several processor families, checks that a copy runs outside this checkout,
+# and writes it as an archive with a README.
+#
+# `--help` lists every option. A build uses much memory and takes minutes; read
+# `documentation/guide/build-guide.md` before the first one.
+#
+root=$(cd "$(dirname "$0")/.." && pwd)
+PROJECTURED_BUILD_WHAT="projectured"
+PROJECTURED_BUILD_COMMAND="bin/build_projectured"
+export PROJECTURED_BUILD_WHAT PROJECTURED_BUILD_COMMAND
+exec julia --project="$root/environment/build" \
+     "$root/source/builder/build_binary.jl" "$@"

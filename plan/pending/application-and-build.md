@@ -559,12 +559,29 @@ For the release README, still open: the address of the web window
 
 ### Step 7: the documentation of the build
 
-- [ ] Turn `documentation/package/executable/README.md` into
+- [x] Turn `documentation/package/executable/README.md` into
       `documentation/guide/build-guide.md`: the targets, the front end, the
       options, the distribution build, the memory warning.
-- [ ] Cross-link it with `static-compilation-guide.md`.
+      The old file is removed: every line of it named code that is gone
+      (`BuildSpec`, `ProjecturedExecutable`, the generated `AppConfig.jl`, the
+      pre-move tree). `README.md` and `documentation/README.md` name the new
+      guide.
+- [x] Cross-link it with `static-compilation-guide.md`.
 - [ ] Tell `documentation-rewrite.md` that its Step 4 can name the command.
 - [ ] Move this plan to `plan/done/`.
+
+**The owner asked for `bin/` scripts (2026-09-17), as omnet-julia has them:**
+
+| Script | What it does |
+| --- | --- |
+| `bin/projectured` | runs the application from the checkout, with no build: it writes the package of the binary (`compile = false`) and starts its `julia_main`. |
+| `bin/build_projectured` | builds the binary. It is `build_binary.jl` under a name of its own. |
+
+`PROJECTURED_BUILD_WHAT` and `PROJECTURED_BUILD_COMMAND` tell the front end
+which binary a script fixed and what to call itself, so `bin/build_projectured
+--help` names that command and offers no choice of binary. Both scripts are
+tested by hand (`--help` of each) and by `test_builder()` (the fixed binary in
+the parser).
 
 ### Later, only if wanted
 

@@ -35,7 +35,11 @@ end
 
 using ProjecturedBuilder
 
-const INVOCATION = "julia --project=environment/build source/builder/build_binary.jl"
+# A script in `bin/` fixes the binary it builds and names itself, so that its
+# `--help` names the command that a person typed and offers no choice of binary.
+const FIXED_BINARY = get(ENV, "PROJECTURED_BUILD_WHAT", "")
+const INVOCATION = get(ENV, "PROJECTURED_BUILD_COMMAND",
+                       "julia --project=environment/build source/builder/build_binary.jl")
 
 const BINARIES = ["projectured" =>
     "the application: files in a window, a file\n" *
@@ -93,10 +97,15 @@ const OPTIONS = [
 function format_front_end_usage()
     column = 26
     indent(text) = replace(text, "\n" => "\n" * " "^column)
-    lines = ["Usage: $INVOCATION <binary> [options]", "",
-             "Build a native binary of this repository.", "", "Binaries:", ""]
-    for (name, description) in BINARIES
-        push!(lines, "  " * rpad(name, column - 2) * indent(description))
+    if isempty(FIXED_BINARY)
+        lines = ["Usage: $INVOCATION <binary> [options]", "",
+                 "Build a native binary of this repository.", "", "Binaries:", ""]
+        for (name, description) in BINARIES
+            push!(lines, "  " * rpad(name, column - 2) * indent(description))
+        end
+    else
+        lines = ["Usage: $INVOCATION [options]", "",
+                 "Build the `$FIXED_BINARY` binary of this repository."]
     end
     append!(lines, ["", "Options:", ""])
     for (_, label, description) in OPTIONS
@@ -127,14 +136,18 @@ end
     parse_front_end_arguments(arguments) -> (binary, distribution, keywords)
 
 The binary a command line names, whether it asks for a distribution, and the
-keywords of the build function. A wrong command line raises an error.
+keywords of the build function. `fixed` is the binary that a `bin/` script
+chose, and then the command line names none. A wrong command line raises an
+error.
 """
-function parse_front_end_arguments(arguments)
-    binary = nothing
+function parse_front_end_arguments(arguments, fixed::AbstractString = FIXED_BINARY)
+    binary = isempty(fixed) ? nothing : fixed
     distribution = false
     keywords = Dict{Symbol,Any}()
     for argument in arguments
         if !startswith(argument, "-")
+            isempty(fixed) ||
+                error("this command builds $(repr(fixed)) and takes no other binary")
             binary === nothing || error("name one binary, not $(repr(binary)) and $(repr(argument))")
             any(==(argument) ∘ first, BINARIES) ||
                 error("the binaries are $(join(first.(BINARIES), ", ")), not $(repr(argument))")

@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Run the application, with no build.
+#
+#     bin/projectured
+#     bin/projectured a.json b.md --window=workbench
+#     bin/projectured --help
+#
+# It opens files in a window, with a file navigator and an AI assistant beside
+# them.
+#
+# It runs THROUGH THE CHECKOUT, with no build. `bin/build_projectured` compiles
+# the same program; this one runs it from source, so a change can be tried
+# without the minutes a build costs. The first start after a change compiles
+# what changed.
+#
+# **It is the same program and not an imitation.** The build function writes the
+# package that a build compiles, and asked with `compile = false` it writes that
+# package and stops. There is one `julia_main`, and both reach it.
+#
+# Every argument goes to the program.
+#
+root=$(cd "$(dirname "$0")/.." && pwd)
+problem=$(mktemp)
+trap 'rm -f "$problem"' EXIT
+# THE BUILD ENVIRONMENT, and this is the one step the library can not own: it is
+# what makes `ProjecturedBuilder` loadable, so it happens before `using` it.
+#
+# RESOLVE and not `instantiate` alone. `instantiate` notices a DIRECT dependency
+# that appears; it does not notice one that appears inside a package the
+# manifest already lists.
+#
+# Done in the SAME process that asks, so it costs no second julia start.
+answer=$(julia --project="$root/environment/build" -e '
+    using Pkg; Pkg.resolve(); Pkg.instantiate()
+    using ProjecturedBuilder
+    print(build_projectured_executable(; compile = false, resolve = true), "\n",
+          ProjecturedBuilder._module_name("projectured"))' 2>"$problem")
+if [ -z "$answer" ]; then
+    # SAY WHAT FAILED. A guessed cause helps nobody: a fresh checkout whose
+    # environment was never resolved fails here, and the message says so.
+    cat "$problem" >&2
+    exit 1
+fi
+application=$(printf '%s\n' "$answer" | sed -n 1p)
+module_name=$(printf '%s\n' "$answer" | sed -n 2p)
+
+exec julia --project="$application" \
+     -e "using $module_name; exit($module_name.julia_main())" -- "$@"

@@ -66,6 +66,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [debugging-guide.md](guide/debugging-guide.md) | procedure | How do I drive the printer and the reader by hand, and force a cell? |
 | [testing-guide.md](guide/testing-guide.md) | procedure | Which test covers my change, and how do I read the summary? |
 | [new-domain-guide.md](guide/new-domain-guide.md) | procedure | How do I add a domain: documents, projection, reader, example, test? |
+| [build-guide.md](guide/build-guide.md) | procedure | How do I build a native binary, and what does it need to run elsewhere? |
 | [static-compilation-guide.md](guide/static-compilation-guide.md) | procedure | How do I get a `juliac --trim` binary out of this repository? |
 | [presentation/README.md](presentation/README.md) | reference | Which slide decks exist, and how do I render one? |
 

@@ -6,6 +6,10 @@
 code that it can prove reachable from the entry point. When it meets a call that
 it can not resolve, it stops with a verifier error.
 
+`juliac --trim` is not the build that ships. The binaries of this repository
+come from PackageCompiler, through the builder that
+[build-guide.md](build-guide.md) describes.
+
 This guide states the one rule that decides whether a call resolves, shows what
 that rule costs ProjecturEd, and gives four ways to keep an abstract type and
 still compile. The probe that measured every number is in

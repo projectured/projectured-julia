@@ -367,6 +367,7 @@ Three reading orders.
 - [Reference guide](documentation/package/kernel/reference.md) — reference paths and the `@reference` / `@reference_case` DSL.
 - [Selection guide](documentation/package/kernel/selection.md) — how selection propagates through nested documents.
 - [Devices and backends](documentation/package/kernel/devices-and-backends.md) — the `Backend`/`Device` split.
+- [Build a binary](documentation/guide/build-guide.md) — the build command, what goes into a binary, what it reads from its bundle, and how a distribution is tested.
 - [Static compilation](documentation/guide/static-compilation-guide.md) — `juliac --trim`, why an abstract type with four or more subtypes blocks it, and how to keep the abstract type anyway.
 - [Design decisions](documentation/design/architecture-decisions.md) — why pull-based reactivity, every-field-is-a-cell, shared selection, `ProjectionReference`.
 
@@ -376,7 +377,7 @@ Domains: [json](documentation/package/json/json.md) · [xml](documentation/packa
 
 Substrate: [text](documentation/package/text/text.md) · [syntax](documentation/package/syntax/syntax.md) · [graphics](documentation/package/graphics/graphics.md) · [widget](documentation/package/widget/widget.md) · [pane](documentation/package/pane/pane.md) · [collection](documentation/package/collection/collection.md) · [versioning](documentation/package/versioning/versioning.md) · [bounded sync](documentation/package/reflection/bounded-sync.md)
 
-Tooling: [adaptagrams](documentation/package/adaptagrams/README.md) · [executable](documentation/package/executable/README.md)
+Tooling: [adaptagrams](documentation/package/adaptagrams/README.md) · [build a binary](documentation/guide/build-guide.md)
 
 ### Working in the REPL
 

@@ -551,8 +551,8 @@ function test_builder()
             # this code was compiled. The read of the name is inside it too, or
             # Julia warns that the binding is younger than this code.
             from_front_end(name) = Base.invokelatest(getglobal, front_end, name)
-            parse_arguments(arguments) =
-                Base.invokelatest(from_front_end(:parse_front_end_arguments), arguments)
+            parse_arguments(arguments, fixed = "") =
+                Base.invokelatest(from_front_end(:parse_front_end_arguments), arguments, fixed)
             usage = Base.invokelatest(from_front_end(:format_front_end_usage))
             for (_, label, _) in from_front_end(:OPTIONS)
                 @test occursin(label, usage)
@@ -570,6 +570,10 @@ function test_builder()
                 :incremental => false, :filter_stdlibs => true, :name => "pr",
                 :optimization => 2, :debug_info => 0, :strip_metadata => true,
                 :cpu_target => "generic", :log_level => :info, :compile => false)
+            # A `bin/` script fixes the binary, and then the command line names none.
+            binary, distribution, keywords = parse_arguments(["--no-compile"], "projectured")
+            @test binary == "projectured" && keywords == Dict{Symbol,Any}(:compile => false)
+            @test_throws ErrorException parse_arguments(["projectured"], "projectured")
             binary, distribution, keywords = parse_arguments(["projectured", "--distribution",
                                                               "--filter-stdlibs"])
             @test distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
