@@ -14,6 +14,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: has_document_duplicate
 import ..OperationModule: evaluate_operation, reroot_operation, operation_reference, retarget_operation
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation

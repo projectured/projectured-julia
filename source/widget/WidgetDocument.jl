@@ -4,6 +4,12 @@
 
 abstract type WidgetDocument <: Document end
 
+# A widget is what a person sees and sets, so its duplicate is a copy of it. The
+# `Action` a button shows declares no duplicate, so the duplicate shares it, as
+# every control that shows one command shares it. A widget that holds a bare
+# function, such as a validator, refuses the duplicate.
+has_document_duplicate(::WidgetDocument) = true
+
 # ── WidgetInsertion ─────────────────────────────────────────────────────
 
 @document struct WidgetInsertion <: WidgetDocument

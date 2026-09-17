@@ -19,6 +19,9 @@ end
 
 value(::DocumentNothing) = DOCUMENT_NOTHING_VALUE
 
+# The duplicate of an empty tab is another empty tab.
+has_document_duplicate(::DocumentNothing) = true
+
 # ── DocumentInsertion ─────────────────────────────────────────────────────────
 
 const DOCUMENT_INSERTION_PREFIX = "Insert a new "

@@ -123,6 +123,16 @@ end
 ConversationDraft(parts::Vector, assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
+# ── The duplicate ─────────────────────────────────────────────────────────────
+
+# A conversation is what a person said and read, so its duplicate is a copy of it.
+has_document_duplicate(::ConversationDocument) = true
+
+# The assistant a draft links back to is not the draft's own, so the duplicate of
+# a draft keeps the link. The duplicate of an assistant puts its own link there.
+copy_document(policy::DuplicatePolicy, draft::ConversationDraft) =
+    copy_document_fields(policy, draft; assistant = draft.assistant)
+
 set_cell_function!(d::ConversationDraft, f::Function) =
     (set_cell_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 

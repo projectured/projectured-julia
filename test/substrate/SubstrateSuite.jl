@@ -53,6 +53,7 @@ function test_substrate()
         test_primitive()
         test_pane_surgery()
         test_pane_geometry()
+        test_document_duplicate()
         # text / graphics projections
         test_projection_template_hygiene()
         test_projection_template_fixed_children()

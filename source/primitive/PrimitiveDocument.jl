@@ -4,6 +4,9 @@
 
 abstract type PrimitiveDocument <: Document end
 
+# A primitive holds one value a person types, so its duplicate is a copy of it.
+has_document_duplicate(::PrimitiveDocument) = true
+
 # ── PrimitiveInsertion ──────────────────────────────────────────────────────
 
 """

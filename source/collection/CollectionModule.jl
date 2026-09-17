@@ -27,7 +27,8 @@ using ..DocumentModule
 using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: copy_document, is_element_collection, is_collection_field_type, get_cell_layout_field_type
+import ..DocumentModule: copy_document, has_document_duplicate, is_element_collection,
+                         is_collection_field_type, get_cell_layout_field_type
 import ..OperationModule: child_reference_steps
 import ..ProjectionModule: make_children_container, get_children_container_type
 

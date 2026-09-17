@@ -4,6 +4,9 @@
 
 abstract type LayoutDocument <: Document end
 
+# A layout arranges what it holds, so its duplicate arranges the duplicates.
+has_document_duplicate(::LayoutDocument) = true
+
 # ── Size policy ─────────────────────────────────────────────────────────────
 
 """

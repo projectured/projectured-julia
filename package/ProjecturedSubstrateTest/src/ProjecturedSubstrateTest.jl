@@ -169,6 +169,7 @@ include("../../../test/substrate/document/LayoutAllocatorTest.jl")
 include("../../../test/substrate/document/PrimitiveDocumentTest.jl")
 include("../../../test/substrate/document/PaneDocumentTest.jl")
 include("../../../test/substrate/document/PaneGeometryTest.jl")
+include("../../../test/substrate/document/DocumentDuplicateTest.jl")
 include("../../../test/substrate/document/TextSelectionEnumeration.jl")
 # ── text / graphics projections ──────────────────────────────────────────────
 include("../../../test/substrate/projection/ProjectionTemplateTest.jl")

@@ -465,10 +465,27 @@ All pass, with no failure and no error.
   - `SelectionDocument` declares a duplicate, in `SelectionDocument.jl`, because
     that file loads after `DocumentCopy.jl`. So the duplicate owns its
     selection value, as it owns its selection cell.
-- [ ] **Step 3. The substrate kinds.** Add the declarations for
+- [x] **Step 3. The substrate kinds.** Add the declarations for
   `DocumentNothing`, the primitive documents, the conversation documents and the
   widget documents (§3e). Test each family with one document, and a widget card
   that holds a button (throws "an action").
+  - **Done.** The new `test_document_duplicate`
+    (`test/substrate/document/DocumentDuplicateTest.jl`, in `test_substrate`)
+    passes 23 of 23. The conversation documents are tested with the assistant
+    in Step 6, because the substrate test package does not load them.
+  - The layout documents (`LayoutDocument`) and the collections
+    (`CollectionDocument`) declare a duplicate too, because a card that the
+    assistant makes holds layouts and lists.
+  - **A correction to §3e: a card with a button does not refuse.** A
+    `WidgetButton` keeps its function in an `Action` document, and an `Action`
+    is by its own contract "shared by every control that shows it"; its
+    callback receives the editor, not the button. `Action` declares no
+    duplicate, so the duplicate of a button shares the command, and the test
+    asserts that. A widget that holds a bare function, such as a `WidgetText`
+    with a `validator`, refuses.
+  - A draft keeps the assistant it links back to
+    (`copy_document(::DuplicatePolicy, ::ConversationDraft)`), because that
+    link is not the draft's own.
 - [ ] **Step 4. The pane edit and the chord.** Add
   `make_pane_duplicate_tab_operation`, move `_unique_pane_title`, and bind
   `Ctrl+Shift+D`. Check the gesture tables for a conflict first. Test in

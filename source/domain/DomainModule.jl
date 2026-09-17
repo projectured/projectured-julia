@@ -21,6 +21,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
 
 export DocumentBase
