@@ -929,7 +929,7 @@ uuid = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 version = "0.1.0"
 
 [[deps.ProjecturedConversation]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedConversation"
 uuid = "99f175d3-497d-4a02-8497-78e6e06c4369"
 version = "0.1.0"

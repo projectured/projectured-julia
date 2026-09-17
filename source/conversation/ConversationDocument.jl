@@ -143,3 +143,7 @@ set_cell_function!(c::ConversationConversation, f::Function) =
 
 set_cell_function!(t::ConversationTurn, f::Function) =
     (set_cell_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
+
+# The history of a conversation is a record of what was said. A pasted document
+# replaces neither it nor anything in it.
+accepts_pasted_document(::ConversationConversation) = false

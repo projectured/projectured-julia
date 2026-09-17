@@ -149,6 +149,25 @@ function _follow_fold!(card::WidgetCard, read_flag::Function)
     card
 end
 
+# A widget that follows the selection of the node that printed it. Its selection
+# cell holds the node's selection mapped forward, with the steps that lead from
+# the printed output to the widget taken off, and nothing when the image does
+# not pass through the widget. A container draws its selection ring from that
+# cell. `lead` are those steps, without node types.
+function _follow_selection!(widget, node, projection, iomap, lead::Vector)
+    set_cell_function!(getfield(widget, :selection), () -> begin
+        selection = node.selection
+        selection === nothing && return nothing
+        image = map_reference_forward(projection, iomap, selection)
+        image isa Reference || return nothing
+        steps = get_reference_steps(strip_reference_types(image))
+        length(steps) >= length(lead) || return nothing
+        all(i -> steps[i] == lead[i], eachindex(lead)) || return nothing
+        _from_steps(steps[(length(lead) + 1):end])
+    end)
+    widget
+end
+
 # ── print_document: conversation → vertical list of turn cards ──────────────
 
 function print_document(projection::ConversationConversationToWidgetComposite,
@@ -165,7 +184,9 @@ function print_document(projection::ConversationConversationToWidgetComposite,
     layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
                             Cell(:left), Cell(_TURN_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
-    ChildrenIoMap(projection, c, layout, ioms)
+    iomap = ChildrenIoMap(projection, c, layout, ioms)
+    _follow_selection!(layout, c, projection, iomap, Any[])
+    iomap
 end
 
 # ── print_document: turn → card with avatar header + part stack ─────────────
@@ -192,7 +213,10 @@ function print_document(projection::ConversationTurnToWidgetComposite,
                       variant = t.role === :user ? :tinted : :plain,
                       collapsible = true)
     _follow_fold!(card, () -> t.collapsed)
-    ChildrenIoMap(projection, t, card, ioms)
+    iomap = ChildrenIoMap(projection, t, card, ioms)
+    _follow_selection!(card, t, projection, iomap, Any[])
+    _follow_selection!(body, t, projection, iomap, Any[FieldReferenceStep("content")])
+    iomap
 end
 
 # ── print_document: part → the content, and a chrome only where it is earned ─
@@ -230,7 +254,24 @@ function print_document(projection::ConversationPartToWidget,
              content isa ConversationThinking ? _thinking_card(content, part)    :
              _is_code(content)                ? _code_card(content, part)        :
              content
-    ConversationPartToWidgetIoMap(projection, part, output, folds)
+    iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
+    content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
+    iomap
+end
+
+# The selection of an evaluation's form or result draws a ring around that
+# section's body. The card of the part, its body and the section card each follow
+# the part's selection, so the section card's own selection names its content.
+function _follow_section_selection!(card, part, projection, iomap)
+    _follow_selection!(card, part, projection, iomap, Any[])
+    body = card.content
+    _follow_selection!(body, part, projection, iomap, Any[FieldReferenceStep("content")])
+    for (_, index) in _PART_SECTIONS
+        section = body.children[index]
+        _follow_selection!(section, part, projection, iomap,
+                           Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                               RangeReferenceStep(index - 1, index)])
+    end
 end
 
 # A part's panel is MUTED and a turn's band is TINTED, because a part sits inside
@@ -319,9 +360,11 @@ end
 # ── Reference mapping / reader ───────────────────────────────────────────────
 #
 # A transcript is READ, not written, and a person reading one still has to be
-# able to point at a message and take a copy of it. So a click names the PART it
-# landed in — `turns[i].parts[j]` — and the reader below declines every operation
-# that would change what a turn says.
+# able to point at a message and take a copy of it. So a plain click names the
+# PART it landed in — `turns[i].parts[j]` — and an Alt+click names the innermost
+# object under the pointer: a message, a part, or the form or the result of an
+# evaluation. The reader below declines every operation that would change what a
+# turn says.
 #
 # Naming the part is a translation, and each level does its own step of it. The
 # widget layer hands up a path in ITS domain,
@@ -358,11 +401,15 @@ _from_steps(steps, tail = EmptyReference()) =
 
 # One level of the walk down: strip this level's steps, ask the child that
 # printed the rest what the rest means, and put this level's own step back on.
+# `skip` is how many `content` steps this level printed above its layout; a path
+# that leaves the layout by another field, such as a card's `title`, names this
+# level's own node.
 function _backward_level(iomap, reference, out_name::AbstractString,
                          in_name::AbstractString, skip::Int)
     steps = _steps(reference)
     steps === nothing && return EmptyReference()
     length(steps) >= skip || return EmptyReference()
+    all(k -> _is_field_step(steps[k], "content"), 1:skip) || return EmptyReference()
     found = _indexed(steps[(skip + 1):end], out_name)
     found === nothing && return EmptyReference()
     (i, rest) = found
@@ -408,13 +455,44 @@ map_reference_forward(::ConversationTurnToWidgetComposite, iomap, reference) =
     _forward_level(iomap, reference, "parts",
                    Any[FieldReferenceStep("content")], "children")
 
-# A part is the floor. Whatever was clicked inside it, what the selection names
-# is the part — a transcript is read as messages, not as characters.
-map_reference_backward(::ConversationPartToWidget, iomap, reference) = EmptyReference()
+# A part is the floor, except for the two sections of an evaluation. Whatever was
+# clicked inside a part names the part — a transcript is read as messages, not as
+# characters — and whatever was clicked inside a section of an evaluation names
+# that section's document, its form or its result, as a whole. The section's
+# place in the part's card is `content.children[k].content`.
+const _PART_SECTIONS = (("form", 1), ("result", 2))
+
+_is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step.name == name
+
+function map_reference_backward(::ConversationPartToWidget, iomap, reference)
+    iomap.input.content isa EvaluatorForm || return EmptyReference()
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
+     _is_field_step(steps[2], "children") && steps[3] isa RangeReferenceStep &&
+     _is_field_step(steps[4], "content")) || return EmptyReference()
+    for (name, index) in _PART_SECTIONS
+        steps[3].stop == index &&
+            return _from_steps(Any[FieldReferenceStep("content"), FieldReferenceStep(name)])
+    end
+    EmptyReference()
+end
+
 # And the floor going up: the part itself, wherever the caret is said to be
-# inside it. A part with no chrome prints its content directly, so there is no
-# step of this level's own to add.
-map_reference_forward(::ConversationPartToWidget, iomap, reference) = EmptyReference()
+# inside it, or the body of the section its selection names. A part with no
+# chrome prints its content directly, so there is no step of this level's own to
+# add.
+function map_reference_forward(::ConversationPartToWidget, iomap, reference)
+    iomap.input.content isa EvaluatorForm || return EmptyReference()
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
+        return EmptyReference()
+    for (name, index) in _PART_SECTIONS
+        _is_field_step(steps[2], name) &&
+            return _from_steps(Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                                   RangeReferenceStep(index - 1, index), FieldReferenceStep("content")])
+    end
+    EmptyReference()
+end
 
 for P in (ConversationConversationToWidgetComposite,
           ConversationTurnToWidgetComposite,
@@ -465,11 +543,114 @@ function _find_fold_operation(iomap, card)
     nothing
 end
 
-function read_intent(::ConversationConversationToWidgetComposite,
-                         iomap, op::ToggleCollapseOperation)
-    op.target === nothing && return op
-    operation = _find_fold_operation(iomap, op.target)
-    operation === nothing ? op : operation
+# A turn or a part folds from its chevron wherever it is the root of what is
+# drawn: in a transcript, or alone in a tab.
+for P in (ConversationConversationToWidgetComposite,
+          ConversationTurnToWidgetComposite,
+          ConversationPartToWidget)
+    @eval function read_intent(::$P, iomap, op::ToggleCollapseOperation)
+        op.target === nothing && return op
+        operation = _find_fold_operation(iomap, op.target)
+        operation === nothing ? op : operation
+    end
+end
+
+# ── The two gestures a transcript reads itself ──────────────────────────────
+#
+# A plain click names at most a part, so a click in a result selects the part
+# that holds it, as a click always did. An Alt+click keeps the innermost object
+# the maps named. And Alt with an arrow walks the objects: a message, its parts,
+# and the form and the result of an evaluation. The transcript is read, so no
+# widget inside it has a use for these keys, and the walk answers them whatever
+# a widget said.
+function read_intent(p::ConversationConversationToWidgetComposite, recursion,
+                     change::Intent, iomap)
+    gesture = change.gesture
+    direction = get_selection_walk_direction(gesture)
+    if direction !== nothing
+        path = compute_transcript_walk(iomap.input, iomap.input.selection, direction)
+        return Intent(gesture, path === nothing ? nothing : ReplaceSelectionOperation(path))
+    end
+    payload = change.operation === nothing ? gesture : change.operation
+    answer = read_intent(p, iomap, payload)
+    if answer isa ReplaceSelectionOperation && gesture isa MousePress &&
+       !is_whole_selection_press(gesture)
+        answer = ReplaceSelectionOperation(_get_part_prefix(answer.path))
+    end
+    Intent(gesture, answer)
+end
+
+# `turns[i].parts[j]` when `path` goes into a part, else `path` itself.
+function _get_part_prefix(path)
+    steps = _steps(path)
+    (steps !== nothing && length(steps) > 4 && _is_field_step(steps[3], "parts")) || return path
+    _from_steps(steps[1:4])
+end
+
+"""
+    compute_transcript_walk(conversation, selection, direction) -> Reference | Nothing
+
+One step of the Alt + arrow walk over the objects of a transcript, as a path
+from `conversation`. The objects are the messages (`turns[i]`), their parts
+(`turns[i].parts[j]`), and the form and the result of an evaluation
+(`turns[i].parts[j].content.form`, `….result`).
+
+Up is the enclosing object, and the conversation as a whole above a message;
+down is the first object inside, and an object with nothing inside keeps the
+selection; left and right are the neighbouring objects of the same kind, and
+the first and the last keep the selection. `nothing` when the selection is not
+in the conversation, or when up has nowhere to go.
+"""
+function compute_transcript_walk(c::ConversationConversation, selection, direction::Symbol)
+    selection === nothing && return nothing
+    steps = _steps(strip_reference_types(selection))
+    steps === nothing && return nothing
+    i = _walk_index(steps, 1, "turns")
+    (i === nothing || 1 <= i <= length(c.turns)) || return nothing
+    j = i === nothing ? nothing : _walk_index(steps, 3, "parts")
+    (j === nothing || 1 <= j <= length(c.turns[i].parts)) || return nothing
+    section = j === nothing ? nothing : _walk_section(steps)
+    turn(i) = Any[FieldReferenceStep("turns"), RangeReferenceStep(i - 1, i)]
+    part(i, j) = vcat(turn(i), Any[FieldReferenceStep("parts"), RangeReferenceStep(j - 1, j)])
+    form(i, j, name) = vcat(part(i, j), Any[FieldReferenceStep("content"), FieldReferenceStep(name)])
+    evaluation(i, j) = c.turns[i].parts[j].content isa EvaluatorForm
+    step(k, n, offset) = clamp(k + offset, 1, n)
+    offset = direction === :left ? -1 : 1
+    path = if i === nothing
+        # The conversation as a whole: down is the first message.
+        direction === :down && !isempty(c.turns) ? turn(1) : nothing
+    elseif j === nothing
+        n = length(c.turns[i].parts)
+        direction === :up ? Any[] :
+        direction === :down ? (n > 0 ? part(i, 1) : turn(i)) :
+        turn(step(i, length(c.turns), offset))
+    elseif section === nothing
+        direction === :up ? turn(i) :
+        direction === :down ? (evaluation(i, j) ? form(i, j, "form") : part(i, j)) :
+        part(i, step(j, length(c.turns[i].parts), offset))
+    else
+        direction === :up ? part(i, j) :
+        direction === :down ? form(i, j, section) :
+        form(i, j, direction === :left ? "form" : "result")
+    end
+    path === nothing ? nothing : _from_steps(path)
+end
+
+# The 1-based index at `steps[at + 1]` when `steps[at]` is the field `name`.
+function _walk_index(steps, at::Int, name::AbstractString)
+    length(steps) >= at + 1 || return nothing
+    _is_field_step(steps[at], name) || return nothing
+    steps[at + 1] isa RangeReferenceStep || return nothing
+    steps[at + 1].stop
+end
+
+# `"form"` or `"result"` when the steps go into that section of a part.
+function _walk_section(steps)
+    length(steps) >= 6 && _is_field_step(steps[5], "content") || return nothing
+    for (name, _) in _PART_SECTIONS
+        _is_field_step(steps[6], name) && return name
+    end
+    nothing
 end
 
 # ── Factory ──────────────────────────────────────────────────────────────────

@@ -146,3 +146,8 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     end
     fork
 end
+
+# The assistant is a tool pane: its conversation is a record, and its draft
+# belongs to the composer. A pasted document replaces neither it nor anything in
+# it. The composer's own text paste is not a pasted document, so it still works.
+accepts_pasted_document(::Assistant) = false

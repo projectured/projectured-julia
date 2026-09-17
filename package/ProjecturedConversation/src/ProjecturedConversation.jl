@@ -21,6 +21,7 @@ module ProjecturedConversation
 
 using ProjecturedCollection
 using ProjecturedDomain
+using ProjecturedFocus
 using ProjecturedNatural
 using ProjecturedKernel
 using ProjecturedLayout
@@ -30,7 +31,7 @@ using ProjecturedStyle
 using ProjecturedText
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedNatural, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFocus, ProjecturedNatural, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

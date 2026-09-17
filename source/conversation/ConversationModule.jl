@@ -23,7 +23,9 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..EventPatternModule
+using ..FocusModule
 using ..GestureBindingModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
@@ -40,6 +42,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!
 import ..DocumentModule: copy_document, has_document_duplicate
+import ..DomainModule: accepts_pasted_document
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -51,7 +54,7 @@ export ConversationDocument, make_conversation_thinking_part
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
-       ConversationToWidget
+       ConversationToWidget, compute_transcript_walk
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!,
        make_submit_operation, make_evaluate_operation,

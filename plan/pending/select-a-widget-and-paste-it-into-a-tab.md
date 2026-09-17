@@ -1,7 +1,7 @@
 # Select any widget, and paste the selected object into a tab
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
-worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b and 3 are done.
+worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b, 3 and 4 are done.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -515,24 +515,53 @@ done here. Run only the tests that each step names.
       **Done 2026-09-17: 135 pass** (102 before). `test_command_palette_decorator`
       and `test_gesture_help`, which build the wrapper, pass (105).
 
-### Step 4 — objects in the transcript (projectured, conversation slice)
+### Step 4 — objects in the transcript (projectured, conversation and assistant slices)
 
-- [ ] `accepts_pasted_document(::ConversationConversation) = false`, and
+- [x] `accepts_pasted_document(::ConversationConversation) = false`, and
       `accepts_pasted_document(::Assistant) = false` in the assistant slice.
-- [ ] The objects of D1, and the mapping below the part: `content.form` and
+- [x] The objects of D1, and the mapping below the part: `content.form` and
       `content.result` to the widget paths of the two section bodies, and back.
       Any path from inside a section body maps back to the section's object.
-- [ ] A plain host card for a prose part and for each result (D4).
-- [ ] The object walk for the four keys. `Alt+Left` / `Alt+Right` move from a
+- [x] ~~A plain host card for a prose part and for each result (D4).~~
+      **Not needed.** Step 1 put the ring in the container, so the turn's body
+      layout rings a whole part, whatever the part prints, and a section card
+      rings its content, which is the form or the result. The transcript draws
+      no new card.
+- [x] The object walk for the four keys. `Alt+Left` / `Alt+Right` move from a
       message to the previous / next message, from a part to the previous /
       next part of its message, and between the code and the result of an
       evaluation.
-- [ ] The fold reader works for a turn or a part that is the root of a tab.
-- [ ] Tests, in `test_conversation_transcript()`: each object of D1 is
+- [x] The fold reader works for a turn or a part that is the root of a tab.
+- [x] Tests, in `test_conversation_transcript()`: each object of D1 is
       selected by an Alt+click and by the walk with all four keys; the walk
       stays at the first and the last message; the ring shows on that object;
       an unselected transcript draws the same pixels as on main; an Alt+click
       in a result writes nothing; a paste over each object is refused.
+
+**Done 2026-09-17.** What the step found and decided:
+
+- **The containers follow the node's selection.** `_follow_selection!` wires
+  the conversation's layout, a turn's card and body, and an evaluation's card,
+  body and two section cards: each holds the node's selection mapped forward,
+  less the steps that lead to it. A section card then holds `content` when its
+  section is selected, and draws the ring over the form or the result.
+- **A plain click still names at most a part.** A four-argument reader on the
+  conversation truncates a plain press's answer to `turns[i].parts[j]`, so
+  the scan test of plain clicks keeps its six parts. An Alt+press keeps the
+  innermost object.
+- **A bug the Alt+click showed.** `_backward_level` skipped the first step of
+  a turn's path without checking it. An Alt+click on a turn's header answers
+  `title.children[k]`, which was read as part `k`. The level now checks that
+  the skipped steps are `content`, and the header names the message.
+- **The transcript answers the four keys itself**, whatever a widget inside
+  said, because nothing in a read-only transcript has a use for them.
+  `compute_transcript_walk` walks messages, parts and the two sections; from a
+  message, up is the conversation as a whole, and from there the walk around
+  the transcript takes over.
+- The conversation package depends on `ProjecturedFocus` now, for the gesture
+  tests, and imports the intent module.
+- **Counts:** `test_conversation_transcript()` 113 (51 before);
+  `test_conversation()` 158 (96 before).
 
 ### Step 5 — the new tab (projectured, pane slice)
 

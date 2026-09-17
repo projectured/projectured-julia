@@ -84,6 +84,53 @@ function _scan_selections(proj, io)
     found
 end
 
+const _TRANSCRIPT_ALT = ModifierKeys(alt = true)
+
+# Every distinct selection an Alt+press scan produces, with one press point for
+# each.
+function _scan_whole_selections(proj, io)
+    found = Dict{String,Any}()
+    for y in 2:2:900, x in (20, 40, 70, 100, 130)
+        op = try
+            read_intent(proj, io, MousePress(:left, x, y, _TRANSCRIPT_ALT))
+        catch
+            nothing
+        end
+        op isa ReplaceSelectionOperation || continue
+        haskey(found, string(op.path)) || (found[string(op.path)] = (op.path, x, y))
+    end
+    found
+end
+
+# The absolute box of every selection ring that draws.
+function _transcript_rings(node, x = 0, y = 0, out = Tuple{Int,Int,Int,Int}[])
+    node isa ReactiveCell && return _transcript_rings(node[], x, y, out)
+    if node isa GraphicsCanvas
+        nx, ny = x + Int(node.x), y + Int(node.y)
+        for element in node.elements
+            _transcript_rings(element, nx, ny, out)
+        end
+    elseif node isa GraphicsViewport
+        _transcript_rings(node.content, x + Int(node.x), y + Int(node.y), out)
+    elseif node isa GraphicsRect && Int(node.border_width) > 0 &&
+           node.border_color.blue == SELECTION_RING_COLOR.blue &&
+           node.border_color.red == SELECTION_RING_COLOR.red
+        push!(out, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+    end
+    out
+end
+
+_turn_path(i::Int) = ConcreteReference(FieldReferenceStep("turns"),
+                         ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+_section_path(i::Int, j::Int, name) =
+    ConcreteReference(FieldReferenceStep("turns"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("parts"),
+                ConcreteReference(RangeReferenceStep(j - 1, j),
+                    ConcreteReference(FieldReferenceStep("content"),
+                        ConcreteReference(FieldReferenceStep(name), EmptyReference()))))))
+_is_same_path(a, b) = string(strip_reference_types(a)) == string(strip_reference_types(b))
+
 function test_conversation_transcript()
     @testset "a fold names its node, and a section fold names its section" begin
         doc, proj, io = _transcript_render()
@@ -189,6 +236,114 @@ function test_conversation_transcript()
         # A selection is not an edit, and it passes.
         @test read_intent(proj, io, ReplaceSelectionOperation(EmptyReference())) isa
               ReplaceSelectionOperation
+    end
+
+    @testset "an Alt+click names the innermost object" begin
+        (doc, proj, io) = _transcript_render()
+        doc.turns[2].parts[1].collapsed = false
+        found = _scan_whole_selections(proj, io)
+        paths = [v[1] for v in values(found)]
+        ef = doc.turns[3].parts[1].content
+        # A message, from its header; a part; and both sections of the evaluation.
+        for wanted in (_turn_path(1), _turn_path(2), _turn_path(3),
+                       _part_path(2, 2), _part_path(3, 1),
+                       _section_path(3, 1, "form"), _section_path(3, 1, "result"))
+            @test any(p -> _is_same_path(p, wanted), paths)
+        end
+        @test evaluate_reference(doc, _section_path(3, 1, "form")) === ef.form
+        @test evaluate_reference(doc, _section_path(3, 1, "result")) === ef.result
+        # Nothing deeper than a section, and no text position.
+        for p in paths
+            steps = get_reference_steps(strip_reference_types(p))
+            @test length(steps) in (0, 2, 4, 6)
+        end
+        # A plain press on the result still names the part that holds it.
+        (_, x, y) = found[string(first(p for p in paths if _is_same_path(p, _section_path(3, 1, "result"))))]
+        plain = read_intent(proj, io, MousePress(:left, x, y))
+        @test plain isa ReplaceSelectionOperation
+        @test _is_same_path(plain.path, _part_path(3, 1))
+    end
+
+    @testset "the selected object draws a ring, and nothing else does" begin
+        (doc, proj, io) = _transcript_render()
+        @test isempty(_transcript_rings(io.output))
+        found = _scan_whole_selections(proj, io)
+        for wanted in (_turn_path(2), _part_path(2, 2), _section_path(3, 1, "result"))
+            (path, x, y) = found[string(first(v[1] for v in values(found) if _is_same_path(v[1], wanted)))]
+            replace_selection!(doc, path)
+            rings = _transcript_rings(io.output)
+            @test length(rings) == 1
+            # The ring holds the point that was pressed.
+            (rx, ry, rw, rh) = only(rings)
+            @test rx <= x < rx + rw && ry <= y < ry + rh
+        end
+        # The result's ring holds the text of the result.
+        replace_selection!(doc, _section_path(3, 1, "result"))
+        (rx, ry, rw, rh) = only(_transcript_rings(io.output))
+        @test rw > 0 && rh > 0
+        clear_selection!(doc)
+        @test isempty(_transcript_rings(io.output))
+    end
+
+    @testset "Alt and an arrow walk the objects of the transcript" begin
+        doc = ProjecturedConversationExample.make_conversation_document_example()
+        walk(path, direction) = compute_transcript_walk(doc, path, direction)
+        # The conversation: down to the first message, and nothing above it.
+        @test _is_same_path(walk(EmptyReference(), :down), _turn_path(1))
+        @test walk(EmptyReference(), :up) === nothing
+        # Messages: up is the conversation, sideways the neighbours, down a part.
+        @test walk(_turn_path(1), :up) isa EmptyReference
+        @test _is_same_path(walk(_turn_path(1), :right), _turn_path(2))
+        @test _is_same_path(walk(_turn_path(1), :left), _turn_path(1))
+        @test _is_same_path(walk(_turn_path(3), :right), _turn_path(3))
+        @test _is_same_path(walk(_turn_path(2), :down), _part_path(2, 1))
+        # Parts: sideways inside their message, up to it.
+        @test _is_same_path(walk(_part_path(2, 1), :right), _part_path(2, 2))
+        @test _is_same_path(walk(_part_path(2, 4), :right), _part_path(2, 4))
+        @test _is_same_path(walk(_part_path(2, 2), :up), _turn_path(2))
+        @test _is_same_path(walk(_part_path(2, 2), :down), _part_path(2, 2))
+        # An evaluation: down to its form, sideways to its result, and back up.
+        @test _is_same_path(walk(_part_path(3, 1), :down), _section_path(3, 1, "form"))
+        @test _is_same_path(walk(_section_path(3, 1, "form"), :right), _section_path(3, 1, "result"))
+        @test _is_same_path(walk(_section_path(3, 1, "result"), :right), _section_path(3, 1, "result"))
+        @test _is_same_path(walk(_section_path(3, 1, "result"), :left), _section_path(3, 1, "form"))
+        @test _is_same_path(walk(_section_path(3, 1, "result"), :down), _section_path(3, 1, "result"))
+        @test _is_same_path(walk(_section_path(3, 1, "result"), :up), _part_path(3, 1))
+        @test walk(nothing, :up) === nothing
+
+        # The reader answers the keys from the document's selection.
+        (doc, proj, io) = _transcript_render()
+        replace_selection!(doc, _part_path(3, 1))
+        op = read_intent(proj, io, KeyDown(:down, _TRANSCRIPT_ALT))
+        @test op isa ReplaceSelectionOperation
+        @test _is_same_path(op.path, _section_path(3, 1, "form"))
+    end
+
+    @testset "a paste over the transcript is refused" begin
+        conversation = ProjecturedConversationExample.make_conversation_document_example()
+        # The stored object is a part, which the transcript's chain can draw.
+        slice = ClipboardSlice(conversation, copy_document(conversation.turns[1].parts[1]))
+        projection = ClipboardSliceToAnyProjection()
+        inner = ProjecturedConversationExample.make_conversation_widget_projection_example(
+            measure = _transcript_measure)
+        io = print_document(projection, inner, slice, PrinterContext())
+        ctrl = ModifierKeys(ctrl = true)
+        content = FieldReferenceStep("content")
+        for target in (EmptyReference(), _turn_path(2), _part_path(2, 2), _section_path(3, 1, "result"))
+            slice.selection = ConcreteReference(content, target)
+            @test !(read_intent(projection, io, KeyDown(:v, ctrl)) isa CompoundOperation)
+            @test !(read_intent(projection, io, KeyDown(:x, ctrl)) isa CompoundOperation)
+        end
+        @test !accepts_pasted_document(conversation)
+    end
+
+    @testset "a message alone in a tab still folds from its chevron" begin
+        turn = ProjecturedConversationExample.make_conversation_document_example().turns[2]
+        proj = ProjecturedConversationExample.make_conversation_widget_projection_example(
+            measure = _transcript_measure)
+        io = print_document(proj, proj, turn, PrinterContext())
+        folds = _scan_folds(proj, io)
+        @test any(op -> op isa ToggleCollapseOperation && op.target === turn, folds)
     end
 
     # Copy needs nothing new. `ClipboardSlice` copies whatever the slice's
