@@ -54,6 +54,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [package-rules.md](rule/package-rules.md) | rule | What is a package for, what may it depend on, and which one do I load? |
 | [code-quality-rules.md](rule/code-quality-rules.md) | rule | How does the code read, and what keeps it readable? |
 | [naming-rules.md](rule/naming-rules.md) | rule | How is a package, a file, a module, a type or a function named? |
+| [writing-rules.md](rule/writing-rules.md) | rule | How is a document written, and what does `test_documentation()` check? |
 | [division-terminology.md](rule/division-terminology.md) | reference | What do package, layer, slice and module mean, exactly? |
 | [editor-concepts.md](design/editor-concepts.md) | design | What is projectional editing, and what are the five ideas? No code. **Start here if you are new.** |
 | [editor-derivation.md](design/editor-derivation.md) | design | How do the concepts combine into a system, each one with its real code? |

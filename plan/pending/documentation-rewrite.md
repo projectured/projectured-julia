@@ -620,10 +620,29 @@ every diff of a subagent before the commit.
 ### Step 0: the worktree and the baseline
 
 - [x] Get the owner's answers to §4. Write them into this plan (2026-09-17).
-- [ ] Make the worktree `workspace/projectured-julia-documentation`.
-- [ ] Record the baseline: the counts of the guard of Step 2 (write the guard
+- [x] Make the worktree `workspace/projectured-julia-documentation`, branch
+      `documentation-rewrite` (2026-09-17).
+- [x] Record the baseline: the counts of the guard of Step 2 (write the guard
       first, if it is not there yet), the number of long dashes, the list of
       broken links.
+
+**The baseline of 2026-09-17**, from `julia test/suite/documentation.jl`:
+
+| What the guard found | Count |
+| --- | --- |
+| a path `package/<slice>/main` or `package/<slice>/doc` | 28 |
+| a link whose file is not there | 28 |
+| a phrase the rules forbid | 26 |
+| a link to a heading the file does not have | 14 |
+| a path under `visual/` | 10 |
+| a `resource://guide/…` that names no guide | 8 |
+| a document with no summary after its header | 1 |
+| **all** | **115** |
+
+Every document under `documentation/` already has its header line. The report
+that fails nothing holds 121 lines: 96 sentences that give a verb of a person
+to an object, and 25 slices under `source/` that no guide names. Step 7 writes
+the missing guides.
 
 ### Step 1: the code faults and the entry points (tool, assistant, mcp, anthropic, ollama slices; the example package)
 
@@ -727,8 +746,8 @@ commands as they are:
 
 ### Step 2: the writing rules and the documentation guard
 
-- [ ] Write `documentation/rule/writing-rules.md` (§6).
-- [ ] Write the static guard `test/suite/documentation.jl` with
+- [x] Write `documentation/rule/writing-rules.md` (§6).
+- [x] Write the static guard `test/suite/documentation.jl` with
       `test_documentation()`, beside `test/suite/naming.jl`. It loads no
       package. It fails when:
   - a relative link in a Markdown file outside `plan/` has no target file or no
@@ -739,13 +758,15 @@ commands as they are:
     or has no summary paragraph after the header;
   - a document has a phrase from the list in `writing-rules.md`;
   - a document names a dead path pattern (`package/<slice>/main`, `visual/`).
-- [ ] The guard also prints a report that does not fail: sentences with the
+- [x] The guard also prints a report that does not fail: sentences with the
       verbs of the personification list, and the slices under `source/` that no
       guide names.
 - [ ] The check for the private names of §3.9 is not part of the guard. It
       runs in Step 11 on the public documents.
-- [ ] Add `test_documentation()` to `test_all()`, as `test_naming()` is.
-- [ ] Run the guard on the old documents. Record the counts in this plan.
+- [x] Add `test_documentation()` to `test_all()`, as `test_naming()` is.
+- [x] Run the guard on the old documents. Record the counts in this plan.
+      Until Step 3 sweeps them, `test_documentation()` fails; that is what the
+      baseline above records.
 
 ### Step 3: the mechanical sweep
 

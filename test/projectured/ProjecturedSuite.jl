@@ -126,6 +126,7 @@ include("PackageGraphTest.jl")
 # it describes exist. See `plan/done/repository-tree.md` §3.
 include("../suite/tree.jl")
 include("../suite/naming.jl")
+include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
@@ -264,6 +265,35 @@ function test_naming()
 end
 
 """
+    test_documentation()
+
+The writing guard: the part of
+`documentation/rule/writing-rules.md` that a program can check — a link whose
+target is not there, a `resource://guide/…` that names no guide, a document
+without its header line or its summary, a phrase the rules forbid, and a path
+of the tree before the move.
+
+It does not judge whether a sentence reads well or whether a claim is true —
+those need a person. `documentation_report(root)` lists what a person must
+read. It loads nothing and runs in about a second.
+"""
+function test_documentation()
+    @testset "documentation" begin
+        root = normpath(joinpath(@__DIR__, "..", ".."))
+        for violation in documentation_violations(root)
+            @test violation == ""
+        end
+        @test isempty(documentation_violations(root))
+        # The report fails nothing: it names the sentences and the slices a
+        # person must judge.
+        report = documentation_report(root)
+        isempty(report) ||
+            println(stderr, "\n$(length(report)) line(s) of the documentation report; " *
+                            "run `julia test/suite/documentation.jl` to read them")
+    end
+end
+
+"""
     test_all()
 
 The full suite: the three engine test packages and the twenty domain test
@@ -276,6 +306,7 @@ function test_all()
     # projections, every domain, and the layering guard of each package.
     test_tree()
     test_naming()
+    test_documentation()
     test_package_graph()
     test_kernel()
     test_substrate()
@@ -366,7 +397,8 @@ function test_table()
     end
 end
 
-export test_all, test_domain_examples, test_package_graph, test_tree, test_naming
+export test_all, test_domain_examples, test_package_graph, test_tree, test_naming,
+       test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
