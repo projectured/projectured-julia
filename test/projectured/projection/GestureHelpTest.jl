@@ -4,6 +4,21 @@
 # own inner iomap and emits an OpenWindowOperation carrying that GestureMap; a second F1 closes
 # it (toggle); every other gesture passes straight through to the wrapped editor.
 
+# Every string a rendered output draws, in order.
+function _gh_collect_texts(x, texts = String[])
+    x isa Cell && return _gh_collect_texts(x[], texts)
+    if x isa GraphicsCanvas
+        for element in x.elements
+            _gh_collect_texts(element, texts)
+        end
+    elseif x isa GraphicsViewport
+        _gh_collect_texts(x.content, texts)
+    elseif x isa GraphicsText
+        push!(texts, x.text)
+    end
+    texts
+end
+
 function test_gesture_help()
 @testset "GestureHelpDecoratorProjection" begin
     none = ModifierKeys()
@@ -132,6 +147,27 @@ function test_gesture_help()
         # JSON document's 9 own gestures — proving the chain-wide collection.
         @test length(rows) > 9
         @test any(r -> occursin("Insert a new element", r.description), rows)
+    end
+
+    # The product scene, `make_window_scene_projection`, knows no wrapper. The
+    # caller names what draws the content of a window that a wrapper opens, and
+    # the rows of the help window are drawn only when it does.
+    @testset "the product window scene draws the help window its caller names" begin
+        entries = Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure_truetype_text)]
+        for (named, expected) in ((entries, true), (Pair{Type,Any}[], false))
+            decorated = GestureHelpDecoratorProjection(inner = make_json_projection_example(),
+                                                       state = GestureHelpState())
+            screen = make_window_scene(mkarr(), "json"; width = 800, height = 600)
+            composed = make_window_scene_projection(decorated;
+                                                    opened_window_projections = named)
+            iomap = print_document(composed, screen)
+
+            read_intent(composed, iomap, WindowInput(:json, f1))
+            @test length(screen.windows) == 2
+            @test screen.windows[2].content isa GestureMap
+            texts = _gh_collect_texts(iomap.output.windows[2].content)
+            @test any(t -> occursin("Insert a new element", t), texts) == expected
+        end
     end
 
     # The decorator is opt-in. Without it, F1 reaches the content pipeline and no

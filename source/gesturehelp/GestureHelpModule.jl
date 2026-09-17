@@ -51,7 +51,7 @@ export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDec
        COMMAND_PALETTE_GESTURE, PALETTE_PADDING, is_command_palette_gesture,
        make_command_palette_projection
 export GestureHelpDecoratorProjection, GestureHelpState, GestureHelpDecoratorIoMap,
-       HELP_GESTURE, is_help_gesture
+       HELP_GESTURE, is_help_gesture, make_gesture_map_projection
 export GestureMap
 
 

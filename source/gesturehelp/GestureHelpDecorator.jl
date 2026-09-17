@@ -74,6 +74,19 @@ GestureHelpDecoratorProjection(; inner, state::GestureHelpState = GestureHelpSta
                         width::Integer = 1000, height::Integer = 1400) =
     GestureHelpDecoratorProjection(inner, state, id, String(title), Int(x), Int(y), Int(width), Int(height))
 
+"""
+    make_gesture_map_projection(measure) -> Projection
+
+What draws the help window's content: the gesture rows down to graphics, through
+the same stages the command palette uses. A screen that lets the decorator open
+its window names it for `GestureMap`.
+"""
+make_gesture_map_projection(measure::Function) =
+    ChainingProjection(GestureMapToSyntax(),
+                       RecursiveProjection(SyntaxToText()),
+                       WordWrapping(measure=measure),
+                       TextToGraphics(measure=measure))
+
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct GestureHelpDecoratorIoMap

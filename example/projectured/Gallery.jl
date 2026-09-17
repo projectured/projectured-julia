@@ -469,11 +469,7 @@ end
 
 # The type entry that renders the gesture-help window's content. Every composer
 # carries it, so `gesture_help=true` works whichever one the flags pick.
-_gesture_map_entry(measure) =
-    GestureMap => ChainingProjection(GestureMapToSyntax(),
-                                     RecursiveProjection(SyntaxToText()),
-                                     WordWrapping(measure=measure),
-                                     TextToGraphics(measure=measure))
+_gesture_map_entry(measure) = GestureMap => make_gesture_map_projection(measure)
 
 # ── Tooltip variant ──────────────────────────────────────────────────────
 #

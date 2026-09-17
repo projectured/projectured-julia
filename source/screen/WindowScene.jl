@@ -20,8 +20,9 @@
 # is applied by the caller, so a program holds the wrappers it asked for and no
 # others.
 #
-# It was written twice before it was written here, as `CampaignScene.jl` and
-# `QtenvWindowScene.jl` in omnet-julia, which differed only in their names.
+# A wrapper can open a window of its own, such as the gesture help that F1
+# opens. The caller names what draws the content of that window, because this
+# package does not know the wrapper.
 using ProjecturedProjection.ProjectionAlgebraModule: ReferenceDispatchingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
@@ -42,7 +43,8 @@ function make_window_scene(document, title::AbstractString; width::Integer, heig
 end
 
 """
-    make_window_scene_projection(projection) -> Projection
+    make_window_scene_projection(projection;
+                                 opened_window_projections = Pair{Type,Any}[]) -> Projection
 
 How that screen is drawn. The window's content goes through `projection`; the
 screen around it goes through `ScreenToScreen`, wrapped in the manager that owns
@@ -50,8 +52,13 @@ opening, closing and resizing a window.
 
 The seam is a reference dispatch and not a type dispatch, because the content of
 a window is an ordinary document and the screen must not project it as one.
+
+`opened_window_projections` draws the content of a window that a wrapper opens
+later. Each entry is `ContentType => projection`, for example
+`GestureMap => make_gesture_map_projection(measure)` for the window that F1 opens.
 """
-function make_window_scene_projection(projection)
+function make_window_scene_projection(projection;
+                                      opened_window_projections = Pair{Type,Any}[])
     target = @reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::Document
     dispatch = ReferenceDispatchingProjection(reference -> begin
         is_reference_equal(strip_reference_types(reference),
@@ -63,15 +70,17 @@ function make_window_scene_projection(projection)
     end)
     # A window opened later carries a `WindowDocument` of its own, and it
     # recurses through `ScreenToScreen` rather than through the reference above,
-    # which names the first window alone.
+    # which names the first window alone. Its content is drawn by the entry that
+    # names the content's type.
     RecursiveProjection(TypeDispatchingProjection(
         WindowDocument => ScreenToScreen(),
+        opened_window_projections...,
         Any            => dispatch))
 end
 
 """
     run_window_editor(document, projection, title; backend, width, height, on_start,
-                      mcp, mcp_instructions)
+                      mcp, mcp_instructions, opened_window_projections)
 
 Open the window and run the loop until the person closes it.
 
@@ -91,11 +100,14 @@ an editor to hand it to.
 same editor with the same tools; `mcp_instructions` is the prompt that server
 gives the client, and the server's own generic one answers when it is `nothing`.
 The server needs `ProjecturedMcp` loaded, which registers it.
+
+`opened_window_projections` goes to [`make_window_scene_projection`](@ref).
 """
 function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
                            on_start = nothing, mcp::Bool = false,
-                           mcp_instructions::Union{AbstractString,Nothing} = nothing)
+                           mcp_instructions::Union{AbstractString,Nothing} = nothing,
+                           opened_window_projections = Pair{Type,Any}[])
     backend === nothing &&
         error("run_window_editor: name the backend to draw on, " *
               "for example `backend = SdlBackend()`")
@@ -105,7 +117,10 @@ function run_window_editor(document, projection, title::AbstractString;
         height = something(height, display_height)
     end
     scene = make_window_scene(document, title; width = width, height = height)
-    run_editor!(backend, make_window_scene_projection(projection), scene;
+    run_editor!(backend,
+                make_window_scene_projection(projection;
+                    opened_window_projections = opened_window_projections),
+                scene;
                              mcp = mcp, mcp_instructions = mcp_instructions,
                              on_start = on_start)
 end
