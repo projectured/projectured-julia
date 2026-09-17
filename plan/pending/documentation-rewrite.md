@@ -704,6 +704,20 @@ model.**
 Steps 1 to 5: the application command for the README quick start (Step 4 here),
 and the binary for the release (Step 11 here).
 
+Steps 1 to 7 of that plan are done (2026-09-17), so Step 4 here can name the
+commands as they are:
+
+- `bin/projectured a.json b.md` runs the application from a checkout, and
+  `bin/build_projectured` builds the binary. The options are
+  `--window=pane|workbench`, `--backend=sdl|web`,
+  `--assistant=ollama|anthropic|none`, `--model=NAME`, `--root=DIRECTORY` and
+  `--mcp`.
+- [build-guide.md](../../documentation/guide/build-guide.md) is the guide for
+  both, and Step 11 attaches the archive that `bin/build_projectured
+  --distribution` writes.
+- **Build the release archive again after this plan removes the private names
+  from `documentation/`**, because the bundle carries that folder.
+
 **Close of the step.**
 
 - [ ] D7: the `julia` compat entry.

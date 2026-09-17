@@ -606,7 +606,7 @@ generated package (`get_app_module_name`, which this step made public).
       pre-move tree). `README.md` and `documentation/README.md` name the new
       guide.
 - [x] Cross-link it with `static-compilation-guide.md`.
-- [ ] Tell `documentation-rewrite.md` that its Step 4 can name the command.
+- [x] Tell `documentation-rewrite.md` that its Step 4 can name the command.
 - [ ] Move this plan to `plan/done/`.
 
 **The owner asked for `bin/` scripts (2026-09-17), as omnet-julia has them:**
