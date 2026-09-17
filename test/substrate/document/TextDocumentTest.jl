@@ -140,4 +140,33 @@ flat = with_selection(TextBlock(TextString("ab"),
 @test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys()))) == 3
 
 end # @testset "TextLine: line-structured blocks"
+
+@testset "Shift and a motion key select a range" begin
+    shift = ModifierKeys(; shift = true)
+    ctrl_shift = ModifierKeys(; ctrl = true, shift = true)
+    at(selection) = with_selection(TextBlock(TextString("hello world")), selection)
+    pair(op) = (op.path.head.start, op.path.head.stop)
+    caret = TextModule.make_flat_caret_reference(5)
+    range = TextModule.make_flat_range_reference(3, 5)
+
+    # From a caret, the key's direction makes the range.
+    @test pair(read_bound_gesture(at(caret), KeyDown(:left, shift))) == (4, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:right, shift))) == (5, 6)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:left, ctrl_shift))) == (0, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:right, ctrl_shift))) == (5, 6)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:home, ctrl_shift))) == (0, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:end, ctrl_shift))) == (5, 11)
+
+    # A range stays ordered: the left keys move its start, the right keys its stop.
+    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift))) == (2, 5)
+    @test pair(read_bound_gesture(at(range), KeyDown(:right, shift))) == (3, 6)
+    # The ends stop at the ends of the text.
+    @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11)),
+                                  KeyDown(:left, shift))) == (0, 11)
+    # A plain arrow collapses the range to its near end, as before.
+    @test read_bound_gesture(at(range), KeyDown(:left, ModifierKeys())).path.head.start == 3
+    # A whole element is not a character selection, and the key declines.
+    @test read_bound_gesture(at(ConcreteReference(TextSpanReferenceStep(0, 5), EmptyReference())),
+                             KeyDown(:left, shift)) === nothing
+end # @testset "Shift and a motion key select a range"
 end # test_text

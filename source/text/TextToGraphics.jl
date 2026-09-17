@@ -154,10 +154,21 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     styled = iomap.input
     _has_text_span(styled) || return nothing
 
-    current = get_flat_cursor_coordinate(styled)
+    # Shift moves one end of the selection: Home and Up the start, End and Down
+    # the stop, as the geometry-free Shift keys of the text domain do.
+    extend = evt.modifiers.shift && !evt.modifiers.ctrl
+    pair = extend ? _text_flat_selection(styled) : nothing
+    current = if extend
+        pair === nothing && return nothing
+        moving = _text_flat_span(styled, (evt.key === :home || evt.key === :up) ? pair[1] : pair[2])
+        moving === nothing && return nothing
+        moving
+    else
+        get_flat_cursor_coordinate(styled)
+    end
     current === nothing && return nothing
 
-    @event_case evt begin
+    target = @event_case evt begin
         when(KeyDown(k), k === :home || k === :end) => begin
             coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing
@@ -167,7 +178,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
             line_segs = filter(sc -> sc.y == current_y, coord_map)
             sc = k === :home ? line_segs[1] : line_segs[end]
             new_char = k === :home ? sc.char_start : sc.char_end
-            return _flat_hit_op(styled, sc.span_path, new_char)
+            (sc.span_path, new_char)
         end
         when(KeyDown(k), k === :up || k === :down) => begin
             coord_map = iomap.char_to_coord
@@ -198,9 +209,17 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
                     best_sc   = sc
                 end
             end
-            return _flat_hit_op(styled, best_sc.span_path, best_pos)
+            (best_sc.span_path, best_pos)
         end
     end
+    target === nothing && return nothing
+    extend || return _flat_hit_op(styled, target...)
+    base = get_flat_base(styled, target[1])
+    base === nothing && return nothing
+    f = base + target[2]
+    s, e = (evt.key === :home || evt.key === :up) ? (min(f, pair[2]), pair[2]) :
+                                                    (pair[1], max(f, pair[1]))
+    return ReplaceSelectionOperation(make_flat_range_reference(s, e))
     # A KeyDown this layer neither edits nor resolves with geometry (e.g. Return,
     # Escape, Insert while a text caret exists) is declined, NOT passed on as a raw
     # gesture: a reader must yield an Operation or `nothing`, never an event. Putting

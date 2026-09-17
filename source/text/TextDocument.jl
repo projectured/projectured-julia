@@ -361,6 +361,12 @@ _span_at(text::TextBlock, path::SpanPath) =
     KeyDown(:right; ctrl)  => "Word right"           => _text_word_motion(doc, :right)
     KeyDown(:left;)        => "Cursor left"          => _text_char_motion(doc, :left)
     KeyDown(:right;)       => "Cursor right"         => _text_char_motion(doc, :right)
+    KeyDown(:left; shift)        => "Extend the selection left"         => _text_extend(doc, :left)
+    KeyDown(:right; shift)       => "Extend the selection right"        => _text_extend(doc, :right)
+    KeyDown(:left; ctrl, shift)  => "Extend the selection a word left"  => _text_extend(doc, :word_left)
+    KeyDown(:right; ctrl, shift) => "Extend the selection a word right" => _text_extend(doc, :word_right)
+    KeyDown(:home; ctrl, shift)  => "Extend the selection to the start" => _text_extend(doc, :start)
+    KeyDown(:end; ctrl, shift)   => "Extend the selection to the end"   => _text_extend(doc, :end)
 end
 
 # ── Flat character-cursor helpers ─────────────────────────────────────────
@@ -441,7 +447,15 @@ end
 # Emitted plain; `set_selection!` canonicalises (adds the folded checkpoints).
 make_flat_caret_reference(pos::Int) =
     ConcreteReference(TextRangeReferenceStep(pos, pos), EmptyReference())
-_flat_range_ref(start::Int, stop::Int) =
+
+"""
+    make_flat_range_reference(start, stop) -> Reference
+
+The selection reference for the flat character range `start..stop` of a
+`TextBlock`, with `start <= stop`. `start == stop` is the caret of
+[`make_flat_caret_reference`](@ref).
+"""
+make_flat_range_reference(start::Int, stop::Int) =
     ConcreteReference(TextRangeReferenceStep(start, stop), EmptyReference())
 
 """
@@ -477,6 +491,13 @@ end
 # caret falls in a break / indentation gap with no owning span. `get_flat_base`
 # supplies the span's flat base, `_flat_to_span` the inverse.
 get_flat_cursor_coordinate(text::TextBlock) = get_flat_cursor_coordinate(text, text.selection)
+# The span and the character a flat offset lands on, in the shape of
+# `get_flat_cursor_coordinate`, or `nothing` on a break or gap.
+function _text_flat_span(text::TextBlock, flat::Int)
+    loc = _flat_to_span(text, flat)
+    loc === nothing ? nothing : (span = loc[1], char = loc[2])
+end
+
 function get_flat_cursor_coordinate(text::TextBlock, selection)
     sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
@@ -537,7 +558,7 @@ end
 function _text_insert(text::TextBlock, str::AbstractString)
     sel = _text_flat_selection(text)
     sel === nothing && return nothing
-    ReplaceTextRangeOperation(_flat_range_ref(sel[1], sel[2]), str)
+    ReplaceTextRangeOperation(make_flat_range_reference(sel[1], sel[2]), str)
 end
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
@@ -558,7 +579,7 @@ function _text_delete(text::TextBlock, key::Symbol)
         s < n || return nothing
         rng = (s, s + 1)
     end
-    ReplaceTextRangeOperation(_flat_range_ref(rng[1], rng[2]), "")
+    ReplaceTextRangeOperation(make_flat_range_reference(rng[1], rng[2]), "")
 end
 
 # Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.
@@ -592,6 +613,33 @@ function _text_char_motion(text::TextBlock, direction::Symbol)
         direction === :left ? s : e     # collapse the range to its near end
     end
     ReplaceSelectionOperation(make_flat_caret_reference(newf))
+end
+
+# Shift and a motion key: move one end of the selection and keep the other. A
+# range stays ordered, so a key moves the end that lies in its direction: the
+# left, word-left and start keys move the start, and the others move the stop.
+# From a caret, the key's direction makes the range. Declines when a whole
+# element is selected, as the plain motion does.
+function _text_extend(text::TextBlock, direction::Symbol)
+    is_structural_selection(text.selection) && return nothing
+    sel = _text_flat_selection(text)
+    sel === nothing && return nothing
+    s, e = sel
+    total = _text_flat_total(text)
+    if direction === :left
+        s = max(0, s - 1)
+    elseif direction === :right
+        e = min(total, e + 1)
+    elseif direction === :word_left
+        s = _word_left_flat(_flat_chars(text), s)
+    elseif direction === :word_right
+        e = _word_right_flat(_flat_chars(text), e, total)
+    elseif direction === :start
+        s = 0
+    else  # :end
+        e = total
+    end
+    ReplaceSelectionOperation(make_flat_range_reference(s, e))
 end
 
 # The span at `path`'s content when it is a TextString; nothing otherwise.

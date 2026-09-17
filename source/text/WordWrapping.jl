@@ -223,17 +223,30 @@ map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
     _is_structural_ref(reference) && return reference
-    flat = _text_range_caret(reference)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(iomap.output, flat)
+    pair = _text_range_pair(reference)
+    pair === nothing && return nothing
+    start = _backward_flat(iomap, pair[1])
     # A caret over a `TextLine` (passed through unchanged, so no `WrapSegment` and no
     # flat top-level span) maps backward to itself — the mirror of the forward map.
-    loc === nothing && return reference
+    pair[1] == pair[2] && return start === :unmapped ? reference :
+                                 start === nothing ? nothing : _flat_caret(start)
+    # A range maps end by end; the two ends may lie in different lines of the
+    # output and in one span of the input.
+    stop = _backward_flat(iomap, pair[2])
+    (start === :unmapped && stop === :unmapped) && return reference
+    (start isa Int && stop isa Int) || return nothing
+    make_flat_range_reference(start, stop)
+end
+
+# One flat offset of the output, as a flat offset of the input. `:unmapped` when it
+# lies in no top-level span, `nothing` when no segment holds it.
+function _backward_flat(iomap::WordWrappingIoMap, flat::Int)
+    loc = convert_flat_offset_to_element(iomap.output, flat)
+    loc === nothing && return :unmapped
     out_span, out_char = loc
     for seg in iomap.segs
         seg.out_index == out_span || continue
-        f = convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
-        return f === nothing ? nothing : _flat_caret(f)
+        return convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
     end
     nothing
 end

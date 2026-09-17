@@ -187,22 +187,44 @@ function _forward_map(segs, in_block, out_block, sel;
     # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
     # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
     flat = get_flat_caret(in_block, sel)
-    flat === nothing && return nothing
+    if flat === nothing
+        # A range maps end by end. Its start opens the sub-span it enters and its
+        # stop closes the one it leaves, so a range that ends at a soft break
+        # stays on its line.
+        pair = _text_flat_selection(in_block, sel)
+        pair === nothing && return nothing
+        start = _forward_flat(segs, in_block, out_block, pair[1], true)
+        stop = _forward_flat(segs, in_block, out_block, pair[2], false)
+        (start === :unmapped && stop === :unmapped) &&
+            return unmapped_maps_to_itself ? sel : nothing
+        (start isa Int && stop isa Int) || return nothing
+        return make_flat_range_reference(start, stop)
+    end
+    f = _forward_flat(segs, in_block, out_block, flat, true)
+    f === :unmapped && return unmapped_maps_to_itself ? sel : nothing
+    f === nothing ? nothing : _flat_caret(f)
+end
+
+# One flat offset of the input, as a flat offset of the output. `:unmapped` when
+# the offset lies in no top-level span (a `TextLine` passes through unchanged),
+# `nothing` when no sub-span holds it. At a split boundary `opens` prefers the
+# start of the next sub-span, and otherwise the end of the previous one.
+function _forward_flat(segs, in_block, out_block, flat::Int, opens::Bool)
     loc = convert_flat_offset_to_element(in_block, flat)
-    loc === nothing && return unmapped_maps_to_itself ? sel : nothing
+    loc === nothing && return :unmapped
     in_span, in_char = loc
     best = nothing
     for seg in segs
         seg.in_span == in_span || continue
         if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
             best = seg
+            opens || break
             # Prefer the start of the next sub-span at the split boundary.
             in_char == seg.in_char_start && seg.in_char_start != 0 && break
         end
     end
     best === nothing && return nothing
-    f = convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
-    f === nothing ? nothing : _flat_caret(f)
+    convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
 end
 
 map_reference_forward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference) =

@@ -6,10 +6,13 @@
 # conversation cells, and other contexts that aggregate styled spans and
 # want a primitive value to land in the text domain directly.
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextBlock.
-# Range selections collapse to a cursor at the range start.
+# A range `.value{s:e}` is the flat range `{s:e}`: the block has one span, so a
+# flat offset is a character offset of the value.
 function _forward_value(reference)
     @reference_case reference begin
-        value{s:e} => @reference ::TextBlock.elements::CellVector[1]::TextString.content::String{s}::Position
+        value{s:e} => (s == e ?
+            (@reference ::TextBlock.elements::CellVector[1]::TextString.content::String{s}::Position) :
+            make_flat_range_reference(s, e))
     end
 end
 
@@ -20,8 +23,15 @@ end
 # renders and never accepts a caret: the printers compose, so the readers must
 # too. On a single-span block the two forms denote the same position.
 _flat_caret_offset(reference) =
-    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep ?
-        reference.head.start : nothing
+    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep &&
+    reference.head.start == reference.head.stop ? reference.head.start : nothing
+
+# The flat `(start, stop)` of a non-empty flat range, or `nothing`. On the
+# single-span block it is the range `.value{start:stop}` of the primitive.
+_flat_range_pair(reference) =
+    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep &&
+    reference.head.start < reference.head.stop ?
+        (reference.head.start, reference.head.stop) : nothing
 
 # Backward: .elements[1].content[k] on the TextBlock → .value[k] on the primitive.
 # Type-specific variants so the returned reference carries the leading document type.
@@ -37,6 +47,8 @@ _value_range_ref(s::Int, e::Int) =
                       ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))
 
 function _backward_bool(reference)
+    pair = _flat_range_pair(reference)
+    pair === nothing || return _value_range_ref(pair...)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveBool.value::Bool{flat}::Position
     @reference_case reference begin
@@ -46,6 +58,8 @@ function _backward_bool(reference)
 end
 
 function _backward_number(reference)
+    pair = _flat_range_pair(reference)
+    pair === nothing || return _value_range_ref(pair...)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveNumber.value::Number{flat}::Position
     @reference_case reference begin
@@ -55,6 +69,8 @@ function _backward_number(reference)
 end
 
 function _backward_string(reference)
+    pair = _flat_range_pair(reference)
+    pair === nothing || return _value_range_ref(pair...)
     flat = _flat_caret_offset(reference)
     flat === nothing || return @reference ::PrimitiveString.value::String{flat}::Position
     @reference_case reference begin
@@ -64,8 +80,8 @@ function _backward_string(reference)
 end
 
 # Translates a PrimitiveDocument's `.value[k]` / `.value[range]` selection
-# into the single-span TextBlock shape `.elements[1].content[k]`. Range
-# selections collapse to a cursor at `range.start` (matching SyntaxLeafToText).
+# into the single-span TextBlock: a caret `.elements[1].content[k]`, a range the
+# flat `{s:e}`.
 _value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────

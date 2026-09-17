@@ -114,6 +114,22 @@ end
     @test inp.tail.head.start == 2 && inp.tail.head.stop == 2
 end
 
+@testset "a range maps both ways" begin
+    s = PrimitiveString("hello")
+    p = PrimitiveStringToTextBlock()
+    iomap = print_document(p, nothing, s, nothing)
+    # The block has one span, so the value's range is the flat range.
+    forward = map_reference_forward(p, iomap, _value_range(1, 4))
+    @test forward.head isa TextRangeReferenceStep
+    @test (forward.head.start, forward.head.stop) == (1, 4)
+    backward = map_reference_backward(p, iomap, TextModule.make_flat_range_reference(1, 4))
+    @test backward.head == FieldReferenceStep("value")
+    @test (backward.tail.head.start, backward.tail.head.stop) == (1, 4)
+    # A flat caret still maps to a caret.
+    caret = map_reference_backward(p, iomap, TextModule.make_flat_caret_reference(2))
+    @test (caret.tail.head.start, caret.tail.head.stop) == (2, 2)
+end
+
 # ── KeyPress / KeyDown producers ─────────────────────────────────────────────
 
 @testset "string KeyPress produces ReplaceStringRangeOperation" begin

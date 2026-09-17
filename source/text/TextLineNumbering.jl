@@ -81,6 +81,15 @@ function _text_range_caret(ref)
     r.head.start::Int
 end
 
+# The flat `(start, stop)` of a `TextRangeReferenceStep` selection, a caret or a
+# range, or `nothing`.
+function _text_range_pair(ref)
+    r = strip_reference_types(ref)
+    r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
+        r.tail isa EmptyReference || return nothing
+    (r.head.start::Int, r.head.stop::Int)
+end
+
 # Reader: map an output flat caret back to the matching input span. Prefix spans
 # (the line-number text this projection inserts) have no pre-image, so they
 # round-trip to char 0 of the next real input span.

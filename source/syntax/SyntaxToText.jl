@@ -67,6 +67,7 @@ end
 function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()
+    _is_flat_text_range(reference) && return nothing
     # Tree selection path: .elements[i]∅ → select the whole leaf
     _parse_tree_elem_path(reference) !== nothing && return @reference()
     spans = _leaf_spans(iomap.input)
@@ -443,6 +444,7 @@ _own_span_path(doc::SyntaxCompound, field::Symbol, c::Int) =
 function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()     # whole node
+    _is_flat_text_range(reference) && return nothing
     elements = iomap.output.elements
     # Whole-element (tree) selection `.elements[j]∅`.
     tree_j = _parse_tree_elem_path(reference)
@@ -1536,6 +1538,15 @@ _flat_text_path(flat::Int) =
 # Accepts the flat `TextRangeReferenceStep{f}` form, a bare block cursor `{f}`, and —
 # when `spans` is supplied — the internal structural `.elements[i].content{c}`
 # form still used for child sub-references inside the compound mappers.
+# A non-empty flat text range. The syntax chain maps a caret as one flat offset,
+# so a range has no image in it and its backward map declines: a `Shift` key
+# leaves the selection where it was.
+function _is_flat_text_range(path)
+    p = strip_reference_types(path)
+    p isa ConcreteReference && p.head isa TextRangeReferenceStep &&
+        p.tail isa EmptyReference && p.head.start != p.head.stop
+end
+
 function _text_side_flat(path)
     p = strip_reference_types(path)
     p isa ConcreteReference || return nothing

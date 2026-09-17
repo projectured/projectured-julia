@@ -53,6 +53,28 @@ end
 
 end # @testset "WordWrapping selection round-trip"
 
+@testset "WordWrapping maps a range across a soft break" begin
+
+src = "Lorem ipsum dolor"
+input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
+proj = WordWrapping(max_width=80, measure=_test_measure(10, 18))
+iomap = print_document(proj, input)
+@test count(e -> e isa TextNewline, iomap.output.elements) >= 1
+
+# "psum do" crosses the break after "ipsum ": the output range starts on one line
+# and stops on the next, and maps back to the one input range it came from.
+out_range = map_reference_forward(proj, iomap, TextModule.make_flat_range_reference(7, 14))
+@test out_range.head isa TextRangeReferenceStep
+@test out_range.head.start < out_range.head.stop
+in_range = map_reference_backward(proj, iomap, out_range)
+@test (in_range.head.start, in_range.head.stop) == (7, 14)
+
+# A caret still maps to a caret.
+caret = map_reference_backward(proj, iomap, TextModule.make_flat_caret_reference(2))
+@test caret.head.start == caret.head.stop == 2
+
+end # @testset "WordWrapping maps a range across a soft break"
+
 @testset "WordWrapping reads available_width from context" begin
 
 src = "alpha beta gamma delta"

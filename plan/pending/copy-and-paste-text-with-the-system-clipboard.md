@@ -345,14 +345,38 @@ These are the hard parts, and none of them is in this plan:
 
 ### Step 2 — `Shift` selects a range (projectured, text and primitive slices)
 
-- [ ] The `Shift` keys of T1, with the moving end of T2.
-- [ ] The range maps of T3 in `PrimitiveToText` and on the syntax leaf chain.
-- [ ] Tests: each key over a single-span block; a range that would cross a span
-      declines and the selection stays; a plain arrow collapses a range; typing
-      and `Backspace` over a range; a `PrimitiveString` and a JSON string get the
-      range `value{s..e}` in their trail; the range draws as highlight
-      rectangles. The counts of the text suites stay, except for the new
-      assertions.
+- [x] The `Shift` keys of T1, with the rule of T2: six rows in
+      `@gestures TextBlock` (`_text_extend`), and `Shift+Home` / `End` / `Up` /
+      `Down` in `TextToGraphics`, which moves the start or the stop to the
+      target its plain key finds. `make_flat_range_reference` is public, and the
+      private `_flat_range_ref` is gone.
+- [x] The range maps of T3: `PrimitiveToText` maps `value{s:e}` to the flat
+      range and back. `WordWrapping` maps a range end by end both ways; the
+      forward half is `_forward_map`, which `TextHighlighting` shares, so its
+      forward map carries a range too. `SyntaxLeafToText` and
+      `SyntaxCompoundToText` decline a non-empty flat range
+      (`_is_flat_text_range`): before, their backward map read its start, and
+      `Shift+Left` in a JSON string moved the caret.
+- [x] Tests:
+      - `test_text()` 56: the six keys from a caret and from a range, the ends
+        of the text, the collapse, and the decline on a whole element (11 new);
+      - `test_primitive_to_text()` 51 (46 before): the range maps both ways;
+      - `test_word_wrapping()` 60: a range across a soft break maps there and
+        back (5 new);
+      - `test_text_range_selection()` 17, new, in the umbrella suite, through the
+        editor loop: a press, `Shift+Left` twice, `Shift+Right`, `Shift+End`, a
+        typed key, `Shift+Home` and `Backspace` on a plain string; the root's
+        path names the same range; the range draws one more rectangle; a plain
+        arrow collapses; a JSON string declines `Shift+Left` and keeps its caret.
+      - Unchanged: `test_text_to_graphics()` 92, `test_widget_text_editing()` 12,
+        `test_gesture_help()` 42, `test_command_palette_decorator()` 63,
+        `test_clipboard()` 163, `test_json()` 154, `test_syntax()` 10.
+        `test_substrate()` 62593 pass, 3 fail, 2 error, 1 broken, all in
+        `SplitPaneDragTest`, the failure `main` already has.
+- **Found:** a selection path is a live value that changes in place, so a test
+  that compares a path before and after a key keeps its printed form. A
+  one-character range prints as an element step, `value[5]`; it is the same
+  `RangeReferenceStep(4, 5)`.
 
 ### Step 3 — one selection in the chat draft (projectured, conversation and assistant slices)
 
