@@ -113,6 +113,7 @@ using ProjecturedClipboard.ClipboardModule: make_clipboard_document,
                                             make_clipboard_projection
 export make_dragging_document, make_shell_document, make_workbench_document
 export make_assistant_projection_example, make_navigator_projection_example, make_workbench_projection_example
+export conversation_draft_entry, conversation_widget_entry
 export make_graphics_caching, make_scrolling_projection, make_dragging_projection
 export make_shell_projection, make_command_palette_decorator_projection, make_introspection_projection
 export make_clipboard_projection, make_text_configuring_projection, make_workbench_projection

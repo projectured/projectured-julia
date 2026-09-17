@@ -96,10 +96,14 @@ const BackendModule = Projectured.BackendModule
 include(joinpath(_EXAMPLE_DIR, "DefaultBackend.jl"))
 using .DefaultBackendModule
 export default_backend
-# The gallery (`run_example` and its wrappers) and the file-editor harness: both
-# compose several domains, so both live at the umbrella.
+# The gallery (`run_example` and its wrappers), the file-editor harness and the
+# application: all three compose several domains, so they live at the umbrella.
 include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
+include(joinpath(_EXAMPLE_DIR, "Application.jl"))
+export run_application, make_application_document, make_application_projection,
+       make_application_assistant, make_application_content_projections,
+       get_application_greeting_text, APPLICATION_WINDOWS, APPLICATION_ASSISTANTS
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
 # The workload body comes last, so it can reach everything above it. The

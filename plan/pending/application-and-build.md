@@ -1,8 +1,10 @@
 # The application and its build
 
-**Status (2026-09-17): NOT STARTED.** This plan was split from
-[documentation-rewrite.md](documentation-rewrite.md) on 2026-09-17. The owner
-decided every question of §2; none is open.
+**Status (2026-09-17): IN PROGRESS.** Step 0 is done, and Step 1 is done except
+for the two command palette entries. The work is on the branch
+`application-and-build`, in the worktree `workspace/projectured-julia-application`.
+This plan was split from [documentation-rewrite.md](documentation-rewrite.md) on
+2026-09-17. The owner decided every question of §2; none is open.
 
 **Goal:** ProjecturEd is an application. One command and one binary open any
 number of files, in every supported format, in a window with the AI assistant.
@@ -174,20 +176,83 @@ timing needs an idle machine and the owner's approval.
 
 ### Step 0: the worktree and the baseline
 
-- [ ] Make the worktree `workspace/projectured-julia-application`.
-- [ ] Record: `test_package_graph()`, and omnet-julia's `test/build.jl`.
+- [x] Make the worktree `workspace/projectured-julia-application`
+      (2026-09-17, from `main` at `14a533d1`).
+- [x] Record the baseline. The regression set of Step 1 serves as the record:
+      see "What the step measured" below. omnet-julia's `test/build.jl` waits
+      for Step 2.
 
 ### Step 1: the application window (projectured; pane, workbench, fileformat, example slices)
 
-- [ ] The file tab document, with the save and reload gestures moved from
-      `WorkbenchFile.jl`.
-- [ ] The pane window: file tabs, the navigator, the assistant. A file opens
+- [x] The file tab: `WorkbenchEditor`, for both windows (D26).
+- [x] Every format opens and saves: the 8 natural formats, `.pdoc`, `.pred`,
+      `.txt` and a file without an extension (commit `1213e1e3`).
+- [x] The pane window: file tabs, the navigator, the assistant. A file opens
       from the navigator with `open_pane!`.
-- [ ] The workbench window with the same file tabs.
-- [ ] The command palette entries "Open file" and "Save as".
-- [ ] The function that opens the window, with all the options of §4.1.
-- [ ] Test without a window: open a file of each of the 10 formats in each
-      window, change it, save it, and read it back.
+- [x] The workbench window with the same file tabs.
+- [ ] The command palette entries "Open file" and "Save as" (see "Open").
+- [x] The function that opens the window: `run_application` in
+      [Application.jl](../../example/projectured/Application.jl), with the
+      options of §4.1 except the command line itself, which is Step 3.
+- [x] Test without a window: `test_application()` in
+      `test/projectured/editor/ApplicationTest.jl`. Both windows draw a file of
+      each of the 11 kinds; `Ctrl+S` saves a changed file; a click, Enter and a
+      double click in the navigator open a file beside the other files.
+
+**Decisions of Step 1.**
+
+- **D26. The file tab is `WorkbenchEditor`.** It already had the save and
+  reload gestures and a projection that works alone, so both windows hold it
+  and no new document type exists. `make_workbench_file_editor(path)` builds
+  one. A move of the type to a lower slice is left for later.
+- **D27. The navigator opens a file with an operation.** `FileSystemToWidget`
+  takes `open_file`, a function from a path to an operation. Enter on a
+  selected file and a double click on a file row return
+  `OpenWorkspaceFileOperation(path)`. The workbench slice evaluates it: in a
+  workbench it adds a tab to the editing page, and in a pane tree it calls
+  `open_pane!`. The file is read at evaluation, so the reader stays pure. The
+  workbench package depends on the pane package for this.
+- **D28. `open_pane!` takes a `group`.** A file opened from the navigator goes to
+  the group that holds files, never to the navigator's or the assistant's
+  group. `pane_group_to_avoid` could not say this: it names one group, and
+  omnet-julia already writes its method for `PaneTree`, so a second method in
+  this repository would collide with it.
+- **D29. The pane window starts with the focus inside the first file**, or inside
+  the navigator when no file is open, so that the first key reaches a document.
+- **D30. The application projection has F1 and the command palette**
+  (`GestureHelpDecoratorProjection`, `make_command_palette_decorator_projection`),
+  and the window scene gets the projection of the help window.
+
+**Faults that Step 1 found and fixed.**
+
+- A container that moves a click to a child rebuilt the `MousePress` without its
+  click count, so a double click never reached a widget inside a container.
+  15 calls in the widget, layout and graph slices keep the count now. The same
+  edit first touched the sealed `kernel/gesture/GestureRecognizerModule.jl` and
+  `inspector/HoverProbe.jl`; both changes were wrong and were reverted at once,
+  so no sealed file changed.
+- A click on a navigator row failed with "under-typed @reference" in the
+  workbench's navigator mapping. The selection names a node of the computed
+  file-system document, which is not part of the workspace. The workspace stage
+  now writes that selection on the computed document and selects the workspace
+  as a whole, and the navigator mapping has the missing type.
+- `SaveWorkbenchEditorOperation`, `ReloadWorkbenchEditorOperation` and
+  `OpenWorkspaceFileOperation` did not declare `operation_travels_unchanged`,
+  so a reader between the tab and the window dropped them. In the pane window,
+  `Ctrl+S` did nothing for this reason.
+
+**A fault that Step 1 found and did not fix.** The XML printer indents the text
+of an element, and the parser keeps that whitespace, so each save and load adds
+blank space to the text. `test_workbench_file_keys` marks it `@test_broken`.
+It contradicts the approved introduction ("comes back unchanged"), so it needs
+a fix before the posts.
+
+**Open in Step 1.** "Open file" and "Save as" from the command palette need a
+path from the person. `WidgetInputDialog` shows a field and two buttons, but
+nothing passes the field's value to an operation yet.
+
+**What the step measured.** No timing. The screenshots of both windows with 11
+open files were checked by eye.
 
 ### Step 2: the generic builder in projectured (builder slice)
 
