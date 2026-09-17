@@ -22,6 +22,7 @@ using ..IoMapModule
 using ..LayoutModule
 using ..LlmModule
 using ..OperationModule
+using ..PaneModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -37,7 +38,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export WorkspaceDocument
 export WorkbenchDocument, get_workbench_title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
-       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation
+       WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
+       OpenWorkspaceFileOperation, make_workbench_file_editor
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,

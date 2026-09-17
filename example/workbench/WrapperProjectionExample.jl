@@ -100,7 +100,7 @@ function make_workbench_projection(; measure=measure_truetype_text,
                                        # Navigator: render the workspace file system as a native WidgetTree
                                        # (icons, chevrons, selection band) — `Workspace → FileSystem →
                                        # WidgetTree → Graphics` — instead of the generic object projection.
-                                       WorkspaceDocument    => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
+                                       WorkspaceDocument    => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget(open_file = OpenWorkspaceFileOperation)), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
                                        # Assistant panel: composer input + widget chat history.
                                        conversation_draft_entry(measure=measure),
                                        conversation_widget_entry(measure=measure),

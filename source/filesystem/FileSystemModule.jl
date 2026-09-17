@@ -10,6 +10,7 @@ module FileSystemModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EventPatternModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..NaturalModule

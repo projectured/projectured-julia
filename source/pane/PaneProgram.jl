@@ -309,10 +309,16 @@ replace_referenced_value!(editor, where, PaneTab(other, "something else"))
 back to [`describe_document`](@ref). A title already taken gets a number, so two
 panes are never one name, and the name is for a person to read rather than for a
 caller to address the pane by.
+
+`group` is a group of the window to open the tab in. Left out, the policy above
+chooses one. An application uses it when it knows better than the focus, for
+example to put a file that a navigator opens beside the other files.
 """
-function open_pane!(editor, document; title = nothing)
+function open_pane!(editor, document; title = nothing, group = nothing)
     tree = get_window_tree(editor)
-    group = _find_placement_group(tree)
+    group === nothing && (group = _find_placement_group(tree))
+    any(g -> g === group, get_pane_groups(tree)) ||
+        error("open_pane!: the group is not a group of this window.")
 
     # What the pane is called: what the caller said, else the name the document
     # carries, else what it is. A description is the last resort, because it

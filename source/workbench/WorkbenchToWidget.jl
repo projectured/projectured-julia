@@ -476,7 +476,7 @@ function map_reference_backward(::WorkbenchNavigatorToWidgetScrollPane,
     # WorkbenchNavigator stores the workspace in `.workspace`; the widget
     # scroll pane wraps it as `.content`. Rewrite the field name.
     @reference_case reference begin
-        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchNavigator.workspace.^(rest)
+        ::WidgetScrollPane.content.rest... => @reference ::WorkbenchNavigator.workspace::Workspace.^(rest)
     end
 end
 

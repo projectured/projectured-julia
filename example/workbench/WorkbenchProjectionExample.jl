@@ -37,7 +37,7 @@ function make_workbench_projection_example(; measure=measure_truetype_text)
         # (icons, chevrons, selection band) — `Workspace → FileSystem →
         # WidgetTree → Graphics` — matching the real workbench projection
         # (make_workbench_projection) instead of the generic text tree.
-        WorkspaceDocument     => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
+        WorkspaceDocument     => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget(open_file = OpenWorkspaceFileOperation)), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
         EditorIntrospection   => object_chain,
     ])
     # Wrap in the hover tracker so a hovered widget (e.g. a navigator tree row)

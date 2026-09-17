@@ -15,10 +15,21 @@
 # truth reused by the printer's selection wiring and the generic reader.
 # ── Projection ────────────────────────────────────────────────────────────────
 
+"""
+    FileSystemToWidgetTree(position = Point2D(0, 0); open_file = nothing)
+
+The file-system view. `open_file` is `nothing`, or a function that takes the
+absolute path of a file and returns the operation that opens it. With a
+function, Enter on the selected file and a double click on a file row return
+that operation. The view does not open anything itself: the editor evaluates
+the operation, so the view stays free of side effects.
+"""
 struct FileSystemToWidgetTree <: Projection
     position::Point2D
+    open_file::Any
 end
-FileSystemToWidgetTree() = FileSystemToWidgetTree(Point2D(0, 0))
+FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = nothing) =
+    FileSystemToWidgetTree(position, open_file)
 
 # ── Node construction (icon + text per item) ──────────────────────────────────
 
@@ -37,10 +48,28 @@ function _fs_icon(f::FileSystemFile)
     "·"
 end
 
-_fs_node(f::FileSystemFile) = WidgetTreeNode(_fs_icon(f), basename(f.pathname))
-function _fs_node(d::FileSystemDirectory)
-    children = Any[_fs_node(c) for c in d.elements]
+_fs_node(f::FileSystemFile, open_file) =
+    WidgetTreeNode(_fs_icon(f), basename(f.pathname);
+                   gestures = _make_open_file_bindings(f.pathname, open_file))
+function _fs_node(d::FileSystemDirectory, open_file)
+    children = Any[_fs_node(c, open_file) for c in d.elements]
     WidgetTreeNode(_fs_icon(d), _dir_name(d.pathname), children)
+end
+
+# The two gestures that open a file: Enter while its row is selected, and a
+# double click on its row. A first click still selects the row, because only a
+# press with a count of two matches.
+_make_open_file_bindings(pathname, ::Nothing) = GestureBinding[]
+function _make_open_file_bindings(pathname, open_file)
+    make_operation = (node, event) -> open_file(pathname)
+    is_applicable = (node, selection) -> true
+    GestureBinding[
+        GestureBinding(KeyDownPattern(:return, nothing, nothing),
+                       make_operation, is_applicable, "Open the file", "file system"),
+        GestureBinding(MousePressPattern(:left, nothing, event -> event.count == 2,
+                                         "double click"),
+                       make_operation, is_applicable, "Open the file", "file system"),
+    ]
 end
 
 
@@ -59,7 +88,7 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     end)
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
-    roots = ComputedCellVector(() -> Any[_fs_node(doc)])
+    roots = ComputedCellVector(() -> Any[_fs_node(doc, p.open_file)])
     tree = WidgetTree(Cell(p.position), roots, Cell(true), Cell(nothing), Cell(Set{Vector{Int}}()),
                       Cell(GestureBinding[]), sel)
     iomap = SimpleIoMap(p, doc, tree)
@@ -147,9 +176,10 @@ end
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 """
-    FileSystemToWidget()
+    FileSystemToWidget(; open_file = nothing)
 
 Projection mapping a file-system document to a single [`WidgetTree`](@ref) with a
 dedicated icon + text per item. Wrap in `RecursiveProjection` at the call site.
+`open_file` is as in [`FileSystemToWidgetTree`](@ref).
 """
-FileSystemToWidget() = FileSystemToWidgetTree()
+FileSystemToWidget(; open_file = nothing) = FileSystemToWidgetTree(; open_file = open_file)

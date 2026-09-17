@@ -65,11 +65,23 @@ function map_reference_backward(::WorkspaceToFileSystemDirectory, iomap, referen
     return nothing
 end
 
-# Identity on references (see WorkspaceFolderToFileSystemDirectory above): pass
-# operations through unchanged, but decline raw gestures so the sequential
+# Pass operations through unchanged, but decline raw gestures so the sequential
 # reader's input-domain "first say" does not short-circuit with a bare event.
+#
+# A selection is the exception. A path from the file-system view names a node of
+# the computed file-system document, not of the workspace, so it can not travel
+# up as a workspace path. The reader writes it on the computed document instead,
+# where the tree shows it and where Enter reads it, and it selects the workspace
+# as a whole, so the window's focus moves to the navigator.
 function read_intent(::WorkspaceToFileSystemDirectory, iomap, op)
-    op isa Operation ? op : nothing
+    op isa Operation || return nothing
+    op isa ReplaceSelectionOperation || return op
+    directory = iomap.output
+    directory === nothing && return nothing
+    CompoundOperation(Any[
+        ReplaceReferencedValueOperation(directory, "selection", op.path),
+        ReplaceSelectionOperation(EmptyReference()),
+    ])
 end
 
 

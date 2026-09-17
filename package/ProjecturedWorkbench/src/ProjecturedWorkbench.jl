@@ -29,6 +29,7 @@ using ProjecturedFileFormat
 using ProjecturedFileSystem
 using ProjecturedKernel
 using ProjecturedLayout
+using ProjecturedPane
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
@@ -38,7 +39,7 @@ using ProjecturedWidget
 using ProjecturedConversation
 using ProjecturedFileSystem
 
-for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedAssistant, ProjecturedCollection, ProjecturedConversation, ProjecturedFileFormat, ProjecturedFileSystem, ProjecturedKernel, ProjecturedLayout, ProjecturedPane, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

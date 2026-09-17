@@ -1480,7 +1480,7 @@ uuid = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 version = "0.1.0"
 
 [[deps.ProjecturedWorkbench]]
-deps = ["ProjecturedAssistant", "ProjecturedCollection", "ProjecturedConversation", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedAssistant", "ProjecturedCollection", "ProjecturedConversation", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPane", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedWorkbench"
 uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 version = "0.1.0"
