@@ -113,7 +113,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-REFERENCE-DSL](#par-reference-dsl) | Build and match reference paths with the DSL, not by hand |
 | [PAR-EVERY-DOCUMENT-HAS-SELECTION](#par-every-document-has-selection) | Every concrete `Document` has a `selection::Cell`, and every selection-reachable child is itself a `Document` |
 | [PAR-REPLACE-SELECTION](#par-replace-selection) | Change selection with `replace_selection!`, not a bare `set_selection!` |
-| [PAR-EMPTY-PATH-IS-SELECTION](#par-empty-path-is-selection) | The empty path is a first-class whole-element selection, not an absence |
+| [PAR-EMPTY-PATH-IS-SELECTION](#par-empty-path-is-selection) | The empty path is a whole-element selection in its own right, not an absence |
 | [PAR-FOLDED-CHECKPOINTS](#par-folded-checkpoints) | Folded node-type checkpoints are the canonical form; produce and consume them, don't fabricate them |
 | [PAR-REACTIVE-OUTPUT-SELECTION](#par-reactive-output-selection) | Wire the output selection reactively; focus is the selection |
 
@@ -581,7 +581,7 @@ selection can be left behind, producing multiple visible cursors. Use
 
 ### PAR-EMPTY-PATH-IS-SELECTION
 
-**The empty path is a first-class whole-element selection, not an absence.**
+**The empty path is a whole-element selection in its own right, not an absence.**
 `EmptyReference()` (written `@reference()`, matched by `∅`) means "the
 whole element here is selected" and maps across any projection by identity;
 `nothing` means "no selection." Keep the two distinct, and let whole-element

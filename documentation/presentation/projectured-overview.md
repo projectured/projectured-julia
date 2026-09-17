@@ -154,7 +154,7 @@ The assistant isn't bolted on — it's part of the architecture.
 
 ## 🤖 AI assistant built in
 
-<span class="tag">first-class, not a plugin</span>
+<span class="tag">built into the architecture, not a plugin</span>
 
 - An **in-editor assistant panel** (`WorkbenchAssistant`) backed by Claude,
   with a deterministic **offline fallback** when no API key is set.
@@ -327,11 +327,11 @@ Documents and projections compose on two axes.
 
 # 📚 Many domains
 
-Batteries included.
+Over thirty domains ship with the editor.
 
 ---
 
-## 📚 Many domains, out of the box
+## 📚 Many domains, ready to use
 
 <span class="tag">30+ structured domains</span>
 
@@ -421,7 +421,7 @@ Real-time multi-user editing, by construction.
 
 <span class="tag">the architecture does the heavy lifting</span>
 
-- Every change is a **first-class, typed, invertible `Operation`** —
+- Every change is a **typed, invertible `Operation`** —
   *“insert element at index 3”*, not *“characters 41–58 changed.”*
 - Because edits carry **meaning, not character offsets**, merge and conflict
   resolution can reason structurally — the natural substrate for **OT / CRDT**.

@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
 
-An algorithm as a first-class document: steps, decisions, loops and jumps that
+An algorithm as a document: steps, decisions, loops and jumps that
 nest, run to completion, and project both to a notation and to a flowchart. The
 slice exists so a procedure can be drawn the way a specification draws it — and
 still be real, runnable code, debuggable in the editor while it runs.
@@ -281,7 +281,7 @@ expression does not renumber anything, which is why the node count is the stamp.
   design and not by omission.
 - **Parallelism** — no fork/join. One token, run to completion.
 - **Calling another process** — a call is a step whose action is a Julia call.
-  A first-class `ProcessCall` would reintroduce identity references and the
+  A dedicated `ProcessCall` type would reintroduce identity references and the
   copy/paste concern this domain currently avoids.
 - **Multiway decisions** — `elseif` chains nest in `else_branch`.
 - **Post-test (do-until) loops** and multi-clause `foreach`.

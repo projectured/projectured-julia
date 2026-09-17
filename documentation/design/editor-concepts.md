@@ -70,9 +70,9 @@ You can think of a document as a reactive tree: a `JsonObject` node whose
 a `key` cell and a `value` cell pointing to a child document.
 
 The reactive structure is invisible in normal use — the `@document` macro makes
-field access look like plain Julia struct access. But under the hood, every read
-of `doc.entries` registers a dependency, and every write automatically
-invalidates anything that depended on it.
+field access look like plain Julia struct access. Each read of `doc.entries`
+registers a dependency, and each write invalidates anything that depended on
+it.
 
 ### 3. Projection
 
@@ -120,7 +120,7 @@ field → cursor at offset 3 within that value.
 
 A `.field` step is resolved by `getfield(document, :field)`, so **a document's
 struct field names *are* its public reference vocabulary**: `.value`, `.entries`,
-`.children` work because those are literally field names. This is a deliberate,
+`.children` work because those are the struct's field names. This is a deliberate,
 load-bearing design choice — it means renaming a field is a breaking change to
 every stored selection and every projection. (See the `Document` contract in
 [document/DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl).)

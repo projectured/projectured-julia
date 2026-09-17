@@ -165,7 +165,7 @@ nodes; the cursor understands the structure of the code.
   pipeline shape.
 
 **Concepts illustrated:**
-- Source code as a first-class domain (not just text)
+- Source code as a domain of its own (not just text)
 - `RecursiveProjection` — `JuliaToSyntax` recurses into child expressions
   using the same projection for each node type
 - How `TypeDispatchingProjection` dispatches on `typeof(input)` to pick the

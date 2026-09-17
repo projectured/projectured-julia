@@ -115,9 +115,8 @@ atomic operation:
 replace_selection!(document, new_path)
 ```
 
-Under the hood this calls `clear_selection!` followed by `set_selection!`,
-guaranteeing any stale selection state is completely removed before the new
-selection is applied. Use it when the user navigates to a new location or when
+`replace_selection!` calls `clear_selection!` followed by `set_selection!`, so
+any stale selection state is removed before the new selection is applied. Use it when the user navigates to a new location or when
 the document structure has changed and old selection paths may no longer be
 valid.
 

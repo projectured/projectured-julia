@@ -177,7 +177,7 @@ The uniformity matters:
 When you genuinely need the raw cell (for example to share it between two
 documents or pass it to `set_cell_function!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
-`SyntaxLeaf` literally the same Cell as the upstream `JsonString.selection`.
+`SyntaxLeaf` the same Cell as the upstream `JsonString.selection`.
 Since the stem is immutable, such sharing must be established at
 construction time — a field's cell object can never be swapped afterwards.
 

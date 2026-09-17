@@ -95,7 +95,7 @@ cell to hand on, so the two are reactive by different means.
 ## Key Features
 
 - Generic representation for multiple domains
-- Delimiters are first-class for cursor positioning
+- Delimiters are valid cursor positions, not decoration
 - Supports indentation for pretty-printing
 - Selection mechanism works on delimiters and content
 

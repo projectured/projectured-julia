@@ -186,7 +186,7 @@ shows them together.
   emits `ReplaceReferencedValueOperation(spin, "value", clamp(value ± step, min, max))`;
   `Up`/`Down` do the same from the keyboard. The default `validator` is
   `make_numeric_validator()`, so typing only commits numeric text. Disabled is inert.
-- **`WidgetList(pos, items; selected, width)`** — a first-class single-column
+- **`WidgetList(pos, items; selected, width)`** — a single-column
   selectable list (the sanctioned `QListWidget`; previously expressible only as a
   one-column table). A left click selects the hit row (drawing the accent
   selection band); `Up`/`Down` move the selection. An empty list is inert.
@@ -472,8 +472,8 @@ So the tracker constructs **no** widget-specific operation — it only delivers
 `MouseEnter` / `MouseLeave` and forwards whatever the widget returns. The
 `WidgetButton` reader is what maps `MouseEnter` → `hovered = true` and
 `MouseLeave` → clear `hovered`/`pressed`. A different widget can react to the
-same crossings differently. `MouseEnter` / `MouseLeave` are first-class
-(synthesised, not backend) pointer gestures in `EventModule`; the tracker
+same crossings differently. `MouseEnter` / `MouseLeave` are synthesised
+(not backend) pointer gestures in `EventModule`; the tracker
 mirrors `HoverProbeProjection` in shape.
 
 To make this work, the container readers route `MouseEnter` / `MouseLeave` /

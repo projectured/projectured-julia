@@ -31,8 +31,8 @@ only a flat sequence of characters. Consequences:
 A projectional editor where the *model* is the truth eliminates all of these
 problems by construction:
 
-- The cursor never leaves a valid position in the model. You literally cannot
-  type a syntax error.
+- The cursor never leaves a valid position in the model. You cannot type a
+  syntax error.
 - Rename is a single `FieldReferenceStep` update; the projection re-renders all
   occurrences automatically.
 - Multiple projections of the same model give multiple views — switch
@@ -164,7 +164,7 @@ ProjecturEd differs in:
 - **Domain generality:** Lamdu edits one specific language; ProjecturEd edits
   any domain you define.
 - **Projection composability:** Lamdu does not have the notion of composable
-  bidirectional projections as a first-class abstraction.
+  bidirectional projections as an abstraction of its own.
 
 ### Hazel
 

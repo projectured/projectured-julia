@@ -234,8 +234,8 @@ You rarely construct the cons cells by hand; prefer `@reference` or
 
 An **empty path** (`EmptyReference()`, written `@reference()`, matched by
 the `∅` pattern) means *the whole element at this level is selected* — there is
-no sub-position within it. This is a first-class selection convention, not an
-absence of selection (that is `nothing`).
+no sub-position within it. This is a selection convention in its own right,
+not an absence of selection (that is `nothing`).
 
 Because an empty path has no steps to translate, it maps across any projection
 **by identity**: the default `map_reference_forward` / `map_reference_backward`
@@ -297,7 +297,7 @@ roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal
 
 - `evaluate_reference(document, path)` throws `ReferenceTypeMismatchException(expected,
   actual)` when a node's recorded type no longer matches the document reached.
-  (It is the document-aware validator under the hood.)
+  (`evaluate_reference` is itself the document-aware validator.)
 - `get_valid_reference_prefix(document, path)` walks the path and returns the
   **longest prefix that still resolves** — it stops at the first node whose type
   mismatches (or an unfollowable structural step), dropping the invalid

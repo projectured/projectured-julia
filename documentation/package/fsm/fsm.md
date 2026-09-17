@@ -2,8 +2,8 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
 
-A state machine as a first-class document: named states with entry actions,
-guarded event- and condition-driven transitions, first-class timers, extended
+A state machine as a document: named states with entry actions,
+guarded event- and condition-driven transitions, timers, extended
 state variables, and embedded Julia code. The slice exists to express real
 protocol machines — Ethernet CSMA MAC, PLCA (control + data), TCP — well enough
 that a component projects to complete, runnable Julia code.

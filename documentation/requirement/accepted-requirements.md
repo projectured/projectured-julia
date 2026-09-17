@@ -227,7 +227,7 @@ out, again without changing the data itself.
 
 **Combine different kinds of content.** Different kinds of content must be able
 to appear together in one document, and selecting, navigating, and editing must
-work seamlessly across the boundaries between them.
+work across the boundaries between them without a special case at the seam.
 
 #### PR-ARBITRARY-NESTING
 

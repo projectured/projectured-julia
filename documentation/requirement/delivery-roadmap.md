@@ -131,4 +131,4 @@ for revision:
 - **Bidirectional projections** — the printer/reader pair is the contract.
 - **Module-per-domain / module-per-projection** — keeps dependencies auditable.
 - **1-based indexing** — Julia convention.
-- **MCP server** — the AI bridge is a first-class feature, not an afterthought.
+- **MCP server** — the AI bridge is a core feature, not an afterthought.

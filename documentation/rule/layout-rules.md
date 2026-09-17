@@ -1,7 +1,6 @@
 # Layout
 
-> **Kind:** rule · **Status:** current · **Stands on:**
-> [architecture-invariants.md](architecture-invariants.md)
+> **Kind:** rule · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
 
 How every widget and every layout decides its size. One rule, both axes, no
 exceptions and no constants.
