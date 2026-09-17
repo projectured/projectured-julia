@@ -2,8 +2,11 @@
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
 worktree `projectured-julia-select-paste`, and in omnet on the branch
-`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 5, 8
-and 9 are done; Steps 6 and 7 wait on their omnet test run.
+`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 9 are
+done, and both branches sit on the current `main` (see "Rebase over main" after
+Step 9). Two items wait for the user: the Alt+press probe of Step 0 needs a live
+window and a person, and the timing of Step 7 needs an idle machine and the
+user's word. The branches are not on `main`, and nothing is pushed.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -662,7 +665,9 @@ done here. Run only the tests that each step names.
       with projectured main, and the two worktrees. Both give campaign 148,
       window wrap 22, result views 33, result verbs 63, runner filter 35, study
       presentation 20, with no failure. The projections are tested through the
-      window in Step 7 rather than one by one.
+      window in Step 7 rather than one by one. After the rebase over `main`,
+      both give campaign 185, window wrap 22, result views 45, result verbs 63,
+      runner filter 35 and study presentation 21, with no failure.
 
 ### Step 7 — the whole gesture, end to end (omnet)
 
@@ -712,7 +717,10 @@ backend, and finds every press point by the text it draws.
   widget page's path without the `element` step, so the answer did not resolve,
   and the container replaced it. A container now keeps an answer that does not
   resolve, and replaces only one that names a value rather than a document.
-- **Count:** 36 pass before the walk and the tool-paste cases were added.
+- **Count:** 46 pass (36 before the walk and the tool-paste cases were added).
+- A copy that is refused leaves the clipboard as it was, so a later `Ctrl+V`
+  pastes the earlier value. The test asserts that the clipboard did not change,
+  not that the new tab stays empty.
 
 ### Step 8 — the tab name (only if simple)
 
@@ -749,8 +757,34 @@ backend, and finds every press point by the text it draws.
       `make_clipboard_projection` carry them.
 - [x] omnet
       [assistant-guide.md](../../../omnet-julia/documentation/guide/assistant-guide.md):
-      select, copy and note into a tab, and what a note shares.
-- [ ] Move this plan to `plan/done/`.
+      select, copy and note into a tab, and what a note shares. It also says
+      that a second assistant or runner comes from `Ctrl+Shift+D`, the
+      duplicate of the tab.
+- [ ] Move this plan to `plan/done/`, after the probe of Step 0 and the timing
+      of Step 7.
+
+### Rebase over main (2026-09-17)
+
+`main` gained the plan `duplicate-a-pane` and the embed panes that fill the page
+while this plan was in progress. Both branches are rebased over it.
+
+- **Conflicts:** the imports of `AssistantModule` and `ConversationModule`, the
+  end of `AssistantDocument.jl` (the duplicate and the paste refusal), and the
+  mouse table of `pane.md`. Each resolution keeps both sides.
+- **No semantic conflict:** the one-argument `copy_document(value)` still means
+  the plain copy, and the tab strip geometry keeps its six parts (only each tab
+  tuple got an eighth).
+- **The tools and the duplicate:** a tool is still never copied, noted or
+  pasted (D9). The duplicate plan made the assistant and the runner duplicable,
+  so the guide sends a person to `Ctrl+Shift+D` for a second one. A copy of a
+  tool that uses the duplicate policy is a possible later change, for the user
+  to decide.
+- **Counts, branch against `main`, one process each:** substrate 62497 pass
+  against 61436, both with 3 fail, 2 error and 1 broken; workbench 143 pass, 3
+  fail and 2 error on both; conversation 164 against 96; chart 345 against 339;
+  sequence chart 279 against 270; markdown, graph, book, rst and math equal
+  (39, 358, 24, 76, 173); kernel 1895 pass, 3 fail and 3 error on both. No
+  suite has a failure that `main` does not have.
 
 ## 5. Risks
 
