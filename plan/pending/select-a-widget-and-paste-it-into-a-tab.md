@@ -1,8 +1,7 @@
 # Select any widget, and paste the selected object into a tab
 
-**Status (2026-09-17): IN PROGRESS.** Steps 0 to 11 are done and on `main`.
-Step 12 is on the branch `innermost-selection`, in the worktrees
-`projectured-julia-innermost` and `omnet-julia-innermost`. Open for the user:
+**Status (2026-09-17): IN PROGRESS.** Steps 0 to 12 are done and on `main`
+(Step 12: projectured `3f6937bb`, omnet `3a4a82b0`). Open for the user:
 the timing of Step 7 needs an idle machine and the user's word, and an
 Alt+click on a tab title of a group without the focus needs a change in a sealed
 kernel file (Step 11). Nothing is pushed.
