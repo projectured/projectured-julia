@@ -135,6 +135,47 @@ function clip_child_to_slot(child::GraphicsDocument, cim, x_cell::Cell, y_cell::
 end
 
 """
+    read_child_event(child_iomap, event) -> operation | nothing
+
+Hand a pointer `event`, already in the child's frame, to the child's reader.
+Every container routes a press to a child through this.
+
+An Alt+press answers with `convert_to_whole_selection`: the child is selected
+as a whole unless it selected a whole object inside itself. So the innermost
+object under the pointer wins, and a control under it does not act.
+"""
+function read_child_event(child_iomap, event)
+    answer = read_intent(child_iomap.projection, child_iomap, event)
+    is_whole_selection_press(event) || return answer
+    convert_to_whole_selection(answer, get_iomap_input(child_iomap))
+end
+
+"""
+    make_layout_selection_ring(layout, entries) -> GraphicsRect
+
+The ring over the child that `layout`'s selection names as a whole
+(`children[i]`). `entries()` answers the layout's routing entries, the
+`(x, y, child_iomap)` triples of its children in order. A child that takes the
+focus gets no ring, because it draws its own focus ring when it is selected.
+"""
+make_layout_selection_ring(layout, entries::Function) =
+    make_selection_ring(() -> _find_whole_selected_child_box(layout, entries()))
+
+function _find_whole_selected_child_box(layout, entries)
+    i = find_whole_selected_index(layout.selection, "children")
+    (i === nothing || !(1 <= i <= length(entries))) && return nothing
+    entry = entries[i]
+    entry === nothing && return nothing
+    (x, y, cim) = entry
+    # A control that takes the focus draws its own ring when it is selected.
+    is_focusable_document(get_iomap_input(cim)) && return nothing
+    child = cim.output
+    x0 = child isa GraphicsCanvas ? Int(child.x[]) : 0
+    y0 = child isa GraphicsCanvas ? Int(child.y[]) : 0
+    (Int(x isa Cell ? x[] : x) + x0, Int(y isa Cell ? y[] : y) + y0, _child_w(cim), _child_h(cim))
+end
+
+"""
 Hit-test a coordinate event against each child wrapper canvas; returns
 `(op, i)` for the first child that produced a non-`nothing` result.
 `child_entries` is a vector of `(x_cell, y_cell, cim)` triples — the
@@ -158,7 +199,7 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         cw, ch = Int(canvas.w[]), Int(canvas.h[])
         (0 <= lx < cw && 0 <= ly < ch) || continue
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_intent(cim.projection, cim, make_evt(lx, ly))
+        result = read_child_event(cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -729,10 +770,11 @@ end
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
     build = ComputedCell(() -> _hl_build(recursion, doc, ctx))
+    ring = make_layout_selection_ring(doc, () -> build[].entries)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           ComputedCellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -897,10 +939,11 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # entries are all derived reactively from it, so adding/removing a child
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = ComputedCell(() -> _vl_build(recursion, doc, ctx))
+    ring = make_layout_selection_ring(doc, () -> build[].entries)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           ComputedCellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -1210,6 +1253,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
+    push!(outer.elements, make_layout_selection_ring(doc, () -> entries))
 
     row_count = row_count_cell
 
@@ -1392,10 +1436,11 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
     end)
+    ring = make_layout_selection_ring(doc, () -> build[].entries)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           ComputedCellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -1449,7 +1494,7 @@ function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_
         oy = Int(oy_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_intent(cim.projection, cim, make_evt(lx, ly))
+        result = read_child_event(cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -1739,10 +1784,11 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
     solver = p.solver
     build = ComputedCell(() -> _cl_build(solver, recursion, doc, ctx))
+    ring = make_layout_selection_ring(doc, () -> build[].entries)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           ComputedCellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end
@@ -1882,10 +1928,11 @@ end
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
     build = ComputedCell(() -> _al_build(recursion, doc, ctx))
+    ring = make_layout_selection_ring(doc, () -> build[].entries)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
-                           ComputedCellVector(() -> build[].wrapped),
+                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
 end

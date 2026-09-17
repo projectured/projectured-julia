@@ -107,10 +107,12 @@ end
     @test Int(at_wide.output.w[]) == 400
     @test Int(at_narrow.output.w[]) == 150
     @test Int(at_narrow.output.h[]) > Int(at_wide.output.h[])
-    # A child is as wide as its word, not as wide as the offer.
+    # A child is as wide as its word, not as wide as the offer. The element
+    # after the five children is the selection ring, which draws nothing here.
     drawn = collect(at_narrow.output.elements)
-    @test length(drawn) == 5
-    for wrapper in drawn
+    @test length(drawn) == 6
+    @test drawn[end] isa GraphicsRect && Int(drawn[end].w) == 0
+    for wrapper in drawn[1:5]
         child = only(collect(wrapper.elements))
         @test Int(child.w) < 150
     end

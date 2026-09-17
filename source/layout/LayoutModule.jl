@@ -46,6 +46,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, shift_child_image, clip_child_to_slot
+export read_child_event, make_layout_selection_ring
 
 
 include("LayoutDocument.jl")

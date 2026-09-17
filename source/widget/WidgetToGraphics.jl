@@ -764,6 +764,22 @@ _p_measure(p) = hasproperty(p, :measure) ? p.measure : nothing
 _element_size(e, measure) =
     measure === nothing ? get_graphics_size(e) : get_graphics_size(e, measure)
 
+# The box a routed child takes in its container's frame, where a selection ring
+# goes: the entry's offset, the child canvas's own origin, and the child's
+# extent. A canvas that states its extent is taken at its word; any other child
+# is measured. A child that takes the focus has no box here, because it draws
+# its own focus ring when it is selected.
+function _get_entry_box(x, y, cim, measure)
+    # A control that takes the focus draws its own ring when it is selected.
+    is_focusable_document(get_iomap_input(cim)) && return nothing
+    child = cim.output
+    child isa GraphicsDocument || return nothing
+    x0, y0 = child isa GraphicsCanvas ? (Int(child.x[]), Int(child.y[])) : (0, 0)
+    stated = child isa GraphicsCanvas && Int(child.w[]) > 0 && Int(child.h[]) > 0
+    w, h = stated ? (Int(child.w[]), Int(child.h[])) : _element_size(child, measure)
+    (Int(x isa Cell ? x[] : x) + x0, Int(y isa Cell ? y[] : y) + y0, w, h)
+end
+
 # `cap` is an overlay's context: given one, the extent is capped by what the
 # parent offered rather than allowed to run past it.
 function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
@@ -796,7 +812,7 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_intent(cim.projection, cim, make_evt(lx, ly))
+        result = read_child_event(cim, make_evt(lx, ly))
         result !== nothing && return result
     end
     nothing
@@ -1618,7 +1634,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     ce = iomap.content_entry
     ce === nothing && return nothing
     (ox, oy, cim) = ce
-    op = read_intent(cim.projection, cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
+    op = read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
     _retarget_op(p, iomap, op)
 end
 
@@ -1849,7 +1865,16 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         elems = Any[_make_canvas(cox, coy, Any[cim.output]) for cim in cims]
         (elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> build[].elements, _p_measure(p)),
+    # The ring over the element the composite's selection names as a whole.
+    ring = make_selection_ring(() -> begin
+        entries = build[].child_iomaps
+        i = find_whole_selected_index(w.selection, "elements")
+        (i === nothing || !(1 <= i <= length(entries))) && return nothing
+        (x, y, cim) = entries[i]
+        _get_entry_box(x, y, cim, _p_measure(p))
+    end)
+    ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
+                                              _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
 
@@ -1941,7 +1966,7 @@ function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_intent(cim.projection, cim, make_evt(lx, ly))
+        result = read_child_event(cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -2834,7 +2859,7 @@ function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         oy = Int(y_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_intent(cim.projection, cim, make_evt(lx, ly))
+        result = read_child_event(cim, make_evt(lx, ly))
         result !== nothing && return (result, i)
     end
     nothing
@@ -3282,7 +3307,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
             MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
         _ => evt
     end
-    op = read_intent(cim.projection, cim, child_evt)
+    op = read_child_event(cim, child_evt)
     op === nothing && return nothing
     (op, active_idx)
 end
@@ -3657,8 +3682,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     op = @event_case evt begin
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_intent(content_iomap.projection, content_iomap,
-                             MousePress(button, lx, ly, evt.modifiers))
+            read_child_event(content_iomap, MousePress(button, lx, ly, evt.modifiers))
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
@@ -3828,7 +3852,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         MousePress(button, x, y) => begin
             inv = compute_affine_inverse(M)
             lxf, lyf = apply_affine_transform(inv, Float64(x - cox), Float64(y - coy))
-            read_intent(content_iomap.projection, content_iomap,
+            read_child_event(content_iomap,
                              MousePress(button, round(Int, lxf), round(Int, lyf), evt.modifiers))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
@@ -4320,10 +4344,21 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     body, body_ctx = _card_body(w.content, inner_ctx)
     cim = body isa Document ? print_child(recursion, body, body_ctx) : nothing
     build = ComputedCell(() -> _card_build(p, w, ctx, tim, cim))
+    # The ring over the slot the card's selection names as a whole.
+    ring = make_selection_ring(() -> begin
+        for entry in build[].child_iomaps
+            entry === nothing && continue
+            (x, y, child) = entry
+            name = _card_slot_name(w, child)
+            (name !== nothing && is_whole_selected_field(w.selection, name)) || continue
+            return _get_entry_box(x, y, child, _p_measure(p))
+        end
+        nothing
+    end)
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            ComputedCell(() -> Int32(build[].w)),
                            ComputedCell(() -> Int32(build[].h)),
-                           ComputedCellVector(() -> build[].elements),
+                           ComputedCellVector(() -> vcat(build[].elements, Any[ring])),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, w, outer, ComputedCell(() -> build[].child_iomaps))
 end
@@ -4370,7 +4405,7 @@ function _card_route(w::WidgetCard, entries::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        op = read_intent(cim.projection, cim, make_evt(lx, ly))
+        op = read_child_event(cim, make_evt(lx, ly))
         op === nothing && continue
         return _card_reroot(w, cim, op)
     end

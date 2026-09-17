@@ -36,10 +36,12 @@ export GraphicsCanvasToGraphicsImage, GraphicsCaching
 export is_infinite_canvas
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export get_canvas_content_bounds
+export make_selection_ring, SELECTION_RING_COLOR
 
 
 include("PointReferenceStep.jl")
 include("GraphicsDocument.jl")
 include("GraphicsCaching.jl")
+include("SelectionRing.jl")
 
 end # module

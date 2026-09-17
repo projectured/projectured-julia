@@ -347,7 +347,13 @@ done here. Run only the tests that each step names.
 
 ### Step 0 — baselines and probes
 
-- [ ] Record the counts of these suites on clean main: `test_conversation()`,
+- [x] **Done 2026-09-17** at `b2219baa`, in one process from
+      `environment/all`. All pass, with no fail and no error: conversation 96,
+      clipboard 102, widget_card_fold 22, pane_surgery 79, pane_geometry 35,
+      pane_to_widget 44, pane_reader 32, pane_gestures 42, pane_drag 251,
+      pane_rename 19, pane_construct 45, chart 339, sequencechart 270. The omnet
+      counts are taken in Step 6, from the omnet worktree.
+      Record the counts of these suites on clean main: `test_conversation()`,
       `test_clipboard()`, `test_widget_card_fold()`, `test_chart()`,
       `test_sequencechart()`, the eight pane tests
       (`test_pane_surgery`, `test_pane_geometry`, `test_pane_to_widget`,
@@ -355,31 +361,85 @@ done here. Run only the tests that each step names.
       `test_pane_rename`, `test_pane_construct`), and omnet
       `test_result_views()`, `test_result_verbs()` and the test of each runner
       projection of D5.
-- [ ] Probe: when a document's selection names an object whole, what does the
+- [x] Probe: when a document's selection names an object whole, what does the
       selection cell of the widget that draws it hold after a print? D4 needs
       `EmptyReference()` there. If the chain does not write widget selection
       cells, each projection of D5 sets them with `set_cell_function!`, as
       `AssistantToWidget.jl` does.
-- [ ] Probe: can one decorator add the ring element to every widget canvas
+      **Answer:** the chain writes no widget selection cell. With the
+      conversation's selection at `turns[1]`, the transcript's layout and both
+      turn cards hold `nothing`, while `map_reference_forward` answers
+      `.children[1]`. So Step 4 wires the transcript's containers with
+      `set_cell_function!`, as `PaneToWidget` does with `_forward_selection!`.
+- [x] Probe: can one decorator add the ring element to every widget canvas
       (D4)? A canvas whose elements are a computed vector can refuse it. Write
       the choice here.
+      **Answer: no decorator.** A decorator at the renderer's dispatch would
+      wrap the IO map of every child, and several readers find a child IO map
+      by its type (`_find_fold_operation`, the pane reader). The ring is drawn
+      by the container instead: every layout, the composite and the card keep
+      one ring at the end of their element list. The ring covers the child
+      that the container's OWN selection names as a whole (`children[i]`,
+      `elements[i]`, `content`). That works for a widget child and for an
+      embedded document child alike, and it never reads the child's cell.
 - [ ] Probe: does an Alt+press reach the editor through the SDL backend on this
-      desktop, or does the window manager take it?
-- [ ] List every document type that a tab of the IDE can hold, and its
+      desktop, or does the window manager take it? It needs a live window;
+      Step 7 does it by hand.
+- [x] List every document type that a tab of the IDE can hold, and its
       projection. Mark which ones D5 covers, and which ones are tool panes
       that refuse a paste (D9).
 
-### Step 1 — Alt+click and the ring (projectured, widget slice)
+      | Tab content | Projection | Maps references | Tool pane (refuses a paste) |
+      | --- | --- | --- | --- |
+      | `SimulationFilter` (the runner) | `SimulationFilterToWidgetForm` | yes | yes |
+      | `Assistant` | `AssistantToWidgetSplitPane` | yes | yes |
+      | `SimulationBatchDocument` (a set of runs) | `build_campaign_graphics_entry` | no | yes: a process pool |
+      | `StudyStudy` | `StudyStudyToWidget` | no | yes: it holds live runs |
+      | `SimulationResultFrame` | `SimulationResultFrameToWidgetTable` | no | no |
+      | `ResultTableView` | `ResultTableViewToSimulationResultFrame`, then the frame | no | no |
+      | `SimulationPlotDocument` | `SimulationPlotToGraphics` | no | no |
+      | `DocumentNothing` (the placeholder) | `PhraseToGraphics` | no | no |
+      | a widget or layout tree | the widget and layout renderer | yes | no |
 
-- [ ] The Alt+press rule of D3 in every container, and in the leaves through
+      A projection that maps no reference makes the pane the floor: an
+      Alt+click inside it selects the tab's content as a whole (Step 5).
+
+### Step 1 — Alt+click and the ring (projectured, focus, graphics, layout and widget slices)
+
+- [x] The Alt+press rule of D3 in every container, and in the leaves through
       one shared rule.
-- [ ] The ring of D4.
-- [ ] Tests: a new `test_widget_selection()`. It presses real pixels: an
+      **Done 2026-09-17.** The focus slice holds the rule
+      (`WholeSelection.jl`: `is_whole_selection_press`, `is_whole_selection`,
+      `convert_to_whole_selection`, `find_whole_selected_index`,
+      `is_whole_selected_field`), because both the layout and the widget
+      packages see it. The layout slice holds `read_child_event`: every router
+      that hands a press to a child calls it in place of the child's reader —
+      the layouts, the composite, the split pane, the tabbed pane, the scroll
+      pane, the transform pane, the dialog and the card. The leaves need no
+      change: a leaf's answer is dropped by its container.
+- [x] The ring of D4.
+      **Done 2026-09-17.** `make_selection_ring` is in the graphics slice,
+      because the layout package does not see the style package.
+      `make_layout_selection_ring` serves the horizontal, vertical, grid, flow,
+      constraint and anchored layouts; the composite and the card build theirs
+      in `WidgetToGraphics.jl`. At rest the ring has no size and no border. A
+      child that takes the focus (`is_focusable_document`) gets no ring,
+      because a control draws its own focus ring when it is selected; without
+      that rule a selected button drew two rings. The stack layout lists only
+      its visible children, so its entries do not follow the child index; it
+      has no ring yet.
+- [x] Tests: a new `test_widget_selection()`. It presses real pixels: an
       Alt+click on a button selects it and does not fire it; an Alt+click on a
       widget in a card in a composite selects the innermost one; an Alt+click
       on a table cell keeps the cell selection; the ring pixels appear and go
       away; a tree with no whole-element selection draws the same pixels as on
       main.
+      **Done 2026-09-17: 43 pass.** The "same pixels" check is that every ring
+      at rest has no size and no border, which both backends skip. A plain
+      press in a `WidgetText` that has no focus answers nothing, so the caret
+      case is a unit test of the helpers. The table cell case is covered by
+      the rule (a whole selection inside a child is kept), and by the table's
+      own tests. The 13 suites of Step 0 keep their counts.
 
 ### Step 2 — the `Alt` + arrows walk (projectured, focus and pane slices)
 
