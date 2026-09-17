@@ -165,6 +165,31 @@ function test_widget_table_content_floor()
 end
 end
 
+# A shell offers its content the room inside it when it has a size, and nothing
+# when it has none: then a pane in it that authors no size is as big as what it
+# holds.
+function test_shell_offers_only_its_size()
+@testset "a shell with no size withholds its offer" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    pane() = WidgetScrollPane(WidgetLabel(Point2D(0, 0), "a label"); size = Point2D(0, 0))
+    function viewport_of(shell)
+        ctx = with_available_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500)))
+        found = GraphicsViewport[]
+        walk(node) = node isa GraphicsViewport ? push!(found, node) :
+                     node isa GraphicsCanvas ? foreach(walk, node.elements) : nothing
+        walk(print_document(rec, nothing, shell, ctx).output)
+        only(found)
+    end
+    free = viewport_of(WidgetShell(pane()))
+    @test Int(free.w) == 8 * length("a label")
+    sized = viewport_of(WidgetShell(pane(); size = Point2D(400, 300)))
+    @test Int(sized.w) > 300
+end
+end
+
 # A scroll pane reads its size one axis at a time, and 0 on an axis authors
 # nothing on it. A pane that authors its height and a width of 0 keeps the
 # height and takes the width its parent offers, as a pane that authors no size.

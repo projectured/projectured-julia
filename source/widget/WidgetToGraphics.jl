@@ -2086,7 +2086,11 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         b = bands[]
         max(0, Int(sz.y[]) - ty - (b.content_y - b.coy) - b.status_h)
     end)
-    content_ctx = with_available_size(ctx; width=avail_w_cell, height=avail_h_cell)
+    # A shell with no size of its own has nothing to offer, so it withholds the
+    # offer and its content takes its own extent (`layout-rules.md` §3).
+    content_ctx = getfield(w, :size)[] isa Point2D ?
+        with_available_size(ctx; width=avail_w_cell, height=avail_h_cell) :
+        withhold_offer(withhold_offer(ctx, :x), :y)
     content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = ComputedCell(() -> begin
         b = bands[]
