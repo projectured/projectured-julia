@@ -1,6 +1,7 @@
 # Copy and paste text with the system clipboard
 
-**Status (2026-09-17): NOT STARTED.** No code changed yet.
+**Status (2026-09-17): IN PROGRESS** in the worktree `projectured-julia-text-clipboard`
+(branch `text-clipboard`). Step 0 is done.
 
 **Start it only after** [select-a-widget-and-paste-it-into-a-tab.md](select-a-widget-and-paste-it-into-a-tab.md)
 is done and on `main`. This plan builds on its paste rules (D9), on its reading
@@ -111,13 +112,19 @@ range and keeps the other:
 
 A plain motion key collapses a range, as it does now.
 
-#### T2. A range remembers its moving end
+#### T2. A Shift key moves the end in its direction
 
-The flat range is written `{anchor..head}`. The head moves, and the anchor stays.
-`head < anchor` is allowed, and the edit helpers read the sorted pair. Step 0
-checks that a `RangeReferenceStep` holds a reversed pair and that every map keeps
-the order. If it can not, the decision changes before step 2, and the plan says
-how.
+**Changed in step 0.** A range stays ordered, `start <= stop`: the text slice
+documents that contract for `TextRangeReferenceStep`, and about a hundred places
+read the two ends of a range step, element ranges of lists among them. A reversed
+pair would have to be sorted in each of them.
+
+So a range records no moving end. `Shift+Left`, `Shift+Up`, `Shift+Home` and the
+word and text-start keys move the start; `Shift+Right`, `Shift+Down`, `Shift+End`
+and their twins move the stop. From a caret, the key's direction makes the range.
+The opposite key therefore grows the other end, where most editors would shrink
+the range. A plain arrow collapses the range, and the person selects again.
+Shrinking with the opposite key is deferred (§4).
 
 #### T3. A projection maps a range when the map is trivial
 
@@ -128,10 +135,15 @@ and the selection stays where it was. The existing lowering of
 `ReplaceTextRangeOperation` already declines a cross-span range, so a typed key
 over such a range does nothing, as now.
 
-The projections that must map a range are the ones on the path of the tests:
-`PrimitiveToText`, the syntax leaf chain of the JSON example, and the composer
-(T5). Step 0 lists the others that map a caret, and each one gets the range map
-or stays as it is.
+The projections that map a range are the ones on the composer's path and the
+plain string's: `PrimitiveToText`, `WordWrapping`, `TextToGraphics` and the
+composer (T5).
+
+**Changed in step 0.** The syntax chain (`SyntaxLeafToText`,
+`SyntaxCompoundToText` and a domain's projection to syntax) maps a caret as one
+flat offset at every level. A range there needs both ends carried through each
+level, so its range map is deferred (§4). A JSON string still takes a paste at a
+caret, which is what step 4 tests.
 
 ### The chat draft
 
@@ -258,6 +270,9 @@ These are the hard parts, and none of them is in this plan:
 - **A range with a map that is not trivial:** across spans, across a line break,
   across documents, and over a reference that a projection introduced. A `Shift`
   key that would make one declines (T3).
+- **A range in the syntax chain** (T3): `SyntaxLeafToText`,
+  `SyntaxCompoundToText` and the domain projections to syntax map a caret only.
+- **Shrinking a range with the opposite `Shift` key** (T2).
 - **A range selected with the pointer:** a drag, a double click, a `Shift+click`.
 - **A projection that is not on the path of the tests** and maps only a caret. It
   keeps its caret map until someone needs its range.
@@ -273,27 +288,53 @@ These are the hard parts, and none of them is in this plan:
 
 ### Step 0 — baselines and probes
 
-- [ ] The other plan is in `plan/done/` and its branch is on `main`.
-- [ ] Record the counts on `main`: `test_clipboard()`, `test_gesture_help()`,
-      `test_command_palette_decorator()`, the text suites
-      (`test_text_to_graphics()`, `test_primitive_to_text()`,
-      `test_widget_text_editing()`), the conversation and assistant suites, and
-      in omnet-julia `test_ide_window_wrap()` and the other plan's
-      `test_select_and_paste()`. Write down which assertions fail, the composer
-      paste of its step 7 among them.
-- [ ] Read D9, D10 and D11 as they landed, and `_get_clipboard_selection` and
-      `_find_paste_target`. If they differ from §2, correct §2 and the decisions
-      first.
-- [ ] Repeat the probe of §2 in the IDE: a click into the draft, then `h`, `i`.
-      Record the root's path, the pane tree's trail and the string's trail. After
-      step 3 the three agree.
-- [ ] Find where a key to the composer's text layer is lost today: the card, the
-      composer's reader, or the order of the readers.
-- [ ] Check that a `RangeReferenceStep` holds a reversed pair, and that
-      `make_flat_caret_reference` has a range twin (T2).
-- [ ] List the projections that map a text caret (T3), and the users of the three
-      composer operations (T5). Check whether the other plan added a `Ctrl+V` to
-      the composer; if it did, decide with the user which one answers.
+- [x] The other plan is done: steps 0 to 12 are on `main`, and two items wait for
+      the user (a timing, and a change in a sealed file).
+- [x] Baseline counts at `edeadcb6`, all passing: `test_clipboard()` 163,
+      `test_gesture_help()` 42, `test_command_palette_decorator()` 63,
+      `test_text_to_graphics()` 92, `test_primitive_to_text()` 46,
+      `test_widget_text_editing()` 12, `test_conversation()` 164,
+      `test_assistant_composer_panel()` 15. The omnet-julia counts are taken in
+      step 5, on the omnet-julia worktree.
+- [x] D9, D10 and D11 as they landed. `_get_clipboard_selection` reads the
+      content's trail. `_find_paste_target` applies the three rules. The
+      clipboard answers its own keys **first** and passes a key to its content
+      only when it declines, so a text branch in its paste runs before any
+      reader below. The IDE's `make_ide_window_wrap` has a `selection` flag, on
+      by default, that puts the clipboard (copy, note, paste, paste-copy) and the
+      walk over the window.
+- [x] The probe of §2, repeated in projectured-julia on the assistant example
+      through the real editor loop: a press at the placeholder selects
+      `…draft.parts[1].content.value{0}`. The keys `h`, `i` make two
+      `ComposerInputOperation`s. The value is `"hi"`, the string's trail is
+      `value{2}`, and the root's path is still `value{0}`. `Left` makes no
+      operation.
+- [x] Where the key is lost: a `WidgetCard` sends a key to its content only
+      while its own selection is set (`read_intent(::WidgetCardToGraphicsCanvas,
+      …)`), and the composer builds its part cards with none. The transcript sets
+      them with `_follow_selection!`, and the composer will too.
+- [x] **A second fault the probe showed.** The composer's
+      `map_reference_backward` reads only the structural caret
+      `elements[s].content{k}`. A press gives the flat caret `{f}`, so every click
+      puts the caret at the end of the value. Step 3 maps the flat form.
+- [x] A reversed pair: not used (T2 changed, see there).
+- [x] The projections that map a text caret: `PrimitiveToText`, `WordWrapping`,
+      `TextToGraphics`, the other text decorators, the syntax chain, and the
+      composer. T3 now names the ones this plan changes.
+- [x] The users of the three composer operations: the composer's key table, and
+      tests in projectured-julia and omnet-julia (`CampaignAssistantTest`) that
+      fill a draft with `ComposerInputOperation(draft, text)` and no editor.
+      **Decision:** the three operations stay as a program interface; the key
+      table no longer makes them. The panel tests that expect a key with no
+      selection in the draft to make one change with T6.
+- [x] The composer's structural operations (a new part, a commit, a revert, a
+      submit) set the caret on the new part's own cell. **Decision:** they also
+      select that caret through the complete path, so that the next key goes to
+      the new part (T4).
+- [x] The other plan added no `Ctrl+V` to the composer. Its step 7 crossed out
+      the composer paste, because a headless press could not place the caret. A
+      `MousePress` at the placeholder's drawn text does place it (the probe
+      above), so step 5 can test it.
 
 ### Step 1 — `accepts_pasted_text` (projectured, domain and conversation slices)
 
