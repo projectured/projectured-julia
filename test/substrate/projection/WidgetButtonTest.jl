@@ -538,3 +538,22 @@ end
 end
 
 end # test_widget_button_behavior
+
+# A button that can show two labels is as wide as the wider, whichever it shows,
+# so a row with a Pause/Resume toggle does not move when the label changes.
+function test_widget_button_labels()
+@testset "a button is as wide as its widest label" begin
+    measure = (t, f) -> (length(t) * 10, 24)
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure).dispatch))
+    width_of(button) = Int(print_document(projection, nothing, button, PrinterContext()).output.w[])
+    plain_pause = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Pause")
+    plain_resume = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Resume")
+    toggle = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Pause"; labels = ["Pause", "Resume"])
+    @test width_of(plain_pause) < width_of(plain_resume)
+    @test width_of(toggle) == width_of(plain_resume)
+    # The label changes, and the width does not.
+    toggle.action.label = "Resume"
+    @test width_of(toggle) == width_of(plain_resume)
+end
+end

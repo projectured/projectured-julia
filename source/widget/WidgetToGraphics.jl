@@ -1227,6 +1227,11 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         authored_size = w.size::Point2D
         label_content = _button_label_content(w)
         content_width, content_height = _content_size(p.measure, p.label.font, label_content)
+        # A button that can show several labels is as wide as the widest, so the
+        # row it stands in does not move when the label changes.
+        for other in w.labels
+            content_width = max(content_width, first(_content_size(p.measure, p.label.font, other)))
+        end
         padding_x = _sc(Int(p.padding.left[]))
         padding_y = _sc(Int(p.padding.top[]))
         # Optional leading icon (Stage 5): a square the size of the label text, with a

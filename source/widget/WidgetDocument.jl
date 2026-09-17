@@ -376,6 +376,11 @@ gesture-help window shows.
 when `false` the button renders muted, ignores hover/press, and its reader
 refuses to invoke the action.
 
+`labels` names every label the button can show, when its label changes — Pause
+and Resume, say. The button is as wide as the widest of them and of its current
+label, so the row it stands in does not move when the label changes. Empty (the
+default) means the current label alone.
+
 `hovered` and `pressed` are **transient UI state** holding the pointer
 interaction: `hovered` is `true` while the pointer is inside the button,
 `pressed` is `true` while the left button is held down on it. The printer reads
@@ -403,6 +408,7 @@ for one choice among several.
     padding_color::StyleColor
     hovered::Bool
     pressed::Bool
+    labels::Any
 end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
@@ -417,7 +423,8 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       border::Inset=inset_default,
                       border_color=nothing,
                       padding::Inset=inset_default,
-                      padding_color=nothing)
+                      padding_color=nothing,
+                      labels=String[])
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
@@ -432,7 +439,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
-                 Cell(false), Cell(false))
+                 Cell(false), Cell(false), Cell(labels))
 end
 
 # The reactive-label channel: make this button's label computed. The label lives
