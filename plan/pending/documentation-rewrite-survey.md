@@ -32,6 +32,7 @@ otherwise unchanged.
 8. [G2 — base-layer and tool guides](#g2--substrate-and-tooling-guides)
 9. [H — what works today](#what-a-user-and-a-julia-developer-can-do-with-projectured-today)
 10. [I — plan folders](#survey-area-i-plan-folders)
+11. [J — the two binary builds](#how-omnet-julia-builds-binaries-and-what-projectured-julia-can-copy) (added later on 2026-09-17, for decision D18)
 
 
 ---
@@ -2722,3 +2723,753 @@ By the date of the commit that added them (`git log --diff-filter=A --name-only 
     reads, from outside, exactly like a shipped feature — several (`sql-insert-update-support.md`,
     `xml-to-syntax-lisp-parity.md`, `injecting-projection.md`) are close enough that a rewrite
     author skimming the plan title could mistakenly describe the feature as available.
+
+---
+
+# How omnet-julia builds binaries, and what projectured-julia can copy
+
+Research report. All paths are relative to the named repository root
+(`/home/projectured/workspace/omnet-julia` or
+`/home/projectured/workspace/projectured-julia`) unless given absolute.
+
+**Context found during the research.** `projectured-julia`'s
+`plan/pending/documentation-rewrite.md` already contains the decision this
+report answers to. Its §4.1, decision **D18** (line 572): *"An application
+entry point before the posts — Yes. One command and one binary open any
+number of files, in every supported format, in one window with the
+assistant. The existing build system (`ProjecturedBuilder`,
+`ProjecturedExecutable`) becomes more general, and it takes what applies from
+the binary build of omnet-julia (Step 1)."* Step 1's checklist (line 610-691)
+does not yet itemize D18's own tasks — this report is the missing survey that
+a later edit of that plan would turn into checklist items. This report does
+not edit that plan (out of scope: read-only research).
+
+---
+
+## Part 1 — omnet-julia's build system
+
+### 1. Build entry point and command line
+
+The front end is `source/tool/build_binary.jl` (528 lines), a thin dispatcher
+that resolves `environment/tool` (`Pkg.resolve`/`instantiate`,
+lines 42-43), loads `OmnetBuilder`, parses `ARGS`, and calls one Julia
+function:
+
+```
+julia --project=environment/tool source/tool/build_binary.jl <what> [options]
+```
+
+`<what>` is one of `run`, `campaign_ui`, `ide`, `sample <name>`, `simulate`,
+`demo` (`ALL_BUILDS`, line 79). The file's own header states the design
+intent (lines 11-14): *"A build is a function, and a function is the better
+interface... This file exists so that a person in a shell reaches the same
+functions, and it must never grow a decision of its own."*
+
+**A target is a Julia function, not a spec/table/DSL.** One function per
+binary lives in `source/build/Program.jl` (688 lines):
+`build_omnet_run_executable`, `build_omnet_campaign_ui_executable`,
+`build_omnet_ide_executable`, `build_omnet_legacy_sample_executable`,
+`build_omnet_simulate_executable`, `build_omnet_demo_executable`
+(`Program.jl:43,219,251,295,425,512`). Each decides, in ordinary Julia code:
+
+- **name** — `BUILD_NAMES` (`Program.jl:20-22`), e.g. `"run" => "omnet_run"`.
+- **packages** — a `Vector{String}` of package names, e.g.
+  `["OmnetRunner", "OmnetLegacyFormat", model...]` (`Program.jl:55-58`).
+- **entry function** — an `Expr` interpolated as the body of `julia_main`,
+  e.g. `:(OmnetRunner.main(ARGS))` (`Program.jl:64`), or for the window
+  binaries a hand-built `Expr` tree calling `OmnetCampaignUi.run_campaign_window`
+  / `OmnetIde.run_omnet_ide` with keyword flags spliced in
+  (`Program.jl:146-157`).
+- **workload** — an `Expr` run under `@compile_workload`, chosen per build
+  (`:none`/`:minimal`/`:demo`/`:full` for `run`; a `Bool` for the window
+  binaries) (`Program.jl:65-67`, `158-161`).
+- **command-line options** — a `Usage` value (`source/build/Usage.jl:54-58`)
+  naming the flags *that binary* answers (`--backend=`, `--llm=`, `-f <file>`,
+  …); the generated module refuses any flag not listed
+  (`AppPackage.jl:184-190`).
+- **resources / fonts / icons** — `fonts::Bool` bundles the TrueType faces
+  (`Executable.jl:719-750`); `assets` copies a directory beside the binary,
+  e.g. `"demo/catalog" => "share/omnet/catalog"` (`Executable.jl:752-774`,
+  used at `Program.jl:541`). No icon mechanism exists (this project ships no
+  desktop icon).
+
+The library function every build function calls is `build_executable` in
+`source/build/Executable.jl:332-517` — one function with ~30 keywords
+(`name`, `packages`, `main`, `workload`, `preferences`, `fonts`, `assets`,
+`usage`, `log_level`, `incremental`, `trim`, `cpu_target`, `output`,
+`compile`, `reactive`, `tracked`, `server`, `image`, `delta_optimization`,
+`found`, `compact`, `trimmed`, …).
+
+`build_binary.jl`'s own `OPTIONS` table (`build_binary.jl:96-180`) is **the
+single source for both the `--help` text and the argument-to-build
+refusal**: an option not in the build's own tuple is refused before it can
+reach a `MethodError` (`build_binary.jl:346-350`), and the same table renders
+`--help` (`_option_lines`, `build_binary.jl:198-207`).
+
+### 2. The build environment
+
+`environment/tool` (a `Project.toml` only — no code) is separate from
+`environment/all` (the whole repository's dev environment) for two reasons,
+both documented in code comments:
+
+- **It patches `PackageCompiler`.** `environment/tool/Project.toml`'s
+  `[sources]` points `PackageCompiler` at
+  `../../../package-compiler-reactive` (a sibling checkout, the `reactive`
+  branch), which caches the base sysimage and adds
+  `materialize_app`/reactive rebuilds — capabilities the released package
+  does not have.
+- **It keeps the compiler out of every other environment.** `OmnetBuilder`
+  loads PackageCompiler by `Base.PkgId` identity only inside the one function
+  that compiles (`Executable.jl:17-18, 48-50`), specifically so a caller
+  that only wants to see what a build *would* write needs no compiler
+  installed (`OmnetBuilder.jl:18-19`).
+
+`OmnetBuilder` (`package/OmnetBuilder/`) itself has a minimal `[deps]`
+(`Dates`, `Pkg`, `Preferences`, `SHA`, `TOML` — `Project.toml:15-21`) and
+names **no** simulator or presentation package. `get_package_directory`
+(`source/build/Root.jl:37-44`) resolves a package by name at build time,
+walking `package/<name>` first, then the `projectured-julia` sibling
+checkout — which is how `OmnetBuilder` stays independent of what any binary
+holds (`Root.jl:31-35`).
+
+### 3. The build technique
+
+**PackageCompiler `create_app`, explicitly not `juliac`/`--trim`.**
+`source/build/Executable.jl:1-8` states why: `--trim` forbids dynamic
+dispatch, and the engine dispatches on module type at every gate while a
+`NetworkModel` reaches its builder through a registry, so it fails on this
+program today. `source/build/Trim.jl` keeps a `:juliac`/`:sealed` option
+behind `--trim` (off by default) purely to keep that failure measurable, and
+says so at the top of the file (`Trim.jl:1-25`); the working trimmed path for
+one sample is a separate shell pipeline
+(`tool/trim-routing/build_phase.sh`, noted at `build_binary.jl:138`).
+
+**Incremental by default, with a measured trade-off.** `_compile!`
+(`Executable.jl:573-606`) calls `create_app` on top of the *running* Julia's
+own sysimage (`incremental = true` by default) rather than a fresh one,
+because a fresh image recompiles every stdlib into it —
+`build_executable`'s docstring (`Executable.jl:293-309`) cites a measurement
+on the routing sample: **390 s / 741 MB incremental** vs **741 s / 736 MB
+non-incremental** — half the time for 0.7% more size. Only the
+`build_..._distribution` functions force `incremental = false`
+(`Program.jl:600,616,635,652,669,684`), because a distributed binary must not
+carry a developer's whole base image (`build_distribution`'s
+`check_relocation` refuses one that says `INCREMENTAL_MARK`,
+`Distribution.jl:141-144`).
+
+**A precompile workload** is spliced into the generated app module under
+`@compile_workload` (`AppPackage.jl:194-199`), plus a repository-wide
+`asset/precompile/WorkloadStatements.jl` file of recorded precompile
+statements passed as `precompile_statements_file` (`Executable.jl:584,601`).
+
+**A reactive/incremental-rebuild mode** (`--reactive`, `source/build/Reactive.jl`,
+187 lines) is layered on top: `PackageCompiler.materialize_app` (from the
+same patched branch) founds a store beside the output on the first build and,
+on every later build of the same output, reads the tracked source files,
+compiles only the edit, and links an overlay in front of the previous image —
+measured at "about 4 minutes" to found vs "1.3 s in the compiler, 13 s with
+the tool's start" to rebuild
+(`documentation/guide/reactive-build-guide.md:6,13,15`). This is optional and
+off unless a store exists or `--reactive` is passed.
+
+**A special Julia build for prelinking — "prelink", not the compiler
+itself.** `build_binary.jl`'s header (lines 20-26) and `Executable.jl:393-412`
+explain: every image restore fixes up pointers for the address the image
+lands at; a *prelinked* image has that restore already applied and written
+back into the file (worth 213 ms → ~100 ms of start time per
+`build_binary.jl:21`). Only a Julia runtime that knows
+`--sysimage-prelink`/`--output-prelinked` can do this
+(`_has_prelink_option()`, `Executable.jl:681`, checks
+`:sysimage_prelink in fieldnames(Base.JLOptions)`). That runtime is
+`workspace/julia-sysimage-prelink-wip/usr/bin/julia`
+(branch `sysimage-prelink-1.13`, `build_binary.jl:23-24`). **A build on a
+stock Julia is not refused** — `Executable.jl:406-412` turns `prelink` off,
+logs an `@info` explaining where the special runtime lives, and proceeds
+with an ordinary (slower-starting) binary. The build is **found**, not
+invoked, by running `build_binary.jl` *with* that special Julia on `PATH`;
+nothing in the builder shells out to find it automatically — the person
+running the build chooses which `julia` binary starts the process.
+
+A custom `launcher.c` (`Executable.jl:84-95`, file at
+`source/build/launcher.c`) replaces PackageCompiler's own C entry point,
+because the stock one calls `jl_eval_string` to reach `ARGS`, which compiles
+the JuliaSyntax parser on every start (~90 ms). `link_executable!`
+(`Executable.jl:638-675`) links this launcher plus the image's own object
+archive (kept via `_object_archive_keyword`, `Executable.jl:58-81`) into one
+`ET_EXEC` binary with `-no-pie` (so the restore, once prelinked, is valid at
+one fixed address) and `--export-dynamic` (so `dlsym` can find the two image
+symbols by name).
+
+### 4. The runtime side
+
+Every generated app module defines `Base.@ccallable function julia_main()::Cint`
+(`AppPackage.jl:173`), written by `write_app_package`. It is the same for
+every binary and is generic to `OmnetBuilder`, not simulator code:
+
+1. **`_apply_log_level!()` first** (`AppPackage.jl:176`), which strips
+   `--log-level=<level>` (or `OMNET_LOG_LEVEL`) out of `ARGS` and sets the
+   global logger, before anything else reads `ARGS`
+   (`AppPackage.jl:122-138`).
+2. `--build-info` (always answered — `AppPackage.jl:177`), then, only when a
+   build function supplied a `Usage`, `-h`/`--help` and `-v`/`--version`
+   (`AppPackage.jl:178-190`), then a refusal of any unrecognized `-`-prefixed
+   flag (`AppPackage.jl:184-190`) — **not read as something else**; the
+   comment at `AppPackage.jl:182-183` recalls that before this existed,
+   `--version` typed at the campaign binary was read as its project directory
+   and it silently opened a window on a directory named `--version`.
+3. The build function's own `main` expression, e.g.
+   `OmnetRunner.main(ARGS)` (exit 0/1/2: finished / bad arguments / run
+   failed — `OmnetRunner.jl:56-57`), or the window binaries' hand-built call
+   into `run_campaign_window`/`run_omnet_ide`/`run_qtenv_window` with a
+   constructed backend (`Program.jl:106,442, 146-157`).
+
+**User-interface selection.** `OmnetRunner` holds exactly one interface,
+`:cmdenv` (`OmnetRunner.jl:44-51`; `-u Cmdenv` is the only accepted value,
+`-u Qtenv`/`-u Editor` are refused because the binary depends on nothing that
+draws — `documentation/package/runner/runner.md:52-58`). The window binaries
+construct one backend object at build time from `backend::Symbol` (`:sdl` →
+`SdlBackend()`, `:web` → `WebBackend()`, `_build_omnet_window_executable`,
+`Program.jl:92-106`); which backend package is even a dependency is decided
+at build time, and if only one went in there is no `--backend` flag to pick
+the other (`Program.jl:163-165`; the demo binary is the one exception with
+both backends in, hence its own `--backend=web` flag,
+`Program.jl:500-502,551-552`).
+
+**Assets relative to the binary.** Fonts: `bundle_fonts!`
+(`Executable.jl:719-750`) copies `<repo>/../projectured-julia/asset/font/*.ttf`
+into `<output>/share/projectured/font`; the *runtime* lookup
+(`ProjecturedStyle.font_file`, in the projectured-julia sibling) resolves a
+baked-in checkout path first, then `PROJECTURED_FONT_DIR`, then
+`Sys.BINDIR/../share/projectured/font` — the comment at `Executable.jl:731-733`
+names exactly that function and that path convention. Other assets (e.g. the
+demo catalog) are copied the same way (`bundle_assets!`,
+`Executable.jl:752-774`) into `share/omnet/<name>`, and a build's own `main`
+expression looks beside the executable first
+(`joinpath(Sys.BINDIR, "..", "share", "omnet", "catalog")`,
+`Program.jl:531`) before falling back to the compiled-in checkout path.
+
+**Error reporting and exit codes.** A CLI binary (`omnet_run`) reports one
+line on `stderr` and an exit code — no stack trace, because it is meant to be
+driven by scripts running many runs (`OmnetRunner.jl:59-61,74-87`): 0
+finished, 1 bad command line, 2 run failed. A window binary's own `main`
+`Expr` prints one line to `stderr` and returns 1 for a bad command line
+(`Program.jl:456-464`).
+
+### 5. Output layout, build testing, time/memory
+
+**Layout.** `build/<name>/{bin/<name>, lib/…, share/…}` — `build_output`
+(`build_binary.jl:441-446`) defaults to `build/<name>` under the repository
+`ROOT`; `--output=` overrides it. `strip_bundle!` (`Executable.jl:621-635`)
+then moves the duplicate 382 MB `lib/julia/sys.so` out beside the bundle
+(the binary already carries the image linked in) and removes `bin/julia`.
+The object archive the executable was linked from is kept beside the bundle
+too, at `<output>.object/sys-o.a` (`get_object_archive`, `Executable.jl:111`),
+so a relink needs no rebuild.
+
+**Testing a built binary.** `print_build_report!` (`Executable.jl:783-791`)
+runs after every compile: it measures the bundle's size (`du -sb`) and how
+long the binary takes to answer `--build-info` (chosen deliberately over
+`--version`, because `--version` reaches a window binary's own `main` and one
+such binary hung 60+ s waiting on a window — `get_smoke_flag`,
+`Executable.jl:519-530`). `build_distribution` (`Distribution.jl:34-79`)
+copies the bundle **outside the repository** (`get_staging_root`,
+preferring `/var/tmp` over `/tmp` because `/tmp` is a `tmpfs` on this machine
+and a 736 MB–1.4 GB copy there is a copy into RAM — `Distribution.jl:86-97`),
+then `check_relocation` (`Distribution.jl:118-150`) starts the copy with an
+empty `JULIA_DEPOT_PATH` and `JULIA_LOAD_PATH=""` from that other directory
+and requires it to answer `--build-info` — the actual proof the bundle does
+not silently read the checkout that built it (this is exactly the class of
+bug the font-path fix above was written to fix, and the comment at
+`Distribution.jl:7-11` says so explicitly). `test/build.jl` (660 lines) unit
+tests the builder's text-generation and refusal logic (help text, flag
+matching, log-level defaults, manifest handling, `INCREMENTAL_MARK`, the
+prelink capability check) **without compiling anything**
+(`test/build.jl:1-9`: *"Nothing here compiles... what this guards is the text
+the builder writes and the refusals it makes"*).
+
+**Time/memory, as stated in the repository.** Measured numbers appear
+throughout the code comments and `documentation/guide/reactive-build-guide.md`
+(cited above: 390 s/741 MB vs 741 s/736 MB incremental vs not; ~4 min to
+found a reactive store, ~1.3–13 s to rebuild; native-only compile 222–260 s
+vs three-target 333–347 s, `Executable.jl:270-276`). `plan/done/build-programs.md:746-748`
+notes a build once died mid-compile from memory pressure caused by an
+*unrelated* build sharing the same machine — evidence that a `create_app`
+compile is memory-heavy enough to be killed by neighbors, not that this
+repository caps it itself.
+
+### 6. Generic vs. simulator-specific
+
+**Generic — would work for any Julia application, and is already written
+that way:**
+
+- The whole shape of `Root.jl` / `Preference.jl` / `Usage.jl` /
+  `AppPackage.jl` / `Executable.jl` / `Distribution.jl`: "a build is a
+  function that writes a package, then compiles it" — nothing in this half
+  names a simulator concept. `write_app_package` takes `packages`, `main`,
+  `workload`, `usage`, `log_level` as pure arguments (`AppPackage.jl:54-58`).
+- The `--build-info`/`--help`/`--version`/`--log-level` contract written into
+  *every* generated app module (`Usage.jl`, the tail of `AppPackage.jl`).
+- The prelink mechanism, the custom launcher, `strip_bundle!`, the object
+  archive keeping, `check_relocation`/staging/archiving in `Distribution.jl`
+  — all operate on "a directory PackageCompiler wrote" and know nothing
+  about NED files or simulations.
+- The font/asset bundling convention (`bundle_fonts!`/`bundle_assets!`) is
+  actually *projectured-julia's own* runtime convention
+  (`share/projectured/font`, `ProjecturedStyle.font_file`) — omnet-julia's
+  builder implements the *build-time half* of a *projectured-julia* runtime
+  contract that already exists but has no build-time implementation in
+  projectured-julia itself (see Part 2 §3, Part 3 §1).
+- `OmnetBuilder`'s independence from every package it might build
+  (`get_package_directory` resolving by name/`Project.toml`, no `[deps]` on
+  any simulator package) is a generic pattern, not a simulator one.
+
+**Simulator-specific — must not be copied as-is:**
+
+- Everything in `Program.jl`: `OmnetRunner`/`OmnetCampaignUi`/`OmnetIde`/
+  `OmnetQtenv`/`OmnetLegacy*`/`OmnetPresentationExample` names, `-u Cmdenv`,
+  `-f <ini>`/`-c <config>` parsing, `WINDOW_WRAPPERS` (`dragging`/`hover`),
+  `LEGACY_SAMPLES`, the assistant `--llm=`/`--model=`/`--context=`/`--mcp`
+  wiring being specific to `OmnetCampaignUi`/`OmnetIde`'s own entry
+  functions.
+- `MODULE_UNION`/`pin_module_union!` pinning in `AppPackage.jl:140-150` — a
+  simulator-only performance fix for a module-type registry the simulator
+  keeps.
+- The `--models=`/NED-registration model of "a runner must not depend on the
+  models it runs" — this is a simulator packaging concern.
+- `WINDOW_REQUIREMENTS`/`LEGACY_REQUIREMENTS`/`ASSISTANT_REQUIREMENTS`
+  distribution text (`Program.jl:574-587`) — simulator/OMNeT++-specific
+  sentences for a README, though the *pattern* (a distribution function
+  states per-binary target-machine requirements) is generic.
+
+---
+
+## Part 2 — projectured-julia's build system today
+
+### 1. Build entry point and command line
+
+**There is no command-line entry point at all.** The build is invoked from a
+Julia session (a REPL, or a one-off `julia -e`), never from a shell script:
+
+```julia
+using ProjecturedSdl, ProjecturedBuilder
+build_executable(make_workbench_app(SdlBackend))
+```
+
+(`documentation/package/executable/README.md:19-21`). This differs from
+omnet-julia's `build_binary.jl` shell front end in the most basic way: there
+is no `julia --project=... source/tool/build_binary.jl <what>` invocation to
+copy from, and no `--help`/argument parser over the *builder itself* (only
+the compiled *binary's own* `--help` exists, once built).
+
+**A target is a `BuildSpec` struct** (`source/builder/Builder.jl:65-78`),
+not a function per binary. Two named specs exist as thin wrapper functions,
+`default_json_app(backend)` and `make_workbench_app(backend)`
+(`Builder.jl:268,277-281`) — closer to omnet's "one function per binary" idea,
+but there are only two, both producing the *same* generated app package
+(`ProjecturedExecutable`); nothing plays the role of `BUILD_NAMES` +
+per-target `Usage` + per-target asset/font list that omnet's `Program.jl`
+has. `BuildSpec` fields decide:
+
+- **name** — `app_name::String` (default `"projectured"`,
+  `Builder.jl:66,80`).
+- **packages** — *not* explicit per spec; always
+  `LOCAL_CORE_PACKAGES = ["Projectured", "ProjecturedExample",
+  "ProjecturedAnthropic", "ProjecturedOllama"]` (`Builder.jl:39-40`) plus
+  each backend's own package (`Builder.jl:226-229`). Contrast with omnet's
+  `packages` being computed *per build function* from only what that binary
+  needs (`Program.jl:55-58` builds only `["OmnetRunner", "OmnetLegacyFormat",
+  model]` — no window/SDL/Anthropic code at all in the batch binary).
+- **entry function** — fixed: `ProjecturedExecutable.julia_main`
+  (`Builder.jl:242`, the executable name is always the compiled module's
+  `julia_main`, not a build-time-generated `Expr` per spec the way omnet
+  writes one). The *behavior* of `julia_main` is instead selected at
+  **runtime**, by reading `AppConfig.jl` constants that `render_app_config`
+  wrote at build time (`source/executable/Executable.jl:144-177`, reading
+  `APP_DOMAIN`/`APP_WORKBENCH`/`APP_BACKENDS`/… defined in the generated
+  file).
+- **workload** — `workload::Symbol` (`:none`/`:minimal`/`:demo`/`:full`,
+  `AppConfig.default.jl:24-29`), consumed by `precompile_warmup()`
+  (`Executable.jl:108-140`) which, for `:none`, only warms the baked
+  `APP_DOMAINS`; anything else runs
+  `ProjecturedExample.precompile_workload()` in full (no levels distinguish
+  `:minimal`/`:demo`/`:full` today — `Executable.jl:116-120` says so
+  explicitly: *"The workload has no levels any more, so anything that is not
+  `:none` runs all of it."*).
+- **command-line options** — no `Usage`-equivalent generated per spec.
+  `print_help()` (`Executable.jl:16-43`) is hand-written once in
+  `ProjecturedExecutable`, deriving its text from the same `AppConfig`
+  constants (`APP_FILE_BACKED`, `APP_EXPOSE_BACKEND`, …) rather than being
+  supplied per binary by the spec author, and it is not build-refused the
+  way omnet's flag matcher is — `parse_runtime_args`
+  (`Executable.jl:53-77`) just throws `"unknown option: $a"` on any
+  unrecognized `-`-flag.
+- **resources / fonts / icons** — **none are bundled by the builder.** No
+  `fonts`/`assets` keyword exists on `build_executable`
+  (`Builder.jl:191-194`); `_compile!` (`Builder.jl:215-249`) calls only
+  `PackageCompiler.create_app(exe_dir, output; precompile_execution_file,
+  executables, force)` — no `fonts=true` equivalent, no asset directory
+  copy. (See Part 3 §1 for why this matters: the runtime already looks for
+  `share/projectured/font`.)
+
+### 2. The build environment
+
+There is **one** environment shared by everything, `environment/all`
+(`Project.toml`+`Manifest.toml` only, no code —
+`package-rules.md`'s own description: *"an environment... holds a
+Project.toml and a Manifest.toml and no code at all"*). There is no
+omnet-style `environment/tool` that isolates PackageCompiler from the rest
+of the dev session. Consequences visible in the code:
+
+- `ProjecturedBuilder`'s own `[deps]` is just `Pkg`
+  (`package/ProjecturedBuilder/Project.toml:16`) — the same "builder depends
+  on nothing it builds" discipline as `OmnetBuilder`, and the same reason
+  given in the file's own comment (`Project.toml:6-13`): PackageCompiler is
+  `@eval import`ed inside `_compile!` (`Builder.jl:238`), not declared, so a
+  caller that only wants the generated `AppConfig.jl` (`compile=false`) pays
+  nothing for it (`Builder.jl:181-183,198`).
+- But `_compile!` activates `exe_dir` (= `package/ProjecturedExecutable`)
+  directly and `Pkg.develop`s the local packages + adds PackageCompiler
+  **into that same package's environment** (`Builder.jl:219-236`) — there is
+  no separate, gitignored, resolver-only environment the way
+  `environment/tool` is; the app package's own `Project.toml`/`Manifest.toml`
+  double as the build environment. `ProjecturedExecutable`'s `[deps]`
+  (`package/ProjecturedExecutable/Project.toml:6-13`) is static and lists
+  `ProjecturedSdl`, `ProjecturedAnthropic`, `ProjecturedOllama` unconditionally
+  — every build today resolves and (via `Pkg.develop`) locally links those
+  regardless of `BuildSpec.backends`/`domains`, unlike omnet's
+  per-build-function-computed `packages` list.
+- No package-compiler fork/patch is used: `haskey(...) || Pkg.add("PackageCompiler")`
+  (`Builder.jl:234`) takes whatever released version resolves — no reactive
+  rebuild capability, no cached-base-sysimage patch.
+
+### 3. The build technique
+
+**PackageCompiler `create_app` only — no `juliac`/`--trim` in the build
+package**, though `tool/juliac-trim/` (README + four scripts:
+`hide.jl`, `mutable_check.jl`, `probe.jl`, `sealed_patch.py`, `sealed.sh`)
+and `documentation/guide/static-compilation-guide.md` (203 lines) hold a
+**measurement**, not a build path: the guide states the `--trim`
+verifier's `max_methods=3` rule, measures it against this kernel's own
+abstract types (`Projection`: 410 direct subtypes, `IoMap`: 70, `Operation`:
+54 — `static-compilation-guide.md:66-73`), and concludes
+*"No code in this repository uses the technique yet"*
+(`static-compilation-guide.md:114`). So `--trim` is further from usable here
+than in omnet-julia, which at least has one working sample pipeline
+(`tool/trim-routing/`); projectured-julia's abstract-type fan-out is the
+*same* obstacle omnet's kernel dispatch hits, and the guide is pure research.
+
+**Not incremental, not reactive, no prelink, no cpu-target choice, no
+strip-metadata, no filter-stdlibs.** `_compile!`
+(`Builder.jl:215-249`) passes only three keywords to `create_app`:
+`precompile_execution_file`, `executables`, `force`. There is no
+`incremental`/`cpu_target`/`trim`/`prelink` knob anywhere in
+`ProjecturedBuilder` — every build is, in omnet's vocabulary, a plain
+non-incremental, native-only, unprelinked `create_app` run. No object
+archive is kept, no custom launcher is linked, `strip_bundle!` has no
+counterpart (the redundant `lib/julia/sys.so` PackageCompiler writes stays
+inside the bundle).
+
+**A precompile workload** exists and is config-driven:
+`source/executable/Precompile.jl` (16 lines) is the
+`precompile_execution_file` `create_app` runs; it `include`s
+`ProjecturedExecutable` and calls `precompile_warmup()`
+(`Executable.jl:108-140`), which — unlike omnet's per-target workload
+`Expr` — is one function serving every `BuildSpec`, driven entirely by the
+baked `AppConfig` constants (a real generalization already present here that
+omnet does not have in quite this form, since each omnet build writes its
+own workload `Expr`).
+
+**No special Julia build is needed or referenced.** Nothing in
+`ProjecturedBuilder` checks for or asks about a prelink-capable Julia; the
+concept does not appear anywhere in `source/builder/` or
+`source/executable/`.
+
+### 4. The runtime side
+
+`julia_main` (`source/executable/Executable.jl:144-183`) is the single entry
+point compiled for *every* `BuildSpec`; behavior comes entirely from the
+`AppConfig` constants `write_app_config`/`render_app_config`
+(`Builder.jl:118-158,166-169`) wrote at build time — this is a real
+generalization: one compiled entry function, config-driven, versus omnet's
+one *generated* entry expression per build function.
+
+- **Argument parsing**: `parse_runtime_args` (`Executable.jl:53-77`) — a
+  hand-rolled loop recognizing `--help`/`-h`, `--version`/`-v`,
+  `--backend[=]KIND`, and one bare `FILE` argument; anything else `error`s.
+  No `--log-level`, no `--build-info` (omnet's builder-owned flags have no
+  equivalent here at all — `--build-info`/`--log-level` are entirely
+  omnet-builder inventions not reflected in `ProjecturedBuilder`).
+- **UI/backend selection**: `resolve_backend` (`Executable.jl:81-88`) picks
+  among `APP_BACKENDS` (a `NamedTuple` of friendly-name → type, baked by
+  `render_app_config`, `Builder.jl:141,149`) only when
+  `APP_EXPOSE_BACKEND` was set at build time; otherwise `--backend` is
+  refused (`Executable.jl:83-84`). This mirrors omnet's "a flag exists only
+  over what the binary holds" rule (`Program.jl:163-165`) closely.
+- **Domain/content selection**: `resolve_domain`
+  (`Executable.jl:93-95`) → `domain_for_path`
+  (`example/projectured/FileEditor.jl:116-119`) picks a domain by file
+  extension among the baked `APP_DOMAINS`, defaulting to `APP_DOMAIN`
+  otherwise — this is the "any number of files, in every supported format"
+  mechanism the goal describes, but see §6/Part 3 for how narrow
+  `EDITOR_DOMAINS` is today.
+- **Assets relative to the binary**: **none.** No font/catalog bundling and
+  no `Sys.BINDIR`-relative asset lookup exists in `ProjecturedBuilder`. The
+  runtime *style* package it compiles in, however, already contains exactly
+  the lookup convention omnet's `bundle_fonts!` targets:
+  `font_file`/`font_search_path` (`source/style/TrueType.jl:62-108`) checks,
+  in order, the baked-in checkout path, `PROJECTURED_FONT_DIR`, then
+  `normpath(joinpath(Sys.BINDIR, "..", "share", "projectured", "font"))`
+  (`TrueType.jl:101-107`) — identical to the very path omnet's
+  `bundle_fonts!` writes into (`omnet-julia/source/build/Executable.jl:742`).
+  **The runtime half of font portability is already generic and shared; only
+  the build-time copy step is missing, and it is missing from
+  `ProjecturedBuilder`, not from the shared style code.**
+- **Error reporting / exit codes**: `julia_main` catches everything, prints
+  one line to `stderr` (`"error: " * sprint(showerror, e)"`), and returns 1;
+  an `InterruptException` (closing the window) returns 0
+  (`Executable.jl:144-177`). No distinct exit codes for "bad arguments" vs
+  "run failed" the way `OmnetRunner.main` has (0/1/2) — projectured-julia
+  only distinguishes 0 (clean) from 1 (anything else).
+
+### 5. Output layout, build testing, time/memory
+
+**Layout.** `build/bin/<app_name>` under the repository root
+(`Builder.jl:8-10,192`; `README.md:30`: *"Output goes to `build/bin/projectured`"*)
+— a flatter tree than omnet's `build/<name>/{bin,lib,share}` because nothing
+here relocates `lib/julia/sys.so` or writes a `share/` tree; whatever
+`create_app` writes by default stays as `create_app` wrote it.
+
+**No build-testing step exists.** There is no `print_build_report!`, no
+`build_distribution`/`check_relocation`/staging/archiving equivalent
+anywhere in `ProjecturedBuilder`, and no dedicated test file
+(`test/build.jl`'s counterpart does not exist — a repository-wide search
+for `ProjecturedBuilder`/`BuildSpec`/`render_app_config` under `test/`
+matches only `test/projectured/PackageGraphTest.jl`, which is the static
+package-layering guard, not a builder-behavior test:
+`PackageGraphTest.jl:75` lists `ProjecturedExecutable` among the leaves the
+guard checks, and `PackageGraphTest.jl:173` carries a
+`SIDE_EFFECT_DEPS` exception explaining that `ProjecturedExecutable` depends
+on `ProjecturedAnthropic`/`ProjecturedOllama` for "a package that a leaf
+loads for its side effect alone... the executable bakes the LLM backend this
+way." No test ever calls `build_executable(...; compile=true)` and checks
+what came out.
+
+**Time/memory.** No measured numbers appear anywhere in
+`ProjecturedBuilder`/`ProjecturedExecutable`/their documentation — only the
+qualitative `@info` at `Builder.jl:239`: *"this takes several minutes."*
+`plan/done/executable-builder-editor-configuration.md:144` similarly just
+says *"multi-minute `create_app`."* No comparison of incremental vs
+non-incremental, no bundle-size figure, no measured start time.
+
+### 6. Generic vs. domain-specific in what exists today
+
+- **Generic already**: `BuildSpec`'s reflection-based backend handling
+  (`_backend_kind`/`_backend_module`/`_backend_needs_local`,
+  `Builder.jl:29-32`) — deriving the friendly name, the owning package, and
+  whether a local `develop` is needed purely from the backend *type*, so
+  `ProjecturedBuilder` never names `SdlBackend` or `ProjecturedSdl` — is a
+  clean generic pattern, arguably cleaner than omnet's (which still special-
+  cases `:sdl`/`:web` by name at several call sites, e.g. `Program.jl:92-93,
+  430-431`). `write_if_changed`-style "don't rewrite what didn't change" does
+  **not** exist here (`write_app_config` always overwrites,
+  `Builder.jl:166-169`) — a smaller inefficiency than omnet's (which found
+  it cost 12.6 s+8.8 s of an 8-minute build, `omnet-julia/source/build/AppPackage.jl:220-222`
+  — this omission is worth copying but is low priority next to the missing
+  font bundling and the multi-minute always-full build).
+- **The narrowness that is the real gap**: `run_file_editor`
+  (`example/projectured/FileEditor.jl:169-181`) hard-codes
+  `Saving is out of scope in v1` (docstring, `FileEditor.jl:166-167`) even
+  though `EditorDomain` already carries a `save_file` field
+  (`FileEditor.jl:33-43`) and `write_document_file`/`read_document_file`
+  (`source/fileformat/DocumentFile.jl:36-64`) already dispatch generically by
+  extension over **all eight** natural-notation domains
+  (`register_natural_domain!` calls found in `source/json/JsonModule.jl:61`,
+  `source/xml/XmlModule.jl:54`, `source/markdown/MarkdownModule.jl:68`,
+  `source/rst/RstModule.jl:98`, `source/math/MathToSyntax.jl:676`,
+  `source/julia/JuliaModule.jl:80`, `source/yaml/YamlToSyntax.jl:273`,
+  `source/sql/SqlToSyntax.jl:2031`) plus `.pdoc`
+  (binary snapshot, `source/serialization/`) and `.pred`
+  (`source/serialization/PredFile.jl`, 289 lines). `EDITOR_DOMAINS`
+  (`FileEditor.jl:56-77`), the registry `run_file_editor`/`build_file_editor`
+  actually use, wires up only **four** of those eight: `:json`, `:xml`,
+  `:sql`, `:julia` (`FileEditor.jl:57-76`). Saving through the workbench
+  already works generically: `SaveWorkbenchEditorOperation`
+  (`source/workbench/WorkbenchFile.jl:1-27`) calls the same
+  `write_document_file` on `Ctrl+S` (`@gestures WorkbenchEditor`,
+  `WorkbenchFile.jl:52-55`), format chosen by extension — so the missing
+  piece for "opens files, in every supported format... `Ctrl+S` save" is
+  **not** new save/load code; it is (a) registering the other four domains
+  in `EDITOR_DOMAINS`, and (b) making `run_file_editor`/the executable always
+  route through the workbench (or otherwise wire `Ctrl+S`) rather than the
+  `save_file = nothing`/no-workbench path.
+- **Nothing here is "simulator-specific"** the way omnet's `Program.jl` is
+  domain-specific — projectured-julia's build code is already
+  editor-domain-agnostic in the sense that matters (`BuildSpec.domains`,
+  `EDITOR_DOMAINS`), it is simply narrower in what is wired up and thinner
+  in build mechanics than omnet's.
+
+---
+
+## Part 3 — What to copy
+
+### 1. Feature comparison table
+
+| omnet-julia build feature | projectured has it? | copy? | how (files to add/change) | size |
+| --- | --- | --- | --- | --- |
+| Shell/CLI front end (`build_binary.jl`, one function per `<what>`, shared `OPTIONS` table refusing/help-listing flags per target) | No (Julia-session-only `build_executable(spec)`) | **Yes** | New `source/tool/build_binary.jl` (or `tool/build_binary.jl`) mirroring `build_binary.jl`'s dispatcher shape over `BuildSpec`-producing functions in `ProjecturedBuilder`; a new `environment/tool` (see below) to resolve it | Medium |
+| Separate build environment (`environment/tool`, isolates PackageCompiler, optionally a patched fork) | No — builds resolve inside `package/ProjecturedExecutable`'s own environment | **Yes**, the isolation part; **No**, the patched-fork part (no reactive-rebuild need yet) | New `environment/tool/Project.toml` naming `ProjecturedBuilder` + `PackageCompiler` by `[sources]`/`[deps]`; stop `Pkg.develop`-ing into `package/ProjecturedExecutable` directly, generate a build-artifact package the way `write_app_package` does (below) | Medium |
+| Per-build-function computed **minimal** package list (`OmnetRunner`'s binary holds no SDL/Anthropic code at all) | No — `ProjecturedExecutable`'s `Project.toml` statically lists SDL+Anthropic+Ollama for every build | **Yes** | Change `_compile!`/`write_app_config` to generate a fresh app package per `BuildSpec` (see `write_app_package`) instead of reusing one fixed `ProjecturedExecutable` package; only `Pkg.develop` what `spec.backends`/`spec.mcp`/assistant choice actually need | Large |
+| `write_if_changed` (skip a recompile when the generated module is byte-identical bar a timestamp) | No — `write_app_config` always overwrites | **Yes** | Port `AppPackage.jl:210-240`'s pattern into `write_app_config` | Small |
+| Font bundling (`bundle_fonts!` → `share/projectured/font`) | **No build step**, but the *runtime lookup* (`font_search_path`) already expects exactly this path | **Yes — and easy**, since the runtime contract already exists | Add a `fonts::Bool`/always-on copy step to `_compile!` copying `asset/font/*.ttf` into `<output>/share/projectured/font` | Small |
+| Asset bundling (`bundle_assets!`, e.g. a catalog directory) | No | Only if a future binary needs a path-relative asset (e.g. example galleries); not needed for the plain file-editor binary | Add an `assets` keyword to `build_executable`, same pattern as omnet's | Small |
+| `--build-info`/`--help`/`--version`/`--log-level` written once into every generated app module, refusing any other unknown flag against a declared `Usage` | Partial — `print_help`/`print_version`/`--backend` exist, hand-written per app, not builder-owned; no `--build-info`, no `--log-level` | **Yes** (at least `--build-info`; `--log-level` is a smaller win here since there's little to log) | Port `Usage`/`format_usage`/`collect_option_flags`/the builder-owned-flags block of `AppPackage.jl` into `Builder.jl`+`Executable.jl` | Medium |
+| Custom `launcher.c` avoiding `jl_eval_string` at start | No | Maybe, later — a ~90 ms win, not urgent for a first entry point | Copy `source/build/launcher.c` + `link_executable!`/`_object_archive_keyword` | Medium |
+| `strip_bundle!` (move `lib/julia/sys.so` beside the bundle, drop `bin/julia`) | No | Yes, once the binary is meant for distribution (saves ~380 MB in the shipped tree) | Port `Executable.jl:621-635` | Small |
+| Incremental-by-default `create_app` (390 s/741 MB vs 741 s/736 MB) | No knob — behavior is whatever `create_app`'s own default is (`incremental=false` unless passed) | **Yes** | Add `incremental::Bool=true` to `build_executable`, pass through to `create_app` | Small |
+| `cpu_target` (native default; a `--distribution` build compiles for several processor families) | No | Only when shipping to others' machines; not needed for a personal/dev binary | Add `cpu_target` keyword, default `"native"`; a future `build_distribution` uses the portable empty target | Small |
+| Prelink (needs the special `julia-sysimage-prelink-wip` Julia; falls back gracefully) | No | **Optional / later.** A real ~100 ms start-time win, but adds a dependency on a sibling checkout most contributors won't have; the omnet code already degrades gracefully (logs and continues) so it is low-risk to add, but low priority for a first cut | Port `_has_prelink_option`/`prelink_executable!`, default `prelink=false` here until proven wanted | Medium |
+| Reactive/incremental rebuild (`materialize_app`, a patched PackageCompiler fork) | No | **No, not yet.** projectured's iteration loop is normally the REPL (`jp`), not rebuilding a binary; the omnet team built this because their binaries are the *product*. Revisit only if binary-rebuild iteration becomes a real workflow | — | Large (needs the same sibling forks) |
+| `--trim`/`juliac` path | Research only, no working build, on both sides (projectured's own `static-compilation-guide.md` shows the *same* `max_methods=3` wall against its own `Projection`/`IoMap` abstract types) | No | — | — |
+| `build_distribution`/`check_relocation`/staged, empty-depot smoke test, README+sha256 archive | No | **Yes, eventually** — the exact class of bug (a baked-in checkout path) it exists to catch is *already latent* in projectured's font path | Port `Distribution.jl` wholesale, parameterized by `name`/`bundle`/`requirements`/`expect` | Medium |
+| `print_build_report!` (size + smoke-flag start time, printed on every build) | No | **Yes** — cheap and gives the missing time/memory numbers this report had to note as absent | Port `Executable.jl:776-791`, using `--build-info` (once added) or `--version` as the smoke flag | Small |
+| `test/build.jl` — unit-tests the builder's text generation/refusals without compiling | No | **Yes** | New `test/build.jl` (or under `package/ProjecturedBuilderTest`) exercising `render_app_config`, a ported `Usage`/flag-matcher, `write_if_changed` | Medium |
+| One function per binary, each with its own `Usage`, deciding name/packages/entry/workload explicitly | Partial (`default_json_app`/`make_workbench_app` are the same idea, just two of them and less explicit about packages/usage) | **Yes**, extend the pattern to a third: the general file-opening entry point the goal describes | New function in `Builder.jl`, e.g. `make_editor_app(backend; domains=ALL_NATURAL_DOMAINS, ...)` | Small (once the package-list generalization above is done) |
+
+### 2. Simulator-specific parts that must not be copied
+
+- Any of `OmnetRunner`/`OmnetCampaignUi`/`OmnetIde`/`OmnetQtenv`/
+  `OmnetLegacy*`/`OmnetPresentationExample` naming, `-u Cmdenv`, `-f <ini>`/
+  `-c <config>` parsing, `WINDOW_WRAPPERS` (`:dragging`/`:hover`),
+  `LEGACY_SAMPLES`/`LEGACY_MODEL_PACKAGES`, `MODULE_UNION`/
+  `pin_module_union!`.
+- The `--models=`/"a runner must not depend on the models it runs" packaging
+  rule — specific to how OMNeT++ model libraries register NED types.
+- `WINDOW_REQUIREMENTS`/`LEGACY_REQUIREMENTS` README sentences (an OMNeT++
+  installation, `opp_run`, a display) — the *pattern* of a distribution
+  function stating per-binary target-machine requirements is generic and
+  worth copying; the sentences are not.
+- The `--llm=`/`--model=`/`--context=`/`--mcp` flag-splicing `Expr`
+  machinery in `_build_omnet_window_executable` is written specifically
+  around `OmnetCampaignUi`/`OmnetIde`'s own keyword names
+  (`Program.jl:118-133`) — the *idea* (expose an `--llm`/`--mcp` flag only
+  when the assistant package went in) is exactly what D5/D18 in
+  projectured's own plan ask for, but the code must be rewritten against
+  `ProjecturedAssistant`'s actual keywords, not copied verbatim.
+
+### 3. Risks
+
+- **A special Julia build.** Prelinking needs
+  `workspace/julia-sysimage-prelink-wip`'s branch. It is optional (omnet
+  degrades gracefully on stock Julia) — safe to add later, but it is one
+  more sibling checkout a contributor building `projectured` would need to
+  know about if it is turned on by default. Recommendation: port the
+  capability but default `prelink=false` until there's a reason to want the
+  ~100 ms.
+- **Memory and time of a build.** omnet-julia's own evidence
+  (`plan/done/build-programs.md:746-748`) shows a `create_app` compile
+  killed by memory pressure from an *unrelated* build sharing the same
+  machine — directly relevant here, since this machine is shared right now
+  (the task instructions forbid running a build for exactly this reason).
+  projectured-julia currently has **no measured numbers at all** for its own
+  `create_app` compile (only "several minutes," `Builder.jl:239`) — the
+  first thing a copied `print_build_report!` should produce is that missing
+  baseline.
+- **Platform limits.** Both builds are effectively Linux-only in the code
+  read (`Sys.KERNEL`/`Sys.ARCH` archive naming, ELF-specific `strip_bundle!`/
+  `link_executable!`/`-no-pie`/`--export-dynamic` in omnet). Nothing in
+  either repository's build code was seen handling macOS or Windows; porting
+  `launcher.c`/prelink/`strip_bundle!` verbatim would carry that same
+  Linux-only assumption into projectured.
+- **SDL libraries and fonts inside the binary.** `PackageCompiler.create_app`
+  bundles a package's own JLL artifacts (e.g. `SDL2_jll`) automatically —
+  this is not something either builder does by hand, so it is not a gap to
+  copy. Fonts *are* a real gap (Part 3 §1, first row of font bundling) since
+  `create_app` does not know to copy a file a package only reaches through a
+  compile-time-relative path outside its own artifacts — this is exactly
+  what `bundle_fonts!` exists to work around, on both sides of this
+  comparison (the runtime lookup is shared code).
+- **The Ollama or Anthropic backend inside a binary.** Per D5/D6 in
+  `plan/pending/documentation-rewrite.md` (line 574-575), Ollama is meant to
+  be the system-wide default backend and Anthropic is meant to resolve the
+  newest Claude model at runtime via the Models API — both are **runtime**
+  behaviors, not build-time ones, so they do not change what the *builder*
+  must do beyond what already happens (`LOCAL_CORE_PACKAGES` already
+  `Pkg.develop`s both adapter packages into every build,
+  `Builder.jl:39-40`). The risk is narrower than it sounds: baking both
+  backends into one binary is already the status quo; what is missing is a
+  runtime `--llm=`/`--model=` flag surface (omnet's exact pattern,
+  `Program.jl:118-133`) so a user can choose, and a build-time `mcp`
+  wiring check — `BuildSpec.mcp` exists and is threaded to `APP_MCP` →
+  `run_file_editor(mcp=...)` already (`Builder.jl:76,154`;
+  `Executable.jl:170`), so `--mcp` mainly needs a runtime flag, which is a
+  small, already-scoped addition (`ProjecturedMcp`/`source/mcp/Mcp.jl`, not
+  read in depth for this report).
+
+### 4. A proposed shape for ProjecturEd
+
+**Targets.** Keep the two-package split omnet-julia and
+`documentation/rule/package-rules.md` already agree on (`package-rules.md:25-27`:
+*"the build leaf is `ProjecturedExecutable`... with `ProjecturedBuilder`
+beside it as the tool that drives the build"*):
+
+- `ProjecturedBuilder` (tool, `package/ProjecturedBuilder/`) gains a
+  `BuildSpec`-producing function for the general application, e.g.
+  `make_projectured_app(backend; domains = ALL_NATURAL_DOMAINS, workbench =
+  true, mcp = false, assistant = :ollama)`, alongside the existing
+  `default_json_app`/`make_workbench_app`. `ALL_NATURAL_DOMAINS` would list
+  all eight (`:json, :xml, :yaml, :markdown, :rst, :math, :julia, :sql`) once
+  `EDITOR_DOMAINS` (`example/projectured/FileEditor.jl:56-77`) is extended to
+  cover them and `run_file_editor` is made to save via the workbench for
+  every one of them (Part 2 §6).
+- `ProjecturedExecutable` (build leaf, `package/ProjecturedExecutable/`)
+  keeps being the package `create_app` compiles, but per Part 3 §1's
+  package-list row, it should become a **generated** package (the way
+  omnet's `build/app/<name>/` is written fresh per build) rather than the
+  one fixed, statically-`[deps]`'d package it is today — otherwise every
+  build keeps paying for SDL+Anthropic+Ollama+workbench regardless of what
+  was asked for.
+- A `source/tool/build_binary.jl`-style shell front end lives beside
+  `ProjecturedBuilder`, resolved by a new `environment/tool` (isolating
+  PackageCompiler from `environment/all` the way omnet does), so the
+  eventual command is:
+
+  ```
+  julia --project=environment/tool source/tool/build_binary.jl projectured
+  build/projectured/bin/projectured [files...] [--backend sdl|web] [--mcp] [--assistant ollama|anthropic|none]
+  ```
+
+**The application binary's command line**, following the goal's sketch and
+what the runtime side already supports or nearly supports:
+
+- `[files...]` — positional, one editor tab per file, each domain chosen by
+  extension via `domain_for_path`/`EXTENSION_DOMAINS`
+  (`FileEditor.jl:100-119`) already generalized across all eight domains;
+  today only one `FILE` argument is parsed (`parse_runtime_args`,
+  `Executable.jl:53-77`) — accepting a list and opening one workbench tab per
+  file is the multi-file generalization the goal asks for, built on the
+  workbench's existing tab/`Navigator` machinery
+  (`source/workbench/WorkbenchModule.jl`, `WorkbenchDocument.jl`,
+  `WorkbenchToWidget.jl` all reference a `Navigator`).
+- `--backend sdl|web` — already exactly this shape
+  (`resolve_backend`/`APP_EXPOSE_BACKEND`, `Executable.jl:81-88`); needs
+  `expose_backend_flag=true` and both backend types passed to `BuildSpec`.
+- `--mcp` — `BuildSpec.mcp`/`APP_MCP` already exist end-to-end at the config
+  level (`Builder.jl:76,154`; `Executable.jl:170`); only a runtime flag in
+  `parse_runtime_args` is missing.
+- `--assistant ollama|anthropic|none` — new: `parse_runtime_args` needs a
+  case for it (mirroring omnet's `--llm=`, `Program.jl:124-133`), and
+  `julia_main` needs to pass the choice down to wherever
+  `ProjecturedAssistant`/workbench construct the assistant pane, matching
+  D5/D6 of the documentation-rewrite plan (Ollama default, Anthropic
+  newest-model lookup).
+- `--help`/`--version` already exist; adding `--build-info` (Part 3 §1) is a
+  small, worthwhile addition once the app package is generated per build
+  (so there is a `BUILD_INFO` string to print).
+
+**Saving** rides on what already exists and works: `Ctrl+S` via
+`SaveWorkbenchEditorOperation`/`WorkbenchFile.jl:1-27`, format chosen by
+extension through `write_document_file`. Making the general binary always
+wrap content in the workbench (`workbench=true` in the new `BuildSpec`) is
+what turns "opens and edits a file in memory" (the current documented
+limitation, `documentation/package/executable/README.md:85-87`) into a
+binary that actually saves — no new save code, only wiring.
