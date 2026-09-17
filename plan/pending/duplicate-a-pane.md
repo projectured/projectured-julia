@@ -524,10 +524,21 @@ All pass, with no failure and no error.
   - **No message line exists.** The editor has a `WidgetStatusBar` widget, but
     the pane window has no line that an edit writes to. A refusal is one log
     warning.
-- [ ] **Step 6. The assistant fork.** Add the `Assistant` method (§3e). Test: an
+- [x] **Step 6. The assistant fork.** Add the `Assistant` method (§3e). Test: an
   edit of the composer in one assistant does not reach the other; a turn
   submitted in the duplicate goes to the duplicate; a duplicate made while a
   turn streams is idle, and the stream writes to the original only.
+  - **Done.** The new `test_assistant_duplicate`
+    (`test/workbench/editor/AssistantDuplicateTest.jl`, in `test_workbench`)
+    passes 25 of 25. It also covers the conversation documents of Step 3.
+  - The method copies the draft with `copy_document_fields(policy, draft;
+    assistant = nothing)`, copies the assistant with the new draft and
+    `status = :idle`, and then links the draft to the fork. The backend, the
+    model, the prompt, the key and `llm` are plain values, so the walk shares
+    them with no replacement.
+  - The streaming test forks right after the submit: the turn runs on a task
+    that has not started, so the fork holds the user turn and never the
+    reply.
 - [ ] **Step 7. The verb.** Add `duplicate_pane!`, declare it in
   `make_pane_api()`, and change the docstring of `open_pane!` and the comment
   above `focus_pane!`. Test in omnet `test_pane_program`: the verb answers the

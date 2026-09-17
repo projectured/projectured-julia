@@ -73,6 +73,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/workbench/editor/AssistantMvpTest.jl")
+include("../../../test/workbench/editor/AssistantDuplicateTest.jl")
 include("../../../test/workbench/projection/WorkbenchContentPaneTest.jl")
 include("../../../test/workbench/projection/WorkbenchTabClickTest.jl")
 

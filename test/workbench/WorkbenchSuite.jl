@@ -24,10 +24,11 @@ function test_workbench()
     @testset "ProjecturedWorkbench" begin
         test_workbench_layering()
         test_assistant_mvp()
+        test_assistant_duplicate()
         test_workbench_content_pane()
         test_workbench_tab_click()
     end
 end
 
-export test_workbench, test_workbench_layering, test_assistant_mvp
+export test_workbench, test_workbench_layering, test_assistant_mvp, test_assistant_duplicate
 export test_workbench_content_pane, test_workbench_tab_click
