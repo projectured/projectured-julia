@@ -34,6 +34,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SelectionModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
@@ -57,7 +58,8 @@ export ConversationConversationToWidgetComposite,
        ConversationPartToWidget,
        ConversationToWidget, compute_transcript_walk
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
-       finalize_draft!, make_conversation_draft, reset_draft!,
+       finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
+       make_draft_caret_reference,
        make_submit_operation, make_evaluate_operation,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,

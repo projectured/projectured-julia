@@ -100,9 +100,12 @@ end
 _mvp_draft_text(a::Assistant) =
     something(a.draft.parts[length(a.draft.parts)].content.value, "")
 
-# Press Enter on the assistant panel and apply the resulting operation.
+# Press Enter on the assistant panel and apply the resulting operation. A key
+# goes where the selection points, so the caret goes into the draft first, as a
+# click there puts it.
 function _mvp_enter!(a::Assistant)
-    chain = _workbench_chain()
+    chain = make_assistant_projection_example()
+    set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
     iomap = print_document(chain, a)
     op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys()))
     op === nothing && return nothing

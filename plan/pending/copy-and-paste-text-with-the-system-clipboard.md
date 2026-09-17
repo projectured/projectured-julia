@@ -378,24 +378,58 @@ These are the hard parts, and none of them is in this plan:
   one-character range prints as an element step, `value[5]`; it is the same
   `RangeReferenceStep(4, 5)`.
 
-### Step 3 — one selection in the chat draft (projectured, conversation and assistant slices)
+### Step 3 — one selection in the chat draft (projectured, conversation, assistant and workbench slices)
 
-- [ ] The composer's text layer takes the keys (T5), and the composer lowers its
-      operations to the draft.
-- [ ] Both maps carry a range, and the body draws the forward map of the trail.
-- [ ] The composer's own table keeps its mode keys (T5), and the three operations
-      go or stay as step 0 decided.
-- [ ] The assistant pane's key fallback goes (T6).
-- [ ] Tests, through the real editor loop:
-      - a click into the draft, then `h`, `i`: the draft holds `"hi"`, and the
-        root's path, the pane's trail and the string's trail all end in
-        `value{2}`;
-      - `Left`, then `x`: `"hxi"` with the caret after `x`; `Shift+Left` selects
-        the `x`, and `y` replaces it: `"hyi"`;
-      - `Shift+Return` inserts a line break, and `Return` still submits;
-      - a message selected with `Alt+click`, then `x`: the draft does not change;
-      - the counts of the conversation and assistant suites stay, except for the
-        assertions that named the old operations.
+- [x] The composer's text layer takes the keys (T5). The active part's card and
+      its body follow the draft's selection (`_follow_draft!`): the card follows
+      a live one, because it routes keys by it, and the body also a dormant one,
+      which the text layer draws pale. The text layer's edits come back through
+      the kernel's default reader as `ReplaceStringRangeOperation`s on
+      `parts[n].content.value{s:e}`.
+- [x] Both maps carry a range. The backward map reads the flat form that a
+      press and a motion key make, and the span form that an edit is lowered to
+      (`_map_body_to_value`). A caret in the chooser's prefix is the value's
+      start, and one after it the value's end; a range that leaves the value
+      maps to nothing. The body's selection is the forward map of the draft's
+      selection (`_body_selection`).
+- [x] The composer's own table keeps `Return`, `Shift+Return`, `Alt+Return`,
+      `Tab`, `Insert` and `Escape`. `Shift+Return` is a
+      `ReplaceStringRangeOperation` of a line break over the draft's selected
+      range. The three edit operations stay as a program interface, and every
+      composer operation ends with `sync_draft_selection!(editor, draft)`, which
+      puts the complete selection on the active part's caret through the path
+      that leads to the draft. `make_draft_caret_reference(draft)` builds that
+      path's end, and tests use it to put a caret in a draft.
+- [x] The assistant pane's key fallback goes (T6). **Found:** the split pane's
+      own selection was never set, so a key reached the draft only through that
+      fallback. The split pane now follows the assistant's selection.
+      **Extended T6 to two more places**, for the same rule: the assistant
+      card's key readers act only while the assistant's selection is in the
+      draft, and the workbench shell no longer offers a key to every panel when
+      nothing is selected. A submit and an evaluation of the assistant call
+      `sync_draft_selection!` after they reset the draft.
+- [x] Tests:
+      - `test_assistant_composer_panel()` 66 (15 before). A new case drives the
+        assistant through the editor loop: a press, five keys, `Left`, a key,
+        `Shift+Left` twice, `Backspace`, `Shift+Return`, a press inside the
+        text, `Return`, a key, `Tab`, three keys, five `Left`s, `Backspace` at
+        the value's start, `Ctrl+End` and `Shift+Right`. After each one the
+        value, the root's path and the string's selection are asserted, and the
+        two selections name one range. The two older cases put a caret in the
+        draft before a key, and assert that a key without one edits nothing.
+      - `test_conversation()` 167 (165 before): the composer alone answers no
+        text key, and its `Shift+Return` is an edit of the value.
+      - `test_workbench_tab_click()`: the typing case asserts that a key edits
+        the draft only with a caret in it (17 pass). The tab-strip scroll case
+        fails as it does before this step.
+      - `test_assistant_mvp()` 85, with the 2 failures it has before this step
+        (lines 599 and 643); `_mvp_enter!` puts the caret in the draft and
+        presses `Return` on the whole assistant chain.
+      - `test_assistant_duplicate()` 29, `test_workbench()` 144 with the 3
+        failures and 2 errors it has before this step, `test_gesture_help()`,
+        `test_command_palette_decorator()` and `test_clipboard()` unchanged.
+      The "before" counts are taken in the same session with the step's source
+      files stashed.
 
 ### Step 4 — the text branch (projectured, clipboard slice)
 

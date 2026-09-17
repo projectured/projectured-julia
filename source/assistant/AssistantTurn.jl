@@ -271,6 +271,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     finalize_draft!(draft) || return nothing          # nothing to submit
     push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
     reset_draft!(draft)
+    sync_draft_selection!(editor, draft)
     _launch_agent_turn!(editor, a)
 end
 
@@ -314,7 +315,7 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     finalize_draft!(draft) || return nothing
     push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
     reset_draft!(draft)
-    nothing
+    sync_draft_selection!(editor, draft)
 end
 
 """
@@ -893,55 +894,36 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 # Assistant input event handling
 # ═══════════════════════════════════════════════════════════════════════
-# The panel routes input key events to the composer on `assistant.draft` (the
-# message being composed). `read_composer_gesture` maps the gesture to a composer
-# operation on the draft turn; the panel intercepts the composer's
-# `ComposerSubmitOperation` (ENTER on a text typein) and turns it into a
+# A key reaches the draft (`assistant.draft`, the message being composed) the way
+# any key reaches a document: the split pane routes it to the pane the assistant's
+# selection names, and the composer's chain answers it there. The panel only
+# intercepts the composer's `ComposerSubmitOperation` (ENTER on a text typein) —
+# which merely normalizes the draft — and turns it into a
 # `SubmitDraftTurnOperation`, which pushes the draft into the conversation and
-# launches a streaming turn. The widget tree's default reader does not route key
-# events to nested content, so we intercept here at the assistant layer.
-
-# The draft is rendered through the composer in the panel's projection chain, so
-# the composer's own reader already turns input keys into composer operations on
-# the draft turn. The panel only needs to intercept the composer's
-# `ComposerSubmitOperation` (ENTER on a text typein) — which merely normalizes the
-# draft — and turn it into a `SubmitDraftTurnOperation` that pushes the draft into
-# the conversation and launches a streaming turn.
+# launches a streaming turn.
 function read_intent(::AssistantToWidgetSplitPane,
                           iomap, op::ComposerSubmitOperation)
     iomap.input isa Assistant || return op
     SubmitDraftTurnOperation(iomap.input::Assistant)
 end
 
-# Fallback for when the composer chain declines a raw key (so it reaches the
-# panel directly): route it to the draft, intercepting submit as above.
-function read_intent(::AssistantToWidgetSplitPane,
-                          iomap, evt::KeyPress)
-    iomap.input isa Assistant || return nothing
-    read_composer_gesture(iomap.input.draft, evt)
-end
-
-function read_intent(::AssistantToWidgetSplitPane,
-                          iomap, evt::KeyDown)
-    iomap.input isa Assistant || return nothing
-    a = iomap.input::Assistant
-    resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt))
-end
-
 # ── the card ────────────────────────────────────────────────────────────
 #
-# The same three, for the bounded card. A card is embedded in a document rather
-# than laid out by a workbench, so a key reaches it as the raw event — nothing
-# below turned it into an operation, because the two panes hold documents the
-# enclosing renderer draws. Routing them here is what lets an assistant in the
-# middle of a page be typed into at all.
+# A key that nothing below took reaches the card's reader as the raw event. While
+# the assistant's selection is in its draft, the card hands the key to the
+# composer's own table, which answers the composer's keys (`Return`, `Tab`,
+# `Escape`); the text keys reach the draft through the containers. A card that
+# is selected as a whole takes no key.
+
+_is_draft_selected(a::Assistant) =
+    (path = a.selection; path isa ConcreteReference && path.head == FieldReferenceStep("draft"))
 
 read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
-    (a = iomap.input; a isa Assistant ?
+    (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
 read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
-    (a = iomap.input; a isa Assistant ?
+    (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
 # An operation the composer made below, said onward. `resolve_composer_host_operation` is what

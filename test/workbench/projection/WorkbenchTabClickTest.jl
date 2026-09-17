@@ -158,15 +158,12 @@ end
     @test !click_selects_editor("book")
 end
 
-# ── Keyboard focus follows the selection (regression) ───────────────────────
+# ── Keyboard focus follows the selection ────────────────────────────────────
 #
-# The shell's raw-key reader used to broadcast every KeyPress/KeyDown to *all*
-# panels, and the assistant composer (whose `insert` binding matches any
-# printable key) always claimed it — so after clicking the JSON editor, typing
-# still landed in the draft message. The reader now offers a raw key only to the
-# panel the workbench selection points at, falling back to the composer's default
-# focus only when nothing is selected.
-@testset "typing routes to the selected panel, not the assistant draft" begin
+# The shell's raw-key reader offers a key only to the panel the workbench
+# selection names, and a workbench with nothing selected takes no key. So a key
+# edits the assistant's draft only while the selection is a caret in it.
+@testset "typing goes where the selection points" begin
     doc  = make_workbench_document_example()
     proj = make_workbench_projection_example()
 
@@ -177,17 +174,19 @@ end
         ch = read_intent(proj, nothing, Intent(KeyPress('X'), nothing), iomap)
         ch === nothing ? nothing : ch.operation
     end
+    is_draft_edit(op) = op isa ReplaceStringRangeOperation &&
+        FieldReferenceStep("draft") in get_reference_steps(strip_reference_types(op.reference))
 
-    # Nothing selected: the composer keeps the default focus.
-    @test type_op(nothing) isa ComposerInputOperation
-
-    # Selecting the JSON editor takes focus away from the draft — a printable key
-    # no longer becomes a composer edit (no caret in the tab content yet, so it
-    # routes nowhere rather than into the draft).
-    @test !(type_op(@reference(doc, editing_page.elements[3])) isa ComposerInputOperation)
-
-    # Selecting the assistant panel routes keys back to the draft composer.
-    @test type_op(@reference(doc, control_page.elements[1])) isa ComposerInputOperation
+    # Nothing selected: no panel takes the key.
+    @test !is_draft_edit(type_op(nothing))
+    # The JSON editor selected: the key is not an edit of the draft.
+    @test !is_draft_edit(type_op(@reference(doc, editing_page.elements[3])))
+    # The assistant panel selected as a whole: there is no caret to type at.
+    @test !is_draft_edit(type_op(@reference(doc, control_page.elements[1])))
+    # A caret in the draft: the key edits the draft.
+    assistant = doc.control_page.elements[1]
+    @test is_draft_edit(type_op(@reference(doc, control_page.elements[1].draft.^(
+        make_draft_caret_reference(assistant.draft)))))
 end
 
 # ── Reactive reflow (PAR-STABLE-IOMAP-IDENTITY): a page-element add/remove reflows

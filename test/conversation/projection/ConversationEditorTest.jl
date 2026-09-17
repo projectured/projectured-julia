@@ -95,13 +95,20 @@ function test_conversation_editor()
             turn = _ce_draft()
             iom = print_document(proj, turn)
 
-            # text typein
-            @test read_intent(proj, iom, KeyPress('a')) isa ComposerInputOperation
+            # text typein. The text keys are the text layer's, which this
+            # projection alone does not hold; the composer answers its own keys,
+            # and a line break is an edit of the draft's value.
+            @test read_intent(proj, iom, KeyPress('a')) === nothing
+            @test read_intent(proj, iom, KeyDown(:backspace, ModifierKeys())) === nothing
             @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa ComposerSubmitOperation
-            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true))) isa ComposerNewlineOperation
+            newline = read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true)))
+            @test newline isa ReplaceStringRangeOperation
+            @test newline.replacement == "\n"
+            @test get_reference_steps(newline.reference) ==
+                  Any[FieldReferenceStep("parts"), RangeReferenceStep(0, 1), FieldReferenceStep("content"),
+                      FieldReferenceStep("value"), RangeReferenceStep(0, 0)]
             @test read_intent(proj, iom, KeyDown(:insert, ModifierKeys())) isa ComposerInsertPartOperation
             @test read_intent(proj, iom, KeyDown(:tab, ModifierKeys())) isa ComposerInsertPartOperation
-            @test read_intent(proj, iom, KeyDown(:backspace, ModifierKeys())) isa ComposerBackspaceOperation
 
             # kind chooser
             _ce_apply!(ComposerInsertPartOperation(turn))
@@ -114,7 +121,7 @@ function test_conversation_editor()
             @test turn.parts[length(turn.parts)].content isa JuliaInsertion
             @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa ComposerCommitSourceOperation
             @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(alt=true))) isa ComposerEvaluateOperation
-            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true))) isa ComposerNewlineOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(shift=true))) isa ReplaceStringRangeOperation
         end
 
         @testset "show: get_projection_gesture_bindings mirrors what the reader fires (fire == show)" begin
@@ -127,7 +134,7 @@ function test_conversation_editor()
             @test "Submit" in descs()
             @test "New line" in descs()
             @test "Add a structured part" in descs()
-            @test "Insert character" in descs()
+            @test !("Insert character" in descs())        # the text layer's row
             @test !("Choose insertion kind" in descs())   # chooser-only, not here
 
             # kind chooser mode — Submit is gone, Choose appears

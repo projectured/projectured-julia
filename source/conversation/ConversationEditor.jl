@@ -11,9 +11,9 @@
 #
 # | state         | content type        | gesture in →                                    |
 # |---------------|---------------------|-------------------------------------------------|
-# | text typein   | `PrimitiveString`   | keys edit; SHIFT+ENTER newline; TAB/INSERT→chooser; ENTER→submit |
-# | kind chooser  | `DocumentInsertion` | keys edit; ENTER commits keyword→insertion; ESC→typein |
-# | julia source  | `JuliaInsertion`    | keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
+# | text typein   | `PrimitiveString`   | text keys edit; SHIFT+ENTER newline; TAB/INSERT→chooser; ENTER→submit |
+# | kind chooser  | `DocumentInsertion` | text keys edit; ENTER commits keyword→insertion; ESC→typein |
+# | julia source  | `JuliaInsertion`    | text keys edit; SHIFT+ENTER newline; ENTER→`JuliaDocument`; ALT+ENTER→`EvaluatorForm`; ESC→typein |
 # | quoted code   | `JuliaDocument`     | (committed)                                      |
 # | eval form     | `EvaluatorForm`     | (committed)                                      |
 #
@@ -23,6 +23,12 @@
 # `DocumentInsertion` kind chooser. Typing a keyword (`julia`/`json`/`xml`/`text`)
 # into the chooser does **not** auto-switch — ENTER commits it via the factory.
 # `ESC` reverts a structured insertion back to an empty text typein.
+# The text keys — typing, Backspace, Delete, the arrows and their Shift twins —
+# are the text domain's. The active part's body is a text layer, a key reaches it
+# through the cards because each card follows the draft's selection, and its
+# edits come back through the maps below as edits of the draft's value. The
+# composer's own table holds only the keys that mean something to a composer.
+#
 # The composer names no source domain. Which kinds it offers, what each is
 # called, and how a typed source becomes a document are all asked of two seams:
 # `get_insertion_root` says a type is a domain's insertion, and `get_natural_format`
@@ -89,6 +95,79 @@ function _replace_active!(d::ConversationDraft, doc)
     p.content = doc
     _is_editable(doc) && (doc.selection = _valpath(length(_value(doc))))
     nothing
+end
+
+# ── One selection ───────────────────────────────────────────────────────────
+#
+# A composer operation names its draft rather than a path, and it moves the
+# caret in the active part's own cell. In an editor the complete selection has to
+# move with it, because a key goes where the complete selection points.
+
+"""
+    sync_draft_selection!(editor, draft) -> Nothing
+
+Put the editor's complete selection on the caret of `draft`'s active part, or on
+the active part's content when it takes no text. The path to the draft is the
+one the complete selection already passes through. With no editor, or with a
+selection that does not pass through `draft`, nothing changes.
+
+A composer operation calls it after it edits the draft, and so does a host that
+replaces the draft's parts, such as the assistant after a submit.
+"""
+function sync_draft_selection!(editor, draft::ConversationDraft)
+    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
+    root === nothing && return nothing
+    path = root.selection
+    path isa Reference || return nothing
+    prefix = _find_draft_prefix(root, path, draft)
+    prefix === nothing && return nothing
+    tail = make_draft_caret_reference(draft)
+    tail === nothing && return nothing
+    clear_selection!(root)
+    set_selection!(root, _from_steps(prefix, tail))
+    nothing
+end
+
+"""
+    make_draft_caret_reference(draft) -> Reference or nothing
+
+The selection of `draft`'s active part, rooted at the draft: the caret of its
+value, `parts[n].content.value{k}`, or `parts[n].content` when the part takes no
+text. `nothing` for a draft with no part.
+"""
+function make_draft_caret_reference(draft::ConversationDraft)
+    n = length(draft.parts)
+    n == 0 && return nothing
+    content = _active_content(draft)
+    ConcreteReference(FieldReferenceStep("parts"),
+        ConcreteReference(RangeReferenceStep(n - 1, n),
+            ConcreteReference(FieldReferenceStep("content"),
+                _is_editable(content) ? _valpath(_cursor(content)) : EmptyReference())))
+end
+
+# The steps of `path` that lead from `root` to `draft`, or `nothing` when the
+# path does not pass through it.
+function _find_draft_prefix(root, path, draft)
+    steps = get_reference_steps(strip_reference_types(path))
+    root === draft && return Any[]
+    for k in 1:length(steps)
+        node = try_evaluate_reference(root, _from_steps(steps[1:k]), nothing)
+        node === draft && return steps[1:k]
+    end
+    nothing
+end
+
+# The value range that the draft's own selection names on its active part, or
+# `nothing`.
+function _find_draft_value_range(d::ConversationDraft)
+    path = get_stored_selection(d)
+    path isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    n = length(d.parts)
+    (length(steps) == 5 && steps[1] == FieldReferenceStep("parts") &&
+     steps[2] == RangeReferenceStep(n - 1, n) && steps[3] == FieldReferenceStep("content") &&
+     steps[4] == FieldReferenceStep("value") && steps[5] isa RangeReferenceStep) || return nothing
+    (steps[5].start, steps[5].stop)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -175,6 +254,7 @@ function evaluate_operation(editor, op::ComposerInputOperation)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     _set_value!(c, first(v, k) * op.text * last(v, length(v) - k), k + length(op.text))
+    sync_draft_selection!(editor, op.draft)
 end
 
 function evaluate_operation(editor, op::ComposerNewlineOperation)
@@ -182,6 +262,7 @@ function evaluate_operation(editor, op::ComposerNewlineOperation)
     _is_editable(c) || return nothing
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     _set_value!(c, first(v, k) * "\n" * last(v, length(v) - k), k + 1)
+    sync_draft_selection!(editor, op.draft)
 end
 
 function evaluate_operation(editor, op::ComposerBackspaceOperation)
@@ -190,6 +271,7 @@ function evaluate_operation(editor, op::ComposerBackspaceOperation)
     v = _value(c); k = clamp(_cursor(c), 0, length(v))
     k == 0 && return nothing
     _set_value!(c, first(v, k - 1) * last(v, length(v) - k), k - 1)
+    sync_draft_selection!(editor, op.draft)
 end
 
 function evaluate_operation(editor, op::ComposerInsertPartOperation)
@@ -206,7 +288,7 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
     ins = DocumentInsertion("")
     ins.selection = _valpath(0)
     push!(d.parts, ConversationPart(ins))
-    nothing
+    sync_draft_selection!(editor, d)
 end
 
 # Kind keyword → the domain insertion the chooser grows into, resolved over the
@@ -235,6 +317,7 @@ function evaluate_operation(editor, op::ComposerCommitChooserOperation)
     doc = _composer_factory(_value(c))
     doc === nothing && return nothing              # unknown/unsupported: keep editing
     _replace_active!(op.draft, doc)
+    sync_draft_selection!(editor, op.draft)
 end
 
 # Parse a source insertion into its domain document, through the seam.
@@ -251,7 +334,7 @@ function evaluate_operation(editor, op::ComposerCommitSourceOperation)
     doc === nothing && return nothing              # unparseable: keep editing
     _replace_active!(op.draft, doc)
     push!(op.draft.parts, _new_typein())
-    nothing
+    sync_draft_selection!(editor, op.draft)
 end
 
 function evaluate_operation(editor, op::ComposerEvaluateOperation)
@@ -281,11 +364,12 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     _replace_active!(op.draft,
         EvaluatorForm(form; result = result, is_error = is_err))
     push!(op.draft.parts, _new_typein())
-    nothing
+    sync_draft_selection!(editor, op.draft)
 end
 
 function evaluate_operation(editor, op::ComposerRevertOperation)
     _replace_active!(op.draft, getfield(_new_typein(), :content)[])
+    sync_draft_selection!(editor, op.draft)
 end
 
 """
@@ -321,7 +405,10 @@ function _prose_document(text::AbstractString)
     end
 end
 
-evaluate_operation(editor, op::ComposerSubmitOperation) = (finalize_draft!(op.draft); nothing)
+function evaluate_operation(editor, op::ComposerSubmitOperation)
+    finalize_draft!(op.draft)
+    sync_draft_selection!(editor, op.draft)
+end
 
 """
     make_conversation_draft() -> ConversationDraft
@@ -379,31 +466,26 @@ struct ConversationComposerToWidget <: Projection end
 const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
 
-# A zero-width cursor at offset `k` inside span `span` (1-based) of a body
-# `TextBlock`, in the `.elements[span].content[k:k]` shape `TextToGraphics` reads
-# to draw its genuine thin-line caret.
-_caret_selection(span::Int, k::Int) =
+# A range at offsets `s..e` inside span `span` (1-based) of a body `TextBlock`, in
+# the `.elements[span].content{s:e}` shape `TextToGraphics` reads. `s == e` is its
+# thin-line caret.
+_body_range_selection(span::Int, s::Int, e::Int) =
     ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(span - 1, span),
             ConcreteReference(FieldReferenceStep("content"),
-                ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))
+                ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))))
 
-# Install the reactive caret on `body`, tracking `content`'s cursor in `span`.
-# `span_len` is the rendered length of that span so the cursor stays in range.
-function _attach_caret!(body::TextBlock, content, span::Int, span_len)
-    set_cell_function!(getfield(body, :selection),
-           () -> _caret_selection(span, clamp(_cursor(content), 0, span_len())))
-    body
-end
-
-# ── Editable (active) part body — its value plus the real selection-driven caret.
-# Safe to carry a text selection: the enclosing turn `WidgetCard` reader drops
-# coordless key events, so the text layer never hijacks the composer's keys.
+# ── Editable (active) part body — its value, drawn with the draft's selection.
 
 # A `DocumentInsertion` keeps its "Insert a new <value> here" decoration: static
 # gray prefix/suffix spans around the editable value span, caret in the value.
 const _INS_PREFIX = "Insert a new "
 const _INS_SUFFIX = " here"
+
+# Which span of the rendered body carries the editable value.
+_value_span(::DocumentInsertion) = 2
+_value_span(::Any) = 1
+
 function _editable_body(c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
     # type, red = dead end, neutral while empty) and is followed by the pale
@@ -417,32 +499,55 @@ function _editable_body(c::DocumentInsertion)
         state === :invalid ? color_solarized_red :
         state === :empty   ? color_default      : color_solarized_green
     end)
-    body = TextBlock([
+    TextBlock([
         TextString(_INS_PREFIX, _FONT, color_solarized_gray),
         value_span,
         TextString(() -> name_completion(c).hint, _FONT, color_completion_hint),
         TextString(_INS_SUFFIX, _FONT, color_solarized_gray),
     ])
-    # While the value is empty, anchor the caret to the end of the (non-empty)
-    # prefix span — `TextToGraphics` can't place a caret in a zero-width span, and
-    # this lands at the same x (just after "Insert a new ").
-    set_cell_function!(getfield(body, :selection), function ()
-        v = _value(c)
-        isempty(v) ? _caret_selection(1, length(_INS_PREFIX)) :
-                     _caret_selection(2, clamp(_cursor(c), 0, length(v)))
-    end)
-    body
 end
 
-# Plain editable text (a `PrimitiveString` or a domain's insertion): one span, a pale
-# placeholder while empty, caret in the single span.
+# Plain editable text (a `PrimitiveString` or a domain's insertion): one span, and
+# a pale placeholder while empty.
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
     ts = TextString(ComputedCell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
     set_cell_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
-    _attach_caret!(TextBlock(ts), c, 1, () -> length(show()))
+    TextBlock(ts)
+end
+
+# The body's selection for the value range `s..e` of the active part `c`. While a
+# kind chooser's value is empty, the caret sits at the end of the prefix span:
+# `TextToGraphics` can not place a caret in a zero-width span, and this lands at
+# the same x, just after "Insert a new ".
+function _body_selection(c, s::Int, e::Int)
+    (c isa DocumentInsertion && isempty(_value(c))) &&
+        return _body_range_selection(1, length(_INS_PREFIX), length(_INS_PREFIX))
+    n = length(_value(c))
+    _body_range_selection(_value_span(c), clamp(s, 0, n), clamp(e, 0, n))
+end
+
+# A widget that follows the draft's selection. Its selection cell holds the
+# draft's selection mapped forward, less the `lead` steps that lead to the
+# widget, and nothing when the image does not pass through it. `dormant` keeps a
+# dormant selection, which a text layer draws pale; a card routes keys by its
+# selection, so it follows only a live one.
+function _follow_draft!(widget, d::ConversationDraft, p, iomap_ref::Ref, lead::Vector;
+                        dormant::Bool)
+    function image_of(path)
+        image = map_reference_forward(p, iomap_ref[], path)
+        image isa Reference || return nothing
+        steps = get_reference_steps(strip_reference_types(image))
+        length(steps) >= length(lead) || return nothing
+        all(k -> steps[k] == lead[k], eachindex(lead)) || return nothing
+        _from_steps(steps[(length(lead) + 1):end])
+    end
+    set_cell_function!(getfield(widget, :selection), dormant ?
+        (() -> map_selection_forward(d, image_of)) :
+        (() -> (path = d.selection; path === nothing ? nothing : image_of(path))))
+    widget
 end
 
 # ── Committed part body — recurse the real content document through the inner
@@ -465,57 +570,61 @@ _part_chrome(content) =
     _is_code(content)         ? (:muted, _kind_label(content))     :
     (:plain, nothing)
 
-function _part_card(content, active::Bool)
+function _make_draft_part_card(p, d::ConversationDraft, iomap_ref::Ref, i::Int, content, active::Bool)
     variant, tag = _part_chrome(content)
-    WidgetCard(Point2D(0, 0);
-               title = tag === nothing ? nothing :
-                       WidgetLabel(Point2D(0, 0), tag; text_style = _KIND_STYLE),
-               content = (active && _is_editable(content)) ?
-                         _editable_body(content) : _committed_body(content),
-               variant = variant)
+    editable = active && _is_editable(content)
+    lead = Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)]
+    body = editable ?
+        _follow_draft!(_editable_body(content), d, p, iomap_ref,
+                       vcat(lead, FieldReferenceStep("content")); dormant = true) :
+        _committed_body(content)
+    card = WidgetCard(Point2D(0, 0);
+                      title = tag === nothing ? nothing :
+                              WidgetLabel(Point2D(0, 0), tag; text_style = _KIND_STYLE),
+                      content = body,
+                      variant = variant)
+    # A card passes a key to its content only while it holds a selection.
+    editable ? _follow_draft!(card, d, p, iomap_ref, lead; dormant = false) : card
 end
 
 function print_document(p::ConversationComposerToWidget, recursion, d::ConversationDraft, ctx)
     # The draft is always a user message, so it renders as just its stack of part
     # cards — no role/avatar header card around them. Reactive part list: the last
-    # part is the active typein (gets the caret). The thunk recomputes on
-    # structural changes; per-part value/cursor edits re-render via the reactive
-    # `TextString` thunks inside each card.
+    # part is the active typein. The thunk recomputes on structural changes;
+    # per-part value edits re-render via the reactive `TextString` thunks inside
+    # each card, and the caret via the selection cells that follow the draft.
     # Every part card fills the width it is given and grows with what it holds,
     # the same as a turn's parts in the transcript.
+    iomap_ref = Ref{Any}(nothing)
     body = VerticalLayout(
         ComputedCellVector(() -> (n = length(d.parts);
-                          Any[_part_card(d.parts[i].content, i == n) for i in 1:n])),
+                          Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n])),
         Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
-    # The caret, carried down. A key is routed by selection and stops at the
-    # first container that has none, so the stack of part cards has to say which
-    # card the caret is in — otherwise a composer rendered anywhere but the
-    # assistant panel can be clicked into and never typed in.
+    iomap_ref[] = iomap
+    # The selection, carried down. A key is routed by selection and stops at the
+    # first container that has none, so the stack of part cards, the active card
+    # and its body each say where the draft's selection is.
     set_cell_function!(getfield(body, :selection),
                        () -> map_reference_forward(p, iomap, getfield(d, :selection)[]))
     iomap
 end
 
-# ── the caret, both ways ────────────────────────────────────────────────────
+# ── the selection, both ways ────────────────────────────────────────────────
 #
-# `parts[i].content.value{k}` on the draft is `children[i].content.elements[s].content{k}`
-# on the stack of cards: card `i` holds part `i`, its `content` slot holds the
-# body, and the body is a `TextBlock` whose span `s` carries the editable value.
-# Which span that is belongs to the body that was built — a plain typein has one
-# and a kind chooser has its value in the second, after the "Insert a new "
-# prefix — so it is asked for rather than assumed.
+# `parts[i].content.value{s:e}` on the draft is
+# `children[i].content.elements[k].content{s:e}` on the stack of cards: card `i`
+# holds part `i`, its `content` slot holds the body, and span `k` of the body
+# carries the editable value. A place in the body comes back as a flat range,
+# which a click and a motion key make, or as the span range an edit is lowered to.
+# A caret in the chooser's prefix is the start of the value, and a caret after the
+# value is its end. A range with an end outside the value maps to nothing, so a
+# key that would make one declines.
 #
-# This is what makes a click land where it was aimed. Answering `nothing` both
-# ways and managing the cursor privately works only where something else catches
-# the keys: the assistant panel does, a page does not, and a composer in a page
-# would be clicked into and not typed in.
+# This is what makes a click land where it was aimed, and a key act where the
+# selection is.
 
-# Which span of the rendered body carries the editable value.
-_caret_span(c::DocumentInsertion) = isempty(_value(c)) ? 1 : 2
-_caret_span(::Any) = 1
-
-# parts[i].content.value{k}  →  children[i].content.elements[s].content{k}
+# parts[i].content.value{s:e}  →  children[i].content.elements[k].content{s:e}
 function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
     reference isa ConcreteReference || return nothing
     h = reference.head
@@ -538,7 +647,7 @@ function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
          inner.head.name == "value") || return nothing
         k = inner.tail
         (k isa ConcreteReference && k.head isa RangeReferenceStep) || return nothing
-        _caret_selection(_caret_span(content), k.head.stop)
+        _body_selection(content, k.head.start, k.head.stop)
     else
         inner
     end
@@ -547,7 +656,7 @@ function map_reference_forward(::ConversationComposerToWidget, iomap, reference)
             ConcreteReference(FieldReferenceStep("content"), tail)))
 end
 
-# children[i].content.elements[s].content{k}  →  parts[i].content.value{k}
+# children[i].content.<a place in the body>  →  parts[i].content.value{s:e}
 function map_reference_backward(::ConversationComposerToWidget, iomap, reference)
     reference isa ConcreteReference || return EmptyReference()
     h = reference.head
@@ -562,11 +671,16 @@ function map_reference_backward(::ConversationComposerToWidget, iomap, reference
      rest.head.name == "content") || return EmptyReference()
     content = d.parts[i].content
     tail = if _is_editable(content) && i == length(d.parts)
-        k = _text_caret_offset(rest.tail)
+        body = _get_rendered_body(iomap, i)
+        range = body === nothing ? :other : _map_body_to_value(content, body, rest.tail)
+        range === nothing && return nothing
         # A click that found no offset still found the card, and the caret goes
         # to the end of what is written — which is where a reader who clicked
         # anywhere in an empty field expects it.
-        _valpath(k === nothing ? length(_value(content)) : k)
+        n = length(_value(content))
+        range === :other && (range = (n, n))
+        ConcreteReference(FieldReferenceStep("value"),
+            ConcreteReference(RangeReferenceStep(range[1], range[2]), EmptyReference()))
     else
         rest.tail
     end
@@ -575,9 +689,45 @@ function map_reference_backward(::ConversationComposerToWidget, iomap, reference
             ConcreteReference(FieldReferenceStep("content"), tail)))
 end
 
-# The `{k}` of an `elements[s].content{k}` caret path, or `nothing` when the
+# The body the stack of cards holds for part `i`, or `nothing`.
+function _get_rendered_body(iomap, i::Int)
+    children = iomap.output.children
+    (1 <= i <= length(children)) || return nothing
+    card = children[i]
+    card isa WidgetCard || return nothing
+    body = card.content
+    body isa TextBlock ? body : nothing
+end
+
+# The value range of the active part `c` that a place in its `body` names:
+# `(start, stop)`, `nothing` for a range that leaves the value, or `:other` for a
+# reference that names no place in the text.
+function _map_body_to_value(c, body::TextBlock, reference)
+    r = strip_reference_types(reference)
+    span = _value_span(c)
+    n = length(_value(c))
+    if r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference
+        base = get_flat_base(body, Int[span])
+        base === nothing && return :other
+        shown = length(body.elements[span].content::AbstractString)
+        inside(f) = base <= f <= base + shown
+        place(f) = f < base ? 0 : f > base + shown ? n : clamp(f - base, 0, n)
+        s, e = r.head.start, r.head.stop
+        s == e && return (place(s), place(s))
+        (inside(s) && inside(e)) || return nothing
+        return (clamp(s - base, 0, n), clamp(e - base, 0, n))
+    end
+    parsed = _parse_body_span_range(r)
+    parsed === nothing && return :other
+    k, a, b = parsed
+    k == span && return (clamp(a, 0, n), clamp(b, 0, n))
+    a == b || return nothing
+    k < span ? (0, 0) : (n, n)
+end
+
+# The `(k, s, e)` of an `elements[k].content{s:e}` path, or `nothing` when the
 # reference is not one.
-function _text_caret_offset(reference)
+function _parse_body_span_range(reference)
     reference isa ConcreteReference || return nothing
     (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
     span = reference.tail
@@ -585,9 +735,10 @@ function _text_caret_offset(reference)
     inner = span.tail
     (inner isa ConcreteReference && inner.head isa FieldReferenceStep &&
      inner.head.name == "content") || return nothing
-    k = inner.tail
-    (k isa ConcreteReference && k.head isa RangeReferenceStep) || return nothing
-    k.head.stop
+    range = inner.tail
+    (range isa ConcreteReference && range.head isa RangeReferenceStep &&
+     range.tail isa EmptyReference) || return nothing
+    (span.head.stop, range.head.start, range.head.stop)
 end
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -598,28 +749,23 @@ end
     read_composer_gesture(draft, event) -> Operation | nothing
 
 Map a key gesture to a composer operation on `draft`, dispatching on the active
-(last) part's state. Shared by the composer projection and the live assistant
-panel (which routes its input keys to the draft). `ENTER` on a plain text typein
-yields a `ComposerSubmitOperation`; the panel intercepts that to submit the draft
-into the conversation instead of merely normalizing it.
+(last) part's state. Shared by the composer projection and the assistant card.
+`ENTER` on a plain text typein yields a `ComposerSubmitOperation`; the assistant
+intercepts that to submit the draft into the conversation instead of merely
+normalizing it. The text keys are not here: the text layer of the active part
+answers them.
 """
 # The composer's gesture table, reified as `GestureBinding`s and dispatched on the
 # **active** (last) part's mode, so the very set that fires (`read_composer_gesture`, shared
-# with the assistant panel) is the set the gesture-help window shows
-# (`get_projection_gesture_bindings`) — fire == show. Char insert + Backspace are shared by every
-# editable mode; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
+# with the assistant card) is the set the gesture-help window shows
+# (`get_projection_gesture_bindings`) — fire == show. The text keys are the text
+# layer's; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
 # mode-specific. ModifierKeys are matched as the old `@event_case` did: `[:shift]`/`[:alt]`
 # are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
 # rows precede the bare one so Shift/Alt+Return win over plain Return (first match).
 function _composer_bindings(draft::ConversationDraft)
-    insert = GestureBinding(KeyPressPattern(nothing),
-        (d, e) -> ComposerInputOperation(d, String(e.text)),
-        (d, sel) -> true, "Insert character", "composer")
-    backspace = GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
-        (d, e) -> ComposerBackspaceOperation(d),
-        (d, sel) -> true, "Delete backward", "composer")
     newline = GestureBinding(KeyDownPattern(:return, [:shift], nothing),
-        (d, e) -> ComposerNewlineOperation(d),
+        (d, e) -> _make_newline_operation(d),
         (d, sel) -> true, "New line", "composer")
     revert = GestureBinding(KeyDownPattern(:escape, nothing, nothing),
         (d, e) -> ComposerRevertOperation(d),
@@ -637,14 +783,13 @@ function _composer_bindings(draft::ConversationDraft)
             GestureBinding(KeyDownPattern(:insert, nothing, nothing),
                 (d, e) -> ComposerInsertPartOperation(d),
                 (d, sel) -> true, "Add a structured part", "composer"),
-            backspace, insert,
         ]
     elseif c isa DocumentInsertion
         GestureBinding[
             GestureBinding(KeyDownPattern(:return, nothing, nothing),
                 (d, e) -> ComposerCommitChooserOperation(d),
                 (d, sel) -> true, "Choose insertion kind", "composer"),
-            revert, backspace, insert,
+            revert,
         ]
     elseif get_natural_format(typeof(c)) === :jl
         # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
@@ -657,7 +802,7 @@ function _composer_bindings(draft::ConversationDraft)
             GestureBinding(KeyDownPattern(:return, nothing, nothing),
                 (d, e) -> ComposerCommitSourceOperation(d),
                 (d, sel) -> true, "Commit source", "composer"),
-            revert, backspace, insert,
+            revert,
         ]
     elseif get_insertion_root(typeof(c)) !== Document
         # Any other domain's source insertion: ENTER parses it into that domain's
@@ -668,11 +813,29 @@ function _composer_bindings(draft::ConversationDraft)
             GestureBinding(KeyDownPattern(:return, nothing, nothing),
                 (d, e) -> ComposerCommitSourceOperation(d),
                 (d, sel) -> true, "Commit source", "composer"),
-            revert, backspace, insert,
+            revert,
         ]
     else
         GestureBinding[]
     end
+end
+
+# SHIFT+ENTER: a line break over the draft's selected range, as an edit of the
+# complete selection. The draft's own selection names the range; a draft that
+# names none takes the caret of its active part.
+function _make_newline_operation(d::ConversationDraft)
+    c = _active_content(d)
+    _is_editable(c) || return nothing
+    range = _find_draft_value_range(d)
+    s, e = range === nothing ? (_cursor(c), _cursor(c)) : range
+    n = length(d.parts)
+    ReplaceStringRangeOperation(
+        ConcreteReference(FieldReferenceStep("parts"),
+            ConcreteReference(RangeReferenceStep(n - 1, n),
+                ConcreteReference(FieldReferenceStep("content"),
+                    ConcreteReference(FieldReferenceStep("value"),
+                        ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))))),
+        "\n")
 end
 
 # Fire the first binding whose pattern matches (and precondition holds). Shared by the

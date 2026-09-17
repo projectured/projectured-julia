@@ -64,8 +64,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
                                   padding=_PAD5, padding_color=_WHITE)
     # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
     # dispatches to the composer rather than the history presentation; it already
-    # back-links the assistant for submit). The panel reader routes input keys to
-    # `a.draft`.
+    # back-links the assistant for submit).
     input_pane = WidgetScrollPane(a.draft;
                                   padding=_PAD5, padding_color=_WHITE)
     # Conversation takes the main weight; the input box stays at its minimum
@@ -76,7 +75,12 @@ function print_document(projection::AssistantToWidgetSplitPane,
         LayoutConstraint(input_pane;
                          min_height=_INPUT_MIN_HEIGHT, preferred_height=_INPUT_MIN_HEIGHT),
     ])
-    SimpleIoMap(projection, a, column)
+    iomap = SimpleIoMap(projection, a, column)
+    # A key is routed by selection: the split pane sends it to the pane that the
+    # assistant's selection names.
+    set_cell_function!(getfield(column, :selection),
+                       () -> map_reference_forward(projection, iomap, getfield(a, :selection)[]))
+    iomap
 end
 
 """
@@ -85,10 +89,10 @@ children carry the DOCUMENT rather than a projection of it, exactly as there, so
 the renderer around the card routes the conversation to the chat bubbles and the
 draft to the composer.
 
-The card takes the keyboard as a whole: the caret goes ON the assistant and not
-inside it, and the reader hands every key to the draft. That is what the split
-pane's own `KeyPress` / `KeyDown` fallbacks already do; it is written down here
-too because a card sits inside a document, where nothing above it routes by tab.
+A key reaches the draft by selection, as in the split pane: a click in the cell
+puts the caret in the draft, and the containers below carry that selection down.
+The card's reader also hands a key that nothing below took to the composer's own
+table, which answers only the composer's keys, such as `Return`.
 """
 function print_document(p::AssistantToWidgetCard,
                         recursion, a::Assistant, ctx)

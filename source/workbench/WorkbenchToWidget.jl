@@ -649,39 +649,17 @@ function read_intent(p::WorkbenchWorkbenchToWidgetShell,
     # 3. Other operation types (an identity-rooted ReplaceReferencedValueOperation that
     # targets a widget directly, not a path) — pass through.
     op isa Operation && return op
-    # 4. Raw events (KeyPress / KeyDown). Focus follows the workbench selection:
-    # offer the key ONLY to the panel the selection currently points at, so
-    # clicking the JSON editor moves typing there instead of the assistant
-    # composer. The composer grabs every printable key (its `insert` binding
-    # matches any KeyPress) and forward-projects no selection of its own, so a
-    # blind broadcast to every panel here let it swallow the keystroke no matter
-    # where the selection was — clicking the JSON document could never take focus
-    # away from the draft. A panel that declines (its reader hands the raw key
-    # back rather than an Operation — e.g. an editor tab passing a plain character
-    # down to its own text cursor) yields `nothing`, so the normal output→input
-    # threading then routes the key through the forward-projected selection to the
-    # focused descendant.
+    # 4. Raw events (KeyPress / KeyDown). A key goes where the workbench selection
+    # points: it is offered ONLY to the panel the selection names, and a workbench
+    # with nothing selected takes no key. A panel that declines (its reader hands
+    # the raw key back rather than an Operation — e.g. an editor tab passing a
+    # plain character down to its own text cursor) yields `nothing`, so the normal
+    # output→input threading then routes the key through the forward-projected
+    # selection to the focused descendant.
     sel_panel = _selected_panel(iomap)
-    if sel_panel !== nothing
-        field_name, elem_idx, elem_iomap = sel_panel
-        return _panel_raw_key(field_name, elem_idx, elem_iomap, op)
-    end
-    # No panel is selected (a fresh workbench, nothing clicked yet): the assistant
-    # composer keeps the default focus, so offer the key to each panel — only the
-    # assistant claims a raw key. Guards the "ENTER through the nested workbench"
-    # path (ConversationPanelTest); once anything is clicked, the selection-gated
-    # branch above takes over.
-    for (field_name, page_iomap) in (("navigation_page",  iomap.navigation_page_iomap),
-                                      ("editing_page",     iomap.editing_page_iomap),
-                                      ("information_page", iomap.information_page_iomap),
-                                      ("control_page",     iomap.control_page_iomap))
-        page_iomap isa WorkbenchPageToWidgetTabbedPaneIoMap || continue
-        for (elem_idx, elem_iomap) in enumerate(page_iomap.element_iomaps)
-            handled = _panel_raw_key(field_name, elem_idx, elem_iomap, op)
-            handled === nothing || return handled
-        end
-    end
-    return nothing
+    sel_panel === nothing && return nothing
+    field_name, elem_idx, elem_iomap = sel_panel
+    _panel_raw_key(field_name, elem_idx, elem_iomap, op)
 end
 
 # The panel `(page_field_name, 1-based index, element iomap)` the workbench
