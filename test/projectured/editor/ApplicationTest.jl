@@ -78,6 +78,43 @@ function test_application()
             @test_throws ErrorException make_application_document(String[]; window = :unknown)
         end
 
+        @testset "the command line" begin
+            command = parse_application_arguments(String[])
+            @test command.files == String[] && command.window === :pane
+            @test command.backend === :sdl && command.assistant === :ollama
+            @test command.model == "" && !command.mcp
+            command = parse_application_arguments(
+                ["a.json", "--window=workbench", "--backend=web", "--assistant=none",
+                 "--model=small", "--root=/tmp", "--mcp", "b.md"])
+            @test command.files == ["a.json", "b.md"]
+            @test command.window === :workbench && command.backend === :web
+            @test command.assistant === :none && command.model == "small"
+            @test command.root == "/tmp" && command.mcp
+            @test_throws ErrorException parse_application_arguments(["--colour=red"])
+            @test_throws ErrorException parse_application_arguments(["-x"])
+            @test_throws ErrorException parse_application_arguments(["--window=tiles"])
+            @test_throws ErrorException parse_application_arguments(["--assistant=gpt"])
+            # A wrong command line answers 1 and opens no window.
+            quiet = devnull
+            @test redirect_stderr(() -> run_application_command(["--window=tiles"];
+                                                                backends = (sdl = () -> nothing,)),
+                                  quiet) == 1
+            @test redirect_stderr(() -> run_application_command(["--backend=web"];
+                                                                backends = (sdl = () -> nothing,)),
+                                  quiet) == 1
+            # Every option of the list is one the parser takes.
+            for (label, _) in APPLICATION_OPTIONS
+                flag = first(split(label, '='))
+                flag == "--mcp" && continue
+                @test haskey(pairs(parse_application_arguments(String[])),
+                             Symbol(flag[3:end]))
+            end
+        end
+
+        @testset "the warm-up of a build" begin
+            @test_logs min_level = Base.CoreLogging.Warn warm_application()
+        end
+
         dir = mktempdir()
         paths = _app_write_files(dir)
         for window in APPLICATION_WINDOWS

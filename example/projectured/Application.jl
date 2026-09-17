@@ -225,6 +225,157 @@ function run_application(paths::AbstractString...; window::Symbol = :pane,
                       on_start = editor -> _start_application!(editor, mcp, assistant, model))
 end
 
+# ── The command line ─────────────────────────────────────────────────────────
+
+"""
+    APPLICATION_OPTIONS
+
+The options of the `projectured` command, as `"--option=value" => "what it
+does"`. The build writes them into the `--help` text of the binary, and the
+binary refuses an option that this list does not name.
+"""
+const APPLICATION_OPTIONS = [
+    "--window=pane|workbench" =>
+        "the window: tabs in split panes (the default), or the workbench",
+    "--backend=sdl|web" =>
+        "where the window is drawn: a native window (the default), or a web browser",
+    "--assistant=ollama|anthropic|none" =>
+        "the model backend of the assistant (ollama by default), or no assistant",
+    "--model=NAME" => "the model of that backend; its default when not given",
+    "--root=DIRECTORY" => "the directory the navigator lists; the current one by default",
+    "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
+]
+
+"""
+    parse_application_arguments(arguments) -> NamedTuple
+
+The files and the options of a `projectured` command line, as the keywords of
+[`run_application`](@ref) take them, plus `files` and the backend name. An
+unknown option or a wrong value raises an error that names it.
+"""
+function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
+    values = Dict{String,String}("window" => "pane", "backend" => "sdl",
+                                 "assistant" => "ollama", "model" => "",
+                                 "root" => pwd())
+    mcp = false
+    files = String[]
+    for argument in arguments
+        if argument == "--mcp"
+            mcp = true
+        elseif startswith(argument, "--") && occursin('=', argument)
+            key, value = split(argument[3:end], '='; limit = 2)
+            haskey(values, key) || error("unknown option $(repr(argument))")
+            values[key] = String(value)
+        elseif startswith(argument, "-")
+            error("unknown option $(repr(argument))")
+        else
+            push!(files, String(argument))
+        end
+    end
+    window = Symbol(values["window"])
+    window in APPLICATION_WINDOWS ||
+        error("--window is one of ", join(APPLICATION_WINDOWS, ", "), ", not ", repr(values["window"]))
+    assistant = Symbol(values["assistant"])
+    assistant in APPLICATION_ASSISTANTS ||
+        error("--assistant is one of ", join(APPLICATION_ASSISTANTS, ", "), ", not ",
+              repr(values["assistant"]))
+    (; files, window, backend = Symbol(values["backend"]), assistant,
+       model = values["model"], root = values["root"], mcp)
+end
+
+"""
+    run_application_command(arguments; backends) -> Cint
+
+What the `projectured` binary runs: read the command line, open the window, and
+answer the exit code: 0 when the window closes, 1 for a wrong command line, and
+2 when the program fails.
+
+`backends` maps a backend name to the function that makes it, for example
+`(sdl = SdlBackend, web = WebBackend)`. It names the backends that the build put
+into the binary, and `--backend` accepts only those.
+"""
+function run_application_command(arguments; backends)
+    command = try
+        parse_application_arguments(arguments)
+    catch err
+        println(stderr, "projectured: ", sprint(showerror, err))
+        return Cint(1)
+    end
+    if !haskey(backends, command.backend)
+        println(stderr, "projectured: --backend is one of ", join(keys(backends), ", "),
+                ", not ", repr(String(command.backend)))
+        return Cint(1)
+    end
+    try
+        run_application(command.files...; window = command.window,
+                        backend = backends[command.backend](),
+                        assistant = command.assistant, model = command.model,
+                        mcp = command.mcp, root = command.root)
+        Cint(0)
+    catch err
+        err isa InterruptException && return Cint(0)
+        println(stderr, "projectured: ", sprint(showerror, err))
+        Cint(2)
+    end
+end
+
+# ── The warm-up of a build ───────────────────────────────────────────────────
+
+"""
+    warm_application() -> Nothing
+
+Run the application once without a window, so that a build compiles what a
+person does first: both windows, several file formats, a click in the
+navigator, Enter on a file, a key in a file, and a save. It works in a
+temporary directory. A failure is logged and does not stop the build.
+"""
+function warm_application()
+    directory = mktempdir()
+    try
+        paths = String[]
+        for (name, format, text) in [("a.json", :json, "{\"name\": \"Alice\"}"),
+                                     ("b.md", :md, "# Title\n\nText.\n"),
+                                     ("c.jl", :jl, "f(x) = x + 1\n")]
+            path = joinpath(directory, name)
+            write_document_file(parse_natural_text(format, text), path)
+            push!(paths, path)
+        end
+        write(joinpath(directory, "d.txt"), "text")
+        events = Any[KeyDown(:down, ModifierKeys()),
+                     KeyPress('x'),
+                     MousePress(:left, 100, 84, 1, ModifierKeys()),
+                     KeyDown(:return, ModifierKeys()),
+                     KeyDown(:s, ModifierKeys(ctrl = true))]
+        for window in APPLICATION_WINDOWS
+            document = make_application_document(paths; window = window, root = directory,
+                assistant = make_application_assistant(:ollama))
+            projection = make_application_projection(; window = window)
+            scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
+            composed = make_window_scene_projection(projection; opened_window_projections =
+                Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
+            editor = Editor(ConsoleBackend(), scene, composed,
+                            Device[Display(), Keyboard(), Mouse()])
+            editor.iomap = print_document(composed, scene)
+            _force_reactive!(editor.iomap)
+            for event in events
+                change = read_intent(composed, nothing,
+                                     Intent(WindowInput(:ProjecturEd, event)), editor.iomap)
+                operation = change isa Intent ? change.operation : change
+                operation isa Operation || continue
+                editor.operation = operation
+                evaluate_operation(editor, operation)
+                editor.iomap = print_document(composed, editor.document)
+                _force_reactive!(editor.iomap)
+            end
+        end
+    catch err
+        @warn "warm_application: the warm-up failed, and the build goes on" err
+    finally
+        rm(directory; recursive = true, force = true)
+    end
+    nothing
+end
+
 # What the application does once the editor exists. An MCP client runs no turn of
 # the assistant, so the tools get the meaning model of the backend here, and a
 # search by description ranks by meaning for the client too.
