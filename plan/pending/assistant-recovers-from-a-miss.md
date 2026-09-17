@@ -9,7 +9,7 @@
 **Goal.** The plan before this one ended with `qwen3.8:27b` at 9 of 11
 problems and four open items. This plan closes the four items. Each item is a
 place where the model missed, and each fix puts the way out into the answer the
-model reads: a short search says how to ask, an empty frame says which names
+model reads: a short search says how to ask, an empty result says which names
 exist, and the prompt names only words that exist.
 
 **The measure** stays the benchmark of eleven problems,
@@ -91,9 +91,26 @@ plan is corrected.
   are `delay:mean`, so the frame was empty. A table maker opened an empty
   table (Step 5 of the last plan); `make_result_plot` answered "Nothing matched,
   so there is nothing to plot." and nothing more (its Step 7).
-- **`mxbai-embed-large` is not installed.** `_MEANING_PREFIXES` in
-  `source/ollama/Ollama.jl` already knows its query prefix, and the vector
-  cache is kept per model.
+- **`mxbai-embed-large` is installed** since 2026-09-17, with the `embedding`
+  capability. `_MEANING_PREFIXES` in `source/ollama/Ollama.jl` already knows
+  its query prefix, and its vectors go to a file of their own,
+  `build/meaning/ollama_mxbai-embed-large.bin`.
+- **The vectors are computed without a manual step, with three limits.** A
+  vector is keyed by its exact text. Binding a meaning model to a tool set
+  queues every declared entry and guide section that has no vector, and a
+  description search queues what it lacks; a task computes them and appends
+  them to the model's file. A changed docstring is a new text, so it gets a
+  new vector. The limits: the API and guide indexes are read once per Julia
+  process, so a docstring edited under Revise is seen after a restart; a model
+  pulled again under the same name, with vectors of the same length, keeps the
+  old vectors until its file is deleted; and the file never shrinks, because
+  the vector of an old text stays in it. `agent.md` says the first and none of
+  the limits.
+- **A test writes into the real vector folder.** `test_campaign_assistant` in
+  omnet binds `FakeLlm("ok"; meaning_model = "campaign")`, and the build of
+  that fake model wrote `build/meaning/fake_campaign.bin`, 1.9 MB, into
+  projectured's folder on 2026-09-16. The measurement test points
+  `_MEANING_FOLDER` at a temporary folder; this test does not.
 - The files this plan changes are unsealed (⬜) in both `SEALING.md` files.
 
 ## 2. The design
@@ -141,13 +158,15 @@ wrong; the second answers the mistake when it is made anyway.
    other terms with `AND`, as `config` and `run` do. The examples of the
    readers and of the view makers use `name = "delay"`. `filter` stays for the
    whole match language.
-2. **A reader keeps the filter it read with.** It writes `filter_expression`
-   and `source` as frame metadata of style `:note`, which `filter` and
-   `subset` carry along. A view maker — `make_result_table`, the six table
-   makers and `make_result_plot` — refuses an empty frame. The refusal says
-   what matched nothing, that a pattern matches the whole name, the names in
-   the source that hold the pattern's words (eight at most), and the `name`
-   keyword:
+2. **An empty result is shown, and says why it is empty.** Decided by the user
+   2026-09-17: no refusal. A table maker opens an empty table, as it does now,
+   and `make_result_plot` answers a plot with no series instead of the error it
+   throws now. A reader keeps the filter it read with: it writes
+   `filter_expression` and `source` as frame metadata of style `:note`, which
+   `filter` and `subset` carry along. A view maker — `make_result_table`, the
+   six table makers and `make_result_plot` — that gets an empty frame prints
+   one line, which `execute_julia_code` answers whole, and its
+   `describe_document` says the same, so `show_layout` shows it too:
 
    ```
    The frame is empty: nothing matched name =~ "delay". A pattern matches the
@@ -155,14 +174,18 @@ wrong; the second answers the mistake when it is made anyway.
    Write make_result_filter_expression(name = "delay") to match every name that contains it.
    ```
 
-   A frame without the metadata answers "The frame is empty. Read it again with
-   a wider filter_expression."
+   The line names eight names at most. A frame without the metadata prints
+   "The frame is empty. Read it again with a wider filter_expression."
+   A printed line and not a log record: the code tool captures what the code
+   prints, and a log record goes to the logger the process started with.
+   The plot projection must draw a plot with no series; the step checks it.
 
 - Where: `source/ide/ResultVerbs.jl` and `source/legacy/result/ResultReader.jl`
   in omnet.
-- Test: `test/ide/ResultVerbsTest.jl` checks the keyword and the refusal. The
-  by-hand cases gain one: an exact pattern is refused with the names, and the
-  `name` keyword then opens the table.
+- Test: `test/ide/ResultVerbsTest.jl` checks the keyword, the printed line
+  and the empty plot. The by-hand cases gain one: an exact pattern opens an
+  empty table and prints the names, and the `name` keyword then opens a full
+  one.
 
 ### 2d. The prompt names what exists, and says how to act
 
@@ -175,14 +198,11 @@ wrong; the second answers the mistake when it is made anyway.
    name, a declared module or `editor`. The test lists what else it allows: a
    resource URI and a file name. A prompt that names a word nobody can call then
    fails a test, not a turn.
-3. **The first line.** The prompt opens with: "You act by writing Julia. Every
-   verb named below is a Julia function, and `execute_julia_code` runs the code
-   you write; no other tool changes anything." It is measured on `qwen3.8:27b`,
-   which must not lose a problem by it, and on the second model.
-4. **The second model.** Recommended: `mistral:latest`. It is installed, it
-   offers tools, and it fits the memory rule. It is a 7 B model, so it will
-   solve fewer problems; its measure is whether it acts at all — the turns with
-   no call, and the calls per turn — with and without the first line.
+
+**Not done: a second model, and a first line for it.** Decided by the user
+2026-09-17: no second model. The first line — "You act by writing Julia" — was
+for a model that calls no tool, and without such a model nothing measures what
+it is for, so the prompt does not get it.
 
 ### 2e. A second meaning model, as an experiment
 
@@ -194,7 +214,15 @@ first five. Otherwise the default stays, and the result is written here. The
 sentence "draw how a value changes over time" stays in the golden table as a
 known miss either way: the words "plot" and "chart" find the verb first.
 
-The model is 669 MB, so the user must download it before this step.
+The user downloaded the model on 2026-09-17. Its first measurement builds its
+file; `measure_meaning_search!` waits for the build.
+
+In the same step:
+
+- `agent.md` says the three limits of §1c, and how to rebuild: delete the
+  model's file, and the next binding computes every vector again.
+- `test_campaign_assistant` points `_MEANING_FOLDER` at a temporary folder, as
+  the measurement test does, and `build/meaning/fake_campaign.bin` is deleted.
 
 ## 3. Steps
 
@@ -212,7 +240,6 @@ Work in the worktree `../projectured-julia-format` and in the omnet worktree
 ### Step 2. The prompt (§2d)
 
 - [ ] The pane sentence, and the guard test.
-- [ ] The first line.
 
 ### Step 3. The short description (§2b)
 
@@ -221,18 +248,18 @@ Work in the worktree `../projectured-julia-format` and in the omnet worktree
 ### Step 4. The empty frame (§2c)
 
 - [ ] The `name` keyword, and the examples that use it.
-- [ ] The metadata in the readers, the refusal in the view makers, and the
-      tests.
+- [ ] The metadata in the readers, the printed line and the description in
+      the view makers, the empty plot, and the tests.
 
 ### Step 5. The stage run
 
 - [ ] `qwen3.8:27b` on three seeds, with the user's word.
-- [ ] The second model on three seeds, with and without the first line of
-      §2d, with the user's word.
 
 ### Step 6. The second meaning model (§2e)
 
-- [ ] After the user's download: the measurement, and the decision it gives.
+- [ ] The measurement with `mxbai-embed-large`, and the decision it gives.
+- [ ] The limits of the vector store in `agent.md`; the campaign test in a
+      temporary folder.
 
 ### Step 7. Close
 
@@ -249,17 +276,15 @@ Work in the worktree `../projectured-julia-format` and in the omnet worktree
 - If the machine is busy at the moment of a run, say so and wait for the user.
   Do not start a loop that polls for an idle machine.
 
-## 5. Decisions for the user
+## 5. Decisions
 
-1. **Seeds.** Three seeds per stage, about 35 minutes each for
-   `qwen3.8:27b`. Recommended: three.
-2. **The second model.** `mistral:latest`, installed and 4.4 GB, or
-   `qwen3-coder:30b-a3b-q8_0` downloaded again, which does not fit the memory
-   rule with a Julia cap of 20 GB. Recommended: `mistral:latest`.
-3. **An empty frame.** Refused with the names, or opened as an empty table with
-   the names printed. Recommended: refused, because an empty table is never
-   what a person asked for.
-4. **`mxbai-embed-large`.** Download it for Step 6, or drop Step 6.
+Made by the user on 2026-09-17:
+
+1. **Seeds:** three per stage.
+2. **A second model:** none. §2d says what goes with it.
+3. **An empty result:** shown, as an empty table or a plot with no series, and
+   not refused. §2c says how the model learns why it is empty.
+4. **`mxbai-embed-large`:** downloaded; Step 6 stays.
 
 ## 6. Findings
 
