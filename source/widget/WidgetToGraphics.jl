@@ -3515,17 +3515,23 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # its content on the other. The two cases cannot form a cycle: a clipped axis
     # offers a cell that the content reads, and an unclipped axis reads a cell
     # that the content produces.
+    #
+    # An authored extent is read inside the cell, so a pane whose size is a
+    # computed cell — a tree pane that grows as its rows open — follows it after
+    # the first print as well.
     tx, ty = _inset_total(w)
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    authored_w = sz isa Point2D ? Int(sz.x[]) : 0
-    authored_h = sz isa Point2D ? Int(sz.y[]) : 0
-    offer_w = authored_w > 0 ? Cell(Int32(authored_w)) :
-              avail_w !== nothing ?
-              ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) : nothing
-    offer_h = authored_h > 0 ? Cell(Int32(authored_h)) :
-              avail_h !== nothing ?
-              ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) : nothing
+    function extent_cell(authored, avail, inset)
+        (authored() > 0 || avail !== nothing) || return nothing
+        ComputedCell(() -> begin
+            extent = authored()
+            extent > 0 ? Int32(extent) :
+                avail === nothing ? Int32(0) : Int32(max(0, Int(avail[]) - inset))
+        end)
+    end
+    offer_w = extent_cell(() -> sz isa Point2D ? Int(sz.x[]) : 0, avail_w, tx)
+    offer_h = extent_cell(() -> sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
     cox, coy = _content_offset(w)
     scroll_cell = getfield(w, :scroll_position)
     inner_x = ComputedCell(() -> begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)

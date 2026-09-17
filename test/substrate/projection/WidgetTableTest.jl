@@ -190,6 +190,16 @@ function test_scroll_pane_axis_size()
         @test Int(tall.w) > width - 100
         @test Int(tall.h) == 100
     end
+    # An authored extent that is a computed cell is followed after the print.
+    rows = Cell(100)
+    size = Point2D(Cell(0), Cell(100))
+    set_cell_function!(getfield(size, :y), () -> rows[])
+    ctx = with_available_size(PrinterContext(); width = Cell(Int32(400)), height = Cell(Int32(400)))
+    out = print_document(rec, nothing, WidgetScrollPane(content(); size = size), ctx).output
+    pane = only(e for e in out.elements if e isa GraphicsViewport)
+    @test Int(pane.h) == 100
+    rows[] = 160
+    @test Int(pane.h) == 160
 end
 end
 
