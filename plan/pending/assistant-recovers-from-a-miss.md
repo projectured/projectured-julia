@@ -111,8 +111,11 @@ plan is corrected.
 - **A test writes into the real vector folder.** `test_campaign_assistant` in
   omnet binds `FakeLlm("ok"; meaning_model = "campaign")`, and the build of
   that fake model wrote `build/meaning/fake_campaign.bin`, 1.9 MB, into
-  projectured's folder on 2026-09-16. The measurement test points
-  `_MEANING_FOLDER` at a temporary folder; this test does not.
+  projectured's folder on 2026-09-16. The test does point `_MEANING_FOLDER` at
+  a temporary folder, and sets it back when it ends; the build reads the folder
+  on a task of its own, after it has gathered its texts, which is after the
+  test set it back. (Found in Step 1; this bullet first said the test set no
+  folder.)
 - The files this plan changes are unsealed (⬜) in both `SEALING.md` files.
 
 ## 2. The rule: measure first
@@ -173,13 +176,17 @@ candidates are compared with:
   nothing; that it does not change is the point.
 - `_session` takes the meaning model of its Ollama backend, so that a trial of
   §3e can name `mxbai-embed-large`.
-- `count_transcript_misses(folder)` reads the transcripts of a stage and counts
-  the misses of §3b and §3c, each with the turns it occurred in and whether
-  those turns were solved. The counts go into §7 beside the table.
+- `_count_turn_misses(assistant, failure)` counts the misses of §3b and §3c in
+  each turn. It reads the conversation, which holds every call with its
+  arguments and its code, and not the transcript, which is prose for a person.
+  A row carries its counts; a second table gives, per miss, the turns that made
+  it, how many of them failed, and their problems; a transcript says its misses
+  in a line under its outcome. A name pattern that equals a name the stub
+  project recorded is exact on purpose and is no miss.
 - `test_assistant_problem_table` runs the fake backend on two seeds. It checks
-  the `k/n` column, the sums and the folders, and it still needs no server. A
-  test gives `count_transcript_misses` a folder of written transcripts with one
-  miss of each kind.
+  the `k/n` column, the sums and the folders, and it still needs no server.
+  `test_assistant_turn_misses` scripts a backend that makes each miss on one
+  seed and none on the other, and checks the counts, the line and the table.
 - Cost: `qwen3.8:27b` took 637 s and 733 s for one seed, so a stage of three
   seeds takes about 35 minutes.
 
@@ -280,10 +287,10 @@ either way, as a known miss: the words "plot" and "chart" find the verb first.
 
 ### 3f. The vector store — with a test, before the baseline
 
-- `test_campaign_assistant` in omnet points `_MEANING_FOLDER` at a temporary
-  folder, as the measurement test does, and projectured's
-  `build/meaning/fake_campaign.bin` is deleted. The test checks that the
-  folder it was given holds the fake model's file.
+- `test_campaign_assistant` in omnet makes the fake model's store while its
+  temporary folder is set, so the build writes where the store says, and
+  projectured's `build/meaning/fake_campaign.bin` is deleted. The test checks
+  that the store is in its folder and that the real folder holds no fake file.
 - `agent.md` says the three limits of §1c: an edited docstring is seen after a
   restart of the process, a model pulled again under its name keeps its old
   vectors, and the file never shrinks. It says how to rebuild: delete the
@@ -297,15 +304,17 @@ is merged into the worktree's branch only when §2 says so. Commit with explicit
 paths. Land with `git merge --ff-only`. Cap every Julia process. A stage runs
 under the conditions of §5.
 
-### Step 1. What lands with a test (§3a, §3c, §3d, §3f)
+### Step 1. What lands with a test (§3a, §3c, §3d, §3f) — done 2026-09-17
 
-- [ ] The seed and the meaning model through `_session`, `_run_problem` and
+- [x] The seed and the meaning model through `_session`, `_run_problem` and
       `measure_assistant_problems`; the `k/n` table; the folders per seed;
-      `count_transcript_misses`; their tests.
-- [ ] The plot with no series, and its test.
-- [ ] The pane sentence, and the guard test.
-- [ ] The campaign test in a temporary folder, the fake file deleted, and the
-      limits in `agent.md`.
+      the miss counts; their tests.
+- [x] The plot with no series, and its test, which draws it.
+- [x] The pane sentence, and the guard test. The guard, run on the old
+      sentence, names `focus_pane`, `close_pane`, `move_pane` and
+      `resize_pane`.
+- [x] The campaign test's store in its own folder, the fake file deleted, and
+      the limits in `agent.md`.
 
 ### Step 2. The baseline
 
@@ -326,8 +335,10 @@ and the merge or not.
 
 ### Step 4. The meaning model (§3e)
 
-- [ ] The rank measurement with `mxbai-embed-large`.
-- [ ] If it passes: the trial stage, and the default changed or not.
+- [x] The rank measurement with `mxbai-embed-large`, 2026-09-17. **It fails
+      the first gate**: 13 of 20 sentences first, against 15. §7 has the
+      table.
+- [x] Not run: the trial stage. The default stays `nomic-embed-text`.
 
 ### Step 5. Close
 
@@ -374,4 +385,39 @@ Made by the user on 2026-09-17:
 
 ## 7. Findings
 
-Nothing yet beyond §1.
+### Step 1, 2026-09-17
+
+The tests that pass: the verbs that read what a run recorded (63), the prompt
+names (3), the table of problems with a fake backend (16), the misses of a turn
+(8), the campaign assistant pane (18) and the window as a program (32).
+Twenty seconds after the campaign test, the real vector folder held only
+`ollama_nomic-embed-text.bin`.
+
+### The meaning model, 2026-09-17 — not worth doing
+
+The twenty golden sentences, ranked by description with each model, in one
+process, on the code after Step 1:
+
+| sentence | expected | `nomic-embed-text` | `mxbai-embed-large` |
+| --- | --- | --- | --- |
+| draw how a value changes over time | `make_result_plot` | 26 | **1** |
+| the single numbers the runs recorded | `get_simulation_scalar_results` | 5 | 5 |
+| write down what the runs taught us | `add_finding!` | 5 | 10 |
+| start a new study with a question | `make_study!` | 1 | 2 |
+| run the simulations the filter selects | `run_simulations!` | 1 | 2 |
+| put the table and the plot side by side | `HorizontalLayout` | 2 | 19 |
+| a button that runs the sweep again | `WidgetButton` | 1 | 3 |
+| what a package may depend on | `rule/package-rules` | 1 | 2 |
+| which test should I run after I change a file | `guide/testing-guide` | 2 | 1 |
+| the eleven other sentences | | 1 | 1 |
+| **ranked first** | | **15 of 20** | **13 of 20** |
+
+`mxbai-embed-large` ranks the plot verb first, and loses more than it gains:
+the row layout falls from second to nineteenth, and five verbs fall out of
+first place. The first gate asks for more sentences first, so the default
+stays. Its vector file stays in `build/meaning/`, for a later measurement.
+
+One more fact from the same table: the plot verb ranked twentieth on the
+morning of 2026-09-17 and twenty-sixth after Step 1. Step 1 added one sentence
+to its docstring. A rank past the first ten moves with a sentence, and says
+little.
