@@ -254,6 +254,23 @@ nothing passes the field's value to an operation yet.
 **What the step measured.** No timing. The screenshots of both windows with 11
 open files were checked by eye.
 
+**The regression check of Step 1**, run on the branch and, for the two sets that
+do not pass, on a clean worktree at `14a533d1`
+(`workspace/projectured-julia-application-base`):
+
+| Test | Branch | Clean `14a533d1` |
+| --- | --- | --- |
+| `test_application` (new) | 50 pass | — |
+| `test_workbench_file_keys` | 43 pass, 1 broken (the XML text) | — |
+| `test_package_graph` | 727 pass, 3 fail | the same 3, at `PackageGraphTest.jl:284` |
+| `test_workbench` | 143 pass, 3 fail, 2 errors | the same, at `AssistantMvpTest.jl:599, 643` and `WorkbenchTabClickTest.jl:119, 151, 152` |
+| `test_split_pane_drag` | 24 pass, 3 fail, 2 errors | known on `main` |
+| `test_click_roundtrips` | 42 pass, 2 broken | known markers |
+| `test_naming`, `test_filesystem`, `test_graph`, 8 pane tests, 15 widget, table and layout tests | all pass | — |
+
+The three failures of `test_package_graph` are the stale table of edges between
+domains that the documentation survey found. They are not this plan's.
+
 ### Step 2: the generic builder in projectured (builder slice)
 
 - [ ] Copy the six generic files, `launcher.c` and the generic tests of
