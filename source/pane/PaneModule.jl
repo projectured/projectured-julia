@@ -61,6 +61,7 @@ export get_pane_path, get_pane_collection_path,
        get_pane_tab_reference, make_pane_focus_operation,
        get_pane_title_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
        make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
+       make_pane_duplicate_tab_operation,
        make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,
        apply_pane_operation!
 export get_pane_rectangles, get_pane_rectangle, get_pane_neighbour_group, get_pane_next_group,

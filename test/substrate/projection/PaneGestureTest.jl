@@ -53,6 +53,20 @@ end
     @test group.tabs[1] === kept
 end
 
+@testset "Ctrl+Shift+D duplicates the focused tab" begin
+    tree, group, editor = _seeded()
+    original = group.tabs[1]
+    @test _press!(editor, _ctrl_shift(:d)) !== nothing
+    @test length(group.tabs) == 3
+    @test get_pane_focus(tree) == (group, 2)
+    @test get_pane_tab_title_string(group.tabs[2]) == "a (2)"
+    @test group.tabs[2].content !== original.content
+    @test group.tabs[2].content.content == "a"
+    # The plain chord is not the duplicate.
+    @test _press!(editor, _ctrl(:d)) === nothing
+    @test length(group.tabs) == 3
+end
+
 @testset "Ctrl+backslash splits vertically, the new pane on the right" begin
     tree, group, editor = _seeded()
     _press!(editor, _ctrl(:backslash))

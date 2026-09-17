@@ -331,19 +331,6 @@ function open_pane!(editor, document; title = nothing)
     reference
 end
 
-# A title no other tab carries. A person reads a title, so two panes reading the
-# same is a window nobody can talk about.
-function _unique_pane_title(tree::PaneTree, wanted::AbstractString)
-    taken = Set(get_pane_tab_title_string(tab)
-                for group in get_pane_groups(tree) for tab in group.tabs)
-    String(wanted) in taken || return String(wanted)
-    index = 2
-    while String(wanted) * " (" * string(index) * ")" in taken
-        index += 1
-    end
-    String(wanted) * " (" * string(index) * ")"
-end
-
 """
     _reference_of_tab(tree, tab) -> Reference or nothing
 

@@ -486,11 +486,18 @@ All pass, with no failure and no error.
   - A draft keeps the assistant it links back to
     (`copy_document(::DuplicatePolicy, ::ConversationDraft)`), because that
     link is not the draft's own.
-- [ ] **Step 4. The pane edit and the chord.** Add
+- [x] **Step 4. The pane edit and the chord.** Add
   `make_pane_duplicate_tab_operation`, move `_unique_pane_title`, and bind
   `Ctrl+Shift+D`. Check the gesture tables for a conflict first. Test in
   `test_pane_surgery` (the new tab, its index, its title, the focus, and a
   content with no duplicate) and in `test_pane_gestures`.
+  - **Done.** `test_pane_surgery` 90 pass (79 before), `test_pane_gestures` 50
+    (42 before).
+  - No gesture table binds `Ctrl+D` or `Ctrl+Shift+D`, and no rule takes every
+    key with `Ctrl+Shift`. The test checks that plain `Ctrl+D` does nothing.
+  - The pane edit and `duplicate_pane!` share `_make_pane_tab_duplicate`, which
+    throws the `DocumentCopyException`: the edit logs it and answers `nothing`,
+    and the verb turns it into an `ArgumentError`.
 - [ ] **Step 5. The button.** Add the flag, the page field, the stacked
   drawing, the hit test and `DuplicateTabOperation`. The pane printer sets the
   flags, and the pane reader answers the report. Test in `test_widget_tab_strip`

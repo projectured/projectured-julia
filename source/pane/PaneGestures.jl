@@ -32,6 +32,14 @@ function _close_tab(tree::PaneTree)
     make_pane_close_tab_operation(tree, group, index)
 end
 
+function _duplicate_tab(tree::PaneTree)
+    focus = get_pane_focus(tree)
+    focus === nothing && return nothing
+    group, index = focus
+    index == 0 && return nothing            # an empty group has no tab to duplicate
+    make_pane_duplicate_tab_operation(tree, group, index)
+end
+
 function _split(tree::PaneTree, orientation::Symbol, side::Symbol)
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
@@ -105,6 +113,7 @@ end
 @gestures PaneTree begin
     KeyDown(:t; ctrl) => "Open a new tab" => _open_tab(doc)
     KeyDown(:w; ctrl) => "Close the focused tab" => _close_tab(doc)
+    KeyDown(:d; ctrl, shift) => "Duplicate the focused tab" => _duplicate_tab(doc)
     KeyDown(:backslash; ctrl) =>
         "Split vertically — the new pane on the right" => _split(doc, :vertical, :right)
     KeyDown(:backslash; ctrl, shift) =>

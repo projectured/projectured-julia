@@ -74,6 +74,29 @@ end
     @test group.tabs[3] === tabs[2]
 end
 
+@testset "duplicate a tab" begin
+    tree, group, tabs = _flat(3)
+    editor = _PaneMockEditor(tree)
+    _apply!(editor, make_pane_duplicate_tab_operation(tree, group, 2))
+    @test length(group.tabs) == 4
+    duplicate = group.tabs[3]
+    # The next tab, with a number in its title, the focus, and a content of its own.
+    @test get_pane_tab_title_string(duplicate) == "b (2)"
+    @test get_pane_focus(tree) == (group, 3)
+    @test duplicate.content !== tabs[2].content
+    @test duplicate.content.value == "content of b"
+    @test group.tabs[2] === tabs[2]
+    @test group.tabs[4] === tabs[3]
+    # A second duplicate of the same tab takes the next number.
+    _apply!(editor, make_pane_duplicate_tab_operation(tree, group, 2))
+    @test get_pane_tab_title_string(group.tabs[3]) == "b (3)"
+    @test make_pane_duplicate_tab_operation(tree, group, 9) === nothing
+    # A content whose kind declares no duplicate gives no edit, and says why.
+    inner = PaneTree(PaneGroup([PaneTab("layout", PaneGroup(PaneTab[]))]))
+    @test (@test_logs (:warn, "The pane has no duplicate") make_pane_duplicate_tab_operation(
+               inner, inner.root, 1)) === nothing
+end
+
 @testset "close a tab, others remain" begin
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)

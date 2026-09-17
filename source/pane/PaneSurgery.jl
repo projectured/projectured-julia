@@ -358,6 +358,54 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     insert_elements(tabs_path, at - 1, Any[tab], cursor)
 end
 
+# A title no other tab carries. A person reads a title, so two panes reading the
+# same is a window nobody can talk about.
+function _unique_pane_title(tree::PaneTree, wanted::AbstractString)
+    taken = Set(get_pane_tab_title_string(tab)
+                for group in get_pane_groups(tree) for tab in group.tabs)
+    String(wanted) in taken || return String(wanted)
+    index = 2
+    while String(wanted) * " (" * string(index) * ")" in taken
+        index += 1
+    end
+    String(wanted) * " (" * string(index) * ")"
+end
+
+# ── Duplicate a tab ────────────────────────────────────────────────────────
+
+# A new tab like `tab`: the duplicate of its content, its title with a number, and
+# the same icon. Throws the `DocumentCopyException` of a content that has no
+# duplicate.
+function _make_pane_tab_duplicate(tree::PaneTree, tab::PaneTab)
+    content = make_document_duplicate(tab.content)
+    PaneTab(PrimitiveString(_unique_pane_title(tree, get_pane_tab_title_string(tab))),
+            content, tab.icon)
+end
+
+"""
+    make_pane_duplicate_tab_operation(tree, group, index) -> Operation | Nothing
+
+Put a duplicate of tab `index` of `group` right after it, and focus it. The
+content is copied by `make_document_duplicate`, so what the duplicate owns and
+what it shares is for the kind of the content to say, and the title gets a
+number.
+
+`nothing` when there is no such tab, or when the content has no duplicate; the
+refusal is logged with its reason.
+"""
+function make_pane_duplicate_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    (1 <= index <= length(group.tabs)) || return nothing
+    tab = group.tabs[index]
+    duplicate = try
+        _make_pane_tab_duplicate(tree, tab)
+    catch e
+        e isa DocumentCopyException || rethrow()
+        @warn "The pane has no duplicate" kind = nameof(typeof(tab.content)) reason = e.reason
+        return nothing
+    end
+    make_pane_open_tab_operation(tree, group, duplicate; index = index + 1)
+end
+
 # ── Close a tab ────────────────────────────────────────────────────────────
 
 """
