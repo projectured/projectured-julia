@@ -25,8 +25,26 @@
 
 module ProjecturedBuilder
 
+import Dates
 import Pkg
+import TOML
+using SHA: sha256
+using Preferences: set_preferences!
 
+include("../../../source/builder/BuildContext.jl")
+include("../../../source/builder/Preference.jl")
+include("../../../source/builder/Usage.jl")
+include("../../../source/builder/AppPackage.jl")
+include("../../../source/builder/Executable.jl")
+include("../../../source/builder/Distribution.jl")
 include("../../../source/builder/Builder.jl")
+
+export BuildContext, get_package_directory, get_package_uuid, make_projectured_build_context
+export Preference, make_baked_preference, make_exposed_preferences, write_preferences
+export Usage, format_usage, format_version_line, collect_option_flags
+export write_app_package, write_if_changed, LOG_LEVEL_NAMES
+export build_executable, compile_app!, resolve_app_project, build_info, get_smoke_flag
+export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
+export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
 
 end # module ProjecturedBuilder

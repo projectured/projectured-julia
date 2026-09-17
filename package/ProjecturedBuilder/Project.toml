@@ -3,17 +3,27 @@ uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
 authors = []
 
-# The build front-end for the native executable: a BuildSpec describes the editor
-# to bake in, `build_executable` turns it into a binary. Deliberately depends on
-# no backend package — a backend is named by its TYPE at the call site and
-# everything the builder needs is derived from that type by reflection, so
-# `using ProjecturedSdl, ProjecturedBuilder` composes without the builder ever
-# knowing SDL exists. PackageCompiler is added to the app environment during a
-# compile rather than declared here, for the same reason: it is the app's build
-# dependency, not the builder's.
-
+# The builder: it writes a package and compiles it into a binary. A caller
+# passes a `BuildContext` naming its own repository, so this package names
+# neither a repository nor the packages a binary holds — a build function names
+# those as strings, and `get_package_directory` resolves each to a directory and
+# a uuid by reading its own `Project.toml`.
+#
+# It also holds the configurable build front-end for the native executable: a
+# `BuildSpec` describes the editor to bake in, and `build_executable(spec::
+# BuildSpec; …)` turns it into a binary. That path is deliberately backend-
+# agnostic the same way — a backend is named by its TYPE at the call site and
+# everything it needs is derived from that type by reflection.
+#
+# PackageCompiler is loaded by its identity in the one step that compiles, and
+# not declared here: a caller that only wants to see what a build would write
+# needs no compiler installed.
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
 julia = "1.10"
