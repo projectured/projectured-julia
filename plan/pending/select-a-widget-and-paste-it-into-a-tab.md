@@ -4,7 +4,7 @@
 worktree `projectured-julia-select-paste`, and in omnet on the branch
 `select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 9 are
 done and landed on `main` (projectured `41b15f2c`, omnet `937b0cd8`). Step 10,
-the copy of a tool, is in progress. Two items wait for the user: the Alt+press
+the copy of a tool, is done on the same branches. Two items wait for the user: the Alt+press
 probe of Step 0 needs a live window and a person, and the timing of Step 7 needs
 an idle machine and the user's word. Nothing is pushed.
 
@@ -788,10 +788,15 @@ were landed on `main` (`41b15f2c` and `937b0cd8`) before this step.
       **Found by a probe on `main`:** `Ctrl+C` with the assistant's tab focused
       threw `StackOverflowError` out of the editor loop, and with the runner's
       tab focused it made a plain copy of the tab in 2.55 s.
-- [ ] Tests: `test_clipboard()` (a record with no duplicate, a tool with one, a
+- [x] Tests: `test_clipboard()` (a record with no duplicate, a tool with one, a
       document that holds itself, a frame), `test_pane_reader()` (a focused
       tab), and `test_select_and_paste()` (the runner and the assistant copied
       by an Alt selection and by a tab focus, and a noted assistant pasted).
+      **Done 2026-09-17:** substrate 62517 pass (62497 before), with the known
+      3 fail, 2 error and 1 broken; conversation 164; workbench 143 with the
+      known 3 fail and 2 error; umbrella clipboard 105; omnet
+      `test_select_and_paste()` 57 (46 before), and the other six omnet suites
+      keep their counts.
 - [x] Guides: `transcript.md`, `pane.md`, the omnet `assistant-guide.md`, and
       the docstrings of `accepts_pasted_document` and
       `ClipboardSliceToAnyProjection`.
