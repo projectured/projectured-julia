@@ -432,6 +432,15 @@ These are the hard parts, and none of them is in this plan:
         `test_command_palette_decorator()` and `test_clipboard()` unchanged.
       The "before" counts are taken in the same session with the step's source
       files stashed.
+- [x] **Found in step 5, fixed here.** The omnet notebook page types through the
+      assistant **card**, and the card passed every operation from below on
+      unchanged. The composer's old operations named the draft, so that was
+      right; the text layer's edits carry a path, which kept its widget steps
+      and failed to evaluate. The card's reader now maps a path-bearing
+      operation with the kernel's default reader, and passes on only an
+      operation that carries no path. A new case in
+      `test_assistant_composer_panel()` types through a card drawn by the
+      natural renderer (71 pass); without the fix it errors.
 
 ### Step 4 — the text branch (projectured, clipboard slice)
 

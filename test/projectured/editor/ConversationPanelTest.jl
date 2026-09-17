@@ -79,6 +79,41 @@ function test_assistant_composer_panel()
             @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
         end
 
+        @testset "an assistant card takes the keys where its selection points" begin
+            a = Assistant(; llm = FakeLlm("ok"))
+            # The chain a page draws an assistant with: the card, and the natural
+            # renderer for what it holds, as the omnet catalog builds it.
+            measure = measure_truetype_text
+            base = Pair{Type,Any}[PrimitiveDocument => ChainingProjection(
+                RecursiveProjection(PrimitiveToText()), TextToGraphics(measure = measure))]
+            natural(extra) = NaturalToGraphics(measure = measure,
+                                               font = font_ubuntu_monospace_regular_20, extra = extra)
+            chat = Pair{Type,Any}[
+                ConversationDraft => ChainingProjection(
+                    RecursiveProjection(ConversationComposerToWidget()), natural(base)),
+                ConversationDocument => ChainingProjection(
+                    RecursiveProjection(ConversationToWidget()), natural(base))]
+            card = ChainingProjection(RecursiveProjection(AssistantToWidgetCard()),
+                                      natural(vcat(chat, base)))
+            (editor, backend) = _tr_editor(a, card)
+            press(event) = _tr_press!(editor, backend, event)
+            none = ModifierKeys()
+            # The card selected as a whole takes no key.
+            press(KeyPress('z'))
+            @test something(a.draft.parts[end].content.value, "") == ""
+            texts = _tr_texts(_tr_window(backend))
+            (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
+            press(MousePress(:left, x + 30, y + 8, none))
+            foreach(c -> press(KeyPress(c)), "hi")
+            @test a.draft.parts[end].content.value == "hi"
+            steps = get_reference_steps(strip_reference_types(editor.document.selection))
+            @test (last(steps).start, last(steps).stop) == (2, 2)
+            press(KeyDown(:return, none))
+            @test length(a.conversation.turns) >= 1
+            @test something(a.draft.parts[end].content.value, "") == ""
+            _panel_wait_idle!(a)
+        end
+
         @testset "a click and the keys keep one selection in the draft" begin
             a = Assistant(; llm = FakeLlm("ok"))
             (editor, backend) = _tr_editor(a, make_assistant_projection_example())

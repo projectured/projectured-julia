@@ -926,7 +926,16 @@ read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
     (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
-# An operation the composer made below, said onward. `resolve_composer_host_operation` is what
-# turns the two the assistant owns into its own; the rest pass.
-read_intent(::AssistantToWidgetCard, iomap, op::Operation) =
-    (a = iomap.input; a isa Assistant ? resolve_composer_host_operation(a, op) : op)
+# An operation made below, said onward. `resolve_composer_host_operation` turns
+# the two the assistant owns into its own. An operation that carries a path — the
+# text layer's edit of the draft, say — takes the kernel's default reader, which
+# maps the path back through this card's `map_reference_backward`. One that
+# carries none passes as it is.
+function read_intent(p::AssistantToWidgetCard, iomap, op::Operation)
+    a = iomap.input
+    a isa Assistant || return op
+    resolved = resolve_composer_host_operation(a, op)
+    resolved === op || return resolved
+    mapped = invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, op)
+    (mapped === nothing && OperationModule.operation_reference(op) === nothing) ? op : mapped
+end
