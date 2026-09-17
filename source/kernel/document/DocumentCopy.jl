@@ -25,6 +25,18 @@
 # elements, and per-slot cells inside a Vector are all traversed uniformly.
 
 """
+    DocumentCopyException(value, reason)
+
+A copy refused `value`, for `reason`: a sentence that says what `value` holds
+that the copy can not own. A hook throws it, and the walk lets it through at
+any depth.
+"""
+struct DocumentCopyException <: Exception
+    value::Any
+    reason::String
+end
+
+"""
     PlainCopyPolicy()
 
 The policy of `copy_document(value)`. Every hook answers its default: the walk

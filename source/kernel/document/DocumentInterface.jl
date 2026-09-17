@@ -182,18 +182,6 @@ for one copy and can carry the state of that copy, such as the memo of
 abstract type CopyPolicy end
 
 """
-    DocumentCopyException(value, reason)
-
-A copy refused `value`, for `reason`: a sentence that says what `value` holds
-that the copy can not own. A hook throws it, and the walk lets it through at
-any depth.
-"""
-struct DocumentCopyException <: Exception
-    value::Any
-    reason::String
-end
-
-"""
     copy_document_fields(policy, document; replacements...) -> Document
 
 Rebuild `document` with each field copied through `copy_document(policy, …)`.
