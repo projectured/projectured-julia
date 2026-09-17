@@ -28,7 +28,7 @@
 using ProjecturedKernel.ToolModule: ToolSet, register_default_tools!
 using ProjecturedAssistant.AssistantModule: _text_to_string, _run_agent_loop!,
                                             _eval_code, _eval_result, _doc_source,
-                                            _eval_form_doc
+                                            _eval_form_doc, AssistantToWidgetCard
 import ProjecturedKernel.LlmModule: stream_turn,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmToolUse, LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
@@ -240,8 +240,58 @@ end
 Run the Assistant MVP test suite: the four scripted scenes
 plus the reactive-thunk probe. No SDL, no network.
 """
+# A projection that draws any document as an empty canvas. The width test below
+# asks where the two halves of the card are, not what they hold.
+struct _BlankToGraphics <: ProjecturedKernel.ProjectionModule.Projection end
+ProjecturedKernel.ProjectionModule.print_document(::_BlankToGraphics, recursion, document, ctx) =
+    ProjecturedKernel.IoMapModule.SimpleIoMap(_BlankToGraphics(), document,
+        ProjecturedGraphics.GraphicsModule.GraphicsCanvas(Any[]))
+
+# The card of an assistant on a page is as wide as the page, and so are its two
+# halves: each authors its height and no width.
+function _mvp_test_card_fills_its_page()
+    @testset "the assistant card fills its page" begin
+        a = make_assistant_mvp_setup()
+        widgets = ProjecturedWidget.WidgetModule.WidgetToGraphics(
+            ProjecturedStyle.StyleModule.font_ubuntu_regular_20; measure = _mvp_measure)
+        renderer = RecursiveProjection(
+            ProjecturedProjection.ProjectionAlgebraModule.TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[
+                Assistant => ChainingProjection(
+                    AssistantToWidgetCard(),
+                    ProjecturedLayout.LayoutModule.VerticalLayoutToGraphicsCanvas()),
+                ProjecturedConversation.ConversationModule.ConversationDocument => _BlankToGraphics(),
+                ProjecturedConversation.ConversationModule.ConversationDraft => _BlankToGraphics()],
+            ProjecturedLayout.LayoutModule.LayoutToGraphics().dispatch,
+            widgets.dispatch)))
+        padding = 16
+        for width in (600, 900)
+            offer = ProjecturedKernel.ProjectionModule.with_available_size(
+                ProjecturedKernel.ProjectionModule.PrinterContext();
+                width = Cell(Int32(width)), height = Cell(Int32(1200)))
+            canvas = print_document(renderer, nothing, a, offer).output
+            @test Int(canvas.w) == width
+            boxes = Tuple{Int,Int}[]
+            function walk(node, ox = 0)
+                if node isa ProjecturedGraphics.GraphicsModule.GraphicsViewport
+                    push!(boxes, (ox + Int(node.x), Int(node.w)))
+                    walk(node.content, ox + Int(node.x))
+                elseif node isa ProjecturedGraphics.GraphicsModule.GraphicsCanvas
+                    foreach(element -> walk(element, ox + Int(node.x)), node.elements)
+                end
+            end
+            walk(canvas)
+            # The card's own clip has the box of the card's body. The transcript
+            # and the cell fill that body, less the padding of 5 inside each.
+            @test (padding, width - 2 * padding) in boxes
+            @test count(==((padding + 5, width - 2 * padding - 10)), boxes) == 2
+        end
+    end
+end
+
 function test_assistant_mvp()
     @testset "Assistant MVP" begin
+        _mvp_test_card_fills_its_page()
         _mvp_test_reactive_thunk()
         _mvp_test_scenes()
         _mvp_test_fake_llm_dispatch()

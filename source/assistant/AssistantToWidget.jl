@@ -21,14 +21,16 @@ const _MAIN_WEIGHT      = 1.0
 struct AssistantToWidgetSplitPane <: Projection end
 
 """
-    AssistantToWidgetCard(; title, width, transcript_height, cell_height)
+    AssistantToWidgetCard(; title, transcript_height, cell_height)
 
-The same assistant, as a card of a fixed size rather than a pane that fills a
+The same assistant, as a card of a fixed height rather than a pane that fills a
 window. It is what an assistant embedded in a DOCUMENT needs: a page of prose
 carrying one grows every time a turn lands, and a card that grew with its
 transcript would push the rest of the page down on every keystroke.
 
 So each half scrolls inside the card, and the page stays the length it was.
+The card has no width of its own: it is as wide as its page, and so are the two
+halves.
 
 The output is a `VerticalLayout`, so a renderer row can end in
 `VerticalLayoutToGraphicsCanvas` and everything inside re-enters the renderer
@@ -37,17 +39,14 @@ domain without this projection naming any domain.
 """
 struct AssistantToWidgetCard <: Projection
     title::String
-    width::Int
     transcript_height::Int
     cell_height::Int
 end
 
 AssistantToWidgetCard(; title::AbstractString = ASSISTANT_TITLE,
-                               width::Integer = 1040,
                                transcript_height::Integer = 460,
                                cell_height::Integer = 120) =
-    AssistantToWidgetCard(String(title), Int(width),
-                                   Int(transcript_height), Int(cell_height))
+    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height))
 
 function print_document(projection::AssistantToWidgetSplitPane,
                            recursion, a::Assistant, ctx)
@@ -93,17 +92,18 @@ too because a card sits inside a document, where nothing above it routes by tab.
 """
 function print_document(p::AssistantToWidgetCard,
                         recursion, a::Assistant, ctx)
-    inner = max(240, p.width - 40)
     # Stick to the bottom: an evaluated cell lands at the end of the transcript,
     # and the reader should be looking at it rather than at where they started.
+    # Each half authors its height and a width of 0, so it is as wide as the card,
+    # and the card is as wide as the page.
     transcript = WidgetScrollPane(a.conversation; follow_end=true,
-                                  size=Point2D(inner, p.transcript_height),
+                                  size=Point2D(0, p.transcript_height),
                                   padding=_PAD5, padding_color=_WHITE)
-    cell = WidgetScrollPane(a.draft; size=Point2D(inner, p.cell_height),
+    cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height),
                             padding=_PAD5, padding_color=_WHITE)
-    card = WidgetCard(Point2D(0, 0); title=p.title, width=p.width,
-                      content=VerticalLayout(Any[transcript, cell]; gap=6))
-    column = VerticalLayout(Any[card]; gap=6)
+    card = WidgetCard(Point2D(0, 0); title=p.title,
+                      content=VerticalLayout(Any[transcript, cell]; gap=6, child_width=Fill))
+    column = VerticalLayout(Any[card]; gap=6, child_width=Fill)
     iomap = SimpleIoMap(p, a, column)
     # A keystroke is routed by SELECTION, and every container between the root
     # and the cell has to carry one or the key stops at the first that does not.
