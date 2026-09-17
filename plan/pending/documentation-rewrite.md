@@ -1,18 +1,24 @@
-# Documentation rewrite: an on-demand user interface with AI from the ground up
+# Documentation rewrite: a viewer, an editor and an AI assistant
 
-**Status (2026-09-17): NOT STARTED.** The survey is done. The owner's decisions
-in §4 come before Step 1.
+**Status (2026-09-17): NOT STARTED.** The survey is done. The owner answered
+most questions of §4 on 2026-09-17. The open questions of §4.2 come before the
+step that they affect.
 
 **Goal:** the documentation is correct against the code, it is written in plain
-technical English, and it presents ProjecturEd as a generic, on-demand user
-interface for Julia data with AI integration from the ground up. A reader on
-Reddit or on Julia Discourse can find out in a few minutes what ProjecturEd
-does, what it is good for, how to try it, where its strengths are, and what does
-not work yet.
+technical English, and it presents ProjecturEd as a generic viewer, editor and
+AI assistant for Julia data, with user interfaces that you design and that you
+can also get on demand. A reader on Reddit or on Julia Discourse can find out in
+a few minutes what ProjecturEd does, what it is good for, how to try it, where
+its strengths are, and what does not work yet.
 
-**Repositories:** projectured-julia. Two small links in omnet-julia and
-inet-julia change only if a rule document gets a new name (§3.9). The web site
-repository `projectured.github.io` is in scope only if the owner says so (D13).
+**Repositories:** projectured-julia, and the text of the web site repository
+`projectured.github.io` (D13). The private downstream repositories change only
+if a rule document gets a new name (§3.9).
+
+**Private names:** the public documents must not name the private downstream
+repositories or their products (D9). This plan and its survey file name them,
+because the cleanup needs the names. Step 11 cleans both files, with the rest of
+`plan/`, before the repository becomes public.
 
 **Sealed files:** no Markdown file is sealed. Step 1 changes code in
 `source/kernel/tool/`, and no file there is sealed. `SEALING.md` changes only
@@ -48,27 +54,36 @@ the checklist for Steps 3, 6 and 7.
 
 ## 2. The new framing
 
-This section is a proposal. The owner confirms it or changes it (D3).
+The owner set the framing on 2026-09-17 (D3):
+
+> the framing is too strong, you can design a user interface, the on-demand
+> nature is just an addition, projectured is a viewer and an editor and an AI
+> assistant using on-demand user interface, it's all of that
 
 ### 2.1 The statement
 
-> ProjecturEd is a Julia library that builds a user interface on demand for any
-> data. You do not design the screens in advance. A value, a file, a document or
-> a running program gets an interactive view when you ask for one. The view can
-> be a generic one, made by reflection over the value. It can be a domain view:
-> a JSON tree, an SQL statement, a chart, a state machine. Or the AI assistant
-> can write the view for you. Every view is live: it shows the current data.
-> Every view is editable: an edit in the view changes the data.
+> ProjecturEd is a generic viewer, editor and AI assistant for structured data,
+> written in Julia. The data can be a file, a document or a value in a running
+> program. A view shows the data. Every view is live: it shows the current
+> data. Every view is editable: an edit in the view changes the data.
+>
+> You design a user interface from views: domain views such as a JSON tree, an
+> SQL statement, a chart or a state machine, widgets such as forms, tables and
+> tabs, and views that you write. When no view exists for your data, you can
+> get one on demand: a generic view by reflection over the value, or a view
+> that the assistant writes for you.
 >
 > The AI assistant is part of the same system. It runs Julia inside the running
-> editor. It reads the data and the views with the same functions that a person
-> calls from the REPL, and it changes them with the same operations that a key
-> press makes. An external AI client, for example Claude Code, gets the same
-> tools through MCP.
+> program. It reads the data and the views with the same functions that a
+> person calls from the REPL, and it changes them with the same operations that
+> a key press makes. An external AI client, for example Claude Code, gets the
+> same tools through MCP.
 
-Projectional editing stays in the documentation as the mechanism: a view is the
-output of a projection, and a projection maps an edit back to the data. The
-mechanism moves from the headline to the "how it works" section.
+The three roles have equal weight: viewer, editor, assistant. A designed user
+interface comes first; a view on demand is an addition to it. Projectional
+editing stays in the documentation as the mechanism: a view is the output of a
+projection, and a projection maps an edit back to the data. The mechanism moves
+from the headline to the "how it works" section.
 
 ### 2.2 The words for a reader outside the project
 
@@ -80,6 +95,7 @@ use. A developer document uses the right column.
 | data | document | A tree of Julia values whose fields are reactive cells. |
 | view | projection output | What a projection makes from the data: widgets, text or graphics. |
 | view definition | projection | A pair of functions: one makes the view, one maps an edit back. |
+| view on demand | `NaturalToGraphics`, `ReflectionToWidget`, `ObjectToWidget` | A view that nobody designed for this data. |
 | edit | operation | A typed change to the data. A key press and the assistant both make operations. |
 | selection | selection, reference | A path from the root of the data to the selected part. |
 | assistant | `Assistant`, agent | A language model with a set of tools, inside the running program. |
@@ -89,16 +105,15 @@ use. A developer document uses the right column.
 
 Each item names the code that exists today. The survey checked each one (§3).
 
+- **View and edit structured files as structures.** JSON, YAML, XML, Markdown,
+  RST, SQL, Julia and a math notation open, change and save through their
+  parsers (`register_natural_domain!`).
+- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs,
+  split panes and a pane tree come from the widget and pane packages. The
+  workbench example is a complete application of this kind.
 - **Look into a running Julia program.** `reflect_document` and
   `ReflectionToWidget` show any object as a tree that opens one level at a
-  time. omnet-julia uses this for its watch and inspector panes over a running
-  simulation.
-- **Edit structured files as structures.** JSON, YAML, XML, Markdown, RST, SQL,
-  Julia and a math notation open, change and save through their parsers
-  (`register_natural_domain!`).
-- **Build a tool window without a GUI toolkit.** Widgets, tables, cards, tabs,
-  split panes and a pane tree come from the widget and pane packages. The
-  omnet-julia IDE is built this way.
+  time.
 - **Show results.** Line, bar, histogram, scatter and strip charts, and sequence
   charts, are documents. A data point can be selected like any other part.
 - **Model behaviour and run it.** A state machine produces runnable Julia code.
@@ -126,7 +141,9 @@ Each item names the code that exists today. The survey checked each one (§3).
   pattern or by a description (meaning search).
 - **Pure Julia.** ProjecturEd does its own layout, text, widgets and PDF output.
   SDL only puts pixels in a window.
-- **A real application.** omnet-julia builds its whole IDE on it (D9).
+- **One system for three roles.** The viewer, the editor and the assistant use
+  the same data, the same views and the same operations. A designed view and a
+  view on demand can share one window.
 
 ### 2.5 The limits that the documentation must state
 
@@ -135,14 +152,16 @@ the rest.
 
 - There is no undo and no redo (`grep -rn UndoOperation source/` finds nothing).
 - Character type-in does not work the same way in every domain.
-- No single call opens a window on any Julia value (D4).
-- No example uses a real language model. Every example passes `FakeLlm()` (D5).
-- The assistant needs an Anthropic API key or a local Ollama server.
+- The assistant needs a local Ollama server with a model, or an Anthropic API
+  key.
 - The packages are not in the General registry. A user clones the repository
   and uses `environment/all`.
 - SDL2 and SDL_ttf must be installed for a native window.
-- The licence allows only non-commercial use of unmodified copies (D1).
+- Commercial use needs a licence from the author (D1).
 - "Duplicate a pane" and "select any widget with Alt+click" are plans, not code.
+
+Two more limits are true today, and Step 1 removes them (D4, D5): no single call
+opens a window on any Julia value, and no example uses a real language model.
 
 ## 3. The survey
 
@@ -178,12 +197,12 @@ rewrite depends on them.
 ### 3.3 The front door and the audience
 
 - **The repository is private.** `https://github.com/projectured/projectured-julia`
-  answers HTTP 404 to an anonymous request. The clone command in the README and
-  the link on the web site do not work for the public (D2).
-- **The licence conflicts with contributions.** `LICENCE-PD` §3 gives no right
-  to modify the software, also not for non-commercial use.
-  `CONTRIBUTING.md` asks the reader to fork the repository and send a pull
-  request (D1).
+  answers HTTP 404 to an anonymous request. The owner makes it public after the
+  documentation work (D2).
+- **The licence text conflicts with contributions.** `LICENCE-PD` §3 gives no
+  right to modify the software, also not for non-commercial use. The owner wants
+  forks and pull requests (D1). Neither licence file has a clause about
+  contributions (§4.2, D1a and D1b).
 - **The README headline is "a projectional editor".** The AI material exists,
   but it is the second section.
 - **The README says that the assistant falls back to an offline backend.** This
@@ -191,9 +210,9 @@ rewrite depends on them.
 - **Three Julia versions.** The README and `CONTRIBUTING.md` say 1.11 or later.
   `setup-guide.md` says 1.10 or later. No `Project.toml` has a `julia` compat
   entry for 1.11. The manifest of `environment/all` says 1.13.0 (D7).
-- **Three contact addresses.** The licence files and the README use
-  `levente.meszaros@gmail.com`. The web site uses `projectured@gmail.com`. The
-  git identity is `levente.meszaros@omnest.com` (D8).
+- **Two contact addresses.** The licence files and the README use
+  `levente.meszaros@gmail.com`. The web site uses `projectured@gmail.com`. Both
+  are correct, and `projectured@gmail.com` is the primary one (D8).
 - **Old screenshots.** The six screenshots in the README are from 2026-06-23.
   `asset/image/example/assistant.png` is from 2026-09-16, and no document uses
   it. There is no screenshot of a chart, a graph, a state machine or the
@@ -311,7 +330,7 @@ structure or the framing is wrong. The companion file has the findings.
 | The natural notation | `source/natural/` (668 lines) | One line in `system-anatomy.md`, with a wrong name. |
 | The help window (F1) and the command palette (Ctrl+Shift+P) | `source/gesturehelp/` (838 lines) | One sentence in `devices-and-backends.md`. |
 | Keyboard and mouse for a user | the `@gestures` tables of 22 files | No user-facing summary. |
-| Use ProjecturEd from your own project | omnet-julia does it with `[sources]` | No guide. |
+| Use ProjecturEd from your own project | a downstream project can use `[sources]` path dependencies | No guide. |
 | The assistant's tool discovery | `plan/done/assistant-finds-the-api.md`, `three-kinds-of-search.md` | Partly in `agent.md`. |
 
 **Tier 2: large slices with no guide.** `sql` (3,455 lines), `julia` (2,504),
@@ -369,10 +388,20 @@ paragraph in `system-anatomy.md` is enough for each.
   `resource://guide/…` string in `source/` and `documentation/`.
 - **The index does not read `plan/`.** A fact that a user or the assistant needs
   must be in `documentation/`.
-- **Other repositories link to four rule documents.** 14 files in omnet-julia and
-  inet-julia link to `naming-rules.md`, `architecture-invariants.md`,
-  `division-terminology.md` and `layout-rules.md`. Keep these four names.
-  `tool/juliac-trim/README.md` links to `static-compilation-guide.md`.
+- **Other repositories link to four rule documents.** 14 files in the two
+  private downstream repositories link to `naming-rules.md`,
+  `architecture-invariants.md`, `division-terminology.md` and
+  `layout-rules.md`. Keep these four names. `tool/juliac-trim/README.md` links
+  to `static-compilation-guide.md`.
+- **Private names stay out of public text (D9).** Today they occur in
+  `documentation/README.md` (the folder structure "is the one omnet-julia
+  uses"), `documentation/rule/code-quality-rules.md` (two links to
+  `omnet-team/policy/code-quality-rules.md`), one comment in
+  `source/dragging/DraggingWrapper.jl`, three test files, 13 pending plans,
+  28 done plans and 129 commit messages. The name patterns are `omnet-julia`,
+  `omnetpp-julia`, `inet-julia`, `omnet-team`, `omnetpp-team` and `OMNET-NG`.
+  `OMNeT++` and `INET` are public products; they can stay. Do not write the
+  patterns into a file that becomes public, also not into a guard.
 - **The seal audit reads `architecture-invariants.md`.** A change must not
   change the meaning of a `PAR-…` rule without the owner's approval.
 - **The fixtures** under `example/filesystem/fixture/` are test data.
@@ -394,27 +423,54 @@ paragraph in `system-anatomy.md` is enough for each.
   backend exists. Its positioning ("AI-native", model-agnostic, offline-capable,
   MCP) must agree with the new README.
 
-## 4. Decisions for the owner
+## 4. Decisions
 
-Each decision has my recommendation.
+### 4.1 The owner's answers of 2026-09-17
 
-| # | Question | Recommendation |
+> for 1, the licence stays. I will make the repository public. People will be
+> able to fork and submit PR. For commercial purposes a licence is to be
+> obtained from me, for public domain work it can be used freely.
+> for 2, when we finished the documentation work
+> for 3, the framing is too strong, you can design a user interface, the
+> on-demand nature is just an addition, projectured is a viewer and an editor
+> and an AI assistant using on-demand user interface, it's all of that
+> for 4, yes
+> for 5, Anthropic should use the latest claude model whichever it is and more
+> future proff, the system in general could use ollama LLM by default
+> for 6, both projectured@gmail.com and levente.meszaros@gmail.com is fine but
+> the former is the primary address, I'm (Levente) the main author
+> for 7, no, that's hidden
+> for 8, yes
+> for 9, yes
+
+| # | Question | Decision |
 | --- | --- | --- |
-| D1 | The licence forbids modification. Do the posts wait for a new licence, and does `CONTRIBUTING.md` keep the fork-and-pull-request process? | Decide the licence before the posts. Readers on Reddit and Discourse ask first whether the code is open source. If the licence stays, `CONTRIBUTING.md` must say how a contribution is possible, and the README must say plainly that the code is source-available, not open source. |
-| D2 | The repository is private. When does it become public? | Make it public before the posts, after Step 10. |
-| D3 | Is the statement of §2.1 correct? | Confirm or edit it before Step 4. Every front-door document starts from it. |
-| D4 | Add one call that opens a window on any Julia value? | Yes, in Step 1. A small `run_…` function over `NaturalToGraphics`, with the reflection view as an option. Without it, the headline claim needs a paragraph of setup code. |
-| D5 | Add a way to run the assistant example with a real model? | Yes, in Step 1. For example a `backend` keyword on the assistant example, and a clear error when the backend package is not loaded. |
-| D6 | Which default model for the Anthropic backend? | A current model, for example `claude-sonnet-5` or `claude-opus-5`. The owner chooses. |
-| D7 | Which Julia version do the documents name? | The version that the quick start is tested with. Add a `julia` compat entry to match. |
-| D8 | Which contact address is public? | One address for the README, the licence files, `CONTRIBUTING.md` and the web site. |
-| D9 | Can the public documents name omnet-julia (OMNET-NG) and show its IDE? | Yes, if omnet-julia is public or soon public. It is the strongest example of an on-demand user interface. |
-| D10 | The kernel file renames of 2026-09-14 changed four sealed files: `cell/PerformanceCounter.jl`, `clock/Clock.jl`, `event/EventPattern.jl` and `gesture/GestureRecognizer.jl` got the `Module` suffix. Does the seal carry over to the new names? | The owner decides for each file. Then `SEALING.md` gets the real inventory, in load order. |
-| D11 | Merge `editor-concepts.md` and `editor-derivation.md`? | Make `design/concepts.md` the one "start here" document, from `editor-concepts.md` and §5.4 of `editor-derivation.md`. Keep `editor-derivation.md` as `design/engineer-tour.md` for engineers. |
-| D12 | Where do the drafts of the two posts go? | In §9 of this plan. They are one-time text, not documentation. |
-| D13 | Is the web site in scope? | Yes, for the text only: the framing, the line count, the contact address, the "not bolted on" sentence. |
-| D14 | Which forums? | r/Julia and the Julia Discourse. A wider forum only after the first feedback. |
-| D15 | Videos? | Yes. Three short recordings (§5, Step 9). A post with a video gets more attention than a post with screenshots. |
+| D1 | Licence and contributions | The dual licence stays. Non-commercial use is free. Commercial use needs a licence from the author. The repository accepts forks and pull requests. The README and `CONTRIBUTING.md` say this in plain words. They do not call the code "open source". |
+| D2 | When the repository becomes public | After the documentation work: Step 11, after the review of Step 10. |
+| D3 | The framing | ProjecturEd is a viewer, an editor and an AI assistant. A user interface is designed; a view on demand is an addition (§2.1). |
+| D4 | One call that opens a window on any Julia value | Yes, in Step 1. |
+| D5 | The assistant with a real model | Yes, in Step 1. Ollama is the default backend of the whole system. The assistant example can run with a real backend. |
+| D6 | The Anthropic model | The Anthropic backend uses the newest Claude model that the key can use, and it must keep working when a new model comes out (Step 1). |
+| D8 | Contact | `projectured@gmail.com` is the primary address; `levente.meszaros@gmail.com` is also correct. Levente Mészáros is the main author. The README and `CONTRIBUTING.md` name the author and the primary address. The licence files stay as they are. |
+| D9 | The private downstream application | It stays hidden. No public document names it or shows it. Step 11 removes the names (§3.9). |
+| D10 | The seal of the four renamed kernel files | The seal carries over to the new names (Step 8). |
+| D11 | Merge the two "start here" documents | Yes: `design/concepts.md` and `design/engineer-tour.md` (§7). |
+| D13 | The web site | In scope, for the text (Step 9). |
+
+### 4.2 Open questions
+
+Each one has my recommendation. Each one comes before the step that it names.
+
+| # | Question | Recommendation | Before |
+| --- | --- | --- | --- |
+| D1a | `LICENCE-PD` §3 gives no right to modify the software, also not for non-commercial use. A fork and a pull request are modifications. Does the licence text get a clause that allows them? | Yes. Without the clause, `CONTRIBUTING.md` invites an act that the licence forbids. A lawyer can confirm the wording. The plan does not change the licence files. | Step 11 |
+| D1b | A pull request adds code that the contributor wrote. The author can sell a commercial licence for that code only if the contributor gives the right to do so. Which contribution terms apply? | A short contributor agreement, or a sentence in `CONTRIBUTING.md` that a contribution is given under terms that allow both licences. A lawyer can confirm the wording. | Step 8 |
+| D7 | Which Julia version do the documents name? | The version that the quick start is tested with. Add a `julia` compat entry to match. The manifest of `environment/all` is from Julia 1.13.0. | Step 4 |
+| D12 | Where do the drafts of the two posts go? | In §9 of this plan. They are one-time text, not documentation. | Step 11 |
+| D14 | Which forums? | r/Julia and the Julia Discourse. A wider forum only after the first feedback. | Step 11 |
+| D15 | Videos? | Yes. Three short recordings (Step 9). | Step 9 |
+| D16 | The repository becomes public with its `plan/` folder and its git history. 41 plan files and 129 commit messages name the private repositories. How is the public repository made? | Publish a new history: one first commit of the cleaned tree, in a new public repository or a new branch that becomes the default. The private history stays private. The other ways, a rewrite of 129 commit messages or a public history with the names in it, cost more or leak the names. | Step 11 |
+| D17 | Is the name "omnest" private too? It occurs in two plan files. | The owner decides. | Step 11 |
 
 ## 5. Steps
 
@@ -434,13 +490,15 @@ every diff of a subagent before the commit.
 
 ### Step 0: the worktree and the baseline
 
-- [ ] Get the owner's answers to §4. Write them into this plan.
+- [x] Get the owner's answers to §4. Write them into this plan (2026-09-17).
 - [ ] Make the worktree `workspace/projectured-julia-documentation`.
 - [ ] Record the baseline: the counts of the guard of Step 2 (write the guard
       first, if it is not there yet), the number of long dashes, the list of
       broken links.
 
-### Step 1: the code faults (projectured, tool, assistant, mcp, anthropic slices)
+### Step 1: the code faults and the entry points (tool, assistant, mcp, anthropic, ollama slices; the example package)
+
+Each part is one commit with its test.
 
 - [ ] Replace the guide names in `DEFAULT_ASSISTANT_SYSTEM` and
       `_WHOLE_SURFACE_DESCRIPTION` with names that exist. Better: make the list
@@ -449,12 +507,77 @@ every diff of a subagent before the commit.
       that no description starts with `> **Kind:**`.
 - [ ] Make the docstring of `DEFAULT_ASSISTANT_SYSTEM` true about MCP.
 - [ ] Fix the dead references in code comments and the docstring of
-      `precompile_workload` (§3.2).
-- [ ] D4: the call that opens a window on any value, with a test.
-- [ ] D5: the assistant example with a real backend.
-- [ ] D6: the default Anthropic model.
+      `precompile_workload` (§3.2). Remove the private names from the comment in
+      `source/dragging/DraggingWrapper.jl` and from the three test files
+      (§3.9).
+
+**D4: a window on any Julia value.**
+
+- [ ] Add one function that opens a window on any value. It uses
+      `NaturalToGraphics`, which shows a struct with no view of its own through
+      the reflection table of `ObjectToSyntax`. A keyword selects the tree view
+      of `reflect_document` and `ReflectionToWidget` for a large or running
+      object, which opens one level at a time.
+- [ ] Put the function beside `run_example` and `run_file_editor` in
+      `example/projectured/`, unless `package-rules.md` gives it another home.
+      Name it by the naming rules, for example `run_value_viewer`.
+- [ ] Test without a window: write an image of the view of a plain struct, a
+      `Dict`, a `Vector`, and a struct that refers to itself.
+
+**D5: Ollama is the default backend, and the assistant example can use a real
+model.**
+
+- [ ] `Assistant` gets `backend = :ollama` as its default. If
+      `ProjecturedOllama` is not loaded, a submit gives the existing error, which
+      lists the loaded backends. The error also names the package to load.
+- [ ] If the Ollama server does not answer, or the model is not on the server,
+      the error names the server address, the models that the server has, and
+      the `ollama pull` command. The code does not choose another model without
+      a word.
+- [ ] Every place that makes an `Assistant` for a person uses the default
+      backend: the workbench example, `run_file_editor` with a workbench, and
+      the executable.
+- [ ] The assistant example gets `backend` and `model` keywords, for example
+      `run_example("assistant"; backend = :ollama)`. Without a keyword it keeps
+      `FakeLlm()`, because the test sweeps run every example and must not call a
+      model. The first message of the canned transcript says that the replies
+      are canned and names the keyword.
+- [ ] The meaning search uses the meaning model of the Ollama backend
+      (`nomic-embed-text`). The assistant guide of Step 5 says how to pull it.
+- [ ] Test: the default backend, the error texts, and the example keywords,
+      with a fake server. One live test with Ollama runs only when a server
+      answers, and only when the machine has the memory free.
+
+**D6: the newest Claude model.**
+
+- [ ] When `model` is empty, the Anthropic backend asks the Models API
+      (`GET /v1/models`) once in each process. It takes the newest model, by
+      `created_at`, whose `capabilities` allow what the assistant sends: tools,
+      and adaptive thinking. The process keeps the answer.
+- [ ] If the list request fails, the backend uses the alias `claude-opus-5`.
+      The status of the assistant shows the model that a turn uses.
+- [ ] A value in the `model` field overrides the choice.
+- [ ] The request body uses only parameters that every current model accepts:
+      `thinking` either absent or `{type: "adaptive"}`, no `budget_tokens`, no
+      sampling parameters, no assistant prefill, and `tool_choice` `auto` or
+      absent. Check the body that `source/anthropic/Anthropic.jl` sends against
+      this list.
+- [ ] A reply with `stop_reason: "refusal"` shows in the transcript as a
+      refusal, not as an empty reply.
+- [ ] Before you write the code, check the order and the fields of the list
+      response against the live API documentation.
+- [ ] Test: the choice from a recorded list response, with no network. One
+      live test runs only when `ANTHROPIC_API_KEY` is set. The anthropic slice
+      has no tests today. Add `test/anthropic/` and its test package the way
+      `test/ollama/` and `ProjecturedOllamaTest` are made, under
+      `package-rules.md`.
+
+**Close of the step.**
+
+- [ ] D7: the `julia` compat entry.
 - [ ] Test: `test_list_guides()`, `test_read_guide()`, `test_search_guides()`,
-      and the tests of each changed file.
+      `test_ollama()`, the new anthropic tests, and the tests of each changed
+      file.
 
 ### Step 2: the writing rules and the documentation guard
 
@@ -473,6 +596,9 @@ every diff of a subagent before the commit.
 - [ ] The guard also prints a report that does not fail: sentences with the
       verbs of the personification list, and the slices under `source/` that no
       guide names.
+- [ ] The guard does not check the private names of §3.9. The guard is public
+      code, and a list of the names in it would publish them. Step 11 checks
+      the names with a command that is not in the repository.
 - [ ] Add `test_documentation()` to `test_all()`, as `test_naming()` is.
 - [ ] Run the guard on the old documents. Record the counts in this plan.
 
@@ -486,21 +612,31 @@ every diff of a subagent before the commit.
 ### Step 4: the front door
 
 - [ ] `README.md`, at most about 250 lines, in this order:
-  1. What ProjecturEd is: the statement of §2.1, short.
+  1. What ProjecturEd is: the statement of §2.1, short. Viewer, editor and
+     assistant have equal weight.
   2. A video or an animated image, and three screenshots.
   3. What you can do with it: the list of §2.3, each item with a link.
   4. Quick start: clone, the environment, the first example, the assistant
-     with a key or with Ollama, a window on your own value.
+     with Ollama (the default) or with an Anthropic key, a window on your own
+     value.
   5. How it works: data, views, edits, cells, the tool set. One diagram. A link
      to `design/concepts.md`.
   6. Status and limits: the list of §2.5.
   7. Where to read next: one path for a user, one for a Julia developer, one for
      a contributor.
   8. The repository layout, short.
-  9. Licence and contact (D1, D8).
-- [ ] `design/concepts.md` (D11): the one "start here" document. No code. The
-      statement, the words of §2.2, the five ideas, the assistant, one walk from
-      a key press to the screen, what works and what does not.
+  9. Licence, author and contact: free for non-commercial use; a commercial
+     licence from the author; forks and pull requests are welcome (D1, D1a).
+     Author: Levente Mészáros. Contact: `projectured@gmail.com` (D8).
+- [ ] `design/concepts.md` (D11): the one "start here" document, made from
+      `editor-concepts.md` and §5.4 of `editor-derivation.md`. No code. The
+      statement, the words of §2.2, the five ideas, a designed view and a view
+      on demand, the assistant, one walk from a key press to the screen, what
+      works and what does not.
+- [ ] `design/engineer-tour.md` (D11): `editor-derivation.md` with a new name,
+      the new framing at the start, and its §5 moved forward. Use `git mv`.
+      Update every link to the two old names. The guard finds the links that
+      remain.
 - [ ] `requirement/product-vision.md`: why a user interface on demand, why the AI
       is in the core, and a comparison with tools that the audience knows:
       Pluto, Jupyter, VS Code with an AI extension, Makie with Observables, the
@@ -526,15 +662,18 @@ every diff of a subagent before the commit.
 
 Each guide has runnable code. Run each snippet once, in one warm session.
 
-- [ ] `guide/assistant-guide.md`: open the assistant, choose a backend, the key,
-      the model, a local model with Ollama, the meaning search, what to ask,
-      what the assistant can change, the limits.
+- [ ] `guide/assistant-guide.md`: open the assistant; Ollama as the default
+      backend, the server address, the default model, `ollama pull`; the
+      Anthropic backend, the key and the rule that chooses the newest Claude
+      model; how to name a model; the meaning search; what to ask; what the
+      assistant can change; the limits.
 - [ ] `guide/mcp-guide.md`: start the server (`mcp = true`), the address, a
       client configuration for Claude Code and for a generic MCP client, the
       tools and resources that the client gets, one client for each editor.
-- [ ] `guide/view-your-data-guide.md`: a window on your own value (D4), the
-      reflection view of a running object, a form from a `@document` struct, a
-      small tool window from widgets, a chart of your numbers.
+- [ ] `guide/view-your-data-guide.md`: first a designed user interface: a small
+      tool window from widgets and domain views, a form from a `@document`
+      struct, a chart of your numbers. Then the views on demand: a window on
+      your own value (D4), and the reflection view of a running object.
 - [ ] `guide/keyboard-and-mouse-guide.md`: the common keys (arrows, `Alt` +
       arrows, clipboard, tabs, zoom, collapse), and F1 and Ctrl+Shift+P for the
       full live list.
@@ -572,7 +711,29 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       `architecture-invariants.md`.
 - [ ] `CONTRIBUTING.md` and `CLAUDE.md`: links instead of copies (§3.7). Keep
       the sealed-file warning in `CLAUDE.md`.
-- [ ] `SEALING.md`: the real inventory, after D10.
+- [ ] `CONTRIBUTING.md`: the licence in plain words, the contribution terms
+      (D1b), the fork and pull request process, the author and the primary
+      contact address (D8).
+- [ ] `documentation/README.md` and `code-quality-rules.md`: remove the private
+      names (§3.9). `code-quality-rules.md` links to a private policy file;
+      copy the rules that a contributor needs into the document, or drop the
+      link.
+- [ ] `SEALING.md` (D10): make the inventory from the real include order of
+      `ProjecturedKernel.jl`, and keep each seal state:
+  - `cell/PerformanceCounter.jl`, `clock/Clock.jl`, `event/EventPattern.jl` and
+    `gesture/GestureRecognizer.jl` are sealed. Their new names
+    `cell/PerformanceCounterModule.jl`, `clock/ClockModule.jl`,
+    `event/EventPatternModule.jl` and `gesture/GestureRecognizerModule.jl` get
+    🔒.
+  - `operation/Intent.jl`, `agent/AgentServer.jl`, `editor/Editor.jl` and
+    `editor/Playback.jl` are not sealed. Their new names `IntentModule.jl`,
+    `AgentServerModule.jl`, `EditorModule.jl` and `PlaybackModule.jl` get ⬜.
+  - `projection/ProjectionApi.jl` and `projection/Projection.jl` are not sealed.
+    The files that took their place, `ProjectionModule.jl`,
+    `ProjectionInterface.jl`, `ProjectionDefaults.jl` and `ProjectionMacro.jl`,
+    get ⬜.
+  - `binding/GestureBindingModule.jl` is new and gets ⬜.
+  - Check the list against the include order with a script, as the survey did.
 - [ ] Plans: move the five superseded plans and `plan/tentative/gesture-help.md`
       to `plan/obsolete/`. Fix the two links in `plan/tentative/`. Fix the facts
       of `nlnet-application.md`.
@@ -587,7 +748,10 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       running object that opens level by level.
 - [ ] Rewrite `presentation/projectured-overview.md` from the new README. No
       emoji, no source-path footers.
-- [ ] D13: correct the text of the web site.
+- [ ] D13: correct the text of the web site in `projectured.github.io`: the
+      framing of §2.1, the line count of `source/`, the "not bolted on"
+      sentences, and the author and contact of D8. Use the new screenshots.
+      The site must not name the private application.
 
 ### Step 10: the review
 
@@ -605,8 +769,13 @@ Each guide has runnable code. Run each snippet once, in one warm session.
 ### Step 11: the posts, and close
 
 - [ ] Write the drafts of §9: one for r/Julia, one for Julia Discourse.
-- [ ] The owner reads them, makes the repository public (D2) and posts.
+- [ ] Remove the private names of §3.9 from `plan/`, including this plan and
+      the survey file, after D17. Check the whole tree with a `git grep` that is
+      not stored in the repository. The result must be empty.
+- [ ] D1a: the owner changes the licence text, if needed.
 - [ ] Move this plan and the survey file to `plan/done/`.
+- [ ] D16: make the public repository from the cleaned tree.
+- [ ] The owner reads the drafts, makes the repository public (D2) and posts.
 
 ## 6. The writing rules
 
@@ -722,7 +891,7 @@ documentation/
 - **A new guide name breaks the assistant.** The guard of Step 2 checks every
   guide name in code and documents. Step 1 makes the prompt list from the
   index.
-- **A rule document gets a new name.** Links in omnet-julia and inet-julia
+- **A rule document gets a new name.** Links in the private downstream repositories
   break. Keep the four names of §3.9. If a name must change, change the links in
   both repositories in the same change.
 - **A document describes a plan as a feature.** Check each claim against the
@@ -740,6 +909,16 @@ documentation/
   uses.
 - **Concurrent commits on `main`.** Work in the worktree, rebase often, and
   commit with explicit paths.
+- **A private name reaches the public.** New plans and commits on `main` can add
+  the names again after the cleanup. Run the check of Step 11 on the exact tree
+  that becomes public, immediately before D16.
+- **The newest Claude model is not the expected one.** The rule of Step 1 can
+  choose a model of a higher price tier, or a new small model. The assistant
+  guide states the rule, the status shows the model in use, and the `model`
+  field overrides the choice.
+- **Ollama as the default needs memory.** A local model can take most of the
+  memory of a small machine. The assistant guide names the memory that the
+  default model needs, and a smaller model that also works.
 
 ## 9. The post drafts
 
@@ -755,5 +934,6 @@ marketing words and no emoji.
 - The renames of the seven noun-first functions. They belong to
   `naming-rule-violations.md`.
 - The content of `plan/done/`.
-- The documentation of omnet-julia and inet-julia, except for broken links.
+- The documentation of the private downstream repositories, except for broken
+  links.
 - A registration in the General registry. It depends on D1.
