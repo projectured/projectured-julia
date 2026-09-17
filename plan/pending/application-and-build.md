@@ -555,7 +555,26 @@ For the release README, still open: the address of the web window
 - [x] D25: rename `environment/tool` to `environment/build`, and update the
       commands in its README and guides.
 - [x] Test: omnet's `test/build.jl`.
-- [ ] With the owner's approval, one omnet build.
+- [x] With the owner's approval, one omnet build (2026-09-17). The owner
+      approved it, and a subagent ran it.
+
+`bin/build_omnet_run`, with the prelink Julia
+(`workspace/julia-sysimage-prelink-wip`, 1.13.0-rc4) on the `PATH`, under
+`systemd-run --scope -p MemoryMax=14G`:
+
+| What | Value |
+| --- | --- |
+| Wall time | 3 min 53 s |
+| Largest process | 9.3 GB, under the cap |
+| Bundle | 632.6 MB; the executable answers in 0.01 s |
+| Prelink | ran: "2 of 13600428 pointers on the list" |
+| `--build-info` | `omnet_run, built … by ProjecturedBuilder`, the packages, the `main`, the workload, and the preference of the program |
+| `--help` | the command line of the runner, with its exit codes |
+
+So the shared builder writes and compiles a binary of the other repository,
+with the launcher, the prelink and the preferences that only that repository
+has. The script names `julia` without a path, so a build there must have the
+prelink Julia first on the `PATH`.
 
 Done on 2026-09-17, in the worktree `workspace/omnet-julia-build`, branch
 `shared-builder`, commit `812a3928`. Not landed on omnet's `main` yet.
@@ -607,7 +626,10 @@ generated package (`get_app_module_name`, which this step made public).
       guide.
 - [x] Cross-link it with `static-compilation-guide.md`.
 - [x] Tell `documentation-rewrite.md` that its Step 4 can name the command.
-- [ ] Move this plan to `plan/done/`.
+- [ ] Move this plan to `plan/done/`, when the release of Step 5 is out. That
+      release belongs to Step 11 of `documentation-rewrite.md`, because the
+      archive carries `documentation/` and must be built again after the
+      private names leave it. Everything else in this plan is done.
 
 **The owner asked for `bin/` scripts (2026-09-17), as omnet-julia has them:**
 
