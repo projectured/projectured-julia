@@ -548,11 +548,13 @@ function test_builder()
             Base.include(front_end, joinpath(@__DIR__, "..", "..", "source", "builder",
                                              "build_binary.jl"))
             # Through `invokelatest`, because the file defined its names after
-            # this code was compiled.
+            # this code was compiled. The read of the name is inside it too, or
+            # Julia warns that the binding is younger than this code.
+            from_front_end(name) = Base.invokelatest(getglobal, front_end, name)
             parse_arguments(arguments) =
-                Base.invokelatest(front_end.parse_front_end_arguments, arguments)
-            usage = Base.invokelatest(front_end.format_front_end_usage)
-            for (_, label, _) in Base.invokelatest(getproperty, front_end, :OPTIONS)
+                Base.invokelatest(from_front_end(:parse_front_end_arguments), arguments)
+            usage = Base.invokelatest(from_front_end(:format_front_end_usage))
+            for (_, label, _) in from_front_end(:OPTIONS)
                 @test occursin(label, usage)
             end
             @test occursin("projectured", usage)
@@ -593,11 +595,11 @@ function test_builder()
                 @test_throws ErrorException parse_arguments(arguments)
             end
             quiet = devnull
-            @test redirect_stdout(() -> Base.invokelatest(front_end.run_front_end, ["--help"]),
+            @test redirect_stdout(() -> Base.invokelatest(from_front_end(:run_front_end), ["--help"]),
                                   quiet) == 0
-            @test redirect_stderr(() -> Base.invokelatest(front_end.run_front_end, String[]),
+            @test redirect_stderr(() -> Base.invokelatest(from_front_end(:run_front_end), String[]),
                                   quiet) == 1
-            @test redirect_stderr(() -> Base.invokelatest(front_end.run_front_end, ["--colour"]),
+            @test redirect_stderr(() -> Base.invokelatest(from_front_end(:run_front_end), ["--colour"]),
                                   quiet) == 1
         end
     end

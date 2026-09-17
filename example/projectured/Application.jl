@@ -113,14 +113,20 @@ function _make_application_pane_tree(tabs, navigator, assistant)
     tree
 end
 
-# The workbench window: the same parts on the four fixed pages.
+# The workbench window: the same parts on the four fixed pages. The focus starts
+# inside the first file, or inside the navigator when no file is open, because a
+# key goes where the selection points.
 function _make_application_workbench(tabs, navigator, assistant)
-    WorkbenchWorkbench(
+    workbench = WorkbenchWorkbench(
         WorkbenchPage([navigator]),
         WorkbenchPage(Any[tabs...]),
         WorkbenchPage([WorkbenchConsole(), WorkbenchDescriptor(EmptyReference()),
                        WorkbenchOperator(), WorkbenchSearcher(), WorkbenchEvaluator()]),
         WorkbenchPage(assistant === nothing ? Any[] : Any[assistant]))
+    set_selection!(workbench, isempty(tabs) ?
+        @reference(workbench, navigation_page.elements[1].workspace) :
+        @reference(workbench, editing_page.elements[1].content))
+    workbench
 end
 
 """
