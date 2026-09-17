@@ -92,6 +92,7 @@ function test_substrate()
         test_widget_table_fills_offer()
         test_scroll_pane_axis_size()
         test_widget_table_list()
+        test_widget_table_list_header_floor()
         test_frozen_table_headers()
         test_widget_text_wrap()
         test_widget_tab_strip()
@@ -160,7 +161,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_card_fold, test_widget_selection, test_selection_walking, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree,
-       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_fills_offer, test_scroll_pane_axis_size, test_widget_table_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_split_pane, test_widget_transform_pane,
+       test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_fills_offer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_split_pane, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard, test_tooltip, test_split_pane_drag, test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip

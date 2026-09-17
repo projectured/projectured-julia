@@ -19,7 +19,8 @@
 #
 # **What a list needs.** Every column must be given a width — `Fixed`, or a
 # weight — because a column that is its content would depend on cells that are
-# never built. Rows take `Fixed` or `Content`: a `Fixed` row is arithmetic, and
+# never built. A weighted column with no minimum of its own is at least as wide
+# as its header, which is the one cell of a column that is always drawn. Rows take `Fixed` or `Content`: a `Fixed` row is arithmetic, and
 # a `Content` row costs the walk the renderer makes in any case, because each
 # row's y is the previous row's y plus its height. A weight on the rows is
 # refused, because it divides an offered height by a count and a list has none.
@@ -101,6 +102,7 @@ end
 
 _wtl_cell_document(row, c::Int) = (1 <= c <= length(row)) ? row[c] : nothing
 
+_wtl_child_w(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim.output.w) : 0
 _wtl_child_h(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim.output.h) : 0
 
 # The band under a row: the whole row when the row is named, the one cell when
@@ -252,10 +254,23 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
     avail_w = ctx === nothing ? nothing : ctx.available_width
-    # The columns from the policies alone; a weighted column shares what the
-    # table was offered, less the gaps and the closing rule the edges add.
+    # The columns from the policies; a weighted column shares what the table was
+    # offered, less the gaps and the closing rule the edges add.
+    #
+    # A weighted column with no minimum of its own takes the width of its header
+    # as its minimum, so a narrow pane scrolls rather than cutting the names of
+    # its columns. The header is drawn without an offer, so its width does not
+    # depend on the column's. A column whose cells wrap offers its width to the
+    # header as well, so it has no such floor.
+    function header_floor(c::Int, policy::SizePolicy)
+        (policy.weight !== nothing && policy.weight > 0 && policy.min === nothing) || return policy
+        _wt_column_cell_policy(w, c) === :wrap && return policy
+        c <= length(st.header_entries) || return policy
+        floor = _wtl_child_w(st.header_entries[c][3])
+        SizePolicy(floor, max(floor, something(policy.preferred, 0)), policy.max, policy.weight)
+    end
     widths = ComputedCell(() -> compute_axis_extents(
-        SizePolicy[_wtl_column_policy(w, c) for c in 1:ncols], hgap,
+        SizePolicy[header_floor(c, _wtl_column_policy(w, c)) for c in 1:ncols], hgap,
         avail_w === nothing ? nothing : max(0, Int(avail_w[]) - hgap - bw)))
     columns = ComputedCell(() -> compute_axis_offsets(widths[], hgap))
     total_w = ComputedCell(() -> last(columns[]) + bw)

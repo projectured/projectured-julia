@@ -9,6 +9,37 @@ using ProjecturedKernel.CellModule: Cell, ComputedCell, set_cell_function!, set_
 using ProjecturedCollection.CollectionModule: ListNode
 using ProjecturedWidget.WidgetModule: _wtl_row_node
 
+# A weighted column with no minimum is at least as wide as its header. Wide, each
+# column is its header and an equal share of what is left; narrow, each keeps
+# its header, and the table is wider than the offer, which is what a pane
+# scrolls.
+function test_widget_table_list_header_floor()
+@testset "a weighted column is at least as wide as its header" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    grow = SizePolicy(nothing, nothing, nothing, 1.0)
+    head = ListNode(make_widget_table_row(Any["a", "b"]))
+    table = WidgetTable(Point2D(0, 0), Any["id", "a much longer header"], head, 2;
+                        column_policies = Any[grow, grow])
+    function print_at(width)
+        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
+                                  height = Cell(Int32(300)))
+        print_document(rec, nothing, table, ctx)
+    end
+    wide = print_at(900)
+    @test Int(wide.output.w[]) == 900
+    widths = wide.state.widths[]
+    # The same share on top of each header, less a pixel of rounding.
+    @test abs((widths[2] - widths[1]) - 8 * (length("a much longer header") - length("id"))) <= 1
+    narrow = print_at(100)
+    widths = narrow.state.widths[]
+    @test widths == [8 * length("id"), 8 * length("a much longer header")]
+    @test Int(narrow.output.w[]) > 100
+end
+end
+
 function test_widget_table_list()
 @testset "a table whose rows are a list" begin
 
