@@ -233,6 +233,12 @@ function build_executable(context::BuildContext; name::AbstractString,
     # happens to be, and a relative path does not survive a change of directory.
     output = abspath(output)
 
+    missing_sources = collect_missing_sources(context, vcat(collect(packages), collect(imports)))
+    isempty(missing_sources) ||
+        error("build_executable: Pkg can not find a dependency whose path the " *
+              "[sources] of its user do not give: " *
+              join(["$package needs $dependency" for (package, dependency) in missing_sources], ", "))
+
     info = build_info(; name, packages, main, workload, preferences,
                         optimization, debug_info, cpu_target, assets, incremental,
                         log_level, extra_info)

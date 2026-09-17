@@ -34,6 +34,7 @@ include("../../../source/builder/Distribution.jl")
 include("../../../source/builder/ProjecturedProgram.jl")
 
 export BuildContext, get_package_directory, get_package_uuid, make_projectured_build_context
+export has_package_directory, collect_missing_sources
 export Preference, make_baked_preference, make_exposed_preferences, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
 export write_app_package, write_if_changed, LOG_LEVEL_NAMES

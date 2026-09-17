@@ -59,6 +59,41 @@ function get_package_directory(context::BuildContext, name::AbstractString)
           join(context.package_roots, " or "))
 end
 
+"""
+    has_package_directory(context, name) -> Bool
+
+Whether a folder of `context.package_roots` holds the package called `name`.
+"""
+has_package_directory(context::BuildContext, name::AbstractString) =
+    any(root -> isfile(joinpath(root, String(name), "Project.toml")), context.package_roots)
+
+"""
+    collect_missing_sources(context, packages) -> Vector{Pair{String,String}}
+
+Every `package => dependency` in the dependency tree of `packages` where
+`dependency` is a package of `context.package_roots` and the `[sources]` table
+of `package` gives no path for it. No registry holds such a dependency, so Pkg
+can not resolve the package that a build writes.
+"""
+function collect_missing_sources(context::BuildContext, packages)
+    missing_sources = Pair{String,String}[]
+    seen = Set{String}()
+    pending = String[String(package) for package in packages]
+    while !isempty(pending)
+        name = pop!(pending)
+        (name in seen || !has_package_directory(context, name)) && continue
+        push!(seen, name)
+        project = TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
+        sources = get(project, "sources", Dict{String,Any}())
+        for dependency in keys(get(project, "deps", Dict{String,Any}()))
+            has_package_directory(context, dependency) || continue
+            haskey(sources, dependency) || push!(missing_sources, name => dependency)
+            push!(pending, dependency)
+        end
+    end
+    sort!(missing_sources)
+end
+
 "The uuid a package answers to, read from its own `Project.toml`."
 get_package_uuid(directory::AbstractString) =
     TOML.parsefile(joinpath(directory, "Project.toml"))["uuid"]

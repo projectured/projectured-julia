@@ -253,6 +253,32 @@ function test_builder()
             @test_throws ErrorException get_package_directory(context, "NoSuchPackage")
         end
 
+        @testset "a local dependency without a path in [sources] is found" begin
+            packages = mktempdir()
+            write_project(name, deps, sources) = begin
+                mkpath(joinpath(packages, name))
+                open(joinpath(packages, name, "Project.toml"), "w") do io
+                    ProjecturedBuilder.TOML.print(io, Dict(
+                        "name" => name, "uuid" => string(Base.UUID(hash(name))),
+                        "deps" => Dict(d => string(Base.UUID(hash(d))) for d in deps),
+                        "sources" => Dict(d => Dict("path" => "../$d") for d in sources)))
+                end
+            end
+            write_project("Top", ["Middle", "Dates"], ["Middle"])
+            write_project("Middle", ["Bottom", "Other"], ["Other"])
+            write_project("Other", String[], String[])
+            write_project("Bottom", String[], String[])
+            context = BuildContext(mktempdir(); package_roots = [packages])
+            @test has_package_directory(context, "Bottom")
+            @test !has_package_directory(context, "Dates")
+            @test collect_missing_sources(context, ["Top"]) == ["Middle" => "Bottom"]
+            @test_throws ErrorException build_executable(context; name = "top",
+                packages = ["Top"], main = :(begin 0 end), compile = false)
+            @test !isdir(joinpath(context.root, "build"))    # nothing is written
+            write_project("Middle", ["Bottom", "Other"], ["Bottom", "Other"])
+            @test isempty(collect_missing_sources(context, ["Top"]))
+        end
+
         @testset "a build that would write the same module again leaves it alone" begin
             # A rewrite is a recompile: Julia decides a cache is stale from the
             # source file, and the generated module is the top of the tree.

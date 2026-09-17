@@ -34,6 +34,8 @@ ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
 [sources]
+Projectured = {path = "../Projectured"}
+ProjecturedAnthropic = {path = "../ProjecturedAnthropic"}
 ProjecturedAssistant = {path = "../ProjecturedAssistant"}
 ProjecturedBookExample = {path = "../ProjecturedBookExample"}
 ProjecturedChartExample = {path = "../ProjecturedChartExample"}
@@ -48,6 +50,7 @@ ProjecturedJsonExample = {path = "../ProjecturedJsonExample"}
 ProjecturedJuliaExample = {path = "../ProjecturedJuliaExample"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedMarkdownExample = {path = "../ProjecturedMarkdownExample"}
+ProjecturedOllama = {path = "../ProjecturedOllama"}
 ProjecturedMathExample = {path = "../ProjecturedMathExample"}
 ProjecturedProcessExample = {path = "../ProjecturedProcessExample"}
 ProjecturedRstExample = {path = "../ProjecturedRstExample"}
