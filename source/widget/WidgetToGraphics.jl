@@ -5953,6 +5953,15 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
 
     layout_info = ComputedCell(() -> _wt_grid_children(w))
 
+    # The grid is drawn inside the table's outer rules and the padding beside
+    # them, so it is offered what the table was offered less those. A table
+    # whose columns share an offer then ends where the offer does.
+    grid_ctx = ctx === nothing ? ctx : with_available_size(ctx;
+        width = ctx.available_width === nothing ? nothing :
+                ComputedCell(() -> Int32(max(0, Int(ctx.available_width[]) - 2 * (pad_x + bw)))),
+        height = ctx.available_height === nothing ? nothing :
+                 ComputedCell(() -> Int32(max(0, Int(ctx.available_height[]) - 2 * (pad_y + bw)))))
+
     # Build a GridLayout whose children are the recursed cell documents and
     # project it through `recursion` (which dispatches GridLayout → its renderer
     # and each cell document → its own projection). Gaps carry the per-cell
@@ -5969,7 +5978,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                           column_offers = _wt_column_offers(w, grid_cols, col_offset))
         # The grid is positioned at (grid_off_x, grid_off_y) inside the outer canvas; extend the
         # context reference to the table's grid so child contexts are rooted here.
-        print_child(recursion, grid, ctx)
+        print_child(recursion, grid, grid_ctx)
     end)
 
     geometry = ComputedCell(() -> begin

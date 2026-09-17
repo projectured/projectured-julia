@@ -114,6 +114,28 @@ end # function
 # A table cell of a column that was given a width clips or wraps by the policy
 # of its column, else of its table. The default is one clipped line, because a
 # table is a data table until someone says otherwise.
+# A table whose columns share an offer ends where the offer does. The grid is
+# drawn inside the table's outer rules and padding, so it is offered the width
+# less those, and the table is no wider than what its container gave it.
+function test_widget_table_fills_offer()
+@testset "a table with a weighted column is as wide as its offer" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    table = WidgetTable(Point2D(0, 0), Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
+                        column_policies = Any[Fill, Fixed(80)])
+    for width in (400, 600)
+        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
+                                  height = Cell(Int32(400)))
+        iomap = print_document(rec, nothing, table, ctx)
+        @test Int(iomap.output.w[]) == width
+        # The last rule is the right edge of the table.
+        @test last(iomap.geometry.col_x) + iomap.geometry.bw == width
+    end
+end
+end
+
 function test_widget_table_cell_policy()
 @testset "a table cell clips or wraps by policy" begin
     det = (t, f) -> (length(t) * 8, 16)
