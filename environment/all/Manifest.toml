@@ -881,7 +881,7 @@ uuid = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 version = "0.1.0"
 
 [[deps.ProjecturedBuilder]]
-deps = ["Pkg"]
+deps = ["Dates", "Pkg", "Preferences", "SHA", "TOML"]
 path = "../../package/ProjecturedBuilder"
 uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
@@ -1414,7 +1414,7 @@ uuid = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWorkbench", "ProjecturedWorkbenchTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
+deps = ["Projectured", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedBuilder", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWorkbench", "ProjecturedWorkbenchTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

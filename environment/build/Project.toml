@@ -1,0 +1,10 @@
+# The build environment: `ProjecturedBuilder` and the released PackageCompiler,
+# so a Julia session started here can compile a binary. No other environment
+# holds PackageCompiler.
+
+[deps]
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
+ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
+
+[sources]
+ProjecturedBuilder = {path = "../../package/ProjecturedBuilder"}
