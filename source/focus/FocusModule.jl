@@ -40,7 +40,7 @@ export get_first_focusable_path, get_last_focusable_path, get_next_focusable_ind
 export is_whole_selection_press, is_whole_selection, convert_to_whole_selection,
        find_whole_selected_index, is_whole_selected_field
 export SelectionWalkingProjection, SelectionWalkingIoMap,
-       get_selection_walk_direction, compute_selection_walk
+       get_selection_walk_direction, compute_selection_walk, is_selection_walk_stop
 
 
 include("Focus.jl")

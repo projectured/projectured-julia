@@ -84,6 +84,8 @@ The selection one step of the walk makes, as a path from `document`:
 `:down`, `:left` and `:right` need a whole selection, and answer `nothing` for
 a caret, so a text reader can use the key. An object is a document that is not
 a collection and that can hold a selection; a value such as a color is not one.
+A document for which [`is_selection_walk_stop`](@ref) answers `false` is not an
+object either: the walk passes through it to the objects it holds.
 """
 function compute_selection_walk(document, selection, direction::Symbol)
     selection isa Reference || return nothing
@@ -96,10 +98,23 @@ function compute_selection_walk(document, selection, direction::Symbol)
     nothing
 end
 
-# A document the walk can stop at.
-_is_walk_object(node) =
+"""
+    is_selection_walk_stop(document) -> Bool
+
+Whether the Alt + arrow walk stops at `document`. `true` by default. A domain
+answers `false` for a document that only holds the objects a person points at,
+such as the evaluation that a transcript part holds: the walk then passes
+through it, up, down and sideways, to what it holds.
+"""
+is_selection_walk_stop(::Any) = true
+
+# A document the walk can pass: not a collection, and able to hold a selection.
+_is_walk_document(node) =
     node isa Document && !(node isa CollectionDocument) &&
     !(hasproperty(node, :selection) && getfield(node, :selection) isa ImmutableCell{Nothing})
+
+# A document the walk can stop at.
+_is_walk_object(node) = _is_walk_document(node) && is_selection_walk_stop(node)
 
 _make_walk_path(steps) = _prepend_steps(Tuple(steps), EmptyReference())
 
@@ -115,7 +130,19 @@ function _walk_up(document, steps)
     nothing
 end
 
-_walk_children(node) = [ref for ref in _child_document_refs(node) if _is_walk_object(ref[2])]
+# The objects inside `node`, each with the steps that reach it, in document
+# order; a document the walk passes through gives its own objects in its place.
+function _walk_children(node, prefix::Tuple = ())
+    children = Tuple{Tuple,Any}[]
+    for (steps, child) in _child_document_refs(node)
+        if _is_walk_object(child)
+            push!(children, ((prefix..., steps...), child))
+        elseif _is_walk_document(child)
+            append!(children, _walk_children(child, (prefix..., steps...)))
+        end
+    end
+    children
+end
 
 function _walk_down(document, steps)
     children = _walk_children(_evaluate_walk_steps(document, steps))
@@ -124,9 +151,9 @@ function _walk_down(document, steps)
 end
 
 function _walk_sideways(document, steps, offset::Int)
-    # The last step is a field, or the last two are a vector field and an index.
-    for k in (1, 2)
-        length(steps) >= k || break
+    # The object's own steps below its parent: a field, a vector field and an
+    # index, and the steps through a document the walk passes.
+    for k in 1:length(steps)
         parent_steps = steps[1:(end - k)]
         parent = _evaluate_walk_steps(document, parent_steps)
         _is_walk_object(parent) || continue

@@ -189,6 +189,12 @@ reader answered them:
 `Alt+Left` and `Alt+Right` act only on a whole-element selection. With a caret
 they answer `nothing`, so the key goes on and a text reader can use it later.
 
+A domain answers `is_selection_walk_stop(document) = false` for a document
+that only holds objects, and the walk passes through it (added in Step 7: the
+assistant's pane hands the Alt arrows to its composer, so in the IDE the
+generic walk, not the transcript's, walks a transcript, and it stopped on the
+bare `EvaluatorForm`).
+
 An inner reader answers first. So the syntax domain and the two charts answer
 with their own walks, and the transcript answers with the object walk of D1, which skips
 the bare `EvaluatorForm`. From the root of a tab's content, `Alt+Up` selects the
@@ -290,14 +296,16 @@ This is not the closed gating plan. That plan filtered every operation of a
 subtree through a projection policy. This one is one fact that a domain type
 states, read by the one writer that sits in front of the readers.
 
-A copy and a note of a tool pane stay allowed, and **a paste of one is
-refused** (decided in Step 7). A copy made by `copy_document` keeps what a tool
-holds by reference: the runner's `runner` handle and `cache`, the assistant's
-model session. A pasted copy would then start runs or turns of the original. A
-second tool is the work of a duplicate with a copy policy
-([duplicate-a-pane.md](duplicate-a-pane.md)), not of a paste. So
-`_find_paste_target` also refuses a value that `accepts_pasted_document`
-refuses.
+**A record or a tool is neither copied, noted nor pasted** (decided in Step 7;
+the first decision allowed a copy and a note). A copy made by `copy_document`
+keeps what a tool holds by reference: the runner's `runner` handle and `cache`,
+the assistant's model session. A pasted copy would then start runs or turns of
+the original, and a deep copy of the assistant follows the draft's back-link to
+the assistant and overflows the stack. A second tool is the work of a duplicate
+with a copy policy ([duplicate-a-pane.md](duplicate-a-pane.md)), not of a paste.
+So `_find_paste_target` refuses such a value, and copy and note refuse such a
+document (`_is_clipboard_value`). What a record or a tool holds — a message, a
+result, a parameter — is copied and noted as any other document.
 
 ### D10. The clipboard reads the selection from its content
 

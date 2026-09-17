@@ -176,3 +176,8 @@ EvaluatorToplevel(elements::Vector) =
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
+
+# A person points at the part that holds an evaluation, or at the evaluation's
+# form or result, never at the evaluation between them: the Alt + arrow walk
+# passes through it.
+is_selection_walk_stop(::EvaluatorForm) = false

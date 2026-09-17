@@ -143,6 +143,11 @@ function _selected(input)
     sel, obj
 end
 
+# Whether `document` can be held by the clipboard, by a copy or a note. A record
+# or a tool can not: it is never pasted, and a deep copy of one can share what
+# drives it, or follow a back-link without end.
+_is_clipboard_value(document) = document isa Document && accepts_pasted_document(document)
+
 # The path a paste (or a cut) writes `value` to, or `nothing` when it must not
 # write. Three rules hold, each checked against the tree as it stands:
 #

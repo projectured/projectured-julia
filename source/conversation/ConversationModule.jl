@@ -43,6 +43,7 @@ using ..WidgetModule
 import ..CellModule: set_cell_function!
 import ..DocumentModule: copy_document, has_document_duplicate
 import ..DomainModule: accepts_pasted_document
+import ..FocusModule: is_selection_walk_stop
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

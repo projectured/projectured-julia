@@ -110,7 +110,11 @@ conversation as a whole above a message; down is the first object inside; left
 and right move between messages, between the parts of a message, and between
 the form and the result of an evaluation. The first and the last object keep
 the selection. The transcript answers these keys itself, whatever a widget
-inside it said, because nothing in it is edited.
+inside it said, because nothing in it is edited. Where the keys do not reach the
+transcript — the assistant's pane hands them to its composer — the generic walk
+answers with the same objects, because an evaluation says
+`is_selection_walk_stop(::EvaluatorForm) = false` and the walk passes through
+it.
 
 The selected object is ringed. The transcript's containers follow the
 selection: the conversation's layout rings a message, a message's body rings a
@@ -121,8 +125,8 @@ part, and a section card rings its form or result.
 The history of a conversation is a record, so
 `accepts_pasted_document(::ConversationConversation)` answers `false`, and so
 does the assistant as a whole. A clipboard pastes and cuts nothing there, and it
-does not paste a whole conversation or a whole assistant elsewhere either: a
-copy of an assistant would share its model session. A message, a part, a form
+neither copies nor pastes a whole conversation or a whole assistant: a copy of
+an assistant would share its model session. A message, a part, a form
 and a result paste anywhere a paste may write. The composer's own text paste is
 not a pasted document, and it still works.
 

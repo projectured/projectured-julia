@@ -311,6 +311,16 @@ function test_conversation_transcript()
         @test _is_same_path(walk(_section_path(3, 1, "result"), :up), _part_path(3, 1))
         @test walk(nothing, :up) === nothing
 
+        # The generic walk, which answers when the keys do not reach the
+        # transcript, gives the same objects: it passes through the evaluation.
+        generic(path, direction) = compute_selection_walk(doc, path, direction)
+        @test _is_same_path(generic(_part_path(3, 1), :down), _section_path(3, 1, "form"))
+        @test _is_same_path(generic(_section_path(3, 1, "form"), :right), _section_path(3, 1, "result"))
+        @test _is_same_path(generic(_section_path(3, 1, "result"), :up), _part_path(3, 1))
+        @test _is_same_path(generic(_part_path(2, 1), :right), _part_path(2, 2))
+        @test _is_same_path(generic(_part_path(2, 2), :up), _turn_path(2))
+        @test _is_same_path(generic(_turn_path(2), :left), _turn_path(1))
+
         # The reader answers the keys from the document's selection.
         (doc, proj, io) = _transcript_render()
         replace_selection!(doc, _part_path(3, 1))

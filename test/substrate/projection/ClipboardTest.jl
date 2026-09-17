@@ -392,9 +392,13 @@ end
         slice.selection = refused
         @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
         @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
-        # A copy only reads, so a record can still be copied.
-        @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
     end
+    # The record itself is neither copied nor noted; what it holds is.
+    slice.selection = cpath(content, FieldReferenceStep("left"))
+    @test !(read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:n, ctrl)) isa CompoundOperation)
+    slice.selection = cpath(content, FieldReferenceStep("left"), FieldReferenceStep("item"))
+    @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
     slice.selection = cpath(content, FieldReferenceStep("right"))
     op = read_intent(p, iomap, KeyDown(:v, ctrl))
     @test op isa CompoundOperation

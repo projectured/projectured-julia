@@ -65,8 +65,10 @@ stored slice, leaves out `:cut` or `:toggle`.
 
 A paste and a cut write only where the paste rules allow: the selection names a
 whole document, every document from the content down to it accepts a pasted
-document (`accepts_pasted_document`), and the slot takes the value. Otherwise
-the gesture goes on to the content.
+document (`accepts_pasted_document`), the slot takes the value, and the document
+in the slot accepts it as a replacement (`accepts_pasted_replacement`). A
+document that refuses a paste is not copied, noted or pasted either. Otherwise the gesture goes
+on to the content.
 """
 mutable struct ClipboardSliceToAnyProjection <: Projection
     display_slice::Cell   # reactive: flipping it switches the exposed child (content↔slice)
@@ -236,7 +238,7 @@ function _clipboard_copy(p, input)
     # path (which would `evaluate_reference` a character selection).
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
     sel, obj = _selected(input)
-    obj isa Document || return nothing
+    _is_clipboard_value(obj) || return nothing
     payload = copy_document(obj)
     clear_selection!(payload)                  # clipboard payload carries no cursor
     ops = Any[
@@ -267,7 +269,7 @@ function _clipboard_note(p, input)
     # for text, "note" == copy the substring (text mode is exclusive)
     (p.text && input.content isa TextBlock) && return _text_clipboard_copy(p, input)
     sel, obj = _selected(input)
-    obj isa Document || return nothing
+    _is_clipboard_value(obj) || return nothing
     ops = Any[
         replace_document(_field_path("slice"), obj),
         ReplaceSelectionOperation(sel),

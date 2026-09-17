@@ -759,7 +759,9 @@ answers the four Alt + arrow keys that nothing inside answered: up to the
 enclosing object, down to the first object inside, and sideways to a sibling,
 where the first and the last keep the selection. An object is a document that
 is not a collection and that can hold a selection, so a value document such as a
-color is skipped. Left, right and down act only on a whole selection.
+color is skipped. A domain answers `is_selection_walk_stop(document) = false`
+for a document that only holds objects, and the walk passes through it. Left,
+right and down act only on a whole selection.
 
 ## When to use widgets vs. graphics
 

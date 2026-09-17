@@ -2,6 +2,16 @@
 # document: up to the enclosing object, down to the first object inside, and
 # sideways to the siblings. A reader inside answers first.
 
+# An item that holds a holder, which the walk passes through to its two parts.
+@document struct _WalkHolder <: Document
+    first::Any
+    second::Any
+end
+FocusModule.is_selection_walk_stop(::_WalkHolder) = false
+@document struct _WalkItem <: Document
+    holder::Any
+end
+
 function _walking_tree()
     button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
     label = WidgetLabel(Point2D(0, 0), "hello")
@@ -74,6 +84,25 @@ function test_selection_walking()
         @test _walk_from(t.root, t.layout, :up) === t.card
         @test _walk_from(t.root, t.card, :up) === t.root
         @test compute_selection_walk(t.root, EmptyReference(), :up) === nothing
+    end
+
+    @testset "the walk passes through a document that is not a stop" begin
+        first, second = PrimitiveString("a"), PrimitiveString("b")
+        item = _WalkItem(_WalkHolder(first, second))
+        walk(path, direction) = begin
+            found = compute_selection_walk(item, path, direction)
+            found === nothing ? nothing : evaluate_reference(item, found)
+        end
+        at_first = compute_selection_walk(item, EmptyReference(), :down)
+        @test evaluate_reference(item, at_first) === first
+        at_second = compute_selection_walk(item, at_first, :right)
+        @test evaluate_reference(item, at_second) === second
+        @test walk(at_second, :left) === first
+        @test walk(at_second, :right) === second
+        # Up skips the holder and reaches the item.
+        @test compute_selection_walk(item, at_second, :up) == EmptyReference()
+        @test !is_selection_walk_stop(item.holder)
+        @test is_selection_walk_stop(item)
     end
 
     @testset "a caret goes up to its object, and sideways nowhere" begin
