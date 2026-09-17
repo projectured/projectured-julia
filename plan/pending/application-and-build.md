@@ -1,8 +1,8 @@
 # The application and its build
 
 **Status (2026-09-17): NOT STARTED.** This plan was split from
-[documentation-rewrite.md](documentation-rewrite.md) on 2026-09-17. The
-decisions of §2.1 are the owner's.
+[documentation-rewrite.md](documentation-rewrite.md) on 2026-09-17. The owner
+decided every question of §2; none is open.
 
 **Goal:** ProjecturEd is an application. One command and one binary open any
 number of files, in every supported format, in a window with the AI assistant.
@@ -50,13 +50,15 @@ The numbers are the same as in `documentation-rewrite.md`.
 | D21 | Copy the generic half of the omnet builder into `ProjecturedBuilder`, or move it? | Move it. `ProjecturedBuilder` holds the generic builder. omnet-julia keeps its program functions and its front end, and it calls the shared builder. |
 | D22 | A binary with the posts | Yes. A Linux x86-64 archive in a GitHub release, after its relocation test passes. The owner approves the release. |
 | D23 | The name of the build environment | `environment/build`, not `environment/tool`. |
+| D24 | Which window opens when the command line names none? | The pane program. |
+| D25 | Does omnet-julia rename its `environment/tool` to `environment/build` too? | Yes, in Step 6, so that both repositories use one name. |
 
-### 2.2 Open
+The answers of 2026-09-17 to the two open questions:
 
-| # | Question | Recommendation | Before |
-| --- | --- | --- | --- |
-| D24 | Which window opens when the command line names none? | The pane program. The assistant opens views there with `open_pane!`, and the new pane work goes there. | Step 1 |
-| D25 | Does omnet-julia rename its `environment/tool` to `environment/build` too? | Yes, in Step 6, so that both repositories use one name. | Step 6 |
+> for 1, the pane program
+> for 2, yes
+
+No question is open.
 
 ## 3. What exists
 
@@ -112,7 +114,7 @@ projectured [files...] [--window pane|workbench] [--backend sdl|web]
 - One Julia function opens the application window with the files, and the
   binary calls it. A REPL user calls the same function. Name it by the naming
   rules, and put it where `package-rules.md` says.
-- `--window` selects the window (D20). The default is open (D24).
+- `--window` selects the window (D20). The default is the pane program (D24).
 - The pane window: file tabs in split panes, a file navigator, and the
   assistant beside the tabs. A file tab is a document that a `PaneTab` holds.
   The `Ctrl+S` and `Ctrl+O` gestures of `WorkbenchFile.jl` move to it, so that
