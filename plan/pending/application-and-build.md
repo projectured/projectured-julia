@@ -1,7 +1,7 @@
 # The application and its build
 
-**Status (2026-09-17): IN PROGRESS.** Step 0 is done, and Step 1 is done except
-for the two command palette entries. The work is on the branch
+**Status (2026-09-17): IN PROGRESS.** Step 0 is done, Step 1 is done except
+for the two command palette entries, and Step 2 is done. The work is on the branch
 `application-and-build`, in the worktree `workspace/projectured-julia-application`.
 This plan was split from [documentation-rewrite.md](documentation-rewrite.md) on
 2026-09-17. The owner decided every question of §2; none is open.
@@ -291,16 +291,63 @@ domains that the documentation survey found. They are not this plan's.
 
 ### Step 2: the generic builder in projectured (builder slice)
 
-- [ ] Port the stable core of §4.2 into the builder slice, from omnet's
+- [x] Port the stable core of §4.2 into the builder slice, from omnet's
       `source/build/`. omnet-julia keeps its own files until Step 6.
-- [ ] Remove the simulator names; pass what omnet needs through
+- [x] Remove the simulator names; pass what omnet needs through
       `BuildContext`, `imports`, `init` and `compile_app`.
-- [ ] Give `ProjecturedBuilder` the dependencies that the files need: `Dates`,
+- [x] Give `ProjecturedBuilder` the dependencies that the files need: `Dates`,
       `Pkg`, `Preferences`, `SHA`, `TOML`.
-- [ ] Make `environment/build` (D23).
-- [ ] Port the tests of omnet's `test/build.jl` that cover the core, into
+- [x] Make `environment/build` (D23).
+- [x] Port the tests of omnet's `test/build.jl` that cover the core, into
       `test/builder/`. They compile nothing.
-- [ ] Test: `test_builder()`, `test_package_graph()`, `test_naming()`.
+- [x] Test: `test_builder()`, `test_package_graph()`, `test_naming()`.
+
+**What the step measured.** `test_builder()`: 73 pass. `test_package_graph()`:
+727 pass, 3 fail — the same stale-edge failures the Step 1 baseline recorded, at
+the same line, `PackageGraphTest.jl:284`. `test_naming()`: 1 pass. `test_tree()`:
+1 pass. No new failure anywhere.
+
+**Decisions of Step 2.**
+
+- **`ProjecturedProgram.jl` did not land.** §4.2's table names it as a fragment
+  that would hold "the projectured binaries", but Step 2 ports only the generic
+  core — one function per projectured binary is Step 3's work, over the front
+  end. Nothing in Step 2 needed it.
+- **`bundle_fonts!` finds its own source directory, not `context.root`.** The
+  fonts always live in projectured-julia's own `asset/font`, regardless of which
+  repository's `BuildContext` calls it — that is where `ProjecturedStyle` is
+  compiled from, whichever repository builds the binary. So it resolves its
+  source path from `@__DIR__` (this fragment's own location under
+  `source/builder/`), the same trick `Builder.jl` already used for
+  `EXECUTABLE_DIR`/`SOURCE_DIR`, rather than from the context passed in.
+  `bundle_assets!`, by contrast, takes the context and resolves under
+  `context.root`, because an asset directory is specific to the repository that
+  is building.
+- **`get_package_directory` takes `context.package_roots`, a list, in place of
+  omnet's hardcoded sibling-checkout fallback.** omnet's `Root.jl` tried
+  `ROOT/package` and then `../projectured-julia/package` by name. The context
+  generalizes this to an ordered list a caller builds however it likes — omnet's
+  own context, in Step 6, lists both its own `package/` and projectured-julia's.
+- **`build_info` gained an `extra_info` keyword instead of knowing about `trim`
+  or `reactive`.** Those stay entirely in omnet's extension; the core's
+  `build_info` appends whatever text a caller's own build step wants recorded,
+  after everything it writes itself.
+- **The `.gitignore` rule `build/` was anchored to `/build/`.** The unanchored
+  pattern matches a directory named `build` at any depth, so it silently
+  swallowed `environment/build/` the moment that directory was created — the
+  comment beside the rule already said it meant only the repository root. Fixed
+  as part of this step, since `environment/build/Project.toml` and its
+  `Manifest.toml` could not otherwise be committed.
+- **`environment/build`'s `Manifest.toml` resolved `PackageCompiler` v2.4.2**,
+  freshly — `environment/all`'s `Manifest.toml` held no prior entry for it to
+  match, since `Builder.jl`'s existing path only adds PackageCompiler to an app
+  environment at compile time and never to `environment/all` itself.
+- **Not ported, per D31 and the plan's explicit list**: `Trim.jl`/juliac
+  trimming, `Reactive.jl` and the reactive rebuild, the prelink machinery and
+  `launcher.c`, `link_executable!`, `strip_bundle!`, the object-archive
+  keyword, and `Program.jl`'s simulator-specific build functions (module-union
+  pin call site, `-u Cmdenv`, `-f`/`-c` options, the wrapper-fold system). All
+  stay in `OmnetBuilder` for Step 6 to keep as an extension over the core.
 
 ### Step 3: the projectured targets and the front end
 

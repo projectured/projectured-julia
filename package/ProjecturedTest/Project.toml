@@ -7,6 +7,7 @@ authors = []
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
+ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedConversationTest = "475e7e6a-a374-4244-9dfc-8229b9ae86be"
@@ -58,6 +59,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [sources]
 ProjecturedAssistant = {path = "../ProjecturedAssistant"}
 ProjecturedBookTest = {path = "../ProjecturedBookTest"}
+ProjecturedBuilder = {path = "../ProjecturedBuilder"}
 ProjecturedChartTest = {path = "../ProjecturedChartTest"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedConversationTest = {path = "../ProjecturedConversationTest"}

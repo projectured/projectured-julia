@@ -33,6 +33,9 @@ using ProjecturedFsmTest
 using ProjecturedProcessTest
 using ProjecturedConversationTest
 using ProjecturedWorkbenchTest
+# The builder's own suite is umbrella-only: it needs no domain and no editor,
+# but it is a repository-wide tool and this is where a repository-wide test runs.
+using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_workbench()` as well as `test_all()`.
@@ -127,6 +130,7 @@ include("../suite/naming.jl")
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
 include("backend/PdfTest.jl")
+include("../builder/BuilderTest.jl")
 include("document/SelectionEnumeration.jl")
 include("reference/TypeReferenceTest.jl")
 include("editor/ConstructTest.jl")
@@ -335,6 +339,7 @@ function test_all()
     test_assistant_mvp()
     test_workbench_file_keys()
     test_application()
+    test_builder()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -391,7 +396,7 @@ export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
-export test_workbench_file_keys, test_application, test_gallery_wrappers
+export test_workbench_file_keys, test_application, test_builder, test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
 
