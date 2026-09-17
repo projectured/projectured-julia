@@ -10,11 +10,12 @@ that its step 6 puts into the omnet IDE.
 **Goal:** a person copies text in another program, puts the text cursor into a
 string in ProjecturEd, and presses `Ctrl+V`. The text goes in at the cursor. That
 string can be the chat draft of the omnet IDE, a field of the runner, or a string
-of any domain. A range cursor works too when its map is trivial: `Ctrl+V`
-replaces the range, and `Ctrl+C` or `Ctrl+N` put the range on the system
-clipboard. Every other case is deferred.
+of any domain. `Shift` and the arrow keys select a range of characters wherever
+a projection maps the range trivially. `Ctrl+V` replaces a range, and `Ctrl+C` or
+`Ctrl+N` put a range on the system clipboard. The chat draft keeps one selection:
+the complete path from the root. Every other case is deferred.
 
-**Repositories:** projectured-julia (the domain, clipboard and conversation
+**Repositories:** projectured-julia (the domain, text, conversation and clipboard
 slices) and omnet-julia (one end-to-end test). The plan changes no sealed file.
 
 ## 1. The request and the rulings
@@ -31,99 +32,198 @@ slices) and omnet-julia (one end-to-end test). The plan changes no sealed file.
 > map is trivial, otherwise we should defer it, let's make a plan that should be
 > executed after the other plan finishes
 
+> the conversation draft composer should be selected with a complete path from
+> the root when I click there, there should not be two different selection (one
+> local and one global) after a click, the click leaves detached trails as it did
+> before, but the key cursor events goes to where the complete selection points
+> from the root
+>
+> we can also support shift+cursor keys in the text domain, so any projection
+> which can map a trivial range (no cross-span or cross document range) works
+
 The words mean this in the code:
 
 | Word | Meaning |
 | --- | --- |
 | system clipboard | the clipboard of the operating system: `read_os_clipboard` and `write_os_clipboard!`, which run `xclip`, `xsel`, `wl-paste` / `wl-copy` or `pbpaste` / `pbcopy` |
-| text cursor | a selection whose last two steps are a field `f` and a range `{k..k}`, where the field holds a string |
+| complete selection | the selection path from the editor's root document down to the target, `ScreenDocument.windows[1].content…value{s..e}` |
+| trail | the suffix of the complete selection that a document on the path holds in its own `selection` cell. A click writes every trail, as it does today |
+| text cursor | a complete selection whose last two steps are a field `f` and a range `{k..k}`, where the field holds a string |
 | range cursor | the same with a range `{s..e}` and `s < e` |
-| trivial map | the range lies in one field of one document, and the field's value is a `String`, `nothing` or a `Number`: the representations the kernel's own `splice_value!` methods cover. The text of the range is the characters `s+1` to `e` of that value |
-| text target | a text cursor or a range cursor with a trivial map |
+| trivial map | the range lies in one span of the text layer, and maps to one field of one document whose value is a `String`, `nothing` or a `Number`. A range across spans, across a line break, or across documents is not trivial |
+| text target | a text cursor, or a range cursor with a trivial map |
 
 ## 2. What exists
 
+### The kernel and the text domain
+
 | Fact | Where |
 | --- | --- |
-| `ReplaceStringRangeOperation(reference, text)` splits its path into a document, a field and a range, splices with `splice_value!`, and moves the caret to `s + length(text)` along the whole path. | [PrimitiveDocument.jl:109](../../source/primitive/PrimitiveDocument.jl#L109), its `evaluate_operation` below it |
+| `ReplaceStringRangeOperation(reference, text)` splits its path into a document, a field and a range, splices with `splice_value!`, and moves the caret to `s + length(text)` along the whole path, which writes every trail. | [PrimitiveDocument.jl:109](../../source/primitive/PrimitiveDocument.jl#L109), its `evaluate_operation` below it |
 | `splice_value!` covers `String`, `nothing` and `Number` in the kernel, and `TextString` and `TextBlock` in the text slice. A number is spliced as text and parsed again. | [Operations.jl:83-92](../../source/kernel/operation/Operations.jl#L83-L92), [TextDocument.jl:308-316](../../source/text/TextDocument.jl#L308-L316) |
-| A typed character in a `PrimitiveString` IS that operation. The table reads the range from the document's own selection (`_string_value_range`). Backspace already deletes a non-empty range. | [PrimitiveToText.jl:182](../../source/text/PrimitiveToText.jl#L182) |
-| No gesture makes a range cursor. The string table and the `TextBlock` table have no Shift and arrow, and nothing selects characters by a drag or a double click. | same, and [TextDocument.jl:335](../../source/text/TextDocument.jl#L335) |
-| The chat draft is `ConversationDraft([ConversationPart(PrimitiveString(""))])`. The composer does not use `ReplaceStringRangeOperation`: `ComposerInputOperation` splices the value and moves only the caret in the string's own selection cell. | [AssistantDocument.jl:101](../../source/assistant/AssistantDocument.jl#L101), [ConversationEditor.jl:173](../../source/conversation/ConversationEditor.jl#L173) |
-| **The two carets differ.** Measured 2026-09-17 in the omnet IDE, headless: after a click into the draft and the keys `h`, `i`, the window's path and the pane tree's path end in `value{0}`, and the string's own cell holds `value{2}`. | a probe script, repeated in step 0 |
-| A key reaches the draft only when the selection is inside the assistant pane. Measured: with no click, `h`, `i` make no operation, with and without the runner's startup focus. | same probe |
-| The composer has no `Ctrl+V`. Its table has insert, Backspace, Return, Shift+Return, Tab, Insert and Escape. | `_composer_bindings`, [ConversationEditor.jl](../../source/conversation/ConversationEditor.jl) |
+| A typed character in a `PrimitiveString` IS that operation. The table reads the range from the string's trail (`_string_value_range`). Backspace already deletes a non-empty range. | `@gestures PrimitiveString`, [PrimitiveToText.jl:182](../../source/text/PrimitiveToText.jl#L182) |
+| The text domain edits a flat character range. A typed character replaces the range, Backspace and Delete remove it, and a plain arrow collapses it to its near end. | `@gestures TextBlock`, `_text_insert`, `_text_delete`, `_text_char_motion`, [TextDocument.jl:353-594](../../source/text/TextDocument.jl#L353-L594) |
+| The text edit is `ReplaceTextRangeOperation` in flat coordinates, lowered to a span or domain edit on its way up. **A range that crosses a span boundary declines when it is lowered.** That is the trivial-map rule, already in the code. | `_text_insert` and the comment on `_text_delete` |
+| **No gesture selects a range.** Neither table has `Shift` and an arrow. The geometry keys (plain `Home` / `End`, `Up` / `Down`) are in `TextToGraphics`, without `Shift` too. | [TextDocument.jl:353](../../source/text/TextDocument.jl#L353), [TextToGraphics.jl:133-170](../../source/text/TextToGraphics.jl#L133-L170) |
+| `TextToGraphics` draws a non-empty range as highlight rectangles. | [TextToGraphics.jl:285-310](../../source/text/TextToGraphics.jl#L285-L310) |
+| A widget container sends a key to the child that its selection names. | `_forward_composite_event_slot`, [WidgetToGraphics.jl:1950](../../source/widget/WidgetToGraphics.jl#L1950) |
+
+### The chat draft
+
+| Fact | Where |
+| --- | --- |
+| The draft is `ConversationDraft([ConversationPart(PrimitiveString(""))])`. | [AssistantDocument.jl:101](../../source/assistant/AssistantDocument.jl#L101) |
+| The composer draws the editable string as a `TextBlock` that it builds itself. The caret of that block is computed from `_cursor(content)`, which reads the string's own trail. | `_editable_body`, `_attach_caret!`, [ConversationEditor.jl:383-450](../../source/conversation/ConversationEditor.jl#L383-L450) |
+| A click in the draft's text is answered by the text layer, and the composer's `map_reference_backward` turns it into `parts[i].content.value{k}`. **Both maps carry only a caret**: a range from the text layer becomes its end, and a range in the draft is drawn as a caret. | `map_reference_forward` and `map_reference_backward`, [ConversationEditor.jl:519-575](../../source/conversation/ConversationEditor.jl#L519-L575) |
+| A typed key does not go to the text layer. The composer's own table answers it with `ComposerInputOperation`, `ComposerBackspaceOperation` or `ComposerNewlineOperation`. They splice the value and move the caret in the string's own trail only (`_set_value!`), and the table does not read the selection at all. The comment says the enclosing card drops key events so that the text layer does not take them. | `_composer_bindings`, [ConversationEditor.jl:173-200](../../source/conversation/ConversationEditor.jl#L173-L200), [ConversationEditor.jl:400](../../source/conversation/ConversationEditor.jl#L400) |
+| **So there are two selections today.** Measured 2026-09-17 in the omnet IDE, headless: after a click into the draft and the keys `h`, `i`, the root's path and the pane tree's trail end in `value{0}`, and the string's own trail holds `value{2}`. | a probe script, repeated in step 0 |
+| When nothing below it takes a key, `AssistantToWidgetSplitPane` sends the key to the draft, whatever the selection is. At the window level a key reaches the assistant pane only when the selection is in it: with no click, `h`, `i` make no operation. | [AssistantTurn.jl:915-930](../../source/assistant/AssistantTurn.jl#L915-L930), the same probe |
+| The composer has no `Ctrl+V`, no arrow key, and no `Shift`. | `_composer_bindings` |
+
+### The clipboard
+
+| Fact | Where |
+| --- | --- |
 | The other plan's D9 rule 1 says "the composer's own `Ctrl+V` pastes text", and its step 7 tests "`Ctrl+V` with the caret in the composer pastes text". No step of it adds that paste. **This plan supplies it.** | the other plan, D9 and step 7 |
 | `accepts_pasted_document` refuses the `Assistant` and the `SimulationFilter`, which hold the draft and the runner's fields. A text paste must therefore not ask it. | the other plan, D9 |
-| The system clipboard has a test seam: `set_os_clipboard_backend!(read, write)`. `WriteOsClipboardOperation(text)` writes at evaluation. | [Clipboard.jl](../../source/clipboard/Clipboard.jl) |
-| The existing text mode (`text = true`) acts only when the slice's whole content is one `TextBlock`, and uses `TextBlock` helpers. The gallery turns it on for the text examples. | `_text_clipboard_*` in [ClipboardSliceToAny.jl](../../source/clipboard/ClipboardSliceToAny.jl) |
+| The system clipboard has a test seam, `set_os_clipboard_backend!(read, write)`. `WriteOsClipboardOperation(text)` writes at evaluation. | [Clipboard.jl](../../source/clipboard/Clipboard.jl) |
+| The existing text mode (`text = true`) acts only when the slice's whole content is one `TextBlock`, and uses `TextBlock` helpers. The gallery turns it on for the text examples. | `_text_clipboard_*`, [ClipboardSliceToAny.jl](../../source/clipboard/ClipboardSliceToAny.jl) |
 
 ## 3. Decisions
 
-The decisions are numbered T1 to T11, so that they do not mix with the D numbers
+The decisions are numbered T1 to T14, so that they do not mix with the D numbers
 of the other plan.
 
-### T1. The clipboard makes the text edit
+### The text domain
+
+#### T1. `Shift` and a motion key extend the selection
+
+Every motion key of the text domain gets a `Shift` twin that moves one end of the
+range and keeps the other:
+
+| Key | Moves the moving end | Table |
+| --- | --- | --- |
+| `Shift+Left`, `Shift+Right` | by one character | `@gestures TextBlock` |
+| `Shift+Ctrl+Left`, `Shift+Ctrl+Right` | by one word | `@gestures TextBlock` |
+| `Shift+Ctrl+Home`, `Shift+Ctrl+End` | to the start or the end of the text | `@gestures TextBlock` |
+| `Shift+Home`, `Shift+End` | to the start or the end of the line | `TextToGraphics` |
+| `Shift+Up`, `Shift+Down` | one line up or down | `TextToGraphics` |
+
+A plain motion key collapses a range, as it does now.
+
+#### T2. A range remembers its moving end
+
+The flat range is written `{anchor..head}`. The head moves, and the anchor stays.
+`head < anchor` is allowed, and the edit helpers read the sorted pair. Step 0
+checks that a `RangeReferenceStep` holds a reversed pair and that every map keeps
+the order. If it can not, the decision changes before step 2, and the plan says
+how.
+
+#### T3. A projection maps a range when the map is trivial
+
+A projection that maps a caret between its text layer and its domain maps a range
+the same way when both ends lie in one span, and the span maps to one field. A
+range that it can not map does not become a selection: the `Shift` key declines,
+and the selection stays where it was. The existing lowering of
+`ReplaceTextRangeOperation` already declines a cross-span range, so a typed key
+over such a range does nothing, as now.
+
+The projections that must map a range are the ones on the path of the tests:
+`PrimitiveToText`, the syntax leaf chain of the JSON example, and the composer
+(T5). Step 0 lists the others that map a caret, and each one gets the range map
+or stays as it is.
+
+### The chat draft
+
+#### T4. One selection
+
+A click in the draft writes the complete selection and every trail, as it does
+now. **After that, nothing writes a trail of the draft alone.** Every edit and
+every motion of the draft is an operation on the complete selection, which the
+kernel evaluates at the root and which writes every trail again.
+
+#### T5. A key goes where the complete selection points
+
+The composer's editable text is a text layer like any other. A key reaches it
+through the containers, which send it to the child that the selection names. The
+text domain's table answers it: typing, `Backspace`, `Delete`, the arrows, the
+`Ctrl` arrows and the `Shift` keys of T1. The composer lowers the text layer's
+operations to the draft:
+
+- `ReplaceTextRangeOperation` in its body becomes
+  `ReplaceStringRangeOperation(parts[n].content.value{s..e}, text)`. The flat
+  offsets are shifted by the length of the prefix span of a `DocumentInsertion`.
+- `ReplaceSelectionOperation` in its body becomes a selection of
+  `parts[n].content.value{s..e}` through `map_reference_backward`, which now
+  carries the range.
+
+`map_reference_forward` carries the range too, and the body's selection is that
+forward map of the draft's trail. `_cursor` reads the same trail.
+
+The composer's own table keeps only the keys that mean something to a composer:
+`Return` (submit, commit or choose), `Alt+Return` (evaluate), `Tab` and `Insert`
+(a structured part), `Escape` (cancel). `Shift+Return` becomes
+`ReplaceStringRangeOperation(path, "\n")`. `ComposerInputOperation`,
+`ComposerBackspaceOperation` and `ComposerNewlineOperation` go, or stay only as
+the lowering of T5 if a host names them. Step 0 lists their users.
+
+#### T6. The fallback of the assistant pane goes
+
+`AssistantToWidgetSplitPane` no longer sends a key that nothing took to the draft.
+A key goes where the complete selection points, and a selection outside the draft,
+for example a message selected with `Alt+click`, keeps its key.
+
+### The clipboard
+
+#### T7. The clipboard makes the text edit
 
 At a text target, a paste answers `ReplaceStringRangeOperation(path, text)`,
 rooted at the content and re-rooted with `reroot_operation`. It is the operation
 that typing makes, so the kernel applies it the same way in every domain, and the
 caret moves to the end of the pasted text.
 
-### T2. What a text target is
+#### T8. What a text target is
 
 The clipboard's selection (the other plan's D10) ends in a `FieldReferenceStep(f)`
 and a `RangeReferenceStep`. The prefix names a document `D`, and `D.f` holds a
-`String`, `nothing` or a `Number`. Type checkpoints on the path are ignored. Any
-other selection is not a text target and goes to the rules of D9 as before.
+`String`, `nothing` or a `Number`. Type checkpoints are ignored. The range is the
+one on the path: T4 makes the path true in the draft too. Any other selection is
+not a text target, and goes to the rules of D9 as before.
 
-### T3. The caret comes from the document that holds the string
-
-When `D`'s own selection cell names `f{s..e}`, the paste uses that range.
-Otherwise it uses the range at the end of the clipboard's path.
-
-**Why:** the composer moves only the cell of its string (§2, the two carets).
-The path still names the caret of the click, and a paste there would go to the
-wrong place. `@gestures PrimitiveString` reads the same cell for the same reason.
-
-### T4. Where the pasted text comes from
+#### T9. Where the pasted text comes from
 
 At a text target, the text comes from the system clipboard. When that gives
-nothing (no tool, or an empty clipboard), the text comes from the slice when the
-slice holds a `PrimitiveString` or a `TextString`. Otherwise the paste is refused.
+nothing (no tool, or an empty clipboard), it comes from the slice when the slice
+holds a `PrimitiveString` or a `TextString`. Otherwise the paste is refused.
 
-**Why:** the last copy wins, in whichever program it was made. A person who copies
-in ProjecturEd and then in an editor wants the editor's text. A copy in
-ProjecturEd also writes the system clipboard (T5), so the order stays true.
+**Why:** the last copy wins, in whichever program it was made. A copy in
+ProjecturEd writes the system clipboard too (T10), so the order stays true.
 
-### T5. What a copy and a note of a range store
+#### T10. What a copy and a note of a range store
 
 A copy or a note of a range cursor writes the text to the system clipboard,
-stores `PrimitiveString(text)` in the slice, and puts the selection back where
-it was. A text cursor has nothing to copy: the gesture goes on, and the rules of
-D9 then refuse it, because a caret is not a whole element.
+stores `PrimitiveString(text)` in the slice, and leaves the selection where it
+was. A text cursor has nothing to copy: the gesture goes on, and the rules of D9
+refuse it, because a caret is not a whole element. Where `:cut` is offered, a cut
+of a range also answers `ReplaceStringRangeOperation(path, "")`. The IDE does not
+offer `:cut`.
 
 `PrimitiveString` and not `TextString`, because a pasted object goes into a tab,
 and the IDE draws a primitive as text.
 
-### T6. A cut of a range
+#### T11. The text branch comes first
 
-Where `:cut` is offered, a cut of a range cursor does what T5 does, and also
-answers `ReplaceStringRangeOperation(path, "")`. The IDE does not offer `:cut`.
-
-### T7. The text branch comes first
-
-The clipboard asks T2 before the rules of D9. A text target never reaches the
+The clipboard asks T8 before the rules of D9. A text target never reaches the
 whole-document rules, and a whole-element selection never reaches the text
 branch. Rule 1 of D9 ("not a caret and not a range") stays true for what reaches
 it.
 
-### T8. A document can refuse pasted text
+#### T12. A document can refuse pasted text
 
 A new predicate `accepts_pasted_text(document)` goes into `ProjecturedDomain`,
-beside `accepts_pasted_document`. It answers `true` by default. A text paste,
-copy or cut is refused unless every document from the content down to `D`
-answers `true`.
+beside `accepts_pasted_document`. It answers `true` by default. A text paste, copy
+or cut is refused unless every document from the content down to `D` answers
+`true`.
 
 | Document | Answer | Why |
 | --- | --- | --- |
@@ -135,22 +235,17 @@ answers `true`.
 so a read-only reader can not refuse the edit. `accepts_pasted_document` is the
 wrong question: it refuses the two panes that a person types into.
 
-### T9. Line breaks
+#### T13. Line breaks and numbers
 
 A text pasted into a string that holds no line break loses its trailing line
-breaks. Every other line break stays.
-
-**Why:** a line copied from an editor often ends in a line break, and a runner
-parameter must not end in one. A rule per field ("this field takes one line")
-needs a declaration that no domain has, so it is deferred.
-
-### T10. A number
+breaks. Every other line break stays: a line copied from an editor often ends in
+one, and a runner parameter must not.
 
 A paste into a number field is refused when the result is not empty and does not
 parse (`splice_number` answers `nothing`). A copy of a range of a number copies
 the characters of its text.
 
-### T11. On by default
+#### T14. On by default
 
 The text branch has no keyword: a string takes a string. `offered_gestures` still
 decides which keys the clipboard answers. The `text = true` mode for a whole
@@ -160,23 +255,18 @@ decides which keys the clipboard answers. The `text = true` mode for a whole
 
 These are the hard parts, and none of them is in this plan:
 
-- **A range with a map that is not trivial:** a range over several spans of a
-  `TextBlock`, a range across a line break, a range that crosses documents, and a
-  reference that a projection introduced. A `TextBlock` or `TextString` inside a
-  document is deferred as a whole, because its copy needs the span map.
-- **A gesture that makes a range cursor:** Shift and an arrow, a drag, a double
-  click, in a string field and in the composer. Until one exists, the tests set
-  a range selection by hand.
-- **A key that reaches a document without a selection in it.** The paste goes
-  where the selection is.
-- **The composer's two carets.** T3 reads the right one. Making the composer's
-  own edits move the whole path is a separate change.
-- **A one-line rule per field** (T9).
+- **A range with a map that is not trivial:** across spans, across a line break,
+  across documents, and over a reference that a projection introduced. A `Shift`
+  key that would make one declines (T3).
+- **A range selected with the pointer:** a drag, a double click, a `Shift+click`.
+- **A projection that is not on the path of the tests** and maps only a caret. It
+  keeps its caret map until someone needs its range.
+- **A one-line rule per field** (T13 covers the trailing line break only).
 - **A text form of a structured object**, such as a table as tab-separated text.
   The other plan puts it out of scope too; `to_text` makes it possible later.
 - **Rich text** (HTML) from the system clipboard.
 - **A slow clipboard tool.** `read_os_clipboard` runs a process on the drawing
-  thread. Step 3 measures one call. If it is slow, an asynchronous read is a
+  thread. Step 5 measures one call. If it is slow, an asynchronous read is a
   separate change.
 
 ## 5. Steps
@@ -185,37 +275,72 @@ These are the hard parts, and none of them is in this plan:
 
 - [ ] The other plan is in `plan/done/` and its branch is on `main`.
 - [ ] Record the counts on `main`: `test_clipboard()`, `test_gesture_help()`,
-      `test_command_palette_decorator()`, and in omnet-julia
-      `test_ide_window_wrap()` and the other plan's `test_select_and_paste()`.
-      Write down which of its assertions fail, the composer paste of step 7 among
-      them.
-- [ ] Read D9, D10 and D11 as they landed, and the code of
-      `_get_clipboard_selection` and `_find_paste_target`. If they differ from §2,
-      correct §2 and the decisions first.
+      `test_command_palette_decorator()`, the text suites
+      (`test_text_to_graphics()`, `test_primitive_to_text()`,
+      `test_widget_text_editing()`), the conversation and assistant suites, and
+      in omnet-julia `test_ide_window_wrap()` and the other plan's
+      `test_select_and_paste()`. Write down which assertions fail, the composer
+      paste of its step 7 among them.
+- [ ] Read D9, D10 and D11 as they landed, and `_get_clipboard_selection` and
+      `_find_paste_target`. If they differ from §2, correct §2 and the decisions
+      first.
 - [ ] Repeat the probe of §2 in the IDE: a click into the draft, then `h`, `i`.
-      Compare the caret of the path with the caret in the string's own cell. If
-      the two now agree, T3 stays, and the plan says so.
-- [ ] Check whether the other plan added a `Ctrl+V` to the composer. If it did,
-      decide with the user which of the two answers a caret in the draft.
+      Record the root's path, the pane tree's trail and the string's trail. After
+      step 3 the three agree.
+- [ ] Find where a key to the composer's text layer is lost today: the card, the
+      composer's reader, or the order of the readers.
+- [ ] Check that a `RangeReferenceStep` holds a reversed pair, and that
+      `make_flat_caret_reference` has a range twin (T2).
+- [ ] List the projections that map a text caret (T3), and the users of the three
+      composer operations (T5). Check whether the other plan added a `Ctrl+V` to
+      the composer; if it did, decide with the user which one answers.
 
 ### Step 1 — `accepts_pasted_text` (projectured, domain and conversation slices)
 
-- [ ] The predicate in `ProjecturedDomain`, beside `accepts_pasted_document` (T8).
+- [ ] The predicate in `ProjecturedDomain`, beside `accepts_pasted_document` (T12).
 - [ ] `accepts_pasted_text(::ConversationConversation) = false`.
 - [ ] Tests: the default, and the conversation.
 
-### Step 2 — the text branch (projectured, clipboard slice)
+### Step 2 — `Shift` selects a range (projectured, text and primitive slices)
 
-- [ ] Find a text target (T2), and its range (T3).
-- [ ] Paste and paste-copy at a text target (T1, T4, T9, T10), before the rules of
-      D9 (T7), refused by T8.
-- [ ] Copy and note of a range cursor (T5), and cut (T6).
+- [ ] The `Shift` keys of T1, with the moving end of T2.
+- [ ] The range maps of T3 in `PrimitiveToText` and on the syntax leaf chain.
+- [ ] Tests: each key over a single-span block; a range that would cross a span
+      declines and the selection stays; a plain arrow collapses a range; typing
+      and `Backspace` over a range; a `PrimitiveString` and a JSON string get the
+      range `value{s..e}` in their trail; the range draws as highlight
+      rectangles. The counts of the text suites stay, except for the new
+      assertions.
+
+### Step 3 — one selection in the chat draft (projectured, conversation and assistant slices)
+
+- [ ] The composer's text layer takes the keys (T5), and the composer lowers its
+      operations to the draft.
+- [ ] Both maps carry a range, and the body draws the forward map of the trail.
+- [ ] The composer's own table keeps its mode keys (T5), and the three operations
+      go or stay as step 0 decided.
+- [ ] The assistant pane's key fallback goes (T6).
+- [ ] Tests, through the real editor loop:
+      - a click into the draft, then `h`, `i`: the draft holds `"hi"`, and the
+        root's path, the pane's trail and the string's trail all end in
+        `value{2}`;
+      - `Left`, then `x`: `"hxi"` with the caret after `x`; `Shift+Left` selects
+        the `x`, and `y` replaces it: `"hyi"`;
+      - `Shift+Return` inserts a line break, and `Return` still submits;
+      - a message selected with `Alt+click`, then `x`: the draft does not change;
+      - the counts of the conversation and assistant suites stay, except for the
+        assertions that named the old operations.
+
+### Step 4 — the text branch (projectured, clipboard slice)
+
+- [ ] Find a text target (T8).
+- [ ] Paste and paste-copy at a text target (T7, T9, T13), before the rules of D9
+      (T11), refused by T12.
+- [ ] Copy and note of a range cursor, and cut (T10).
 - [ ] Tests in `test_clipboard()`, with the in-memory system clipboard of
       `set_os_clipboard_backend!`:
       - a text cursor in a `PrimitiveString` takes the text, and the caret moves
         to its end;
-      - **the composer case:** the path names one caret and the string's own
-        cell another, and the paste goes to the own cell's caret;
       - a range cursor is replaced;
       - a copy and a note of a range write the system clipboard and the slice,
         and the selection stays;
@@ -231,14 +356,14 @@ These are the hard parts, and none of them is in this plan:
       - a whole-element selection still goes through D9: every count of the
         other plan's tests stays the same.
 
-### Step 3 — the chat draft and the runner in the IDE (omnet)
+### Step 5 — the chat draft and the runner in the IDE (omnet)
 
 - [ ] A test in `test/ide/`, through the real editor loop, with the in-memory
       system clipboard:
       - a click into the draft, then `a`, `b`, then `Ctrl+V` of `"xyz\n"`: the
-        draft holds `"abxyz"`;
-      - then `!`: the draft holds `"abxyz!"`. This proves that the composer reads
-        the caret that the paste left;
+        draft holds `"abxyz"`; then `!`: `"abxyz!"`;
+      - `Shift+Left` twice, then `Ctrl+C`: the system clipboard holds `"z!"`;
+        then `Ctrl+V` of `"Q"`: the draft holds `"abxyQ"`;
       - a click into a text field of the runner, then `Ctrl+V`: the field holds
         the text, and no run starts;
       - `Ctrl+V` with nothing in the system clipboard and nothing in the slice
@@ -248,8 +373,13 @@ These are the hard parts, and none of them is in this plan:
 - [ ] Measure one real `read_os_clipboard` call on this machine, and write the
       time here.
 
-### Step 4 — guides, and close
+### Step 6 — guides, and close
 
+- [ ] The text guide ([text.md](../../documentation/package/text/text.md)) names
+      the `Shift` keys, and says which ranges map.
+- [ ] The conversation guide
+      ([transcript.md](../../documentation/package/conversation/transcript.md))
+      says that the draft has one selection and takes the text domain's keys.
 - [ ] The guide that the other plan wrote for the clipboard says how a text paste
       and a text copy work, and what is deferred. If there is none, a section in
       [operation.md](../../documentation/package/kernel/operation.md) beside
@@ -261,12 +391,17 @@ These are the hard parts, and none of them is in this plan:
 
 - **The other plan changes before it lands.** Step 0 reads D9, D10 and D11 as
   they are, and corrects this plan first.
-- **The composer reads a canonical caret badly.** After a paste, the kernel writes
-  a path with type checkpoints into the string's cell. `_cursor` reads a plain
-  `value{k}`. If it does not read the canonical form, the next typed character
-  goes to the end. Step 3 types after a paste to find out.
+- **The composer's keys change for people who use them.** The draft gains the
+  arrows and loses the key fallback of T6: typing while a message is selected no
+  longer writes into the draft. The guide says so.
+- **A text key reaches a layer that did not take keys before.** The text layer of
+  the composer now answers keys that the composer's table answered. Step 3 runs
+  every composer key through the real chain, `Return` and `Alt+Return` among
+  them, and a `DocumentInsertion` part.
+- **A reversed range breaks a map.** T2 allows `head < anchor`. A map that sorts
+  the pair loses the moving end. Step 2 tests `Shift+Left` then `Shift+Right`.
 - **The key does not reach the clipboard.** `Ctrl+V` must reach the clipboard
-  layer before the assistant panel sends it to the composer, which ignores it.
-  Step 3 tests the real chain.
+  layer; the composer no longer takes it (T5) and the fallback is gone (T6), so
+  nothing else takes it. Step 5 tests the real chain.
 - **A refused paste says nothing.** An empty system clipboard, or a missing tool,
   makes `Ctrl+V` do nothing, and the person is not told why.
