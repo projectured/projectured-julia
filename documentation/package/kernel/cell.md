@@ -149,7 +149,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Layer structure
 
-The layer lives in [package/kernel/main/cell/](../../../source/kernel/cell/):
+The layer lives in [source/kernel/cell/](../../../source/kernel/cell/):
 the instrumentation counter module, the cell engine, and the transparent-cell
 struct codegen, loaded in this order:
 

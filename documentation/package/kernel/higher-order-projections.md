@@ -4,8 +4,8 @@
 
 Higher-order projections compose other projections. Each one lives in its own
 module under its package's projection folder (the generic combinators in
-`package/kernel/main/projection/higherorder/`, the document-shaped ones in
-`package/projection/main/`) and implements
+`source/projection/higherorder/`, the document-shaped ones in
+`source/projection/`) and implements
 `print_document`, `read_intent`, and the two reference-mapping
 functions. They never touch any specific domain — their argument is always
 some other projection.

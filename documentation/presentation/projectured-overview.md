@@ -165,7 +165,7 @@ The assistant isn't bolted on — it's part of the architecture.
 - The **chat itself is a document** (`Conversation` domain): messages and
   executed code blocks are structured, selectable, editable data.
 
-<span class="muted">package/kernel/main/agent/AgentServer.jl · tool/ToolSet.jl · document/Conversation.jl</span>
+<span class="muted">source/kernel/agent/AgentServerModule.jl · tool/ToolSet.jl · document/Conversation.jl</span>
 
 ---
 

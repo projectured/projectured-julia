@@ -4,7 +4,7 @@
 
 The pane tree is the generic way to organize documents on the screen: tab groups,
 splits between them, and the gestures that rearrange the lot. It is implemented in
-[package/pane/main/](../../../package/ProjecturedPane/) and rendered by
+[package/ProjecturedPane/](../../../package/ProjecturedPane/) and rendered by
 
 ```
 PaneTree ──PaneToWidget──► WidgetSplitPane / WidgetTabbedPane ──WidgetToGraphics──► GraphicsCanvas

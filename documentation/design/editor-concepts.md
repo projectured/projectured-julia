@@ -194,7 +194,7 @@ undefined name:
 The umbrella package (`Projectured`) re-exports every name from every home, so
 downstream code that writes `using Projectured` sees the cluster flat and does
 not need to know which layer any given generic sits in. Only kernel-internal
-imports and the per-package `…ApiModule` aliases in `visual/` and `domain/`
+imports and the per-package `…ApiModule` aliases in each domain package
 reach for each generic in its home module.
 
 ### Why the split matters

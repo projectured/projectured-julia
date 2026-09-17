@@ -8,7 +8,7 @@ state variables, and embedded Julia code. The slice exists to express real
 protocol machines — Ethernet CSMA MAC, PLCA (control + data), TCP — well enough
 that a component projects to complete, runnable Julia code.
 
-Slice: `package/fsm/main/`. Design plan and its research grounding:
+Slice: `source/fsm/`. Design plan and its research grounding:
 `plan/pending/state-machine-domain.md`.
 
 ## Document types

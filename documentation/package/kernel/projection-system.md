@@ -29,7 +29,7 @@ guide leans on — is:
 > how a path crosses the projection, written once and reused on both sides.
 
 All four are generic functions declared in
-[package/kernel/main/projection/ProjectionApi.jl](../../../source/kernel/projection/ProjectionApi.jl) and dispatched on
+[source/kernel/projection/ProjectionInterface.jl](../../../source/kernel/projection/ProjectionInterface.jl) and dispatched on
 the concrete projection struct.
 
 ## The recursion contract

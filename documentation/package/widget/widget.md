@@ -12,7 +12,7 @@ labels, buttons, panes, scrollbars — in a backend-agnostic way. The
 turns a tree of widgets into a `GraphicsCanvas`.
 
 The widget module is
-[package/widget/main/Widget.jl](../../../source/widget/Widget.jl).
+[widget/WidgetModule.jl](../../../source/widget/WidgetModule.jl).
 
 ## The widget hierarchy
 
@@ -178,7 +178,7 @@ menu bar, and toolbar a highlight on the row under the pointer.
 The data-entry surface (Qt's `QFormLayout` / `QSpinBox` / `QListWidget` /
 `QStackedWidget`) is built from two new widgets, two layout features, and a
 validation hook. The gallery's **Forms** tab
-([visual/example/document/Widget.jl](../../../example/substrate/document/Widget.jl))
+([example/substrate/WidgetDocumentExample.jl](../../../example/substrate/WidgetDocumentExample.jl))
 shows them together.
 
 - **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric

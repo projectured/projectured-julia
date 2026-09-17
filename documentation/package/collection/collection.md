@@ -6,7 +6,7 @@
 
 The collection domain provides four generic, reactive container types used
 everywhere in ProjecturEd. They are defined in
-[package/collection/main/Collection.jl](../../../source/collection/Collection.jl)
+[source/collection/CollectionModule.jl](../../../source/collection/CollectionModule.jl)
 and subtype `Document` so they participate in the selection mechanism. This guide
 covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
 (2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.
@@ -36,7 +36,7 @@ A document type belongs in this base layer when it is shipped for reuse by
 every domain and is domain-independent — Collection and Primitive pass; see
 [architecture.md](../kernel/architecture.md) for the full membership rule. Two related
 types that might look like they belong here do not: `ScreenDocument` lives in
-`visual/screen/` (window things are visual) and `WindowInput` lives in the
+`source/screen/` (window things are visual) and `WindowInput` lives in the
 kernel's `EventModule` (it is a protocol type consumed by the editor loop,
 not a document). The rationale for those placements is documented in
 [devices-and-backends.md](../kernel/devices-and-backends.md).

@@ -79,7 +79,7 @@ There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
 
 ### SdlBackend
 
-`SdlBackend` (in [package/sdl/main/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
+`SdlBackend` (in [package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
 all of the above with SDL2 + SDL_ttf. Highlights:
 
 - A font measurement cache shared across all windows.
@@ -92,7 +92,7 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [package/console/main/Console.jl](../../../source/console/Console.jl))
+`ConsoleBackend` (in [source/console/Console.jl](../../../source/console/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -123,7 +123,7 @@ Run it with `run_console_example()` (one-shot) or
 
 ### WebBackend
 
-`WebBackend` ([package/web/main/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl)) runs the editor
+`WebBackend` ([package/ProjecturedWeb/src/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl)) runs the editor
 inside an HTTP + WebSocket server and moves the **final rendering step into the
 browser**. The Julia process keeps the document, projection pipeline, reactive
 cells, and the read-eval-print loop; a connected JavaScript client
@@ -223,7 +223,7 @@ both directions; the SDL-texture `Ptr` image form is skipped (decoded RGBA
 buffers are sent as base64). SDL stays the default; the web backend is additive
 and selected explicitly.
 
-[package/web/main/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl) is a worked second example: it
+[package/ProjecturedWeb/src/ProjecturedWeb.jl](../../../package/ProjecturedWeb/src/ProjecturedWeb.jl) is a worked second example: it
 adds a whole new transport (HTTP + WebSocket, with the renderer living in a
 browser) yet touches no projection or domain code, precisely because it speaks
 the same event vocabulary and consumes the same `ScreenDocument` output as the
@@ -237,9 +237,9 @@ export lives alongside the backend layer but does **not** subtype
 `Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
 file:
 
-- **`write_image`** ([package/sdl/main/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
+- **`write_image`** ([package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([package/pdf/main/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
+- **`write_pdf`** ([source/pdf/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
@@ -262,17 +262,17 @@ itself never sees the backend type.
 
 ## Adding a new device
 
-1. Subtype `Device` in `package/kernel/main/device/`.
+1. Subtype `Device` in `source/kernel/device/`.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
 3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
    document)` bootstrap in `editor/Editor.jl` (`Device[Display(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs in
-   `package/kernel/main/event/` so projection readers can match on them.
+   `source/kernel/event/` so projection readers can match on them.
 
 ## Adding a new backend
 
-1. Subtype `Backend` (defined in `package/kernel/main/backend/`) in your backend package.
+1. Subtype `Backend` (defined in `source/kernel/backend/`) in your backend package.
 2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`,
    `measure_text`, `read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
@@ -330,7 +330,7 @@ from motion crossing a boundary); both are `Event`s. `get_modifier_keys` (and
 `WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
 concrete `ScreenDocument` in `visual` — a window event is report-only input
 vocabulary, not a document type; the window *document* and its operations
-(`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `visual/screen/`.
+(`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `source/screen/`.
 
 ### EventPatternModule
 
