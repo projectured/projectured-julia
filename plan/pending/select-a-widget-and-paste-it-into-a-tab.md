@@ -1,0 +1,460 @@
+# Select any widget, and paste the selected object into a tab
+
+**Status (2026-09-17): NOT STARTED.** No code changed yet.
+
+**Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
+form, a message, an evaluation, a part of the runner. The selection shows on
+the screen. `Ctrl+C` or `Ctrl+N` stores the selected object, and `Ctrl+V` puts
+it into an empty new tab. The conversation refuses a paste.
+
+**Repositories:** projectured-julia (the widget, focus, clipboard, domain,
+conversation and pane slices) and omnet-julia (the IDE window and its
+presentation projections). The plan changes no sealed file.
+
+## 1. The request and the rulings
+
+> in omnet ide, I want to be able to select user interface components like
+> tables, forms, assistant messages, evaluated forms in the conversation. The
+> selection should be visible to the user, it should use the normal selection
+> path, and I would like to be able to copy-paste, note-paste the selected
+> object into an empty new tab pane in a tab group
+
+The user's rulings on the first draft, 2026-09-17:
+
+| Question | Ruling |
+| --- | --- |
+| Which widgets can be selected? | Any widget. No opt-in flag. |
+| Which gesture selects? | A click with a modifier, so that a plain click still controls the widget. |
+| Which tabs? | Every tab: the runner and any other tab, not only the conversation. |
+| Where does a new tab put the selection? | On its content. |
+| Paste into the conversation | The conversation must refuse it. |
+| The tab takes the name of the pasted object | Only if it is simple. |
+| A note puts one object in two views, and both show its selection | Accepted. |
+| `Alt+Up` / `Alt+Down` walk the objects, `Ctrl+N` notes | Accepted. |
+
+The words mean this in the code:
+
+| Word | Meaning |
+| --- | --- |
+| select | a `ReplaceSelectionOperation` whose path ends AT the object: a whole-element selection, the path tail is `EmptyReference()` |
+| visible | the selected widget draws a selection ring |
+| normal selection path | the document's `selection` cells, written by the editor from a reader's operation. No second selection state. |
+| copy-paste | `Ctrl+C`, then `Ctrl+V`. The tab gets an independent deep copy (`copy_document`). |
+| note-paste | `Ctrl+N`, then `Ctrl+V`. The tab gets the same live object. |
+| empty new tab | `Ctrl+T` or the `+` button: `PaneTab("untitled", DocumentNothing())` |
+
+## 2. What exists
+
+| Fact | Where |
+| --- | --- |
+| The IDE root is a screen. Its first window holds a `PaneTree`. | [PaneProgram.jl:166](../../source/pane/PaneProgram.jl#L166) `get_window_tree` |
+| The IDE chain is `WidgetHoverTrackingProjection` over `PaneToWidget` and `NaturalToGraphics`. The chat draws with `AssistantToWidgetSplitPane`. | omnet [CampaignWindow.jl:52](../../../omnet-julia/source/campaign/CampaignWindow.jl#L52) |
+| The runner tab holds a `SimulationFilter`. A set of runs opens as a `SimulationBatchDocument`. Their projections register with `register_natural_graphics!`. | omnet [SimulationWindow.jl:50](../../../omnet-julia/source/legacy/simulator/presentation/SimulationWindow.jl#L50), `SimulationFilterToWidget.jl`, `SimulationBatchToWidget.jl`, `SimulationToWidget.jl`, `StudyGraphics.jl` |
+| A new tab holds `DocumentNothing()`. Its docstring promises that Alt+click selects it whole and that a paste replaces it. | [PaneDocument.jl:38-52](../../source/pane/PaneDocument.jl#L38-L52) |
+| `Ctrl+T` puts the cursor on the TAB (`tabs[k]`), not on its placeholder. A paste there replaces the whole `PaneTab`. | [PaneSurgery.jl:351](../../source/pane/PaneSurgery.jl#L351) |
+| Alt+click is already the whole-element gesture: a syntax node, a table cell, the placeholder. | [SyntaxDocument.jl:626-641](../../source/syntax/SyntaxDocument.jl#L626-L641), [WidgetToGraphics.jl:6166](../../source/widget/WidgetToGraphics.jl#L6166) |
+| No widget answers an Alt+click in general. `WidgetCard` and `WidgetComposite` answer `nothing` for a press that misses their children. | [WidgetToGraphics.jl:4343](../../source/widget/WidgetToGraphics.jl#L4343) |
+| No widget draws a whole-element selection, except `WidgetTable` (`_WT_HL_COLOR`). Controls draw `_push_focus_ring!` for ANY selection. | [WidgetToGraphics.jl:276](../../source/widget/WidgetToGraphics.jl#L276) |
+| The widget renderer has 41 printers and no one place that builds every canvas. `get_anchor_point` maps a document reference forward to a point in the root canvas. | [WidgetToGraphics.jl:25](../../source/widget/WidgetToGraphics.jl#L25) |
+| A projection that can not map a click back can store a projection-induced reference (`ProjectionReference`). Only the `RuleIoMap` reader does this. | [generic-structural-selection-fallback.md](../done/generic-structural-selection-fallback.md) |
+| The transcript selection stops at a part. A plain click names `turns[i].parts[j]`. | [ConversationToWidget.jl:410-440](../../source/conversation/ConversationToWidget.jl#L410-L440) |
+| The transcript is read-only. Its reader declines three write operations by their exact type. | same place |
+| The result of an evaluation is a live `Document` in `EvaluatorForm.result`. The part prints it as the body of a section card. | [AssistantTurn.jl:697-712](../../source/assistant/AssistantTurn.jl#L697-L712), [ConversationToWidget.jl:268-290](../../source/conversation/ConversationToWidget.jl#L268-L290) |
+| A `SimulationResultFrame` maps no reference either way. A click on a row writes `selected`, and a double click plots. | omnet [SimulationResultFrameToWidget.jl:200-239](../../../omnet-julia/source/legacy/result/presentation/SimulationResultFrameToWidget.jl#L200-L239) |
+| `ConversationDocument` draws through `ConversationToWidget` anywhere, so a turn or a part draws alone in a tab. A bare `EvaluatorForm` has no entry. | omnet `CampaignWindow.jl:62-68` |
+| The clipboard slice has copy, cut, note, paste, paste-copy and a view toggle. The IDE does not use it. `run_example` adds it through `Gallery.jl`. | [ClipboardSliceToAny.jl](../../source/clipboard/ClipboardSliceToAny.jl), [Gallery.jl:247](../../example/projectured/Gallery.jl#L247) |
+| `make_clipboard_projection` is in an example file. | [WrapperProjectionExample.jl:96](../../example/workbench/WrapperProjectionExample.jl#L96) |
+| The clipboard re-roots with a private closed copy (`_prefix_op`) of the kernel's open `reroot_operation`. | [Clipboard.jl:137](../../source/clipboard/Clipboard.jl#L137), [Rerooting.jl](../../source/kernel/operation/Rerooting.jl) |
+| A clipboard paste writes over ANY selection, a text caret included. | `_clipboard_paste` |
+| The pane verbs (`open_pane!`, `focus_pane!`) write the selection into the tree directly, not from the editor root. | [PaneSurgery.jl:159](../../source/pane/PaneSurgery.jl#L159) |
+| The pane package does not depend on the clipboard package. Both depend on `ProjecturedDomain`, and so does the conversation package. | `package/*/Project.toml` |
+| A tab strip reads its titles reactively through `get_pane_tab_title_string`. | [PaneToWidget.jl:342-346](../../source/pane/PaneToWidget.jl#L342-L346) |
+| A closed plan proposed per-node `selectable`/`editable` flags and a gating projection. It is not the intended direction. | [selectable-editable-document-support.md](../done/selectable-editable-document-support.md) |
+
+## 3. Decisions
+
+### D1. What a selection names
+
+A selection names a document, so that a paste puts a document into the tab and
+the tab draws it again.
+
+- **A tab whose content is a widget tree** (for example a view the assistant
+  built from widgets): the selected widget is the document. Any widget can be
+  selected.
+- **A tab whose content is a domain document** (the runner, a set of runs, a
+  result, a plot, a study, the conversation): the selection names the
+  innermost domain document whose print holds the widget. A widget that shows
+  no document of its own, such as a button or a header label, selects the
+  document that encloses it.
+
+A projection-induced reference could name the chrome widget itself. The plan
+does not use it: a copy of chrome is not a document that the tab can draw
+again, and it is not a document that the assistant can use.
+
+In the transcript, these are the objects:
+
+| The person points at | The object | Path in the conversation |
+| --- | --- | --- |
+| a message | `ConversationTurn` | `turns[i]` |
+| a prose part, a code part, a thinking part | `ConversationPart` | `turns[i].parts[j]` |
+| an evaluation (header and both sections) | the `ConversationPart` that holds the `EvaluatorForm` | `turns[i].parts[j]` |
+| the code of an evaluation | the form document (`JuliaDocument`) | `turns[i].parts[j].content.form` |
+| the result of an evaluation: a table, a plot, a form, any document | the result document | `turns[i].parts[j].content.result` |
+
+The evaluation object is its part, because a part draws alone and a bare
+`EvaluatorForm` does not. Prose stays not selectable by character.
+
+### D2. How a person selects
+
+1. **Alt+click** selects the innermost object under the pointer. A plain click
+   still controls the widget: a button fires, a row is picked, a caret is put.
+   Alt+click is already the whole-element gesture of the syntax domain, the
+   table and the placeholder.
+2. The transcript keeps its plain click, which names a part. It changes nothing.
+3. **`Alt+Up`** selects the enclosing object. **`Alt+Down`** selects the first
+   object inside. The syntax domain keeps its own `Alt` + arrows. The pane
+   layer keeps `Ctrl+Alt` + arrows.
+4. An Alt+click never acts. A button does not fire, and a row is not picked.
+
+### D3. The widget layer answers an Alt+click
+
+A container routes an Alt+press to the child under the pointer, as it routes a
+press now. It keeps the child's answer only when that answer is itself a
+whole-element selection, for example a table cell. Otherwise it answers
+`ReplaceSelectionOperation(EmptyReference())` for itself. So the innermost
+widget wins, and a control never acts on an Alt+click, because its own answer
+is not a whole-element selection and is dropped.
+
+### D4. The selection shows on every widget
+
+Every widget draws a selection ring while its selection is `EmptyReference()`,
+and only then. There is no flag. The ring reads only the selection cell, as
+`_push_focus_ring!` does, so a selection move repaints the ring alone. It uses
+the table's selection color. A widget that already draws its own whole-element
+look (`WidgetTable`) keeps that look and gets no ring.
+
+The mechanism is chosen in Step 0. The preferred one is a single decorator
+around the renderer's dispatch, which adds the ring element to every widget's
+canvas. The other one is a helper call in each of the 41 printers, as
+`_push_focus_ring!` is called now.
+
+An object whose print is not a widget (a prose part prints as a stack of text
+blocks) gets a host: a `:plain` card with zero padding, which draws nothing and
+takes no space. **A tab with no whole-element selection must draw the same
+pixels as before.** A test asserts it.
+
+### D5. Each domain projection maps a widget selection back
+
+A domain projection maps a widget whole-element selection back to the domain
+object of D1, and a domain whole-element selection forward to the widget that
+draws it. These projections in the IDE need it:
+
+- the transcript (`ConversationToWidget`), with the objects of D1;
+- the runner (`SimulationFilterToWidget`), a set of runs
+  (`SimulationBatchToWidget`), a run (`SimulationToWidget`), a study
+  (`StudyGraphics`);
+- a result (`SimulationResultFrameToWidgetTable`: frame to table, table corner
+  to frame) and a plot.
+
+Step 0 lists the others that a tab of the IDE can hold. A projection that is
+not on the list keeps its behavior: an Alt+click inside it selects the nearest
+enclosing object that is mapped, at worst the tab.
+
+### D6. A generic walk for `Alt+Up` and `Alt+Down`
+
+A small stage in front of the IDE chain answers the two keys when no inner
+reader answered them:
+
+- `Alt+Up`: the nearest shorter prefix of the selection path that names a
+  document;
+- `Alt+Down`: the first document inside the selected document, in the order of
+  its fields, and the first element of a vector.
+
+An inner reader answers first, so the syntax domain keeps its tree walk and the
+transcript answers with the object walk of D1, which skips the bare
+`EvaluatorForm`. From the root of a tab's content, `Alt+Up` selects the tab,
+which is the pane focus. `Alt+Down` from a tab selects its content. The stage
+goes to the focus slice, which already walks child documents for `Tab`.
+
+### D7. The IDE gets the clipboard
+
+The IDE wraps the window content in a `ClipboardSlice` and puts the clipboard
+stage in front of its chain. `make_clipboard_projection` moves out of the
+example into a package that sees both `ProjecturedClipboard` and
+`ProjecturedProjection`. The step reads
+[package-rules.md](../../documentation/rule/package-rules.md) to choose it. The
+gallery and the IDE both call it.
+
+The IDE offers copy, note, paste and paste-copy. It does not offer cut in this
+plan, and it does not offer the view toggle (`Ctrl+/`), because the toggle
+puts the stored object in the place of the whole window.
+`ClipboardSliceToAnyProjection` gets an `offered_gestures` keyword. Its default
+is all six.
+
+`get_window_tree` must find the tree under the wrapper. The pane package can
+not name `ClipboardSlice`. So `get_window_tree(editor)` calls
+`get_window_tree(first(windows).content)`, and a method
+`get_window_tree(::ClipboardSlice)` goes in a package that depends on both.
+
+### D8. A new tab selects its content
+
+`Ctrl+T` and the `+` button put the selection on the placeholder:
+`tabs[k].content` with the whole-element tail. The pane focus already reads a
+path that goes into a tab's content, because a click in content makes one. A
+tab that `open_pane!` opens with a real document keeps today's cursor.
+
+The IDE draws the placeholder as a hint ("empty — Ctrl+V pastes here") with the
+selection ring. This is an IDE renderer entry for `DocumentNothing`, not a
+change to `NaturalToGraphics`.
+
+### D9. The paste rules, and how the conversation refuses a paste
+
+**Why the transcript reader can not refuse it.** The clipboard stage sits in
+front of the transcript. The transcript reader sees `Ctrl+V` first, but a
+reader can only answer an operation or `nothing`, and `nothing` means "not
+mine". The clipboard answers its own gesture in either case, and the editor
+applies that write directly. No reader below sees it.
+
+**So the conversation states a fact about its document, and the clipboard
+honors it.** A new predicate `is_read_only_document(document)` in
+`ProjecturedDomain` answers `false` by default. The conversation slice adds
+`is_read_only_document(::ConversationConversation) = true`: the history is a
+record, and no user edit changes it. The draft is a separate document and stays
+writable.
+
+A paste (and a cut, where it is offered) is refused unless all three rules
+hold:
+
+1. **The target is a whole-element selection of a document**, not a caret and
+   not a range. A caret in the composer therefore falls through, and the
+   composer's own `Ctrl+V` pastes text.
+2. **No document from the clipboard's content down to the target is
+   read-only.** A target in the conversation, or the whole conversation, is
+   refused.
+3. **The target's slot accepts the pasted document.** The slot's declared type
+   is read from the type checkpoint on the path. `PaneTab.content` accepts any
+   document; a typed field of the runner refuses a table.
+
+A refused paste answers `nothing`, so the key goes on to the content. The IDE
+passes no rule of its own.
+
+This is not the closed gating plan. That plan filtered every operation of a
+subtree through a projection policy. This one is one fact that a domain type
+states, read by the one writer that sits in front of the readers.
+
+### D10. The clipboard reads the selection from its content
+
+A pane verb writes the tree's selection directly (see §2), so the wrapper's own
+`selection` cell can hold an old path. The clipboard therefore names the
+selected object from `input.content`'s selection, with the `content` step put
+in front.
+
+### D11. The clipboard re-roots with the kernel generic
+
+`_prefix_op` is deleted. The clipboard calls `reroot_operation`, which is open,
+so every operation type that has a method re-roots correctly under the wrapper.
+`MoveRangeOperation` needs no method: it carries its vectors.
+
+### D12. What a note means (accepted)
+
+A note puts ONE document in two places. Each consequence gets a test:
+
+- A change to the object shows in both views. A row pick in the tab also shows
+  in the transcript.
+- The object keeps one `selection` cell, so both views draw its ring. When the
+  selection moves away, both rings go. The test checks both orders of
+  `_sync_selection!`: clear the old branch first, and set the new one first.
+- A saved window writes the object twice. After a load the two are copies. The
+  guide says so.
+
+### D13. The tab takes the name of the pasted object (only if simple)
+
+A new tab gets an empty title. `get_pane_tab_title_string` shows an empty title
+as `get_document_title(content)`, and as "untitled" when that answers
+`nothing`. `F2` still writes a real title. The name never comes from
+`describe_document`, because that names the document's state, and a tab must
+not rename itself while its content changes.
+
+This is a change to one function and to the default tab. If `show_layout`, the
+unique-title search or an omnet caller needs more than the same function, skip
+D13 and write the reason here.
+
+## 4. Steps
+
+Each step works in a worktree, commits when its tests pass, and marks itself
+done here. Run only the tests that each step names.
+
+### Step 0 — baselines and probes
+
+- [ ] Record the counts of these suites on clean main: `test_conversation()`,
+      `test_clipboard()`, `test_widget_card_fold()`, the eight pane tests
+      (`test_pane_surgery`, `test_pane_geometry`, `test_pane_to_widget`,
+      `test_pane_reader`, `test_pane_gestures`, `test_pane_drag`,
+      `test_pane_rename`, `test_pane_construct`), and omnet
+      `test_result_views()`, `test_result_verbs()` and the test of each runner
+      projection of D5.
+- [ ] Probe: when a document's selection names an object whole, what does the
+      selection cell of the widget that draws it hold after a print? D4 needs
+      `EmptyReference()` there. If the chain does not write widget selection
+      cells, each projection of D5 sets them with `set_cell_function!`, as
+      `AssistantToWidget.jl` does.
+- [ ] Probe: can one decorator add the ring element to every widget canvas
+      (D4)? A canvas whose elements are a computed vector can refuse it. Write
+      the choice here.
+- [ ] Probe: does an Alt+press reach the editor through the SDL backend on this
+      desktop, or does the window manager take it?
+- [ ] List every document type that a tab of the IDE can hold, and its
+      projection. Mark which ones D5 covers.
+
+### Step 1 — Alt+click and the ring (projectured, widget slice)
+
+- [ ] The Alt+press rule of D3 in every container, and in the leaves through
+      one shared rule.
+- [ ] The ring of D4.
+- [ ] Tests: a new `test_widget_selection()`. It presses real pixels: an
+      Alt+click on a button selects it and does not fire it; an Alt+click on a
+      widget in a card in a composite selects the innermost one; an Alt+click
+      on a table cell keeps the cell selection; the ring pixels appear and go
+      away; a tree with no whole-element selection draws the same pixels as on
+      main.
+
+### Step 2 — the `Alt+Up` / `Alt+Down` walk (projectured, focus slice)
+
+- [ ] The stage of D6, with a name that follows
+      [naming-rules.md](../../documentation/rule/naming-rules.md).
+- [ ] Tests: the walk over a widget tree and over a pane tree; an inner reader
+      that answers first keeps its answer.
+
+### Step 3 — the paste rules and the clipboard (projectured, domain and clipboard slices)
+
+- [ ] `is_read_only_document` in `ProjecturedDomain` (D9).
+- [ ] The three paste rules of D9.
+- [ ] Read the selection from the content (D10).
+- [ ] Replace `_prefix_op` with `reroot_operation` (D11).
+- [ ] Add `offered_gestures` (D7).
+- [ ] Move `make_clipboard_projection` out of the example (D7).
+- [ ] Tests, in `test_clipboard()`: each rule refuses and then falls through to
+      the content; a caret paste reaches the content; each gesture of
+      `offered_gestures` is on and off; a pane edit under a wrapper re-roots; a
+      copy after a direct write to the content's selection copies the right
+      object.
+
+### Step 4 — objects in the transcript (projectured, conversation slice)
+
+- [ ] `is_read_only_document(::ConversationConversation) = true`.
+- [ ] The objects of D1, and the mapping below the part: `content.form` and
+      `content.result` to the widget paths of the two section bodies, and back.
+      Any path from inside a section body maps back to the section's object.
+- [ ] A plain host card for a prose part and for each result (D4).
+- [ ] The object walk for `Alt+Up` and `Alt+Down`.
+- [ ] The fold reader works for a turn or a part that is the root of a tab.
+- [ ] Tests, in `test_conversation_transcript()`: each object of D1 is
+      selected by an Alt+click and by the walk; the ring shows on that object;
+      an unselected transcript draws the same pixels as on main; an Alt+click
+      in a result writes nothing; a paste over each object is refused.
+
+### Step 5 — the new tab (projectured, pane slice)
+
+- [ ] `Ctrl+T` and the `+` button select the placeholder (D8).
+- [ ] `get_window_tree` finds a tree under a wrapper (D7).
+- [ ] Tests: the eight pane tests keep their counts, except the assertions on
+      the new-tab cursor, which change to the new path. `F2`, `Ctrl+W` and
+      `Ctrl+PageDown` still act on a tab whose placeholder holds the selection.
+
+### Step 6 — the IDE and its projections (omnet)
+
+- [ ] `build_campaign_projection` puts the clipboard stage (copy, note, paste,
+      paste-copy) and the walk stage in front of the chain.
+- [ ] `run_campaign_window` wraps `session.tree` in a `ClipboardSlice`.
+      `_paint_windows!` and every other reader of the window content still find
+      what they need.
+- [ ] A renderer entry for `DocumentNothing` draws the hint (D8).
+- [ ] The mappings of D5 for the runner, a set of runs, a run, a study, a
+      result and a plot.
+- [ ] Tests: the suites of Step 0 keep their counts. A new test per projection
+      selects its objects by an Alt+click and shows the ring.
+
+### Step 7 — the whole gesture, end to end (omnet)
+
+A new `test_select_and_paste()` in `test/ide/`. It builds the IDE session
+headless, prints with an extent (a tabbed pane draws no page without one), and
+uses real events only:
+
+- [ ] A result table in the transcript: Alt+click, see the ring, `Ctrl+C`,
+      `Ctrl+T` (the placeholder shows the ring), `Ctrl+V`. The new tab draws a
+      table, its document is not the transcript's, and the transcript is
+      unchanged.
+- [ ] The same with `Ctrl+N`. The tab's document IS the transcript's. A row
+      pick in the tab shows in both views. The rings follow D12.
+- [ ] An assistant message and an evaluation, each copied and noted.
+- [ ] The code of an evaluation, pasted. The tab edits it as Julia, and with a
+      copy the transcript does not change.
+- [ ] A widget of the runner: Alt+click selects it and does not act, and a copy
+      pastes into a new tab.
+- [ ] A widget view built from widgets: an Alt+click selects one widget, and it
+      pastes.
+- [ ] Refusals: `Ctrl+V` with a transcript object selected writes nothing;
+      `Ctrl+V` with the caret in the composer pastes text; `Ctrl+V` over a
+      typed field of the runner writes nothing.
+- [ ] `focus_pane!` from the assistant API, then `Ctrl+C`, copies the object
+      that the focus names.
+- [ ] Measure one copy of a large `SimulationResultFrame`, and write the time
+      here.
+
+### Step 8 — the tab name (only if simple)
+
+- [ ] D13, or the reason to skip it.
+- [ ] Test: a pasted table names its tab; `F2` still renames it; a tab whose
+      content changes state keeps its name.
+
+### Step 9 — guides, and close
+
+- [ ] [widget.md](../../documentation/package/widget/widget.md): Alt+click, the
+      ring, the rule of D3.
+- [ ] [transcript.md](../../documentation/package/conversation/transcript.md):
+      the objects, the walk, the read-only record. Remove the claim that
+      `Ctrl+C` copies a part in every host.
+- [ ] [pane.md](../../documentation/package/pane/pane.md): the new-tab
+      selection, the tree under a wrapper, the tab name.
+- [ ] The clipboard guide or its module docstring: the three paste rules and
+      `offered_gestures`.
+- [ ] omnet
+      [assistant-guide.md](../../../omnet-julia/documentation/guide/assistant-guide.md):
+      select, copy and note into a tab, and what a note shares.
+- [ ] Move this plan to `plan/done/`.
+
+## 5. Risks
+
+- **The window manager takes Alt+click.** Some Linux desktops move a window on
+  Alt+drag. Step 0 probes it. The gesture is already in use, so a change of
+  modifier is a separate decision for the user.
+- **The unselected pixels change.** A ring element or a host card can shift a
+  widget by a pixel. The pixel tests of Steps 1 and 4 catch it.
+- **The ring changes hit-testing.** A full-size ring over a selected widget is a
+  drawn element, and containers route by drawn elements. Step 1 tests a plain
+  click on a selected widget.
+- **Many projections need D5.** The list of Step 0 can be long. A projection
+  left out still works, and selects a larger object.
+- **The new-tab selection breaks a pane assertion.** Step 5 changes only the
+  assertions that name the new-tab cursor. Any other count that moves is a
+  regression.
+- **The IDE's key routing changes under the two new stages.** A key that they
+  do not take must reach the pane and the composer as before. Step 6 runs the
+  pane gestures through the wrapped chain.
+- **The flat-transcript plan changes the same printer.** If
+  [conversation-flat-transcript.md](conversation-flat-transcript.md) lands first,
+  Step 4 builds on its printer.
+- **A large result is slow to copy.** `copy_document` walks every cell. Step 7
+  measures it.
+
+## 6. Out of scope
+
+- A selection of characters, or of a range, in prose.
+- Cut. The three paste rules already make it safe, so a later change can turn it
+  on.
+- A text form of an object on the OS clipboard (for example a table as
+  tab-separated text). The `to_text` keyword already makes it possible later.
+- A paste by a drop, or into a split.
+- The assistant's own writes (`replace_referenced_value!`). They can read
+  `is_read_only_document` later.
+- A second selected object (multi-selection).
