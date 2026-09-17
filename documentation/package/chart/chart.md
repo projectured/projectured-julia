@@ -219,7 +219,9 @@ the series.
 | Gesture | Effect |
 |---|---|
 | arrows, Home, End, Ctrl+Home, Ctrl+End | move the selection between parts |
-| Alt+arrows, Ctrl+Alt+Home | tree navigation: out to the whole chart, back in, between siblings |
+| Alt+Up, Ctrl+Alt+Home | select the whole chart |
+| Alt+Down | from the whole chart, select the first part |
+| Alt+Left, Alt+Right | select the previous or the next part; the first and the last part keep the selection |
 | click on title / axis / legend / a series | select that part |
 | click a legend item | hide or show that series |
 | hover a legend item | veil the other series |

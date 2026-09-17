@@ -725,6 +725,42 @@ that is a printing concern, not routing.) An unselected tree therefore delivers
 keystrokes nowhere — the first selection is established by a click or by Tab
 traversal, not by a routing guess.
 
+### Selecting a whole object
+
+Any widget can be selected as a whole, and no widget declares that it can be.
+The gesture is **Alt+click**: a left press with Alt and no other modifier. A
+plain click keeps its meaning, so a button still fires and a caret still lands.
+
+The rule lives in the containers, in `read_child_event` (the layout slice),
+which every container calls to hand a press to a child. For an Alt+press it
+keeps the child's answer only when that answer selects a whole document inside
+the child (`convert_to_whole_selection`, the focus slice), and otherwise
+selects the child as a whole. So the innermost object under the pointer wins,
+a table cell's own Alt+click keeps its cell, and a control never acts: the
+action a button answered is dropped, and a reader has no side effect.
+
+A whole-element selection is a path that ends at a document. A caret and a text
+range name no document (`is_whole_selection`).
+
+**The ring.** Every layout, the composite, the card and the tabbed pane keep
+one selection ring (`make_selection_ring`, the graphics slice) at the end of
+their element list. The ring covers the child that the container's own
+selection names as a whole — `children[i]`, `elements[i]`, a card's `content` or
+`title` — and the tabbed pane rings its page while the page's document is
+selected whole. At rest the ring has no size and no border, so it draws
+nothing. A control that takes the focus (`is_focusable_document`) gets no ring,
+because it draws its own focus ring when it is selected. A container's
+selection cell therefore must name a child whole only when that child is
+selected: a projection that writes a constant routing prefix there draws a
+ring that nobody asked for.
+
+**The walk.** `SelectionWalkingProjection` (the focus slice) wraps a chain and
+answers the four Alt + arrow keys that nothing inside answered: up to the
+enclosing object, down to the first object inside, and sideways to a sibling,
+where the first and the last keep the selection. An object is a document that
+is not a collection and that can hold a selection, so a value document such as a
+color is skipped. Left, right and down act only on a whole selection.
+
 ## When to use widgets vs. graphics
 
 - Build user interfaces (workbenches, menus, dialogs, IDE layouts) at the

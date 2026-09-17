@@ -5,8 +5,10 @@
 The transcript is the widget presentation of a `ConversationConversation`: the
 chat a person reads in the assistant pane. It is printed by
 [`ConversationToWidget.jl`](../../../source/conversation/ConversationToWidget.jl)
-and it is read, not written. A click names the part it landed in, an edit that
-reaches it is declined, and `Ctrl+C` copies the selected part.
+and it is read, not written. A click names the part it landed in, an Alt+click
+names the object under the pointer, and an edit that reaches it is declined. In
+a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and
+note the selected object, and a paste over the transcript is refused.
 
 ## What a turn draws
 
@@ -87,3 +89,37 @@ A prose part has no chrome, so it has no header and does not fold. A folded
 part shows only its header. A click on its chevron unfolds the part. A click on
 its title does not fold, and it names the conversation, the same as a click
 between two parts.
+
+## Selecting an object
+
+A transcript is read as objects, not as characters. The objects are:
+
+| The person points at | The object | Path |
+| --- | --- | --- |
+| a message | the turn | `turns[i]` |
+| a part: prose, code, thinking, an evaluation | the part | `turns[i].parts[j]` |
+| the code of an evaluation | the form | `turns[i].parts[j].content.form` |
+| the result of an evaluation: a table, a plot, a form | the result | `turns[i].parts[j].content.result` |
+
+A plain click names at most a part: a click in a result selects the part that
+holds it. An Alt+click names the innermost object, and an Alt+click on a
+message's header names the message.
+
+Alt and an arrow walk the objects. Up is the enclosing object, and the
+conversation as a whole above a message; down is the first object inside; left
+and right move between messages, between the parts of a message, and between
+the form and the result of an evaluation. The first and the last object keep
+the selection. The transcript answers these keys itself, whatever a widget
+inside it said, because nothing in it is edited.
+
+The selected object is ringed. The transcript's containers follow the
+selection: the conversation's layout rings a message, a message's body rings a
+part, and a section card rings its form or result.
+
+## A paste is refused
+
+The history of a conversation is a record, so
+`accepts_pasted_document(::ConversationConversation)` answers `false`, and so
+does the assistant as a whole. A clipboard pastes and cuts nothing there. The
+composer's own text paste is not a pasted document, and it still works.
+

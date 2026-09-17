@@ -114,7 +114,7 @@ The table is `@gestures PaneTree` in
 
 | Gesture | Effect |
 |---|---|
-| `Ctrl+T` | Open a new tab in the focused group |
+| `Ctrl+T` | Open a new tab in the focused group, and select its empty content |
 | `Ctrl+W` | Close the focused tab |
 | `Ctrl+Shift+D` | Duplicate the focused tab |
 | `Ctrl+\` | Split vertically — the new pane on the right |
@@ -124,6 +124,8 @@ The table is `@gestures PaneTree` in
 | `Ctrl+PageDown` / `Ctrl+PageUp` | Focus the next / previous tab |
 | `F2` | Put the caret in the tab's name |
 | `Escape` | Leave the name |
+| `Alt+Left` / `Alt+Right` | From a whole tab, select the previous / next tab of its group |
+| `Alt+Down` | From a whole tab, select its content as a whole |
 
 Every chord carries a modifier, because the plain keys belong to the content of
 the focused tab. Two need more than that:
@@ -142,8 +144,9 @@ the focused tab. Two need more than that:
 | Click a tab | Focus that tab |
 | Click a tab's close button, the `x` | Close it |
 | Click the `+` above a tab's `x` | Duplicate it |
-| Click the new-tab button | Open a tab |
+| Click the new-tab button | Open a tab, and select its empty content |
 | Click a pane's content | Place the caret in the document the tab holds |
+| Alt+click a pane's content | Select the object under the pointer, or the tab's content as a whole |
 | Click anywhere else in a pane | Focus that group |
 | Drag a splitter | Write the split's weights — at any depth, and from wherever the divider is now |
 | Drag a tab onto a group's strip or middle | Move it into that group |
@@ -158,6 +161,40 @@ document. The tabbed pane hands the press to the page and prefixes what comes
 back with the tab, so the path that reaches the tree runs `tabs[i].content` and
 then into the domain of the content. That is what puts a caret in a form field
 that lives in a pane, and what gives the next key somewhere to go.
+
+## A new tab is filled by a paste
+
+A new tab holds the empty placeholder, `DocumentNothing`, and `Ctrl+T`, the
+new-tab button and a split select that placeholder as a whole. A paste writes
+where the selection is, so `Ctrl+V` fills the tab. A tab that `open_pane!`
+opens with a real document keeps the selection on the tab.
+
+A new tab has an empty name, and `get_pane_tab_title_string` calls a tab with an
+empty name after its content: the content's `get_document_title`, and
+"untitled" when there is none. A pasted object therefore names its tab. `F2`
+still writes a name of the tab's own.
+
+## Selecting inside a page
+
+An Alt+click inside a page selects the object under the pointer (see
+[widget.md](../widget/widget.md#selecting-a-whole-object)). When the content's
+projection maps that object back to a whole document, the selection is that
+document. Otherwise — the content maps nothing back, or it answers a caret or a
+place of its own — the selection is the tab's content as a whole. So any tab's
+content can be selected, whatever its projection maps.
+
+The tabbed pane rings its page while the page's document is selected as a
+whole. The tree's own widget, the composite that carries the drop indicator,
+follows the tree's selection, so it names the pane layer only when the tree's
+root is selected.
+
+At a tab, the pane answers the Alt arrows itself: the generic walk would step
+from a tab's content to the tab's title, which is not an object of the content.
+The root of a tab's content has no sibling, and a whole tab is the top of the
+walk.
+
+A window whose content is wrapped in a clipboard still answers
+`get_window_tree`: the tree inside the clipboard.
 
 ## Every edit is reactive
 

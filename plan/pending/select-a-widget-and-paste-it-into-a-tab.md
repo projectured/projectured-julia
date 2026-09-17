@@ -1,7 +1,9 @@
 # Select any widget, and paste the selected object into a tab
 
 **Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
-worktree `projectured-julia-select-paste`. Steps 0, 1, 2, 2b, 3, 4 and 5 are done.
+worktree `projectured-julia-select-paste`, and in omnet on the branch
+`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 5, 8
+and 9 are done; Steps 6 and 7 wait on their omnet test run.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -272,9 +274,14 @@ hold:
 2. **Every document from the clipboard's content down to the target accepts a
    pasted document.** A target in the conversation, the whole conversation,
    the whole assistant, the runner and anything inside them are refused.
-3. **The target's slot accepts the pasted document.** The slot's declared type
-   is read from the type checkpoint on the path. `PaneTab.content` accepts any
-   document; a typed field of the runner refuses a table.
+3. **The target's slot accepts the pasted document.** A field cell whose value
+   type the document is not, or an immutable cell, refuses. And the document in
+   the slot must accept the pasted one as its replacement:
+   `accepts_pasted_replacement(document, value)`, `true` by default. The pane
+   slice answers `false` for a pane on either side, so a paste never replaces a
+   tab, a group or a split, and a pane is never pasted. Without this rule a
+   paste with the normal pane focus — a whole tab — replaced the `PaneTab` in
+   its group's list with a table (found in Step 7).
 
 A refused paste answers `nothing`, so the key goes on to the content. The IDE
 passes no rule of its own.
@@ -595,8 +602,12 @@ done here. Run only the tests that each step names.
 - **A lie the ring showed.** The pane tree's root composite held the constant
   selection `elements[1]` only to route keys, and the ring rule read it as
   "the pane layer, selected whole": every window was ringed. The composite now
-  holds the tree's selection mapped forward, which routes keys exactly as
-  before when the focus is in a group.
+  names the layer whole only when the tree's root is selected whole, and
+  otherwise holds the image of the root's own step — the prefix that names a
+  split's element or a group's tab. Only that prefix is forwarded: the pane
+  group's forward map refuses a deep caret path that carries no node types,
+  which a first version that forwarded the whole selection met in the
+  campaign suite's typed number field (Step 6).
 - **Counts:** `test_pane_reader()` 41 (32 before); `test_pane_gestures()` 60
   (42 before, 52 after Step 2). The ten suites of Step 1 keep the baseline's
   failures and no other: substrate 62295 pass, 3 fail, 2 error, 1 broken (the
@@ -605,16 +616,33 @@ done here. Run only the tests that each step names.
 
 ### Step 6 — the IDE and its projections (omnet)
 
-- [ ] `build_campaign_projection` puts the clipboard stage (copy, note, paste,
-      paste-copy) and the walk stage in front of the chain.
-- [ ] `run_campaign_window` wraps `session.tree` in a `ClipboardSlice`.
-      `_paint_windows!` and every other reader of the window content still find
-      what they need.
-- [ ] A renderer entry for `DocumentNothing` draws the hint (D8).
-- [ ] `accepts_pasted_document(::SimulationFilter) = false`, and the same for
-      each tool pane that Step 0 found (D9).
-- [ ] The mappings of D5 for the runner, a set of runs, a run, a study, a
+- [x] ~~`build_campaign_projection` puts the clipboard stage (copy, note, paste,
+      paste-copy) and the walk stage in front of the chain.~~
+      **Changed:** `make_ide_window_wrap` does it. The window takes its layers
+      from that fold (`run_campaign_window(...; wrap)`), which another session
+      added while this plan was written, so the campaign window alone stays as
+      it is. The fold has a `selection` flag, on by default: the walk wraps the
+      projection, the clipboard wraps the walk and the document, and the help,
+      the palette and the log go over them, in the gallery's order.
+- [x] ~~`run_campaign_window` wraps `session.tree` in a `ClipboardSlice`.~~ The
+      same fold wraps the document. `get_window_tree` finds the tree inside it.
+- [x] ~~A renderer entry for `DocumentNothing` draws the hint (D8).~~
+      **Dropped.** A renderer row is registered for the whole session, so every
+      window would say "Ctrl+V pastes here", a window without a clipboard too.
+      The ring on the empty page already shows where a paste goes, and the
+      greeting names the keys.
+- [x] `accepts_pasted_document(::SimulationFilter) = false`, and the same for
+      each tool pane that Step 0 found (D9): `SimulationBatchDocument` and
+      `StudyStudy`.
+- [x] The mappings of D5 for the runner, a set of runs, a run, a study, a
       result and a plot.
+      **Done as a floor, plus one rule.** Step 5 gives every tab content a
+      floor: an Alt+click that names no whole document selects the content.
+      The runner adds one rule: an Alt+click on a parameter box names the whole
+      parameter, where its map answers a caret. A set of runs, a run, a study,
+      a result and a plot are selected as a whole; a table inside a pasted result
+      rings through its tab's page.
+- [x] The greeting names the selection keys when the window has them.
 - [ ] Tests: the suites of Step 0 keep their counts. A new test per projection
       selects its objects by an Alt+click and shows the ring.
 
@@ -652,26 +680,38 @@ uses real events only:
 
 ### Step 8 — the tab name (only if simple)
 
-- [ ] D13, or the reason to skip it.
-- [ ] Test: a pasted table names its tab; `F2` still renames it; a tab whose
+- [x] D13, or the reason to skip it.
+      **Done 2026-09-17:** `default_new_pane_tab()` has an empty name, and
+      `get_pane_tab_title_string` answers the content's `get_document_title`
+      for an empty name, and "untitled" when there is none. Two functions in
+      `PaneDocument.jl`; `show_layout` and the unique-title search already read
+      the same function.
+- [x] Test: a pasted table names its tab; `F2` still renames it; a tab whose
       content changes state keeps its name.
+      **Done:** `test_pane_gestures()` names an empty tab after a titled
+      content, keeps a name of its own, and falls back to "untitled";
+      `test_pane_rename()` still renames a fresh tab. A widget table has no
+      title, so the pasted table of Step 7 keeps "untitled".
 
 ### Step 9 — guides, and close
 
-- [ ] [widget.md](../../documentation/package/widget/widget.md): Alt+click, the
+- [x] [widget.md](../../documentation/package/widget/widget.md): Alt+click, the
       ring, the rule of D3, and the four `Alt` + arrows.
-- [ ] The chart and sequence chart guides in
+- [x] The chart and sequence chart guides in
       [documentation/package/](../../documentation/package/): the new `Alt` +
-      arrows (D14).
-- [ ] [transcript.md](../../documentation/package/conversation/transcript.md):
+      arrows (D14). The sequence chart guide names no `Alt` key, so only the
+      chart guide changed.
+- [x] [transcript.md](../../documentation/package/conversation/transcript.md):
       the objects, the walk, the history that refuses a paste. Remove the claim that
       `Ctrl+C` copies a part in every host.
-- [ ] [pane.md](../../documentation/package/pane/pane.md): the new-tab
+- [x] [pane.md](../../documentation/package/pane/pane.md): the new-tab
       selection, the tree under a wrapper, the tab name, and `Alt+Left` /
       `Alt+Right` on a whole tab.
-- [ ] The clipboard guide or its module docstring: the three paste rules and
-      `offered_gestures`.
-- [ ] omnet
+- [x] The clipboard guide or its module docstring: the three paste rules and
+      `offered_gestures`. There is no clipboard guide; the docstrings of
+      `ClipboardSliceToAnyProjection`, `_find_paste_target` and
+      `make_clipboard_projection` carry them.
+- [x] omnet
       [assistant-guide.md](../../../omnet-julia/documentation/guide/assistant-guide.md):
       select, copy and note into a tab, and what a note shares.
 - [ ] Move this plan to `plan/done/`.
