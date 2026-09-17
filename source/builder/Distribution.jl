@@ -130,15 +130,16 @@ an empty folder over each one and leaves the rest of the file system as it is.
 With no folder in `hidden`, the answer is `command`. Set the environment and
 the directory on the answer, not on `command`.
 
-`bwrap` stops the program when `bwrap` itself stops, so a signal to the answer
-reaches the program too.
+The program runs in a process namespace of its own (`--unshare-pid`). When
+`bwrap` stops, the kernel stops every process in that namespace, so a signal to
+the answer stops the program too. `--die-with-parent` alone does not do that.
 """
 function make_hidden_command(command::Cmd, hidden)
     isempty(hidden) && return command
     Sys.which("bwrap") === nothing &&
         error("make_hidden_command: install bubblewrap (`bwrap`). The test of a copy " *
               "needs it to hide " * join(hidden, ", "))
-    arguments = ["--dev-bind", "/", "/", "--die-with-parent"]
+    arguments = ["--dev-bind", "/", "/", "--unshare-pid", "--die-with-parent"]
     for directory in hidden
         append!(arguments, ["--tmpfs", String(directory)])
     end

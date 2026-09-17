@@ -497,6 +497,12 @@ function test_builder()
                 @test first(command.exec) == "bwrap"
                 @test isempty(read(command, String))
                 @test read(`ls -A $secret`, String) == "file\n"
+                # A stop of the command stops the program in it.
+                marker = "sleep $(rand(100000:999999))"
+                process = run(make_hidden_command(Cmd(split(marker)), [secret]); wait = false)
+                @test timedwait(() -> success(`pgrep -x -f $marker`), 10.0) === :ok
+                kill(process)
+                @test timedwait(() -> !success(`pgrep -x -f $marker`), 10.0) === :ok
                 rm(secret; recursive = true)
             end
         end

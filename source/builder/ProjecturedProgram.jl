@@ -205,6 +205,12 @@ function check_projectured_copy(executable::AbstractString, directory::AbstractS
         close(output)
         rm(depot; recursive = true, force = true)
     end
+    deadline = time() + 10
+    while !all(_is_http_free, (_CHECK_WEB, _CHECK_MCP))
+        time() < deadline ||
+            error("check_projectured_copy: the copy still answers after it was stopped")
+        sleep(0.5)
+    end
     nothing
 end
 
@@ -213,17 +219,18 @@ function _is_http_free(url::AbstractString)
     run(ignorestatus(`curl -s -o /dev/null --max-time 5 $url`)).exitcode == 7
 end
 
+# The body at `url`, or "" when the answer is not a success.
 function _read_http(url::AbstractString)
-    read(`curl -sf --max-time 30 $url`, String)
+    read(ignorestatus(`curl -sf --max-time 30 $url`), String)
 end
 
-# Wait until `url` answers, for two minutes at most.
+# Wait until a program answers at `url`, with any status, for two minutes at most.
 function _wait_for_http(url::AbstractString, process, log::AbstractString)
     deadline = time() + 120
     while time() < deadline
         process_running(process) ||
             error("check_projectured_copy: the copy stopped:\n" * read(log, String))
-        success(`curl -sf -o /dev/null --max-time 5 $url`) && return nothing
+        _is_http_free(url) || return nothing
         sleep(0.5)
     end
     error("check_projectured_copy: nothing answers at $url after two minutes:\n" *

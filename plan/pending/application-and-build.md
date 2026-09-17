@@ -462,7 +462,7 @@ Faults that Step 4 found, still open:
 
 ### Step 5: the distribution build and the release
 
-- [ ] Make the binary read three more things from the bundle, as it reads the
+- [x] Make the binary read three more things from the bundle, as it reads the
       fonts from `share/projectured/font`. Each one is now a path relative to
       the source file, so a copy on another machine does not find it:
   - the web client, `asset/web` (`WebBackend` in `source/web/Web.jl`), and the
@@ -472,10 +472,78 @@ Faults that Step 4 found, still open:
   - the folder of the meaning index, `build/meaning`
     (`_get_meaning_file` in `source/kernel/tool/MeaningSearch.jl`). This folder
     must be writable, so it goes to a user folder, not into the bundle.
-- [ ] A distribution build. The relocation test must pass. Start the copy with
+- [x] A distribution build. The relocation test must pass. Start the copy with
       `--backend=web` too, because the relocation test does not open a window.
+
+Decisions and facts of Step 5 (commit `a8b4ce34`):
+
+- **A binary looks in its bundle first.** `share/projectured/` beside `bin/`
+  exists only in a binary, so a Julia session reads the checkout as before.
+  The fonts keep their own order (the compiled-in path first), because
+  `StyleFont` carries a path.
+  - The web backend: `get_web_asset_directory(name)` for `web` and `font`.
+  - The guides: `_get_documentation_directory()` in `ToolModule`.
+  - The meaning index: `_get_default_meaning_folder()`. A binary uses
+    `$XDG_CACHE_HOME/projectured/meaning`, or `~/.cache/projectured/meaning`.
+- **The build copies two folders:** `PROJECTURED_ASSETS` names `asset/web`
+  (32 KB) and `documentation/` (1.1 MB, 61 Markdown files).
+- **The copy is tested with the checkout hidden.** `check_relocation` and the
+  program check run under `bwrap --dev-bind / / --die-with-parent --tmpfs
+  <folder>`. `get_hidden_directories(context)` names the repository, the
+  repository of each package folder, and `first(DEPOT_PATH)`. Without `bwrap`,
+  the test stops with a message.
+- **`build_distribution` takes a `check`.** `check_projectured_copy` starts
+  the copy with `--backend=web --mcp --assistant=none`, reads `/`,
+  `/client.js`, `/fonts.json` and one font from port 8080, and calls the MCP
+  tool `read_resource` with `resource://guides` on port 9876. The list must
+  name `editor-concepts`. The check needs `curl` and the two free ports.
+- **The archive of this step is a test, not the release.** Four files in
+  `documentation/` still name private projects (`README.md`,
+  `package/graph/graph-layout.md`, `package/chart/chart.md`,
+  `rule/code-quality-rules.md`), and the bundle carries `documentation/`.
+  Build the release archive again after the documentation plan removes
+  those names.
 - [ ] D22: the owner approves the GitHub release. The documentation plan
-      attaches the archive in its Step 11.
+      attaches the archive in its Step 11. Build the archive again for the
+      release, after the documentation plan removes the private names (see
+      below).
+
+The distribution build of 2026-09-17:
+
+```
+JULIA_IMAGE_THREADS=2 systemd-run --user --scope -q -p MemoryMax=20G -p MemorySwapMax=0 \
+  timeout 7200 nice -n 10 taskset -c 16-23 \
+  julia --startup-file=no --project=environment/build source/builder/build_binary.jl projectured --distribution
+```
+
+| What | Value |
+| --- | --- |
+| Wall time | 25 min (a fresh image for the portable processor list). Another session used the machine. |
+| Largest process | about 14 GB of resident memory, in the compile of the image. |
+| Bundle | 1558 MB. |
+| Archive | `build/projectured-0.1.0-linux-x86_64.tar.gz`, 437 MB. It holds `bin/`, `lib/`, `libexec/`, `share/` and a `README`. |
+| Relocation test | passed: the copy answered `--build-info` in 0.4 s with the repository and `~/.julia` hidden. |
+| Program check | passed: web client, font and guide list from the bundle. |
+
+The first distribution build passed, but its check left the copy running on
+ports 8080 and 9876. `kill` stopped `bwrap` only, and `--die-with-parent` did
+not stop the program. With `--unshare-pid`, the kernel stops the program when
+`bwrap` stops (tested with `sleep` and in `test_builder()`). The check now also
+waits until both ports are free. The left process was stopped by hand, and the
+distribution step ran again on the same bundle: it passed and left nothing.
+
+The check can fail. On a copy of the bundle, with the checkout hidden:
+
+| Case | Result |
+| --- | --- |
+| no `share/projectured/documentation` | fails: the guide list does not name `editor-concepts` |
+| no `share/projectured/web` | fails: the copy serves no web client |
+| no `share/projectured/font` | fails: the copy finds no font |
+| no guides, checkout visible | passes, because the copy reads the checkout |
+| everything | passes |
+
+For the release README, still open: the address of the web window
+(`http://127.0.0.1:8080`), the default Ollama model to pull, and the licence.
 
 ### Step 6: omnet-julia uses the shared builder
 
