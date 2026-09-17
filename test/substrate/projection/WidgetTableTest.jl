@@ -136,6 +136,35 @@ function test_widget_table_fills_offer()
 end
 end
 
+# A weighted column with no minimum, in a table whose rows are a vector, is at
+# least as wide as its widest cell: the cells clip, so the column reads them
+# without offering them its width. Wide, the table fills its offer.
+function test_widget_table_content_floor()
+@testset "a weighted column is at least as wide as its widest cell" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    grow = SizePolicy(nothing, nothing, nothing, 1.0)
+    long = "a cell that is wider than the header"
+    table = WidgetTable(Point2D(0, 0), Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
+                        column_policies = Any[grow, grow])
+    function geometry_at(width)
+        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
+                                  height = Cell(Int32(400)))
+        iomap = print_document(rec, nothing, table, ctx)
+        (Int(iomap.output.w[]), iomap.geometry)
+    end
+    (wide_w, _) = geometry_at(900)
+    @test wide_w == 900
+    (narrow_w, geometry) = geometry_at(100)
+    @test narrow_w > 100
+    # The second column's slot holds the long cell.
+    slot = geometry.col_x[3] - geometry.col_x[2] - 2 * geometry.pad_x - geometry.bw
+    @test slot == 8 * length(long)
+end
+end
+
 # A scroll pane reads its size one axis at a time, and 0 on an axis authors
 # nothing on it. A pane that authors its height and a width of 0 keeps the
 # height and takes the width its parent offers, as a pane that authors no size.

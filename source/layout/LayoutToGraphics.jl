@@ -1017,12 +1017,15 @@ _gl_policy_at(v, i::Int, default) =
 
 # The four allocator inputs of one column or one row.
 #
-# `content` is what its cells measured, and it is passed as `0` for a weighted
-# one — see `_gl_extents_cell` for why that item's cells are never read here.
+# `content` is what its cells measured, and it is passed as `0` for an item that
+# offers its extent to its cells — see `_gl_extents_cell` for why that item's
+# cells are never read here. A policy with no minimum takes the content as its
+# minimum, so a weighted item whose cells were read is at least as wide as they
+# are; `Fill` and `Relative` say a minimum of 0 and keep it.
 function _gl_axis_inputs(p::SizePolicy, content::Int)
     weight = p.weight === nothing ? 0.0 : Float64(p.weight)
     pref   = p.preferred === nothing ? content : Int(p.preferred)
-    lo     = p.min === nothing ? (weight > 0 ? 0 : content) : Int(p.min)
+    lo     = p.min === nothing ? content : Int(p.min)
     hi     = p.max === nothing ? typemax(Int) : Int(p.max)
     (lo, hi, pref, weight)
 end
@@ -1046,9 +1049,13 @@ _gl_offers(p::SizePolicy) =
 # cells here would make its width depend on itself. A stack overflow is what a
 # closed cycle looks like, and `Fixed` is what produced one.
 #
+# `reads(k)` says whether item k's cells may be read. By default that is every
+# item that does not offer its extent; a grid whose caller withheld a column's
+# offer (a table whose cells clip) reads that column too, weighted or not.
+#
 # `allocate_axis` is the same allocator the stacks and the split use.
 function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
-                          gap::Cell, avail)
+                          gap::Cell, avail; reads = k -> !_gl_offers(policy_of(k)))
     ComputedCell(function ()
         c = count_cell[]
         c <= 0 && return Int[]
@@ -1061,7 +1068,7 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
             w = policy.weight === nothing ? 0.0 : Float64(policy.weight)
             w > 0 && (weighted = true)
             (mins[k], maxs[k], prefs[k], wts[k]) =
-                _gl_axis_inputs(policy, _gl_offers(policy) ? 0 : content[k][])
+                _gl_axis_inputs(policy, reads(k) ? content[k][] : 0)
         end
         (avail === nothing || !weighted) && return prefs
         allocate_axis(Int(avail[]), mins, maxs, prefs, wts, gap[], c)
@@ -1162,7 +1169,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(content_col_w, _gl_col_w_cell(k, n, child_iomaps, cols_cell))
         push!(content_row_h, _gl_row_h_cell(k, n, child_iomaps, cols_cell))
     end
-    col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w)
+    col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
+                                   reads = k -> !offers_to_cells(k))
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h)
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
