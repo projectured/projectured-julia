@@ -5,7 +5,9 @@
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
 the screen. `Ctrl+C` or `Ctrl+N` stores the selected object, and `Ctrl+V` puts
-it into an empty new tab. The conversation refuses a paste.
+it into an empty new tab. The conversation and the tool panes (the assistant,
+the runner) refuse a paste. The two charts walk with the same `Alt` + arrows as
+everything else.
 
 **Repositories:** projectured-julia (the widget, focus, clipboard, domain,
 conversation and pane slices) and omnet-julia (the IDE window and its
@@ -32,6 +34,8 @@ The user's rulings on the first draft, 2026-09-17:
 | A note puts one object in two views, and both show its selection | Accepted. |
 | `Alt+Up` / `Alt+Down` walk the objects, `Ctrl+N` notes | Accepted. |
 | `Alt+Left` / `Alt+Right` | Move between siblings. |
+| The two charts turn the `Alt` arrows the other way | Change them to the syntax meaning. |
+| A paste over a whole tool pane (the assistant, the runner) | Refuse it, as for the conversation. |
 
 The words mean this in the code:
 
@@ -117,8 +121,8 @@ The evaluation object is its part, because a part draws alone and a bare
 3. **`Alt+Up`** selects the enclosing object. **`Alt+Down`** selects the first
    object inside. **`Alt+Left`** and **`Alt+Right`** select the previous and the
    next sibling. These are the meanings of the syntax walk. The syntax domain
-   and the two charts keep their own `Alt` + arrows. The pane layer keeps
-   `Ctrl+Alt` + arrows.
+   keeps its own walk, and the two charts change to the same meanings (D14).
+   The pane layer keeps `Ctrl+Alt` + arrows.
 4. An Alt+click never acts. A button does not fire, and a row is not picked.
 
 ### D3. The widget layer answers an Alt+click
@@ -182,8 +186,8 @@ reader answered them:
 `Alt+Left` and `Alt+Right` act only on a whole-element selection. With a caret
 they answer `nothing`, so the key goes on and a text reader can use it later.
 
-An inner reader answers first. So the syntax domain and the two charts keep
-their walks, and the transcript answers with the object walk of D1, which skips
+An inner reader answers first. So the syntax domain and the two charts answer
+with their own walks, and the transcript answers with the object walk of D1, which skips
 the bare `EvaluatorForm`. From the root of a tab's content, `Alt+Up` selects the
 tab, which is the pane focus. `Alt+Down` from a tab selects its content. The
 stage goes to the focus slice, which already walks child documents for `Tab`.
@@ -196,8 +200,7 @@ content:
   group, as `Ctrl+PageUp` / `Ctrl+PageDown` do;
 - the root of a tab's content: the selection stays.
 
-The two charts turn the arrows the other way (see §2). The plan does not change
-them; a later change can make them follow the syntax walk.
+The two charts turn the arrows the other way (see §2). D14 changes them.
 
 ### D7. The IDE gets the clipboard
 
@@ -230,7 +233,7 @@ The IDE draws the placeholder as a hint ("empty — Ctrl+V pastes here") with th
 selection ring. This is an IDE renderer entry for `DocumentNothing`, not a
 change to `NaturalToGraphics`.
 
-### D9. The paste rules, and how the conversation refuses a paste
+### D9. The paste rules, and how the conversation and the tool panes refuse a paste
 
 **Why the transcript reader can not refuse it.** The clipboard stage sits in
 front of the transcript. The transcript reader sees `Ctrl+V` first, but a
@@ -238,12 +241,26 @@ reader can only answer an operation or `nothing`, and `nothing` means "not
 mine". The clipboard answers its own gesture in either case, and the editor
 applies that write directly. No reader below sees it.
 
-**So the conversation states a fact about its document, and the clipboard
-honors it.** A new predicate `is_read_only_document(document)` in
-`ProjecturedDomain` answers `false` by default. The conversation slice adds
-`is_read_only_document(::ConversationConversation) = true`: the history is a
-record, and no user edit changes it. The draft is a separate document and stays
-writable.
+**So a domain type states a fact about its document, and the clipboard honors
+it.** A new predicate `accepts_pasted_document(document)` in
+`ProjecturedDomain` answers `true` by default. It answers `false` for a document
+that a paste must not replace, and must not change inside:
+
+| Document | Why it refuses | Declared in |
+| --- | --- | --- |
+| `ConversationConversation` | the history is a record | the conversation slice |
+| `Assistant` | a tool pane: the conversation, the draft and the settings | the assistant slice |
+| `SimulationFilter` | a tool pane: the runner | omnet |
+
+The predicate does not say "read-only". A person types into the runner form and
+into the draft, and those edits come from their own readers, which the
+predicate does not touch. It speaks only to a pasted document. The composer's
+own text paste is not a pasted document, so it still works.
+
+Step 0 lists the other documents that a tab of the IDE can hold. The same test
+decides each one: a document that drives something live (a set of runs, a
+running simulation) is a tool pane and refuses. A result, a plot, a widget
+view, a pasted object and the placeholder accept.
 
 A paste (and a cut, where it is offered) is refused unless all three rules
 hold:
@@ -251,9 +268,9 @@ hold:
 1. **The target is a whole-element selection of a document**, not a caret and
    not a range. A caret in the composer therefore falls through, and the
    composer's own `Ctrl+V` pastes text.
-2. **No document from the clipboard's content down to the target is
-   read-only.** A target in the conversation, or the whole conversation, is
-   refused.
+2. **Every document from the clipboard's content down to the target accepts a
+   pasted document.** A target in the conversation, the whole conversation,
+   the whole assistant, the runner and anything inside them are refused.
 3. **The target's slot accepts the pasted document.** The slot's declared type
    is read from the type checkpoint on the path. `PaneTab.content` accepts any
    document; a typed field of the runner refuses a table.
@@ -264,6 +281,10 @@ passes no rule of its own.
 This is not the closed gating plan. That plan filtered every operation of a
 subtree through a projection policy. This one is one fact that a domain type
 states, read by the one writer that sits in front of the readers.
+
+A copy and a note of a tool pane stay allowed. Step 7 tests that a copy of the
+whole assistant starts no second model session. If it does, D9 refuses a copy
+of a tool pane too, and the reason is written here.
 
 ### D10. The clipboard reads the selection from its content
 
@@ -302,6 +323,23 @@ This is a change to one function and to the default tab. If `show_layout`, the
 unique-title search or an omnet caller needs more than the same function, skip
 D13 and write the reason here.
 
+### D14. The two charts follow the syntax walk
+
+The chart and the sequence chart change their `Alt` + arrows to the meanings of
+D2:
+
+| Key | Now | After |
+| --- | --- | --- |
+| `Alt+Up` | the previous part | the whole chart |
+| `Alt+Down` | the next part | the first part |
+| `Alt+Left` | the whole chart | the previous part |
+| `Alt+Right` | the first part | the next part |
+
+Each key keeps today's rule for the case where it does not apply: with the whole
+chart selected, `Alt+Up`, `Alt+Left` and `Alt+Right` answer `nothing`, so a
+walk above can answer. `Ctrl+Alt+Home`, the plain arrows and the `Ctrl` arrows
+of the sequence chart do not change.
+
 ## 4. Steps
 
 Each step works in a worktree, commits when its tests pass, and marks itself
@@ -310,7 +348,8 @@ done here. Run only the tests that each step names.
 ### Step 0 — baselines and probes
 
 - [ ] Record the counts of these suites on clean main: `test_conversation()`,
-      `test_clipboard()`, `test_widget_card_fold()`, the eight pane tests
+      `test_clipboard()`, `test_widget_card_fold()`, `test_chart()`,
+      `test_sequencechart()`, the eight pane tests
       (`test_pane_surgery`, `test_pane_geometry`, `test_pane_to_widget`,
       `test_pane_reader`, `test_pane_gestures`, `test_pane_drag`,
       `test_pane_rename`, `test_pane_construct`), and omnet
@@ -327,7 +366,8 @@ done here. Run only the tests that each step names.
 - [ ] Probe: does an Alt+press reach the editor through the SDL backend on this
       desktop, or does the window manager take it?
 - [ ] List every document type that a tab of the IDE can hold, and its
-      projection. Mark which ones D5 covers.
+      projection. Mark which ones D5 covers, and which ones are tool panes
+      that refuse a paste (D9).
 
 ### Step 1 — Alt+click and the ring (projectured, widget slice)
 
@@ -352,9 +392,19 @@ done here. Run only the tests that each step names.
       `Alt+Left` with a caret answers `nothing`; an inner reader that answers
       first keeps its answer (a syntax tree and a chart in a tab).
 
+### Step 2b — the two charts follow the syntax walk (projectured, chart and sequencechart slices)
+
+- [ ] Change the four `Alt` + arrow bindings of both `@gestures` tables (D14).
+      The gesture help text follows from the table.
+- [ ] Tests: the assertions of `test_chart_projection()`
+      ([ChartProjectionTest.jl:1113-1123](../../test/chart/projection/ChartProjectionTest.jl#L1113-L1123))
+      change to the new keys. `test_sequencechart_selection()` gets the same
+      four assertions. `test_chart()` and `test_sequencechart()` keep their
+      other counts.
+
 ### Step 3 — the paste rules and the clipboard (projectured, domain and clipboard slices)
 
-- [ ] `is_read_only_document` in `ProjecturedDomain` (D9).
+- [ ] `accepts_pasted_document` in `ProjecturedDomain` (D9).
 - [ ] The three paste rules of D9.
 - [ ] Read the selection from the content (D10).
 - [ ] Replace `_prefix_op` with `reroot_operation` (D11).
@@ -368,7 +418,8 @@ done here. Run only the tests that each step names.
 
 ### Step 4 — objects in the transcript (projectured, conversation slice)
 
-- [ ] `is_read_only_document(::ConversationConversation) = true`.
+- [ ] `accepts_pasted_document(::ConversationConversation) = false`, and
+      `accepts_pasted_document(::Assistant) = false` in the assistant slice.
 - [ ] The objects of D1, and the mapping below the part: `content.form` and
       `content.result` to the widget paths of the two section bodies, and back.
       Any path from inside a section body maps back to the section's object.
@@ -400,6 +451,8 @@ done here. Run only the tests that each step names.
       `_paint_windows!` and every other reader of the window content still find
       what they need.
 - [ ] A renderer entry for `DocumentNothing` draws the hint (D8).
+- [ ] `accepts_pasted_document(::SimulationFilter) = false`, and the same for
+      each tool pane that Step 0 found (D9).
 - [ ] The mappings of D5 for the runner, a set of runs, a run, a study, a
       result and a plot.
 - [ ] Tests: the suites of Step 0 keep their counts. A new test per projection
@@ -427,8 +480,11 @@ uses real events only:
 - [ ] A widget view built from widgets: an Alt+click selects one widget, and it
       pastes.
 - [ ] Refusals: `Ctrl+V` with a transcript object selected writes nothing;
-      `Ctrl+V` with the caret in the composer pastes text; `Ctrl+V` over a
-      typed field of the runner writes nothing.
+      `Ctrl+V` with the caret in the composer pastes text; `Ctrl+V` over the
+      whole assistant, over the whole runner and over a field of the runner
+      writes nothing.
+- [ ] A copy of the whole assistant pastes into a new tab and starts no second
+      model session (D9).
 - [ ] `focus_pane!` from the assistant API, then `Ctrl+C`, copies the object
       that the focus names.
 - [ ] Measure one copy of a large `SimulationResultFrame`, and write the time
@@ -443,10 +499,12 @@ uses real events only:
 ### Step 9 — guides, and close
 
 - [ ] [widget.md](../../documentation/package/widget/widget.md): Alt+click, the
-      ring, the rule of D3, the four `Alt` + arrows, and the other convention of
-      the two charts.
+      ring, the rule of D3, and the four `Alt` + arrows.
+- [ ] The chart and sequence chart guides in
+      [documentation/package/](../../documentation/package/): the new `Alt` +
+      arrows (D14).
 - [ ] [transcript.md](../../documentation/package/conversation/transcript.md):
-      the objects, the walk, the read-only record. Remove the claim that
+      the objects, the walk, the history that refuses a paste. Remove the claim that
       `Ctrl+C` copies a part in every host.
 - [ ] [pane.md](../../documentation/package/pane/pane.md): the new-tab
       selection, the tree under a wrapper, the tab name, and `Alt+Left` /
@@ -468,10 +526,10 @@ uses real events only:
 - **The ring changes hit-testing.** A full-size ring over a selected widget is a
   drawn element, and containers route by drawn elements. Step 1 tests a plain
   click on a selected widget.
-- **Two arrow conventions.** Inside a chart, `Alt+Left` selects the whole chart,
-  and everywhere else it selects the previous sibling. A person who walks from a
-  transcript into a chart meets the other convention. The guide says so until
-  the charts change.
+- **The chart keys change for people who know them.** D14 turns four keys of
+  the two charts. The chart guides say so.
+- **A copy of a live tool.** `copy_document` of an `Assistant` or a runner can
+  copy a value that belongs to a live session. Step 7 tests it (D9).
 - **Many projections need D5.** The list of Step 0 can be long. A projection
   left out still works, and selects a larger object.
 - **The new-tab selection breaks a pane assertion.** Step 5 changes only the
@@ -494,6 +552,6 @@ uses real events only:
 - A text form of an object on the OS clipboard (for example a table as
   tab-separated text). The `to_text` keyword already makes it possible later.
 - A paste by a drop, or into a split.
-- The assistant's own writes (`replace_referenced_value!`). They can read
-  `is_read_only_document` later.
+- The assistant's own writes (`replace_referenced_value!`). They do not read
+  `accepts_pasted_document`.
 - A second selected object (multi-selection).
