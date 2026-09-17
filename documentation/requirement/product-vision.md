@@ -78,7 +78,7 @@ testing, CI-based visual regression checks, and print-quality export.
 When the editor's `run_editor!` loop is active it exposes an MCP server on port 9876.
 An AI assistant connected to this server can:
 
-- **Read the live document structure** via `resource://guide/...` and
+- **Read the live document structure** via `resource://guide/<name>` and
   `print_object(editor.document)` — not a string, the actual typed tree.
 - **Build precise reference paths** using `@reference` — `entries[1].value{3}`
   is unambiguous and cannot be confused with a line number.

@@ -16,9 +16,9 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *
     "2. resource://modules\n" *
-    "3. resource://guide/getting-started\n" *
-    "4. resource://guide/editor/reference\n" *
-    "5. resource://guide/editor/selection\n\n" *
+    "3. resource://guide/guide/setup-guide\n" *
+    "4. resource://guide/kernel/reference\n" *
+    "5. resource://guide/kernel/selection\n\n" *
     "TO FIND A SPECIFIC API OR GUIDE — do this BEFORE writing code:\n" *
     "- Call the `search_api` tool to find the right module, struct, or function " *
     "(it ranks by name and docstring and returns how to read full docs).\n" *

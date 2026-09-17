@@ -15,7 +15,7 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "Use `execute_julia_code` to inspect and modify the editor's document and projection; " *
                                   "the variable `editor` is bound to the running editor.\n\n" *
                                   "MANDATORY — read this BEFORE writing any code:\n" *
-                                  "- resource://guide/orientation  (the concept index — your starting point)\n" *
+                                  "- resource://guide/guide/orientation  (the concept index — your starting point)\n" *
                                   "Everything else is on demand: the orientation lists the catalogues " *
                                   "(resource://guides, resource://modules) and the search tools, and points to the " *
                                   "specific guides (reference, selection, finding-and-selecting, operations, …). " *
@@ -29,7 +29,7 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "- `evaluate_reference(editor.document, path)` resolves a path back to its node.\n" *
                                   "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
                                   "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
-                                  "  See resource://guide/editor/finding-and-selecting and resource://guide/operations.\n\n" *
+                                  "  See resource://guide/kernel/finding-and-selecting and resource://guide/kernel/operation for the details.\n\n" *
                                   "SCOPING A SEARCH TO A DOMAIN — the workbench renders the SAME document through\n" *
                                   "several projections (a JSON value also appears in syntax and text editors), so a\n" *
                                   "bare value match (e.g. \"Alice\" or `n isa AbstractString`) returns one hit per\n" *

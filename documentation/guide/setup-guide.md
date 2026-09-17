@@ -101,7 +101,7 @@ When `run_editor!` is active the editor exposes an MCP server on port 9876.
 Recommended workflow:
 
 1. Read `resource://guides` to discover the documentation layout.
-2. Read `resource://guide/getting-started`, then the topic guides
+2. Read `resource://guide/guide/setup-guide`, then the topic guides
    relevant to the task — usually `reactive-cells`, `projection-system`,
    `editor/reference`, and the affected domain's guide.
 3. Use `print_object(editor.document)` to see the live structure.
