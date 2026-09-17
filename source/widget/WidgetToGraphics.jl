@@ -273,12 +273,19 @@ end
 # analogue of the TextToGraphics cursor overlay, preserving selection isolation
 # (dimension A; see plan/pending/printer-locality.md). Transparent fill so only the
 # ring-coloured border shows.
+#
+# `whole_color`, when given, is the ring's colour while the widget is selected as
+# a whole. A text box with the focus holds a caret, so a whole selection of one is
+# a selection of the box as an object, and it shows as one.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
-                           ring_color::StyleColor, radius::Int)
+                           ring_color::StyleColor, radius::Int; whole_color = nothing)
     ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), radius;
                         border_width=2, border_color=ring_color)
     set_cell_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
     set_cell_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
+    whole_color === nothing ||
+        set_cell_function!(getfield(ring, :border_color), () ->
+            get_stored_selection(w) isa EmptyReference ? whole_color : ring_color)
     push!(elems, ring)
 end
 
@@ -1039,7 +1046,8 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
             # Themed input surface: background fill + input outline + rounded corners.
             _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
             push!(elems, _make_canvas(cox, coy, Any[inner]))
-            _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius)
+            _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
+                              whole_color = SELECTION_RING_COLOR)
             (width=outer_w, height=outer_h, elements=elems)
         end)
         return WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
@@ -1058,7 +1066,8 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         elems = Any[]
         _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
         _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
-        _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius)
+        _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
+                          whole_color = SELECTION_RING_COLOR)
         (width=outer_w, height=outer_h, elements=elems)
     end))
 end

@@ -11,6 +11,37 @@ end
 ListNode(value) =
     ListNode(Cell(value), Cell(nothing), Cell(nothing), Cell(nothing))
 
+# A list is copied node by node, both ways from the node held, and the copies are
+# linked again: the generic walk would follow `next` into `prev` and back without
+# end. A `next` that a cell computes on demand is read here, so the copy holds
+# every node the list reaches.
+function copy_document(policy::CopyPolicy, held::ListNode)
+    is_descendable_for_copy(policy, held) || return make_copy_placeholder(policy, held)
+    copied = ListNode(copy_document(policy, held.value))
+    last = copied
+    node = held.next
+    while node !== nothing
+        following = ListNode(copy_document(policy, node.value))
+        _link_list_nodes!(last, following)
+        last = following
+        node = node.next
+    end
+    first = copied
+    node = held.prev
+    while node !== nothing
+        preceding = ListNode(copy_document(policy, node.value))
+        _link_list_nodes!(preceding, first)
+        first = preceding
+        node = node.prev
+    end
+    copied
+end
+
+function _link_list_nodes!(before::ListNode, after::ListNode)
+    set_cell_value!(getfield(before, :next), after)
+    set_cell_value!(getfield(after, :prev), before)
+end
+
 Base.getindex(n::ListNode)      = n.value
 Base.setindex!(n::ListNode, v)  = (n.value = v; v)
 

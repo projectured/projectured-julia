@@ -128,6 +128,23 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
 # The make_lazy_bidirectional_document_example has issues with node chaining
 # TODO: Add bidirectional tests once the implementation is fixed
 
+@testset "a list is copied both ways from the node held, and its next is read" begin
+    middle = ListNode(PrimitiveNumber(2))
+    before = ListNode(PrimitiveNumber(1))
+    set_cell_value!(getfield(before, :next), middle)
+    set_cell_value!(getfield(middle, :prev), before)
+    # The node after the middle one is built when it is read.
+    set_cell_function!(getfield(middle, :next), () -> ListNode(PrimitiveNumber(3)))
+    copied = copy_document(middle)
+    @test copied !== middle
+    @test copied.value.value == 2 && copied.value !== middle.value
+    @test copied.next.value.value == 3
+    @test copied.next.prev === copied
+    @test copied.prev.value.value == 1 && copied.prev !== before
+    @test copied.prev.next === copied
+    @test copied.next.next === nothing && copied.prev.prev === nothing
+end
+
 end # @testset "ReactiveCollection"
 
 @testset "CellVector protocol" begin

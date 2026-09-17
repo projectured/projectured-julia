@@ -216,4 +216,45 @@ function test_widget_selection()
         evaluate_operation((document = t.root,), op)
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
     end
+    @testset "a selection can name a widget a projection drew for a document" begin
+        focus = ProjecturedFocus.FocusModule
+        owner = PrimitiveString("form")
+        t = _selection_tree()
+        output_path = ConcreteReference(FieldReferenceStep("elements"),
+                          ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+        path = focus.make_output_reference(owner, t.card, output_path)
+        @test evaluate_reference(owner, path) === t.card
+        @test is_valid_reference(owner, path)
+        @test is_whole_selection(owner, path)
+        # Another document does not reach it.
+        @test try_evaluate_reference(PrimitiveString("other"), path, missing) === missing
+        @test focus.find_output_path(path, owner) == output_path
+        @test focus.find_output_path(path, PrimitiveString("other")) === nothing
+        # The drawn tree follows the path: each node holds its own part, and the
+        # composite rings the card.
+        focus.follow_output_selection!(t.root, () -> output_path)
+        @test find_whole_selected_index(t.root.selection, "elements") == 1
+        @test t.card.selection isa EmptyReference
+        @test t.layout.selection === nothing
+        iomap = print_document(_selection_projection(), t.root)
+        rings = _selection_rings(iomap.output)
+        @test length(rings) == 1
+        at = _selection_text_at(iomap.output, "Title")
+        (rx, ry, rw, rh) = only(rings)
+        @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
+    end
+
+    @testset "a text box selected as a whole rings in the selection's colour" begin
+        t = _selection_tree()
+        iomap = print_document(_selection_projection(), t.root)
+        at = _selection_text_at(iomap.output, "typed")
+        t.field.selection = EmptyReference()
+        rings = _selection_rings(iomap.output)
+        @test length(rings) == 1
+        (rx, ry, rw, rh) = only(rings)
+        @test rx <= at[1] < rx + rw && ry <= at[2] < ry + rh
+        # A caret in it is the focus, and its ring keeps the theme's colour.
+        t.field.selection = ConcreteReference(RangeReferenceStep(0, 0), EmptyReference())
+        @test isempty(_selection_rings(iomap.output))
+    end
 end

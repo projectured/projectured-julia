@@ -496,6 +496,23 @@ end
     @test ProjecturedClipboard.ClipboardModule.find_clipboard_document(42) === nothing
 end
 
+@testset "a copy and a note reach a widget a projection drew, and a paste leaves it" begin
+    focus = ProjecturedFocus.FocusModule
+    owner = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))
+    drawn = _ClipboardKeeper(PrimitiveString("drawn"))
+    slice = ClipboardSlice(_ClipboardPair(owner, PrimitiveString("c")), PrimitiveString("stored"))
+    slice.selection = concat_references(
+        cpath(FieldReferenceStep("content"), FieldReferenceStep("left")),
+        focus.make_output_reference(owner, drawn, cpath(FieldReferenceStep("value"))))
+    p = ClipboardSliceToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    @test copied isa _ClipboardKeeper && copied !== drawn
+    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl)).operations[1]) === drawn
+    # The drawn widget is not a slot of the document that drew it.
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
+end
+
 @testset "a paste writes only a value its slot takes" begin
     typed = _ClipboardTyped(PrimitiveString("name"))
     content = FieldReferenceStep("content")

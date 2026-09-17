@@ -1,12 +1,11 @@
 # Select any widget, and paste the selected object into a tab
 
-**Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
-worktree `projectured-julia-select-paste`, and in omnet on the branch
-`select-and-paste` in the worktree `omnet-julia-select-paste`. Steps 0 to 10
-are done and landed on `main`; Steps 0 to 9 landed first (projectured
-`41b15f2c`, omnet `937b0cd8`), and Step 10 after them. Two items wait for the
-user: the Alt+press probe of Step 0 needs a live window and a person, and the
-timing of Step 7 needs an idle machine and the user's word. Nothing is pushed.
+**Status (2026-09-17): IN PROGRESS.** Steps 0 to 11 are done and on `main`.
+Step 12 is on the branch `innermost-selection`, in the worktrees
+`projectured-julia-innermost` and `omnet-julia-innermost`. Open for the user:
+the timing of Step 7 needs an idle machine and the user's word, and an
+Alt+click on a tab title of a group without the focus needs a change in a sealed
+kernel file (Step 11). Nothing is pushed.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -105,6 +104,12 @@ the tab draws it again.
 A projection-induced reference could name the chrome widget itself. The plan
 does not use it: a copy of chrome is not a document that the tab can draw
 again, and it is not a document that the assistant can use.
+
+**Changed in Step 12** (the user's test on the desktop): in the runner, an
+Alt+click selects the drawn widget itself — a text box, the table of runs, a
+heading, a button — and a copy of it is a widget that a tab draws again. The
+user could not select "the simulation run table" or "a text input field
+widget" while the selection named the runner's parameter or the runner.
 
 In the transcript, these are the objects:
 
@@ -874,10 +879,49 @@ causes. Branch `innermost-selection`, worktrees `*-innermost`.
 - [ ] **Open: an Alt+click on a tab title of a group without the focus** brings
       back the selection the tab kept, because the kernel revives a dormant
       selection on any write that ends at its keeper. The kernel file is sealed.
-- [ ] **Open, for the user: the runner's result table** has no document. D1
-      makes such a widget select the document that encloses it. Selecting the
-      table itself needs a decision: the drawn widget (a copy is a snapshot) or a
-      view document that refers to the runner (a copy is a live table).
+- [x] **The runner's result table** has no document, and D1 made such a widget
+      select the document that encloses it. The user asked again to select it,
+      and Step 12 selects the drawn widget.
+
+### Step 12 — a widget that the runner drew is selected itself (projectured and omnet)
+
+The user's second test on the desktop (2026-09-17): an Alt+click in the
+conversation now selects the smaller part, but the table of runs and a text
+input field of the runner can not be selected. A probe found that a box gave
+the runner's parameter, shown only by the box's own focus ring in the theme's
+colour, and pasted as a plain text; the table gave the whole runner.
+
+- [x] `OutputReferenceStep` in the focus slice: a reference step that holds a
+      widget a projection drew for a document, and its place in the output. It
+      evaluates to the widget from that document only. `make_output_reference`,
+      `find_output_path`, and `follow_output_selection!`, which makes an output
+      tree follow a path from its root.
+- [x] The paste rules refuse a step that is neither a field nor an element as a
+      slot, so a paste never writes through a drawn widget.
+- [x] A `ListNode` list is copied node by node both ways and linked again. The
+      generic walk followed `next` into `prev` without end, and the memo of the
+      clipboard's policy refused the list; the runner's table keeps its rows in
+      one, built on demand.
+- [x] A text box selected as a whole rings in the selection's colour. Its focus
+      holds a caret, so a whole selection of it is an object selection.
+- [x] The runner: an Alt+click answers the drawn widget; the table of runs is
+      named with its scroll pane, which a copy keeps scrollable. A constraint has
+      no step of its own in a widget path, so the walk reads through it. The
+      forward map answers the place, and every widget of the card follows the
+      selection. The runner draws its widgets again when its tab shows again, so
+      a selected widget can be an older object than the one on the screen; the
+      place still rings the one on the screen.
+- [x] Tests: `test_widget_selection()` 60, `test_clipboard()` 163,
+      `test_collection()` 54, `test_pane_reader()` 76; `test_select_and_paste()`
+      86 (69 before): a text box and the table selected, ringed, copied and
+      noted, a heading selected and `Alt+Up` to the runner, the Run button
+      selected with its focus ring and nothing run. Substrate 62584 and
+      workbench 143 with the known failures only; conversation, chart, sequence
+      chart, markdown, graph, book, rst and math pass; the umbrella clipboard
+      users 343; the 17 omnet suites pass.
+- A copied button keeps the action of the button it was copied from, so a
+  copied Run button runs the runner it came from. Left as it is; the user is
+  told.
 
 ## 5. Risks
 

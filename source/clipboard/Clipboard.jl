@@ -219,7 +219,9 @@ _make_steps_path(steps) =
     foldr((step, tail) -> ConcreteReference(step, tail), steps; init = EmptyReference())
 
 function _is_slot_accepting(parent, step, value)
-    step isa FieldReferenceStep || return true
+    # An element of a list is a slot; a step that holds a drawn object is not one.
+    step isa RangeReferenceStep && return true
+    step isa FieldReferenceStep || return false
     name = Symbol(step.name)
     hasfield(typeof(parent), name) || return false
     cell = getfield(parent, name)

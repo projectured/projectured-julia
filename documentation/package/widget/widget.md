@@ -743,6 +743,20 @@ A place that a projection introduced, such as the bracket of a call, names the
 node that the projection printed it for. The rule cuts the answer there, so an
 Alt+click on a bracket selects the call.
 
+**A widget that a projection drew.** A form that a domain projection draws, such
+as a runner, holds widgets that no document of the domain stands behind: a text
+box, a table, a heading. A selection names such a widget with an
+`OutputReferenceStep` (the focus slice), which holds the widget and its place in
+the projection's output, and evaluates to the widget from the document it was
+drawn for. So a copy, a note and a whole-selection test reach it, and a paste
+never writes through it. The projection answers the step for an Alt+click, maps
+it forward to the place, and makes its output follow the place with
+`follow_output_selection!`, so the container that holds the widget rings it.
+
+A control that takes the focus draws its own ring when it is selected. A text
+box with the focus holds a caret, so a text box selected as a whole is selected
+as an object, and its ring takes the selection's colour.
+
 A whole-element selection is a path that ends at a document. A caret and a text
 range name no document (`is_whole_selection`).
 
