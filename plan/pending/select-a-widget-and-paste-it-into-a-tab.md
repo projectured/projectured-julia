@@ -1,6 +1,7 @@
 # Select any widget, and paste the selected object into a tab
 
-**Status (2026-09-17): NOT STARTED.** No code changed yet.
+**Status (2026-09-17): IN PROGRESS** on the branch `select-and-paste`, in the
+worktree `projectured-julia-select-paste`. Steps 0, 1, 2 and 2b are done.
 
 **Goal:** in the omnet IDE, a person selects any widget in any tab: a table, a
 form, a message, an evaluation, a part of the runner. The selection shows on
@@ -469,13 +470,18 @@ done here. Run only the tests that each step names.
 
 ### Step 2b — the two charts follow the syntax walk (projectured, chart and sequencechart slices)
 
-- [ ] Change the four `Alt` + arrow bindings of both `@gestures` tables (D14).
+- [x] Change the four `Alt` + arrow bindings of both `@gestures` tables (D14).
       The gesture help text follows from the table.
-- [ ] Tests: the assertions of `test_chart_projection()`
+      **Done 2026-09-17.** `_step_part` answers `nothing` at the first and the
+      last part. With a walk around the chart, `nothing` would let the generic
+      walk move the selection to another field of the chart, so at an end the
+      chart answers its own selection and keeps it, as the syntax walk does.
+- [x] Tests: the assertions of `test_chart_projection()`
       ([ChartProjectionTest.jl:1113-1123](../../test/chart/projection/ChartProjectionTest.jl#L1113-L1123))
       change to the new keys. `test_sequencechart_selection()` gets the same
       four assertions. `test_chart()` and `test_sequencechart()` keep their
       other counts.
+      **Done 2026-09-17:** the two suites pass together, 624 (609 before).
 
 ### Step 3 — the paste rules and the clipboard (projectured, domain and clipboard slices)
 

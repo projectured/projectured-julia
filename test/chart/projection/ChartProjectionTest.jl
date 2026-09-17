@@ -1109,15 +1109,27 @@ function test_chart_projection()
             _apply_to(chart, read_gesture(chart, KeyDown(:home, no_modifier)))
             @test get_chart_part_index(chart, chart.selection) == 1
 
-            # Tree navigation: out to the whole chart, and back in.
-            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            # Tree navigation, as in any document: Alt+Up out to the whole
+            # chart, Alt+Down back in to the first part.
+            _apply_to(chart, read_gesture(chart, KeyDown(:up, alt_modifier)))
             @test chart.selection isa EmptyReference
             @test get_chart_part_index(chart, chart.selection) == 0
-            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
-            @test get_chart_part_index(chart, chart.selection) == 1
-            # Alt+Down/Up move between siblings.
+            # The whole chart has nothing above it and no sibling here.
+            @test read_gesture(chart, KeyDown(:up, alt_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:left, alt_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:right, alt_modifier)) === nothing
             _apply_to(chart, read_gesture(chart, KeyDown(:down, alt_modifier)))
+            @test get_chart_part_index(chart, chart.selection) == 1
+            @test read_gesture(chart, KeyDown(:down, alt_modifier)) === nothing
+            # Alt+Right and Alt+Left move between siblings, and the first part
+            # keeps the selection.
+            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
             @test get_chart_part_index(chart, chart.selection) == 2
+            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            @test get_chart_part_index(chart, chart.selection) == 1
+            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            @test get_chart_part_index(chart, chart.selection) == 1
+            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
 
             # Ctrl+Alt+Home selects the whole chart, wherever the cursor was.
             _apply_to(chart, read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true, alt=true))))

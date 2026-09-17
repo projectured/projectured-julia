@@ -615,12 +615,20 @@ end
     KeyDown(:down;) => "Select the next part" => _step_part(doc, 1)
 
     KeyDown(:home; ctrl, alt) => "Select the whole chart" => _select_whole(doc)
-    KeyDown(:left; alt) => "Select the whole chart" =>
+    # Alt and an arrow walk the chart as they walk any document: up to the
+    # whole chart, down to its first part, and sideways between the parts, where
+    # the first and the last part keep the selection. A key with nothing to walk
+    # to answers nothing, so a walk around the chart can.
+    KeyDown(:up; alt) => "Select the whole chart" =>
         (get_chart_part_index(doc, doc.selection) == 0 ? nothing : _select_whole(doc))
-    KeyDown(:right; alt) => "Select the first part" =>
+    KeyDown(:down; alt) => "Select the first part" =>
         (get_chart_part_index(doc, doc.selection) == 0 ? _select_part(doc, 1) : nothing)
-    KeyDown(:up; alt) => "Select the previous part" => _step_part(doc, -1)
-    KeyDown(:down; alt) => "Select the next part" => _step_part(doc, 1)
+    KeyDown(:left; alt) => "Select the previous part" =>
+        (get_chart_part_index(doc, doc.selection) == 0 ? nothing :
+         something(_step_part(doc, -1), ReplaceSelectionOperation(doc.selection)))
+    KeyDown(:right; alt) => "Select the next part" =>
+        (get_chart_part_index(doc, doc.selection) == 0 ? nothing :
+         something(_step_part(doc, 1), ReplaceSelectionOperation(doc.selection)))
 
     # The "is a series selected" test lives in the handlers rather than in a
     # guard: a block-level `when` would gate the navigation rules above as well,

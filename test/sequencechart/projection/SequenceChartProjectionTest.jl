@@ -684,6 +684,30 @@ function test_sequencechart_selection()
             @test read_gesture(chart, KeyDown(:down, _sc_no_modifier)) === nothing
         end
 
+        @testset "Alt and an arrow walk the chart as they walk any document" begin
+            alt = ModifierKeys(alt = true)
+            chart = _sc_chart()
+            chart.selection = EmptyReference()
+            # The whole chart: nothing above it, no sibling, and down is the
+            # first part.
+            @test read_gesture(chart, KeyDown(:up, alt)) === nothing
+            @test read_gesture(chart, KeyDown(:left, alt)) === nothing
+            @test read_gesture(chart, KeyDown(:right, alt)) === nothing
+            _sc_apply(chart, read_gesture(chart, KeyDown(:down, alt)))
+            @test get_sequence_chart_part_index(chart, chart.selection) == 1
+            # Sideways between the parts; the first part keeps the selection.
+            _sc_apply(chart, read_gesture(chart, KeyDown(:right, alt)))
+            @test get_sequence_chart_part_index(chart, chart.selection) == 2
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt)))
+            @test get_sequence_chart_part_index(chart, chart.selection) == 1
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt)))
+            @test get_sequence_chart_part_index(chart, chart.selection) == 1
+            # A part has nothing below it here, and up is the whole chart.
+            @test read_gesture(chart, KeyDown(:down, alt)) === nothing
+            _sc_apply(chart, read_gesture(chart, KeyDown(:up, alt)))
+            @test get_sequence_chart_part_index(chart, chart.selection) == 0
+        end
+
         @testset "arrow keys walk the trace once an event is selected" begin
             chart = _sc_chart()
             chart.selection = get_event_reference(chart, 3)
