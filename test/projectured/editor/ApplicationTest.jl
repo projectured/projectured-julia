@@ -81,7 +81,7 @@ function test_application()
         @testset "the command line" begin
             command = parse_application_arguments(String[])
             @test command.files == String[] && command.window === :pane
-            @test command.backend === :sdl && command.assistant === :ollama
+            @test command.backend === nothing && command.assistant === :ollama
             @test command.model == "" && !command.mcp
             command = parse_application_arguments(
                 ["a.json", "--window=workbench", "--backend=web", "--assistant=none",
@@ -102,13 +102,17 @@ function test_application()
             @test redirect_stderr(() -> run_application_command(["--backend=web"];
                                                                 backends = (sdl = () -> nothing,)),
                                   quiet) == 1
-            # Every option of the list is one the parser takes.
-            for (label, _) in APPLICATION_OPTIONS
-                flag = first(split(label, '='))
-                flag == "--mcp" && continue
-                @test haskey(pairs(parse_application_arguments(String[])),
-                             Symbol(flag[3:end]))
+            # The `--help` text of a binary names exactly the options the
+            # parser takes.
+            usage = make_projectured_usage([:sdl, :web])
+            flags = Set(first(split(label, '=')) for (label, _) in usage.options)
+            @test flags == Set(["--window", "--backend", "--assistant", "--model",
+                                "--root", "--mcp"])
+            for flag in flags
+                @test haskey(pairs(parse_application_arguments(String[])), Symbol(flag[3:end]))
             end
+            @test !any(label -> startswith(first(label), "--backend"),
+                       make_projectured_usage([:sdl]).options)
         end
 
         @testset "the warm-up of a build" begin

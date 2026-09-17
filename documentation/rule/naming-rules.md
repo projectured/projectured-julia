@@ -43,10 +43,10 @@ on, and why a leaf matters.
   not a kind of it. `ProjecturedOdbc` and `ProjecturedTulip` are separate
   packages that carry a third-party dependency, not sub-packages of
   `Projectured`.
-- **Two leaves are named outright rather than by suffix**, because the
-  distinction they carry is real: `ProjecturedExecutable` is the artifact
-  PackageCompiler compiles, and `ProjecturedBuilder` is the tool that drives the
-  build. A tool is not a kind of artifact. `ProjecturedBench` is a leaf too.
+- **Two packages are named outright rather than by suffix**:
+  `ProjecturedBuilder` is the tool that drives a build, and `ProjecturedBench`
+  is a leaf that measures. A tool is not a kind of artifact. The package that a
+  build writes for a binary is `<Name>App`, for example `ProjecturedApp`.
 - **A package extension is `<Package><Dependency>Ext`.** That is the name
   Julia's `[extensions]` table needs, and it reads as what it is. No package
   here has one yet.

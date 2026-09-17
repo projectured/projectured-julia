@@ -104,7 +104,7 @@ include(joinpath(_EXAMPLE_DIR, "Application.jl"))
 export run_application, make_application_document, make_application_projection,
        make_application_assistant, make_application_content_projections,
        get_application_greeting_text, APPLICATION_WINDOWS, APPLICATION_ASSISTANTS,
-       APPLICATION_OPTIONS, parse_application_arguments, run_application_command,
+       parse_application_arguments, run_application_command,
        warm_application
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
 # real SDL window / record via ProjecturedVideo).

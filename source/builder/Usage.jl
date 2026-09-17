@@ -56,18 +56,28 @@ The help text of the binary called `name`.
 
 The builder's own four flags come last, and they are appended here rather than
 asked of a build function, so no binary can be built without them.
+
+A description can hold more than one line, split by `\n`; each line after the
+first starts in the column of the descriptions. A label that is too wide for
+that column puts its description on the next line.
 """
 function format_usage(name::AbstractString, usage::Usage)
     lines = ["Usage: $name" * (isempty(usage.synopsis) ? "" : " " * usage.synopsis), ""]
     isempty(usage.description) || append!(lines, [usage.description, ""])
     options = vcat(usage.options,
                    ["--log-level=<level>" =>
-                        "how much the run says: debug, info, warn, error, none",
+                        "how much the run says: debug, info, warn, error,\nnone",
                     "-h, --help" => "print this text and exit",
                     "-v, --version" => "print the version and exit",
                     "--build-info" => "print what this build was made with and exit"])
+    indent = " "^(2 + _OPTION_WIDTH)
     for (flag, what) in options
-        push!(lines, "  " * rpad(flag, _OPTION_WIDTH) * what)
+        what = replace(what, "\n" => "\n" * indent)
+        if length(flag) < _OPTION_WIDTH
+            push!(lines, "  " * rpad(flag, _OPTION_WIDTH) * what)
+        else
+            push!(lines, "  " * flag, indent * what)
+        end
     end
     join(lines, "\n") * "\n"
 end

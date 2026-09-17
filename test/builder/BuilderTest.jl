@@ -123,6 +123,16 @@ function test_builder()
             # A description starts at one column, so a person who reads one help
             # text and then another sees one shape.
             @test occursin("\n  -h, --help                 print this text and exit\n", text)
+
+            # A second line of a description starts in the same column, and a
+            # label too wide for the column puts its description below it.
+            text = format_usage("a-binary", Usage("x"; options = [
+                "--short" => "one\ntwo",
+                "--a-label-wider-than-the-column" => "three"]))
+            @test occursin("\n  --short                    one\n" *
+                           "                             two\n", text)
+            @test occursin("\n  --a-label-wider-than-the-column\n" *
+                           "                             three\n", text)
         end
 
         @testset "a flag that takes a value is known by its prefix" begin
@@ -445,6 +455,100 @@ function test_builder()
             # `tmpfs` on many machines — a copy there is a copy into memory.
             root = get_staging_root()
             @test isdir(root)
+        end
+
+        @testset "the projectured build writes its package and compiles nothing" begin
+            context = _test_context()
+            project = build_projectured_executable(; context = context, compile = false)
+            @test project == joinpath(context.root, "build", "app", "projectured")
+            deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedExample",
+                                          "ProjecturedMcp", "ProjecturedSdl", "ProjecturedWeb"])
+            source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
+            @test occursin("ProjecturedExample.run_application_command(ARGS; backends = " *
+                           "(sdl = ProjecturedSdl.SdlBackend, web = ProjecturedWeb.WebBackend))",
+                           source)
+            @test occursin("ProjecturedExample.warm_application()", source)
+            @test occursin("--backend=sdl|web", source)
+            @test occursin("--window=pane|workbench", source)
+            text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
+            @test all(line -> length(line) <= 80, split(text, '\n'))
+
+            # One backend: no `--backend`, and no workload.
+            project = build_projectured_executable(; context = context, compile = false,
+                                                   name = "projectured-web",
+                                                   backends = (:web,), workload = false)
+            deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            @test !haskey(deps, "ProjecturedSdl") && haskey(deps, "ProjecturedWeb")
+            source = read(joinpath(project, "src", "ProjecturedWebApp.jl"), String)
+            @test occursin("(web = ProjecturedWeb.WebBackend,)", source)
+            @test !occursin("--backend=", source)
+            @test !occursin("warm_application", source)
+
+            @test_throws ErrorException build_projectured_executable(; context = context,
+                                            compile = false, backends = (:x11,))
+            @test_throws ErrorException build_projectured_executable(; context = context,
+                                            compile = false, backends = ())
+            @test_throws ErrorException build_projectured_distribution(; context = context,
+                                            compile = false)
+        end
+
+        @testset "the shell front end" begin
+            front_end = Module(:BuildBinaryFrontEnd)
+            Base.include(front_end, joinpath(@__DIR__, "..", "..", "source", "builder",
+                                             "build_binary.jl"))
+            # Through `invokelatest`, because the file defined its names after
+            # this code was compiled.
+            parse_arguments(arguments) =
+                Base.invokelatest(front_end.parse_front_end_arguments, arguments)
+            usage = Base.invokelatest(front_end.format_front_end_usage)
+            for (_, label, _) in Base.invokelatest(getproperty, front_end, :OPTIONS)
+                @test occursin(label, usage)
+            end
+            @test occursin("projectured", usage)
+
+            binary, distribution, keywords = parse_arguments(String[])
+            @test binary === nothing && !distribution && isempty(keywords)
+            binary, distribution, keywords = parse_arguments(
+                ["projectured", "--backends=web,sdl", "--no-workload", "--no-incremental",
+                 "--filter-stdlibs", "--name=pr", "--optimization=2", "--debug-info=0",
+                 "--strip-metadata", "--cpu-target=generic", "--log-level=info", "--no-compile"])
+            @test binary == "projectured" && !distribution
+            @test keywords == Dict{Symbol,Any}(:backends => (:web, :sdl), :workload => false,
+                :incremental => false, :filter_stdlibs => true, :name => "pr",
+                :optimization => 2, :debug_info => 0, :strip_metadata => true,
+                :cpu_target => "generic", :log_level => :info, :compile => false)
+            binary, distribution, keywords = parse_arguments(["projectured", "--distribution",
+                                                              "--filter-stdlibs"])
+            @test distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            # Every option the build function takes is a keyword of it.
+            method = only(methods(build_projectured_executable))
+            for key in (:backends, :workload)
+                @test key in Base.kwarg_decl(method)
+            end
+            method = only(methods(build_executable))
+            for key in (:incremental, :filter_stdlibs, :name, :output, :optimization,
+                        :debug_info, :strip_metadata, :cpu_target, :logfile, :log_level,
+                        :compile)
+                @test key in Base.kwarg_decl(method)
+            end
+
+            for arguments in (["projectured", "--colour"], ["omnet"],
+                              ["projectured", "projectured"],
+                              ["projectured", "--optimization=high"],
+                              ["projectured", "--filter-stdlibs"],
+                              ["projectured", "--distribution", "--no-compile"],
+                              ["projectured", "--distribution", "--no-incremental"],
+                              ["projectured", "--distribution", "--cpu-target=native"])
+                @test_throws ErrorException parse_arguments(arguments)
+            end
+            quiet = devnull
+            @test redirect_stdout(() -> Base.invokelatest(front_end.run_front_end, ["--help"]),
+                                  quiet) == 0
+            @test redirect_stderr(() -> Base.invokelatest(front_end.run_front_end, String[]),
+                                  quiet) == 1
+            @test redirect_stderr(() -> Base.invokelatest(front_end.run_front_end, ["--colour"]),
+                                  quiet) == 1
         end
     end
 end

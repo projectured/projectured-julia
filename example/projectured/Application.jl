@@ -228,33 +228,18 @@ end
 # ── The command line ─────────────────────────────────────────────────────────
 
 """
-    APPLICATION_OPTIONS
-
-The options of the `projectured` command, as `"--option=value" => "what it
-does"`. The build writes them into the `--help` text of the binary, and the
-binary refuses an option that this list does not name.
-"""
-const APPLICATION_OPTIONS = [
-    "--window=pane|workbench" =>
-        "the window: tabs in split panes (the default), or the workbench",
-    "--backend=sdl|web" =>
-        "where the window is drawn: a native window (the default), or a web browser",
-    "--assistant=ollama|anthropic|none" =>
-        "the model backend of the assistant (ollama by default), or no assistant",
-    "--model=NAME" => "the model of that backend; its default when not given",
-    "--root=DIRECTORY" => "the directory the navigator lists; the current one by default",
-    "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
-]
-
-"""
     parse_application_arguments(arguments) -> NamedTuple
 
 The files and the options of a `projectured` command line, as the keywords of
-[`run_application`](@ref) take them, plus `files` and the backend name. An
-unknown option or a wrong value raises an error that names it.
+[`run_application`](@ref) take them, plus `files` and the backend name. The
+backend name is `nothing` when the command line gives none. An unknown option
+or a wrong value raises an error that names it.
+
+The `--help` text of a binary lists the same options: the builder writes it
+from `PROJECTURED_OPTIONS`, and a test compares the two.
 """
 function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
-    values = Dict{String,String}("window" => "pane", "backend" => "sdl",
+    values = Dict{String,String}("window" => "pane", "backend" => "",
                                  "assistant" => "ollama", "model" => "",
                                  "root" => pwd())
     mcp = false
@@ -279,7 +264,8 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     assistant in APPLICATION_ASSISTANTS ||
         error("--assistant is one of ", join(APPLICATION_ASSISTANTS, ", "), ", not ",
               repr(values["assistant"]))
-    (; files, window, backend = Symbol(values["backend"]), assistant,
+    backend = isempty(values["backend"]) ? nothing : Symbol(values["backend"])
+    (; files, window, backend, assistant,
        model = values["model"], root = values["root"], mcp)
 end
 
@@ -292,7 +278,8 @@ answer the exit code: 0 when the window closes, 1 for a wrong command line, and
 
 `backends` maps a backend name to the function that makes it, for example
 `(sdl = SdlBackend, web = WebBackend)`. It names the backends that the build put
-into the binary, and `--backend` accepts only those.
+into the binary, and `--backend` accepts only those. Without `--backend`, the
+first one opens the window.
 """
 function run_application_command(arguments; backends)
     command = try
@@ -301,14 +288,15 @@ function run_application_command(arguments; backends)
         println(stderr, "projectured: ", sprint(showerror, err))
         return Cint(1)
     end
-    if !haskey(backends, command.backend)
+    backend = something(command.backend, first(keys(backends)))
+    if !haskey(backends, backend)
         println(stderr, "projectured: --backend is one of ", join(keys(backends), ", "),
-                ", not ", repr(String(command.backend)))
+                ", not ", repr(String(backend)))
         return Cint(1)
     end
     try
         run_application(command.files...; window = command.window,
-                        backend = backends[command.backend](),
+                        backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, root = command.root)
         Cint(0)

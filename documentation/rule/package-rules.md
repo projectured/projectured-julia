@@ -22,10 +22,11 @@ Every stem has up to five packages, and the suffix says which kind it is:
 | repl | `StemRepl` | the leaf a person loads to work |
 | build | `StemBuild` | the leaf a binary is compiled from |
 
-Here the build leaf is `ProjecturedExecutable` — the app package PackageCompiler
-compiles — with `ProjecturedBuilder` beside it as the tool that drives the
-build. Those names are kept because the distinction they encode is real: one is
-the artifact, the other is the tool, and a tool is not a stem artifact at all.
+Here no build leaf is checked in. `ProjecturedBuilder` is the tool that drives
+a build, and each build writes the package that PackageCompiler compiles, under
+`build/app/<name>/`. That package is a leaf: nothing depends on it, and its
+`@compile_workload` runs the workload of the binary. A tool is not a stem
+artifact at all.
 
 `Example`, `Test`, `Repl` and `Build` are the only reserved suffixes. A package
 whose name merely begins with another's — `ProjecturedOdbc`, `ProjecturedTulip`
@@ -148,11 +149,10 @@ instant — and `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly
 (13 MB at `:none`, 149 MB at `:live`, 217 MB at `:recorded`). `Pkg.gc()` clears
 what you no longer use.
 
-A binary makes the same choice through its build spec:
-`build_executable(…; workload = :live)`, which renders `APP_WORKLOAD`. It
-defaults to `:none`, because `precompile_warmup` already warms the domains the
-binary bakes and a catalog sweep would compile twenty domains into a
-single-domain app.
+A binary makes its own choice: the `workload` keyword of `build_executable`
+is the expression that the generated package runs in its `@compile_workload`.
+The `projectured` binary runs `warm_application()`, which opens the application
+once without a window.
 
 ## What depends on what
 
@@ -226,7 +226,7 @@ the domains it embeds. [domains.md](../design/domain-inventory.md) has the table
 | `<Stem>Example` | `<Stem>`, the Examples below it |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
 | `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl |
-| `ProjecturedExecutable` **(leaf)** | Projectured, Example, Llm, Sdl |
+| `build/app/<name>` **(leaf, written by a build)** | the packages the build names |
 | `ProjecturedBuilder` (tool) | — |
 
 ### Why each third-party dependency is there

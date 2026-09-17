@@ -137,5 +137,5 @@ end
 # one is invalidated as soon as a session loads anything above it — measured at
 # 3.9 s of `recompile_time` on a first paint, and at 1.15 s on a bare render of
 # one JSON document. The workload therefore runs in a leaf: `ProjecturedRepl`
-# for a session, `ProjecturedExecutable` for a binary. Both call
-# `precompile_workload`, which is why it is a function rather than a macro body.
+# for a session, and the package that a build writes for a binary. A leaf calls
+# a workload function, which is why this is a function rather than a macro body.

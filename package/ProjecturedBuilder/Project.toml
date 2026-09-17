@@ -9,11 +9,9 @@ authors = []
 # those as strings, and `get_package_directory` resolves each to a directory and
 # a uuid by reading its own `Project.toml`.
 #
-# It also holds the configurable build front-end for the native executable: a
-# `BuildSpec` describes the editor to bake in, and `build_executable(spec::
-# BuildSpec; …)` turns it into a binary. That path is deliberately backend-
-# agnostic the same way — a backend is named by its TYPE at the call site and
-# everything it needs is derived from that type by reflection.
+# It also names the binaries of this repository: `build_projectured_executable`
+# and `build_projectured_distribution` pass the package names and the body of
+# `julia_main` to the core.
 #
 # PackageCompiler is loaded by its identity in the one step that compiles, and
 # not declared here: a caller that only wants to see what a build would write

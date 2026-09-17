@@ -55,8 +55,8 @@ A stem has up to five packages, and the suffix says which kind each one is:
 
 The JSON domain has the first three: `ProjecturedJson`,
 `ProjecturedJsonExample` and `ProjecturedJsonTest`. The two leaves of the
-repository are `ProjecturedRepl` and `ProjecturedExecutable`. Nothing may
-depend on a leaf.
+repository are `ProjecturedRepl` and `ProjecturedBench`. A build writes one
+more leaf for each binary, under `build/app/`. Nothing may depend on a leaf.
 
 The packages are linked by `[sources]` path dependencies. Read
 [documentation/rule/package-rules.md](documentation/rule/package-rules.md) for

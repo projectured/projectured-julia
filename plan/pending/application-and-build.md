@@ -159,9 +159,10 @@ The core, as fragments of the `ProjecturedBuilder` package in `source/builder/`:
 | `Distribution.jl` | `build_distribution(context; …)`, `get_staging_root`, `check_relocation`, `write_readme`, `report_distribution`. |
 | `ProjecturedProgram.jl` | The projectured binaries: `build_projectured_executable`, `build_projectured_distribution`, and the context of this repository. |
 
-`BuildSpec` and `Builder.jl` stay until Step 3 replaces them. The two
-`build_executable` methods differ in their first argument, so they can live
-side by side for that time.
+`BuildSpec` and `Builder.jl` stayed until Step 3 removed them. The two
+`build_executable` methods differed in their first argument, so they lived
+side by side for that time. `make_projectured_build_context` is in
+`BuildContext.jl`, not in `ProjecturedProgram.jl`.
 
 - `environment/build` holds `ProjecturedBuilder` (by `[sources]`) and the
   released PackageCompiler (D23). No other environment holds PackageCompiler.
@@ -351,12 +352,62 @@ the same line, `PackageGraphTest.jl:284`. `test_naming()`: 1 pass. `test_tree()`
 
 ### Step 3: the projectured targets and the front end
 
-- [ ] One function for each binary, with its option table.
-- [ ] The generated app package replaces the fixed `ProjecturedExecutable`.
+- [x] One function for each binary, with its option table.
+      `source/builder/ProjecturedProgram.jl` holds `build_projectured_executable`
+      and `build_projectured_distribution`. The JSON file editor binary is not
+      made again: the application opens a JSON file.
+- [x] The generated app package replaces the fixed `ProjecturedExecutable`.
       Update `package-rules.md` and `test_package_graph()`.
-- [ ] The front end `build_binary.jl`, with `--help`.
-- [ ] Test: the builder tests; `test_package_graph()`; a dry run that writes
+      Removed: `package/ProjecturedExecutable/`, `source/executable/`,
+      `source/builder/Builder.jl` and its `BuildSpec`, and the `.gitignore`
+      line of the generated `AppConfig.jl`. Changed: `package-rules.md`,
+      `division-terminology.md`, `naming-rules.md`, `CONTRIBUTING.md`, and a
+      comment in `example/projectured/Precompile.jl`.
+- [x] The front end `build_binary.jl`, with `--help`.
+      It is `source/builder/build_binary.jl`, with one binary, `projectured`.
+- [x] Test: the builder tests; `test_package_graph()`; a dry run that writes
       the app package and compiles nothing.
+
+Done on 2026-09-17. Results:
+
+| Test | Result |
+| --- | --- |
+| `test_builder()` | 133 pass. New: the dry run of `build_projectured_executable`, the front end, and the wrap of the help text. |
+| `test_application()` | 72 pass. |
+| `test_package_graph()` | 604 pass, 3 fail. The 3 fails are the known ones (the domain edge table). The pass count was 727: one leaf fewer makes 236 in place of 357 in "nothing depends on a leaf", and one package fewer makes 126 in place of 128 in "every package declares exactly the packages it names". |
+| `tree_violations`, `naming_violations` | none. |
+| `build_binary.jl --help`, `build_binary.jl projectured --no-compile` | exit 0. The manifest of `environment/build` did not change. |
+
+Decisions and facts of Step 3:
+
+- **One option list.** `PROJECTURED_OPTIONS` in `ProjecturedBuilder` is the
+  list that the `--help` text of the binary shows. `APPLICATION_OPTIONS` is
+  gone. The example package can not depend on the builder, and the builder
+  loads no program package, so `test_application()` compares the list with the
+  keys of `parse_application_arguments`.
+- **The default backend is the first backend of the build.** The parser gives
+  `backend = nothing` when the command line names none, and
+  `run_application_command` takes the first key of `backends`. A binary with
+  one backend has no `--backend` line in its help, and its flag matcher
+  refuses `--backend`.
+- **The generated package is `ProjecturedApp`** under
+  `build/app/projectured/`. It depends on `ProjecturedExample`,
+  `ProjecturedMcp` (it defines `make_agent_server(:mcp, …)`), and one package
+  for each backend: `ProjecturedSdl`, `ProjecturedWeb`. Its workload is
+  `ProjecturedExample.warm_application()`.
+- **`format_usage` wraps.** A description can hold `\n`, and a label wider than
+  the column puts its description on the next line. Before this change,
+  `--assistant=ollama|anthropic|none` ran into its description. The help text
+  of `projectured` fits 80 columns, and a test checks that.
+- **A test includes the front end.** `build_binary.jl` resolves the build
+  environment and calls `exit` only when it is the program file
+  (`IS_COMMAND`), so `test_builder()` includes it into a module and calls its
+  parser.
+- `build_projectured_distribution` refuses `compile = false`, and the front end
+  refuses `--distribution` with `--no-compile`, `--no-incremental` or
+  `--cpu-target`, because the distribution sets these.
+- `make_projectured_build_context` finds the repository root as the first
+  directory above the package that holds `CLAUDE.md` and `package/`.
 
 ### Step 4: the first build
 

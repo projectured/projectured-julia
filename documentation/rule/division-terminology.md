@@ -39,8 +39,8 @@ and no synonyms.
   API because the umbrella re-exports them.
 
 - **Leaf** — a package **nothing depends on and nothing loads after**:
-  `ProjecturedRepl`, which the alias loads, and `ProjecturedExecutable`, which a
-  binary is compiled from. The word carries a rule rather than a description. A
+  `ProjecturedRepl`, which the alias loads, and the package that a build writes
+  under `build/app/<name>/`, which a binary is compiled from. The word carries a rule rather than a description. A
   package image is built with exactly its own dependencies present, so compiled
   code survives only in a leaf; everything below one has its compiled code
   invalidated as the session finishes loading. That is why a

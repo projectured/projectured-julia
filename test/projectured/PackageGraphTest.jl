@@ -66,13 +66,13 @@ const SUBSTRATE = [
 
 """
 The leaves: a package nothing may depend on, and the only place a
-`@compile_workload` may live. `ProjecturedBench` joined the list when the tree
-moved it from `bench/` at the repository root into `package/`, where this guard
-could finally see it — it loads `ProjecturedExample` to measure it, which is a
-leaf's privilege and nobody else's. `ProjecturedBuilder` is not here: it is a
-tool that drives a build, not an artifact a session loads.
+`@compile_workload` may live. `ProjecturedBench` is one because it loads
+`ProjecturedExample` to measure it. `ProjecturedBuilder` is not here: it is a
+tool that drives a build, not a package a session loads. The package that a
+build compiles into a binary is a leaf too, but it lives under `build/app/`,
+outside `package/`.
 """
-const _LEAVES = ("ProjecturedRepl", "ProjecturedExecutable", "ProjecturedBench")
+const _LEAVES = ("ProjecturedRepl", "ProjecturedBench")
 
 """
     _is_main_package(name) -> Bool
@@ -165,12 +165,6 @@ function _read_all_packages()
     packages
 end
 
-
-# A package that a leaf loads for its side effect alone: the type it defines is
-# found by reflection, so no file names it. The executable bakes the LLM backend
-# in this way, which is how a built application reaches a live model.
-const SIDE_EFFECT_DEPS =
-    Dict("ProjecturedExecutable" => ["ProjecturedAnthropic", "ProjecturedOllama"])
 
 """
     _named_packages(name) -> Set{String}
@@ -306,7 +300,7 @@ function test_package_graph()
         @testset "every package declares exactly the packages it names" begin
             for (name, declared) in sort(collect(graph))
                 named = _named_packages(name)
-                extra = setdiff(Set(declared), named, get(SIDE_EFFECT_DEPS, name, String[]))
+                extra = setdiff(Set(declared), named)
                 missed = setdiff(named, Set(declared))
                 isempty(extra) &&
                     isempty(missed) || println(stderr,
