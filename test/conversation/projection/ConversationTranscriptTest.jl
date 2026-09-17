@@ -345,6 +345,7 @@ function test_conversation_transcript()
             @test !(read_intent(projection, io, KeyDown(:x, ctrl)) isa CompoundOperation)
         end
         @test !accepts_pasted_document(conversation)
+        @test !accepts_pasted_text(conversation)
     end
 
     @testset "a message alone in a tab still folds from its chevron" begin

@@ -338,9 +338,10 @@ These are the hard parts, and none of them is in this plan:
 
 ### Step 1 — `accepts_pasted_text` (projectured, domain and conversation slices)
 
-- [ ] The predicate in `ProjecturedDomain`, beside `accepts_pasted_document` (T12).
-- [ ] `accepts_pasted_text(::ConversationConversation) = false`.
-- [ ] Tests: the default, and the conversation.
+- [x] The predicate in `ProjecturedDomain`, beside `accepts_pasted_document` (T12).
+- [x] `accepts_pasted_text(::ConversationConversation) = false`.
+- [x] Tests: the conversation in `test_conversation_transcript()` (120, one
+      more). The default is asserted in step 4, where the clipboard asks it.
 
 ### Step 2 — `Shift` selects a range (projectured, text and primitive slices)
 

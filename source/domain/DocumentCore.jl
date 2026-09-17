@@ -91,3 +91,15 @@ domain that keeps a structure answers `false` where a pasted value would break
 it: a pane of a window is never replaced by a paste, and a pane is never pasted.
 """
 accepts_pasted_replacement(::Any, ::Any) = true
+
+"""
+    accepts_pasted_text(document) -> Bool
+
+Whether a paste may put text into a string of `document`, or of a document
+inside it. `true` by default. A domain answers `false` for a document whose text
+a paste must leave alone, such as a record.
+
+It is not `accepts_pasted_document`. A tool refuses a pasted document, and still
+takes text in its fields, because a person types there.
+"""
+accepts_pasted_text(::Any) = true
