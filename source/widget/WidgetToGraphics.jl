@@ -3440,6 +3440,10 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # its panes' size precisely so they do not grow with what they hold, and an
     # offer that overrode it would take that away.
     #
+    # The size is read one axis at a time, and 0 on an axis authors nothing on
+    # it (`layout-rules.md` §1). So a pane that authors its height and a width of
+    # 0 has a fixed height and takes the width its parent offers.
+    #
     # An axis with no authored size and no offer is not clipped at all. On that
     # axis the pane withholds the offer, lets the content size itself, and takes
     # the viewport extent from the content. This is what keeps a pane that clips
@@ -3450,10 +3454,12 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     tx, ty = _inset_total(w)
     avail_w = ctx.available_width
     avail_h = ctx.available_height
-    offer_w = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
+    authored_w = sz isa Point2D ? Int(sz.x[]) : 0
+    authored_h = sz isa Point2D ? Int(sz.y[]) : 0
+    offer_w = authored_w > 0 ? Cell(Int32(authored_w)) :
               avail_w !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_w[]) - tx))) : nothing
-    offer_h = sz isa Point2D ? Cell(Int32(Int(sz.y[]))) :
+    offer_h = authored_h > 0 ? Cell(Int32(authored_h)) :
               avail_h !== nothing ?
               ComputedCell(() -> Int32(max(0, Int(avail_h[]) - ty))) : nothing
     cox, coy = _content_offset(w)

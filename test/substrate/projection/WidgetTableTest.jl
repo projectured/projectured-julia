@@ -136,6 +136,34 @@ function test_widget_table_fills_offer()
 end
 end
 
+# A scroll pane reads its size one axis at a time, and 0 on an axis authors
+# nothing on it. A pane that authors its height and a width of 0 keeps the
+# height and takes the width its parent offers, as a pane that authors no size.
+function test_scroll_pane_axis_size()
+@testset "a scroll pane with a width of 0 takes the offered width" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    # A label and not a table: a table freezes its header, and a pane over it
+    # draws one viewport for each region.
+    content() = WidgetLabel(Point2D(0, 0), "a label")
+    function viewport(size, width)
+        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
+                                  height = Cell(Int32(400)))
+        out = print_document(rec, nothing, WidgetScrollPane(content(); size = size), ctx).output
+        only(e for e in out.elements if e isa GraphicsViewport)
+    end
+    for width in (400, 600)
+        free = viewport(nothing, width)
+        tall = viewport(Point2D(0, 100), width)
+        @test Int(tall.w) == Int(free.w)
+        @test Int(tall.w) > width - 100
+        @test Int(tall.h) == 100
+    end
+end
+end
+
 function test_widget_table_cell_policy()
 @testset "a table cell clips or wraps by policy" begin
     det = (t, f) -> (length(t) * 8, 16)
