@@ -443,14 +443,29 @@ done here. Run only the tests that each step names.
 
 ### Step 2 — the `Alt` + arrows walk (projectured, focus and pane slices)
 
-- [ ] The stage of D6, with a name that follows
+- [x] The stage of D6, with a name that follows
       [naming-rules.md](../../documentation/rule/naming-rules.md).
-- [ ] The two pane answers of D6: a whole tab moves to its neighbour tab, and
+      **Done 2026-09-17:** `SelectionWalkingProjection` and
+      `compute_selection_walk` in `source/focus/SelectionWalking.jl`. The walk
+      reuses the focus slice's `_child_document_refs`. An object is a document
+      that is not a collection and whose `selection` cell is not an
+      `ImmutableCell{Nothing}`: that is how a value document (a color, a font,
+      a text style) declares that it holds no selection, so the walk never
+      stops on one. A plain struct such as `Point2D` is not a document at all.
+- [x] The two pane answers of D6: a whole tab moves to its neighbour tab, and
       the root of a tab's content stays.
-- [ ] Tests: all four keys over a widget tree and over a pane tree; a vector
+      **Done 2026-09-17:** `_walk_tab` in the `@gestures PaneTree` table, and
+      `get_pane_content_path` in `PaneSurgery.jl`. A whole tab also stays on
+      `Alt+Up` and goes to its content, not its title, on `Alt+Down`. The pane
+      table runs only for a key that the content did not answer, so a syntax
+      tab keeps its own walk.
+- [x] Tests: all four keys over a widget tree and over a pane tree; a vector
       sibling and a field sibling; the first and the last sibling stay;
       `Alt+Left` with a caret answers `nothing`; an inner reader that answers
       first keeps its answer (a syntax tree and a chart in a tab).
+      **Done 2026-09-17:** `test_selection_walking()`, 29 pass, with a stub
+      inner reader in place of a syntax tree; `test_pane_gestures()`, 52 pass
+      (42 before). The chart case is in Step 2b.
 
 ### Step 2b — the two charts follow the syntax walk (projectured, chart and sequencechart slices)
 

@@ -16,6 +16,9 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
+const IntentModule = ProjecturedKernel.IntentModule
+const IoMapModule = ProjecturedKernel.IoMapModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 

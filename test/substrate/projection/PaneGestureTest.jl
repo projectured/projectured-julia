@@ -174,5 +174,36 @@ end
     @test get_pane_focus(tree) == (group, 1)
 end
 
+@testset "Alt and an arrow walk from a whole tab, and stay inside its content" begin
+    tree, group, editor = _seeded()
+    _alt(key) = KeyDown(key, ModifierKeys(alt = true))
+    whole_tab(i) = strip_reference_types(get_selection(tree)) ==
+                   strip_reference_types(get_pane_tab_reference(tree, group, i))
+    whole_content(i) = strip_reference_types(get_selection(tree)) ==
+                       strip_reference_types(get_pane_content_path(tree, group, i))
+    @test whole_tab(1)
+    # Sideways from a whole tab: its neighbour, and the ends stay.
+    _press!(editor, _alt(:right))
+    @test whole_tab(2)
+    _press!(editor, _alt(:right))
+    @test whole_tab(2)
+    _press!(editor, _alt(:left))
+    @test whole_tab(1)
+    _press!(editor, _alt(:left))
+    @test whole_tab(1)
+    # A whole tab is the top of the walk.
+    _press!(editor, _alt(:up))
+    @test whole_tab(1)
+    # Down is the tab's content, as a whole, and not its title.
+    _press!(editor, _alt(:down))
+    @test whole_content(1)
+    @test evaluate_reference(tree, get_selection(tree)) === group.tabs[1].content
+    # The content has no sibling: the title is not an object of the content.
+    _press!(editor, _alt(:right))
+    @test whole_content(1)
+    _press!(editor, _alt(:left))
+    @test whole_content(1)
+end
+
 end # testset
 end # function

@@ -251,6 +251,22 @@ function get_pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
 end
 
 """
+    get_pane_content_path(tree, group, index) -> Reference | Nothing
+
+The typed path to a tab's content document, which names the content as a whole.
+"""
+function get_pane_content_path(tree::PaneTree, group::PaneGroup, index::Integer)
+    (1 <= index <= length(group.tabs)) || return nothing
+    tab = group.tabs[index]
+    pairs = _pairs_to(tree, group)
+    pairs === nothing && return nothing
+    push!(pairs, (group, FieldReferenceStep("tabs")))
+    push!(pairs, (group.tabs, ElementReferenceStep(Int(index))))
+    push!(pairs, (tab, FieldReferenceStep("content")))
+    _reference_from(pairs, tab.content)
+end
+
+"""
     make_pane_title_caret_operation(tree, group, index[, position]) -> Operation | Nothing
 
 Put the caret in a tab's title — which is the whole of what "rename" means here.

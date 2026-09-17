@@ -17,7 +17,8 @@ the walk for Tab traversal.
 
 The module also holds the whole-element selection that an Alt+click makes: the
 gesture test, the test that tells a whole selection from a caret, and the answer
-a container gives for the child a press hit.
+a container gives for the child a press hit, and the walk of such a selection
+with the four Alt + arrow keys (`SelectionWalkingProjection`).
 """
 module FocusModule
 
@@ -25,16 +26,25 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
+using ..IntentModule
+using ..IoMapModule
 using ..OperationModule
+using ..ProjectionModule
 using ..ReferenceModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document
 export is_whole_selection_press, is_whole_selection, convert_to_whole_selection,
        find_whole_selected_index, is_whole_selected_field
+export SelectionWalkingProjection, SelectionWalkingIoMap,
+       get_selection_walk_direction, compute_selection_walk
 
 
 include("Focus.jl")
 include("WholeSelection.jl")
+include("SelectionWalking.jl")
 
 end # module
