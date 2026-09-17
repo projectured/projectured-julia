@@ -38,9 +38,9 @@ PaneTab(title::AbstractString, content, icon) =
 """
     default_new_pane_tab() -> PaneTab
 
-The tab an empty new-tab gesture opens: one named "untitled", holding the empty
-placeholder. A projection takes a factory of its own when an application wants
-something else in a fresh tab.
+The tab an empty new-tab gesture opens: one with an empty name, holding the
+empty placeholder. A projection takes a factory of its own when an application
+wants something else in a fresh tab.
 
 The content is a [`DocumentNothing`](@ref), not an empty string, because a fresh
 tab has no domain yet. The placeholder is a document any other document can
@@ -48,15 +48,28 @@ replace: Alt+click selects it whole, a paste puts the clipboard in its place, an
 a printable key turns it into an insertion. An empty string offers none of that —
 it renders nothing, so a click in the tab body answers nothing and the selection
 stays on the tab.
+
+The name is empty so that the tab is called after what it holds: see
+[`get_pane_tab_title_string`](@ref).
 """
-default_new_pane_tab() = PaneTab("untitled", DocumentNothing())
+default_new_pane_tab() = PaneTab("", DocumentNothing())
 
 """
     get_pane_tab_title_string(tab) -> String
 
 The tab's title as a plain string, whatever document carries it.
+
+A tab with an empty name is called after its content: the content's own title
+(`get_document_title`), and "untitled" when the content has none. A pasted
+object therefore names the tab it fills. A description of the content is never
+used, because it changes as the content does, and a tab must not rename itself.
 """
-get_pane_tab_title_string(tab::PaneTab) = _title_string(tab.title)
+function get_pane_tab_title_string(tab::PaneTab)
+    title = _title_string(tab.title)
+    isempty(title) || return title
+    named = get_document_title(tab.content)
+    (named isa AbstractString && !isempty(strip(named))) ? String(named) : "untitled"
+end
 _title_string(title::PrimitiveString) = something(title.value, "")
 _title_string(title::AbstractString) = String(title)
 _title_string(title) = string(title)

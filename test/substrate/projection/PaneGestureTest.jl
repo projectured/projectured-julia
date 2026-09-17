@@ -5,6 +5,12 @@ mutable struct _PaneGestureMockEditor
     document::Any
 end
 
+# A document that has a title of its own.
+@document struct _PaneTitledContent <: Document
+    name::Any
+end
+PaneModule.get_document_title(content::_PaneTitledContent) = String(content.name)
+
 function test_pane_gestures()
 @testset "PaneTree gestures" begin
 
@@ -54,6 +60,19 @@ end
     _press!(editor, KeyDown(:escape, ModifierKeys()))
     _press!(editor, _ctrl(:w))
     @test length(group.tabs) == 2
+end
+
+@testset "a tab with an empty name is called after what it holds" begin
+    tab = default_new_pane_tab()
+    @test get_pane_tab_title_string(tab) == "untitled"
+    tab.content = _PaneTitledContent("results")
+    @test get_pane_tab_title_string(tab) == "results"
+    tab.title.value = "mine"
+    @test get_pane_tab_title_string(tab) == "mine"
+    tab.title.value = ""
+    @test get_pane_tab_title_string(tab) == "results"
+    tab.content = _PaneTitledContent("   ")
+    @test get_pane_tab_title_string(tab) == "untitled"
 end
 
 @testset "a split selects the empty content of its new tab" begin
