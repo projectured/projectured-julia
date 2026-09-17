@@ -148,7 +148,7 @@ end
                        fonts, assets, usage, log_level, imports, init,
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
-                       force, logfile, extra_info, compile_app) -> String
+                       precompile, force, logfile, extra_info, compile_app) -> String
 
 Write a package holding `packages`, compile it into `output`, and answer the
 output directory.
@@ -174,6 +174,9 @@ output directory.
   [`resolve_app_project`](@ref). It follows `compile`, because a caller that only
   wants to see what a build would write pays nothing for it; a caller that will
   RUN the package rather than compile it asks for it.
+- `precompile` — whether that resolve also precompiles. By default it does not
+  when this build compiles, because `create_app` precompiles the same package
+  again. A caller whose own `compile_app` does not precompile asks for it.
 - `incremental` — build one system image on top of the base one instead of two
   from nothing. **On by default here where `create_app` defaults it to `false`**,
   because a non-incremental build compiles a fresh image from nothing and then,
@@ -219,6 +222,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             output::AbstractString = joinpath(context.root, "build", String(name)),
                             compile::Bool = true,
                             resolve::Bool = compile,
+                            precompile::Bool = !compile,
                             force::Bool = true,
                             logfile::Union{AbstractString,Nothing} = nothing,
                             extra_info::AbstractString = "",
@@ -249,7 +253,7 @@ function build_executable(context::BuildContext; name::AbstractString,
     # A caller that only wants to SEE what a build would write pays nothing for
     # it. A caller that will compile the package, or run it, needs it resolved.
     # Skip the precompile only when `compile_app` is going to do it again anyway.
-    resolve && resolve_app_project(project; precompile = !compile)
+    resolve && resolve_app_project(project; precompile = precompile)
     compile || return project
 
     compile! = () -> compile_app(project, output, name; force, optimization, debug_info,
