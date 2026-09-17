@@ -459,7 +459,7 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     cell isa GraphicsCanvas || return row
     cell_x = Int(x_cell[]) + Int(cell.x)
     cell_y = Int(st.header_height[]) + Int(canvas.y) + Int(y_cell[]) + Int(cell.y)
-    op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers))
+    op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers))
     op === nothing && return row
     op isa ReplaceSelectionOperation || return op
     ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))

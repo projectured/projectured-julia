@@ -211,7 +211,7 @@ _route_scroll(entries, evt::MouseScroll) =
 
 _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
 
 # Pointer motion / crossings carry coordinates, so they hit-test the laid-out
 # children exactly like a click — routing to the child *under the pointer*, not the
@@ -1514,7 +1514,7 @@ _route_scroll_reverse(entries, evt::MouseScroll) =
 
 _route_click_reverse(entries, evt::MousePress) =
     _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
 
 function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector

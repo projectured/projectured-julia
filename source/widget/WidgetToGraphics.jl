@@ -831,7 +831,7 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
 
 _route_click_to_children(child_entries::Vector, evt::MousePress) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
 
 # Route a MouseEnter / MouseLeave crossing to the hit child (for hover feedback,
 # Stage 6) — the child reader flips its `hovered` cell.
@@ -1117,7 +1117,7 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
                 (x - cox, y - coy)
             end
             answer = read_intent(content_iomap.projection, content_iomap,
-                                 MousePress(button, lx, ly, evt.modifiers))
+                                 MousePress(button, lx, ly, evt.count, evt.modifiers))
             # A document with nothing in it measures nothing, so it has no
             # position to answer with and an empty field could not be clicked
             # into at all. A click in the box means "the caret goes here", and on
@@ -1488,7 +1488,7 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     cox, coy = _content_offset(w)
     op = @event_case evt begin
         MousePress(button, x, y) =>
-            read_intent(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.modifiers))
+            read_intent(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.count, evt.modifiers))
         MouseScroll(dx, dy, x, y) =>
             read_intent(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
         _ => read_intent(child_iomap.projection, child_iomap, evt)
@@ -1648,7 +1648,8 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     ce = iomap.content_entry
     ce === nothing && return nothing
     (ox, oy, cim) = ce
-    op = read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy, evt.modifiers))
+    op = read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy,
+                                          evt.count, evt.modifiers))
     _retarget_op(p, iomap, op)
 end
 
@@ -1921,7 +1922,7 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
         MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
         MouseDown => _route_composite_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
         MouseUp => _route_composite_drag(child_iomaps, evt.x, evt.y,
@@ -2747,7 +2748,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
         MousePress => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
         # Coordinate-bearing pointer events (a non-drag press/release, plain motion,
         # and the hover crossings) route to the slot *under the pointer*, exactly as
         # the composite does — a hover crossing must reach whatever the pointer is
@@ -3315,7 +3316,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
         MousePress(button, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MousePress(button, lx, ly, evt.modifiers)
+            MousePress(button, lx, ly, evt.count, evt.modifiers)
         end
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
@@ -3740,7 +3741,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     op = @event_case evt begin
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_child_event(content_iomap, MousePress(button, lx, ly, evt.modifiers))
+            read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers))
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
@@ -3911,7 +3912,8 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             inv = compute_affine_inverse(M)
             lxf, lyf = apply_affine_transform(inv, Float64(x - cox), Float64(y - coy))
             read_child_event(content_iomap,
-                             MousePress(button, round(Int, lxf), round(Int, lyf), evt.modifiers))
+                             MousePress(button, round(Int, lxf), round(Int, lyf),
+                                        evt.count, evt.modifiers))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
@@ -4488,7 +4490,7 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
         end
     end
     _card_route(w, entries, evt.x, evt.y,
-                (x, y) -> MousePress(evt.button, x, y, evt.modifiers))
+                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
 # widget nested in a card (a button, a hovered row) still sees hover crossings, the
@@ -6405,7 +6407,7 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     # Child position = the grid offset + child wrapper offset + child canvas offset.
     cell_x = geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
     cell_y = geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
-    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.modifiers)
+    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers)
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
     # leaves it to the row, and the row is selected: a table of text is a
