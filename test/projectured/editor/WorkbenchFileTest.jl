@@ -38,6 +38,60 @@ function test_workbench_file_keys()
             @test read_document_file(pb) isa JsonObject      # binary round-trip
         end
 
+        @testset "every file format saves and loads" begin
+            dir = mktempdir()
+            # One small document of each natural format. Each text comes back
+            # as the same text after a save and a load.
+            natural = [("a.json", :json, "{\"name\": \"Alice\", \"age\": 30}"),
+                       ("a.xml",  :xml,  "<a x=\"1\"><b/></a>"),
+                       ("a.yaml", :yaml, "name: Alice\nage: 30\n"),
+                       ("a.md",   :md,   "# Title\n\nSome text.\n"),
+                       ("a.rst",  :rst,  "Title\n=====\n\nSome text.\n"),
+                       ("a.math", :math, "a + b"),
+                       ("a.jl",   :jl,   "function f(x)\n    x + 1\nend\n"),
+                       ("a.sql",  :sql,  "SELECT a FROM t;")]
+            for (name, format, text) in natural
+                document = parse_natural_text(format, text)
+                path = joinpath(dir, name)
+                @test write_document_file(document, path) == path
+                @test print_natural_text(read_document_file(path)) ==
+                      print_natural_text(document)
+            end
+
+            # @broken: the XML printer indents the text of an element, and the
+            # parser keeps that whitespace, so each save and load adds blank
+            # space to the text.
+            element = parse_natural_text(:xml, "<a>text</a>")
+            path = joinpath(dir, "text.xml")
+            write_document_file(element, path)
+            @test_broken print_natural_text(read_document_file(path)) ==
+                         print_natural_text(element)
+
+            # A `.pred` file holds a registered document. `TestRun` is the
+            # `.pred` document of FileProjectTest.jl, in this module.
+            register_pred_type!(TestRun)
+            path = joinpath(dir, "run.pred")
+            write_document_file(TestRun(name = "aloha", count = 3), path)
+            run = read_document_file(path)
+            @test run isa TestRun
+            @test run.name == "aloha" && run.count == 3
+
+            # A text file, with or without an extension, is a PrimitiveString.
+            for name in ("notes.txt", "README")
+                path = joinpath(dir, name)
+                write_document_file(PrimitiveString("line one\nline two"), path)
+                @test read(path, String) == "line one\nline two"
+                back = read_document_file(path)
+                @test back isa PrimitiveString
+                @test back.value == "line one\nline two"
+            end
+            @test make_document_for("new.txt") isa PrimitiveString
+            @test make_document_for("NEWFILE") isa PrimitiveString
+            @test make_document_for("new.pred") isa DocumentNothing
+            @test has_file_document_type("x.pred")
+            @test !has_file_document_type("x.png")
+        end
+
         @testset "Ctrl+S saves, Ctrl+O reloads" begin
             path = tempname() * ".json"
             name = "a.json"

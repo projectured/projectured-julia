@@ -35,7 +35,7 @@ export save_document, load_document, SaveDocumentOperation, LoadDocumentOperatio
 export FileDocument, is_file_document,
        get_filename, get_file_content, emit_text,
        save_project!, load_project,
-       register_file_document_type!, get_file_document_type,
+       register_file_document_type!, get_file_document_type, has_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
        register_pred_type!, get_pred_type, is_pred_type,
        parse_marker_text, get_document_section

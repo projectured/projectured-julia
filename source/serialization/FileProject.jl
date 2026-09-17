@@ -153,6 +153,15 @@ function get_file_document_type(path::AbstractString)
           repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
 end
 
+"""
+    has_file_document_type(path::AbstractString) -> Bool
+
+Whether a format claimed the extension of `path`, so that
+[`get_file_document_type`](@ref) answers instead of raising an error.
+"""
+has_file_document_type(path::AbstractString) =
+    haskey(_FILE_DOCUMENT_TYPES, lowercase(splitext(path)[2]))
+
 # ── The marker language ────────────────────────────────────────────────────
 #
 # `<<expr>>` where `expr` is a call over the registered vocabulary whose
