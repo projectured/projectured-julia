@@ -20,6 +20,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule
 using ..SelectionModule
+using ..SerializationModule
 using ..StyleModule
 using ..TextModule
 
@@ -27,6 +28,7 @@ using ..TextModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..SerializationModule: pred_arguments
 
 export ReferenceInspectorToText
 export HoverProbeProjection, HoverProbeIoMap
@@ -58,6 +60,8 @@ function __init__()
                                                  WordWrapping(measure = measure),
                                                  TextToGraphics(measure = measure)),
     ])
+    register_pred_type!(ReferenceInspector)
+    register_pred_type!(SelectionInspector)
 end
 
 end # module

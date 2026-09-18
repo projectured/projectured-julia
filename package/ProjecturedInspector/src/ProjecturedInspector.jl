@@ -14,6 +14,7 @@ using ProjecturedKernel
 using ProjecturedNatural
 using ProjecturedProjection
 using ProjecturedScreen
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedText
 
@@ -32,6 +33,7 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/inspector/InspectorModule.jl")
 

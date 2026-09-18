@@ -125,6 +125,20 @@ end
 
 set_cell_function!(a::Assistant, f::Function) = (set_cell_function!(getfield(a, :conversation), f); a)
 
+# A key must never be written to a file, so `api_key` is not one of the
+# arguments a `.pred` file writes. A live connection is not data either: `llm`
+# is a fake or a running client, `status` is what a turn is doing right now,
+# and `conversation`/`input`/`draft` are this session's exchange, not the
+# next one's — so a save keeps only the settings that describe an assistant
+# rather than a moment of one, and a load starts a fresh, empty conversation.
+pred_arguments(a::Assistant) = (), Pair{Symbol,Any}[
+    :backend           => a.backend,
+    :model             => a.model,
+    :system            => a.system,
+    :context           => a.context,
+    :collapse_thinking => a.collapse_thinking,
+]
+
 # The name the tab calls itself. No alias: `get_insertion_names` already derives
 # one from the type name, so a person types "assistant" without a hand-written method.
 get_document_title(::Assistant) = ASSISTANT_TITLE

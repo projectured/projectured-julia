@@ -23,6 +23,7 @@ using ..IoMapModule
 using ..NaturalModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
@@ -31,6 +32,7 @@ using ..TextModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document
+import ..SerializationModule: pred_arguments
 
 export MessageLogEntry, MessageLog, get_session_message_log,
        record_message!, clear_message_log!

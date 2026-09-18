@@ -33,6 +33,7 @@ using ..OperationModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
@@ -41,6 +42,7 @@ using ..TextModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..SerializationModule: pred_arguments
 
 export GestureLogEntry, GestureLog, get_session_gesture_log,
        record_gesture!, clear_gesture_log!,

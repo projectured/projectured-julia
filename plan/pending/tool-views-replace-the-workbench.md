@@ -717,6 +717,26 @@ check.
 
 ### Step 9. The user interface saves to a `.pred` file
 
+**Status: done, 2026-09-18, together with Step 10.** `save_user_interface` and
+`load_user_interface` live in the pane slice, which owns the layout. Neither
+names a screen type: the pane reaches `document.windows` by `hasproperty`, as
+`get_window_tree` already does.
+
+Each slice registers its own types from its own `__init__` and takes the
+dependency on `ProjecturedSerialization`, which costs little — that package
+depends on the kernel alone. This is the pattern the formula slice already set.
+
+**A type whose fields have no inline default gets no keyword constructor**, and
+the default `make_pred_document` calls `T(; keywords...)`. So `PrimitiveString`,
+`PaneGroup` and `WorkspaceFolder` each need a `make_pred_document` method of
+their own — without them the first round trip fails on an ordinary tab title, an
+ordinary tab group, and a folder of the explorer. This is the mirror of the known
+arity rule: a required field kills the keyword form as surely as none kills the
+positional one.
+
+None of the six reduced documents needed one: each reduced field set still
+matches a constructor those types already have.
+
 1. Call `register_pred_type!` for `ScreenDocument`, `WindowDocument`,
    `PaneTree`, `PaneSplit`, `PaneGroup`, `PaneTab`, `DocumentNothing`,
    `PrimitiveString`, and for the six tools. Each call goes in the `__init__` of
@@ -739,6 +759,15 @@ assistant and a gesture log, save it, read the text, and assert that the file
 tab is a `file(...)` marker and that no `api_key` appears anywhere in it.
 
 ### Step 10. The editor opens a saved user interface
+
+**Status: done, 2026-09-18.** `load_user_interface(path)` opens the project with
+`follow = true`, so every file a marker names comes back with it, and answers the
+content of the first file.
+
+Measured on a real round trip: a layout of a split, two groups, a placeholder
+tab, a gesture log tab, a file tab and an assistant tab saves and opens with the
+same groups, the same tab counts, the same titles, the file readable again, the
+gesture log empty, and no key anywhere in the text.
 
 Add `load_user_interface(path)`: `load_project(dirname(path), [basename(path)]; follow = true)`,
 then take the content of the first file as the editor document. `follow = true`

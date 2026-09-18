@@ -30,14 +30,15 @@ using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedText
 using ProjecturedWidget
 
 for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedDomain,
              ProjecturedNatural, ProjecturedKernel, ProjecturedLayout,
-             ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle,
-             ProjecturedText, ProjecturedWidget)
+             ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization,
+             ProjecturedStyle, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

@@ -10,6 +10,14 @@ abstract type WorkspaceDocument <: Document end
     pathname::String
 end
 
+# Neither field has a default, so the macro gives the bare name no keyword
+# constructor — `pred_arguments` always writes a document's fields as
+# keywords, so the file format needs this one.
+make_pred_document(::Type{WorkspaceFolder}, positional, keywords) =
+    isempty(positional) ?
+        WorkspaceFolder(Dict(keywords)[:name], Dict(keywords)[:pathname]) :
+        WorkspaceFolder(positional...)
+
 
 # ── Workspace ────────────────────────────────────────────────────────────────
 

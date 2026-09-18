@@ -51,6 +51,12 @@ SelectionInspector(source) = SelectionInspector(; source = source)
 get_document_title(::SelectionInspector) = "Selection"
 get_insertion_aliases(::Type{SelectionInspector}) = ["selection"]
 
+# A source is a live document or a computation, and neither is notation: a
+# restored view follows the editor's own selection instead, which is what a
+# `SelectionInspector` shows with no source at all. So a save writes nothing,
+# and a load gets that same default.
+pred_arguments(::SelectionInspector) = (), Pair{Symbol,Any}[]
+
 """
     find_inspected_selection(source, root) -> Reference or Nothing
 

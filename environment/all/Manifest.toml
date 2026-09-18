@@ -857,7 +857,7 @@ uuid = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 version = "0.1.0"
 
 [[deps.ProjecturedAssistant]]
-deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedAssistant"
 uuid = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 version = "0.1.0"
@@ -989,7 +989,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
-deps = ["ProjecturedKernel"]
+deps = ["ProjecturedKernel", "ProjecturedSerialization"]
 path = "../../package/ProjecturedDomain"
 uuid = "56e9f339-7147-459f-9ae1-7785cace5f24"
 version = "0.1.0"
@@ -1013,7 +1013,7 @@ uuid = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 version = "0.1.0"
 
 [[deps.ProjecturedFileSystem]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedFileSystem"
 uuid = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 version = "0.1.0"
@@ -1079,7 +1079,7 @@ uuid = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 version = "0.1.0"
 
 [[deps.ProjecturedGestureLog]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedGestureLog"
 uuid = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 version = "0.1.0"
@@ -1109,7 +1109,7 @@ uuid = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 version = "0.1.0"
 
 [[deps.ProjecturedInspector]]
-deps = ["ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
+deps = ["ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedText"]
 path = "../../package/ProjecturedInspector"
 uuid = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 version = "0.1.0"
@@ -1174,7 +1174,7 @@ uuid = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 version = "0.1.0"
 
 [[deps.ProjecturedLog]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedLog"
 uuid = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
 version = "0.1.0"
@@ -1258,7 +1258,7 @@ uuid = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 version = "0.1.0"
 
 [[deps.ProjecturedPane]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedWidget"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedWidget"]
 path = "../../package/ProjecturedPane"
 uuid = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 version = "0.1.0"
@@ -1276,7 +1276,7 @@ uuid = "fab29e63-3751-46a0-88a9-22680e33c7d8"
 version = "0.1.0"
 
 [[deps.ProjecturedPrimitive]]
-deps = ["ProjecturedKernel"]
+deps = ["ProjecturedKernel", "ProjecturedSerialization"]
 path = "../../package/ProjecturedPrimitive"
 uuid = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 version = "0.1.0"
@@ -1336,7 +1336,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedScreen]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization"]
 path = "../../package/ProjecturedScreen"
 uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"

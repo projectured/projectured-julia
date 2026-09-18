@@ -111,6 +111,13 @@ The tab the group shows is the tab its own `selection` names. There is no
     tabs::CellVector
 end
 
+# `tabs` has no field default, so the macro gives the bare name no keyword
+# constructor, only the bracketed positional one (`PaneGroup([t1, t2])`) —
+# `pred_arguments` always writes a document's fields as keywords, so the file
+# format needs this one.
+make_pred_document(::Type{PaneGroup}, positional, keywords) =
+    PaneGroup(isempty(positional) ? only(keywords).second : positional[1])
+
 # ── PaneSplit ──────────────────────────────────────────────────────────────
 
 """
@@ -169,6 +176,10 @@ not part of the layout and is not meant to be serialized.
     root::Any
     drag::Any = nothing
 end
+
+# A drag in progress is not layout: it is a pointer's own transient state, gone
+# the moment the button comes up, and never something a save should freeze.
+pred_arguments(tree::PaneTree) = (), Pair{Symbol,Any}[:root => tree.root]
 
 # ── Tree walks ─────────────────────────────────────────────────────────────
 

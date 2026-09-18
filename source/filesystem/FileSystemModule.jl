@@ -27,6 +27,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
@@ -36,6 +37,7 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..SerializationModule: make_pred_document
 
 export FileSystemDocument, make_filesystem_pathname, OpenFileOperation
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,

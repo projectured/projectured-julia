@@ -58,4 +58,5 @@ end
 
 function __init__()
     register_natural_syntax!(:messagelog, () -> Pair{Type,Any}[MessageLog => MessageLogToSyntax()])
+    register_pred_type!(MessageLog)
 end

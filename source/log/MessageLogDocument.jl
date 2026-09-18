@@ -25,6 +25,12 @@ end
 get_document_title(::MessageLog) = "Log"
 get_insertion_aliases(::Type{MessageLog}) = ["log"]
 
+# Last session's log is not this one's: `entries` and `count` are what a
+# session captured, not a setting of the log, and `entries` holds
+# `MessageLogEntry` values the notation cannot write in any case. Only
+# `capacity` describes the log itself, so a load starts empty at the same size.
+pred_arguments(log::MessageLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+
 # ── Record ─────────────────────────────────────────────────────────────────
 
 """

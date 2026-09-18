@@ -27,6 +27,12 @@ end
 get_document_title(::GestureLog) = "Gestures"
 get_insertion_aliases(::Type{GestureLog}) = ["gestures"]
 
+# Last session's log is not this one's: `entries` and `count` are what a
+# session recorded, not a setting of the log, and `entries` holds
+# `GestureLogEntry` values the notation cannot write in any case. Only
+# `capacity` describes the log itself, so a load starts empty at the same size.
+pred_arguments(log::GestureLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+
 # ── Record ─────────────────────────────────────────────────────────────────
 
 """

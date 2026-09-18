@@ -31,6 +31,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
@@ -42,6 +43,7 @@ import ..DocumentModule: copy_document, get_document_title, has_document_duplica
 import ..DomainModule: accepts_pasted_document
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..SerializationModule: pred_arguments
 
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM
 export AssistantToWidgetSplitPane, AssistantToWidgetCard

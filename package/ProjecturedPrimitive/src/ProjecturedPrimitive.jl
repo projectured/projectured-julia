@@ -16,12 +16,14 @@ relative `..XxxModule` references.
 module ProjecturedPrimitive
 
 using ProjecturedKernel
+using ProjecturedSerialization
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/primitive/PrimitiveModule.jl")
 

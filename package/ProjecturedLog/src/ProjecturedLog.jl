@@ -13,6 +13,7 @@ using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedKernel
 using ProjecturedNatural
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
@@ -28,6 +29,7 @@ const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const NaturalModule = ProjecturedNatural.NaturalModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/log/MessageLogModule.jl")
 

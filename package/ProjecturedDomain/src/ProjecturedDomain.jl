@@ -11,6 +11,7 @@ relative `..XxxModule` references.
 module ProjecturedDomain
 
 using ProjecturedKernel
+using ProjecturedSerialization
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
@@ -20,6 +21,7 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/domain/DomainModule.jl")
 

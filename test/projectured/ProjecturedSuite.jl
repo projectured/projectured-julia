@@ -146,6 +146,7 @@ include("editor/ApplicationTest.jl")
 include("editor/InsertionInTabTest.jl")
 include("projection/ToolViewTest.jl")
 include("projection/FileTabTest.jl")
+include("editor/UserInterfaceFileTest.jl")
 include("editor/ValueViewerTest.jl")
 include("editor/GalleryWrapperTest.jl")
 include("editor/McpTest.jl")
@@ -392,6 +393,7 @@ function test_all()
     test_gesture_log_in_tab()
     test_message_log()
     test_file_tab()
+    test_user_interface_file()
     test_value_viewer()
     test_builder()
     test_gallery_wrappers()
@@ -455,7 +457,7 @@ export test_conversation_editor, test_conversation_serialization, test_parse_mar
 export test_undo_round_trip
 export test_workbench_file_keys, test_application, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
-       test_file_tab,
+       test_file_tab, test_user_interface_file,
        test_value_viewer, test_builder,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db

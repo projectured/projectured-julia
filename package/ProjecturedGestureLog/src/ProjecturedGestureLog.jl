@@ -15,6 +15,7 @@ using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedNatural
 using ProjecturedProjection
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
@@ -42,6 +43,7 @@ const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const NaturalModule = ProjecturedNatural.NaturalModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/gesturelog/GestureLogModule.jl")
 

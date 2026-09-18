@@ -33,6 +33,7 @@ using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..OperationModule: evaluate_operation
@@ -50,5 +51,12 @@ include("ScreenDocument.jl")
 include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
+
+# A file may name a screen and a window. The registry is runtime state, so the
+# offer is made here and not at the top level.
+function __init__()
+    register_pred_type!(ScreenDocument)
+    register_pred_type!(WindowDocument)
+end
 
 end # module
