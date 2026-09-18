@@ -396,74 +396,79 @@ is merged into the worktree's branch only when §2 says so. Commit with explicit
 paths. Land with `git merge --ff-only`. Cap every Julia process. A stage runs
 under the conditions of §5.
 
-### Step 1. What lands with a test (§3a, §3c, §3d, §3f) — done 2026-09-17
+**The order changed on 2026-09-18, by the user's question: the engine before
+the chat model.** A stage of the chat model costs 35 minutes and answers with
+noise; a measurement of the ranks costs seconds and answers the same twice. So
+every change that ranking decides is measured on the questions of §3h, and the
+chat model is spent once at the end, as the check that a better rank is a
+better turn. That check is needed: `WidgetCard` stood second and the model
+still failed, so a rank is a proxy and not the goal.
 
-- [x] The seed and the meaning model through `_session`, `_run_problem` and
-      `measure_assistant_problems`; the `k/n` table; the folders per seed;
-      the miss counts; their tests.
-- [x] The plot with no series, and its test, which draws it.
-- [x] The pane sentence, and the guard test. The guard, run on the old
-      sentence, names `focus_pane`, `close_pane`, `move_pane` and
-      `resize_pane`.
-- [x] The campaign test's store in its own folder, the fake file deleted, and
-      the limits in `agent.md`.
+### Done
 
-### Step 2. The baseline
+- **Step A, 2026-09-17.** What lands with a test: the seeds, the miss counts,
+  the plot with no series, the pane sentence and its guard, the campaign
+  test's store, and the limits in `agent.md`.
+- **Step B, 2026-09-17.** The second meaning model, `mxbai-embed-large`: it
+  fails its first gate, 13 of 20 sentences first against 15, so the default
+  stays.
+- **Step C, 2026-09-18.** The scale corpora and their questions, in each
+  repository, and the declaration that refused a name two modules re-export.
 
-- [ ] `qwen3.8:27b` on three seeds.
-- [ ] The table and the counts of the misses in §7, and the first gate of
-      §3b and §3c decided from them.
+### Step 1. The scale measurement (§3h)
 
-### Step 3. The trials, one candidate each (§3b, §3c)
+- [ ] Both corpora measured, with the user's word, because it reads a clock
+      (§5). The numbers go in §7: what the index and the vectors cost to
+      build, what a search costs, and how the questions rank now. They are the
+      baseline of every step below, and they set the triggers of §3g.
 
-In the order of §2, and only for a candidate that passed the first gate:
-
-- [ ] §3b, the note for a one-word description.
-- [ ] §3c, the printed line.
-- [ ] §3c, the `name` keyword, when the miss remains.
-
-Each: the branch with the change and its tests, the trial stage, the counts,
-and the merge or not.
-
-### Step 4. The meaning model (§3e)
-
-- [x] The rank measurement with `mxbai-embed-large`, 2026-09-17. **It fails
-      the first gate**: 13 of 20 sentences first, against 15. §7 has the
-      table.
-- [x] Not run: the trial stage. The default stays `nomic-embed-text`.
-
-### Step 5. The scale corpora and their questions (§3h) — done 2026-09-18
-
-- [x] The measurement, `measure_search_scale!` in `ProjecturedKernelExample`,
-      and projectured's corpus of 25 modules with 32 questions, in
-      `ProjecturedExample`, with `test_search_scale`.
-- [x] omnet's corpus, every module its packages define and the three the window
-      draws with, with 40 questions, in `OmnetIdeExample`, with
-      `test_ide_search_scale`.
-- [x] A name two modules re-export is one binding and one hit. §7 says why that
-      came first.
-
-### Step 6. What a rebuild would cost later (§3g)
+### Step 2. What a rebuild would cost later (§3g)
 
 - [ ] The vector key: the hash of the text and of the model's digest; the file
       without the text.
 - [ ] The meaning text computed once, at the index.
 - [ ] The dense matrix per store.
-- [ ] A test that the ranks of the golden sentences do not move.
+- [ ] A test that the ranks of the questions do not move, and the measurement
+      again, which must show the same ranks and a shorter search.
 
-### Step 7. The scale measurement (§3h)
+### Step 3. The ranking, one piece at a time (§3g)
 
-- [ ] Both corpora measured, with the user's word, because it reads a clock
-      (§5). The numbers go in §7 and set the triggers of §3g.
+Each piece is measured on the questions of both corpora and on the golden
+sentences, which needs no chat model. A piece lands only when more questions
+rank first or in the first ten, and none of the three corpora is worse. Each in
+its own commit, in this order:
 
-### Step 8. The text a vector reads (§3g, a candidate)
+- [ ] **Identifier tokens.** The name score is a test of substrings, so "card"
+      scores inside "discard". Split a name into its words and score a whole
+      word above a part of one.
+- [ ] **The text a vector reads:** the structured header, the kind, the module,
+      the signature and the split words before the documentation.
+- [ ] **Fields and their weights**, a BM25F score over an inverted index, if
+      Step 1 says a search costs more than about 50 ms or the questions lose
+      precision in the first eight hits.
+- [ ] **Structural signals:** the kind a question asks for, a thing against an
+      action, and the module the window is working in.
+- [ ] **A family shown once**, if one family fills the first hits.
 
-- [ ] The structured header: the kind, the module, the signature and the split
-      words, before the documentation. Measured on the golden sentences and on
-      the scale questions of both corpora, which needs no chat model. It lands
-      only when more sentences rank first.
+### Step 4. The baseline of the chat model
 
-### Step 9. Close
+- [ ] `qwen3.8:27b` on three seeds, with the engine of Step 3.
+- [ ] The table and the counts of the misses in §7, and the first gate of
+      §3b and §3c decided from them. A miss that Step 3 has already removed
+      needs no candidate.
+
+### Step 5. The trials that are left (§3b, §3c)
+
+In the order of §2, and only for a candidate that passed the first gate:
+
+- [ ] §3b, the note for a one-word description, if the miss is still there.
+- [ ] §3c, the printed line of an empty result.
+- [ ] §3c, the `name` keyword, when the miss remains.
+
+Each: the branch with the change and its tests, the trial stage, the counts,
+and the merge or not.
+
+### Step 6. Close
 
 - [ ] The tables and the gate results in §7, and this plan to `plan/done/`.
 
@@ -502,7 +507,9 @@ Made by the user on 2026-09-17:
    not refused. §3c says how the model may learn why it is empty.
 4. **`mxbai-embed-large`:** downloaded; §3e stays.
 5. **Measure first:** a change that bets on what the model will do lands only
-   when a measurement first proves it worth doing. §2 says how.
+   when a measurement first proves it worth doing. §2 says how. A change that
+   ranking decides is measured on the questions, not on the chat model, and the
+   chat model checks the result once at the end (§4).
 6. **A test is enough** for a change that corrects something false: the seeds,
    the pane sentence, the empty plot, and the vector store. §2 lists them.
 7. **A stage needs no idle machine and no word before it**, only the memory and
