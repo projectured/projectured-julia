@@ -170,9 +170,8 @@ module of its own, and its `using` lines and exports belong to the module file
 
 Write it with [`@projection_template`](../package/kernel/macros.md#projection_template)
 rather than a hand-written `print_document`/`map_reference_forward`/
-`map_reference_backward` group — this is how every structural projection in
-the codebase is written, and it is what generates the reference mapping and
-the reader for you:
+`map_reference_backward` group. It is how most structural projections here are
+written, and it generates the reference mapping and the reader for you:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────

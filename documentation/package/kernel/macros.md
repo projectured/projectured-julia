@@ -6,8 +6,8 @@
 the cell-based code in the rest of the codebase look like ordinary Julia. A
 fourth macro, [`@projection_template`](#projection_template), writes the
 `print_document`/`read_intent` pair of a structural projection from a builder
-expression instead of by hand — every domain-to-syntax projection in the
-codebase is written with it. They are defined in
+expression instead of by hand. Seventeen files use it, among them eleven of the
+twenty-three domain-to-syntax projections; the rest are still written by hand. They are defined in
 [document/DocumentMacro.jl](../../../source/kernel/document/DocumentMacro.jl),
 [projection/ProjectionMacro.jl](../../../source/kernel/projection/ProjectionMacro.jl),
 [iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl), and
