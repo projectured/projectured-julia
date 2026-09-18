@@ -1054,7 +1054,8 @@ What it reported and did not fix:
 
 ### Step 11: the posts, and close
 
-- [ ] Write the drafts of §9: one for r/Julia, one for Julia Discourse.
+- [x] Write the drafts of §9: one for r/Julia, one for Julia Discourse. Both
+      wait for the video and for the owner's words in the two marked places.
 - [ ] Check that the public documents do not name the private repositories or
       products (§3.9, D16, D17). The result of the `git grep` must be empty.
 - [ ] D1a: change `LICENCE-PD` §3 so that it allows modification for
@@ -1209,10 +1210,118 @@ documentation/
 
 ## 9. The post drafts
 
-Step 11 writes the drafts here. Each draft has: what ProjecturEd is, a video, what
-it is good for, how to try it in three commands, what does not work yet, the
-licence, and the feedback that the owner wants. Each draft is short. It has no
-marketing words and no emoji.
+Each draft has: what ProjecturEd is, a video, what it is good for, how to try it
+in three commands, what does not work yet, the licence, and the feedback that
+the owner wants. Each draft is short. It has no marketing words and no emoji.
+
+**Both drafts are written below (2026-09-18). They wait for two things**: the
+video of Step 9, which is not recorded, and the owner's own words in the two
+places marked `[…]`. The owner reads and changes them before anything is
+posted.
+
+### 9.1 r/Julia
+
+> **Title:** ProjecturEd: an application to view, edit and transform structured
+> data with an AI assistant, and a generic user interface for any Julia program
+>
+> I have been building ProjecturEd for a while, and it is now far enough to
+> show.
+>
+> It opens structured data — JSON, YAML, XML, Markdown, reStructuredText, SQL,
+> Julia code, math, charts, graphs, state machines, about twenty kinds — in one
+> window, in tabs and split panes, and one document can mix kinds: JSON inside
+> XML inside prose. The views are not text: a view is computed from the data,
+> and most views take your edits, so an edit changes the data itself rather
+> than a text copy of it.
+>
+> Because it is written in Julia, it is also a user interface for your own
+> programs. `run_value_viewer(value)` opens a window on any value — a struct, a
+> dictionary, a vector, an object of a running program — and shows it one level
+> at a time. If you write a view for your own data, you get the general
+> features with it: selection, navigation, search, copy and paste, filtering,
+> sorting, a text notation, a file format, and every backend.
+>
+> An AI assistant runs inside the application, with a local model through
+> Ollama or with Claude. It searches the API of the loaded packages, writes
+> Julia and runs it in the program, and changes the data with the same typed
+> edits your key presses make. An external client, for example Claude Code,
+> gets the same tools over MCP.
+>
+> [the video]
+>
+> To try it:
+>
+> ```
+> git clone https://github.com/projectured/projectured-julia
+> cd projectured-julia
+> bin/projectured
+> ```
+>
+> The first start compiles, which takes a few minutes. `bin/build_projectured`
+> makes a binary that starts in under a second.
+>
+> What does not work yet: there is no undo and no redo; type-in of single
+> characters is not the same in every domain; a click selects only where a
+> projection wires it; a table renders but does not take an edit. The assistant
+> needs a local Ollama server with a pulled model, or an Anthropic key. Linux
+> on x86-64, with SDL2 for the native window.
+>
+> The licence is free for non-commercial use, modification included; commercial
+> use needs a licence from me. Forks and pull requests are welcome.
+>
+> What I would like to hear: [what the owner wants to know].
+
+### 9.2 Julia Discourse
+
+> **Title:** ProjecturEd — structured data, editable views, and an AI assistant
+> in one window
+>
+> **Category:** Community → Show and tell
+>
+> ProjecturEd is an application to view, edit and transform structured data
+> with an AI assistant. It is written in Julia, and it is also a generic user
+> interface for a Julia program.
+>
+> **The idea.** The data is the source, and every view is computed from it. A
+> projection is a pair of functions: a printer that makes the view, and a
+> reader that turns an edit in the view back into a typed operation on the
+> data. Projections compose, so one view can show several kinds of data, one
+> piece of data can have many views, and a filter, a sort or a search is one
+> more step in front of any domain. Every field of the data is a reactive cell,
+> so a change recomputes only the parts of the views that depend on it and are
+> on the screen.
+>
+> **What that gives you today.** About twenty domains open, show, edit and save
+> their data. Views run in a native window, in a browser, in a terminal, and
+> with no screen at all for a test; a view also goes to a PDF with selectable
+> text, a PNG or an MP4. `run_value_viewer(value)` shows any Julia value, one
+> level at a time, without a projection written for it. The AI assistant works
+> on the same data with the same operations, through Ollama or Claude, and an
+> external MCP client gets the same tools.
+>
+> [the video]
+>
+> ```
+> git clone https://github.com/projectured/projectured-julia
+> cd projectured-julia
+> bin/projectured                 # the window
+> ```
+>
+> The README has the quick start, the guides and the limits:
+> <https://github.com/projectured/projectured-julia>
+>
+> **What does not work yet.** No undo and no redo. Type-in of single characters
+> differs between domains. A click selects only where a projection wires it. A
+> table renders and navigates but does not take an edit. The packages are not
+> in the General registry, so you clone the repository. Linux on x86-64, with
+> SDL2 and SDL_ttf for the native window.
+>
+> **Licence.** Free for non-commercial use, modification included. Commercial
+> use needs a licence from me. Forks and pull requests are welcome.
+>
+> **Feedback I am after.** [what the owner wants to know] — and I am glad to
+> answer questions about the projection model, the reactive cells, or how a
+> domain of your own would fit.
 
 ## 10. Out of scope
 
