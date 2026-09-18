@@ -748,7 +748,11 @@ commands as they are:
 
 **Close of the step.**
 
-- [ ] D7: the `julia` compat entry.
+- [x] D7: the `julia` compat entry. The documents name Julia 1.11 or later,
+      because `[sources]` needs it, and say that the environment of the
+      repository is resolved with 1.13. The two packages that declared a
+      `julia` compat said 1.10, which no `[sources]` entry can hold; both say
+      1.11 now.
 - [ ] Test: `test_list_guides()`, `test_read_guide()`, `test_search_guides()`,
       `test_ollama()`, the new anthropic tests, and the tests of each changed
       file.
@@ -845,7 +849,7 @@ decisions and the two older guides, which are the rest of this step.
 - [ ] `design/architecture-decisions.md`: why the tool set is a kernel layer,
       why one tool set for the assistant and MCP, why the core tool runs Julia
       instead of a fixed list of commands.
-- [ ] `guide/setup-guide.md`: install, the first window, the SDL libraries, the
+- [x] `guide/setup-guide.md`: install, the first window, the SDL libraries, the
       first-start time, what to do when a load fails.
 - [ ] `guide/examples-tour.md`: the examples in groups (data files, widgets and
       layout, charts, models, the assistant, the workbench), and the REPL call

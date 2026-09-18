@@ -1,113 +1,87 @@
-# Getting Started
+# Set up and start
 
 > **Kind:** procedure · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
-This guide covers prerequisites, setup, and the REPL helpers you will use
-every day. For the conceptual foundation (what projectional editing is, the
-five core ideas, the key event walkthrough) see [the concepts guide](../design/concepts.md).
-For a guided tour of the examples see [the examples tour](examples-tour.md).
+What you need, how to start the application, and how to open the same views from a Julia session. It also says what a first start costs and what to do when a load fails.
 
-## Prerequisites
+## What you need
 
-- Julia 1.10+
-- SDL2 and SDL_ttf installed (for the SDL backend)
-- Familiarity with Julia (modules, multiple dispatch, structs)
+- **Julia 1.11 or later.** The packages are linked by `[sources]` path entries, which Julia 1.11 is the first to read. The environment of this repository is resolved with 1.13.
+- **SDL2 and SDL_ttf**, for the native window. On Debian or Ubuntu: `apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`.
+- **Ollama with a pulled model**, or an `ANTHROPIC_API_KEY`, for the assistant. [assistant-guide.md](assistant-guide.md) says which model and how to pull it. Without either, everything else works.
 
-## Setup
+## Start the application
 
 ```sh
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
+bin/projectured
+```
+
+The window has the file navigator on the left, the open files in the middle, and the assistant on the right. A double click in the navigator opens a file. Files named on the command line open at once:
+
+```sh
+bin/projectured notes.md data.json
+bin/projectured --help            # every option
+```
+
+**The first start compiles the code**, which takes some minutes and much memory. Later starts read the compiled cache and take seconds. `bin/build_projectured` makes a binary that starts in well under a second; [build-guide.md](build-guide.md) says what that costs.
+
+## Start a session instead
+
+A session is what you want while you work on ProjecturEd itself, or to open a value of your own program.
+
+```sh
 julia --project=environment/all
 ```
 
 ```julia
-julia> using Projectured, ProjecturedExample
+using Projectured, ProjecturedExample, ProjecturedSdl
+
+run_example()                           # the JSON example
+run_example("widget")                   # the widget forms
+run_example("json"; workbench = true)   # the same example in the workbench shell
+run_value_viewer(my_value)              # a window on any value of your own
 ```
 
-## Opening examples
+Press **Escape** to close the window.
+
+`environment/all` holds every package of the repository. A program of your own uses the packages by path instead; [own-project-guide.md](own-project-guide.md) says how.
+
+## Look at a view without a window
 
 ```julia
-run_example()                        # JSON example (default)
-run_example("widget")                # widget form example
-run_example("json"; workbench=true)  # wrap any example in the IDE shell
-run_example("json"; scrolling=true)  # wrap in a scrollable viewport
-run_example("json"; caching=true)    # enable the GraphicsCaching projection
+print_example()                      # the JSON example as text, on the terminal
+print_example("syntax")
+write_example_image("json", "/tmp/snapshot.png")
+write_example_pdf("json", "/tmp/snapshot.pdf")     # vector PDF, with selectable text
 ```
 
-Press **Escape** to close the SDL window.
-
-## Inspecting output without a window
-
-```julia
-print_example()           # print the JSON example's output to stdout
-print_example("syntax")   # print the syntax example
-```
-
-`print_example` runs `print_object` on the projection output — it chains
-`ObjectToSyntax → SyntaxToText → TextToString` internally.
-
-## Saving a screenshot or PDF
-
-```julia
-write_example_image("json", "/tmp/snapshot.bmp")
-write_example_image("widget", "/tmp/w.bmp"; width=1200, height=800)
-write_example_pdf("json", "/tmp/snapshot.pdf")              # vector PDF, selectable text
-write_example_pdf("widget", "/tmp/book.pdf"; paginate=true) # flow tall content onto pages
-```
-
-See [the graphics guide](../package/graphics/graphics.md) for the `write_image` and
-`write_pdf` APIs.
-
-## Inspecting document structure
-
-`print_object` renders any Julia value as structured text:
+`print_object` shows any Julia value as structured text:
 
 ```julia
 print_object(editor.document)
-print_object(my_struct; open_delimiter = "{", close_delimiter = "}")
-print_object(doc; include_selection = false)
+print_object(my_struct; include_selection = false)
 ```
 
-## Working with references
+## When a load fails
 
-The `@reference` macro builds reference paths from a path-like DSL:
+- **Pkg cannot find a package.** Run `using Pkg; Pkg.resolve()` in `environment/all`. `instantiate` alone does not see a dependency that appeared inside a package the manifest already lists.
+- **The window opens black, or no text is drawn.** SDL_ttf is missing, or the fonts are not where the style package looks for them. `asset/font/` holds them.
+- **The first start seems stuck.** It is compiling. The terminal names each package as it finishes.
+- **A test fails after a pull.** [testing-guide.md](testing-guide.md) says which test covers what you changed. Run that one first.
 
-```julia
-ref = @reference entries[1].value.value{3}
-evaluate_reference(editor.document, ref)
-```
-
-See [the reference guide](../package/kernel/reference.md) for the full grammar
-(`.field`, `[i]`, `{k}`, `[i, j]`, `.field(expr)`, `.point(x, y)`,
-`.proj(p, sub)`).
-
-## Running the test suite
+## Run the tests
 
 ```julia
 using ProjecturedTest
-test_all()          # full suite
-test_printers()     # printer round-trips only
-test_readers()      # reader round-trips only
-test_position_navigations()          # position (caret) navigation, no-error sweep
-test_position_navigations_complete() # + reaches every enumerated position (curated)
+test_json()          # one domain
+test_kernel()        # the kernel
+test_all()           # everything, about 47 minutes
 ```
 
-See [the testing guide](testing-guide.md) for all per-package helpers.
+[testing-guide.md](testing-guide.md) lists the test of each package and what each helper checks.
 
-## For AI assistants using MCP
+## For an AI client
 
-When `run_editor!` is active the editor exposes an MCP server on port 9876.
-Recommended workflow:
-
-1. Read `resource://guides` to discover the documentation layout.
-2. Read `resource://guide/guide/setup-guide`, then the topic guides
-   relevant to the task — usually `reactive-cells`, `projection-system`,
-   `editor/reference`, and the affected domain's guide.
-3. Use `print_object(editor.document)` to see the live structure.
-4. Build reference paths with `@reference` and apply changes with
-   `replace_selection!`, `set_selection!`, or domain operations.
-
-Do not guess names or signatures. Find them with `search_api`, read a function
-with `read_function_documentation`, and browse `resource://modules` and
-`resource://module/<name>` and `resource://type/<module>/<name>`.
+The editor can serve an MCP client at `http://127.0.0.1:9876/mcp`, with the same tools that the assistant in the window uses. [mcp-guide.md](mcp-guide.md) says how to start it and how to connect a client.
