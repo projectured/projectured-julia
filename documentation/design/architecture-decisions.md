@@ -179,6 +179,30 @@ frame pays to recompute the whole subtree that reads it. See
 
 ---
 
+## 11. The tool set is a layer of the kernel
+
+**Decision:** the functions a language model can call live in `source/kernel/tool/`, beside the document, the projection and the editor layers, not in a package beside the editor.
+
+**Why:** a model that changes data must make the same change a key press makes. A tool that sits outside the kernel can only reach the editor through whatever the editor exports, and the shortest path from there is text. Inside the kernel, a tool builds an `Operation` and hands it to `evaluate_operation`, which is what a reader does at the end of every key press. So a change by a model is the same kind of change as a change by a person: the same test covers both, and a projection that maps an edit back needs no second path.
+
+**The cost:** the kernel carries the tool layer even when no model is loaded. It is small, and it holds no model and no network code: a backend package (`ProjecturedOllama`, `ProjecturedAnthropic`) brings those.
+
+## 12. One tool set, for the assistant and for an external client
+
+**Decision:** `ToolSet` is registered once, by `register_default_tools!`. The assistant in the window reads it, and `ProjecturedMcp` renders the same set for a client over MCP.
+
+**Why:** the two clients ask the same questions — what is in this data, what function does this, change that. Two sets would answer them differently, and the difference would show up as a model that works in the window and fails over MCP. One set also means a tool that an application adds — a domain function, a guide root — is there for both clients with no second registration.
+
+**The cost:** the set is the widest surface either client needs, so a tool that only one of them can use is still offered to both. The tool says in its own description when it needs a running window.
+
+## 13. The core tool runs Julia, instead of a fixed list of commands
+
+**Decision:** `execute_julia_code` runs Julia in the process of the editor, with `editor` bound. There is no fixed list of "insert element", "rename field", "sort by key" tools.
+
+**Why:** a fixed list is a second API that has to grow with the first one. The editor already has an API — the documents, the references, the operations — and a model that can read it can call it. `search_api` and `read_function_documentation` are what make that possible: the model finds the name and the signature, and then calls it.
+
+**The cost:** the model can run anything the process can run, so this is not a sandbox. It is the right trade for a tool a developer runs on their own machine, and it is the reason the MCP server listens on the loopback address only.
+
 ## Key differences from the original ProjecturEd (Common Lisp)
 
 | Aspect | Original (Lisp) | Julia reimplementation |

@@ -846,9 +846,9 @@ decisions and the two older guides, which are the rest of this step.
 - [ ] `requirement/accepted-requirements.md`: a requirement for a view of any
       value, and one for the tool set that the assistant and an MCP client
       share. The owner reviews them.
-- [ ] `design/architecture-decisions.md`: why the tool set is a kernel layer,
+- [x] `design/architecture-decisions.md`: why the tool set is a kernel layer,
       why one tool set for the assistant and MCP, why the core tool runs Julia
-      instead of a fixed list of commands.
+      instead of a fixed list of commands. Each one states its cost as well.
 - [x] `guide/setup-guide.md`: install, the first window, the SDL libraries, the
       first-start time, what to do when a load fails.
 - [x] `guide/examples-tour.md`: the examples in groups (data files, widgets and
