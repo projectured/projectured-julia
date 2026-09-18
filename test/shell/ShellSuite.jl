@@ -24,7 +24,10 @@ function test_shell()
     @testset "ProjecturedShell" begin
         test_shell_layering()
         test_window_wrap()
+        test_widget_tooltip()
+        test_julia_tooltip()
     end
 end
 
-export test_shell, test_shell_layering, test_window_wrap
+export test_shell, test_shell_layering, test_window_wrap,
+       test_widget_tooltip, test_julia_tooltip

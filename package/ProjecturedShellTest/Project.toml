@@ -19,6 +19,7 @@ ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
+ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
@@ -56,6 +57,7 @@ ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
 ProjecturedInspector = {path = "../ProjecturedInspector"}
+ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}

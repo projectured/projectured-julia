@@ -1390,7 +1390,7 @@ uuid = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
 version = "0.1.0"
 
 [[deps.ProjecturedShellTest]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedShellTest"
 uuid = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
 version = "0.1.0"
@@ -1510,7 +1510,7 @@ uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"
 
 [[deps.ProjecturedWidget]]
-deps = ["ProjecturedCollection", "ProjecturedFocus", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFocus", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
 path = "../../package/ProjecturedWidget"
 uuid = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 version = "0.1.0"

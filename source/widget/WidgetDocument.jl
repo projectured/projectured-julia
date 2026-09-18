@@ -14,6 +14,7 @@ has_document_duplicate(::WidgetDocument) = true
 
 @document struct WidgetInsertion <: WidgetDocument
     value::Any = nothing
+    tooltip::Any = nothing
 end
 
 # ── WidgetLabel ────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ and `WidgetAlert` for a message with a title.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetLabel(position::Point2D, content;
@@ -63,12 +65,12 @@ function WidgetLabel(position::Point2D, content;
                      border::Inset=inset_default,
                      border_color=nothing,
                      padding::Inset=inset_default,
-                     padding_color=nothing)
+                     padding_color=nothing, tooltip=nothing)
     WidgetLabel(Cell(position), Cell(content), Cell(text_style),
                 Cell(visible), Cell(margin), Cell(margin_color),
                 Cell(border), Cell(border_color),
                 Cell(padding), Cell(padding_color),
-                Cell(nothing))
+                Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -110,6 +112,7 @@ only read, and `WidgetSpinBox` for a number.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetText(position::Point2D, content;
@@ -123,14 +126,14 @@ function WidgetText(position::Point2D, content;
                     border::Inset=inset_default,
                     border_color=nothing,
                     padding::Inset=inset_default,
-                    padding_color=nothing)
+                    padding_color=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)),
                Cell(content_fill_color), Cell(validator),
                Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),
-               Cell(nothing))
+               Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetText, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -187,14 +190,15 @@ a value typed as text.
     validator::Any
     visible::Bool
     enabled::Bool
+    tooltip::Any
 end
 
 function WidgetSpinBox(position::Point2D, value;
                        min=nothing, max=nothing, step=1, width::Integer=0,
                        validator=make_numeric_validator(),
-                       visible::Bool=true, enabled::Bool=true)
+                       visible::Bool=true, enabled::Bool=true, tooltip=nothing)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
-                  Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled), Cell(nothing))
+                  Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
 end
 
 # ── WidgetList ───────────────────────────────────────────────────────────────
@@ -234,6 +238,7 @@ opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
     visible::Bool
     enabled::Bool
     hovered::Int
+    tooltip::Any
 end
 
 # `field[i-1:i]` — the canonical "element i of this collection field" selection
@@ -269,9 +274,9 @@ get_widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, 
 
 function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=0,
-                    visible::Bool=true, enabled::Bool=true)
+                    visible::Bool=true, enabled::Bool=true, tooltip=nothing)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
-               Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0),
+               Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0), Cell(tooltip),
                Cell(make_widget_list_selection(selected)))
 end
 
@@ -312,6 +317,7 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
     padding::Inset
     padding_color::StyleColor
     gestures::Any               # per-instance gesture bindings (see get_instance_gesture_bindings)
+    tooltip::Any
 end
 
 function WidgetCheckbox(position::Point2D, content;
@@ -323,12 +329,12 @@ function WidgetCheckbox(position::Point2D, content;
                         border::Inset=inset_default,
                         border_color=nothing,
                         padding::Inset=inset_default,
-                        padding_color=nothing)
+                        padding_color=nothing, tooltip=nothing)
     WidgetCheckbox(Cell(position), Cell(content),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(gestures))
+                   Cell(gestures), Cell(tooltip))
 end
 
 set_cell_function!(w::WidgetCheckbox, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -409,6 +415,7 @@ for one choice among several.
     hovered::Bool
     pressed::Bool
     labels::Any
+    tooltip::Any
 end
 
 function WidgetButton(position::Point2D, size::Point2D, content;
@@ -424,7 +431,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       border_color=nothing,
                       padding::Inset=inset_default,
                       padding_color=nothing,
-                      labels=String[])
+                      labels=String[], tooltip=nothing)
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
     # binding can add (right-click, shift-click, …), override (same pattern), or
@@ -439,7 +446,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                  Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
-                 Cell(false), Cell(false), Cell(labels))
+                 Cell(false), Cell(false), Cell(labels), Cell(tooltip))
 end
 
 # The reactive-label channel: make this button's label computed. The label lives
@@ -479,6 +486,7 @@ A floating tooltip overlay..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetTooltip(position::Point2D, size::Point2D, content;
@@ -488,12 +496,12 @@ function WidgetTooltip(position::Point2D, size::Point2D, content;
                        border::Inset=inset_default,
                        border_color=nothing,
                        padding::Inset=inset_default,
-                       padding_color=nothing)
+                       padding_color=nothing, tooltip=nothing)
     WidgetTooltip(Cell(position), Cell(size), Cell(content),
                   Cell(visible), Cell(margin), Cell(margin_color),
                   Cell(border), Cell(border_color),
                   Cell(padding), Cell(padding_color),
-                  Cell(nothing))
+                  Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTooltip, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -522,6 +530,7 @@ wrapper ignores the right click (the child still works).
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetContextMenu(child, menu;
@@ -532,12 +541,12 @@ function WidgetContextMenu(child, menu;
                           border::Inset=inset_default,
                           border_color=nothing,
                           padding::Inset=inset_default,
-                          padding_color=nothing)
+                          padding_color=nothing, tooltip=nothing)
     WidgetContextMenu(Cell(child), Cell(menu),
                       Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                       Cell(border), Cell(border_color),
                       Cell(padding), Cell(padding_color),
-                      Cell(nothing))
+                      Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetContextMenu, f::Function) = (set_cell_function!(getfield(w, :child), f); w)
@@ -568,6 +577,7 @@ open it from a `WidgetButton`'s `dialog` field.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetDialog(title, content, buttons::Vector;
@@ -578,14 +588,14 @@ function WidgetDialog(title, content, buttons::Vector;
                      border::Inset=inset_default,
                      border_color=nothing,
                      padding::Inset=inset_default,
-                     padding_color=nothing)
+                     padding_color=nothing, tooltip=nothing)
     WidgetDialog(Cell(title), Cell(content),
                  CellVector(Cell[Cell(b) for b in buttons]),
                  Cell(popup_id),
                  Cell(visible), Cell(margin), Cell(margin_color),
                  Cell(border), Cell(border_color),
                  Cell(padding), Cell(padding_color),
-                 Cell(nothing))
+                 Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetDialog, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -636,6 +646,7 @@ A menu containing a sequence of `WidgetMenuItem`s..
     border_color::StyleColor = nothing
     padding::Inset = inset_default
     padding_color::StyleColor = nothing
+    tooltip::Any
 end
 
 function WidgetMenu(elements::Vector;
@@ -646,13 +657,13 @@ function WidgetMenu(elements::Vector;
                     border::Inset=inset_default,
                     border_color=nothing,
                     padding::Inset=inset_default,
-                    padding_color=nothing)
+                    padding_color=nothing, tooltip=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
                Cell(orientation),
                Cell(visible), Cell(margin), Cell(margin_color),
                Cell(border), Cell(border_color),
                Cell(padding), Cell(padding_color),
-               Cell(nothing))
+               Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetMenu, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
@@ -689,6 +700,7 @@ disabled command) is inert.
     padding::Inset
     padding_color::StyleColor
     hovered::Bool
+    tooltip::Any
 end
 
 function WidgetMenuItem(content;
@@ -703,14 +715,14 @@ function WidgetMenuItem(content;
                         border::Inset=inset_default,
                         border_color=nothing,
                         padding::Inset=inset_default,
-                        padding_color=nothing)
+                        padding_color=nothing, tooltip=nothing)
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
     WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
                    Cell(border), Cell(border_color),
                    Cell(padding), Cell(padding_color),
-                   Cell(false))
+                   Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
@@ -746,6 +758,7 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetComposite(position::Point2D, elements::Vector;
@@ -755,12 +768,12 @@ function WidgetComposite(position::Point2D, elements::Vector;
                          border::Inset=inset_default,
                          border_color=nothing,
                          padding::Inset=inset_default,
-                         padding_color=nothing)
+                         padding_color=nothing, tooltip=nothing)
     WidgetComposite(Cell(position), CellVector(Cell[Cell(x) for x in elements]),
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing))
+                    Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetComposite, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
@@ -782,6 +795,7 @@ below the menu bar in a `WidgetShell`.
     border_color::StyleColor = nothing
     padding::Inset = inset_default
     padding_color::StyleColor = nothing
+    tooltip::Any
 end
 
 function WidgetToolbar(elements::Vector;
@@ -791,12 +805,12 @@ function WidgetToolbar(elements::Vector;
                        border::Inset=inset_default,
                        border_color=nothing,
                        padding::Inset=inset_default,
-                       padding_color=nothing)
+                       padding_color=nothing, tooltip=nothing)
     WidgetToolbar(CellVector(Cell[Cell(x) for x in elements]),
                   Cell(visible), Cell(margin), Cell(margin_color),
                   Cell(border), Cell(border_color),
                   Cell(padding), Cell(padding_color),
-                  Cell(nothing))
+                  Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetToolbar, f::Function) =
@@ -970,6 +984,7 @@ A thin bottom band of status text `segments` (each stringified) — Qt's
     border_color::StyleColor = nothing
     padding::Inset = inset_default
     padding_color::StyleColor = nothing
+    tooltip::Any
 end
 
 function WidgetStatusBar(segments::Vector;
@@ -979,12 +994,12 @@ function WidgetStatusBar(segments::Vector;
                          border::Inset=inset_default,
                          border_color=nothing,
                          padding::Inset=inset_default,
-                         padding_color=nothing)
+                         padding_color=nothing, tooltip=nothing)
     WidgetStatusBar(CellVector(Cell[Cell(x) for x in segments]),
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing))
+                    Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetStatusBar, f::Function) =
@@ -993,7 +1008,7 @@ set_cell_function!(w::WidgetStatusBar, f::Function) =
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
 """
-    WidgetShell(content; content_fill_color, size, tooltip, menu_bar,
+    WidgetShell(content; content_fill_color, size, overlay, menu_bar,
                 context_menu, <base kwargs>)
 
 Top-level window shell..
@@ -1002,7 +1017,7 @@ Top-level window shell..
     content::Any
     content_fill_color::StyleColor
     size::Point2D
-    tooltip::WidgetTooltip
+    overlay::WidgetTooltip
     menu_bar::WidgetMenu
     toolbar::WidgetToolbar
     context_menu::WidgetMenu
@@ -1014,12 +1029,13 @@ Top-level window shell..
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetShell(content;
                      content_fill_color=nothing,
                      size=nothing,
-                     tooltip=nothing,
+                     overlay=nothing,
                      menu_bar=nothing,
                      toolbar=nothing,
                      context_menu=nothing,
@@ -1030,14 +1046,14 @@ function WidgetShell(content;
                      border::Inset=inset_default,
                      border_color=nothing,
                      padding::Inset=inset_default,
-                     padding_color=nothing)
+                     padding_color=nothing, tooltip=nothing)
     WidgetShell(Cell(content), Cell(content_fill_color), Cell(size),
-                Cell(tooltip), Cell(menu_bar), Cell(toolbar), Cell(context_menu),
+                Cell(overlay), Cell(menu_bar), Cell(toolbar), Cell(context_menu),
                 Cell(status_bar),
                 Cell(visible), Cell(margin), Cell(margin_color),
                 Cell(border), Cell(border_color),
                 Cell(padding), Cell(padding_color),
-                Cell(nothing))
+                Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetShell, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1074,6 +1090,7 @@ whose `title` names a tab.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetTitlePane(title, content;
@@ -1085,13 +1102,13 @@ function WidgetTitlePane(title, content;
                          border::Inset=inset_default,
                          border_color=nothing,
                          padding::Inset=inset_default,
-                         padding_color=nothing)
+                         padding_color=nothing, tooltip=nothing)
     WidgetTitlePane(Cell(title), Cell(title_fill_color),
                     Cell(content), Cell(content_fill_color),
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing))
+                    Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTitlePane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1144,6 +1161,7 @@ See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
     active_splitter::Int
     drag_anchor::Any
     pinned::CellVector
+    tooltip::Any
 end
 
 function WidgetSplitPane(orientation::Symbol, elements::Vector;
@@ -1154,13 +1172,13 @@ function WidgetSplitPane(orientation::Symbol, elements::Vector;
                          border::Inset=inset_default,
                          border_color=nothing,
                          padding::Inset=inset_default,
-                         padding_color=nothing)
+                         padding_color=nothing, tooltip=nothing)
     sizes_cv = sizes isa Vector ? CellVector(Cell[Cell(s) for s in sizes]) : CellVector()
     WidgetSplitPane(Cell(orientation), CellVector(Cell[Cell(x) for x in elements]), sizes_cv,
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(0), Cell(nothing), CellVector())
+                    Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -1184,6 +1202,7 @@ set_cell_function!(w::WidgetSplitPane, f::Function) = (set_cell_function!(getfie
     element::Any
     icon::Any = nothing
     duplicable::Bool = false
+    tooltip::Any = nothing
 end
 
 # `WidgetTabPage(selector, element)`, `(selector, element, icon)` and
@@ -1242,6 +1261,7 @@ children shown at once.
     new_tab::Bool = false
     draggable::Bool = false
     duplicable::Bool = false
+    tooltip::Any
 end
 
 # `tab_scroll` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -1259,14 +1279,14 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                           closable::Bool=false,
                           new_tab::Bool=false,
                           draggable::Bool=false,
-                          duplicable::Bool=false)
+                          duplicable::Bool=false, tooltip=nothing)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),
                      Cell(Int(tab_scroll)),
                      Cell(closable), Cell(new_tab), Cell(draggable), Cell(duplicable),
-                     Cell(nothing))
+                     Cell(tooltip), Cell(nothing))
 end
 
 # Wire the tabs reactively: `f()` returns the same shape the positional constructor
@@ -1318,6 +1338,7 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetScrollPane(content;
@@ -1332,14 +1353,14 @@ function WidgetScrollPane(content;
                           border::Inset=inset_default,
                           border_color=nothing,
                           padding::Inset=inset_default,
-                          padding_color=nothing)
+                          padding_color=nothing, tooltip=nothing)
     WidgetScrollPane(Cell(content), Cell(content_fill_color),
                      Cell(position), Cell(size), Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end),
                      Cell(visible), Cell(margin), Cell(margin_color),
                      Cell(border), Cell(border_color),
                      Cell(padding), Cell(padding_color),
-                     Cell(nothing))
+                     Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetScrollPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1374,6 +1395,7 @@ translate+scale subset is rendered today; rotation/shear is future work.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetTransformPane(content;
@@ -1387,13 +1409,13 @@ function WidgetTransformPane(content;
                             border::Inset=inset_default,
                             border_color=nothing,
                             padding::Inset=inset_default,
-                            padding_color=nothing)
+                            padding_color=nothing, tooltip=nothing)
     WidgetTransformPane(Cell(content), Cell(content_fill_color),
                         Cell(position), Cell(size), Cell(transform),
                         Cell(visible), Cell(margin), Cell(margin_color),
                         Cell(border), Cell(border_color),
                         Cell(padding), Cell(padding_color),
-                        Cell(nothing))
+                        Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTransformPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1420,6 +1442,7 @@ the visible-fraction represented by the thumb.
     border_color::StyleColor
     padding::Inset
     padding_color::StyleColor
+    tooltip::Any
 end
 
 function WidgetScrollBar(orientation::Symbol;
@@ -1433,13 +1456,13 @@ function WidgetScrollBar(orientation::Symbol;
                          border::Inset=inset_default,
                          border_color=nothing,
                          padding::Inset=inset_default,
-                         padding_color=nothing)
+                         padding_color=nothing, tooltip=nothing)
     WidgetScrollBar(Cell(orientation), Cell(value), Cell(thumb_size),
                     Cell(position), Cell(size),
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
-                    Cell(nothing))
+                    Cell(tooltip), Cell(nothing))
 end
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1474,9 +1497,10 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     content::Any
     variant::Symbol
     visible::Bool
+    tooltip::Any
 end
-WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true) =
-    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(nothing))
+WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true, tooltip=nothing) =
+    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -1502,10 +1526,11 @@ See also `WidgetCard`, which frames a group instead of dividing two.
     orientation::Symbol
     length::Int
     visible::Bool
+    tooltip::Any
 end
 WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
-                length::Integer=200, visible::Bool=true) =
-    WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible), Cell(nothing))
+                length::Integer=200, visible::Bool=true, tooltip=nothing) =
+    WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
@@ -1584,6 +1609,7 @@ folding sections, and `VerticalLayout` to stack cards.
     variant::Symbol
     collapsible::Bool
     padding::Any
+    tooltip::Any
 end
 
 """
@@ -1602,11 +1628,11 @@ tall content simply extends past the card.
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
-           collapsible::Bool=false, padding::Union{Integer,Inset}=-1) =
+           collapsible::Bool=false, padding::Union{Integer,Inset}=-1, tooltip=nothing) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
                Cell(visible), Cell(collapsed), Cell(variant),
-               Cell(collapsible), Cell(padding isa Inset ? padding : Int(padding)), Cell(nothing))
+               Cell(collapsible), Cell(padding isa Inset ? padding : Int(padding)), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
@@ -1645,11 +1671,12 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     anim_from::Float64   # knob fraction [0,1] when the current slide began
     anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
+    tooltip::Any
 end
 WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
-             duration::Integer=0, gestures=GestureBinding[]) =
+             duration::Integer=0, gestures=GestureBinding[], tooltip=nothing) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
-                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures))
+                 Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures), Cell(tooltip))
 get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
@@ -1674,9 +1701,10 @@ in one word.
     value::Float64
     width::Int
     visible::Bool
+    tooltip::Any
 end
-WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true) =
-    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(nothing))
+WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true, tooltip=nothing) =
+    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
@@ -1718,13 +1746,14 @@ a share that is only shown.
     # writes its own `value`, and that is the knob's position rather than what
     # the position means.
     scale::Any
+    tooltip::Any
 end
 WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true,
              enabled::Bool=true, target=nothing, field::AbstractString="value",
-             scale=nothing) =
+             scale=nothing, tooltip=nothing) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
                  Cell(enabled), Cell(false), Cell(target), Cell(String(field)),
-                 Cell(scale), Cell(nothing))
+                 Cell(scale), Cell(tooltip), Cell(nothing))
 
 """
     resolve_slider_write(w, value) -> (document, field, value)
@@ -1768,10 +1797,11 @@ for many choices that open on a click.
     selected::Int
     visible::Bool
     enabled::Bool
+    tooltip::Any
 end
-WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true) =
+WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                     Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(nothing))
+                     Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
@@ -1785,9 +1815,10 @@ A circular avatar showing initials (image-clipping is future work).
     initials::Any
     size::Int
     visible::Bool
+    tooltip::Any
 end
-WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true) =
-    WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(nothing))
+WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true, tooltip=nothing) =
+    WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
@@ -1815,11 +1846,12 @@ line.
     variant::Symbol
     width::Int
     visible::Bool
+    tooltip::Any
 end
 WidgetAlert(position::Point2D, title, description=nothing;
-            variant::Symbol=:default, width::Integer=0, visible::Bool=true) =
+            variant::Symbol=:default, width::Integer=0, visible::Bool=true, tooltip=nothing) =
     WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(variant),
-                Cell(Int(width)), Cell(visible), Cell(nothing))
+                Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
@@ -1833,9 +1865,10 @@ A muted rounded placeholder block for loading states.
     width::Int
     height::Int
     visible::Bool
+    tooltip::Any
 end
-WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true) =
-    WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
+WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true, tooltip=nothing) =
+    WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetHighlight ─────────────────────────────────────────────────────────
 
@@ -1858,9 +1891,10 @@ must not do.
     width::Int
     height::Int
     visible::Bool
+    tooltip::Any
 end
-WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true) =
-    WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(nothing))
+WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true, tooltip=nothing) =
+    WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
@@ -1875,9 +1909,10 @@ A two-state toggle button (pressed = accent surface).
     pressed::Bool
     visible::Bool
     enabled::Bool
+    tooltip::Any
 end
-WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true) =
-    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled), Cell(nothing))
+WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
+    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
@@ -1916,13 +1951,14 @@ for on or off.
     values::Any        # what each option means, or nothing = its index
     target::Any        # what a pick writes to, or nothing = this group
     field::String      # which field of the target a pick writes
+    tooltip::Any
 end
 WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true,
                   enabled::Bool=true, values=nothing, target=nothing,
-                  field::AbstractString="selected") =
+                  field::AbstractString="selected", tooltip=nothing) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                       Cell(Int(selected)), Cell(visible), Cell(enabled),
-                      Cell(values), Cell(target), Cell(String(field)), Cell(nothing))
+                      Cell(values), Cell(target), Cell(String(field)), Cell(tooltip), Cell(nothing))
 
 """
     resolve_toggle_group_write(w, segment) -> (document, field, value)
@@ -1967,12 +2003,13 @@ visible, and `WidgetList` for a list that stays open.
     width::Int
     visible::Bool
     enabled::Bool
+    tooltip::Any
 end
 WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=0,
-             visible::Bool=true, enabled::Bool=true) =
+             visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
     WidgetSelect(Cell(position), Cell(value),
                  CellVector(Cell[o isa Cell ? o : Cell(o) for o in options]),
-                 Cell(Int(width)), Cell(visible), Cell(enabled), Cell(nothing))
+                 Cell(Int(width)), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
 
@@ -1995,11 +2032,12 @@ to `evaluate_operation`.
     popup_id::Symbol
     width::Int
     visible::Bool
+    tooltip::Any
 end
 WidgetOption(position::Point2D, select, value; label=string(value),
-             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true) =
+             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true, tooltip=nothing) =
     WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
-                 Cell(popup_id), Cell(Int(width)), Cell(visible), Cell(nothing))
+                 Cell(popup_id), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
@@ -2026,10 +2064,11 @@ read.
     rows::Int
     visible::Bool
     enabled::Bool
+    tooltip::Any
 end
-WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true) =
+WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
-                   Cell(visible), Cell(enabled), Cell(nothing))
+                   Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -2041,6 +2080,7 @@ WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, vi
 @document struct WidgetAccordionItem <: WidgetDocument
     title::Any
     body::Any
+    tooltip::Any = nothing
 end
 
 _as_accordion_item(it::WidgetAccordionItem) = it
@@ -2075,10 +2115,11 @@ section that folds.
     expanded::Int
     width::Int
     visible::Bool
+    tooltip::Any
 end
-WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true) =
+WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true, tooltip=nothing) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
-                    Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(nothing))
+                    Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
@@ -2149,6 +2190,7 @@ See also `make_result_table` and `WidgetList` for one column.
     column_cell_policies::Any    # Vector{Symbol} — the body columns that differ
     visible::Bool
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
+    tooltip::Any
 end
 
 """
@@ -2200,7 +2242,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
+                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[], tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
     WidgetTable(Cell(position),
@@ -2211,7 +2253,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(visible), Cell(nothing))
+                Cell(visible), Cell(tooltip), Cell(nothing))
 end
 
 """
@@ -2229,7 +2271,8 @@ function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
+                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
     WidgetTable(Cell(position),
@@ -2240,7 +2283,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(visible), Cell(nothing))
+                Cell(visible), Cell(nothing), Cell(tooltip))
 end
 
 """
@@ -2259,14 +2302,16 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[])
+                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     tooltip=nothing)
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
     WidgetTable(position, collect(Any, headers), Any[], collect(Any, rows), column_count;
                 border_width=border_width, visible=visible,
                 column_policy=column_policy, row_policy=row_policy,
                 column_policies=column_policies, row_policies=row_policies,
-                cell_policy=cell_policy, column_cell_policies=column_cell_policies)
+                cell_policy=cell_policy, column_cell_policies=column_cell_policies,
+                tooltip=tooltip)
 end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
@@ -2323,10 +2368,11 @@ part of the tree's content.
     hovered::Union{Nothing, Reference}           # transient: node-path ref of the row under the pointer, or nothing
     collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
     gestures::Any                # per-instance tree-level gesture bindings
+    tooltip::Any
 end
-WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=GestureBinding[]) =
+WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=GestureBinding[], tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
-               Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures))
+               Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures), Cell(tooltip))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
 # `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_bound_gesture`.
@@ -2717,3 +2763,23 @@ const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
+
+# ── What a widget says about itself ──────────────────────────────────────────
+
+"""
+A widget stores what it says about itself, where every other document computes
+it: whoever places a widget knows why it is there, and the widget does not. Both
+fields hold `nothing` until somebody sets one.
+
+A `String` is wrapped, because most tooltips are one line and
+`tooltip = "Run the selected configurations"` is what a caller wants to write.
+"""
+compute_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
+
+_as_tooltip_document(::Nothing) = nothing
+_as_tooltip_document(text::AbstractString) = PrimitiveString(String(text))
+_as_tooltip_document(document) = document
+
+# The shell is the window's own frame, so the menu it holds is the window's: what
+# opens where no widget under the pointer offers one.
+compute_context_menu(shell::WidgetShell) = shell.context_menu

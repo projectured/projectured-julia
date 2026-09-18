@@ -15,6 +15,7 @@ using ProjecturedFocus
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedLayout
+using ProjecturedDomain
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedScreen
@@ -43,6 +44,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
+const DomainModule = ProjecturedDomain.DomainModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule

@@ -569,3 +569,50 @@ function _julia_operator_string(op::Symbol)
     op === :(:) && return ":"
     return string(op)
 end
+
+# ── What a definition says about itself ──────────────────────────────────────
+
+# The name of a node, as a signature writes it. A signature is not source: it
+# names what a caller has to pass, and stops there.
+_julia_signature_name(node::JuliaIdentifier) = node.name
+_julia_signature_name(node::JuliaTypeAnnotation) =
+    _julia_signature_name(node.value) * "::" * _julia_signature_name(node.type)
+_julia_signature_name(::JuliaEmpty) = ""
+_julia_signature_name(node) = string(nameof(typeof(node)))
+
+"""
+    compute_julia_signature(function_) -> String
+
+The signature of `function_` as a caller reads it: the name, the parameters, and
+the result type where one is declared. Not the body, and not the `where` clause:
+a tooltip says what to pass, and a person who needs the rest opens the file.
+"""
+function compute_julia_signature(function_::JuliaFunction)
+    parameters = join((_julia_signature_name(function_.params[i])
+                       for i in 1:length(function_.params)), ", ")
+    signature = _julia_signature_name(function_.name) * "(" * parameters * ")"
+    result = _julia_signature_name(function_.result_type)
+    isempty(result) ? signature : signature * "::" * result
+end
+
+# A function answers its signature. It cannot answer its prose: a docstring is a
+# node ABOVE it, holding the function as its subject, and a document does not
+# look up.
+compute_tooltip(function_::JuliaFunction) =
+    _julia_tooltip_text(compute_julia_signature(function_))
+
+# A documented definition answers both, which is the whole point of a
+# documentation tooltip: what to pass, and what it is for.
+compute_tooltip(docstring::JuliaDocstring) =
+    _julia_tooltip_text(_julia_documentation_text(docstring))
+
+_julia_documentation_text(docstring::JuliaDocstring) =
+    docstring.subject isa JuliaFunction ?
+        compute_julia_signature(docstring.subject) * "\n\n" * docstring.text :
+        docstring.text
+
+# A tooltip is a document, and this slice reaches the text one. A line of the
+# answer becomes a span, so a blank line between the signature and the prose
+# stays a blank line.
+_julia_tooltip_text(text::AbstractString) =
+    TextBlock(TextDocument[TextString(line) for line in split(text, "\n")])

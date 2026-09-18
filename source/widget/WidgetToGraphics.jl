@@ -2073,7 +2073,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
         c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("menu_bar"))))
     tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, ctx))
     sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, ctx))
-    tt_cell = reconcile_child_iomap(() -> w.tooltip, c -> print_child(recursion, c, ctx))
+    tt_cell = reconcile_child_iomap(() -> w.overlay, c -> print_child(recursion, c, ctx))
     # Band offsets + status-bar height, reactive on which slots are present.
     bands = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
@@ -2144,7 +2144,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
             push!(child_iomaps, (cox, sb_y, cim))
             push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
         end
-        if w.tooltip isa WidgetDocument
+        if w.overlay isa WidgetDocument
             cim = tt_cell[]
             push!(child_iomaps, (0, 0, cim))
             push!(elems, _make_canvas(0, 0, Any[cim.output]))
@@ -2165,7 +2165,7 @@ _shell_field(w, name) =
     name == "menu_bar" ? w.menu_bar :
     name == "toolbar"  ? w.toolbar  :
     name == "content"  ? w.content  :
-    name == "tooltip"  ? w.tooltip  : nothing
+    name == "overlay"  ? w.overlay  : nothing
 
 function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
     reference isa ConcreteReference || return nothing

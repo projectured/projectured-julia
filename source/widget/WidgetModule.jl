@@ -21,6 +21,7 @@ using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..OperationModule
+using ..DomainModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -33,6 +34,7 @@ using ..TextModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!
 import ..DocumentModule: has_document_duplicate
+import ..DomainModule: compute_tooltip, compute_context_menu
 import ..GestureBindingModule: get_instance_gesture_bindings
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

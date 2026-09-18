@@ -931,6 +931,44 @@ decided:
 
 ### Step 4 — a document answers a tooltip
 
+**Done 2026-09-19.** `test_substrate()` is 63079 pass, 3 fail, 2 error, 1
+broken: the fail and error counts are the baseline's exactly, and the 452 new
+passes are the cell the field adds wherever a widget is walked. `test_shell()`
+is 47 and `test_julia()` is 63.
+
+**The sweep is not scriptable by search, and five shapes prove it.** Every one
+was found by the suite after a check of mine had passed:
+
+1. A struct regex without a boundary: `WidgetAccordion` matched
+   `WidgetAccordionItem`, which stands earlier in the file, and two types got the
+   field twice.
+2. A fixed-width window from each constructor read past its own text into the
+   next type, so `WidgetButton`, `WidgetMenuItem` and `WidgetSwitch` looked
+   ordinary and were not. **Seven constructors do not end at the selection cell,
+   not four.**
+3. `Meta.parseall` answers an expression holding an `:error` node rather than
+   throwing, so a "parses" check that only calls it passes on broken source.
+4. A caller **outside** the file builds a widget positionally:
+   `CellTableToWidgetTable.jl` passes every cell of a `WidgetTable`.
+5. **Two types have more than one outer constructor** — `WidgetTable` three and
+   `WidgetSplitPane` two. A check that counts one keyword per type is wrong for
+   them by construction.
+
+The lesson for a later sweep of this kind: name every site literally, cut each
+span at the next type, look for `:error` nodes, and run the suite between
+batches. A static check written with the same instrument as the edit agrees with
+the edit.
+
+**A signature is cheaper than source.** The Julia tooltip does not render the
+function; it writes the name, the parameters and the result type, and stops. A
+function answers its signature, and a `JuliaDocstring` answers the signature and
+the prose — because a docstring is the node ABOVE the function, holding it as
+its subject, and a document does not look up. The prose lives where the prose is.
+
+**`ProjecturedJulia` cannot reach `PrimitiveString`**, so a Julia tooltip is a
+`TextBlock` of one span per line. A tooltip is a document, and each slice builds
+the one it can reach.
+
 - [ ] Add the generic `compute_tooltip(document)` to `DomainModule`, in
       `source/domain/DocumentCore.jl` beside `accepts_pasted_document`, with
       `compute_tooltip(::Any) = nothing` and the `String` convenience.

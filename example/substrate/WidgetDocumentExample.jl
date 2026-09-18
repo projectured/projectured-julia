@@ -158,7 +158,7 @@ function make_widget_document_example(; width=1024, height=768)
                         "Widget Gallery — hover items for tips"; visible=false)
 
     WidgetShell(tabs;
-                menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar, tooltip=tip,
+                menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar, overlay=tip,
                 size=Point2D(width, height))
 end
 

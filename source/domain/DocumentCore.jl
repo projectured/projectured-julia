@@ -115,3 +115,40 @@ must not crowd: an explorer a person opened the file from, or a running
 conversation.
 """
 accepts_opened_file(::Any) = true
+
+# ── What a document says about itself in one glance ───────────────────────────
+
+"""
+    compute_tooltip(document) -> Document | Nothing
+
+What to show about `document` when a person rests the pointer on it, or
+`nothing` when it has nothing to say. `nothing` by default.
+
+**A widget stores its answer; every other document computes one.** That is the
+whole of the difference. A widget carries a `tooltip` field, which whoever built
+it set from outside, because a button knows nothing about why it is there. A
+Julia function definition computes its signature and the prose of its docstring;
+a JSON node computes what is worth saying about that node. Hence `compute_`, and
+not `find_`: most answers are built, and only the widget's is looked up.
+
+A method answers a `Document`. Where a one-line tooltip is what a caller wants
+to write, the slice that offers the field wraps the string, because this slice
+names no document type of its own.
+
+See also `compute_context_menu`, which asks the same question of the same
+document and is answered the same two ways.
+"""
+compute_tooltip(::Any) = nothing
+
+"""
+    compute_context_menu(document) -> Document | Nothing
+
+The menu to open when a person presses the right button on `document`, or
+`nothing` when it offers none. `nothing` by default.
+
+The two kinds of answer are the two of `compute_tooltip`. A widget reads a
+`context_menu` field that whoever built it set. Every other document computes its
+menu, which is what makes the menu worth having: a JSON array offers to add an
+element, and no field set from outside could have said that.
+"""
+compute_context_menu(::Any) = nothing

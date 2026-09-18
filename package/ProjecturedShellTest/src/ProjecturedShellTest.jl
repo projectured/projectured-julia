@@ -10,6 +10,7 @@ module ProjecturedShellTest
 
 using Test
 import ProjecturedShell
+import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedPdf
 import ProjecturedConsole
@@ -44,7 +45,7 @@ using ProjecturedSubstrateExample
 using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 
-const _SOURCES = (ProjecturedShell, ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
+const _SOURCES = (ProjecturedShell, ProjecturedJulia, ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -63,6 +64,8 @@ for _src in _SOURCES
 end
 
 include("../../../test/shell/WindowWrapTest.jl")
+include("../../../test/shell/WidgetTooltipTest.jl")
+include("../../../test/shell/JuliaTooltipTest.jl")
 
 include("../../../test/shell/ShellSuite.jl")
 
