@@ -1,7 +1,7 @@
 ---
 marp: true
-title: ProjecturEd — Feature Overview
-description: The most important features of the ProjecturEd projectional editor
+title: ProjecturEd
+description: An application to view, edit and transform structured data with an AI assistant, and a generic user interface for Julia programs.
 author: ProjecturEd
 paginate: true
 theme: uncover
@@ -76,6 +76,9 @@ style: |
   }
   .cols ul { margin: 0; padding-left: 1.1em; }
   .cols li { font-size: 0.92em; }
+  table { font-size: 0.8em; border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #21262d; padding: 0.35em 0.7em; text-align: left; }
+  th { color: var(--accent); }
   footer { color: var(--muted); font-size: 0.5em; }
   section::after {
     color: var(--muted);
@@ -87,363 +90,305 @@ style: |
 
 # ProjecturEd
 
-### A generic-purpose **projectional editor**
+An application to view, edit and transform structured data
+with an AI assistant, and a generic user interface for any Julia program.
 
 <br>
 
-Documents are structured data — trees, ASTs, graphs — presented
-through **bidirectional, composable projections**.
-You edit the projection; the editor maps it back to the model.
-
-<br>
-
-<span class="muted">A Julia reimplementation of ProjecturEd · Feature overview</span>
+<span class="muted">github.com/projectured/projectured-julia</span>
 
 ---
 
-<!-- _class: lead -->
+## What it is
 
-## Not a text editor
+- A **viewer**: it shows data as a tree, a statement with syntax colours, a chart, a diagram, a form or a table.
+- An **editor**: most views take your edits, and an edit changes the data itself.
+- An **AI assistant**: a language model inside the program, with the same data and the same edits as you.
 
-In a text editor, the **string is the truth** and structure is guessed.
-
-In ProjecturEd, the **structured model is the truth** —
-every view is *derived* from it, and every edit is *structural*.
-
-<br>
-
-> One model. Many views. No parsing, no re-serialization, no drift.
+A view is normally designed, the way you design a window of an application. For data with no designed view, ProjecturEd makes one on demand, from the structure of the value itself.
 
 ---
 
-## The features at a glance
+## Structured data, one window
+
+- Works with about twenty kinds of data: JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas, charts, graphs, and state machines.
+- Opens them in one window, in tabs and split panes.
+- One document can mix kinds: JSON inside XML inside prose.
+- Written in Julia — so it is also a generic user interface for your own Julia programs.
+
+---
+
+## What you can do with it
 
 <div class="cols">
 <div>
 
-- 🤖 **AI assistant** built in
-- 🔍 **Introspection** of objects
-- 🪞 **Self-reflection**
-- 🪟 **On-demand UI** for huge data
-- 🖥️ **Multiple backends**
-- ⚡ **Lazy & incremental** engine
+- **View and edit structured files as structures** — JSON, YAML, XML, Markdown, SQL, Julia, and a math notation.
+- **Design a tool window without a GUI toolkit** — widgets, tables, cards, tabs, split panes.
+- **Look into a running program** — a reflection view shows any object as a tree.
+- **Show results** — line, bar, histogram, scatter and strip charts, and sequence charts.
 
 </div>
 <div>
 
-- 🧩 **Composition** of docs & projections
-- 📚 **Many domains** built in
-- ⌨️ **Standard editor functions**
-- ⏱️ **Undo, redo & versioning**
-- 🤝 **Built to collaborate on**
+- **Model behaviour and run it** — a state machine produces runnable Julia code.
+- **Ask for a change in plain words** — the assistant searches the API, writes Julia, and runs it.
+- **Drive the editor from outside** — an MCP client gets the same tools as the assistant.
+- **Put a view somewhere else** — a native window, a browser, a terminal, a PDF, or a video.
 
 </div>
 </div>
 
-<span class="muted">One slide each — and the deck is built to grow.</span>
+---
+
+<!-- _class: lead -->
+
+## Screenshots
+
+The same editor, open on different kinds of data.
 
 ---
 
 <!-- _class: lead -->
 
-# 🤖 AI assistant built in
+## The assistant panel
 
-The assistant isn't bolted on — it's part of the architecture.
+<img width="680" alt="Assistant example" src="../../asset/image/example/assistant.png">
 
----
-
-## 🤖 AI assistant built in
-
-<span class="tag">built into the architecture, not a plugin</span>
-
-- An **in-editor assistant panel** (`WorkbenchAssistant`) backed by Claude,
-  with a deterministic **offline fallback** when no API key is set.
-- The AI edits the document **structurally** — it runs Julia against a live
-  `editor` (`execute_julia_code`), it does not fake keystrokes.
-- An **MCP server** (JSON-RPC over HTTP) exposes the same tool surface to
-  external AI clients — in-editor and external AI share one interface.
-- The **chat itself is a document** (`Conversation` domain): messages and
-  executed code blocks are structured, selectable, editable data.
-
-<span class="muted">source/kernel/agent/AgentServerModule.jl · tool/ToolSet.jl · document/Conversation.jl</span>
+<span class="muted">The assistant panel beside an open document; the conversation is a document with its own view.</span>
 
 ---
 
 <!-- _class: lead -->
 
-# 🔍 Introspection
+## The workbench
 
-See — and edit — the structure of any object, live.
+<img width="680" alt="Workbench example" src="../../asset/image/example/workbench.png">
 
----
-
-## 🔍 Introspection
-
-<span class="tag">reflection-driven, zero UI code</span>
-
-- **`ObjectToWidget`** turns *any* Julia object into an editable widget form
-  by reflecting over its fields — no templates, no per-type UI code.
-- Field types pick the control: bool → checkbox, string/number → text input.
-- The form is **bidirectional**: edit a field, the backing cell invalidates,
-  the projection re-runs, and the change appears everywhere.
-- The **Descriptor panel** shows docs + an auto-generated form for whatever
-  node the selection is on.
-
-<span class="muted">projection/generic/ObjectToWidget.jl · document/Workbench.jl</span>
+<span class="muted">A file navigator, open documents in tabs, and the assistant, in one window.</span>
 
 ---
 
 <!-- _class: lead -->
 
-# 🪞 Self-reflection
+## A chart
 
-An editor general enough to edit itself.
+<img width="580" alt="Chart example" src="../../asset/image/example/chart.png">
 
----
-
-## 🪞 Self-reflection
-
-<span class="tag">the ultimate generality test</span>
-
-- A **Julia domain** models Julia code as structured data —
-  identifiers, calls, `if`, functions, blocks — with a bidirectional
-  **`JuliaToSyntax`** projection.
-- Because domains nest, you can edit **code as data**: a Julia expression
-  living inside a JSON field, a book, or a table.
-- **Self-hosting** — editing ProjecturEd's own source inside ProjecturEd —
-  is the stated long-term goal: if the system can edit itself, every design
-  assumption is validated.
-
-<span class="muted">document/Julia.jl · projection/primitive/JuliaToSyntax.jl · guide/roadmap.md</span>
+<span class="muted">A line chart as a document; a data point is a part of the structure, and it is selectable.</span>
 
 ---
 
 <!-- _class: lead -->
 
-# 🪟 On-demand UI
+## A sequence chart
 
-Project a window onto data that never fully materializes.
+<img width="640" alt="Sequence chart example" src="../../asset/image/example/sequencechart.png">
+
+<span class="muted">Participants, occurrences and the arrows between them, as one document.</span>
 
 ---
 
-## 🪟 On-demand UI
+<!-- _class: lead -->
 
-<span class="tag">finite views over infinite data</span>
+## A state machine
 
-- **`ListNode`** is a doubly-linked list whose `prev`/`next` can be lazy
-  thunks — an *infinite* list is built in O(1) and walked on demand.
-- **`FocusingProjection`** projects only the focused window; everything
-  outside it is never computed.
-- Pull-based cells mean **off-screen subtrees cost nothing** until seen —
-  the same pipeline serves a tiny doc and an unbounded one.
+<img height="480" alt="State machine example" src="../../asset/image/example/fsm.png">
 
-```julia
-# infinite integers, projected to just the visible slice
-node = ListNode(value = 0, next = ComputedCell(() -> succ(node)))
+<span class="muted">States, guarded transitions and timers; the machine produces runnable Julia code.</span>
+
+---
+
+<!-- _class: lead -->
+
+## Markdown
+
+<img width="580" alt="Markdown example" src="../../asset/image/example/markdown-rendered.png">
+
+<span class="muted">A Markdown file, open and edited as a structure, not as a block of text.</span>
+
+---
+
+<!-- _class: lead -->
+
+## A view on demand
+
+<img width="448" alt="Object to widget example" src="../../asset/image/example/object-to-widget.png">
+
+<span class="muted">A Julia value with no designed view, shown as a form of its fields by reflection.</span>
+
+---
+
+<!-- _class: lead -->
+
+## JSON
+
+<img height="480" alt="Json example" src="../../asset/image/example/json.png">
+
+<span class="muted">A JSON file, open and navigated as an object tree, not as text.</span>
+
+---
+
+<!-- _class: lead -->
+
+## Widgets
+
+<img width="560" alt="Widget example" src="../../asset/image/example/widget.png">
+
+<span class="muted">Labels, a checkbox, a text box and a button: the widgets a tool window is made from.</span>
+
+---
+
+<!-- _class: lead -->
+
+## A table
+
+<img width="600" alt="Table example" src="../../asset/image/example/table.png">
+
+<span class="muted">A table view; each cell keeps the view of its own kind of data.</span>
+
+---
+
+<!-- _class: lead -->
+
+## How it works
+
+ProjecturEd is a projectional editor. The data is the source, and every view is computed from it.
+
+---
+
+## The five ideas
+
+| Idea | What it is |
+| --- | --- |
+| Document | The data: a tree of typed structures, each field a reactive cell. |
+| Projection | A printer that makes the view, and a reader that maps an edit in the view back to an operation. |
+| Selection | Where you are: a path into the data, not a caret in a text. |
+| Operation | A change of the data, from a key press or from the assistant. |
+| Tool set | What the assistant and an MCP client can call. |
+
+---
+
+## Cells
+
+- Each field of a document is a reactive cell.
+- A read of a cell records that the reader depends on it.
+- A write marks every dependent value invalid; only what is read again gets recomputed.
+- After a change, ProjecturEd recomputes only the parts of the views that depend on the change and are on the screen.
+
+---
+
+## The tool set
+
+What the assistant and an MCP client can call:
+
+- Search the API of the loaded packages.
+- Read a guide.
+- Run Julia code against the live editor.
+- Change the data.
+
+---
+
+<!-- _class: lead -->
+
+## The loop
+
+A key press goes through the projections to the data.
+The change comes back through the same projections to the screen.
+
+---
+
+## The assistant
+
+- Runs inside the application, with a local model through Ollama, or with Claude.
+- Searches the API of the loaded packages, writes Julia code, and runs it in the application.
+- Changes the data with the same operations as a key press.
+
+---
+
+## The conversation is a document
+
+- The conversation has its own view, like any other document.
+- A message and an executed code block are structured data, so they can be selected and edited.
+- You can run Julia code in it yourself, the same way the assistant does.
+
+---
+
+## MCP
+
+- An external client, for example Claude Code, reaches the same tools through MCP.
+- `bin/projectured --mcp a.json` starts a server; a client connects at `http://127.0.0.1:9876/mcp`.
+- The tool set is a layer of the kernel. The assistant and an MCP client use it.
+
+---
+
+## Extend it with your own domain
+
+- Add a domain: its document types, the projections that make its views, its operations and its key bindings.
+- A domain is a package of its own, and no other domain depends on it.
+- You can work on your domain without changes to other domains, while other developers work on theirs.
+
+---
+
+## What a new domain gets for free
+
+- Selection and navigation, search, copy and paste.
+- Filtered and sorted views, with no extra code in the domain.
+- A text notation and a file format, saving, and every backend.
+- The AI assistant, which can find and call your functions.
+
+---
+
+## Status
+
+<span class="tag">under development</span>
+
+ProjecturEd is under development. Most features work, but it is not a finished product. Some parts are incomplete, and names and interfaces can still change.
+
+---
+
+## Limits, today
+
+- There is no undo and no redo.
+- Type-in of single characters does not work the same way in every domain.
+- The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
+- SDL2 and SDL_ttf must be installed for a native window.
+- The packages are not in the General registry: clone the repository and use `environment/all`.
+- Commercial use needs a licence from the author.
+
+---
+
+## Where to start
+
+Needs Julia 1.11 or later, and SDL2 with SDL_ttf for a native window.
+
+```sh
+git clone https://github.com/projectured/projectured-julia
+cd projectured-julia
+bin/projectured
 ```
 
-<span class="muted">document/Collection.jl · projection/generic/Focusing.jl</span>
+Opens a window with a file navigator, open files in tabs, and the assistant.
 
 ---
 
-<!-- _class: lead -->
+## Options
 
-# 🖥️ Multiple backends
-
-One document. One projection. Three rendering paths.
-
----
-
-## 🖥️ Multiple backends
-
-<span class="tag">display & input fully decoupled</span>
-
-- **SDL2** — native windows and fonts.
-- **Console** — renders styled text directly with ANSI colors,
-  *skipping graphics entirely* (proof the pipeline is backend-agnostic).
-- **Web** — HTTP + WebSocket server rendering to a browser `<canvas>`/SVG.
-- **PDF** export — vector output with self-contained TrueType embedding,
-  headless, no SDL required.
-
-Swapping is one argument: `run_editor!(WebBackend(), proj, doc)`.
-The projection only ever sees neutral events like `KeyDown(:left)`.
-
-<span class="muted">backend/{Sdl,Console,Web,Pdf}.jl · api/{Backend,Device}.jl</span>
+```sh
+bin/projectured --help                       # every option
+bin/projectured --window=workbench a.xml     # the workbench window
+bin/projectured --assistant=none notes.txt   # no assistant
+bin/projectured --backend=web a.json         # in a browser
+bin/projectured --mcp a.json                 # with an MCP server
+```
 
 ---
 
-<!-- _class: lead -->
-
-# ⚡ Lazy & incremental engine
-
-Deep pipelines that stay fast.
-
----
-
-## ⚡ Lazy & incremental engine
-
-<span class="tag">pull-based reactive cells</span>
-
-- One primitive — a **`Cell`** that holds either a value or a thunk —
-  with **automatic dependency tracking** (just reading a cell records an edge).
-- **Eager invalidation, lazy recompute**: an edit marks dependents invalid
-  in O(depth); only what's actually *read* recomputes, in O(affected).
-- Editing one character in a huge document reruns a *handful* of cells —
-  text, layout, and most graphics are served from cache.
-- `get_performance_counters()` exposes read/compute/write counts per frame.
-
-<span class="muted">cell/CellModule.jl · every @document field is a Cell</span>
-
----
-
-<!-- _class: lead -->
-
-# 🧩 Composition
-
-Documents and projections compose on two axes.
-
----
-
-## 🧩 Document & projection composition
-
-<span class="tag">mix domains freely</span>
-
-- **Documents nest**: any field can hold any other domain — JSON inside XML
-  inside styled prose — and selections round-trip across the boundaries
-  (`NestingProjection`).
-- **Projections combine**: chain them (`Sequential`), make them recursive,
-  dispatch by type or location, or **transform structure non-destructively**
-  with `Sorting`, `Filtering`, `Focusing`.
-- A sort or filter is *a projection you add* — undo removes the view,
-  never your data.
-
-> Same data, many views; same projection, many domains.
-
-<span class="muted">projection/higherorder/* · projection/generic/*</span>
-
----
-
-<!-- _class: lead -->
-
-# 📚 Many domains
-
-About twenty domains ship with the editor.
-
----
-
-## 📚 Many domains, ready to use
-
-<span class="tag">about twenty structured domains</span>
-
-<div class="cols">
-<div>
-
-- **Data** — JSON, XML, INI, SQL, Database
-- **Text & prose** — Text, Book, Syntax
-- **Code** — Julia, Math, Evaluator
-- **UI** — Widget, Graphics, Layout, Color, Font
-
-</div>
-<div>
-
-- **IDE** — Workbench, Conversation, FileSystem
-- **Tables** — Table, Collection (vector/matrix/list)
-- **Editing** — Clipboard, Dragging, Reference
-- **…and more** — Image, Tooltip, Geometry, Style
-
-</div>
-</div>
-
-Each is a real domain with structured types and operations — and any one
-can be **embedded inside any other**.
-
-<span class="muted">package/*/main/document/*.jl</span>
-
----
-
-<!-- _class: lead -->
-
-# ⌨️ Standard editor functions
-
-The operations you expect — in every domain.
-
----
-
-## ⌨️ Standard editor functions
-
-<span class="tag">structural operations, not string edits</span>
-
-- **Navigation & selection** — arrows, Home/End, Page Up/Down; the selection
-  threads through *every* projection layer.
-- **Cut / copy / paste** — a real `Clipboard` domain; you paste structured
-  *meaning*, not text.
-- **Mouse** — click-to-select maps pixels back to a position.
-- **Search** — `search_references` / `search_documents` walk the whole tree
-  (string, regex, or predicate; depth-bounded for infinite data).
-- **Scroll, tabs, panels, drag-to-reorder** in the workbench.
-
-The same `Operation` interpreted locally per domain — one mechanism, every view.
-
----
-
-<!-- _class: lead -->
-
-# ⏱️ Undo, redo & versioning
-
-Edits as a history you can travel through.
-
----
-
-## ⏱️ Undo, redo & versioning
-
-<span class="tag">the operation model is the timeline</span>
-
-- Every change is a **typed, invertible `Operation`** — so undo is just
-  applying its inverse, and redo is replaying it forward.
-- A stream of operations *is* a history: branchable, replayable,
-  and inspectable — the natural substrate for full **document versioning**.
-- Because operations carry **meaning** (*“insert at index 3”*), a version
-  diff reads as structural intent, not a noisy line-by-line text diff.
-
-<span class="muted">Forthcoming — built directly on the existing operation infrastructure.</span>
-
----
-
-<!-- _class: lead -->
-
-# 🤝 Built to collaborate on
-
-Real-time multi-user editing, by construction.
-
----
-
-## 🤝 Built to collaborate on
-
-<span class="tag">the architecture does the heavy lifting</span>
-
-- Every change is a **typed, invertible `Operation`** —
-  *“insert element at index 3”*, not *“characters 41–58 changed.”*
-- Because edits carry **meaning, not character offsets**, merge and conflict
-  resolution can reason structurally — the natural substrate for **OT / CRDT**.
-- The model already separates **operation → transport → apply**, so live
-  collaboration becomes a transport-and-merge layer on top, not a rewrite.
-
-<span class="muted">Shares the same operation foundation as undo/redo and versioning.</span>
-
----
-
-<!-- _class: lead -->
-
-## The throughline
-
-**Structured model + bidirectional, composable projections.**
-
-Everything else — AI, introspection, many backends, incrementality,
-collaboration — falls out of that one idea.
-
-<br>
-
-<span class="muted">Read next: guide/concepts.md → architecture.md → reactive-cells.md</span>
+## Read next
+
+- [setup-guide.md](../guide/setup-guide.md) and [examples-tour.md](../guide/examples-tour.md) — to use it.
+- [concepts.md](../design/concepts.md) and [view-your-data-guide.md](../guide/view-your-data-guide.md) — to show your own data.
+- [engineer-tour.md](../design/engineer-tour.md), [system-anatomy.md](../design/system-anatomy.md) and [CONTRIBUTING.md](../../CONTRIBUTING.md) — to work on ProjecturEd.
 
 ---
 
@@ -451,6 +396,6 @@ collaboration — falls out of that one idea.
 
 # Thank you
 
-### Questions?
+<span class="muted">Free for non-commercial use; commercial use needs a licence from the author.</span>
 
 <span class="muted">github.com/projectured/projectured-julia</span>
