@@ -954,7 +954,10 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       to `plan/obsolete/`. Fix the two links in `plan/tentative/`.
       `plan/pending/` holds 52 plans now. A link from a plan in `plan/done/` to
       a moved plan is left: a done plan is history and says where it pointed.
-- [ ] Fix the facts of `nlnet-application.md`.
+- [x] Fix the facts of `nlnet-application.md`. The text is a funding pitch that
+      the owner submits, so it keeps its own words; a note at its head lists
+      the five facts that moved, among them the web backend it asks money for
+      and the word "open source", which D1 rules out.
 
 ### Step 9: pictures, videos, slides, web site
 

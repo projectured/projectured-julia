@@ -7,6 +7,28 @@
 > it is a funding pitch, not an implementation plan, so this pass only fixes
 > facts about the repository that had gone stale.
 
+> **What moved since this text was written (2026-09-18).** The application
+> still asks for work that is now done, and it uses one word that the licence
+> decision rules out. The owner writes what to submit; these are the facts:
+>
+> - **The web backend exists.** It runs the same editor in a browser over HTTP
+>   and WebSocket (`source/web/Web.jl`). The line "Web-backend parity — €6,000"
+>   asks for work that landed.
+> - **The assistant is not a fallback.** It works with a local model through
+>   Ollama and with Claude through the Anthropic API, and the same tool set
+>   answers an external client over MCP. Measured on eleven example problems, a
+>   local model solved nine.
+> - **"Open source" is the wrong word here.** The licence is free for
+>   non-commercial use, modification included, and commercial use needs a
+>   licence from the author (D1 of `documentation-rewrite.md`). The README says
+>   it that way, and this text must agree with the README.
+> - **The framing of the README** is the approved one: an application to view,
+>   edit and transform structured data with an AI assistant, and a generic user
+>   interface for a Julia program. §2.1 of `documentation-rewrite.md` holds the
+>   approved words.
+> - **A binary exists.** `bin/build_projectured` compiles the application into a
+>   directory that runs with no Julia and no checkout.
+
 **Status:** Draft, pending submission.
 **Target fund:** NLnet's reopened **general open call** (the *Open Internet Stack* effort,
 successor to NGI Zero Commons). Expected to reopen **after summer 2026** — likely an autumn
