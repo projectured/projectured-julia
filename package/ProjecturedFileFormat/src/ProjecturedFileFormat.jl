@@ -26,6 +26,8 @@ using ProjecturedWidget
 const NaturalModule = ProjecturedNatural.NaturalModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const EventModule = ProjecturedKernel.EventModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule

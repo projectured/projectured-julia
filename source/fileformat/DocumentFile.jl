@@ -109,3 +109,62 @@ make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ex
 # its own name. The base name is what a person reads: the directory is context,
 # and a tab strip has no room for it.
 get_document_title(file::FileDocument) = basename(String(get_filename(file)))
+
+# ── Ctrl+S / Ctrl+O on a FileDocument ───────────────────────────────────────
+#
+# The same pair `WorkbenchEditor` binds in `WorkbenchFile.jl`, for a
+# `FileDocument` directly: **Ctrl+S** saves the document's own `content` to
+# its own `filename`, **Ctrl+O** reloads it.
+
+"""
+    SaveFileOperation(file)
+
+Write `file`'s current content to its own name. A pure side effect; the
+document is not mutated.
+"""
+struct SaveFileOperation <: Operation
+    file::FileDocument
+end
+
+# `save_file!` dispatches on the file object and goes through each format's
+# own `emit_text`, so it writes a `TextFile`'s raw `String` content and a
+# `JsonFile`'s parsed tree alike. `write_document_file` takes a `::Document`
+# and would reject a `TextFile`, whose `content` field is a plain `String`,
+# not a `Document` — so it is not the uniform choice across every
+# `FileDocument`.
+function evaluate_operation(editor, op::SaveFileOperation)
+    file = op.file
+    save_file!(file, dirname(abspath(get_filename(file))))
+end
+
+"""
+    ReloadFileOperation(file)
+
+Re-read `file`'s own name from disk and swap the result into its `content` (a
+reactive write, so the projection re-renders). The selection is cleared since
+the old one pointed into the replaced content. A non-existent file re-seeds
+the extension's insertion placeholder.
+"""
+struct ReloadFileOperation <: Operation
+    file::FileDocument
+end
+
+function evaluate_operation(editor, op::ReloadFileOperation)
+    file = op.file
+    file.content = read_document_file(get_filename(file))
+    file.selection = nothing
+end
+
+# Both commands need a name; decline (no binding fires) when the file has
+# none — a "Save As" path picker for unnamed files is future work.
+_save_file(doc::FileDocument)   = isempty(get_filename(doc)) ? nothing : SaveFileOperation(doc)
+_reload_file(doc::FileDocument) = isempty(get_filename(doc)) ? nothing : ReloadFileOperation(doc)
+
+@gestures FileDocument begin
+    KeyDown(:s; ctrl) => "Save file to disk"     => _save_file(doc)
+    KeyDown(:o; ctrl) => "Reload file from disk" => _reload_file(doc)
+end
+
+# Each carries its own subject and names no reference, so every reader
+# between the gesture and the editor passes it up unchanged.
+OperationModule.operation_travels_unchanged(::Union{SaveFileOperation, ReloadFileOperation}) = true

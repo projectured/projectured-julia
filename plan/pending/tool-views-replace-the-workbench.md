@@ -636,7 +636,20 @@ holds, and a person types a short word instead of a type name.
 
 ### Step 7. A file tab holds a `FileDocument`
 
-**Status: point 2 done, 2026-09-18.** `get_document_title(::FileDocument)`
+**Status: points 1, 2 and 4 done, 2026-09-18.** A tab that holds a
+`FileDocument` draws the file's content, and `Ctrl+S` / `Ctrl+O` save and reload
+it. Points 3 and 5 wait for Step 8, which is deferred.
+
+`SaveFileOperation` calls `save_file!`, not `write_document_file`: the latter
+takes a `Document`, and a `TextFile` holds a raw `String`. `save_file!`
+dispatches on the file and goes through each format's own `emit_text`, which
+works for every `FileDocument`.
+
+The printer keeps **one** child iomap, not a collection of them, because
+`content` is one field. It is a computed cell over that child, so a reload — which
+replaces the content cell wholesale — re-derives what is drawn.
+
+**Point 2, earlier:** `get_document_title(::FileDocument)`
 answers the base name, so a `JsonFile` in a tab calls that tab `a.json`. It lives
 in the file format slice, which already has every dependency it needs; the
 serialization slice that declares `FileDocument` depends on the kernel alone and
