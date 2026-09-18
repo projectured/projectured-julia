@@ -439,13 +439,43 @@ accepted and wrapped, because most tooltips are one line.
 A widget is the one kind of document that stores its tooltip instead of
 computing one, so the field is what its `compute_tooltip` method reads.
 
-The field goes last in the chrome run that nearly every widget type already
-has, after `padding_color`, beside `visible`, `margin` and `border`. It defaults
-to `nothing`, so `@document` keeps emitting the keyword constructor and the
-Rule Y positional constructor unchanged. A caller then writes
-`WidgetButton(...; tooltip = "Run the selected configurations")`, which is the
-"set externally" the owner asked for: a button knows nothing about why it is
-there, and whoever places it does.
+**Counted 2026-09-18: 19 of the 43 types carry the chrome run, not "nearly
+every".** The first draft put the field after `padding_color`, a place that does
+not exist on `WidgetSpinBox`, `WidgetTable`, `WidgetCard`, `WidgetSelect` and 20
+more. The rule is therefore simpler: **`tooltip` is the last declared field of
+every widget type**, chrome run or none. A person never has to remember which
+widgets can carry one.
+
+It is declared without a default, and each type's hand-written outer constructor
+gives the keyword its `nothing`. A default in the struct would change what
+`@document` generates — a type with no defaulted field today has no generated
+keyword constructor, and giving it one is a new method beside a hand-written one.
+That is the trap the macro's Rule Y guard is there for, so the sweep does not
+walk into it.
+
+A caller then writes `WidgetButton(...; tooltip = "Run the selected
+configurations")`, which is the "set externally" the owner asked for: a button
+knows nothing about why it is there, and whoever places it does.
+
+**`WidgetShell` already has a `tooltip` field, and it means something else.**
+`WidgetShell.tooltip::WidgetTooltip`
+([source/widget/WidgetDocument.jl:1005](../../source/widget/WidgetDocument.jl#L1005))
+is the overlay band the shell draws inside the window, not a tooltip the shell
+itself offers. One word cannot hold both meanings, so Step 4 **renames that
+field to `overlay`** with `workspace/bin/julia-rename.jl`, and `tooltip` then
+means one thing on every widget. Nothing in this plan draws the band any more,
+because a tooltip is a separate window (§3.2), so the rename costs one printer
+and one constructor.
+
+**The sweep is not safely scriptable.** Tried and reverted, 2026-09-18. The 43
+types take three shapes: 35 have an outer constructor whose inner call ends at
+the selection cell, 4 have one that does not (`WidgetList`, `WidgetCheckbox`,
+`WidgetSplitPane`, `WidgetTree`), and 3 have no outer constructor at all
+(`WidgetInsertion`, `WidgetTabPage`, `WidgetAccordionItem`) and so need the
+field defaulted. A script that inserted by the nearest anchor put the keyword
+inside the constructor call instead of its signature, and gave `WidgetShell` a
+second `tooltip` field. Do the 43 by hand, in batches, with `test_substrate()`
+after each batch.
 
 The cost is honest and large: 43 widget types, each with a hand-written outer
 constructor that must pass one more `Cell`. The IO map field count changes, and
@@ -818,9 +848,18 @@ A type test against the root of a document is the shape of this fault, and
 - [ ] Add the generic `compute_tooltip(document)` to `DomainModule`, in
       `source/domain/DocumentCore.jl` beside `accepts_pasted_document`, with
       `compute_tooltip(::Any) = nothing` and the `String` convenience.
-- [ ] Add `tooltip::Any = nothing` to the chrome run of each of the 43 widget
-      types in `source/widget/WidgetDocument.jl`, and a `tooltip` keyword to each
-      hand-written outer constructor.
+- [ ] Rename `WidgetShell.tooltip` to `overlay`, so that `tooltip` means one
+      thing on every widget (§3.5).
+- [ ] Add `tooltip::Any` as the last declared field of each of the 43 widget
+      types in `source/widget/WidgetDocument.jl`, and a `tooltip = nothing`
+      keyword to each hand-written outer constructor. No default in the struct,
+      except for the three types that have no outer constructor (§3.5). By hand,
+      in batches, with `test_substrate()` after each batch.
+- **Measured on one type, 2026-09-18.** `WidgetLabel` alone took the field
+      cleanly: `test_substrate()` went to 62823 pass with the failure counts
+      unchanged at 3 fail, 2 error, 1 broken. One field on one type adds about
+      196 assertions, because the reflexive cell walker counts a cell per field,
+      so expect the suite to grow by several thousand across 43 types.
 - [ ] Add the widget method that reads the field, and the dependency edge
       `ProjecturedWidget` to `ProjecturedDomain` that lets it name the generic.
 - [ ] Add the first computed method: a Julia function definition answers a
