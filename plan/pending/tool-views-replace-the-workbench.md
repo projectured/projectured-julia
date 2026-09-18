@@ -278,16 +278,29 @@ not enough. Three defects in the pane came out behind them, and two are fixed:
    they are wrong.
 
 **What is still open, and what it is not.** A printable key does not reach the
-name buffer in the test. The cause is not the new rows and not the pane:
+name buffer. The cause is not the new rows, not the pane, and not the harness.
+The project's own type-in walker says so:
 
-- The caret reaches the document. After Insert, `content.selection` reads
-  `::DocumentInsertion.value::String{0}::Position`, and the prompt draws.
-- `TextInsertion`, which ships and works today, behaves exactly the same way
-  when it is driven the same way with no pane around it at all.
+    walk_typein(DocumentInsertion("js"), fabric)
+      insert pos=0/2  → insert produced nothing, not ReplaceStringRangeOperation
+      insert pos=1/2  → insert produced nothing, not ReplaceStringRangeOperation
+      insert pos=2/2  → insert produced nothing, not ReplaceStringRangeOperation
 
-So the harness is the suspect. Find what the editor loop gives a text edit that
-a hand-driven `read_intent` does not, then unmark the two assertions. Do this
-before Step 5, which needs the same path for the read-eval-print loop.
+**No insert works at any position of an insertion buffer, and `TextInsertion`
+gives exactly the same three lines.** The walker reports no missing cursor, so
+the caret is drawn; the text layer simply produces no edit for the value span of
+an `InsertionToSyntaxLeaf`. Backspace and Delete behave the same.
+
+`TextInsertion` ships, so either this works through some other chain, or typing
+into an insertion buffer has no coverage and has been broken for some time. The
+suite walks no example that holds a bare insertion, so nothing would have caught
+it.
+
+**This belongs to the insertion machinery, not to this plan.** Settle it before
+Step 5, which needs a typed buffer for the read-eval-print loop. Start by asking
+whether `InsertionToSyntaxLeaf` maps its document's `value{k}` caret forward
+onto the value span it draws; `InsertionNothingToSyntaxLeaf` does that for its
+label, and `InsertionToSyntaxLeaf` appears not to.
 3. **A group printed with no tab never draws its first tab.** The standing iomap
    keeps the empty pane it printed. Reproduced on clean `main`, so it is older
    than this plan. The test starts from a group with one tab to step around it.

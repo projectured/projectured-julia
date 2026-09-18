@@ -92,13 +92,13 @@ end
 
 @testset "A typed name narrows and commits" begin
     type!("json")
-    # @broken: a printable key does not reach the name buffer in this harness.
-    # The caret is on the document — `content.selection` reads
-    # `::DocumentInsertion.value::String{0}::Position` — and the prompt draws, so
-    # the leaf and the rows are right. `TextInsertion`, which ships and works,
-    # behaves the same way when it is driven like this with no pane around it, so
-    # what is missing is in the harness and not in the insertion. Find what the
-    # editor loop gives a text edit that this does not, and unmark both.
+    # @broken: no insert works at any position of an insertion buffer. The
+    # project's own `walk_typein` says so for a bare `DocumentInsertion` with no
+    # pane around it — "insert produced nothing, not ReplaceStringRangeOperation"
+    # at every position — and `TextInsertion`, which ships, gives the same three
+    # lines. The caret is drawn; the text layer produces no edit for the value
+    # span of an `InsertionToSyntaxLeaf`. This is older than the tool views and
+    # it has no coverage, because no example holds a bare insertion.
     @test_broken occursin("json", drawn())
     press!(KeyDown(:enter, ModifierKeys()))
     # "json" is the alias `@domain Json` gives its own insertion, and an exact
