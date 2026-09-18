@@ -6,23 +6,43 @@ This guide walks through six ProjecturEd examples in order of complexity.
 For each one: what it demonstrates, how to run it, what to try, and which
 concepts it illustrates. Screenshots for each example are embedded inline below.
 
-## Running examples
+## Run one
 
 ```julia
-using Projectured, ProjecturedExample
-run_example()               # opens the default (JSON) example
-run_example("widget")       # opens a specific example by name
-print_example("syntax")     # dump the projection output to stdout (no window)
-write_example_image("json", "/tmp/snapshot.bmp")   # save a screenshot (raster)
-write_example_pdf("json", "/tmp/snapshot.pdf")     # save a vector PDF
+using Projectured, ProjecturedExample, ProjecturedSdl
+
+run_example()                        # the JSON example
+run_example("widget")                # one example by name
+print_example("syntax")              # the view as text, no window
+write_example_image("json", "/tmp/snapshot.png")
+write_example_pdf("json", "/tmp/snapshot.pdf")
 ```
 
-Available names (see `examples` vector in `ProjecturedExample`):
-`json`, `json_sorted`, `xml`, `mixed`,
-`syntax`, `text`, `object`, `line_numbering`, `word_wrapping`,
-`widget`, `widget_tabbed_pane`, `book`, `filesystem`,
-`collection`, `reversing`, `filtering`, `sorting`, `focusing`,
-`table`, `math_table`, `workbench`, `math`, `julia`, `graphics_image`.
+`[example.name for example in ProjecturedExample.examples]` lists every name; there are 106. `catalog()` answers the same list with the domain and the document of each one.
+
+## The groups
+
+**Data files.** `json`, `json_sorted`, `json_insertion`, `yaml`, `xml`, `mixed`, `markdown`, `markdown_rendered`, `book`, `sql_syntax`, `sql_insert_syntax`, `sql_update_syntax`, `sql_nested_syntax`, `math`, `julia`, `formula`. Each one opens a file of its notation and edits it as a structure. `mixed` is the one to see first: JSON inside XML inside prose, in one document.
+
+**Text and syntax.** `syntax`, `text`, `plain_text`, `text_with_image`, `line_numbering`, `word_wrapping`, `text_filtering`, `text_highlighting`, `natural`. The layer between a domain and the screen, on its own.
+
+**Values of a program.** `object`, `object_to_widget`, `nested_object_to_widget`. A Julia value with no view of its own. `run_value_viewer(value)` is the same thing in one call.
+
+**Widgets.** `widget` and about forty `widget_*` examples: a label, a button, a checkbox, a switch, a slider, a select, a text area, a table, a tree, a tab strip, a card, an alert, a toolbar, a menu. Each one is one widget, so a reader sees what it takes to place it.
+
+**Layout and panes.** `layout`, `constraint_layout`, `widget_split_pane`, `widget_scroll_pane`, `widget_transform_pane`, `widget_shell`, `widget_tabbed_pane`. How a view is given its space.
+
+**Charts and diagrams.** `chart`, `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip`, `chart_inspector`, `graph`, `sequencechart` and its four variants. A chart is a document, and a data point is selectable.
+
+**Models that run.** `fsm`, `fsm_toggle`, `fsm_diagram` — a state machine that produces Julia code. `rotating_vector` — a document that drives itself.
+
+**The general steps.** `collection`, `reversing`, `filtering`, `searching`, `sorting`, `focusing`, `dragging`. One step in front of any data: a filter, a sort, a search. They work for every domain, which is what makes them worth reading.
+
+**Files and the workbench.** `filesystem`, `filesystem_widget`, `navigator`, `table`, `math_table`, `workbench`. The parts the application is built from.
+
+**The assistant.** `assistant`, `conversation_widget`, `conversation_editor`. The conversation as a document. The example answers from a canned transcript, so a test needs no model; [assistant-guide.md](assistant-guide.md) says how to talk to a real one.
+
+The six examples below are the ones to read in order.
 
 ---
 
@@ -45,7 +65,7 @@ delimiters (`{`, `}`, `"`, `,`).
 **What to try:**
 - Press `←` / `→` to move the cursor.
 - Run `print_example("json")` to see the full projection output as text.
-- Run `write_example_image("json", "/tmp/j.bmp")` to capture a screenshot, or
+- Run `write_example_image("json", "/tmp/j.png")` to capture a screenshot, or
   `write_example_pdf("json", "/tmp/j.pdf")` for a vector PDF.
 
 **Concepts illustrated:**

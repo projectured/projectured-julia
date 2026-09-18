@@ -851,9 +851,10 @@ decisions and the two older guides, which are the rest of this step.
       instead of a fixed list of commands.
 - [x] `guide/setup-guide.md`: install, the first window, the SDL libraries, the
       first-start time, what to do when a load fails.
-- [ ] `guide/examples-tour.md`: the examples in groups (data files, widgets and
+- [x] `guide/examples-tour.md`: the examples in groups (data files, widgets and
       layout, charts, models, the assistant, the workbench), and the REPL call
-      that lists every name.
+      that lists every name. There are 106 examples; the tour groups them all
+      and keeps its six deep sections.
 - [x] `documentation/README.md`: the new documents and the reading paths.
 
 ### Step 5: the new user guides
