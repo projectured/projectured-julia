@@ -193,8 +193,14 @@ function make_application_projection(; window::Symbol = :pane,
     base = window === :workbench ?
         make_workbench_projection(measure = measure, content_projections = content) :
         _make_application_pane_projection(content, measure)
-    _with_window_history(make_command_palette_decorator_projection(
-        GestureHelpDecoratorProjection(inner = base, state = GestureHelpState())))
+    # The recorder sits at the root, which is the seam every operation passes. A
+    # gesture log a person opens in a tab is the session's own log, so it fills
+    # from here without the window knowing that a tab holds one. It is
+    # transparent, so what it wraps decides everything and it only watches.
+    GestureLogRecordingProjection(
+        inner = _with_window_history(make_command_palette_decorator_projection(
+            GestureHelpDecoratorProjection(inner = base, state = GestureHelpState()))),
+        log = get_session_gesture_log())
 end
 
 # The window content sits inside a history of its own, so a change that belongs

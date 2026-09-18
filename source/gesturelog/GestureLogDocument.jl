@@ -118,3 +118,25 @@ function _gesture_pattern(event::Event)
     modifiers = Symbol[flag for flag in _MODIFIER_FLAGS if getfield(held, flag)]
     EventPattern{type}(fields, modifiers, nothing, nothing)
 end
+
+# ── The session's log ────────────────────────────────────────────────────────
+
+# One log for the session, because there is one editor and one history of what a
+# person did to it. `GestureLog()` still builds an empty one, which a test wants.
+const _SESSION_GESTURE_LOG = GestureLog()
+
+"""
+    get_session_gesture_log() -> GestureLog
+
+The one log of the session.
+
+Every gesture log a person opens is this document, so two of them show the same
+history rather than two halves of it. A view that shows only part of the history
+is a filter over this log, not a log of its own.
+"""
+get_session_gesture_log() = _SESSION_GESTURE_LOG
+
+# A person who types `gestures` into an empty tab gets the session's log, not a
+# fresh empty one. A fresh one would never fill: what records is a decorator at
+# the root of the projection, and it records into the log it holds.
+make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()

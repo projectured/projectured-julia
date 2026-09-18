@@ -14,6 +14,9 @@
 
 using Test
 
+# `evaluate_operation` reads the `document` field of an editor.
+mutable struct _ToolViewMockEditor; document::Any; end
+
 function test_tool_views()
 @testset "every tool view draws itself" begin
 
@@ -131,6 +134,57 @@ end
     @test before != after
     @test occursin("4", after)
 end
+
+end
+end
+
+# A gesture log opened in a tab fills while a person works.
+#
+# What records is a decorator at the root of the projection, and it records into
+# the log it holds. A log a person opens is therefore the session's own log, not
+# a fresh empty one — a fresh one would draw an empty list for ever.
+#
+# There is one editor and one history of what a person did to it, so two logs
+# show the same entries. A view that shows only part of that history is a filter
+# over this log, not a log of its own.
+function test_gesture_log_in_tab()
+@testset "a gesture log in a tab fills" begin
+
+_stub(t, f) = (max(1, length(t)) * 10, 24)
+
+log = get_session_gesture_log()
+clear_gesture_log!(log)
+
+@testset "opening a log by name gives the session's own" begin
+    @test make_insertion_document(GestureLog) === log
+    # Two tabs, one history. This is the ruling, not an accident of sharing.
+    @test make_insertion_document(GestureLog) === make_insertion_document(GestureLog)
+    # A log built by hand is still an empty one, which a test wants.
+    @test isempty(GestureLog().entries)
+end
+
+@testset "a gesture the pane claims reaches the log" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("first", PrimitiveString("x"))]))
+    editor = _ToolViewMockEditor(tree)
+    projection = GestureLogRecordingProjection(
+        inner = make_pane_json_projection_example(measure = _stub), log = log)
+    iomap = print_document(projection, nothing, tree,
+                           PrinterContext(EmptyReference(), Cell(800), Cell(600),
+                                          Dict{Symbol,Any}()))
+    function press!(event)
+        change = read_intent(projection, nothing, Intent(event), iomap)
+        operation = change isa Intent ? change.operation : change
+        operation === nothing || evaluate_operation(editor, operation)
+        operation
+    end
+    # A layout with no selection has no focus, and a layout gesture needs one.
+    press!(KeyDown(:tab, ModifierKeys(ctrl = true)))
+    before = length(log.entries)
+    @test press!(KeyDown(:t, ModifierKeys(ctrl = true))) !== nothing
+    @test length(log.entries) > before
+end
+
+clear_gesture_log!(log)
 
 end
 end

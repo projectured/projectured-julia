@@ -380,18 +380,29 @@ phrase.
 
 ### Step 2. The gesture log records without the overlay
 
-The overlay both records and draws. Split the two: keep
-`record_gesture!` where it is, and call it from the editor loop rather than from
-the overlay printer. A `GestureLog` in a tab then fills while the person works,
-and the overlay keeps working as it does.
+**Status: done, 2026-09-18.** The split the step asked for already existed:
+`GestureLogRecordingProjection` is a transparent decorator that records and draws
+nothing, and the overlay's reader is a pure pass-through. What was missing was
+**which** log fills.
+
+A log a person opens by name is now the session's own log
+(`get_session_gesture_log`), because a fresh empty one would never fill — what
+records is a decorator at the root of the projection, and it records into the log
+it holds. `GestureLog()` still builds an empty one, which a test wants.
+
+The application installs the recorder at the root of its projection, so a tab
+that holds a log fills without the window knowing that a tab holds one.
 
 **Settled 2026-09-18.** Every gesture log shows the same gestures, because there
-is one editor. Two logs are two views of one history. A filter that narrows what
-one log shows comes later, and it belongs on the log document, not on the record
-step.
+is one editor. Two logs are two views of one history, and they are literally the
+same document. A filter that narrows what one view shows comes later, and it is a
+filter over this log, not a log of its own.
 
-**Test.** `test_gesture_log_in_tab()`: open a tab with a `GestureLog`, send two
-gestures, assert both are in `entries`.
+**Test.** `test_gesture_log_in_tab()` in
+[ToolViewTest.jl](../../test/projectured/projection/ToolViewTest.jl): a log
+opened by name is the session's own, two opens give the same document, a log
+built by hand is still empty, and a gesture the pane claims reaches the log.
+5 pass.
 
 ### Step 3. The selection display takes its source
 

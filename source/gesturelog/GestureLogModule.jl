@@ -39,10 +39,11 @@ using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
-import ..DomainModule: get_insertion_aliases
+import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
-export GestureLogEntry, GestureLog, record_gesture!, clear_gesture_log!,
+export GestureLogEntry, GestureLog, get_session_gesture_log,
+       record_gesture!, clear_gesture_log!,
        describe_gesture, describe_operation, default_gesture_log_filter
 export GestureLogToSyntax
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
