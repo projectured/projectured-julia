@@ -5,7 +5,6 @@
 # the screen.
 
 using Test
-using ProjecturedExample: _gesture_map_entry
 
 # `evaluate_operation` reads `document` and `iomap` of an editor.
 mutable struct _AppFakeEditor; document::Any; iomap::Any; end
@@ -55,11 +54,11 @@ end
 
 # The window scene and its reader state, as `run_application` builds them.
 function _app_make_scene(paths, dir)
-    document = make_application_document(paths; root = dir, assistant = nothing)
-    projection = make_application_projection()
+    document, projection = make_application_window(paths; root = dir, assistant = nothing)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
-    composed = make_window_scene_projection(projection; opened_window_projections =
-        Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
+    composed = make_window_scene_projection(projection;
+        opened_window_projections = make_opened_window_projections(),
+        screen_wrap = make_popup_screen_wrap())
     iomap = print_document(composed, scene)
     (document, scene, composed, iomap)
 end
@@ -134,9 +133,8 @@ function test_application()
                 # file tab, so the sweep skips what it cannot open.
                 openable = [p for p in paths if has_file_document_type(p)]
                 for path in vcat([String[]], [[p] for p in openable])
-                    document = make_application_document(path; root = dir,
+                    document, projection = make_application_window(path; root = dir,
                         assistant = make_application_assistant(:ollama))
-                    projection = make_application_projection()
                     errors, _ = walk_printer_output(document, projection)
                     @test isempty(errors)
                 end

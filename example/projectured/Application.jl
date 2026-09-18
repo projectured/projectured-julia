@@ -165,21 +165,53 @@ end
 """
     make_application_projection(; measure = measure_truetype_text)
 
-How the application window is drawn. The window projection is wrapped in the
-gesture help, which F1 opens, and in the command palette, which Ctrl+Shift+P
-opens.
+How the content of the application window is drawn: the pane tree or the
+workbench, and the domains inside it.
+
+It is the **content** alone. The wrappers over it — the gesture help, the
+command palette, the walk and the clipboard — come from
+[`make_window_wrap`](@ref), which needs the document as well as the projection.
+[`make_application_window`](@ref) is where the two meet.
 """
 function make_application_projection(; measure = measure_truetype_text)
     content = make_application_content_projections(measure = measure)
-    base = _make_application_pane_projection(content, measure)
-    # The recorder sits at the root, which is the seam every operation passes. A
-    # gesture log a person opens in a tab is the session's own log, so it fills
-    # from here without the window knowing that a tab holds one. It is
-    # transparent, so what it wraps decides everything and it only watches.
-    GestureLogRecordingProjection(
-        inner = _with_window_history(make_command_palette_decorator_projection(
-            GestureHelpDecoratorProjection(inner = base, state = GestureHelpState()))),
-        log = get_session_gesture_log())
+    _make_application_pane_projection(content, measure)
+end
+
+"""
+    make_application_window(paths; root = pwd(), assistant = nothing,
+                            gesture_log = false, measure = measure_truetype_text)
+        -> (document, projection)
+
+The application window, wrappers and all: the document of
+[`make_application_document`](@ref) and the projection of
+[`make_application_projection`](@ref), folded through
+[`make_window_wrap`](@ref).
+
+**One place says which wrappers this binary has.** `run_application`, the
+warm-up of a build and the suite all come here, so none of them can hold a list
+of its own that drifts from the others.
+
+`gesture_log` is the `--gesture-log` flag, and it adds only the corner panel. The
+log itself is always recorded, because a gesture log a person opens in a tab is
+the session's own and must already hold what happened before the tab existed.
+
+**The clipboard offers all six of its gestures here**, cut and the view toggle
+included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
+what is stored. An interface over a record of a run leaves those two out, because
+a cut would write into the record.
+"""
+function make_application_window(paths::AbstractVector;
+                                 root::AbstractString = pwd(), assistant = nothing,
+                                 gesture_log::Bool = false,
+                                 measure = measure_truetype_text)
+    document = make_application_document(paths; root = root, assistant = assistant)
+    projection = make_application_projection(; measure = measure)
+    make_window_wrap(; gesture_help = true, command_palette = true,
+                       gesture_log = gesture_log, selection = true,
+                       history = _with_window_history,
+                       measure = measure)(document, projection)
+end
 end
 
 # The window content sits inside a history of its own, so a change that belongs
@@ -231,9 +263,10 @@ function run_application(paths::AbstractString...;
                          width = nothing, height = nothing,
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model)
-    document = make_application_document(collect(String, paths);
-                                         root = root, assistant = chat)
-    projection = make_application_projection(; measure = measure)
+    document, projection = make_application_window(collect(String, paths);
+                                                   root = root, assistant = chat,
+                                                   gesture_log = gesture_log,
+                                                   measure = measure)
     backend === nothing && (backend = default_backend())
     # What a log view shows is what the program said, and what says it is the
     # Julia logger. The capture records each message and forwards it, so the
@@ -243,7 +276,9 @@ function run_application(paths::AbstractString...;
     try
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
-                          opened_window_projections = Pair{Type,Any}[_gesture_map_entry(measure)],
+                          opened_window_projections =
+                              make_opened_window_projections(; measure = measure),
+                          screen_wrap = make_popup_screen_wrap(),
                           on_start = editor -> _start_application!(editor, mcp, assistant, model))
     finally
         remove_message_log_capture!(previous_logger)
@@ -356,12 +391,12 @@ function warm_application()
                      MousePress(:left, 100, 84, 1, ModifierKeys()),
                      KeyDown(:return, ModifierKeys()),
                      KeyDown(:s, ModifierKeys(ctrl = true))]
-        document = make_application_document(paths; root = directory,
+        document, projection = make_application_window(paths; root = directory,
             assistant = make_application_assistant(:ollama))
-        projection = make_application_projection()
         scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
-        composed = make_window_scene_projection(projection; opened_window_projections =
-            Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
+        composed = make_window_scene_projection(projection;
+            opened_window_projections = make_opened_window_projections(),
+            screen_wrap = make_popup_screen_wrap())
         editor = Editor(ConsoleBackend(), scene, composed,
                         Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, scene)

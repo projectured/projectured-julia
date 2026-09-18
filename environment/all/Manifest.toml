@@ -2,14 +2,14 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "4eb79a53f0f2011830bd7dab080827610ab62190"
+project_hash = "e8f1140643abb32b18db7ce1d0c8ba2c0008783f"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
-git-tree-sha1 = "344f3d221a6bee75925b5c97a30cfd870f12a138"
+git-tree-sha1 = "45a1272e3f809d36431e57ab22703c6896b8908f"
 registries = "General"
 uuid = "14f7f29c-3bd6-536c-9a0b-7339e30b5a3e"
-version = "0.5.4"
+version = "0.5.3"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -166,10 +166,10 @@ version = "1.4.2"
 
 [[deps.DecFP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "74f3b68c552c8efc70bac316a3ab4057a1a5288a"
+git-tree-sha1 = "40e4404a0a267a8e75f5c1ce2cc9b5e2ce1ba268"
 registries = "General"
 uuid = "47200ebd-12ce-5be5-abb7-8e082af23329"
-version = "2.0.400+0"
+version = "2.0.300+0"
 
 [[deps.DiffResults]]
 deps = ["StaticArraysCore"]
@@ -198,10 +198,10 @@ version = "1.7.0"
 
 [[deps.Elfutils_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "XZ_jll", "Zlib_jll", "argp_standalone_jll", "fts_jll", "obstack_jll"]
-git-tree-sha1 = "5cad3cb1db39ec40ee3fa9a30573ddc321cf0ab9"
+git-tree-sha1 = "ab92028799ddede63b16af075f8a053a2af04339"
 registries = "General"
 uuid = "ab5a07f8-06af-567f-a878-e8bb879eba5a"
-version = "0.196.0+0"
+version = "0.189.0+1"
 
 [[deps.ExceptionUnwrapping]]
 deps = ["Test"]
@@ -212,10 +212,10 @@ version = "0.1.11"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "2bfb1e047e2ad0a5ca94365340bde8005d637568"
+git-tree-sha1 = "f4d39eee89f1e58c26bf447f1d4156c0125d6838"
 registries = "General"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.8.4+0"
+version = "2.8.3+0"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "d2e49e7efd29719d6f28b891b0e0e159daa9d2b4"
@@ -277,10 +277,10 @@ version = "2.17.1+0"
 
 [[deps.ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions"]
-git-tree-sha1 = "3b0f72e2ffef1a139ac450725c9ecd01c0a3c050"
+git-tree-sha1 = "1b86cca764a61dcac4fef4c5e16e378e5ed6953c"
 registries = "General"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "1.4.6"
+version = "1.4.5"
 
     [deps.ForwardDiff.extensions]
     ForwardDiffStaticArraysExt = "StaticArrays"
@@ -365,10 +365,10 @@ version = "1.11.0"
 
 [[deps.HarfBuzz_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "Graphite2_jll", "JLLWrappers", "Libdl", "Libffi_jll"]
-git-tree-sha1 = "9d9531a9cb63a9edc33836414e82a07e81710de2"
+git-tree-sha1 = "c3f99f8e7c98031b8845ece9db86dca713ab9bf8"
 registries = "General"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
-version = "100.14004.0+0"
+version = "100.14003.0+0"
 
 [[deps.ICU_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -403,10 +403,10 @@ version = "1.8.0"
 
 [[deps.JSON]]
 deps = ["Dates", "Logging", "Parsers", "PrecompileTools", "StructUtils", "UUIDs", "Unicode"]
-git-tree-sha1 = "88352712893ec50bee3680605891eaf0e9ed6368"
+git-tree-sha1 = "c7345ab1a7ca4dc8a02c9f6510da0d9857bbe513"
 registries = "General"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "1.8.0"
+version = "1.7.1"
 
     [deps.JSON.extensions]
     JSONArrowExt = ["ArrowTypes"]
@@ -448,10 +448,10 @@ version = "1.12.0"
 
 [[deps.Krylov]]
 deps = ["LinearAlgebra", "Printf", "SparseArrays"]
-git-tree-sha1 = "909890a0d1486c392128cf4bd6e038ee0c6a7af4"
+git-tree-sha1 = "71e740d00d71cdb15145d7fe0d6000ec70534598"
 registries = "General"
 uuid = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
-version = "0.10.10"
+version = "0.10.9"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -476,10 +476,10 @@ version = "3.0.0+1"
 
 [[deps.LLVMOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e5b100780d4d30d63b4618d7930d48af409c1772"
+git-tree-sha1 = "b7970cef8ae1c990ba0c09cd8bdc1145e006632f"
 registries = "General"
 uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
-version = "23.1.1+0"
+version = "22.1.7+0"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -633,10 +633,10 @@ version = "1.2.0"
 
 [[deps.LoweredCodeUtils]]
 deps = ["CodeTracking", "Compiler", "JuliaInterpreter"]
-git-tree-sha1 = "e16fd69604bef06cb3fe9da09b315005c9c34564"
+git-tree-sha1 = "1d4c737ab26f51ceed52ab2019c09b7660eb7440"
 registries = "General"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.9.0"
+version = "3.8.0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
@@ -781,10 +781,10 @@ version = "10.46.0+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
-git-tree-sha1 = "ba0dc8a8a67cacac4842631f960c046e4e563675"
+git-tree-sha1 = "3de8f5e6e90ebfa8d6d1f86997d6cdcd6a912ff3"
 registries = "General"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.8.8"
+version = "2.8.7"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
@@ -811,10 +811,10 @@ version = "1.3.4"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "5005266de4bfe50e53ff44a5cb5c540b6e47a254"
+git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
 registries = "General"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.6.0"
+version = "1.5.2"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -827,7 +827,7 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedLog", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedSql", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedUndo", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
+deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedSql", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedYaml"]
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
@@ -857,7 +857,7 @@ uuid = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 version = "0.1.0"
 
 [[deps.ProjecturedAssistant]]
-deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedAssistant"
 uuid = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 version = "0.1.0"
@@ -941,7 +941,7 @@ uuid = "99f175d3-497d-4a02-8497-78e6e06c4369"
 version = "0.1.0"
 
 [[deps.ProjecturedConversationExample]]
-deps = ["ProjecturedAssistant", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
 path = "../../package/ProjecturedConversationExample"
 uuid = "347e843b-c443-43c2-b8df-78595927ced1"
 version = "0.1.0"
@@ -989,7 +989,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
-deps = ["ProjecturedKernel", "ProjecturedSerialization"]
+deps = ["ProjecturedKernel"]
 path = "../../package/ProjecturedDomain"
 uuid = "56e9f339-7147-459f-9ae1-7785cace5f24"
 version = "0.1.0"
@@ -1001,7 +1001,7 @@ uuid = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["InteractiveUtils", "Profile", "Projectured", "ProjecturedAnthropic", "ProjecturedAssistant", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDatabaseExample", "ProjecturedDbCatalogExample", "ProjecturedFileSystemExample", "ProjecturedFormulaExample", "ProjecturedFsmExample", "ProjecturedGraphExample", "ProjecturedJsonExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedProcessExample", "ProjecturedRstExample", "ProjecturedSequenceChartExample", "ProjecturedSqlExample", "ProjecturedSubstrateExample", "ProjecturedXmlExample", "ProjecturedYamlExample"]
+deps = ["InteractiveUtils", "Profile", "Projectured", "ProjecturedAnthropic", "ProjecturedAssistant", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDatabaseExample", "ProjecturedDbCatalogExample", "ProjecturedFileSystemExample", "ProjecturedFormulaExample", "ProjecturedFsmExample", "ProjecturedGraphExample", "ProjecturedJsonExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedProcessExample", "ProjecturedRstExample", "ProjecturedSequenceChartExample", "ProjecturedSqlExample", "ProjecturedSubstrateExample", "ProjecturedWorkbenchExample", "ProjecturedXmlExample", "ProjecturedYamlExample"]
 path = "../../package/ProjecturedExample"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
@@ -1013,7 +1013,7 @@ uuid = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 version = "0.1.0"
 
 [[deps.ProjecturedFileSystem]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedFileSystem"
 uuid = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 version = "0.1.0"
@@ -1079,7 +1079,7 @@ uuid = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 version = "0.1.0"
 
 [[deps.ProjecturedGestureLog]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedGestureLog"
 uuid = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 version = "0.1.0"
@@ -1109,7 +1109,7 @@ uuid = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 version = "0.1.0"
 
 [[deps.ProjecturedInspector]]
-deps = ["ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedText"]
+deps = ["ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
 path = "../../package/ProjecturedInspector"
 uuid = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 version = "0.1.0"
@@ -1171,12 +1171,6 @@ version = "0.1.0"
 deps = ["ProjecturedCollection", "ProjecturedFocus", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedProjection"]
 path = "../../package/ProjecturedLayout"
 uuid = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
-version = "0.1.0"
-
-[[deps.ProjecturedLog]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
-path = "../../package/ProjecturedLog"
-uuid = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
 version = "0.1.0"
 
 [[deps.ProjecturedMarkdown]]
@@ -1258,7 +1252,7 @@ uuid = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 version = "0.1.0"
 
 [[deps.ProjecturedPane]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedWidget"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFocus", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedWidget"]
 path = "../../package/ProjecturedPane"
 uuid = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 version = "0.1.0"
@@ -1276,7 +1270,7 @@ uuid = "fab29e63-3751-46a0-88a9-22680e33c7d8"
 version = "0.1.0"
 
 [[deps.ProjecturedPrimitive]]
-deps = ["ProjecturedKernel", "ProjecturedSerialization"]
+deps = ["ProjecturedKernel"]
 path = "../../package/ProjecturedPrimitive"
 uuid = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 version = "0.1.0"
@@ -1336,7 +1330,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedScreen]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection"]
 path = "../../package/ProjecturedScreen"
 uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"
@@ -1383,8 +1377,20 @@ path = "../../package/ProjecturedSerialization"
 uuid = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 version = "0.1.0"
 
+[[deps.ProjecturedShell]]
+deps = ["ProjecturedClipboard", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedWidget"]
+path = "../../package/ProjecturedShell"
+uuid = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
+version = "0.1.0"
+
+[[deps.ProjecturedShellTest]]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+path = "../../package/ProjecturedShellTest"
+uuid = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
+version = "0.1.0"
+
 [[deps.ProjecturedSql]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedSql"
 uuid = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 version = "0.1.0"
@@ -1426,7 +1432,7 @@ uuid = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedAnthropicTest", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedBuilder", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedUndoTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
+deps = ["Projectured", "ProjecturedAnthropicTest", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedBuilder", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedShellTest", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWorkbench", "ProjecturedWorkbenchTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"
@@ -1461,18 +1467,6 @@ path = "../../package/ProjecturedTulipTest"
 uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 version = "0.1.0"
 
-[[deps.ProjecturedUndo]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
-path = "../../package/ProjecturedUndo"
-uuid = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
-version = "0.1.0"
-
-[[deps.ProjecturedUndoTest]]
-deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedProjection", "ProjecturedUndo", "Test"]
-path = "../../package/ProjecturedUndoTest"
-uuid = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
-version = "0.1.0"
-
 [[deps.ProjecturedVersioning]]
 deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedPrimitive"]
 path = "../../package/ProjecturedVersioning"
@@ -1503,6 +1497,24 @@ path = "../../package/ProjecturedWidget"
 uuid = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 version = "0.1.0"
 
+[[deps.ProjecturedWorkbench]]
+deps = ["ProjecturedAssistant", "ProjecturedCollection", "ProjecturedConversation", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPane", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+path = "../../package/ProjecturedWorkbench"
+uuid = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
+version = "0.1.0"
+
+[[deps.ProjecturedWorkbenchExample]]
+deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedBookExample", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFileSystemExample", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJsonExample", "ProjecturedJulia", "ProjecturedJuliaExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedMarkdownExample", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedWorkbench", "ProjecturedXml", "ProjecturedXmlExample", "ProjecturedYaml", "ProjecturedYamlExample"]
+path = "../../package/ProjecturedWorkbenchExample"
+uuid = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
+version = "0.1.0"
+
+[[deps.ProjecturedWorkbenchTest]]
+deps = ["ProjecturedAssistant", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedConversationExample", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedMarkdown", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedWorkbench", "ProjecturedWorkbenchExample", "ProjecturedXml", "ProjecturedYaml", "Test"]
+path = "../../package/ProjecturedWorkbenchTest"
+uuid = "dee3d367-0cd3-47f5-9f81-9b83918ba741"
+version = "0.1.0"
+
 [[deps.ProjecturedXml]]
 deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedXml"
@@ -1522,7 +1534,7 @@ uuid = "e1c62fea-11da-4947-a567-721c2ab4f06a"
 version = "0.1.0"
 
 [[deps.ProjecturedYaml]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedFileFormat", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedYaml"
 uuid = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 version = "0.1.0"
@@ -1572,10 +1584,10 @@ version = "8.3.3+0"
 
 [[deps.Revise]]
 deps = ["CRC32c", "CodeTracking", "FileWatching", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Preferences", "REPL", "UUIDs"]
-git-tree-sha1 = "82ac67271b84f674fccccbc9f92b106941fb8c65"
+git-tree-sha1 = "ab0f5630e37968bc49b8c4cedd3279a7d30b9486"
 registries = "General"
 uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.17.1"
+version = "3.17.0"
 
     [deps.Revise.extensions]
     DistributedExt = "Distributed"
@@ -1822,10 +1834,10 @@ version = "2.13.9+0"
 
 [[deps.XZ_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "e52eca002a11c30a858185efdfb15311e1c7a6bf"
+git-tree-sha1 = "b29c22e245d092b8b4e8d3c09ad7baa586d9f573"
 registries = "General"
 uuid = "ffd25f8a-64ca-5728-b0f7-c24cf3aae800"
-version = "5.8.4+0"
+version = "5.8.3+0"
 
 [[deps.Xorg_libX11_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Xorg_libxcb_jll", "Xorg_xtrans_jll"]

@@ -41,6 +41,7 @@ ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSdlTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
 ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedShellTest = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
 ProjecturedSqlTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
@@ -90,6 +91,7 @@ ProjecturedRstTest = {path = "../ProjecturedRstTest"}
 ProjecturedSdlTest = {path = "../ProjecturedSdlTest"}
 ProjecturedSequenceChartTest = {path = "../ProjecturedSequenceChartTest"}
 ProjecturedSerialization = {path = "../ProjecturedSerialization"}
+ProjecturedShellTest = {path = "../ProjecturedShellTest"}
 ProjecturedSqlTest = {path = "../ProjecturedSqlTest"}
 ProjecturedSubstrateTest = {path = "../ProjecturedSubstrateTest"}
 ProjecturedSyntax = {path = "../ProjecturedSyntax"}

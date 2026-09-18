@@ -176,7 +176,15 @@ So today, in both binaries:
 
 - a `WidgetSelect` does not drop down;
 - a `WidgetMenu` submenu does not open;
-- a `WidgetContextMenu` draws its child and swallows the right press.
+- a `WidgetContextMenu` draws its child and answers a right press with nothing
+  visible.
+
+**Measured 2026-09-18**, in `test_window_wrap()`. The widget does answer: an
+`OpenPopupOperation` naming an anchor and an offset reaches the top of the window
+route with nothing there to resolve it, and the screen keeps its one window. With
+the wrap, the reader answers `nothing` instead — because the window manager has
+already consumed the resolved operation — and the screen has two windows, the
+second holding the option list.
 
 The gallery says so in a comment: the commands of its shell are inert because no
 popup resolver is composed there
@@ -693,38 +701,53 @@ on branch `one-interface`, cut from `main` at `25e338c0`.
 
 ### Step 1 — one package holds the shell of a window
 
-- [ ] Add `package/ProjecturedShell` and `source/shell/`. Follow
+**Done 2026-09-18.** `test_shell()` is 23 pass, and `test_application()` is 72
+pass, the same count as the baseline: the rewiring changed no behaviour. What
+the work decided:
+
+- The application grew `make_application_window(paths; …)`, which answers the
+  pair. `run_application`, `warm_application` and the suite all come through it,
+  so none of them holds a wrapper list of its own.
+  `make_application_projection` now answers the **content** projection alone.
+- `_gesture_map_entry`, the private helper the suite imported from the gallery,
+  is gone from the application. `make_opened_window_projections()` says the same
+  thing and is public.
+- The clipboard and the walk stay off here. Step 2 turns them on.
+
+- [x] Add `package/ProjecturedShell` and `source/shell/`. Follow
       [package-rules.md](../../documentation/rule/package-rules.md): a
       `Project.toml`, a `src/ProjecturedShell.jl` with the docstring, the
       imports and the ordered includes. `source/shell/ShellModule.jl` declares
       `ShellModule`; every other file under `source/shell/` is a fragment.
-- [ ] Add `package/ProjecturedShellTest` and `test/shell/ShellSuite.jl`, which
+- [x] Add `package/ProjecturedShellTest` and `test/shell/ShellSuite.jl`, which
       define `test_shell()` and `test_shell_layering()`.
-- [ ] `make_window_wrap(; gesture_help, command_palette, gesture_log, selection,
+- [x] `make_window_wrap(; gesture_help, command_palette, gesture_log, selection,
       clipboard_gestures, tooltip, shell, measure)` answers the fold. It is the
       body of `make_ide_window_wrap`, with two keywords more.
-- [ ] `make_opened_window_projections(; gesture_help, measure)`.
-- [ ] Add the `screen_wrap` keyword to `make_window_scene_projection` and to
+- [x] `make_opened_window_projections(; gesture_help, measure)`.
+- [x] Add the `screen_wrap` keyword to `make_window_scene_projection` and to
       `run_window_editor`, defaulting to `identity`, and apply it to
       `ScreenToScreen()` inside `WindowManagingProjection`.
-- [ ] `make_popup_screen_wrap()` in `ShellModule` answers
+- [x] `make_popup_screen_wrap()` in `ShellModule` answers
       `inner -> WidgetPopupResolverProjection(inner = inner)`. Both binaries pass
       it. This is the one behaviour that Step 1 does change, and it is a repair:
       a `WidgetSelect`, a submenu and a `WidgetContextMenu` start to open in both
       binaries (§2.5).
-- [ ] Write `WindowShellProjection` in `source/shell/WindowShell.jl`. Do not move
-      `make_shell_document`: the shell is drawn, not stored (§3.1). Step 7 fills
-      the bands; Step 1 draws a shell with none, so the fold is complete before
-      the chrome is.
-- [ ] Add `ProjecturedShell` to the `Projectured` umbrella.
+- [x] Do not move `make_shell_document`: the shell is drawn, not stored (§3.1).
+      `WindowShellProjection` moved wholly into Step 7 — a projection that draws
+      no band is a file nobody can judge, and the fold is complete without it.
+- [x] Add `ProjecturedShell` to the `Projectured` umbrella, to
+      `environment/all` and to `ProjecturedTest`.
 - [ ] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_wrap`
+      — **waits for this half to land on `main`**, because a worktree is invisible
+      to omnet (Step 0).
       that names the wrappers the interface wants. `IDE_CLIPBOARD_GESTURES` stays
       where it is, because it is the interface's choice.
-- [ ] projectured-julia: `make_application_projection` calls `make_window_wrap`
+- [x] projectured-julia: `make_application_window` calls `make_window_wrap`
       with the two wrappers it has today, and nothing more.
-- [ ] **No behaviour changes in this step.** Both windows draw and answer as
+- [x] **No behaviour changes in this step.** Both windows draw and answer as
       before.
-- [ ] `test_window_wrap()` asserts that a `WidgetSelect` in a window drops down,
+- [x] `test_window_wrap()` asserts that a `WidgetSelect` in a window drops down,
       which it does not today, and that each keyword adds the wrapper it names.
 - Tests: `test_shell()`, `test_shell_layering()`, `test_application()`,
   `test_gesture_help()`, `test_command_palette_decorator()`,

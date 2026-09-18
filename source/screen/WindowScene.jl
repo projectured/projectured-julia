@@ -56,16 +56,23 @@ a window is an ordinary document and the screen must not project it as one.
 `opened_window_projections` draws the content of a window that a wrapper opens
 later. Each entry is `ContentType => projection`, for example
 `GestureMap => make_gesture_map_projection(measure)` for the window that F1 opens.
+
+`screen_wrap` wraps the screen printer, inside the manager. It is how a caller
+puts a reader on the window route without this package naming that reader: a
+popup is placed in screen coordinates, so the projection that resolves one has
+to map through the screen printer, and only a caller that knows the widget layer
+can name it. The default changes nothing.
 """
 function make_window_scene_projection(projection;
-                                      opened_window_projections = Pair{Type,Any}[])
+                                      opened_window_projections = Pair{Type,Any}[],
+                                      screen_wrap = identity)
     target = @reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::Document
     dispatch = ReferenceDispatchingProjection(reference -> begin
         is_reference_equal(strip_reference_types(reference),
                                            strip_reference_types(target)) &&
             return NestingProjection(projection; recursion = IdentityProjection())
         reference isa EmptyReference &&
-            return WindowManagingProjection(inner = ScreenToScreen())
+            return WindowManagingProjection(inner = screen_wrap(ScreenToScreen()))
         IdentityProjection()
     end)
     # A window opened later carries a `WindowDocument` of its own, and it
@@ -80,7 +87,7 @@ end
 
 """
     run_window_editor(document, projection, title; backend, width, height, on_start,
-                      mcp, mcp_instructions, opened_window_projections)
+                      mcp, mcp_instructions, opened_window_projections, screen_wrap)
 
 Open the window and run the loop until the person closes it.
 
@@ -107,7 +114,8 @@ function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
                            on_start = nothing, mcp::Bool = false,
                            mcp_instructions::Union{AbstractString,Nothing} = nothing,
-                           opened_window_projections = Pair{Type,Any}[])
+                           opened_window_projections = Pair{Type,Any}[],
+                           screen_wrap = identity)
     backend === nothing &&
         error("run_window_editor: name the backend to draw on, " *
               "for example `backend = SdlBackend()`")
@@ -119,7 +127,8 @@ function run_window_editor(document, projection, title::AbstractString;
     scene = make_window_scene(document, title; width = width, height = height)
     run_editor!(backend,
                 make_window_scene_projection(projection;
-                    opened_window_projections = opened_window_projections),
+                    opened_window_projections = opened_window_projections,
+                    screen_wrap = screen_wrap),
                 scene;
                              mcp = mcp, mcp_instructions = mcp_instructions,
                              on_start = on_start)

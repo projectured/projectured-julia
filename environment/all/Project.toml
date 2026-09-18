@@ -101,6 +101,8 @@ ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSqlTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
+ProjecturedShell = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
+ProjecturedShellTest = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
@@ -225,6 +227,8 @@ ProjecturedSerialization = {path = "../../package/ProjecturedSerialization"}
 ProjecturedSql = {path = "../../package/ProjecturedSql"}
 ProjecturedSqlExample = {path = "../../package/ProjecturedSqlExample"}
 ProjecturedSqlTest = {path = "../../package/ProjecturedSqlTest"}
+ProjecturedShell = {path = "../../package/ProjecturedShell"}
+ProjecturedShellTest = {path = "../../package/ProjecturedShellTest"}
 ProjecturedStyle = {path = "../../package/ProjecturedStyle"}
 ProjecturedSubstrateExample = {path = "../../package/ProjecturedSubstrateExample"}
 ProjecturedSubstrateTest = {path = "../../package/ProjecturedSubstrateTest"}
