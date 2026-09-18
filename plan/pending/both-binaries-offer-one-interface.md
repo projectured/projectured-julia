@@ -182,8 +182,26 @@ The gallery says so in a comment: the commands of its shell are inert because no
 popup resolver is composed there
 ([example/workbench/WrapperDocumentExample.jl:26](../../example/workbench/WrapperDocumentExample.jl#L26)).
 
-One line in the fold fixes all three at once, in both binaries. That is the
-cheapest item in this plan and it is the reason the chrome looks unfinished.
+One line fixes all three at once, in both binaries. That is the cheapest item in
+this plan and it is the reason the chrome looks unfinished.
+
+**It is not a line in the fold.** Found while implementing, 2026-09-18. A popup
+is a native window, so its `OpenWindowOperation` carries **screen** coordinates,
+and the resolver reaches them only by mapping through `ScreenToScreen`. The
+gallery places it accordingly, between the manager and the screen printer
+([example/substrate/WidgetProjectionExample.jl:37](../../example/substrate/WidgetProjectionExample.jl#L37)),
+while the unit test places it around a bare content projection and asserts
+content-local coordinates
+([test/substrate/projection/WidgetContextMenuTest.jl:70](../../test/substrate/projection/WidgetContextMenuTest.jl#L70)).
+Both compile; only the first opens a popup where the pointer is.
+
+The resolver therefore belongs in `make_window_scene_projection`
+([source/screen/WindowScene.jl:60](../../source/screen/WindowScene.jl#L60)),
+which the fold never sees. `ProjecturedScreen` must not name
+`ProjecturedWidget`, so that function takes a new `screen_wrap` keyword,
+`run_window_editor` passes it through, and `ProjecturedShell` exports the value
+to pass. `WindowScene.jl` is not sealed; the sealed set is 50 files, all in the
+kernel.
 
 ### 2.6 Two facts that shape the shell
 
@@ -258,8 +276,10 @@ The clipboard is the other way round, and stays that way: it wraps the document
 because what it stores is the person's, not the binary's.
 - The tooltip wrapper. `TooltipProbeProjection` lives in the tooltip slice, and
   the shell composes it (§3.14).
-- `WidgetPopupResolverProjection` at the root of the window's content, so that
-  every popup a widget asks for actually opens (§2.5).
+- `make_popup_screen_wrap()`, the value of the new `screen_wrap` keyword of
+  `run_window_editor`. It puts `WidgetPopupResolverProjection` on the window
+  route, so that every popup a widget asks for actually opens (§2.5). It is not
+  part of the fold, because the fold never sees the screen.
 
 It depends on `ProjecturedGestureHelp`, `ProjecturedGestureLog`,
 `ProjecturedClipboard`, `ProjecturedFocus`, `ProjecturedTooltip`,
@@ -585,6 +605,8 @@ to correct.
 | `ContextMenuProbeProjection`, `ContextMenuProbeIoMap` | projection | The same stem, for the right press. |
 | `FileSystemChooser` | document | A noun, in the `FileSystem<Noun>` family beside `FileSystemFile` and `FileSystemDirectory`. |
 | `WindowShellProjection`, `WindowShellIoMap` | projection | `<Stem>Projection` and `<Stem>IoMap`, in `source/shell/WindowShell.jl`. |
+| `make_popup_screen_wrap` | function | Verb first, produced kind last: it makes the wrap that goes on the screen route. |
+| `screen_wrap` | keyword | A snake_case noun, beside `opened_window_projections` on the same two functions. |
 | `tooltip`, `context_menu` | fields | snake_case nouns. `context_menu` already exists on `WidgetShell`. |
 
 **Who owns each name.** Every exported name has exactly one owning module.
@@ -652,10 +674,17 @@ the new count here.
 
 ### Step 0 — the baselines
 
-- [ ] Record the counts of `test_application()` and `test_substrate()` in
-      projectured-julia.
+**Done 2026-09-18**, in the worktree `workspace/projectured-julia-one-interface`
+on branch `one-interface`, cut from `main` at `25e338c0`.
+
+- [x] `test_application()`: **72 pass, 0 fail, 0 error**, 56 s.
+- [ ] `test_substrate()`: running.
 - [ ] Record the counts of `test_ide_window_wrap()` and `test_select_and_paste()`
-      in omnet-julia.
+      in omnet-julia. **A worktree cannot measure them.** omnet-julia's
+      `[sources]` name `../../../projectured-julia/package/…`, which is the main
+      checkout and not this worktree, so an omnet run tests `main`'s projectured.
+      Take the omnet baselines against `main`, and do the omnet half of any step
+      only after its projectured half has landed on `main`.
 - [ ] Record the two closure tests that already fail on omnet-julia `main`:
       `IdeClosureTest` asserts 42 against 43, and `CampaignUiClosureTest` asserts
       22 against 25 and finds `ProjecturedSerialization`. Write the exact output
@@ -675,10 +704,14 @@ the new count here.
       clipboard_gestures, tooltip, shell, measure)` answers the fold. It is the
       body of `make_ide_window_wrap`, with two keywords more.
 - [ ] `make_opened_window_projections(; gesture_help, measure)`.
-- [ ] The fold composes `WidgetPopupResolverProjection` at the root of the
-      window's content. This is the one behaviour that Step 1 does change, and
-      it is a repair: a `WidgetSelect`, a submenu and a `WidgetContextMenu` start
-      to open in both binaries (§2.5).
+- [ ] Add the `screen_wrap` keyword to `make_window_scene_projection` and to
+      `run_window_editor`, defaulting to `identity`, and apply it to
+      `ScreenToScreen()` inside `WindowManagingProjection`.
+- [ ] `make_popup_screen_wrap()` in `ShellModule` answers
+      `inner -> WidgetPopupResolverProjection(inner = inner)`. Both binaries pass
+      it. This is the one behaviour that Step 1 does change, and it is a repair:
+      a `WidgetSelect`, a submenu and a `WidgetContextMenu` start to open in both
+      binaries (§2.5).
 - [ ] Write `WindowShellProjection` in `source/shell/WindowShell.jl`. Do not move
       `make_shell_document`: the shell is drawn, not stored (§3.1). Step 7 fills
       the bands; Step 1 draws a shell with none, so the fold is complete before
