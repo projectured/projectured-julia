@@ -568,6 +568,20 @@ macro domain(name, opts...)
 
     if gen_root
         push!(out.args, :(abstract type $root <: $Document end))
+        # The root is what a reader looks for first — "the documents of this
+        # domain" — so it says what it is, as the placeholder and the insertion
+        # below do.
+        push!(out.args, esc(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__,
+            "    $root_sym\n\n" *
+            "Every document of the $prefix domain.\n\n" *
+            "Use it to write a function or a projection that takes any $prefix " *
+            "document, whatever kind it is, and to ask whether a value belongs to " *
+            "this domain.\n\n" *
+            "# Example\n\n" *
+            "    is_$(lowercase(prefix))(document) = document isa $root_sym\n\n" *
+            "See also `$nothing_sym`, the empty one, and `$insertion_sym`, the one a " *
+            "person types a name into.",
+            root_sym)))
     end
     # The root is the domain's public name, so it is exported either way —
     # generated here, or adopted with `root = X` and defined at the call site.
