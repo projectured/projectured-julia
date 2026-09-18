@@ -1,7 +1,8 @@
 # Both binaries offer one interface
 
-**Status (2026-09-17): NOT STARTED.** This plan is written and waits for the
-owner. Four questions in §3.13 are open; every other decision is made.
+**Status (2026-09-18): NOT STARTED.** The plan is complete. The owner answered
+the four open questions on 2026-09-18, and §1 records the rulings. Nothing is
+implemented, and nothing is pushed.
 
 **Goal:** `projectured` and `omnet_ide` offer the same interface. A person who
 learns one knows the other. Every layer is built once, in projectured-julia, and
@@ -41,6 +42,15 @@ The rulings of the owner, 2026-09-17:
 | The window background colour | Drop it. A shell widget takes its place. |
 | What does the shell hold? | A menu, a context menu, a toolbar and a status line. |
 | The file navigator | It works in the interface too, not only in the application. |
+
+The rulings of the owner on the first draft, 2026-09-18:
+
+| Question | Ruling |
+| --- | --- |
+| Undo and redo | Not in this plan. A plan of its own carries them. |
+| Save As and Open | In this plan. Write them as dialogs. |
+| Find in document | Not in this plan. |
+| A tooltip clipped at the window edge | Do not draw the tooltip in the window. **A tooltip is a separate window.** |
 
 ## 2. What exists
 
@@ -151,10 +161,11 @@ cheapest item in this plan and it is the reason the chrome looks unfinished.
   ([test/substrate/projection/WidgetTableTest.jl:171](../../test/substrate/projection/WidgetTableTest.jl#L171))
   asserts it. A window shell must fill the window instead, so the fold must say
   what size it is.
-- **A `WidgetTooltip` takes a position, a size and a content**
-  ([source/widget/WidgetDocument.jl:471](../../source/widget/WidgetDocument.jl#L471)).
-  So the tooltip layer computes where and how large, and puts the content that
-  the tooltip function answered inside.
+- **`WidgetShell.tooltip` is a band inside the window.** A tooltip is a separate
+  window (§3.2), so this plan sets that field on nothing and the band stays
+  empty. `WidgetTooltip`
+  ([source/widget/WidgetDocument.jl:471](../../source/widget/WidgetDocument.jl#L471))
+  keeps its place for a host that wants an overlay inside its own content.
 
 ## 3. Decisions
 
@@ -174,10 +185,11 @@ holds what sits between a window and the document in it:
 - `WidgetPopupResolverProjection` at the root of the window's content, so that
   every popup a widget asks for actually opens (§2.5).
 
-Every package it depends on — `ProjecturedGestureHelp`, `ProjecturedGestureLog`,
+It depends on `ProjecturedGestureHelp`, `ProjecturedGestureLog`,
 `ProjecturedClipboard`, `ProjecturedFocus`, `ProjecturedTooltip`,
-`ProjecturedWidget`, `ProjecturedPane` — carries no third-party dependency, so
-`ProjecturedShell` is a sub-stem and the `Projectured` umbrella aggregates it.
+`ProjecturedWidget` and `ProjecturedPane`. None of them carries a third-party
+dependency, so `ProjecturedShell` is a sub-stem and the `Projectured` umbrella
+aggregates it.
 
 `make_shell_document` and `make_shell_projection` move out of
 `example/workbench/` into this package. The gallery keeps calling them.
@@ -187,31 +199,55 @@ layers by hand today, and the two lists drifted apart. One function that takes a
 keyword per layer cannot drift: a layer that the application turns on is the
 same code the interface turns on.
 
-### 3.2 The window draws the tooltip; a second window does not
+### 3.2 A tooltip is a separate window
 
-`WidgetShell` already draws a `WidgetTooltip` band. The tooltip goes there.
+The owner ruled it. A tooltip opens as its own native window, through
+`TooltipDecoratorProjection`, `OpenWindowOperation` and the `:tooltip` style
+that the backend already reads. It can therefore leave the window it belongs to,
+which is what a tooltip near an edge needs.
 
-The reason is that the second-window path is not finishable cheaply and is not
-wanted on the web:
+**One route for everything that pops.** A menu, a submenu, a select, a context
+menu and a tooltip all become a second window through the same two steps: an
+operation from the widget, and `WindowManagingProjection` above it. §3.1 makes
+that route work by composing the popup resolver, and the tooltip rides the route
+the menus use.
 
-- SDL sets no no-input-focus flag, so a tooltip window takes the focus from the
-  window under it. The fix is platform work across X11, Wayland, macOS and
-  Windows.
-- `screen_origin` does not exist, so a tooltip cannot be placed next to the
-  pointer in screen coordinates.
-- A browser refuses `window.open` without a click, so a hover tooltip never
-  appears on the web backend.
+**This plan therefore finishes the tooltip window.** Three things are unfinished
+today, and each is a part of Step 5:
 
-A tooltip drawn inside the window needs none of those. It cannot leave the
-window, which a tooltip near an edge would want; that is accepted.
+1. **The focus.** SDL sets no no-input-focus flag, so a tooltip window takes the
+   focus from the window under it
+   ([source/sdl/Sdl.jl:424](../../source/sdl/Sdl.jl#L424)). The comment there is
+   also wrong: `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`, not
+   `SDL_WINDOW_ALWAYS_ON_TOP`, which is `0x00008000`. Step 5 fixes the flags and
+   the comment.
+2. **The place.** `screen_origin` does not exist, so nothing can say where a
+   window is on the screen, and a tooltip cannot be put beside the pointer.
+   Step 5 adds it to the backend interface.
+3. **The position.** `default_tooltip_position` answers a fixed corner
+   ([source/tooltip/TooltipDecorator.jl:53](../../source/tooltip/TooltipDecorator.jl#L53)).
+   Step 6 derives the real one: the pointer, plus the origin of the window it is
+   in, plus an offset, held inside the screen.
 
-**A menu keeps the second window.** A menu opens on a click, and a click is the
-user gesture a browser asks for, so the popup route works on every backend. A
-tooltip opens on a hover, and a hover is not one. The rule is the gesture that
-opens it, not the thing that is opened.
+This closes Step 1 and Step 6 of [tooltip.md](tooltip.md), and its Steps 5 and 8
+come along as tests. That file then holds only its Step 7, the further example
+tooltips.
 
-The three open steps of [tooltip.md](tooltip.md) stay open. This plan does not
-close them, and it does not need them. That file keeps its own status.
+### 3.2b The web backend draws a tooltip window in the page
+
+A browser refuses `window.open` without a user gesture, so the web client queues
+a window it cannot open and shows it on the next click
+([asset/web/client.js:164](../../asset/web/client.js#L164)). A menu opens on a
+click and is therefore fine. A tooltip opens on a hover and would never appear.
+
+The answer keeps the document model whole. A tooltip is a separate window
+everywhere, and only the **web client draws it differently**. A window whose
+style is `:tooltip` renders as a positioned overlay in the page instead of a
+popup. Nothing above the backend knows the difference.
+
+Step 5 carries it. A tooltip on the web is then held inside the browser tab.
+That is the one place the ruling cannot be met, because a browser gives a page no
+way out of its tab.
 
 ### 3.3 The tooltip finds its widget with the Alt+press rule
 
@@ -246,8 +282,8 @@ passes its own function to `make_window_shell`. The function wins; the field is
 what the default function reads.
 
 A tooltip is a `Document`, so a tooltip is a projection of a document like
-everything else. A `String` is accepted and wrapped, because most tooltips are
-one line.
+everything else, and it becomes the content of the tooltip window (§3.2). A
+`String` is accepted and wrapped, because most tooltips are one line.
 
 ### 3.5 Every widget type carries a `tooltip` field
 
@@ -294,8 +330,12 @@ commands that exist today:
 - **View** — Split vertically, Split horizontally, Duplicate tab, Command
   palette, Gesture help.
 
-Save As, Open, Find and Preferences are **not** on the menu, because nothing
-behind them exists. §6 says where they go.
+Step 8 adds **Open** (`Ctrl+Shift+O`) and **Save As** (`Ctrl+Shift+S`) to the
+File menu, in the same step that writes them. A menu item never lands before the
+command behind it.
+
+Find and Preferences are **not** on the menu. Nothing behind them exists, and §6
+says so.
 
 The status line shows three fields: the title of the focused tab, the selection
 as `ReferenceToHumanReadableText` prints it, and what the host appends. The host
@@ -356,22 +396,19 @@ one.
 shell paints the window, because a shell with a menu bar and a status line
 already covers the ground that the colour was painted on.
 
-### 3.13 Open questions for the owner
+### 3.13 What the owner settled, and what follows
 
-1. **Undo and redo.** They are missing from both binaries. An undo needs an
-   inverse for every operation and a log on the editor, which is a design of its
-   own size. The proposal is that this plan does not carry it and a plan of its
-   own does. §6 holds it.
-2. **Save As and Open.** Both need a path picker, which needs a modal over the
-   window. `WidgetDialog` exists and draws. The proposal is one more step in
-   this plan, after Step 6, because the File menu asks for them the moment it
-   exists.
-3. **Find in document.** The command palette searches gestures, not text. A
-   find needs a search projection over the focused document. The proposal is
-   out of scope.
-4. **A tooltip that leaves the window.** §3.2 draws the tooltip inside the
-   window. A tooltip near the right edge is clipped. The proposal is to accept
-   that and to revisit only if it annoys in use.
+Every question of the first draft is answered. Nothing in this plan is open.
+
+1. **Undo and redo are not in this plan.** They need an inverse for every
+   operation and a log on the editor, which is a design of its own size. A plan
+   of its own carries them. §6 holds the pointer.
+2. **Save As and Open are in this plan, as dialogs.** `WidgetDialog` exists and
+   draws, and §3.1 makes a popup open, so a dialog has both halves it needs.
+   Step 8 writes them, and the File menu gains the two items it was missing.
+3. **Find in document is not in this plan.** §6 holds it.
+4. **A tooltip is a separate window.** §3.2 and §3.2b say what that costs and
+   what it buys.
 
 ## 4. Steps
 
@@ -457,19 +494,46 @@ the new count here.
       count moves, and the count of passes moves with it.
 - Tests: `test_substrate()`.
 
-### Step 5 — the interface shows a tooltip
+### Step 5 — a tooltip window that takes no focus
+
+This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
+
+- [ ] SDL: give the `:tooltip` style a flag set that does not take the focus.
+      Try `SDL_WINDOW_UTILITY` and `SDL_WINDOW_SKIP_TASKBAR` first, and check the
+      result on X11 and on Wayland. Fix the wrong comment at
+      [source/sdl/Sdl.jl:424](../../source/sdl/Sdl.jl#L424) at the same time:
+      `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`.
+- [ ] Add `screen_origin(backend, id) -> (x, y)` to the backend interface, and a
+      method for each backend that has one. A backend that cannot say answers
+      `nothing`, and the caller then places the window relative to itself.
+- [ ] Web client: draw a window whose style is `:tooltip` as a positioned overlay
+      in the page, not as a popup (§3.2b). It must never enter `pendingPopups`.
+- [ ] A test opens a tooltip window and asserts that the main window keeps the
+      keyboard focus.
+- [ ] A test asserts that `screen_origin` answers the same origin that the window
+      was opened at.
+- Tests: `test_tooltip()`, and a new `test_tooltip_window()`.
+
+### Step 6 — the interface shows a tooltip
 
 - [ ] Add the tooltip layer to `ProjecturedShell`: the Alt+press probe, the dwell
-      timer, and the `WidgetTooltip` it puts into `WidgetShell.tooltip`.
+      timer, and the `OpenWindowOperation` it makes from what
+      `find_widget_tooltip` answered.
+- [ ] Derive the real position: the pointer, plus `screen_origin` of the window
+      the pointer is in, plus an offset, held inside the screen. This closes
+      Step 6 of [tooltip.md](tooltip.md).
 - [ ] `make_window_shell(; tooltip = find_widget_tooltip)` turns it on. A host
       passes its own function.
 - [ ] Both binaries turn it on.
 - [ ] A new `test_widget_tooltip()`: a probe over a widget with a tooltip answers
       one, a probe over a widget without one answers nothing, a probe under the
-      dwell time answers nothing, and a move to another widget replaces it.
+      dwell time answers nothing, a move to another widget replaces it, and two
+      tooltips never stand at once. The last two cover Steps 5 and 8 of
+      [tooltip.md](tooltip.md).
+- [ ] Measure what the probe costs on a pointer move before it is turned on.
 - Tests: `test_widget_tooltip()`, `test_tooltip()`, `test_application()`.
 
-### Step 6 — the shell draws the chrome
+### Step 7 — the shell draws the chrome
 
 - [ ] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
@@ -489,7 +553,32 @@ the new count here.
 - Tests: `test_window_shell()`, `test_widget_context_menu()`,
   `test_application()`; in omnet-julia `test_ide_window_wrap()`.
 
-### Step 7 — the file navigator in the interface
+### Step 8 — Open and Save As, as dialogs
+
+The File menu of Step 7 names them, so they are written here and not later.
+
+- [ ] Add a path picker document to the workbench slice: a folder, its entries,
+      a selected path and a typed name. It is a document, so it draws through the
+      file-system projection that the navigator already uses.
+- [ ] `WidgetDialog` holds it, and `OpenPopupOperation` opens it, so the dialog
+      rides the route §3.1 repaired.
+- [ ] Open: the picker answers a path, and the window opens it in a new tab with
+      `make_workbench_file_editor`.
+- [ ] Save As: the picker answers a path, the tab takes it as its file name, and
+      `Ctrl+S` then writes there. A tab with no name and a `Ctrl+S` opens the
+      Save As dialog instead of declining, which is what
+      [source/workbench/WorkbenchFile.jl:49](../../source/workbench/WorkbenchFile.jl#L49)
+      says is future work today.
+- [ ] Both go on the File menu, and both get a key: `Ctrl+Shift+O` and
+      `Ctrl+Shift+S`.
+- [ ] The interface gets them too, because it has the navigator from Step 9 and
+      the same File menu.
+- [ ] A new `test_file_dialogs()`: a picker answers the path a person chose, an
+      unnamed tab saved with `Ctrl+S` opens the dialog, and a cancel writes
+      nothing.
+- Tests: `test_file_dialogs()`, `test_widget_dialog()`, `test_application()`.
+
+### Step 9 — the file navigator in the interface
 
 - [ ] omnet-julia: add `ProjecturedWorkbench` and `ProjecturedFileSystem` to
       `package/OmnetIde/Project.toml`.
@@ -505,12 +594,14 @@ the new count here.
 - Tests: in omnet-julia `test_ide_window_wrap()`, `IdeClosureTest`,
   `CampaignUiClosureTest`.
 
-### Step 8 — the guides, and close
+### Step 10 — the guides, and close
 
 - [ ] Write `documentation/package/shell/shell.md`: what the fold is, what each
       layer does, and how a host adds a menu, a button and a status field.
 - [ ] Update [editor.md](../../documentation/package/kernel/editor.md) where it
       names the window.
+- [ ] Update [tooltip.md](tooltip.md): its Steps 1, 5, 6 and 8 are closed here,
+      and only its Step 7 remains.
 - [ ] Update the omnet-julia guide that names `make_ide_window_wrap`.
 - [ ] Update [README.md](../../README.md) if the quick start names a key.
 - [ ] Move this plan to `plan/done/`.
@@ -520,22 +611,27 @@ the new count here.
 | Risk | What is done about it |
 | --- | --- |
 | The field sweep of Step 4 touches 43 types and moves test counts. | Step 4 carries it alone and writes the old and the new count. A count that moves in another step is a fault of that step. |
-| The two closure tests already fail on omnet-julia `main`. | Step 0 records the exact output. Step 7 sets one cap and proves the other closure did not change. |
-| A menu item that does nothing teaches a person that the menu is a lie. | §3.7 puts only working commands on the menu. Save As and Open wait for §3.13 question 2. |
-| The Alt+press probe runs on every pointer move. | The probe runs only after the pointer rests for the dwell time, as `HoverProbeProjection` throttles idle motion today. Step 5 measures it before it is turned on. |
-| Moving the fold could change what the interface does. | Step 1 changes one thing on purpose — the popup resolver — and nothing else. `test_ide_window_wrap()` is the proof for the rest. |
+| The two closure tests already fail on omnet-julia `main`. | Step 0 records the exact output. Step 9 sets one cap and proves the other closure did not change. |
+| A menu item that does nothing teaches a person that the menu is a lie. | §3.7 puts only working commands on the menu. Step 8 writes Open and Save As, and the File menu gains them in that step and not before. |
+| The Alt+press probe runs on every pointer move. | The probe runs only after the pointer rests for the dwell time, as `HoverProbeProjection` throttles idle motion today. Step 6 measures it before it is turned on. |
+| Moving the fold could change what the interface does. | Step 1 changes one thing on purpose, the popup resolver, and nothing else. `test_ide_window_wrap()` is the proof for the rest. |
 | A popup that never opened now opens, so a widget that was inert becomes live. | That is the repair, not a regression. Step 1 lists which widgets change: `WidgetSelect`, a submenu, and `WidgetContextMenu`. |
-| A tooltip drawn in the window is clipped at an edge. | Accepted; §3.13 question 4. |
+| **A tooltip window that takes the focus makes the editor unusable.** A wrong flag set is worse than no tooltip. | Step 5 lands the flags and the focus test **before** Step 6 turns any tooltip on. If no flag set keeps the focus on X11 and on Wayland, Step 5 stops and the owner decides; Step 6 does not start. |
+| The flag set that works on X11 may not work on Wayland, macOS or Windows. | Step 5 checks the two this machine has and writes down what it could not check. A backend that cannot answer is named in the guide, not hidden. |
+| The web client must draw a `:tooltip` window in the page, which is a second drawing path. | It is one branch in `client.js` at the point where a window is opened. Step 5 asserts that a `:tooltip` window never enters `pendingPopups`. |
+| A dialog is modal, and a modal that cannot be closed traps the person. | Step 8 gives every dialog an Escape that cancels and writes nothing, and tests it. |
 
 ## 6. Out of scope
 
-- **Undo and redo.** §3.13 question 1. They need an inverse per operation and a
-  log on the editor.
-- **Find in document.** §3.13 question 3.
+- **Undo and redo.** They need an inverse for every operation and a log on the
+  editor. The owner ruled that a plan of its own carries them; write that plan
+  before this one closes, so the pointer does not dangle.
+- **Find in document.** The command palette searches gestures, not text. A find
+  needs a search projection over the focused document.
 - **A settings surface and a recent-files list.** Nothing asks for them yet.
-- **The three open steps of [tooltip.md](tooltip.md)**: the SDL no-input-focus
-  flag, `screen_origin`, and the position of a native tooltip window. §3.2 says
-  why this plan does not need them.
+- **Step 7 of [tooltip.md](tooltip.md)**, the further example tooltips for a
+  type, an error and a docstring. Its Steps 1, 5, 6 and 8 are closed by Steps 5
+  and 6 of this plan.
 - **The NED and INI formats in the navigator.** omnet-julia registers no natural
   format today. Its files open as plain text until it does.
 - **The campaign window.** It stays small on purpose.
