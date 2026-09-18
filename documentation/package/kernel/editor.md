@@ -16,9 +16,12 @@ mutable struct Editor
     document::Document
     projection::Projection
     devices::Vector{Device}
-    inbox::Channel{Operation}           # operations posted from other tasks
-    iomap::Union{IoMap, Nothing}        # latest output of print_document
-    operation::Union{Operation, Nothing}# latest output of read_intent
+    clock::Clock
+    tools::ToolSet
+    inbox::Channel{Operation}
+    iomap::Union{IoMap, Nothing}
+    operation::Union{Operation, Nothing}
+    recognizer::GestureRecognizer
 end
 ```
 
@@ -27,12 +30,24 @@ end
 - `projection` — the projection pipeline; typically a `ChainingProjection`
   that ends in a `GraphicsCanvas`-producing step
 - `devices` — `Vector{Device}` with the screen, keyboard, and mouse
+- `clock` — this editor's own animation clock (a fresh `Clock()` by default);
+  `run_editor!` ticks it once per frame from wall-clock time, so an animated
+  projection built against this editor reanimates independently of any other
+  editor running in the same process
+- `tools` — what this editor exposes to an agent: the `ToolSet` an agent loop
+  drives and an MCP server publishes, empty until
+  `register_default_tools!(editor.tools)` fills it. Per editor, so two editors
+  in one process share neither a tool list nor an `execute_julia_code`
+  namespace — see [agent.md](agent.md)
 - `inbox` — what was posted from outside the editor's own task; see
   [The inbox](#the-inbox)
 - `iomap` — the most recent IoMap from `print_document`; needed by
   `read_intent` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
+- `recognizer` — the event → gesture recognizer that folds raw `MouseDown`/`MouseUp`
+  into `MousePress` and `KeyDown` sequences into `KeyChord`, private to this
+  editor so two editors do not share chord-in-progress state
 
 ## The Read-Eval-Print loop
 
@@ -40,16 +55,42 @@ end
 
 ```julia
 while true
-    with_performance_counters() do  # bind a fresh per-frame counter store
-        drain_operations!(editor)  # apply what other tasks posted
-        read!(editor)      # poll devices → read_intent → editor.operation
-        evaluate!(editor)  # evaluate_operation(editor, editor.operation)
-        print!(editor)     # print_document → editor.iomap; render to devices
-        perf!(editor)      # log reactive counters
+    with_performance_counters() do   # bind a fresh per-frame counter store
+        set_clock_time!(editor.clock, Base.time() - t_start)  # tick the animation clock
+        drain_operations!(editor)    # apply what other tasks posted
+        run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
+        perf!(editor)                # log reactive counters
     end
     sleep(0.01)
 end
 ```
+
+`run_frame!` is what a burst of input runs through:
+
+```julia
+function run_frame!(editor)
+    applied = nothing
+    for _ in 1:MAX_OPERATIONS_PER_FRAME    # = 32
+        read!(editor) || break             # poll devices → read_intent → editor.operation
+        evaluate!(editor)                  # evaluate_operation(editor, editor.operation)
+        applied = editor.operation
+        editor.iomap === nothing && break  # a projection-invalidating op ends the frame early
+    end
+    editor.operation = applied
+    print!(editor)                         # print_document → editor.iomap; render to devices
+end
+```
+
+Input arrives faster than a frame can paint — a pointer in motion delivers a
+`MouseMove` for as long as it moves — so `run_frame!` applies up to
+`MAX_OPERATIONS_PER_FRAME` (32) operations before it repaints once, instead of
+repainting after every single one. An operation that invalidates the cached
+projection (a whole-root `ReplaceReferencedValueOperation` swap, say) ends the
+frame early: `read!` has nothing to read the next event against until the
+projection rebuilds, so remaining input waits for the next frame rather than
+being discarded against a stale IoMap. Call `run_frame!` directly to drive an
+editor one frame at a time — a test harness, an embedder, or a scripted
+timeline that interleaves its own work between frames.
 
 ### The inbox
 
@@ -58,7 +99,7 @@ that writes it from another task races the frame — and a reactive thunk cannot
 write at all. `post_operation!(editor, operation)` is the one door in:
 
 ```julia
-post_operation!(editor, RefreshOperation(subject))   # from any task
+post_operation!(editor, ReplaceSelectionOperation(path))   # from any task
 ```
 
 The operation is applied by the editor's own task, at the top of the next
@@ -80,24 +121,46 @@ cleanly. The MCP server is started before the loop and stopped in the
 
 ### Read
 
-`read_from_devices(backend, devices)` polls the backend's event queue (in
-the SDL case, `SDL_PollEvent`) and returns the next `WindowInput` wrapping a
-backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`,
-`MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`. The window input is then
-wrapped in a `Intent` and passed through
+`read!(editor)` pulls one gesture from `editor.recognizer`
+(`pop_gesture!(editor.recognizer, () -> read_from_devices(editor.backend, editor.devices))`).
+`read_from_devices(backend, devices)` polls the backend's event queue (in the
+SDL case, `SDL_PollEvent`); the recognizer folds a `MouseDown`/`MouseUp` pair
+into `MousePress` and a `KeyDown` sequence into `KeyChord` before the frame
+ever sees them, so a reader only ever has to match the folded gesture, not
+reassemble it from raw events. The result is a `WindowInput` wrapping a
+backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord`, `MouseDown`,
+`MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`.
+
+The window input is wrapped in an `Intent` and passed through
 `read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
 — the entire pipeline walks backward, each projection contributing a translation
 step until an `Operation` falls out at the document end.
+
+Two gestures are recognized by the editor itself, *after* the pipeline has had
+its chance, so a projection that explicitly binds one of these keys still wins:
+
+- **Readability zoom** — `Ctrl` + `=`/`-`/`0` (optionally with `Shift`) zooms
+  in, out, or resets; adding `Alt` scales the font only
+  (`AdjustFontZoomOperation`) instead of the whole canvas
+  (`AdjustZoomOperation`). Recognized regardless of what is selected.
+- **Escape** closes the editor (`QuitEditorOperation`) — but only when no
+  reader claimed it. A reader that binds Escape (a dialog, an insertion, the
+  command palette) produces its own operation above and wins, so its Escape
+  never reaches this fallback. This is why a backend must deliver Escape as an
+  ordinary key rather than as a platform quit signal: a quit event cannot be
+  declined by a reader.
 
 ### Evaluate
 
 `evaluate_operation(editor, operation)` is a generic function with methods
 defined per operation; methods reach for the document via `editor.document`. For
 `ReplaceSelectionOperation` the implementation is
-`clear_selection!(editor.document); set_selection!(editor.document, op.path)`. For
-`QuitEditorOperation` it throws `QuitEditorException`. Other operations
-(e.g. the generic `ReplaceReferencedValueOperation`, or `ReplaceFocusPartOperation`) mutate
-the document or projection state directly. See [the operations guide](operation.md).
+`replace_selection!(editor.document, op.path)` — see
+[selection.md](selection.md#replacing-selection) for what that atomic,
+in-place write does. For `QuitEditorOperation` it throws `QuitEditorException`.
+Other operations (e.g. the generic `ReplaceReferencedValueOperation`, or
+`ReplaceFocusPartOperation`) mutate the document or projection state directly.
+See [the operations guide](operation.md).
 
 ### Print
 
@@ -113,7 +176,8 @@ reactive and will refresh on the next read.
 
 ## Running an editor
 
-The entry point is the bootstrap overload `run_editor!(backend, projection, document; mcp=false)`:
+The entry point is the bootstrap overload
+`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, devices=…, on_start=nothing)`:
 
 ```julia
 using Projectured
@@ -146,9 +210,18 @@ arrives. A window a projection opens later — a tooltip, a popup — is still
 opened on demand, by `write_to_devices` against the `ScreenDocument` output (the
 pipeline is expected to end in one).
 `quit_backend!(backend)` cleanup is in a `finally` block. Pass
-`mcp=true` to start an MCP server alongside the loop. A backend that drives a
-different channel passes its own `devices` (the `ConsoleBackend` uses
-`devices = Device[Keyboard()]` — no `Display`/`Mouse`).
+`mcp=true` to start an MCP server alongside the loop, and `mcp_instructions` to
+override the text the MCP server's `initialize` response sends a connecting
+client (see [MCP server](#mcp-server)) — omitted, the server uses its own
+default. A backend that drives a different channel passes its own `devices`
+(the `ConsoleBackend` uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
+
+`on_start(editor)`, when given, runs once — after the `Editor` is built, before
+the first frame — with the freshly built editor. It is how something that will
+later call `post_operation!` gets hold of the editor to post to: a driver
+advancing a simulation, a file watcher, an external client's own setup code.
+This overload is what constructs the `Editor`, so nothing outside can reach it
+any earlier.
 
 ## Scripted live playback
 
@@ -209,7 +282,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 - Projections that need to measure text take a `measure::Function` argument
   (e.g. `TextToGraphics`); the backend's `measure_sdl_text` is the usual
   injection.
-- The `ConsoleBackend` consumes the **Text** domain directly (no
+- The `ConsoleBackend` consumes the **TextBlock** domain directly (no
   `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal
   with ANSI colors, the selection encoded as inverse-video span colors by a
   `SelectionInverting` projection at the end of the pipeline, and
@@ -286,17 +359,16 @@ EditorModule.jl    (EditorModule)    — the run_editor! loop and Editor struct
 PlaybackModule.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
 ```
 
-The gesture recognizer that synthesises `MousePress` from MouseDown/MouseUp
-pairs and `KeyChord` from KeyDown sequences lives in `gesture/` (its only
-dependency is `EventModule`, no editor coupling). The global animation clock
-`ClockModule` lives in `clock/`
-(every animated projection reads it, so it belongs beside the engine it
-depends on). What's left in `editor/` is the loop and its scripted
-playback. Alongside the four visible sub-steps, `read!` also folds
-MouseDown/MouseUp into MousePress and KeyDown sequences into KeyChords (via
-the gesture recognizer) before yielding an `WindowInput`, and
-`tick_editor_time!(now)` advances the animation clock, invalidating every cell
-that subscribed to `get_reactive_editor_time()`.
+The `GestureRecognizer` type that folds `MouseDown`/`MouseUp` into `MousePress`
+and `KeyDown` sequences into `KeyChord` lives in `gesture/` (its only
+dependency is `EventModule`, no editor coupling); each `Editor` owns its own
+instance in `editor.recognizer`. The animation `Clock` type lives in `clock/`
+(every animated projection reads one, so the type belongs beside the engine it
+depends on); each `Editor` likewise owns its own instance in `editor.clock`,
+ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)`
+— invalidating every cell that subscribed to `get_reactive_clock_time(editor.clock)`
+— so two editors in the same process animate independently. What's left in
+`editor/` is the loop itself and its scripted playback.
 
 ### Downward edges
 
@@ -308,7 +380,7 @@ that subscribed to `get_reactive_editor_time()`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MousePress`, …).
 - `..PerformanceCounterModule` — the counters bumped inline in the loop.
-- `..ClockModule` — `tick_editor_time!`.
+- `..ClockModule` — `Clock`, `set_clock_time!`, `get_reactive_clock_time`.
 - `..DocumentModule` — the abstract `Document` type.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
@@ -324,7 +396,12 @@ reuse the four sub-steps) and `OperationModule` (to preview
 
 ### Testing
 
-The per-layer editor test folder, [test/editor/](../../../test/kernel/editor/), drives
-the loop against the dependency-free `HeadlessBackend` from
-`ProjecturedKernelExample` — one place the loop can be exercised without any real backend
-package, and the biggest current kernel-local test gap.
+The per-layer editor test folder,
+[test/kernel/editor/](../../../test/kernel/editor/), drives the loop against
+the dependency-free `HeadlessBackend` from `ProjecturedKernelExample` — one
+place the loop can be exercised without any real backend package. It covers
+the printer/reader/REPL drivers and navigation (`PrinterTest.jl`,
+`ReaderTest.jl`, `ReplTest.jl`, `NavigationTest.jl`, `ConstructTest.jl`), the
+`Escape`-closes-unless-claimed rule (`EscapeQuitTest.jl`), the inbox
+(`InboxTest.jl`), and the `run_frame!` multi-operation-per-frame batching
+(`FrameDrainTest.jl`).

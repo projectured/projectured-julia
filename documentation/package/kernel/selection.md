@@ -3,13 +3,16 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Selection is the mechanism that tracks the current cursor position or focused
-region within a document. A **selection** is a specific use of a *reference*:
-the [`Reference`](reference.md) stored in a document's `selection::Cell`
-that identifies the currently focused position. Every `Document` carries a
-`selection::Cell` holding the path relative to that node.
+region within a document — kernel layer 9, `SelectionModule`. A **selection**
+is a specific use of a *reference*: the [`Reference`](reference.md) stored in
+a document's `selection` cell that identifies the currently focused position.
+Every `Document` carries a `selection` field, and the writers canonicalize and
+validate every path they store there, so a document's `selection` cell always
+holds a path that matches the live document or is empty.
 
-This page is the single home for how selection is **stored, propagated, and
-projected**: the selection contract, the set/clear/replace operations, how the
+This page is the single home for how selection is **stored, read, written, and
+projected**: the selection contract, the read/set/clear/replace operations and
+the atomicity and canonicalization they share, dormant selections, how the
 printer forward-projects the selection, how the reader translates it backward,
 and the recursion algorithm that ties them together. For the reference
 *grammar* — step types, the boundary axis, the `@reference` /
@@ -18,12 +21,26 @@ and the recursion algorithm that ties them together. For the reference
 restating the vocabulary. For a gentler introduction see
 [§4 Selection in the concepts guide](../../design/concepts.md).
 
+## The selection layer
+
+`SelectionModule` ([source/kernel/selection/](../../../source/kernel/selection/))
+is two fragments that share its namespace: `SelectionInterface.jl` declares the
+generics documents override and callers dispatch on, and `SelectionDefaults.jl`
+holds their default implementations — reading and writing the conventional
+`document.selection` field — plus the private path-walking helpers
+(`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
+`_mutate_terminal_step!`) they share. It sits above the reference layer (8) and
+the document layer (7): a selection's payload is a `Reference` stored on a
+`Document`.
+
 ## The document contract
 
 Only types that subtype `Document` participate in the selection mechanism.
-Every concrete `Document` **must** carry a `selection::Cell` field that holds the
-`Reference` *relative to this node* — the suffix of the full path starting
-at this level.
+Every concrete `Document` **must** carry a `selection` field. The field holds
+either a `Reference` *relative to this node* — the suffix of the full path
+starting at this level — or, on a document that keeps a selection it is not
+currently acting on, a [`SelectionDocument`](#dormant-selections) wrapping one.
+`@document` injects this field automatically; see [macros.md](macros.md#document).
 
 The invariant: **every child reached by a step in the path must itself be a
 `Document`**. Collections that appear in a document tree must be wrapped in a
@@ -41,10 +58,16 @@ JsonObject.selection[]           ← [1] + .value + {3}   (full path)
        └─ value[].selection[]    ← {3}                  (relative)
 ```
 
-## Setting selection
+## Reading, setting, and clearing selection
 
-Three functions cover the common needs, depending on what you want to
-accomplish.
+### Reading selection
+
+`get_selection(document)` answers the document's current selection — a
+`Reference`, or `nothing` when the document holds none. It reads the
+conventional `selection` field; a document that stores its selection
+unconventionally overrides it. It answers `nothing` for a *dormant* selection
+(see below) — a caller that must see a dormant path too calls
+`get_stored_selection` instead.
 
 ### Clearing selection
 
@@ -68,33 +91,22 @@ path = Reference(FieldReferenceStep("name"), PositionReferenceStep(5))
 set_selection!(document, path)
 ```
 
-The generic implementation in `ReferenceEvaluation.jl` walks the path step by step:
+`set_selection!` first **canonicalizes** `path` against `document`: it strips
+the path to its plain navigation skeleton and re-annotates it so every node
+records the `typeof` of the document it stands on (see
+[type checkpoints](reference.md#type-checkpoints-and-replay-validity)). It then
+**validates** the canonical path — every field, element index, and folded node
+type along the way must still resolve — before writing anything. A path that
+does not match `document` throws [`SelectionMismatchException`](#dormant-selections)
+and leaves the stored selection untouched: a selection either matches and
+applies, or fails without a half-written cell. On a match, the writer descends
+the path, storing each suffix into the matching child's `selection` field.
 
-1. If `path` is `EmptyReference`, stop.
-2. Read the head step `h = path.head[]`.
-3. Navigate to the child document:
-   - `FieldReferenceStep(name)` → `getfield(document, Symbol(name))`, unwrapping a
-     `Cell` transparently.
-   - `ElementReferenceStep(k)` → `document[k]` (1-based).
-   - `PositionReferenceStep(k)` → cursor position, does not navigate into a child.
-   - `ProjectionReferenceStep` → stop; does not navigate into a child.
-4. Write `path.tail[]` into the child's `selection` cell.
-5. Recurse: `set_selection!(child, path.tail[])`.
-
-So the selection at each intermediate node is updated, and the entire path stays
-properly tracked. `set_selection!` also fills type checkpoints against the
-document (see [type checkpoints](reference.md#type-checkpoints-and-replay-validity)),
-so a document's `selection` cell always holds the canonical, folded form.
-
-`SyntaxNode` provides a specialised override that additionally clears the
-`selection` on every *other* child before setting the selected one, ensuring
-stale selection state does not linger on siblings.
-
-**Important:** the generic `set_selection!` does *not* clear the old selection
-first. If the old selection path branches from the new one, selection fragments
-may be left behind in parts of the document tree, leaving multiple selections
-alive simultaneously — usually not what you want. Use `replace_selection!` when
-that matters.
+**Important:** `set_selection!` does *not* clear the old selection first. If the
+old selection path branches from the new one, selection fragments may be left
+behind in parts of the document tree, leaving multiple selections alive
+simultaneously — usually not what you want. Use `replace_selection!` when that
+matters.
 
 **Example** — `JsonObject` with path `[1] + .value + .value + {3}` (first
 entry's value string, cursor at offset 3):
@@ -108,17 +120,27 @@ JsonObject.selection[]                         ← [1] + .value + .value + {3}
 ### Replacing selection
 
 To change the selection from one location to another without leaving fragments
-behind, use `replace_selection!`. It combines clearing and setting into a single
-atomic operation:
+behind, use `replace_selection!`. Like `set_selection!`, it canonicalizes and
+validates `path` first, atomically. Where `set_selection!` leaves the old
+branch in place, `replace_selection!` also removes it — but not by clearing
+every selection cell and rebuilding them: it writes the new path into the
+**shared selection chain in place**, touching only the cells whose content
+actually changed.
 
 ```julia
 replace_selection!(document, new_path)
 ```
 
-`replace_selection!` calls `clear_selection!` followed by `set_selection!`, so
-any stale selection state is removed before the new selection is applied. Use it when the user navigates to a new location or when
-the document structure has changed and old selection paths may no longer be
-valid.
+A caret move within one leaf mutates only that step's `start`/`stop` cells (the
+terminal `RangeReferenceStep`'s bounds are themselves cells, shared across every
+level the path passes through), leaving every routing ancestor's `selection`
+cell untouched — so redrawing after a caret move repaints only the caret, not
+every node between it and the root. Where the new path structurally diverges
+from the old one, the old branch below the divergence is cleared — or, on a
+document that keeps a dormant selection (see below), marked dormant instead —
+and the new suffix is installed from the divergence point down. Use it when the
+user navigates to a new location, or when the document structure has changed
+and old selection paths may no longer be valid.
 
 ### Selecting by content
 
@@ -133,6 +155,35 @@ isempty(refs) || replace_selection!(editor.document, first(refs))
 
 See the [finding-and-selecting guide](finding-and-selecting.md) for the full
 search → resolve → select workflow.
+
+## Dormant selections
+
+A document normally holds either a live selection or none. Some documents —
+`PaneGroup`/`PaneTab`/`PaneSplit`, `WidgetTabbedPane`/`WidgetTabPage`/`WidgetSplitPane`
+— hold their alternatives as siblings and show only one at a time; the tab or
+pane a document is *not* currently showing would otherwise forget what was
+selected in it every time the focus moves away. `has_dormant_selection(document)`
+answers `true` for such a document (`false` by default), and asks the writers to
+**keep** the losing branch's selection instead of clearing it, marked
+**dormant**: still stored, still drawable, but not acted on.
+
+The kept path is wrapped in a `SelectionDocument(primary; live)`, the value a
+`selection` field holds when it is dormant. Reading the field the ordinary way
+(`document.selection`) answers `nothing` while it is dormant — every reader
+written against a bare reference stays correct without change, and only code
+that reads the document itself directly sees the dormant state:
+
+- `get_stored_selection(document)` — the path, live or dormant.
+- `is_live_selection(document)` — whether the stored path (if any) is the live one.
+- `map_selection_forward(source, map)` — a printer's forward-projection helper
+  (see below): maps the stored path through `map` and carries the live/dormant
+  state onto the image, so a projected output node can draw a dormant selection
+  pale instead of dropping it.
+
+When the focus returns to a document with a dormant selection, the next
+`set_selection!`/`replace_selection!` through it makes the branch live again by
+extending the incoming path with the dormant one it finds at the point the two
+diverge.
 
 ## Selection stored in each domain type
 
@@ -150,7 +201,7 @@ are elements or characters.
 | `JsonObject` | `[i] + <entry path>` — into entry `i` (1-based) |
 | `SyntaxLeaf` | `.open/.value/.close + {k}` — cursor at offset `k` in the named span |
 | `SyntaxNode` | `[i] + <child path>` — into child `i`; or `.open/.close + {k}` for delimiter |
-| `Text` | `{k}` — flat cursor at offset `k` in the concatenated spans |
+| `TextBlock` | `{k}` — flat cursor at offset `k` in the concatenated spans |
 
 `GraphicsText`, `GraphicsRect`, and `GraphicsCanvas` are **not** selectable
 containers. They are terminal output; the selection mechanism does not enter
@@ -162,19 +213,21 @@ them. The full per-domain path/step tables live in the
 The selection lives on the **document root** as a complete path from that root
 (e.g. `.editing_page.elements[3].content.entries[1].value.value{2}`).
 `set_selection!` stores the suffix of that path at every node along the way, so
-each *domain* node knows where the selection is relative to itself.
+each *domain* node holds where the selection is relative to itself.
 
 A projection's **printer** carries that knowledge across into the projected
 (output) tree. Every `print_document` method maps both the input *content* and
 the input *selection* forward, and the selection mapping is expressed as a
 **computed cell** so it updates reactively whenever the input selection changes:
 when the printer builds an output node, it wires the node's `selection` cell to
-`map_reference_forward(projection, iomap, input.selection)`. Because
-`map_reference_forward` is the inverse of `map_reference_backward`, the output
-node ends up holding the selection suffix *in its own (output-domain)
-coordinates*. Do this at every level and the whole projected tree carries the
-forward-projected selection, exactly mirroring how `set_selection!` distributes
-it across the domain tree.
+`map_selection_forward(input, path -> ...)`, not to a bare property read — a
+property read answers `nothing` for a [dormant](#dormant-selections) selection,
+so a bare read would silently drop the dormant state at the first hop.
+`map_selection_forward` reads the stored path (live or dormant) and passes it
+through the supplied `map` (normally built from `map_reference_forward`),
+carrying the live/dormant flag onto the result. Do this at every level and the
+whole projected tree carries the forward-projected selection, exactly
+mirroring how `set_selection!` distributes it across the domain tree.
 
 The key point: **the selection is not passed as a parameter through
 `print_document`** — it is wired reactively. `CopyingProjection` does this
@@ -182,17 +235,19 @@ generically; compound projections that introduce structure (e.g.
 `WorkbenchToWidget`, whose shell inserts split panes that have no domain
 counterpart) wire the selection cells explicitly in `print_document`.
 
-A leaf printer illustrates the reactive wiring:
+A leaf printer illustrates the reactive wiring (`source/syntax/SyntaxToText.jl`,
+the projection from a `SyntaxLeaf` to a `TextBlock`):
 
 ```julia
-# SyntaxLeafToText — excerpt. The printer is always 4-arg:
-# print_document(projection, recursion, input, ctx::PrinterContext)
+# The printer is always 4-arg: print_document(projection, recursion, input, ctx::PrinterContext)
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
-    sel = ComputedCell(() -> begin
-        c = _leaf_cursor(leaf)   # reads leaf.selection[] as a dependency
-        c < 0 ? nothing : ConcreteReference(PositionReferenceStep(c))
-    end)
-    SimpleIoMap(p, leaf, Text(Cell(...spans...), sel))
+    sel = ComputedCell(() -> map_selection_forward(leaf, path -> begin
+        leaf_sel = strip_reference_types(path)
+        leaf_sel isa EmptyReference && return @reference()
+        c = _leaf_cursor(leaf)                          # leaf-domain path → flat offset
+        c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)   # flat offset → TextBlock path
+    end))
+    SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
 end
 ```
 
@@ -207,8 +262,11 @@ offset:
 | `ProjectionReferenceStep(p, .open + {k})` | `k` |
 | `ProjectionReferenceStep(p, .close + {k})` | `open_len + value_len + k` |
 
-The output document's `selection` cell reads from the input document's
-`selection` cell as a computed dependency.
+`_flat_to_text_elem_path` then turns that flat offset into the `TextBlock`-domain
+path (which of the concatenated spans, and the offset inside it) that
+`{k}` addresses. The output document's `selection` cell reads from the input
+document's `selection` cell as a computed dependency, so an edit that moves the
+caret propagates without either side polling the other.
 
 ### Selection-directed event routing
 
@@ -247,7 +305,7 @@ spell out the path translation each one's mapper performs.)
 **`TextToGraphics`** (outermost reader):
 - The `Intent.gesture` is a raw key event (`KeyDown(:right, ...)`).
 - Reads the current flat cursor offset from `iomap.input.selection[]`.
-- Produces `ReplaceSelectionOperation({new_pos})` in Text domain.
+- Produces `ReplaceSelectionOperation({new_pos})` in `TextBlock` domain.
 
 **`SyntaxLeafToText`**:
 - Receives `ReplaceSelectionOperation({pos})`.
@@ -256,26 +314,29 @@ spell out the path translation each one's mapper performs.)
 
 **`SyntaxCompoundToText`**:
 - Receives `ReplaceSelectionOperation({flat_pos})`.
-- Calls `_pos_to_selection` which walks the tree accounting for all structural
-  characters to locate the owning child and its local offset.
-- Returns `[child_i] + <recursive child path>`. Positions on structural
-  characters become `ProjectionReferenceStep(p, {flat_pos})`.
+- Its `map_reference_backward` locates the output element the flat offset lands
+  on and classifies it into a zone: inside a child's own rendered range, on the
+  node's open/close delimiter, or on other own chrome (a separator, an indent,
+  an ellipsis).
+- A child-zone position delegates to that child's own mapper and prepends
+  `.children[i]`; a delimiter position becomes `.open + {k}` / `.close + {k}`;
+  any other own-chrome position becomes a projection-introduced
+  `ProjectionReferenceStep(p, {flat_pos})`, since it has no counterpart in the
+  input domain.
 
 **`JsonStringToSyntaxLeaf`** (innermost reader):
 - `.value + {k}` → passes through as `{k}`.
 - `.open + {k}` / `.close + {k}` → wraps in `ProjectionReferenceStep` (the delimiter
   has no counterpart in the JSON domain).
 
-The final operation is applied by the editor:
-
-```julia
-clear_selection!(document)
-set_selection!(document, op.path)
-```
+The final, fully backward-mapped `ReplaceSelectionOperation` reaches the input
+document unchanged (`evaluate_operation(editor, op::ReplaceSelectionOperation)`
+calls `replace_selection!(editor.document, op.path)`) — the same atomic,
+in-place writer described above.
 
 ## The shared-cell shortcut
 
-For a simple single-leaf pipeline (`JsonString → SyntaxLeaf → Text`), the
+For a simple single-leaf pipeline (`JsonString → SyntaxLeaf → TextBlock`), the
 printer passes the *same* `selection::Cell` object through all three levels. All
 three objects reference the same `Cell` instance, so writing
 `doc.selection[] = op.path` is immediately visible at every level — the cursor
@@ -287,6 +348,12 @@ into children the formats differ across domains, and the three-step algorithm
 below is required.
 
 ## Selection projection under recursion
+
+A projection written with [`@projection_template`](macros.md#projection_template)
+gets this for free: its `collection(:field)` and `project(:field)` markers wire
+the child recursion and the selection mapping together generically. What
+follows is the algorithm every such marker runs, needed by hand only for a
+projection the template does not fit.
 
 When a compound projection recurses into children (calling
 `print_child(recursion, child, child_ctx)` for each element), the output
@@ -339,7 +406,9 @@ identity invariant that the selection cell reads from the same document the
 children cell exposes. The child IO maps must be computed in a single shared
 reactive `Cell`.
 
-**Concrete example — `JsonArrayToSyntaxNode`.**
+**Concrete example — `JsonArrayToSyntaxNode`** (written with
+`@projection_template` as `SyntaxNode(collection(:elements); …)`; the steps
+below are what the `collection` marker runs for it).
 Input: `JsonArray` with `selection[] = .elements + [2] + .value + {5}`.
 
 1. Recurse → `child_iomaps[2]` holds the projected second element.
@@ -347,23 +416,13 @@ Input: `JsonArray` with `selection[] = .elements + [2] + .value + {5}`.
 3. Map the element forward → `.value + {5}` (Syntax domain).
 4. Prepend `[2]` → output selection = `[2] + .value + {5}`.
 
-**Concrete example — `JsonObjectToSyntaxNode`.**
+**Concrete example — `JsonObjectToSyntaxNode`** (likewise template-driven).
 Input: `JsonObject` with `selection[] = .entries + [1] + .value + .value + {4}`.
 
 1. Recurse per-entry → `pair_iomaps[1]` holds the projected first entry's pair node.
 2. Strip `.entries`, read `[1]` → entry index `i = 1`; entry selection `.value + .value + {4}`.
 3. Map the entry forward → `[2] + .value + {4}` (Syntax domain, value child is index 2).
 4. Prepend `[1]` → output selection = `[1] + [2] + .value + {4}`.
-
-## Shared selection cells
-
-When a document is projected through multiple domains, the selection cell is
-shared. Changes propagate automatically through the reactive cell system:
-
-```julia
-# JsonString.selection is shared with SyntaxLeaf.selection and Text.selection
-# When editor.document.selection[] is updated, all projections see the change
-```
 
 ## ProjectionReferenceStep in selection
 
@@ -375,7 +434,13 @@ that step embeds an output-domain path inside an input-domain reference.
 
 ## Key features
 
-- Recursive storage for efficient updates
-- Shared cells for automatic propagation across projections
-- Domain-specific path semantics over one common grammar
-- Support for projection-introduced elements
+- Recursive storage, one path suffix per node, so every level holds its own
+  selection without walking from the root.
+- Canonicalization and atomic validation on every write: a stale or
+  cross-domain path throws `SelectionMismatchException` before any cell changes.
+- An in-place writer (`replace_selection!`) that repaints only what changed,
+  down to mutating a caret's own start/stop cells for a same-leaf move.
+- Dormant selections, so a tab or pane not currently shown keeps what was
+  selected in it.
+- Domain-specific path semantics over one common `[i]` / `{k}` / `.field` grammar.
+- Support for projection-introduced elements, via `ProjectionReferenceStep`.

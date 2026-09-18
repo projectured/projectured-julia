@@ -2,12 +2,17 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
-Three macros — `@document`, `@projection`, and `@iomap` — generate the
-boilerplate that makes the cell-based code in the rest of the codebase look
-like ordinary Julia. They are defined in
+`@document`, `@projection`, and `@iomap` generate the boilerplate that makes
+the cell-based code in the rest of the codebase look like ordinary Julia. A
+fourth macro, [`@projection_template`](#projection_template), writes the
+`print_document`/`read_intent` pair of a structural projection from a builder
+expression instead of by hand — every domain-to-syntax projection in the
+codebase is written with it. They are defined in
 [document/DocumentMacro.jl](../../../source/kernel/document/DocumentMacro.jl),
-[projection/ProjectionMacro.jl](../../../source/kernel/projection/ProjectionMacro.jl), and
-[iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl) respectively.
+[projection/ProjectionMacro.jl](../../../source/kernel/projection/ProjectionMacro.jl),
+[iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl), and
+[projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
+respectively.
 
 All three share the same core pattern: declared field types are *what you
 mean*, but every field is *stored as a `Cell`* and accessed transparently
@@ -101,6 +106,50 @@ transitively. The two layouts are additive: the bare name is still the stem, and
 every existing `Foo` / `Foo{…}` dispatch and alias means what it meant before.
 The macro exports `AFoo` and `MFoo` itself.
 
+### The layout list
+
+```julia
+@document [Kind] [[layouts]] struct T [<: Super] … end
+```
+
+An optional **layout list** — a bracketed, comma-separated list of codes right
+before `struct` — says which layouts the schema emits: `C` the cell layout
+(`Foo{C1, …}`), `M` the mutable native struct. A code names a layout and
+nothing else; the family and the four spelling aliases (`RCFoo`/`ICFoo`/`MCFoo`/`DCFoo`)
+are always generated regardless of the list. The default, when no list is
+written, emits both `C` and `M`.
+
+The list's **first entry decides what the bare name `Foo` means**:
+
+| First entry | `Foo` means | Fits |
+|---|---|---|
+| `C` (the default) | the cell layout, `Foo{C1, …}` | anything an editor holds |
+| `DC` | `DCFoo`, the concrete default spelling | a value document stored by value in a config cell, where a `Foo`-typed field must inline |
+| `M` | `MFoo`, the plain `mutable struct` | a schema whose primary object is the one a simulator mutates |
+
+`DC` emits nothing that `C` does not; it only moves the bare name one step in.
+The coded name always resolves too — a `C` schema still gets `const ACFoo = Foo`,
+so `ACFoo` names the cell layout whichever binding the bare name took. A `[Kind]`
+token before the layout list (`ImmutableCell`, `MutableCell`, …) is the field
+cell kind the auto-wrapping constructor uses; it is independent of the layout
+list.
+
+A package that keeps the same list on every schema declares a preset once —
+[`@document_preset`](../../../source/kernel/document/DocumentMacro.jl) defines
+`@name` as `@document` with a fixed layout list — and every schema in the
+package writes the preset's name instead of repeating the brackets:
+
+```julia
+@document_preset native_document [M, C]     # once, in the package root module
+
+@native_document struct TicTocMessage1      # and then at every declaration
+    name::String
+end
+```
+
+A preset's own arguments still pass through, so a field-kind marker keeps
+working: `@native_document ImmutableCell struct …`.
+
 **Declaring `selection` by hand.** You normally never write it. The one reason to
 is a **value document** that must pin the field's *value* type — the isbits pivot:
 `selection::ImmutableCell{Nothing}` is isbits and not selectable (a leaf value),
@@ -111,12 +160,14 @@ keyword constructors gated exactly as the injected field would. `StyleText` is t
 worked example:
 
 ```julia
-@document ImmutableCell struct StyleText
+@document ImmutableCell [DC] struct StyleText
     font::StyleFont
     color::StyleColor
     selection::Nothing
 end
 ```
+
+The `[DC]` here is the **layout list** — see the next section.
 
 The *cell kind* in the fields decides the node's behavior — `ReactiveCell{T}`
 (the reactive engine, historic `Cell`), `MutableCell{T}` (plain box, no
@@ -274,6 +325,77 @@ when none is given (see "Default base supertype" — `@iomap` was the first of t
 three to do this), so the resulting struct satisfies the IoMap interface (every
 iomap has `projection`, `input`, `output` fields).
 
+## `@projection_template`
+
+```julia
+@projection_template ProjName InType (p, doc) -> <builder expression>
+```
+
+Writes `print_document(p::ProjName, recursion, doc::InType, ctx)` and the
+matching reader from one builder expression, instead of a hand-written
+`print_document`/`map_reference_forward`/`map_reference_backward`/`read_intent`
+group. Every structural projection in the codebase — every domain's `*ToSyntax`
+projection, among others — is written with it; a hand-written pair needs a
+reason (see [code-quality-rules.md](../../rule/code-quality-rules.md)).
+[`@projection`](#projection) still declares the projection struct itself (a
+config/style holder); `@projection_template` supplies the four projection
+functions for it. The macro is defined in
+[projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl).
+
+The builder expression is ordinary Julia that constructs the output document
+(a `SyntaxLeaf`, `SyntaxNode`, …), marked at the positions that carry input
+structure with one of five **marker words**:
+
+| Marker | Marks |
+|---|---|
+| `bound(:field, Type, render; retype=nothing)` | This output position holds the value of `doc.field` (declared `Type`), drawn by `render`; a cursor there maps back to `doc.field`. `retype` names the `Operation` that replaces the whole value when a type-changing edit (e.g. a digit typed into a string) fires. |
+| `project(:field; as=nothing)` | This child is `doc.field`, projected through its own type-dispatched projection (or, with `as`, a supplied projection instance or a `value -> projection` chooser). |
+| `collection(:field)` / `collection(element, :field)` | `doc.field` is a repeated child collection; each element projects through the type dispatcher by default, or through `element` (a `do`-block) when given. |
+| `tokens(thunk)` | A computed, inline sequence of leaves — `thunk` is a zero-argument function returning the leaf vector. |
+| `sections(specs)` | Several fields grouped into their own labelled sub-collections; `specs` is a vector of `(field, make_wrapper)` pairs. |
+
+A marker word resolves only as a call head (`bound(...)`), so a local variable
+or field access of the same name is left alone — a builder does not need to
+import any of the five names itself.
+
+A minimal worked example, the null-and-bool leaves of the JSON domain
+(`source/json/JsonToSyntax.jl`):
+
+```julia
+@projection struct JsonBoolToSyntaxLeaf
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+end
+
+@projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
+    SyntaxLeaf(bound(:value, Bool,
+                     make_hinted_text(() -> doc.value ? "true" : "false",
+                                 () -> !(doc.value isa Bool), "enter json bool", prj.style)))
+```
+
+Printing a `JsonBool` through it needs no hand-written printer at all:
+
+```julia
+julia> iomap = print_document(JsonBoolToSyntaxLeaf(), JsonBool(true));
+
+julia> typeof(iomap)
+RuleIoMap
+
+julia> iomap.output
+SyntaxLeaf(nothing, nothing, TextString("true", …), 0, false)
+```
+
+The `bound(:value, …)` marker is also what makes reference mapping and the
+reader work with no further code: a `map_reference_forward`/`map_reference_backward`
+pair and a `read_intent` method come from the template for every `bound`,
+`project` and `collection` position in the builder.
+
+A structural caret that has no input pre-image (a delimiter the builder always
+renders, never bound to a field) is the one case the template cannot map on its
+own — a domain overrides `read_intent`/`map_reference_forward` for that one
+position, as `XmlElementToSyntaxNode` does for its `<`/`>`/`</` delimiters.
+Everything else — the printer, both reference-mapping directions, and the
+reader — comes from the template.
+
 ## Default field values (`@kwdef`-style)
 
 All three macros (and the underlying `@cell_struct`) accept `Base.@kwdef`-style
@@ -281,12 +403,11 @@ defaults on fields, so you no longer need an outer convenience constructor whose
 only job is to fill in defaults:
 
 ```julia
-@projection struct WidgetButtonToGraphicsCanvas      # <: Projection is defaulted in
+@projection struct WidgetScrollPaneToGraphicsCanvas      # <: Projection is defaulted in
     measure::Function
-    label::StyleText
-    background_color::StyleColor
-    corner_radius::Int = 4        # default
-    shadow_offset::Int = 0        # default
+    font::StyleFont
+    background_color::StyleColor = color_white    # default
+    chrome::Bool = true                            # default
 end
 ```
 
@@ -294,8 +415,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-WidgetButtonToGraphicsCanvas(; measure, label, background_color)        # corner_radius=4, shadow_offset=0
-WidgetButtonToGraphicsCanvas(; measure, label, background_color, corner_radius = 8)
+WidgetScrollPaneToGraphicsCanvas(; measure, font)        # background_color=color_white, chrome=true
+WidgetScrollPaneToGraphicsCanvas(; measure, font, chrome = false)
 ```
 
 Semantics deliberately match `Base.@kwdef`:
