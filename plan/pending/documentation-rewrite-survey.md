@@ -2486,8 +2486,8 @@ secretly done, and no plan claiming a specific remaining item turned out to be f
 | --- | --- | --- | --- |
 | a-present-that-is-a-timeout.md | STALE | 2026-08-15 | 1/2 done; frame-rate reading + a newly found `rotating_vector` crash (`Int64(::Nothing)` in `_render_polyline!`) still open |
 | animation-global-time.md | SUPERSEDED | 2026-08-12 | by `plan/done/per-editor-animation-clock.md` |
-| assistant-api-consolidation.md | ACTIVE | 2026-09-13 | 0/10 checked; assistant tool-vocabulary redesign, part of the same effort as `assistant-recovers-from-a-miss.md` and the done `assistant-finds-the-api.md` |
-| assistant-recovers-from-a-miss.md | ACTIVE | 2026-09-17 | 6/12 checked; stands on two recent done plans; last box is "move this plan to plan/done/" |
+| assistant-api-consolidation.md | ACTIVE | 2026-09-13 | 0/10 checked; assistant tool-vocabulary redesign, part of the same effort as the done `assistant-recovers-from-a-miss.md` and `assistant-finds-the-api.md` |
+| assistant-recovers-from-a-miss.md | DONE | 2026-09-18 | moved to `plan/done/`; what landed, what the measurements kept out, and what a follow-up takes are in its §7 and §8 |
 | bound-sql-statement.md | STALE | 2026-08-12 | confirmed NOT STARTED — `grep -r BoundSql` finds nothing outside this file |
 | cairo-glfw-backend.md | STALE | 2026-08-12 | confirmed NOT STARTED — no `package/cairo` (or any cairo) directory exists |
 | catalog-all-documents.md | STALE | 2026-07-16 | workstreams 1-3 done; workstream 4 (14 `@test_broken` bugs) still open |
@@ -2547,7 +2547,7 @@ and `further-development.md`'s header (which also carries it).
 | file | classification | last real date | note |
 | --- | --- | --- | --- |
 | annotation.md | STALE | 2026-05-27 | confirmed NOT STARTED — no `Annotation`/`AnnotationModule` type in `source/` |
-| assistant-selection-ergonomics.md | STALE / possibly superseded | 2026-06-18 | a reaction to one 40-round assistant transcript; overlaps in spirit with the newer, more considered `assistant-api-consolidation.md` and `assistant-recovers-from-a-miss.md` (both in `plan/pending/`) — not explicitly marked superseded, worth a human check |
+| assistant-selection-ergonomics.md | STALE / possibly superseded | 2026-06-18 | a reaction to one 40-round assistant transcript; overlaps in spirit with the newer, more considered `assistant-api-consolidation.md` (pending) and `assistant-recovers-from-a-miss.md` (done) — not explicitly marked superseded, worth a human check |
 | evaluate-operation-document-arg.md | UNCLEAR | 2026-07-03 | open design question; current code already has `evaluate_operation(editor, op)` — status quo appears to have won by inaction, but no plan says so explicitly |
 | filesystem-file-content-projection.md | STALE | 2026-06-28 | no substantive work since creation |
 | from-scratch-structure.md | STALE | 2026-07-14 | a from-scratch package/layer/slice restructuring brainstorm; largely overtaken by concrete restructuring plans that did land (`package/ is flat`, `one-module-per-slice.md`, etc., all in `plan/done/`) |
