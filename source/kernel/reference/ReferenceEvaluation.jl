@@ -212,6 +212,36 @@ end
 strip_reference_types(other) = other
 
 """
+    copy_reference(reference) -> reference
+
+A reference that does not change when the one it was made from changes.
+
+Use it to keep a path past the moment you read it. A stored selection is a LIVE
+value: as the caret moves, the start and the stop of its last range step are
+rewritten in place, so a path that is merely held follows the caret instead of
+remembering where it was. A copy reads the numbers now and keeps them.
+
+Anything that is not a reference is answered unchanged, so a caller that may hold
+`nothing` needs no guard.
+
+# Example
+
+    before = copy_reference(get_selection(document))
+
+See also `get_selection`, which answers the live path, and
+`strip_reference_types`, which rebuilds a path without its type checkpoints.
+"""
+copy_reference(reference::ConcreteReference) =
+    ConcreteReference(reference.type, _copy_reference_step(get_reference_head(reference)),
+                      copy_reference(get_reference_tail(reference)))
+copy_reference(reference) = reference
+
+# A range step is the one step that is written in place, so it is the one that is
+# rebuilt. Every other step is answered as it is.
+_copy_reference_step(step::RangeReferenceStep) = RangeReferenceStep(step.start, step.stop)
+_copy_reference_step(step) = step
+
+"""
     fold_reference_types(path::Reference) -> Reference
 
 Convert a flat path that may carry interleaved `TypeReferenceStep` *steps* into the

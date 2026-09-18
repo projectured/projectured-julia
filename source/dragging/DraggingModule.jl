@@ -17,7 +17,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..OperationModule: evaluate_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export DraggingDocument

@@ -128,6 +128,31 @@ function evaluate_operation(editor, op::MoveRangeOperation)
     end
 end
 
+# The way back is the move that puts the block where it came from. Both ends are
+# worked out from the numbers the move starts with, because an inverse is taken
+# before the move runs.
+#
+# The index the block goes back to needs the same correction the move itself
+# makes: inside one collection, lifting the block shifts everything after it left
+# by its length. A block that moved LEFT is therefore put back at `a + n`, which
+# the correction turns into `a`; a block that moved right, or moved between two
+# collections, goes back at `a` unchanged.
+function make_inverse_operation(document, op::MoveRangeOperation)
+    source, destination = op.source, op.destination
+    a, b = op.source_start, op.source_stop
+    # The move itself declines these, so there is nothing to take back.
+    (a < 1 || b > length(source) || a > b) && return DoNothingOperation()
+    count = b - a + 1
+    landed = op.destination_index
+    if source === destination && landed > b
+        landed -= count
+    end
+    limit = (source === destination ? length(destination) - count : length(destination)) + 1
+    landed = clamp(landed, 1, limit)
+    back = source === destination && landed < a ? a + count : a
+    MoveRangeOperation(destination, landed, landed + count - 1, source, back)
+end
+
 # ── Reader ────────────────────────────────────────────────────────────────
 
 function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::DraggingIoMap)

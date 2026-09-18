@@ -161,6 +161,12 @@ See also `CellVector`, `CellTable` and `CellMatrix`.
 """
 get_cell_at(cv::ReactiveCellVector, i::Integer) = _elems(cv)[i]
 
+# The operation layer asks for the slot when it must put an element back. It can
+# not name a cell collection, so it asks through this seam and a reactive
+# collection answers the cell: a restored element is then the object it was, and
+# whatever followed that cell follows it still.
+get_slot_at(cv::ReactiveCellVector, i::Integer) = get_cell_at(cv, i)
+
 function Base.setindex!(cv::ReactiveCellVector, val, i::Integer)
     elems = _elems(cv)
     elems[i][] = val                # value change inside the slot Cell

@@ -684,29 +684,49 @@ plan did not foresee.
 
 ### Step 2 — `make_inverse_operation` and `evaluate_invertible_operation!`
 
-- [ ] The two generics and the base methods in a new fragment
+- [x] The two generics and the base methods in a new fragment
       `source/kernel/operation/Inversion.jl`, included from
-      `OperationModule.jl` after `Operations.jl`. The U3 table is the method
+      `OperationModule.jl` after `Rerooting.jl`. The U3 table is the method
       list.
-- [ ] `get_cell_at` for a plain `CellVector`, if it only exists for
-      `ReactiveCellVector` today. The splice inverse needs it.
-- [ ] The methods that belong to a higher package, each beside its operation:
+- [x] **A new seam the plan did not foresee: `get_slot_at(container, index)`.**
+      The kernel can not name `CellVector` — it lives in a package above — so it
+      can not call `get_cell_at` to capture the cells of a splice. It declares
+      `get_slot_at` with the value as its default, and `ProjecturedCollection`
+      answers with the cell. Without it a redo would rebuild every slot cell and
+      orphan whatever followed one.
+- [x] **`copy_reference` moves into the reference layer.** The selection chain is
+      live: the start and the stop of a terminal range step are rewritten in
+      place as the caret moves, so a captured selection must be rebuilt from the
+      numbers it reads now. It is public in `ReferenceEvaluation.jl`, because it
+      is a fact about a reference and not about an operation.
+- [x] The methods that belong to a higher package, each beside its operation:
       the two primitive range operations, `MoveRangeOperation`, and the
       `DoNothingOperation()` answers of the three effect-only operations.
-- [ ] A new `test/kernel/operation/InversionTest.jl` with
+      **`ReplaceTextRangeOperation` of the text slice has none yet**: its range
+      can cross spans and lines, so its way back needs the text slice's own
+      splice. Until then a text-domain range edit is a barrier, and step 5 is
+      where that shows.
+- [x] A new `test/kernel/operation/InversionTest.jl` with
       `test_inversion()`: one testset per row of the U3 table, each of the form
-      "apply, invert, apply the inverse, the document is what it was". Register
-      it in `package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl` and in
+      "apply, invert, apply the inverse, the document is what it was". Registered
+      in `package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl` and in
       `test/kernel/KernelSuite.jl` beside `test_rerooting()`.
-- [ ] The compound ordering probe of step 0 passes.
-- [ ] Test: `test_kernel()`.
+- [x] The compound ordering probe of step 0 passes: two deletes of the same index
+      in one `CompoundOperation` round-trip.
+- [x] Test: `test_kernel()` 1961 / 3 / 3, thirty-nine above step 1.
 
 ### Step 3 — `describe_operation` moves to the operation layer
 
-- [ ] Move `describe_operation` and its three private helpers to
-      `source/kernel/operation/Description.jl`; export it.
-- [ ] `GestureLogDocument.jl` imports the name and keeps `describe_gesture`.
-- [ ] Test: the gesture-log test, and `test_kernel()`.
+- [x] Moved `describe_operation` and its private helpers to
+      `source/kernel/operation/Description.jl`; exported from
+      `OperationModule`. It gains one method: a wrapper is described as what it
+      holds.
+- [x] `GestureLogDocument.jl` keeps `describe_gesture` and re-exports the
+      operation one, so a caller that named it there still finds it.
+- [x] Test: `test_kernel()`. The gesture-log test runs with the rest of the
+      substrate in step 4. **Steps 2 and 3 are one commit**: both change the
+      include list of `OperationModule.jl`, so splitting them would put a commit
+      in the history that does not load.
 
 ### Step 4 — the undo slice
 

@@ -1,0 +1,196 @@
+# Fragment of `OperationModule` — the way back. `make_inverse_operation` answers
+# the operation that undoes another one, `evaluate_invertible_operation!` applies
+# an operation and answers its inverse, and `get_slot_at` is the one seam the two
+# need from the container packages above.
+#
+# An inverse needs the state the change starts from, so it is taken BEFORE the
+# change is applied. That is also why a container operation is not inverted in one
+# piece: the inverse of the second member of a `CompoundOperation` depends on what
+# the first member did. `evaluate_invertible_operation!` interleaves the two, and
+# is open so a container type of a higher package adds its own method.
+#
+# The operations of a higher package declare their own inverses beside their own
+# declarations, exactly as they declare `reroot_operation` there. The methods here
+# cover the operations this layer owns.
+
+"""
+    make_inverse_operation(document, operation) -> operation or nothing
+
+The operation that takes `document` back to the state it is in now, once
+`operation` has been applied to it.
+
+Use it before you apply a change you may have to take back. It reads the
+document, so call it while the document still holds what the change is about to
+overwrite. `nothing` means this operation has no way back, which is a truthful
+answer and not an error: a caller that keeps a history records a point it can
+not undo past.
+
+An operation that changes no document — a file that is written, a zoom — answers
+`DoNothingOperation()` rather than `nothing`. There is nothing to take back, so
+taking it back is doing nothing.
+
+# Example
+
+    inverse = make_inverse_operation(editor.document, operation)
+    evaluate_operation(editor, operation)
+    inverse === nothing || push!(history, inverse)
+
+See also `evaluate_invertible_operation!`, which does the two in the right
+order, and `reroot_operation`, the other open seam every operation may extend.
+"""
+function make_inverse_operation end
+
+# The default: an operation nobody taught to invert has no way back. A caller
+# that records a history marks the point and refuses to undo past it.
+make_inverse_operation(document, operation) = nothing
+
+"""
+    evaluate_invertible_operation!(editor, operation) -> operation or nothing
+
+Apply `operation` against `editor` and answer the way back.
+
+Use it wherever a change must be remembered as well as made. The default takes
+the inverse first and applies second, because an inverse reads the state the
+change starts from.
+
+A container operation needs its own method, because the inverse of its second
+member depends on what its first member did. `CompoundOperation` has one below.
+
+# Example
+
+    inverse = evaluate_invertible_operation!(editor, operation)
+
+See also `make_inverse_operation`, which answers the way back without applying.
+"""
+function evaluate_invertible_operation! end
+
+function evaluate_invertible_operation!(editor, operation)
+    inverse = make_inverse_operation(editor.document, operation)
+    evaluate_operation(editor, operation)
+    inverse
+end
+
+# Each member is inverted against the state that member sees, and the inverses
+# run in the opposite order. A member with no way back makes the whole step one
+# with no way back; the members that already ran stay applied, so the document is
+# right and only the way back is gone.
+function evaluate_invertible_operation!(editor, op::CompoundOperation)
+    inverses = Any[]
+    lost = false
+    for member in op.operations
+        inverse = evaluate_invertible_operation!(editor, member)
+        inverse === nothing ? (lost = true) : pushfirst!(inverses, inverse)
+    end
+    lost ? nothing : CompoundOperation(inverses)
+end
+
+"""
+    get_slot_at(container, index)
+
+What the element at `index` of a sequence container is, as a write would put it
+back.
+
+Use it to read an element you intend to restore. The default answers the value.
+A container whose elements live in cells answers the cell, so a restored element
+is the same object it was and whatever followed that cell follows it still.
+
+This layer can not name a cell collection — those live in a package above it — so
+it asks through this seam and the collection package answers.
+
+# Example
+
+    old = [get_slot_at(elements, i) for i in 1:3]
+
+See also `make_inverse_operation`, which is what needs it.
+"""
+function get_slot_at end
+
+get_slot_at(container, index::Integer) = container[index]
+
+# ── The inverses of this layer's operations ─────────────────────────────────
+
+make_inverse_operation(document, operation::DoNothingOperation) = operation
+
+# An operation that changes no document: the way back is to do nothing.
+make_inverse_operation(document, ::QuitEditorOperation) = DoNothingOperation()
+make_inverse_operation(document, ::AdjustZoomOperation) = DoNothingOperation()
+make_inverse_operation(document, ::AdjustFontZoomOperation) = DoNothingOperation()
+
+# A wrapper's way back is the way back of what it holds, unless the wrapper says
+# otherwise. A wrapper that keeps state of its own — a buffer that records — adds
+# its own method, because putting its state back is part of the way back.
+make_inverse_operation(document, op::WrappingOperation) =
+    make_inverse_operation(document, get_wrapped_operation(op))
+
+# Flipping the same node again is the way back. A `nothing` target was never
+# resolved, so there is no node to flip.
+make_inverse_operation(document, op::ToggleCollapseOperation) =
+    op.target === nothing ? nothing : op
+
+# Both move the selection, so both are taken back by putting the selection where
+# it is now. A document with no live selection has nothing to restore.
+make_inverse_operation(document, ::Union{ReplaceSelectionOperation,
+                                         SelectNextInsertionOperation}) =
+    _make_selection_inverse(document)
+
+# The selection chain is live, so the path is copied rather than held: see
+# `copy_reference`.
+function _make_selection_inverse(document)
+    path = get_selection(document)
+    path === nothing && return DoNothingOperation()
+    ReplaceSelectionOperation(copy_reference(path))
+end
+
+# ── The inverse of the generic write ────────────────────────────────────────
+
+function make_inverse_operation(document, op::ReplaceReferencedValueOperation)
+    reference = strip_reference_types(op.reference)
+    root = op.document === nothing ? document : op.document
+    if reference isa EmptyReference
+        # A whole-root swap, and only a document-rooted one has a root to swap:
+        # put the root that is there now back.
+        op.document === nothing || return nothing
+        return ReplaceReferencedValueOperation(nothing, EmptyReference(), root)
+    end
+    parent_path, terminal = _split_terminal_step(reference)
+    parent = parent_path isa EmptyReference ? root :
+             try_evaluate_reference(root, parent_path)
+    parent === nothing && return nothing
+    _make_slot_inverse(op, parent, terminal, op.value)
+end
+
+# A field write: put back what the field holds now.
+_make_slot_inverse(op::ReplaceReferencedValueOperation, parent, step::FieldReferenceStep, value) =
+    hasproperty(parent, Symbol(step.name)) ?
+        ReplaceReferencedValueOperation(op.document, op.reference,
+                                        getproperty(parent, Symbol(step.name))) :
+        nothing
+
+# An element overwrite: put back the slot that is there now.
+function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
+                            step::RangeReferenceStep, value)
+    index = step.start + 1
+    (index < 1 || index > length(parent)) && return nothing
+    ReplaceReferencedValueOperation(op.document, op.reference, get_slot_at(parent, index))
+end
+
+# A splice: the write replaces `[start, stop)` with `n` items, so the way back
+# replaces `[start, start + n)` with the slots that are there now. A zero-width
+# range with items is an insert, and its inverse is a delete; an empty item
+# vector is a delete, and its inverse is an insert. One rule covers all three.
+function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
+                            step::RangeReferenceStep, value::AbstractVector)
+    (step.start < 0 || step.stop > length(parent) || step.stop < step.start) && return nothing
+    old = Any[get_slot_at(parent, index) for index in (step.start + 1):step.stop]
+    ReplaceReferencedValueOperation(op.document,
+        _replace_terminal_step(strip_reference_types(op.reference),
+                               RangeReferenceStep(step.start, step.start + length(value))),
+        old)
+end
+
+# The same path with another last step.
+function _replace_terminal_step(path::ConcreteReference, step::ReferenceStep)
+    steps = get_reference_steps(path)
+    steps[end] = step
+    Reference(steps...)
+end

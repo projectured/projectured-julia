@@ -75,6 +75,10 @@ end
 
 SaveDocumentOperation(path::AbstractString) = SaveDocumentOperation(String(path))
 
+# The file on disk changes, the document does not, so the way back is to do
+# nothing. A history steps over it rather than stopping at it.
+make_inverse_operation(document, ::SaveDocumentOperation) = DoNothingOperation()
+
 evaluate_operation(editor, op::SaveDocumentOperation) =
     save_document(editor.document, op.path)
 

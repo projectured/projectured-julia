@@ -111,6 +111,10 @@ end
 
 evaluate_operation(editor, op::WriteOsClipboardOperation) = (write_os_clipboard!(op.text); nothing)
 
+# The clipboard of the operating system changes, the document does not, so the
+# way back is to do nothing. A history steps over it rather than stopping at it.
+make_inverse_operation(document, ::WriteOsClipboardOperation) = DoNothingOperation()
+
 # ── Reader gesture helpers ─────────────────────────────────────────────────────
 
 _field_path(name::AbstractString) =

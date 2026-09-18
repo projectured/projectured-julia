@@ -13,7 +13,7 @@ per-path-bearing-operation reference seams `reroot_operation`,
 selection-changing operations drive the selection primitives in the layer below,
 which is why the module sits above references and the selection contract.
 
-The module lives in four fragments that share this namespace:
+The module lives in five fragments that share this namespace:
 
 - [`Interface.jl`](Interface.jl) — the contract: the `Operation` supertype, the
   `WrappingOperation` supertype with its `get_wrapped_operation` /
@@ -26,6 +26,8 @@ The module lives in four fragments that share this namespace:
   `reroot_reference`.
 - [`Inversion.jl`](Inversion.jl) — the way back: `make_inverse_operation`,
   `evaluate_invertible_operation!` and the `get_slot_at` seam.
+- [`Description.jl`](Description.jl) — `describe_operation`, one line about an
+  operation for a human to read.
 
 `evaluate_operation` is duck-typed on `editor`: nothing in the layer names a
 concrete editor type, so it loads well before the editor loop and works against
@@ -52,11 +54,14 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        reroot_reference, reroot_operation, operation_reference, retarget_operation,
        operation_travels_unchanged,
        # from Inversion.jl
-       make_inverse_operation, evaluate_invertible_operation!, get_slot_at
+       make_inverse_operation, evaluate_invertible_operation!, get_slot_at,
+       # from Description.jl
+       describe_operation
 
 include("Interface.jl")   # Operation + evaluate_operation + invalidate_projection!
 include("Operations.jl")  # concrete ops, splice helpers, traversal seam
 include("Rerooting.jl")   # reference-rewrite seams + reroot_reference
 include("Inversion.jl")  # the way back: inverses + the slot seam
+include("Description.jl") # one line about an operation, for a human
 
 end # module

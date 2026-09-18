@@ -244,3 +244,36 @@ retarget_operation(op::ReplaceStringRangeOperation, reference::Reference) =
     ReplaceStringRangeOperation(reference, op.replacement)
 retarget_operation(op::ReplaceNumberRangeOperation, reference::Reference) =
     ReplaceNumberRangeOperation(reference, op.replacement)
+
+# ── The way back ─────────────────────────────────────────────────────────────
+#
+# A range edit replaces the characters of `[s, e)` with a replacement, so the way
+# back replaces `[s, s + length(replacement))` with the characters that are there
+# now. The number form answers a number operation, so the way back reparses the
+# text exactly as the way there did.
+
+make_inverse_operation(document, op::ReplaceStringRangeOperation) =
+    _make_range_inverse(document, op, ReplaceStringRangeOperation)
+make_inverse_operation(document, op::ReplaceNumberRangeOperation) =
+    _make_range_inverse(document, op, ReplaceNumberRangeOperation)
+
+function _make_range_inverse(document, op, constructor)
+    split = _split_replace_reference(op.reference)
+    split === nothing && return nothing
+    target_path, field_name, range_step = split
+    target = try_evaluate_reference(document, target_path)
+    target === nothing && return nothing
+    hasproperty(target, Symbol(field_name)) || return nothing
+    value = getproperty(target, Symbol(field_name))
+    # The same reading of a field the write side takes: a cleared field is the
+    # empty text, and a number is its textual form.
+    text = value === nothing ? "" :
+           value isa AbstractString ? String(value) : string(value)
+    total = length(text)
+    start = clamp(range_step.start, 0, total)
+    stop = clamp(range_step.stop, start, total)
+    replaced = first(last(text, total - start), stop - start)
+    steps = get_reference_steps(strip_reference_types(op.reference))
+    steps[end] = RangeReferenceStep(start, start + length(op.replacement))
+    constructor(Reference(steps...), String(replaced))
+end

@@ -36,7 +36,7 @@ using ..TextModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..OperationModule: evaluate_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation

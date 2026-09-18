@@ -53,6 +53,7 @@ function test_kernel()
         test_reference_evaluation()
         test_reference_rules()
         test_rerooting()
+        test_inversion()
         test_traversal()
         test_event_module()
         test_event_case()
@@ -79,7 +80,7 @@ export check_layering, get_package_source_root, test_layering_checkers
 export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_rerooting,
-       test_traversal, test_event_module, test_event_case,
+       test_inversion, test_traversal, test_event_module, test_event_case,
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
        test_code_execution,

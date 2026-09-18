@@ -52,6 +52,10 @@ end
 
 ExportDocumentOperation(path::AbstractString) = ExportDocumentOperation(String(path))
 
+# The file on disk changes, the document does not, so the way back is to do
+# nothing. A history steps over it rather than stopping at it.
+make_inverse_operation(document, ::ExportDocumentOperation) = DoNothingOperation()
+
 evaluate_operation(editor, op::ExportDocumentOperation) =
     export_document(editor.document, op.path)
 

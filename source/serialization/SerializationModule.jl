@@ -29,7 +29,7 @@ using ..ReferenceModule
 using Serialization
 
 # Imported to extend: this module adds a method to each of these.
-import ..OperationModule: evaluate_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
