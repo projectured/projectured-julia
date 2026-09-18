@@ -130,6 +130,7 @@ end
 # commitability feedback updates per keystroke with no re-print.
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
+    iomap_cell = Cell(nothing)
     typed = TextString(ComputedCell(() -> something(ins.value, "")),
                        Cell(p.value.font),
                        ComputedCell(() -> _typed_color(p, p.completion(ins).state)),
@@ -137,19 +138,35 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     hint = TextString(ComputedCell(() -> p.completion(ins).hint),
                       Cell(p.hint.font), Cell(p.hint.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    # The inner leaf's selection is the insertion's own (`value{k}` is the
-    # leaf-local grammar too); the wrapper routes it through `.content`.
-    leaf = SyntaxLeaf(typed; close=hint, selection=getfield(ins, :selection))
+    # **The rendered selection is the FORWARD IMAGE of the insertion's own, not a
+    # copy of it.** The buffer's cursor is `value{k}` in the insertion's grammar,
+    # and the same place is `content::SyntaxLeaf.value::TextString{k}` in the
+    # output's. The layer below lowers a keystroke against what it sees, so a
+    # cursor left in the input's vocabulary comes back as a path this projection's
+    # backward map does not recognize, and the keystroke is dropped: the buffer
+    # draws a caret nobody can type at.
+    #
+    # The wrapper takes the whole image, and the leaf inside it takes the image
+    # without the `content` step that leads to the leaf.
     node_selection = ComputedCell(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReference || return nothing
         is_introduced_reference(path) && return path
-        ConcreteReference(FieldReferenceStep("content"), path)
+        map_reference_forward(p, iomap_cell[], path)
     end)
-    SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
+    leaf_selection = ComputedCell(() -> begin
+        whole = node_selection[]
+        whole isa ConcreteReference || return nothing
+        is_introduced_reference(whole) && return whole
+        whole.tail
+    end)
+    leaf = SyntaxLeaf(typed; close=hint, selection=leaf_selection)
+    io = SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
         opening_delimiter=TextString(p.prefix, p.label),
         closing_delimiter=TextString(p.suffix, p.label),
         selection=node_selection))
+    iomap_cell[] = io
+    io
 end
 
 # ── Value-edit helpers (mirror PrimitiveStringToSyntaxLeaf) ────────────────────

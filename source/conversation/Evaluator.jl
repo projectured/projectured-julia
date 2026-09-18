@@ -257,5 +257,5 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
 end
 
 @gestures EvaluatorToplevel begin
-    KeyDown(:enter; alt) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    KeyDown(:return; alt) => "Evaluate" => EvaluateSelectedFormOperation(doc)
 end

@@ -297,30 +297,26 @@ not enough. Three defects in the pane came out behind them, and two are fixed:
    follows it. The forward maps still splice; leave them until something proves
    they are wrong.
 
-**What is still open, and what it is not.** A printable key does not reach the
-name buffer. The cause is not the new rows, not the pane, and not the harness.
-The project's own type-in walker says so:
+**A typed name now commits. Two defects were behind it.**
 
-    walk_typein(DocumentInsertion("js"), fabric)
-      insert pos=0/2  → insert produced nothing, not ReplaceStringRangeOperation
-      insert pos=1/2  → insert produced nothing, not ReplaceStringRangeOperation
-      insert pos=2/2  → insert produced nothing, not ReplaceStringRangeOperation
+**The printer did not use its own forward map.** `InsertionToSyntaxLeaf` has a
+correct `map_reference_forward` — `value{k}` becomes
+`content::SyntaxLeaf.value::TextString{k}` — and the printer handed the raw
+document path to the rendered leaf and to its wrapper instead. The layer below
+lowers a keystroke against what it sees, so the edit came back in a vocabulary
+the backward map does not recognize and was dropped: the buffer drew a caret
+nobody could type at. `InsertionNothingToSyntaxLeaf`, beside it, already
+forward-maps inside the cell; the insertion leaf now does the same.
 
-**No insert works at any position of an insertion buffer, and `TextInsertion`
-gives exactly the same three lines.** The walker reports no missing cursor, so
-the caret is drawn; the text layer simply produces no edit for the value span of
-an `InsertionToSyntaxLeaf`. Backspace and Delete behave the same.
+Measured with the project's own walker on a bare `DocumentInsertion`: every
+insert failed before, every insert passes now, and what is left is the same
+backspace and delete boundary cases that `PrimitiveString` has.
 
-`TextInsertion` ships, so either this works through some other chain, or typing
-into an insertion buffer has no coverage and has been broken for some time. The
-suite walks no example that holds a bare insertion, so nothing would have caught
-it.
+**`:enter` is not a key.** The commit binds `:return`, which is what the backend
+sends for keysym 13. A test that sends `:enter` agrees with nothing. The same
+mistake was in the read-eval-print loop's `Alt+Enter`, where it would have meant
+the gesture never fired in the running application; both are `:return` now.
 
-**This belongs to the insertion machinery, not to this plan.** Settle it before
-Step 5, which needs a typed buffer for the read-eval-print loop. Start by asking
-whether `InsertionToSyntaxLeaf` maps its document's `value{k}` caret forward
-onto the value span it draws; `InsertionNothingToSyntaxLeaf` does that for its
-label, and `InsertionToSyntaxLeaf` appears not to.
 3. **A group printed with no tab never draws its first tab.** The standing iomap
    keeps the empty pane it printed. Reproduced on clean `main`, so it is older
    than this plan. The test starts from a group with one tab to step around it.

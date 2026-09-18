@@ -70,6 +70,11 @@ get_document_native_type(::Type{T}) where {T} = nothing
 get_document_schema_name(x) = get_document_schema_name(typeof(x))
 get_document_schema_name(::Type{T}) where {T} = nameof(T)
 
+# A document that carries no name of its own. The argument is untyped on purpose:
+# a slice writes a method for its own type, and a default of the same signature
+# would be overwritten rather than added to.
+get_document_title(document) = nothing
+
 """
 Maximum nesting depth printed by the generic document `show` before child
 documents are abbreviated to `…`. Bounds debug output for deeply nested trees.

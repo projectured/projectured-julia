@@ -41,7 +41,7 @@ render(document) =
                            PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))))
 
 editor(t) = _EvaluatorToplevelMockEditor(t, ToolSet())
-alt_enter() = KeyDown(:enter, ModifierKeys(alt = true))
+alt_enter() = KeyDown(:return, ModifierKeys(alt = true))
 
 @testset "a fresh loop holds one empty form, caret inside it" begin
     toplevel = make_insertion_document(EvaluatorToplevel)

@@ -129,7 +129,7 @@ The argument is untyped in the default on purpose: an application writes a metho
 for its own type, and a default of the same signature would be overwritten rather
 than added to.
 """
-get_document_title(document) = nothing
+function get_document_title end
 
 """
     is_walk_opaque(document) -> Bool
