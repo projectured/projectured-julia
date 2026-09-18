@@ -279,3 +279,16 @@ function _retarget_panel_op(p, iomap, op)
         return op
     end
 end
+
+# ── Natural-projection registration ──────────────────────────────────────────
+#
+# The row that lets a tab draw an assistant. Without it a person who opens one
+# sees its field names, because the render-anything projection falls through to
+# the reflection tail for a document no row claims.
+#
+# The factory form, so every renderer builds its own projection instance.
+
+function __init__()
+    register_natural_graphics!(:assistant,
+        (; measure) -> Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane()])
+end

@@ -328,6 +328,29 @@ of bug this test found. 5 pass, 2 broken.
 
 ### Step 1. Four tools register their own row
 
+**Status: three done, 2026-09-18.** The assistant, the gesture log and the
+reference inspector each register from their own `__init__`. `Workspace` waits
+for Step 8, which moves it to the file system slice — that slice already
+registers a row and already depends on the natural package, so the file explorer
+costs nothing there and a dependency added to the workbench now would be thrown
+away.
+
+The duplicate rows in `example/projectured/Gallery.jl` and
+`example/projectured/Application.jl` are **not** removed yet. An `extra` row
+still wins over a registered one, so both applications draw exactly as before.
+They go in Step 8, with the workbench stage they are tangled with.
+
+Two packages gained a dependency on `ProjecturedNatural`, and the inspector also
+on `ProjecturedProjection`, because `ChainingProjection` was not reachable from
+it. Run `Pkg.resolve()` after adding a dependency; `instantiate` alone does not
+re-resolve.
+
+**Test.** [test/projectured/projection/ToolViewTest.jl](../../test/projectured/projection/ToolViewTest.jl),
+function `test_tool_views()`. It asserts each tool takes no argument, that the
+renderer claims it rather than falling through to "no natural rendering", and
+that the insertion resolves it by name. 9 pass.
+
+
 Each slice registers from its `__init__`, with `register_natural_graphics!` for
 a tool that draws widgets and `register_natural_syntax!` for one that draws a
 tree.

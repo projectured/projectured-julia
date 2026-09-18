@@ -10,6 +10,8 @@ relative `..XxxModule` references.
 module ProjecturedInspector
 
 using ProjecturedKernel
+using ProjecturedNatural
+using ProjecturedProjection
 using ProjecturedScreen
 using ProjecturedStyle
 using ProjecturedText
@@ -27,6 +29,8 @@ const IntentModule = ProjecturedKernel.IntentModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
+const NaturalModule = ProjecturedNatural.NaturalModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 
 include("../../../source/inspector/InspectorModule.jl")
 

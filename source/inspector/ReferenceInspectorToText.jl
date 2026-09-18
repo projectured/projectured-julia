@@ -79,3 +79,16 @@ end
 
 map_reference_forward(::ReferenceInspectorToText, ::SimpleIoMap, _) = nothing
 map_reference_backward(::ReferenceInspectorToText, ::SimpleIoMap, _) = nothing
+
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that lets a tab draw a reference inspector. The factory form, so
+# every renderer builds its own projection instance.
+
+function __init__()
+    register_natural_graphics!(:inspector,
+        (; measure) -> Pair{Type,Any}[
+            ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
+                                                      WordWrapping(measure = measure),
+                                                      TextToGraphics(measure = measure)),
+        ])
+end

@@ -27,6 +27,7 @@ using ..EventPatternModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
+using ..NaturalModule
 using ..OperationModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule

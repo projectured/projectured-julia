@@ -12,7 +12,9 @@ using ..DocumentModule
 using ..EventModule
 using ..IntentModule
 using ..IoMapModule
+using ..NaturalModule
 using ..OperationModule
+using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule

@@ -12,6 +12,7 @@ module ProjecturedGestureLog
 using ProjecturedCollection
 using ProjecturedGraphics
 using ProjecturedKernel
+using ProjecturedNatural
 using ProjecturedProjection
 using ProjecturedStyle
 using ProjecturedSyntax
@@ -38,6 +39,7 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
+const NaturalModule = ProjecturedNatural.NaturalModule
 
 include("../../../source/gesturelog/GestureLogModule.jl")
 

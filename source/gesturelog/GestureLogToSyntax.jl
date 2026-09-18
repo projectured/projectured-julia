@@ -57,3 +57,11 @@ function _line(p::GestureLogToSyntax, entry::GestureLogEntry)
         SyntaxLeaf(TextString(entry.operation, operation_style)),
     ])
 end
+
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that lets a tab draw a gesture log. The factory form, so every
+# renderer builds its own projection instance.
+
+function __init__()
+    register_natural_syntax!(:gesturelog, () -> Pair{Type,Any}[GestureLog => GestureLogToSyntax()])
+end
