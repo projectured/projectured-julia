@@ -250,10 +250,15 @@ end
 Project the editor's document through its projection pipeline. The root
 `PrinterContext` is minted with the editor's own `clock`, so animated cells
 descendants build subscribe to this editor's clock rather than a shared one.
+
+It also carries the editor's own document under `:root`. A projection deep in
+the tree cannot reach the root any other way, and one that shows something about
+the whole editor — where the selection is, which tabs are open — needs it.
 """
 function print!(editor::Editor)
     if editor.iomap === nothing
-        ctx = with_clock(PrinterContext(), editor.clock)
+        ctx = with_property(with_clock(PrinterContext(), editor.clock),
+                            :root, editor.document)
         editor.iomap = print_document(editor.projection, nothing,
                                       editor.document, ctx)
     end

@@ -220,10 +220,15 @@ Three forms answer, and the field is an ordinary reactive field:
 | `SelectionInspector(() -> get_selection(other))` | **a computed cell**, the function its thunk | a `Reference`, re-derived |
 | `SelectionInspector(other)` | the document | a `Document` |
 
-**The computed cell is what makes the follow live.** A reactive field auto-wraps
-its argument with `Cell(x)`, and `Cell(f::Function)` makes the function the
-cell's thunk. So reading `inspector.source` re-runs the function whenever
-anything it read changed. The printer needs no cell of its own for this form.
+**The computed cell is what makes the follow live.** Reading `inspector.source`
+re-runs the function whenever anything it read changed, so the printer needs no
+cell of its own for this form.
+
+**Corrected 2026-09-18, measured.** The wrap is **not** automatic. The keyword
+constructor stores a function as an ordinary value, and `view.source` then reads
+back as the function — the view draws nothing, because a function is not a
+reference. The positional constructor for a `Function` must put it in a
+`ComputedCell` itself, and that is what makes the field answer a reference.
 
 `find_inspected_selection(source, ctx)` therefore has three methods, one per read
 form — `nothing`, `Reference`, `Document`. A function never reaches it. It
@@ -389,6 +394,24 @@ step.
 gestures, assert both are in `entries`.
 
 ### Step 3. The selection display takes its source
+
+**Status: done, 2026-09-18.** All four forms work and the view follows a
+selection that moves through a standing render. `SelectionInspector` lives in
+the inspector slice beside `ReferenceInspector`, which stays as it is — it is the
+hover probe's own document, it holds a reference and its target, and a projection
+fills it rather than a source.
+
+Two facts came out of the work:
+
+- **A module takes one `__init__`.** The inspector slice owns two projections
+  now, and a second `__init__` in a second file silently overwrote the first
+  until precompilation refused it. Both rows are registered in
+  `InspectorModule.jl`.
+- **A computed source with no root shows `?` for a parent type.** The human
+  readable form names each step's parent from the type checkpoints, and those
+  come from the document the reference points into. A function does not say what
+  document it read, so there is nothing to annotate against. That is honest: a
+  person who wants the checkpoints uses the document form.
 
 Add `SelectionInspector` to the inspector slice, per D8.
 

@@ -387,6 +387,7 @@ function test_all()
     test_application()
     test_insertion_in_tab()
     test_tool_views()
+    test_selection_inspector()
     test_value_viewer()
     test_builder()
     test_gallery_wrappers()
@@ -449,7 +450,7 @@ export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projecti
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
 export test_workbench_file_keys, test_application, test_insertion_in_tab,
-       test_tool_views,
+       test_tool_views, test_selection_inspector,
        test_value_viewer, test_builder,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db

@@ -18,6 +18,7 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule
+using ..SelectionModule
 using ..StyleModule
 using ..TextModule
 
@@ -27,10 +28,33 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 export ReferenceInspectorToText
 export HoverProbeProjection, HoverProbeIoMap
 export ReferenceInspector
+export SelectionInspector, SelectionInspectorToText,
+       find_inspected_selection, get_inspected_document
 
 
 include("ReferenceInspector.jl")
+include("SelectionInspector.jl")
 include("ReferenceInspectorToText.jl")
+include("SelectionInspectorToText.jl")
 include("HoverProbe.jl")
+
+# ── Natural-projection registration ─────────────────────────────────────────
+#
+# The rows that let a tab draw an inspector. A module takes one `__init__`, and
+# this module owns two projections, so both rows are registered here rather than
+# beside each projection.
+#
+# The factory form, so every renderer builds its own projection instances.
+
+function __init__()
+    register_natural_graphics!(:inspector, (; measure) -> Pair{Type,Any}[
+        ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
+                                                 WordWrapping(measure = measure),
+                                                 TextToGraphics(measure = measure)),
+        SelectionInspector => ChainingProjection(SelectionInspectorToText(),
+                                                 WordWrapping(measure = measure),
+                                                 TextToGraphics(measure = measure)),
+    ])
+end
 
 end # module
