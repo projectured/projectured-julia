@@ -59,8 +59,9 @@ into another, it writes a **marker** instead of the node: `<<file("b.xml")>>`
 names another file's root, and `<<node(file("a.json"),
 "entries[1].value")>>` names one node inside it. A marker is `<<expr>>`, a
 restricted Julia expression read by the Julia parser and run by a small
-interpreter — never `eval` — so opening a project can never execute
-arbitrary code. `file` and `node` are built in; a package registers any other
+interpreter. The interpreter never calls `eval`, so opening a project can
+never execute arbitrary code. `file` and `node` are built in; a package
+registers any other
 verb with `register_marker_function!(:name, f)`, called as
 `f(project, args...)`. Loading parses every file with its own format first,
 then walks each tree and replaces every marker leaf with the node it names,

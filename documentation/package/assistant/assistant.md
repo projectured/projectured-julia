@@ -13,7 +13,7 @@ The assistant slice: the conversation as a document, the turn that talks to a mo
 | `source/assistant/AssistantToWidget.jl` | the view: the transcript, the input field and the state of a running turn |
 | `source/assistant/AssistantModule.jl` | the module, and what it exports |
 
-The model itself is not here. `ProjecturedOllama` and `ProjecturedAnthropic` each give an `Llm`, and the assistant holds one.
+The model itself is not here. `ProjecturedOllama` and `ProjecturedAnthropic` each give an `Llm`, and the assistant holds one. [llm.md](../llm/llm.md) says what each backend needs to run.
 
 ## The document
 

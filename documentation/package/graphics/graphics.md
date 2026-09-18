@@ -4,7 +4,7 @@
 
 <img width="396" alt="Graphics Image example" src="../../../asset/image/example/graphics-image.png">
 
-The graphics domain provides the backend-agnostic rendering primitives. It represents visual elements as reactive documents that can be projected to the screen, and is consumed by both the SDL2 backend (native windows) and the web backend (which serializes the same primitives to a JSON draw-list the browser paints — see the [devices and backends guide](../kernel/devices-and-backends.md#webbackend)).
+The graphics domain, in `source/graphics/`, provides the backend-agnostic rendering primitives. It represents visual elements as reactive documents that can be projected to the screen, and is consumed by both the SDL2 backend (native windows) and the web backend (which serializes the same primitives to a JSON draw-list the browser paints — see the [devices and backends guide](../kernel/devices-and-backends.md#webbackend)).
 
 ## Types
 
