@@ -7,6 +7,12 @@ mints is checked against
 them with the rule each one answers to. Nothing is implemented, and nothing is
 pushed.
 
+**Steps 3, 8 and 9 wait for another plan.**
+[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md)
+removes the workbench and moves what survives it into the pane and file system
+slices. §2.7 says what that changes here, and it makes those three steps
+smaller.
+
 **The tooltip is a generic over documents, not over widgets** (§3.4), which is
 the owner's ruling of 2026-09-18. A widget stores its tooltip in a field; every
 other document computes one.
@@ -139,13 +145,16 @@ Three facts follow.
 
 ### 2.4 The navigator and the closure of the interface
 
+Every row here is the tree of 2026-09-18. §2.7 says which of them the other plan
+changes, and Step 9 works from §2.7 where the two disagree.
+
 | Fact | Where |
 | --- | --- |
 | The navigator needs a closure of 23 packages | `ProjecturedWorkbench`, `ProjecturedFileSystem`, `ProjecturedFileFormat` and their dependencies |
 | Of those, only `ProjecturedWorkbench` and `ProjecturedFileSystem` are new to `OmnetIde` | omnet-julia `package/OmnetIde/Project.toml` |
 | A document format is opt-in and registers itself, so the interface opens only the formats its closure holds: Julia, Markdown and Math today | [source/fileformat/NaturalFormat.jl:15](../../source/fileformat/NaturalFormat.jl#L15) |
 | The campaign window forbids `ProjecturedFileFormat` and `ProjecturedSyntax`, so the navigator must not go there | omnet-julia `test/legacy/runner/CampaignUiClosureTest.jl:37` |
-| A `WorkbenchEditor` and a `WorkbenchNavigator` sit in a plain `PaneTab` when the host adds two dispatch entries | [example/projectured/Application.jl:188](../../example/projectured/Application.jl#L188) |
+| A `WorkbenchEditor` and a `WorkbenchNavigator` sit in a plain `PaneTab` when the host adds two dispatch entries. Both types go away, and the entries with them (§2.7) | [example/projectured/Application.jl:188](../../example/projectured/Application.jl#L188) |
 | omnet-julia reads and writes no file through `ProjecturedFileFormat` today | grep answers nothing |
 
 **Two closure tests already fail on a clean omnet-julia `main`.** `IdeClosureTest`
@@ -188,6 +197,36 @@ cheapest item in this plan and it is the reason the chrome looks unfinished.
   ([source/widget/WidgetDocument.jl:471](../../source/widget/WidgetDocument.jl#L471))
   keeps its place for a host that wants an overlay inside its own content.
 
+### 2.7 Another plan removes the workbench under us
+
+[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md) is
+written and not started. It affects six places in this plan, and mostly it makes
+them smaller.
+
+| What that plan decides | Where | What it does to this plan |
+| --- | --- | --- |
+| `WorkbenchEditor` goes away. A file tab holds a `FileDocument`, which carries its own `filename`. `Ctrl+S` calls `save_file!` and `Ctrl+O` calls `load_file`. | its D4, Step 7 | Step 8 acts on a `FileDocument`, not on a tab beside a name. |
+| `Workspace`, `WorkspaceFolder` and `WorkspaceToFileSystem` move to the file system slice. `WorkbenchFile.jl` becomes `source/pane/PaneFile.jl`. The three workbench packages are deleted. | its D6, Step 8 | Step 9 adds **one** package to the interface, not two. `make_file_api` and the file operations belong to `PaneModule`. |
+| A tool registers its own natural row from its `__init__`. The file explorer and the `FileDocument` each get one. | its D1, Steps 1 and 7 | Step 9 needs no dispatch entry. A host that depends on the package gets the explorer. |
+| The `:workbench` value of `APPLICATION_WINDOWS` goes, and the parameter with it. One window is left. | its Step 8 | §3.7 drops its note about a window that is not a pane tree. |
+| The whole editor document saves to a `.pred` file, with a reference to each open file. | its Steps 9 and 10 | **The chrome must not be in the document** (§3.1). |
+| `print!` puts `editor.document` in the root printer context as the `:root` property. | its D8 | The status line of §3.7 reads the same property. |
+
+**Which plan goes first.** Steps 7 and 8 of that plan must land before Steps 3,
+8 and 9 of this one. Steps 0 to 2 and 4 to 7 of this plan touch nothing it
+moves, so the two can run side by side up to that point.
+
+**Two things this plan hands back to that one.**
+
+1. **The clipboard wrapper will be in the saved document.** Step 2 turns it on in
+   the application, and it sits above the pane tree. Its D5 lists `PaneTree`,
+   `Assistant`, `GestureLog` and `SelectionInspector` as documents that must
+   write less; the clipboard slice is not on that list and should be.
+2. **The gallery's `shell = true` calls `make_shell_document`**
+   ([example/projectured/Gallery.jl:266](../../example/projectured/Gallery.jl#L266)),
+   which its Step 8 deletes with `example/workbench/`. Step 7 of this plan gives
+   the gallery the projection to use instead.
+
 ## 3. Decisions
 
 ### 3.1 One package holds the shell of a window
@@ -200,8 +239,23 @@ holds what sits between a window and the document in it:
   `make_ide_window_wrap` is today, moved down and made general.
 - `make_opened_window_projections(...)` — what a window that a wrapper opens
   draws with.
-- The shell document: a `WidgetShell` around the content of the window, with a
-  menu bar, a toolbar, a status line and a context menu.
+- `WindowShellProjection`, which prints a `WidgetShell` around whatever the inner
+  projection printed: a menu bar, a toolbar, a status line and a context menu.
+
+**The shell is drawn, not stored.** The projection makes the `WidgetShell`; no
+document is wrapped in one. Three reasons, and the first is the one that decides
+it:
+
+1. The other plan saves the whole editor document to a `.pred` file (§2.7). A
+   menu bar in that file would be the binary's chrome saved as the person's
+   work, and a layout saved by the application would carry the application's
+   menu into the interface.
+2. A saved document would have to be unwrapped on load, or the fold would wrap a
+   second shell around the first.
+3. `WidgetShell` would need `register_pred_type!`, and every band with it.
+
+The clipboard is the other way round, and stays that way: it wraps the document
+because what it stores is the person's, not the binary's.
 - The tooltip wrapper. `TooltipProbeProjection` lives in the tooltip slice, and
   the shell composes it (§3.14).
 - `WidgetPopupResolverProjection` at the root of the window's content, so that
@@ -213,13 +267,14 @@ It depends on `ProjecturedGestureHelp`, `ProjecturedGestureLog`,
 dependency, so `ProjecturedShell` is a sub-stem and the `Projectured` umbrella
 aggregates it.
 
-`make_shell_document` and `make_shell_projection` move out of
-`example/workbench/` into this package, with the names they have. The pair
-`make_<thing>_document` / `make_<thing>_projection` is the convention every
-wrapper here already follows: `make_clipboard_document` /
-`make_clipboard_projection`, `make_dragging_document` /
-`make_dragging_projection`, `make_workbench_document` /
-`make_workbench_projection`. The gallery keeps calling them.
+`make_shell_document` and `make_shell_projection` in `example/workbench/` are
+**not** moved. They wrap a document, which the paragraph above rejects, and the
+other plan deletes the folder they live in. `WindowShellProjection` replaces
+both, and Step 7 gives the gallery's `shell = true` the new one.
+
+The pair `make_<thing>_document` / `make_<thing>_projection` stays the convention
+for a wrapper that does own document state: `make_clipboard_document` /
+`make_clipboard_projection` is the one this package composes.
 
 **The package brings its siblings.** [package-rules.md](../../documentation/rule/package-rules.md)
 asks for them and `test_package_graph()` asserts it:
@@ -230,7 +285,8 @@ asks for them and `test_package_graph()` asserts it:
   the imports and the ordered includes. `ShellModule` is free today. Every other
   file under `source/shell/` is a fragment that declares no module.
 - The slice declares no document of its own, so no `ShellDocument.jl` is written.
-  A file is named for what it defines: `WindowWrap.jl`, `WindowShell.jl`.
+  A file is named for what it defines: `WindowWrap.jl` holds the fold and
+  `WindowShell.jl` holds `WindowShellProjection`.
 
 **Why a package and not a function in each binary.** Each binary composes the
 wrappers by hand today, and the two lists drifted apart. One function that takes a
@@ -419,11 +475,18 @@ says so.
 
 The status line shows three fields: the title of the focused tab, the selection
 as `ReferenceToHumanReadableText` prints it, and what the host appends. The host
-appends the run state in the interface and nothing in the application.
+appends the run state in the interface and nothing in the application. It reads
+the selection from the `:root` property of the root printer context, which the
+other plan puts there for its selection display (§2.7); neither tool needs its
+own way in.
 
 A host adds a menu, a toolbar button and a status field through keywords of
 `make_window_wrap`, so the interface adds Run and Stop without the shell
 knowing them.
+
+The first draft said that `--window=workbench` is not a pane tree and gets none
+of these keys. The other plan deletes that window and the parameter with it
+(§2.7), so there is one window and the note is gone.
 
 ### 3.8 The application declares its verbs
 
@@ -432,9 +495,11 @@ make_application_api() = Any[make_pane_api()..., make_interface_api()...,
                              make_file_api()...]
 ```
 
-`make_file_api()` is new and belongs beside the file verbs, in the workbench
-slice: open a file in a tab, save the tab, reload the tab, list the workspace,
-read a document from a path, write a document to a path.
+`make_file_api()` is new and belongs beside the file verbs. The other plan moves
+`WorkbenchFile.jl` to `source/pane/PaneFile.jl` (§2.7), so they are in the pane
+slice and `PaneModule` owns them: open a file in a tab, save the tab, reload the
+tab, list the workspace, read a document from a path, write a document to a
+path.
 
 `APPLICATION_SYSTEM` is new, and it is what the model is told about itself, as
 `IDE_SYSTEM` is in the interface. The greeting, the system text and the module
@@ -447,10 +512,15 @@ write into a record of a run. The application edits files, so cut is what a
 person expects, and the toggle shows what is stored. The application offers all
 six.
 
-### 3.10 The navigator goes into the interface, not into the campaign window
+### 3.10 The file explorer goes into the interface, not into the campaign window
 
-`OmnetIde` gains `ProjecturedWorkbench` and `ProjecturedFileSystem`. It opens a
-navigator tab on the project directory, in the first group, beside the runner.
+`OmnetIde` gains `ProjecturedFileSystem`, and that is the whole of it. The other
+plan moves `Workspace` and `WorkspaceToFileSystem` into that slice and deletes
+`ProjecturedWorkbench` (§2.7), so one package carries what two would have.
+
+The interface opens a file explorer tab on the project directory, in the first
+group, beside the runner. It adds no dispatch entry, because the explorer
+registers its own natural row.
 
 The campaign window does not get it. Its guard forbids `ProjecturedFileFormat`
 and `ProjecturedSyntax` so that the small binary stays small, and the navigator
@@ -514,7 +584,7 @@ to correct.
 | `TooltipProbeProjection`, `TooltipProbeIoMap` | projection | `<Stem>Projection` and `<Stem>IoMap`. The stem mirrors `HoverProbeProjection`, which probes the pointer the same way. |
 | `ContextMenuProbeProjection`, `ContextMenuProbeIoMap` | projection | The same stem, for the right press. |
 | `FileSystemChooser` | document | A noun, in the `FileSystem<Noun>` family beside `FileSystemFile` and `FileSystemDirectory`. |
-| `WriteDocumentFileOperation` | operation | A verb-first phrase ending in `Operation`, beside `OpenWorkspaceFileOperation`. |
+| `WindowShellProjection`, `WindowShellIoMap` | projection | `<Stem>Projection` and `<Stem>IoMap`, in `source/shell/WindowShell.jl`. |
 | `tooltip`, `context_menu` | fields | snake_case nouns. `context_menu` already exists on `WidgetShell`. |
 
 **Who owns each name.** Every exported name has exactly one owning module.
@@ -532,9 +602,18 @@ to correct.
   `ProjecturedDomain`, so that it can name the generic it defaults to.
 - `BackendModule` owns `get_screen_origin`.
 - `FileSystemModule` owns `FileSystemChooser`.
-- `WorkbenchModule` owns `WriteDocumentFileOperation` and `make_file_api`.
-- `ShellModule` owns `make_window_wrap`, `make_opened_window_projections`,
-  `make_shell_document` and `make_shell_projection`.
+- `PaneModule` owns `make_file_api`, and the save and reload operations that the
+  other plan moves into `source/pane/PaneFile.jl`. **This plan mints no file
+  operation.** Save As writes the `filename` of the `FileDocument` and then
+  reuses the save operation that is already there, so it is a `CompoundOperation`
+  of two things that exist.
+- That other plan must rename those two operations when it moves them:
+  `SaveWorkbenchEditorOperation` and `ReloadWorkbenchEditorOperation` name a type
+  it deletes. `SaveFileOperation` and `ReloadFileOperation` read as English and
+  follow the law. This plan uses those names and says so here, so the two plans
+  do not each invent one.
+- `ShellModule` owns `make_window_wrap`, `make_opened_window_projections` and
+  `WindowShellProjection`.
 
 **What the law changed in the first draft.** Three names were wrong, and each
 would have reached the code.
@@ -600,8 +679,10 @@ the new count here.
       window's content. This is the one behaviour that Step 1 does change, and
       it is a repair: a `WidgetSelect`, a submenu and a `WidgetContextMenu` start
       to open in both binaries (§2.5).
-- [ ] Move `make_shell_document` and `make_shell_projection` out of
-      `example/workbench/` into the package. The gallery keeps its call.
+- [ ] Write `WindowShellProjection` in `source/shell/WindowShell.jl`. Do not move
+      `make_shell_document`: the shell is drawn, not stored (§3.1). Step 7 fills
+      the bands; Step 1 draws a shell with none, so the fold is complete before
+      the chrome is.
 - [ ] Add `ProjecturedShell` to the `Projectured` umbrella.
 - [ ] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_wrap`
       that names the wrappers the interface wants. `IDE_CLIPBOARD_GESTURES` stays
@@ -630,7 +711,9 @@ the new count here.
 
 ### Step 3 — the application declares its verbs
 
-- [ ] Add `make_file_api()` beside the file verbs in the workbench slice.
+- [ ] **Needs Step 8 of the other plan first** (§2.7): the file verbs must be in
+      the pane slice before an API names them.
+- [ ] Add `make_file_api()` beside the file verbs, in the pane slice.
 - [ ] Add `make_application_api()` in the application.
 - [ ] Add `APPLICATION_SYSTEM`, and give it to the `Assistant`.
 - [ ] `run_application` calls `declare_api!(editor.tools, make_application_api())`
@@ -726,6 +809,9 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 - [ ] omnet-julia: delete `_paint_windows!`, `CAMPAIGN_BACKGROUND` and the
       `background` keyword of `run_campaign_window`. The interface appends its
       own Run and Stop to the toolbar.
+- [ ] Give the gallery's `shell = true` the new projection, so that the other
+      plan can delete `example/workbench/` without taking the option with it
+      (§2.7).
 - [ ] A new `test_window_shell()`: every menu item runs the gesture it names, a
       greyed item is greyed when its wrapper is off, and the status line follows
       the focused tab.
@@ -743,12 +829,15 @@ The File menu of Step 7 names them, so they are written here and not later.
 - [ ] `WidgetDialog` holds it, and `OpenPopupOperation` opens it, so the dialog
       rides the route §3.1 repaired.
 - [ ] Open: the picker answers a path, and the window opens it in a new tab with
-      `make_workbench_file_editor`.
-- [ ] Save As: the picker answers a path, `WriteDocumentFileOperation` writes the
-      tab there, and the tab takes the path as its file name. A tab with no name
-      and a `Ctrl+S` opens the Save As dialog instead of declining, which is what
+      `make_file_tab`, which the other plan leaves in the pane slice (§2.7).
+- [ ] Save As: the picker answers a path, a `CompoundOperation` writes the
+      `filename` of the `FileDocument` and then runs `SaveFileOperation`. This
+      plan mints no operation (§3.14). A file with no name and a `Ctrl+S` opens
+      the Save As dialog instead of declining, which is what
       [source/workbench/WorkbenchFile.jl:49](../../source/workbench/WorkbenchFile.jl#L49)
-      says is future work today.
+      calls future work today.
+- [ ] **Needs Steps 7 and 8 of the other plan first** (§2.7). Until a tab holds a
+      `FileDocument`, there is no `filename` to write.
 - [ ] Both go on the File menu, and both get a key: `Ctrl+Shift+O` and
       `Ctrl+Shift+S`.
 - [ ] The interface gets them too, because it has the navigator from Step 9 and
@@ -765,17 +854,21 @@ The File menu of Step 7 names them, so they are written here and not later.
 
 ### Step 9 — the file navigator in the interface
 
-- [ ] omnet-julia: add `ProjecturedWorkbench` and `ProjecturedFileSystem` to
-      `package/OmnetIde/Project.toml`.
-- [ ] `run_omnet_ide` opens a navigator tab on the project directory, in the
+- [ ] **Needs Steps 7 and 8 of the other plan first** (§2.7).
+- [ ] omnet-julia: add `ProjecturedFileSystem` to `package/OmnetIde/Project.toml`.
+      One package, not the two §2.4 counted: the other plan moves `Workspace` and
+      `WorkspaceToFileSystem` into that slice and deletes `ProjecturedWorkbench`.
+- [ ] `run_omnet_ide` opens a file explorer tab on the project directory, in the
       first group.
-- [ ] Add the two dispatch entries a host needs, as §2.4 names them.
+- [ ] Add no dispatch entry. The file explorer and the `FileDocument` register
+      their own natural rows, so the interface draws them by depending on the
+      package.
 - [ ] Set the closure cap of `IdeClosureTest` to the true number, and say in the
       test why it moved. Do not touch `CampaignUiClosureTest`: the campaign
       window gains nothing.
 - [ ] Prove that the campaign window's closure did not change.
-- [ ] A new test opens a Julia file and a Markdown file from the navigator of the
-      interface.
+- [ ] A new test opens a Julia file and a Markdown file from the file explorer of
+      the interface.
 - Tests: in omnet-julia `test_ide_window_wrap()`, `IdeClosureTest`,
   `CampaignUiClosureTest`.
 
@@ -807,6 +900,7 @@ The File menu of Step 7 names them, so they are written here and not later.
 | The flag set that works on X11 may not work on Wayland, macOS or Windows. | Step 5 checks the two this machine has and writes down what it could not check. A backend that cannot answer is named in the guide, not hidden. |
 | The web client must draw a `:tooltip` window in the page, which is a second drawing path. | It is one branch in `client.js` at the point where a window is opened. Step 5 asserts that a `:tooltip` window never enters `pendingPopups`. |
 | A computed tooltip runs while the person moves the pointer, and a slow one stalls the window. | `compute_tooltip` is called once the pointer has rested for the dwell time, and its answer is held until the pointer moves to another document. Step 4 keeps every method cheap: the Julia one reads a docstring that Julia already holds, and computes no layout. |
+| Another plan removes the workbench under this one, and three steps here name what it moves. | §2.7 names every place, and Steps 3, 8 and 9 each say which of its steps they wait for. Steps 0 to 2 and 4 to 7 touch nothing it moves, so neither plan blocks the other for long. |
 | A dialog is modal, and a modal that cannot be closed traps the person. | Step 8 gives every dialog an Escape that cancels and writes nothing, and tests it. |
 
 ## 6. Out of scope
