@@ -137,7 +137,7 @@ Inject `![...](...)` image references into the guide files and `README.md`.
 Idempotent: re-running produces no changes once images are in place.
 """
 function update_guide_screenshots(; repo_root=joinpath(@__DIR__, "..", ".."))
-    _update_examples_tour(joinpath(repo_root, "documentation", "examples-tour.md"))
+    _update_examples_tour(joinpath(repo_root, "documentation", "guide", "examples-tour.md"))
     _update_domain_guides(repo_root)
     _update_readme(joinpath(repo_root, "README.md"))
     # Convert any remaining plain Markdown example-images (thumbnail tables, the

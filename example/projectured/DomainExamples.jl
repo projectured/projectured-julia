@@ -47,7 +47,9 @@ const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_docume
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const process_diagram_example = Example("process_diagram", make_process_diagram_document_example, make_process_diagram_projection_example)
-const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example)
+# The workbench fills the window it is offered, so an offscreen render needs a
+# size: without one it is a strip of no height.
+const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example; render_width=1600, render_height=1000)
 # The visual tier's `pane_example` with real domain documents in its tabs: the
 # focused tab holds the json example document, and the renderer is the natural
 # projection, so any other domain works in a tab too.
