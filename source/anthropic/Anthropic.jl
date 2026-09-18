@@ -1,8 +1,74 @@
-export AnthropicLlm
+export AnthropicLlm, get_newest_anthropic_model, find_adaptive_model
 
 const _ANTHROPIC_URL     = "https://api.anthropic.com/v1/messages"
 const _ANTHROPIC_VERSION = "2023-06-01"
-const _DEFAULT_MODEL     = "claude-opus-4-5-20251101"
+const _MODELS_URL        = "https://api.anthropic.com/v1/models"
+# The alias the backend falls back to. An alias, and not a dated id: it keeps
+# naming a model that exists after a new one comes out.
+const _DEFAULT_MODEL     = "claude-opus-5"
+# The newest model this process found, asked once. Empty before the first ask.
+const _NEWEST_MODEL      = Ref{String}("")
+
+"""
+    get_newest_anthropic_model(api_key; models_url) -> String
+
+The newest Claude model that this assistant can use, from the Models API.
+
+**Asked once in a process**, and kept, because a list request per turn is a
+request that buys nothing: the list changes when Anthropic releases a model, not
+while a person types.
+
+The list arrives newest first, so the first model that takes **adaptive
+thinking** is the newest one this backend can drive: `_thinking_param` sends
+`{"type": "adaptive"}`, which a model without that capability refuses. A model
+whose entry carries no capability block is left out rather than guessed about.
+
+With no key, or with a request that fails, the answer is
+[`_DEFAULT_MODEL`](@ref): a name that works is better than an error before the
+first turn.
+"""
+function get_newest_anthropic_model(api_key::AbstractString;
+                                    models_url::AbstractString = _MODELS_URL)
+    isempty(_NEWEST_MODEL[]) || return _NEWEST_MODEL[]
+    isempty(api_key) && return _DEFAULT_MODEL
+    found = try
+        response = HTTP.get(models_url,
+                            ["x-api-key" => String(api_key),
+                             "anthropic-version" => _ANTHROPIC_VERSION];
+                            status_exception = false, readtimeout = 10)
+        response.status == 200 ? find_adaptive_model(response.body) : ""
+    catch
+        ""
+    end
+    _NEWEST_MODEL[] = isempty(found) ? _DEFAULT_MODEL : found
+end
+
+"""
+    find_adaptive_model(body) -> String
+
+The id of the first model of a Models API answer that supports adaptive
+thinking, or `""` when the answer names none. The list is newest first, so the
+first hit is the newest model.
+"""
+function find_adaptive_model(body)
+    answer = try
+        JSON3.read(body)
+    catch
+        return ""
+    end
+    for model in get(answer, :data, ())
+        capabilities = get(model, :capabilities, nothing)
+        capabilities === nothing && continue
+        thinking = get(capabilities, :thinking, nothing)
+        thinking === nothing && continue
+        types = get(thinking, :types, nothing)
+        types === nothing && continue
+        adaptive = get(types, :adaptive, nothing)
+        adaptive === nothing && continue
+        get(adaptive, :supported, false) && return String(model.id)
+    end
+    ""
+end
 
 """
     AnthropicLlm(; api_key, model, base_url, max_tokens)
@@ -22,11 +88,13 @@ struct AnthropicLlm <: Llm
 end
 
 AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
-               model::AbstractString = _DEFAULT_MODEL,
+               model::AbstractString = "",
                base_url::AbstractString = _ANTHROPIC_URL,
                max_tokens::Integer = 4096) =
     AnthropicLlm(String(api_key),
-                 String(isempty(model) ? _DEFAULT_MODEL : model),
+                 # An empty `model` asks the Models API for the newest one, once
+                 # in this process. A name that a caller wrote wins over it.
+                 String(isempty(model) ? get_newest_anthropic_model(api_key) : model),
                  String(base_url), Int(max_tokens))
 
 # This package's registration on the kernel's factory seam. The method IS the

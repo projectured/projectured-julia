@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "37ebfc5da9b21433b82f45cc6a1154560cb55dae"
+project_hash = "f41e3d851a48843fa791987530e614a21b12e25c"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -850,6 +850,12 @@ path = "../../package/ProjecturedAnthropic"
 uuid = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
 version = "0.1.0"
 
+[[deps.ProjecturedAnthropicTest]]
+deps = ["HTTP", "JSON3", "ProjecturedAnthropic", "ProjecturedKernel", "ProjecturedKernelTest", "Test"]
+path = "../../package/ProjecturedAnthropicTest"
+uuid = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
+version = "0.1.0"
+
 [[deps.ProjecturedAssistant]]
 deps = ["ProjecturedCollection", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedAssistant"
@@ -1414,7 +1420,7 @@ uuid = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["Projectured", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedBuilder", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWorkbench", "ProjecturedWorkbenchTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
+deps = ["Projectured", "ProjecturedAnthropicTest", "ProjecturedAssistant", "ProjecturedBookTest", "ProjecturedBuilder", "ProjecturedChartTest", "ProjecturedCollection", "ProjecturedConversationTest", "ProjecturedDatabaseTest", "ProjecturedDbCatalogTest", "ProjecturedDomain", "ProjecturedExample", "ProjecturedFileFormat", "ProjecturedFileSystemTest", "ProjecturedFormulaTest", "ProjecturedFsmTest", "ProjecturedGraphTest", "ProjecturedJson", "ProjecturedJsonTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedNatural", "ProjecturedOdbc", "ProjecturedOdbcTest", "ProjecturedOllamaTest", "ProjecturedProcessTest", "ProjecturedProjection", "ProjecturedRstTest", "ProjecturedSdl", "ProjecturedSdlTest", "ProjecturedSequenceChartTest", "ProjecturedSerialization", "ProjecturedSqlTest", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWorkbench", "ProjecturedWorkbenchTest", "ProjecturedXml", "ProjecturedXmlTest", "ProjecturedYaml", "ProjecturedYamlTest", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"

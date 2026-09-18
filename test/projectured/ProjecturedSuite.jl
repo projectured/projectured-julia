@@ -104,6 +104,7 @@ using ProjecturedVideoTest
 using ProjecturedOdbcTest
 # The Ollama adapter's suite. It tests translation, so it needs no server; its
 # one live test skips itself when none answers.
+using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
@@ -331,6 +332,7 @@ function test_all()
     test_process()
     test_conversation()
     test_workbench()
+    test_anthropic()
     test_ollama()
     # Every concrete-domain example through the printer.
     test_domain_examples()

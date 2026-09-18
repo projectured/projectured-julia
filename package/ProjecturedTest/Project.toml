@@ -32,6 +32,7 @@ ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
 ProjecturedMathTest = "35efe23a-a24b-424c-93f0-086222c9adeb"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
+ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
@@ -82,6 +83,7 @@ ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMarkdownTest = {path = "../ProjecturedMarkdownTest"}
 ProjecturedMathTest = {path = "../ProjecturedMathTest"}
 ProjecturedOdbcTest = {path = "../ProjecturedOdbcTest"}
+ProjecturedAnthropicTest = {path = "../ProjecturedAnthropicTest"}
 ProjecturedOllamaTest = {path = "../ProjecturedOllamaTest"}
 ProjecturedProcessTest = {path = "../ProjecturedProcessTest"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}

@@ -715,27 +715,33 @@ model.**
 
 **D6: the newest Claude model.**
 
-- [ ] When `model` is empty, the Anthropic backend asks the Models API
-      (`GET /v1/models`) once in each process. It takes the newest model, by
-      `created_at`, whose `capabilities` allow what the assistant sends: tools,
-      and adaptive thinking. The process keeps the answer.
-- [ ] If the list request fails, the backend uses the alias `claude-opus-5`.
-      The status of the assistant shows the model that a turn uses.
-- [ ] A value in the `model` field overrides the choice.
-- [ ] The request body uses only parameters that every current model accepts:
-      `thinking` either absent or `{type: "adaptive"}`, no `budget_tokens`, no
-      sampling parameters, no assistant prefill, and `tool_choice` `auto` or
-      absent. Check the body that `source/anthropic/Anthropic.jl` sends against
-      this list.
+- [x] When `model` is empty, the Anthropic backend asks the Models API
+      (`GET /v1/models`) once in each process. The list arrives newest first,
+      so the first model whose `capabilities.thinking.types.adaptive.supported`
+      is true is the newest one this backend can drive. Every current model
+      takes tools, and the list has no capability for it, so the choice reads
+      the thinking capability alone.
+- [x] If the list request fails, or no key is exported, the backend uses the
+      alias `claude-opus-5`. An alias and not a dated id, so the name still
+      works after a new model comes out.
+- [x] A value in the `model` field overrides the choice.
+- [x] The request body uses only parameters that every current model accepts.
+      It already did: `_thinking_param` sends `{"type": "adaptive", "display":
+      "summarized"}` and nothing else, with no `budget_tokens`, no sampling
+      parameter and no prefill.
 - [ ] A reply with `stop_reason: "refusal"` shows in the transcript as a
-      refusal, not as an empty reply.
-- [ ] Before you write the code, check the order and the fields of the list
-      response against the live API documentation.
-- [ ] Test: the choice from a recorded list response, with no network. One
-      live test runs only when `ANTHROPIC_API_KEY` is set. The anthropic slice
-      has no tests today. Add `test/anthropic/` and its test package the way
-      `test/ollama/` and `ProjecturedOllamaTest` are made, under
-      `package-rules.md`.
+      refusal, not as an empty reply. (Still open.)
+- [x] Before you write the code, check the order and the fields of the list
+      response against the live API documentation. Checked on 2026-09-18 at
+      `platform.claude.com/docs/en/api/models/list`: the list is newest first,
+      and each entry carries `id`, `created_at`, `display_name` and a
+      `capabilities` block with `thinking.types.adaptive.supported`.
+- [x] Test: the choice from a recorded list response, with no network. One
+      live test runs only when `ANTHROPIC_API_KEY` is set. `test/anthropic/`
+      and `ProjecturedAnthropicTest` are made the way `test/ollama/` and
+      `ProjecturedOllamaTest` are: 20 assertions pass and the live one skips.
+      `test_anthropic()` runs in `test_all()`, and the tree, naming and package
+      graph guards hold.
 
 **D18: the application and its build** are in
 [application-and-build.md](application-and-build.md). This plan needs its
