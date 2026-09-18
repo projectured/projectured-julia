@@ -415,12 +415,14 @@ still failed, so a rank is a proxy and not the goal.
 - **Step C, 2026-09-18.** The scale corpora and their questions, in each
   repository, and the declaration that refused a name two modules re-export.
 
-### Step 1. The scale measurement (§3h)
+### Step 1. The scale measurement (§3h) — the ranks taken 2026-09-18
 
-- [ ] Both corpora measured, with the user's word, because it reads a clock
-      (§5). The numbers go in §7: what the index and the vectors cost to
-      build, what a search costs, and how the questions rank now. They are the
-      baseline of every step below, and they set the triggers of §3g.
+- [x] Both corpora measured for their ranks, which read no clock. §7 has the
+      tables. They are the baseline of every step below.
+- [ ] The same run on an idle machine, with the user's word, for the times.
+      The times of the rank run say that a search costs about 5 ms by words and
+      about 14 ms by description at 2,355 entries, so no trigger of §3g rests
+      on them yet.
 
 ### Step 2. What a rebuild would cost later (§3g)
 
@@ -438,6 +440,16 @@ sentences, which needs no chat model. A piece lands only when more questions
 rank first or in the first ten, and none of the three corpora is worse. Each in
 its own commit, in this order:
 
+- [ ] **A generated schema variant is not a hit.** `@document` writes a type
+      per storage kind and exports it, and 790 of projectured's 2,355 entries
+      are one: `ACCellVector`, `DCCellTable`, `MCStyleFont`. They carry no
+      documentation of their own — 281 of 1,584 type entries have a sentence —
+      and they crowd out the type a person means. An entry whose binding is an
+      alias of another type, whose name ends with the root type's name and is
+      longer, is a variant. The rule follows the chain, because
+      `DCStyleColor` is an alias of `ACStyleColor`, which is one of
+      `StyleColor`; and it keeps `Cell`, which is an alias of `ReactiveCell`
+      and is what a person writes.
 - [ ] **Identifier tokens.** The name score is a test of substrings, so "card"
       scores inside "discard". Split a name into its words and score a whole
       word above a part of one.
@@ -520,6 +532,35 @@ Made by the user on 2026-09-17:
    left out for now.
 
 ## 7. Findings
+
+### Step 1, the ranks at scale, 2026-09-18
+
+| corpus | entries | guide sections | names first / in five / in ten, by words | by description |
+| --- | --- | --- | --- | --- |
+| projectured, 26 questions | 2,355 | 1,153 | 4 / 7 / 7 | 10 / 19 / 20 |
+| omnet, 34 questions | 1,612 | 1,349 | 3 / 10 / 12 | 8 / 15 / 19 |
+
+The guides, 6 questions each: projectured 2 first and 5 in ten by words, 3 and
+5 by description; omnet 1 and 5 by words, 3 and 5 by description. The mean
+reciprocal rank of the names is 0.21 and 0.19 by words, 0.52 and 0.35 by
+description.
+
+**Recall is the loss, not the order.** Six of projectured's 26 names and 15 of
+omnet's 34 are not in the first ten by description, and some are not in the
+first fifty by either mode: `Cell`, `set_cell_function!` and `parse_pred_text`
+in projectured; `get_simulation_histogram_results`,
+`make_result_filter_expression`, `get_batch_document_status`,
+`build_batch_document_counts`, `open_simulation_pane!`, `SimulationFilter` and
+`SimulationResultFrame` in omnet. At a hundred names every golden verb was
+found inside fifty hits. At two thousand, a third of them are gone.
+
+**Speed is not the problem yet.** On a machine that was not idle, a search took
+about 5 ms by words and 14 ms by description, and the index built in 0.3 s. The
+vectors of a corpus take about 13 MB. So the inverted index and BM25F wait, as
+§3g says, and the ranking comes first.
+
+**A third of the corpus is noise.** 790 of projectured's 2,355 entries are
+generated schema variants of another type. Step 3 takes them out first.
 
 ### Step 5, 2026-09-18
 
