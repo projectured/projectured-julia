@@ -1,12 +1,15 @@
 # Both binaries offer one interface
 
 **Status (2026-09-18): NOT STARTED.** The plan is complete. The owner answered
-the four open questions on 2026-09-18, and §1 records the rulings. Nothing is
-implemented, and nothing is pushed.
+the four open questions on 2026-09-18, and §1 records the rulings. Every name it
+mints is checked against
+[naming-rules.md](../../documentation/rule/naming-rules.md), and §3.14 lists
+them with the rule each one answers to. Nothing is implemented, and nothing is
+pushed.
 
 **Goal:** `projectured` and `omnet_ide` offer the same interface. A person who
-learns one knows the other. Every layer is built once, in projectured-julia, and
-each binary turns the layers on that it wants.
+learns one knows the other. Every wrapper is built once, in projectured-julia,
+and each binary turns on the wrappers it wants.
 
 **Repositories:** projectured-julia (the shell package, the widget tooltip, the
 declared verbs) and omnet-julia (the interface calls the shell package, and
@@ -36,7 +39,7 @@ The rulings of the owner, 2026-09-17:
 | Question | Ruling |
 | --- | --- |
 | How much of the comparison is added? | All of it. |
-| How is it added? | In a reusable way. One layer, built once, used by both. |
+| How is it added? | In a reusable way. One wrapper, built once, used by both. |
 | Where does a tooltip live? | On the widget, and the interface supports it. |
 | How does a widget say its tooltip? | A function answers it. A field on the widget is the fallback. |
 | The window background colour | Drop it. A shell widget takes its place. |
@@ -61,7 +64,7 @@ fact this plan stands on.
 
 | Fact | Where |
 | --- | --- |
-| The interface folds five layers over its window: gesture help, command palette, gesture log, selection walk and clipboard | omnet-julia `source/ide/IdeWindow.jl:171` |
+| The interface folds five wrappers over its window: gesture help, command palette, gesture log, selection walk and clipboard | omnet-julia `source/ide/IdeWindow.jl:171` |
 | The application folds two: gesture help and command palette | [example/projectured/Application.jl:169](../../example/projectured/Application.jl#L169) |
 | Both draw the same pane gesture table | [source/pane/PaneGestures.jl:152](../../source/pane/PaneGestures.jl#L152) |
 | The interface declares its verbs; the application declares none | omnet-julia `source/campaign/CampaignWindow.jl:191` |
@@ -109,7 +112,7 @@ Three facts follow.
 | It needs a `TooltipSource` node in the document, so it decorates one node at a time | [source/tooltip/TooltipDocument.jl:4](../../source/tooltip/TooltipDocument.jl#L4) |
 | It opens a second native window through `OpenWindowOperation` and the `:tooltip` style | [source/tooltip/TooltipDecorator.jl:91](../../source/tooltip/TooltipDecorator.jl#L91) |
 | The SDL `:tooltip` flags set no no-input-focus flag, so a tooltip steals the focus | [source/sdl/Sdl.jl:424](../../source/sdl/Sdl.jl#L424) |
-| `screen_origin` does not exist, so a tooltip cannot be placed in screen coordinates | grep answers nothing |
+| `get_screen_origin` does not exist, so a tooltip cannot be placed in screen coordinates | grep answers nothing |
 | `default_tooltip_position` answers a fixed corner | [source/tooltip/TooltipDecorator.jl:53](../../source/tooltip/TooltipDecorator.jl#L53) |
 | The web backend opens a second window as a browser popup, and a browser needs a click first, so a hover tooltip never appears there | [asset/web/client.js:164](../../asset/web/client.js#L164) |
 | `WidgetHoverTrackingProjection` knows which widget the pointer is over, but only for a widget that answers `MouseEnter` | [source/widget/WidgetHoverTracking.jl:144](../../source/widget/WidgetHoverTracking.jl#L144) |
@@ -174,14 +177,15 @@ cheapest item in this plan and it is the reason the chrome looks unfinished.
 A new package `ProjecturedShell`, whose slice folder is `source/shell/`. It
 holds what sits between a window and the document in it:
 
-- `make_window_shell(...)` — the fold `(document, projection) -> (document,
-  projection)` that stacks the layers. It is the function that
+- `make_window_wrap(...)` — the fold `(document, projection) -> (document,
+  projection)` that stacks the wrappers. It is the function that
   `make_ide_window_wrap` is today, moved down and made general.
-- `make_shell_opened_window_projections(...)` — what a window that a layer opens
+- `make_opened_window_projections(...)` — what a window that a wrapper opens
   draws with.
 - The shell document: a `WidgetShell` around the content of the window, with a
   menu bar, a toolbar, a status line and a context menu.
-- The tooltip layer, which finds the widget under the pointer.
+- The tooltip wrapper. `TooltipProbeProjection` lives in the tooltip slice, and
+  the shell composes it (§3.14).
 - `WidgetPopupResolverProjection` at the root of the window's content, so that
   every popup a widget asks for actually opens (§2.5).
 
@@ -192,11 +196,27 @@ dependency, so `ProjecturedShell` is a sub-stem and the `Projectured` umbrella
 aggregates it.
 
 `make_shell_document` and `make_shell_projection` move out of
-`example/workbench/` into this package. The gallery keeps calling them.
+`example/workbench/` into this package, with the names they have. The pair
+`make_<thing>_document` / `make_<thing>_projection` is the convention every
+wrapper here already follows: `make_clipboard_document` /
+`make_clipboard_projection`, `make_dragging_document` /
+`make_dragging_projection`, `make_workbench_document` /
+`make_workbench_projection`. The gallery keeps calling them.
+
+**The package brings its siblings.** [package-rules.md](../../documentation/rule/package-rules.md)
+asks for them and `test_package_graph()` asserts it:
+
+- `package/ProjecturedShellTest`, whose entry point is `test_shell()` and whose
+  static guard is `test_shell_layering()`, in `test/shell/ShellSuite.jl`.
+- `source/shell/ShellModule.jl` declares `ShellModule` and holds the docstring,
+  the imports and the ordered includes. `ShellModule` is free today. Every other
+  file under `source/shell/` is a fragment that declares no module.
+- The slice declares no document of its own, so no `ShellDocument.jl` is written.
+  A file is named for what it defines: `WindowWrap.jl`, `WindowShell.jl`.
 
 **Why a package and not a function in each binary.** Each binary composes the
-layers by hand today, and the two lists drifted apart. One function that takes a
-keyword per layer cannot drift: a layer that the application turns on is the
+wrappers by hand today, and the two lists drifted apart. One function that takes a
+keyword per wrapper cannot drift: a wrapper that the application turns on is the
 same code the interface turns on.
 
 ### 3.2 A tooltip is a separate window
@@ -221,7 +241,7 @@ today, and each is a part of Step 5:
    also wrong: `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`, not
    `SDL_WINDOW_ALWAYS_ON_TOP`, which is `0x00008000`. Step 5 fixes the flags and
    the comment.
-2. **The place.** `screen_origin` does not exist, so nothing can say where a
+2. **The place.** `get_screen_origin` does not exist, so nothing can say where a
    window is on the screen, and a tooltip cannot be put beside the pointer.
    Step 5 adds it to the backend interface.
 3. **The position.** `default_tooltip_position` answers a fixed corner
@@ -251,7 +271,7 @@ way out of its tab.
 
 ### 3.3 The tooltip finds its widget with the Alt+press rule
 
-The layer synthesises a left press with Alt at the pointer, reads the operation
+The wrapper synthesises a left press with Alt at the pointer, reads the operation
 back through the reader, and takes the path it answers. That path names the
 innermost widget under the pointer as a whole, for every drawn widget, because
 `convert_to_whole_selection` already applies that rule to whatever child a press
@@ -278,7 +298,7 @@ find_widget_tooltip(document, reference) -> Document | Nothing
 
 The default method reads the document at `reference` and answers its `tooltip`
 field when it has one, and `nothing` otherwise. A host that wants another rule
-passes its own function to `make_window_shell`. The function wins; the field is
+passes its own function to `make_window_wrap`. The function wins; the field is
 what the default function reads.
 
 A tooltip is a `Document`, so a tooltip is a projection of a document like
@@ -326,7 +346,7 @@ commands that exist today:
 - **File** — New tab (`Ctrl+T`), Close tab (`Ctrl+W`), Save (`Ctrl+S`), Reload
   (`Ctrl+O`), Quit.
 - **Edit** — Copy, Cut, Note, Paste, Paste copy. Each is the clipboard gesture
-  of the same name, and each is greyed when the layer that offers it is off.
+  of the same name, and each is greyed when the wrapper that offers it is off.
 - **View** — Split vertically, Split horizontally, Duplicate tab, Command
   palette, Gesture help.
 
@@ -342,7 +362,7 @@ as `ReferenceToHumanReadableText` prints it, and what the host appends. The host
 appends the run state in the interface and nothing in the application.
 
 A host adds a menu, a toolbar button and a status field through keywords of
-`make_window_shell`, so the interface adds Run and Stop without the shell
+`make_window_wrap`, so the interface adds Run and Stop without the shell
 knowing them.
 
 ### 3.8 The application declares its verbs
@@ -410,6 +430,63 @@ Every question of the first draft is answered. Nothing in this plan is open.
 4. **A tooltip is a separate window.** §3.2 and §3.2b say what that costs and
    what it buys.
 
+### 3.14 The names this plan mints
+
+Every name below is checked against
+[naming-rules.md](../../documentation/rule/naming-rules.md). A name is written
+here before it is written in code, so the audit that seals a file finds nothing
+to correct.
+
+| name | kind | the rule it answers to |
+| --- | --- | --- |
+| `ProjecturedShell` | package | `Projectured<Slice>`. The slice is `shell`, so the code is `source/shell/`, the suite `test/shell/` and the documents `example/shell/`. |
+| `ProjecturedShellTest` | test package | `Test` is a reserved suffix. Its entry point is `test_shell()` and its guard `test_shell_layering()`. |
+| `ShellModule` | module | `<Slice>Module`, declared by `source/shell/ShellModule.jl` and by no other file. |
+| `make_window_wrap` | function | Verb first. The word that names the kind produced goes last, and it produces a wrap. |
+| `make_opened_window_projections` | function | Verb first. It builds the value of the `opened_window_projections` keyword of `run_window_editor`, so it carries that name. |
+| `make_shell_document`, `make_shell_projection` | functions | The wrapper pair every other wrapper here uses. |
+| `find_widget_tooltip` | function | `find_`, because a widget with no tooltip answers `nothing`. Owner first, produced kind last. |
+| `find_widget_context_menu` | function | The same shape, for the same reason. |
+| `get_screen_origin` | function | `get_`, because the value sits at a known place. It is the sibling of `get_display_size`, so it is declared in `source/kernel/backend/BackendInterface.jl`, defaulted in `BackendDefaults.jl` and answered in `source/sdl/Sdl.jl`. |
+| `make_file_api` | function | The shape of `make_pane_api` and `make_interface_api`. |
+| `make_application_api` | function | The same. |
+| `APPLICATION_SYSTEM` | constant | The shape of `IDE_SYSTEM` and `CAMPAIGN_SYSTEM`. |
+| `TooltipProbeProjection`, `TooltipProbeIoMap` | projection | `<Stem>Projection` and `<Stem>IoMap`. The stem mirrors `HoverProbeProjection`, which probes the pointer the same way. |
+| `ContextMenuProbeProjection`, `ContextMenuProbeIoMap` | projection | The same stem, for the right press. |
+| `FileSystemChooser` | document | A noun, in the `FileSystem<Noun>` family beside `FileSystemFile` and `FileSystemDirectory`. |
+| `WriteDocumentFileOperation` | operation | A verb-first phrase ending in `Operation`, beside `OpenWorkspaceFileOperation`. |
+| `tooltip`, `context_menu` | fields | snake_case nouns. `context_menu` already exists on `WidgetShell`. |
+
+**Who owns each name.** Every exported name has exactly one owning module.
+
+- `WidgetModule` owns `find_widget_tooltip`, `find_widget_context_menu` and
+  `ContextMenuProbeProjection`. Each reads a widget's field or makes
+  `OpenPopupOperation`, which is a widget of that slice.
+- `TooltipModule` owns `TooltipProbeProjection`. It takes the tooltip function as
+  a keyword, so `ProjecturedTooltip` gains no dependency on
+  `ProjecturedWidget` and stays at `ProjecturedKernel` and `ProjecturedScreen`.
+- `BackendModule` owns `get_screen_origin`.
+- `FileSystemModule` owns `FileSystemChooser`.
+- `WorkbenchModule` owns `WriteDocumentFileOperation` and `make_file_api`.
+- `ShellModule` owns `make_window_wrap`, `make_opened_window_projections`,
+  `make_shell_document` and `make_shell_projection`.
+
+**What the law changed in the first draft.** Three names were wrong, and each
+would have reached the code.
+
+1. `screen_origin` is a noun, and every function name starts with a verb. It is
+   `get_screen_origin`. The first draft took the name from
+   [tooltip.md](tooltip.md), which was written before the rule.
+2. The plan called a wrapped projection a **layer**.
+   [division-terminology.md](../../documentation/rule/division-terminology.md)
+   reserves that word for a stratum inside a package, and asks that a plan use
+   these words and no synonyms. Every one now says **wrapper**, which is what the
+   code already says.
+3. `make_window_shell` named the fold after the thing it is not. The fold makes a
+   wrap; `WidgetShell` is the widget that draws the chrome. Two things must not
+   share one word, so the fold is `make_window_wrap` and the shell stays the
+   widget.
+
 ## 4. Steps
 
 Each step lands on `main` as one commit, with explicit paths. Each step names
@@ -433,11 +510,14 @@ the new count here.
 - [ ] Add `package/ProjecturedShell` and `source/shell/`. Follow
       [package-rules.md](../../documentation/rule/package-rules.md): a
       `Project.toml`, a `src/ProjecturedShell.jl` with the docstring, the
-      imports and the ordered includes.
-- [ ] `make_window_shell(; gesture_help, command_palette, gesture_log, selection,
+      imports and the ordered includes. `source/shell/ShellModule.jl` declares
+      `ShellModule`; every other file under `source/shell/` is a fragment.
+- [ ] Add `package/ProjecturedShellTest` and `test/shell/ShellSuite.jl`, which
+      define `test_shell()` and `test_shell_layering()`.
+- [ ] `make_window_wrap(; gesture_help, command_palette, gesture_log, selection,
       clipboard_gestures, tooltip, shell, measure)` answers the fold. It is the
       body of `make_ide_window_wrap`, with two keywords more.
-- [ ] `make_shell_opened_window_projections(; gesture_help, measure)`.
+- [ ] `make_opened_window_projections(; gesture_help, measure)`.
 - [ ] The fold composes `WidgetPopupResolverProjection` at the root of the
       window's content. This is the one behaviour that Step 1 does change, and
       it is a repair: a `WidgetSelect`, a submenu and a `WidgetContextMenu` start
@@ -445,28 +525,28 @@ the new count here.
 - [ ] Move `make_shell_document` and `make_shell_projection` out of
       `example/workbench/` into the package. The gallery keeps its call.
 - [ ] Add `ProjecturedShell` to the `Projectured` umbrella.
-- [ ] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_shell`
-      that names the layers the interface wants. `IDE_CLIPBOARD_GESTURES` stays
+- [ ] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_wrap`
+      that names the wrappers the interface wants. `IDE_CLIPBOARD_GESTURES` stays
       where it is, because it is the interface's choice.
-- [ ] projectured-julia: `make_application_projection` calls `make_window_shell`
-      with the two layers it has today, and nothing more.
+- [ ] projectured-julia: `make_application_projection` calls `make_window_wrap`
+      with the two wrappers it has today, and nothing more.
 - [ ] **No behaviour changes in this step.** Both windows draw and answer as
       before.
-- [ ] A test asserts that a `WidgetSelect` in a window drops down, which it does
-      not today.
-- Tests: `test_application()`, `test_gesture_help()`,
-  `test_command_palette_decorator()`, `test_gesture_log()`,
-  `test_selection_walking()`, `test_clipboard()`, `test_package_graph()`; in
-  omnet-julia `test_ide_window_wrap()`.
+- [ ] `test_window_wrap()` asserts that a `WidgetSelect` in a window drops down,
+      which it does not today, and that each keyword adds the wrapper it names.
+- Tests: `test_shell()`, `test_shell_layering()`, `test_application()`,
+  `test_gesture_help()`, `test_command_palette_decorator()`,
+  `test_gesture_log()`, `test_selection_walking()`, `test_clipboard()`,
+  `test_package_graph()`; in omnet-julia `test_ide_window_wrap()`.
 
 ### Step 2 — the application gets the clipboard, the walk and two flags
 
-- [ ] Turn on `selection` in the application's call to `make_window_shell`, with
+- [ ] Turn on `selection` in the application's call to `make_window_wrap`, with
       all six clipboard gestures (§3.9).
 - [ ] Add `--gesture-log` and `--context` to `parse_application_arguments`, to
       `make_projectured_usage` and to the greeting text.
 - [ ] `--context` reaches the `Assistant` through its `context` field.
-- [ ] The greeting names the keys that the layers turned on, as the interface's
+- [ ] The greeting names the keys that the wrappers turned on, as the interface's
       greeting does, and says nothing about a key that is off.
 - Tests: `test_application()`, `test_clipboard()`, `test_selection_walking()`.
 
@@ -488,11 +568,13 @@ the new count here.
 - [ ] Add `tooltip::Any = nothing` to the chrome run of each of the 43 widget types in
       `source/widget/WidgetDocument.jl`, and a `tooltip` keyword to each
       hand-written outer constructor.
-- [ ] Add `find_widget_tooltip(document, reference)` with the default method that
-      reads the field, and the `String` convenience.
+- [ ] Add `find_widget_tooltip(document, reference)` to `WidgetModule`, with the
+      default method that reads the field and the `String` convenience.
+- [ ] `test_widget_tooltip()`: a widget with a tooltip answers it, a widget
+      without one answers `nothing`, and a `String` arrives wrapped.
 - [ ] Write the old and the new `test_substrate()` counts here. The IO map field
       count moves, and the count of passes moves with it.
-- Tests: `test_substrate()`.
+- Tests: `test_widget_tooltip()`, `test_substrate()`.
 
 ### Step 5 — a tooltip window that takes no focus
 
@@ -503,43 +585,45 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
       result on X11 and on Wayland. Fix the wrong comment at
       [source/sdl/Sdl.jl:424](../../source/sdl/Sdl.jl#L424) at the same time:
       `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`.
-- [ ] Add `screen_origin(backend, id) -> (x, y)` to the backend interface, and a
+- [ ] Add `get_screen_origin(backend, id) -> (x, y)` to the backend interface, and a
       method for each backend that has one. A backend that cannot say answers
       `nothing`, and the caller then places the window relative to itself.
 - [ ] Web client: draw a window whose style is `:tooltip` as a positioned overlay
       in the page, not as a popup (§3.2b). It must never enter `pendingPopups`.
 - [ ] A test opens a tooltip window and asserts that the main window keeps the
       keyboard focus.
-- [ ] A test asserts that `screen_origin` answers the same origin that the window
+- [ ] A test asserts that `get_screen_origin` answers the same origin that the window
       was opened at.
 - Tests: `test_tooltip()`, and a new `test_tooltip_window()`.
 
 ### Step 6 — the interface shows a tooltip
 
-- [ ] Add the tooltip layer to `ProjecturedShell`: the Alt+press probe, the dwell
-      timer, and the `OpenWindowOperation` it makes from what
-      `find_widget_tooltip` answered.
-- [ ] Derive the real position: the pointer, plus `screen_origin` of the window
+- [ ] Add `TooltipProbeProjection` and `TooltipProbeIoMap` to `TooltipModule`:
+      the Alt+press probe, the dwell timer, and the `OpenWindowOperation` it
+      makes from what its `find_tooltip` keyword answered. The keyword is why
+      `ProjecturedTooltip` needs no dependency on `ProjecturedWidget` (§3.14).
+- [ ] Derive the real position: the pointer, plus `get_screen_origin` of the window
       the pointer is in, plus an offset, held inside the screen. This closes
       Step 6 of [tooltip.md](tooltip.md).
-- [ ] `make_window_shell(; tooltip = find_widget_tooltip)` turns it on. A host
-      passes its own function.
+- [ ] The shell composes it. `make_window_wrap(; tooltip = find_widget_tooltip)`
+      turns it on, and a host passes its own function.
 - [ ] Both binaries turn it on.
-- [ ] A new `test_widget_tooltip()`: a probe over a widget with a tooltip answers
-      one, a probe over a widget without one answers nothing, a probe under the
-      dwell time answers nothing, a move to another widget replaces it, and two
+- [ ] `test_tooltip_probe()`: a probe over a widget with a tooltip answers one, a
+      probe over a widget without one answers nothing, a probe under the dwell
+      time answers nothing, a move to another widget replaces it, and two
       tooltips never stand at once. The last two cover Steps 5 and 8 of
       [tooltip.md](tooltip.md).
 - [ ] Measure what the probe costs on a pointer move before it is turned on.
-- Tests: `test_widget_tooltip()`, `test_tooltip()`, `test_application()`.
+- Tests: `test_tooltip_probe()`, `test_tooltip()`, `test_application()`.
 
 ### Step 7 — the shell draws the chrome
 
 - [ ] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
       (§2.6), which a window shell must not do.
-- [ ] Add `find_widget_context_menu(document, reference)` and the right-press
-      probe. What it answers opens through `OpenPopupOperation` (§3.6).
+- [ ] Add `find_widget_context_menu(document, reference)` to `WidgetModule`, and
+      `ContextMenuProbeProjection` with `ContextMenuProbeIoMap` beside it. What
+      the function answers opens through `OpenPopupOperation` (§3.6).
 - [ ] `WidgetShell.context_menu` becomes the menu of the window itself, and opens
       when no widget offers one.
 - [ ] Build the menu bar, the toolbar and the status line of §3.7, and let a host
@@ -548,7 +632,7 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
       `background` keyword of `run_campaign_window`. The interface appends its
       own Run and Stop to the toolbar.
 - [ ] A new `test_window_shell()`: every menu item runs the gesture it names, a
-      greyed item is greyed when its layer is off, and the status line follows
+      greyed item is greyed when its wrapper is off, and the status line follows
       the focused tab.
 - Tests: `test_window_shell()`, `test_widget_context_menu()`,
   `test_application()`; in omnet-julia `test_ide_window_wrap()`.
@@ -557,26 +641,32 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
 The File menu of Step 7 names them, so they are written here and not later.
 
-- [ ] Add a path picker document to the workbench slice: a folder, its entries,
-      a selected path and a typed name. It is a document, so it draws through the
-      file-system projection that the navigator already uses.
+- [ ] Add `FileSystemChooser` to `FileSystemModule`: a folder, its entries, a
+      selected path and a typed name. It is a document, so `FileSystemToWidget`
+      grows a printer for it and it draws through the projection the navigator
+      already uses.
 - [ ] `WidgetDialog` holds it, and `OpenPopupOperation` opens it, so the dialog
       rides the route §3.1 repaired.
 - [ ] Open: the picker answers a path, and the window opens it in a new tab with
       `make_workbench_file_editor`.
-- [ ] Save As: the picker answers a path, the tab takes it as its file name, and
-      `Ctrl+S` then writes there. A tab with no name and a `Ctrl+S` opens the
-      Save As dialog instead of declining, which is what
+- [ ] Save As: the picker answers a path, `WriteDocumentFileOperation` writes the
+      tab there, and the tab takes the path as its file name. A tab with no name
+      and a `Ctrl+S` opens the Save As dialog instead of declining, which is what
       [source/workbench/WorkbenchFile.jl:49](../../source/workbench/WorkbenchFile.jl#L49)
       says is future work today.
 - [ ] Both go on the File menu, and both get a key: `Ctrl+Shift+O` and
       `Ctrl+Shift+S`.
 - [ ] The interface gets them too, because it has the navigator from Step 9 and
       the same File menu.
-- [ ] A new `test_file_dialogs()`: a picker answers the path a person chose, an
-      unnamed tab saved with `Ctrl+S` opens the dialog, and a cancel writes
-      nothing.
-- Tests: `test_file_dialogs()`, `test_widget_dialog()`, `test_application()`.
+- [ ] `test_filesystem_chooser()` covers the document, and `test_file_dialog()`
+      the two commands: a picker answers the path a person chose, an unnamed tab
+      saved with `Ctrl+S` opens the dialog, Escape cancels and writes nothing.
+      A test file is named for the source file it tests, so the first lives in
+      `test/filesystem/document/FileSystemDocumentTest.jl` beside the other
+      documents of that slice, and the second in `test/shell/FileDialogTest.jl`
+      beside `source/shell/FileDialog.jl`.
+- Tests: `test_filesystem_chooser()`, `test_file_dialog()`,
+  `test_widget_dialog()`, `test_application()`.
 
 ### Step 9 — the file navigator in the interface
 
@@ -596,8 +686,10 @@ The File menu of Step 7 names them, so they are written here and not later.
 
 ### Step 10 — the guides, and close
 
-- [ ] Write `documentation/package/shell/shell.md`: what the fold is, what each
-      layer does, and how a host adds a menu, a button and a status field.
+- [ ] Write `documentation/package/shell/shell.md`, which is the shape every
+      per-slice guide takes: what the fold is, what each wrapper does, and how a
+      host adds a menu, a button and a status field. Carry the one-line header
+      that names its Kind, its Status and what it Stands on.
 - [ ] Update [editor.md](../../documentation/package/kernel/editor.md) where it
       names the window.
 - [ ] Update [tooltip.md](tooltip.md): its Steps 1, 5, 6 and 8 are closed here,
