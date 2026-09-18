@@ -372,7 +372,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
         if io.message.status >= 400
             err_body = String(read(io))
             HTTP.closeread(io)
-            error("Ollama API error: HTTP $(io.message.status): $err_body")
+            error(_describe_chat_refusal(llm, io.message.status, err_body))
         end
 
         # One JSON object per line. Read in chunks with `readavailable` (not
@@ -483,6 +483,47 @@ function _request_meaning_vectors(llm::OllamaLlm, inputs::Vector{String})
     length(vectors) == length(inputs) ||
         error("Ollama answered $(length(vectors)) meaning vectors for $(length(inputs)) texts.")
     vectors
+end
+
+"""
+    _describe_chat_refusal(llm, status, body) -> String
+
+What a refused chat request means, for the person who submitted the turn.
+
+A model that is not pulled is the usual reason, so the answer names the server,
+the models that server has, and the command that installs the missing one.
+"""
+function _describe_chat_refusal(llm::OllamaLlm, status::Integer, body::AbstractString)
+    message = try
+        String(get(JSON3.read(body), :error, body))
+    catch
+        String(body)
+    end
+    if status == 404 || occursin("not found", lowercase(message))
+        pulled = get_ollama_models(llm)
+        having = isempty(pulled) ? "It has no model at all." :
+                 "It has " * join(pulled, ", ") * "."
+        return "Ollama at $(llm.base_url) has no model $(llm.model). " * having *
+               " Run `ollama pull $(llm.model)` to install it."
+    end
+    "Ollama at $(llm.base_url) refused the turn (HTTP $status): " * message
+end
+
+"""
+    get_ollama_models(llm) -> Vector{String}
+
+The models the server has, or an empty list when it does not answer. It is for
+an error message, so a server that is down must not raise a second error here.
+"""
+function get_ollama_models(llm::OllamaLlm)
+    try
+        response = HTTP.get(llm.base_url * "/api/tags"; status_exception = false,
+                            readtimeout = 5)
+        response.status == 200 || return String[]
+        [String(model.name) for model in JSON3.read(response.body).models]
+    catch
+        String[]
+    end
 end
 
 # What a refused request means. A model that is not pulled is the usual reason,

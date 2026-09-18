@@ -626,10 +626,11 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # launch take effect. A backend's own `stream_turn` reports a missing or wrong
     # key with the provider's message, so no key is validated here.
     #
-    # Nothing is guessed. A person says which backend they want, and an assistant
-    # that names none is an error rather than a lucky default: the guess was only
-    # ever right while one backend existed. Tests and examples that want offline
-    # behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
+    # A LOCAL MODEL IS THE DEFAULT, and `:ollama` is what an assistant names
+    # when nobody names another. A person who wants Claude says `:anthropic` and
+    # exports a key. `:none` names no backend at all, and a submit then says so
+    # rather than guessing one. Tests and examples that want offline behaviour
+    # pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     # `ProjecturedKernelExample`), and production never fabricates one.
     key = isempty(a.api_key) ? get(ENV, "ANTHROPIC_API_KEY", "") : a.api_key
     llm = a.llm

@@ -198,14 +198,14 @@ end
 
 # ── A person says which backend they want ───────────────────────────────
 #
-# An assistant with no explicit `llm` and no named backend does not guess. It
-# errors, and the error says which backends are loaded — because the guess was
-# only ever right while one backend existed.
+# An assistant names a local model by default. `:none` names no backend at all,
+# and a turn on one errors with the list of backends that are loaded, rather
+# than guessing one.
 
 function _mvp_test_backend_must_be_named()
     @testset "the backend must be named" begin
-        a = Assistant()
-        @test a.backend === :none
+        @test Assistant().backend === :ollama       # the default of the system
+        a = Assistant(; backend = :none)
         @test a.model == ""
         tools = register_default_tools!(ToolSet())
         err = try
@@ -229,9 +229,10 @@ function _mvp_test_backend_must_be_named()
         @test err isa ErrorException
         @test occursin("No LLM backend registered for :nosuchprovider", err.msg)
 
-        # An explicit `llm` still wins over both, which is what every test here does.
+        # An explicit `llm` still wins over the named backend, which is what
+        # every test here does: it reaches no server.
         a = Assistant(; llm = FakeLlm("ok"))
-        @test a.backend === :none
+        @test a.backend === :ollama
         _run_agent_loop!((document = a, tools = tools), a)
         @test length(a.conversation.turns) == 1
     end

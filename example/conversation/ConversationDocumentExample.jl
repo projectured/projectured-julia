@@ -35,6 +35,13 @@ end
 # form's own default says; every other fold starts open.
 function make_assistant_conversation_document_example()
     ConversationConversation([
+        ConversationTurn(:assistant, [
+            ConversationPart(parse_markdown(
+                "This transcript is canned: the replies below were written into the " *
+                "example, and a submit answers from a `FakeLlm`. For a real model, " *
+                "run `run_assistant_example(; backend = :ollama)` or " *
+                "`run_assistant_example(; backend = :anthropic)`.")),
+        ]),
         ConversationTurn(:user, [
             ConversationPart(parse_markdown("Can you write a factorial function in Julia and check that it works?")),
         ]),

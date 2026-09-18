@@ -46,6 +46,24 @@ const examples = [
     dragging_example,
 ]
 
+"""
+    run_assistant_example(; backend = :ollama, model = "", kwargs...) -> Nothing
+
+The assistant example with a real model behind it: `:ollama` for a local model,
+`:anthropic` for Claude. `model` names one, and an empty `model` takes the
+default of that backend.
+
+`run_example("assistant")` opens the same example with a `FakeLlm`, which
+answers from the canned transcript and needs no server and no key. That is what
+the test sweeps run.
+"""
+function run_assistant_example(; backend::Symbol = :ollama, model::AbstractString = "",
+                               kwargs...)
+    document = make_assistant_document_example(; backend = backend, model = model)
+    run_example(document, make_assistant_projection_example(); name = "assistant",
+                kwargs...)
+end
+
 function run_example(name="json"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     if idx === nothing

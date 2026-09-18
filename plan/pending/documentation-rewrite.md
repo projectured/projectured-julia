@@ -683,26 +683,35 @@ marks it broken.
 **D5: Ollama is the default backend, and the assistant example can use a real
 model.**
 
-- [ ] `Assistant` gets `backend = :ollama` as its default. If
+- [x] `Assistant` gets `backend = :ollama` as its default. If
       `ProjecturedOllama` is not loaded, a submit gives the existing error, which
       lists the loaded backends. The error also names the package to load.
-- [ ] If the Ollama server does not answer, or the model is not on the server,
+- [x] If the Ollama server does not answer, or the model is not on the server,
       the error names the server address, the models that the server has, and
       the `ollama pull` command. The code does not choose another model without
-      a word.
-- [ ] Every place that makes an `Assistant` for a person uses the default
-      backend: the workbench example, `run_file_editor` with a workbench, and
-      the executable.
-- [ ] The assistant example gets `backend` and `model` keywords, for example
-      `run_example("assistant"; backend = :ollama)`. Without a keyword it keeps
-      `FakeLlm()`, because the test sweeps run every example and must not call a
-      model. The first message of the canned transcript says that the replies
-      are canned and names the keyword.
+      a word. `_describe_chat_refusal` says it, and `get_ollama_models` asks the
+      server what it has; a server that is down answers an empty list rather
+      than a second error.
+- [x] Every place that makes an `Assistant` for a person uses the default
+      backend. The application passes the backend of its command line, and an
+      `Assistant()` with no argument names `:ollama`. An example keeps its
+      `FakeLlm`, which wins over the named backend, so a sweep reaches no
+      server.
+- [x] The assistant example gets `backend` and `model` keywords. The call is
+      `run_assistant_example(; backend = :ollama)` and not
+      `run_example("assistant"; backend = …)`: the gallery passes its keywords
+      to the window, and the backend belongs to the document, which the example
+      builds. `make_assistant_document_example(; backend, model)` is the
+      factory. Without a keyword it keeps `FakeLlm()`, so the test sweeps reach
+      no model, and the first turn of the canned transcript says that the
+      replies are canned and names the call.
 - [ ] The meaning search uses the meaning model of the Ollama backend
       (`nomic-embed-text`). The assistant guide of Step 5 says how to pull it.
-- [ ] Test: the default backend, the error texts, and the example keywords,
-      with a fake server. One live test with Ollama runs only when a server
-      answers, and only when the machine has the memory free.
+- [ ] Test: the error texts with a fake server, and one live test with Ollama.
+      The default and the example keywords are covered: `test_workbench()` 144
+      pass with the known 3 fails and 2 broken, `test_ollama()` 99 pass,
+      `test_conversation()` 167 pass, `test_application()` 72 pass, and the
+      printer walk of the assistant example reports no error.
 
 **D6: the newest Claude model.**
 
