@@ -459,6 +459,13 @@ appear in a docstring. A fixture that the text was fitted to measures nothing.
 - [x] **The three experiments again on the new text**, and none of them lands.
       §7 has the numbers.
 - [x] The collections and the drawn shapes, 2026-09-18: fourteen more.
+- [x] The colour, the font and the styled text; every domain's root, from the
+      macro that writes it, which gave twenty domains a sentence at once.
+- [x] **Three kinds of name left the index**, because nobody writes them: the
+      alias per storage kind, the struct of the native layout (`MFoo`, `IFoo`),
+      and any name that opens with an underscore. The corpus fell from 2,355
+      entries to 1,224, and the share that carries a sentence rose from 31 per
+      cent to 60.
 - [ ] The rest of the layers a reader needs, module by module. The measurement
       now says how many names carry a sentence and how many a paragraph that
       says what they are for, because **the questions can only see the names
@@ -719,6 +726,11 @@ So the answers stand where they stood on the thin text: the header is worse,
 the fusion is much worse, and the chunks are the same for more vectors. **The
 text is the lever, and the ranking is not.** Twenty-two docstrings bought what
 five ranking experiments could not.
+
+**The sweep stopped where the prose would be for machinery.** What is left
+undocumented is the projection that draws each widget, about 110 names, and
+some 250 colour constants whose names say what they are. Writing paragraphs for
+those buys a model nothing.
 
 **A fixture sees only what it asks.** The questions name 26 things of 1,364.
 Documentation of anything else cannot raise them, and may cost a place by
