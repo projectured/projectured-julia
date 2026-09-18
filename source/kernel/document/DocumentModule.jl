@@ -32,6 +32,7 @@ using ..CellStructModule
 export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        sync_document!, get_document_family,
        get_document_cell_type, get_document_native_type, get_document_schema_name,
+       get_document_title,
        is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder, HiddenElements,
        CopyPolicy, PlainCopyPolicy, DocumentCopyException, copy_document_fields,
        is_descendable_for_copy, make_copy_placeholder, copy_computed_cell, get_copy_memo,

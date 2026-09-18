@@ -125,6 +125,10 @@ end
 
 set_cell_function!(a::Assistant, f::Function) = (set_cell_function!(getfield(a, :conversation), f); a)
 
+# The name the tab calls itself. No alias: `get_insertion_names` already derives
+# one from the type name, so a person types "assistant" without a hand-written method.
+get_document_title(::Assistant) = ASSISTANT_TITLE
+
 # ── The duplicate ─────────────────────────────────────────────────────────────
 #
 # The duplicate of an assistant is a fork: the conversation so far and the text

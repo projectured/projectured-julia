@@ -495,6 +495,26 @@ the result document holds `2` and that a new empty form follows it.
 
 ### Step 6. Titles and aliases
 
+**Status: done for the four tools that exist, 2026-09-18.** `Workspace`,
+`MessageLog` and `EvaluatorToplevel` get theirs with their own steps.
+
+| Type | Title | A person types |
+| --- | --- | --- |
+| `Assistant` | Assistant | `assistant` |
+| `GestureLog` | Gestures | `gestures` |
+| `ReferenceInspector` | Reference | `reference` |
+| `SelectionInspector` | Selection | `selection` |
+
+**`get_document_title` moved to the kernel.** It was declared in the pane slice,
+so a slice that wanted to answer it would have had to depend on the pane. It is a
+document trait, and it now sits with the other document-wide traits in
+`source/kernel/document/DocumentInterface.jl`, which every slice already reaches.
+`describe_document` stays in the pane: it says what a document *is* right now,
+which is the pane's own question.
+
+The gesture log and the inspector slices gained a dependency on
+`ProjecturedDomain`, which is where the alias generic is declared.
+
 Give each of the six a `get_document_title` method and a
 `get_insertion_aliases` method, per D7. A tab then names itself after what it
 holds, and a person types a short word instead of a type name.

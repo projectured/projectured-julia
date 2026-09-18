@@ -1079,7 +1079,7 @@ uuid = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 version = "0.1.0"
 
 [[deps.ProjecturedGestureLog]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedGestureLog"
 uuid = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 version = "0.1.0"
@@ -1109,7 +1109,7 @@ uuid = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 version = "0.1.0"
 
 [[deps.ProjecturedInspector]]
-deps = ["ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
+deps = ["ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedText"]
 path = "../../package/ProjecturedInspector"
 uuid = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 version = "0.1.0"

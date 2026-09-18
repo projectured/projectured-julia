@@ -10,6 +10,7 @@ relative `..XxxModule` references.
 module ProjecturedGestureLog
 
 using ProjecturedCollection
+using ProjecturedDomain
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedNatural
@@ -21,6 +22,7 @@ using ProjecturedText
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const DomainModule = ProjecturedDomain.DomainModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const EventModule = ProjecturedKernel.EventModule
 const EventPatternModule = ProjecturedKernel.EventPatternModule

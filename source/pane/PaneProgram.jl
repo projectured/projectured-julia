@@ -257,27 +257,6 @@ precompiles.
 pane_group_to_avoid(tree) = nothing
 
 """
-    get_document_title(document) -> String or nothing
-
-The name a document carries for itself, or `nothing` when it carries none.
-
-**A title is not a description.** [`describe_document`](@ref) says what a
-document *is* right now — "18 runs, running: 12 done, 6 running" — and that
-sentence changes as the document does. A title is what the thing is called, and
-it holds still. A pane needs the second: a tab that renamed itself as its runs
-finished would be a tab nobody could point at.
-
-The default answers `nothing`, so a document that has no name of its own falls
-back to its description. **Each application writes the methods for the documents
-it holds**, beside those documents.
-
-The argument is untyped in the default on purpose: an application writes a method
-for its own type, and a default of the same signature would be overwritten rather
-than added to.
-"""
-get_document_title(document) = nothing
-
-"""
     open_pane!(editor, document; title = nothing) -> Reference
 
 Put `document` in a new tab, and answer a reference to the tab it made.

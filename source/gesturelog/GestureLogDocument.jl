@@ -22,6 +22,11 @@ dropped.
     count::Int = 0
 end
 
+# The name the tab calls itself, and the name a person types into an empty tab
+# to open one.
+get_document_title(::GestureLog) = "Gestures"
+get_insertion_aliases(::Type{GestureLog}) = ["gestures"]
+
 # ── Record ─────────────────────────────────────────────────────────────────
 
 """

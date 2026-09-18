@@ -9,6 +9,7 @@ relative `..XxxModule` references.
 """
 module ProjecturedInspector
 
+using ProjecturedDomain
 using ProjecturedKernel
 using ProjecturedNatural
 using ProjecturedProjection
@@ -18,6 +19,7 @@ using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const DomainModule = ProjecturedDomain.DomainModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const TextModule = ProjecturedText.TextModule

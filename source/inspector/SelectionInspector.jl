@@ -46,6 +46,11 @@ end
 SelectionInspector(source::Function) = SelectionInspector(; source = ComputedCell(source))
 SelectionInspector(source) = SelectionInspector(; source = source)
 
+# The name the tab calls itself, and the name a person types into an empty tab
+# to open one.
+get_document_title(::SelectionInspector) = "Selection"
+get_insertion_aliases(::Type{SelectionInspector}) = ["selection"]
+
 """
     find_inspected_selection(source, root) -> Reference or Nothing
 

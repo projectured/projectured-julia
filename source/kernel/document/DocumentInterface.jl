@@ -111,6 +111,27 @@ schema that left its bare name where it was.
 function get_document_schema_name end
 
 """
+    get_document_title(document) -> String or nothing
+
+The name a document carries for itself, or `nothing` when it carries none.
+
+**A title is not a description.** A document's description says what it *is*
+right now — "18 runs, running: 12 done, 6 running" — and that sentence changes
+as the document does. A title is what the thing is called, and it holds still.
+A pane needs the second: a tab that renamed itself as its runs finished would
+be a tab nobody could point at.
+
+The default answers `nothing`, so a document that has no name of its own falls
+back to its description. **Each slice writes the method for its own documents**,
+beside them.
+
+The argument is untyped in the default on purpose: an application writes a method
+for its own type, and a default of the same signature would be overwritten rather
+than added to.
+"""
+get_document_title(document) = nothing
+
+"""
     is_walk_opaque(document) -> Bool
 
 `true` when a document is **opaque** to the reflection walk: its internals are
