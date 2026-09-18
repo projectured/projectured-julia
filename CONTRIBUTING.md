@@ -1,7 +1,15 @@
 # Contributing to ProjecturEd
 
-Welcome. This document covers repository conventions, how to run the tests,
-code style expectations, and how to submit a change.
+How to work in this repository: what you need, what a change must keep, how to
+run the right test, and how to offer the change. Forks and pull requests are
+welcome.
+
+**The licence.** ProjecturEd is free for non-commercial use, and you can modify
+it for that use ([LICENCE-PD](LICENCE-PD)). Commercial use needs a licence from
+the author ([LICENCE-COMMERCIAL](LICENCE-COMMERCIAL)). By opening a pull
+request you offer your change under both licences, so that the project can stay
+under the two of them. If you cannot offer it under both, say so in the pull
+request, and we find another way or leave the change out.
 
 ---
 
@@ -170,8 +178,11 @@ review harder.
 5. Update the guide that the change makes wrong. Cross-cutting guides live in
    [documentation/](documentation/); the per-slice reference guides live in
    [documentation/package/](documentation/package/).
-6. Open a pull request. The description explains *what* changed and *why*, and
-   links to the `plan/` document if one exists.
+6. Update the plan under `plan/` if the change follows one, and write what you
+   decided while you worked, not only what you did.
+7. Open a pull request. The description says what changed and why, and links to
+   the plan if one exists. A change that a guide makes wrong is not finished
+   until the guide is right.
 
 ## Adding a new domain (quick checklist)
 
@@ -208,6 +219,10 @@ has the full rules. The short version:
       error it gives names the wrong cause.
 - [ ] Add `documentation/package/mydomain/mydomain.md`, the per-slice guide.
 
-## Contact
+## Author and contact
 
-levente.meszaros@gmail.com
+Levente Mészáros wrote ProjecturEd and maintains it.
+
+- projectured@gmail.com — the address to write to.
+- levente.meszaros@gmail.com — also reaches the author.
+- A problem report or a question is welcome as a GitHub issue.

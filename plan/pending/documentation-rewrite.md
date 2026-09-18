@@ -922,13 +922,17 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       `architecture-invariants.md`.
 - [ ] `CONTRIBUTING.md` and `CLAUDE.md`: links instead of copies (§3.7). Keep
       the sealed-file warning in `CLAUDE.md`.
-- [ ] `CONTRIBUTING.md`: the licence in plain words, the contribution terms
+- [x] `CONTRIBUTING.md`: the licence in plain words, the contribution terms
       (D1b), the fork and pull request process, the author and the primary
       contact address (D8).
-- [ ] `documentation/README.md` and `code-quality-rules.md`: remove the private
+- [x] `documentation/README.md` and `code-quality-rules.md`: remove the private
       names (§3.9). `code-quality-rules.md` links to a private policy file;
       copy the rules that a contributor needs into the document, or drop the
-      link.
+      link. One document under `documentation/package/` still names a private
+      checkout: `graph/graph-layout.md`, which the reference sweep has open.
+      A comment in `source/builder/BuildContext.jl` and one in
+      `source/dragging/DraggingWrapper.jl` name it too, and D16 lets a code
+      comment keep it.
 - [ ] `SEALING.md` (D10): make the inventory from the real include order of
       `ProjecturedKernel.jl`, and keep each seal state:
   - `cell/PerformanceCounter.jl`, `clock/Clock.jl`, `event/EventPattern.jl` and
