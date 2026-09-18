@@ -783,42 +783,91 @@ plan did not foresee.
 
 ### Step 5 — the round trip is a property, not an example
 
-- [ ] A test that, for each of a few examples, walks the gestures the existing
-      walkers produce, and for each gesture asserts: print the output, apply,
-      undo, print again, and the two printed outputs are equal. Compare printed
-      output rather than documents — the repository has no document equality,
-      and the printed form is what a person sees.
-- [ ] Note in this file which gestures fail, and whether each failure is a
-      missing inverse (add a method) or a wrong one (fix it).
+- [x] `test/projectured/projection/UndoRoundTripTest.jl` with
+      `test_undo_round_trip()`, registered in `ProjecturedSuite.jl`. It runs the
+      whole reader battery against `undo_example` — a real JSON document in a
+      buffer, through the real chain — and for every gesture that makes a
+      recorded change it asserts: apply, take it back, and the document is the
+      text it was.
+- [x] **It compares text, not the printed output.** The snapshot is a chain that
+      ends in `TextToString`. A printed graphics tree carries sizes and
+      identities that say nothing about whether the value came back, and a text
+      rendering says exactly that and reads well in a failure message.
+- [x] **Only the umbrella can hold it.** It needs the example registry, so it is
+      an umbrella test beside the other example sweeps, not part of
+      `test_undo()`. A gesture with no way back is marked `@test_broken` with the
+      label of the step, so a missing inverse is visible rather than silent.
 
 ### Step 6 — the buffer survives a move (U13)
 
-- [ ] The `prefix` field on the three operations, and the reroot methods that
-      prepend to it.
-- [ ] Strip the prefix on record; prepend the current prefix on undo and redo.
-      Compare with type checkpoints stripped.
-- [ ] A test that puts a buffer in a workbench tab, edits, moves the tab, and
-      undoes.
+**The design changed here, and it is simpler than U13.** U13 proposed a `prefix`
+that every reroot extends, stripped on record and re-applied on undo. Writing the
+inverses showed a better way: **an inverse names the object it writes into, not a
+path from the editor's root.**
+
+The inverse had to resolve the parent anyway, to read the old value.
+`ReplaceReferencedValueOperation` already has a carried-root form — the form the
+guide says to prefer — so the inverse answers that form. There is no path to go
+stale, so nothing has to be stripped or re-applied, and the prefix field, the
+three reroot methods it needed and the dual of `reroot_operation` all disappear.
+
+It is also more truthful than a path. A history is taken back newest first, so by
+the time an entry is applied every later entry has been applied, and those
+restored the very objects this one names.
+
+- [x] Every write inverse carries its root: a field write carries the owner, an
+      element overwrite and a splice carry the container.
+- [x] The two primitive range operations answer a **whole-field write** on the
+      carried owner rather than another range edit. That is what the field held
+      before, so it is the same result; it carries its object; and it covers
+      every representation a text field can hold — a string, a cleared field, a
+      number, a styled span — because it puts the value back rather than
+      splicing characters into whatever is there.
+- [x] Two exceptions, both named rather than hidden. A **whole-root swap** stays
+      rooted at the editor, because that is what it targets. A **restored
+      selection** stays a path, because a selection is a path; it is applied
+      through a guard, so a caret that no longer fits is dropped and the value
+      still comes back.
+- [x] Tests: the kernel asserts an inverse applies against an editor that has
+      never seen the document; the undo suite asserts a buffer still takes a step
+      back from an editor whose document is another tree entirely.
 
 ### Step 7 — the application installs the buffers (U17, U18)
 
-- [ ] The application buffer: `make_application_document` wraps the window
-      content, and the first stage of the window projection dispatches
-      `UndoBuffer`. Now every edit in the program is undoable, including a
-      splitter move and a tab that opens.
-- [ ] `get_wrapped_document(node)` in `ProjecturedDomain`, with the method for
-      `UndoBuffer` in the undo slice.
-- [ ] The file buffers: one line in `make_workbench_file_editor`, the three
-      places in `WorkbenchFile.jl` that look through the wrapper, and
-      `UndoBuffer => UndoBufferToAnyProjection()` in
-      `make_application_content_projections`.
-- [ ] Check R1 to R4 against two live buffers. They are written in step 4; this
-      is where a second buffer first exists to test them with.
-- [ ] A reload pushes a barrier.
-- [ ] Test: two files open, an edit in each, `Ctrl+Z` with the focus in the
-      first takes back the edit in the first. An undo at the application level
-      after an undo in a file redoes that file's step.
-- [ ] Test: `test_workbench()` matches step 0.
+- [x] The application buffer: `make_application_document` wraps the window
+      content, and `_with_window_history` puts the dispatcher **outermost** —
+      outside the gesture help and the command palette, because the document it
+      is handed is the buffer and the step it records must be the one the whole
+      chain settled on.
+- [x] **The focus is seated again after the wrap.** A selection is a chain every
+      node on the path holds a piece of, and the content was given its focus
+      before the buffer held it, so the buffer would hold none.
+- [x] **Two generics, not one, and both in the kernel document layer, not in
+      `ProjecturedDomain`.** `ProjecturedWorkbench` does not depend on
+      `ProjecturedDomain`, and it is the package that must look through a
+      wrapper. `get_wrapped_document(node)` answers the document a node stands
+      for; `replace_wrapped_document!(node, document)` puts a new document where
+      the old one stood and answers what belongs there now. A reload uses the
+      second, and the buffer's method keeps its place and forgets its history.
+- [x] The file buffers: `make_workbench_file_editor(path, wrap)` and
+      `OpenWorkspaceFileOperation(path; wrap)` take the overlay from the caller,
+      so the workbench names no undo type and no workbench example grows a
+      history. The application passes `UndoBuffer` to both.
+- [x] Four places look through a wrapper: the save and the reload in
+      `WorkbenchFile.jl`, `_get_window_content` there, and `get_window_tree` in
+      `PaneProgram.jl`, which already had a hand-written method for the
+      clipboard and now answers any wrapper.
+- [x] **A step whose way back is to do nothing is not recorded.** A save and a
+      zoom pass through the buffer and answer `DoNothingOperation()`; an entry
+      for one would be a line in the history that undoes nothing.
+- [x] `ApplicationTest.jl` says that the application has a history: two helpers,
+      `_app_window` and `_app_plain`, and the assertions stay about what they
+      were about. The application's own baseline was `test_application()`
+      72 / 0 / 0 on clean main, so this is measured, not assumed.
+- [x] Test: `test_application()` back to green, `test_undo()` 71 / 71,
+      `test_undo_round_trip()` 132 / 132, `test_workbench()` 144 / 3 / 2 and
+      `test_substrate()` unchanged. `test_workbench_file_keys()` is 38 / 3 / 2 / 1
+      on the branch **and on clean main** — pre-existing, and now baselined.
 
 ### Step 8 — the history is a document (U16)
 

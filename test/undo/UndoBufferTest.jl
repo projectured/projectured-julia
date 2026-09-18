@@ -136,6 +136,22 @@ function test_undo()
         @test get_cell_at(list.items, 2) === cell
     end
 
+    # An entry names the object it writes into, not a path from the editor's
+    # root, so it still applies after the buffer has moved somewhere else in the
+    # tree — a tab dragged to another pane, a pane split.
+    @testset "an entry survives the buffer moving in the tree" begin
+        list = _make_list(["a", "b"])
+        buffer = UndoBuffer(list)
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
+        evaluate_operation(_UndoEditor(buffer),
+                           read_intent(projection, iomap, _write_first("changed")))
+        @test _texts(list) == ["changed", "b"]
+        # An editor whose document is another tree entirely takes the step back.
+        evaluate_operation(_UndoEditor(UndoLeaf("elsewhere", nothing)), UndoOperation(buffer))
+        @test _texts(list) == ["a", "b"]
+    end
+
     @testset "an operation the filter drops is passed on unrecorded" begin
         buffer = UndoBuffer(_make_list(["a"]))
         projection = UndoBufferToAnyProjection()

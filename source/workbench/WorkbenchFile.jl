@@ -24,7 +24,9 @@ end
 
 function evaluate_operation(editor, op::SaveWorkbenchEditorOperation)
     tab = op.editor
-    write_document_file(tab.content, tab.filename)
+    # The file holds the document, not a wrapper around it: a tab whose content
+    # carries a history writes what the history is about.
+    write_document_file(get_wrapped_document(tab.content), tab.filename)
 end
 
 """
@@ -41,7 +43,9 @@ end
 
 function evaluate_operation(editor, op::ReloadWorkbenchEditorOperation)
     tab = op.editor
-    tab.content = read_document_file(tab.filename)
+    # A wrapper around the content — a history — keeps its place and takes the
+    # new document; a plain content is replaced outright.
+    tab.content = replace_wrapped_document!(tab.content, read_document_file(tab.filename))
     tab.selection = nothing
 end
 
@@ -58,35 +62,41 @@ end
 # ── Opening a file ───────────────────────────────────────────────────────────
 
 """
-    make_workbench_file_editor(path) -> WorkbenchEditor
+    make_workbench_file_editor(path, wrap = identity) -> WorkbenchEditor
 
 A file tab for the file at `path`: the document read in the format that the
 extension names, the base name as the title, and the absolute path as the file
 name. A path that does not exist opens as the empty seed of its extension, and
 `Ctrl+S` creates the file.
 """
-function make_workbench_file_editor(path::AbstractString)
+function make_workbench_file_editor(path::AbstractString, wrap = identity)
     filename = abspath(path)
-    WorkbenchEditor(read_document_file(filename);
+    WorkbenchEditor(wrap(read_document_file(filename));
                     title = basename(filename), filename = filename)
 end
 
 """
-    OpenWorkspaceFileOperation(path)
+    OpenWorkspaceFileOperation(path; wrap = identity)
 
 Open the file at `path` in a new tab of the window. In a workbench, the tab goes
 to the editing page. In a pane tree, the tab goes to a new pane of the group
 that `open_pane!` chooses. The file is read when the editor evaluates the
 operation, not when a gesture makes it.
+
+`wrap` is applied to the document that was read, before the tab holds it. It is
+how a program gives every file it opens an overlay of its own — a history, say —
+without this layer naming one.
 """
 struct OpenWorkspaceFileOperation <: Operation
     path::String
+    wrap::Any
 end
 
-OpenWorkspaceFileOperation(path::AbstractString) = OpenWorkspaceFileOperation(String(path))
+OpenWorkspaceFileOperation(path::AbstractString; wrap = identity) =
+    OpenWorkspaceFileOperation(String(path), wrap)
 
 function evaluate_operation(editor, op::OpenWorkspaceFileOperation)
-    tab = make_workbench_file_editor(op.path)
+    tab = make_workbench_file_editor(op.path, op.wrap)
     window = _get_window_content(editor)
     if window isa PaneTree
         open_pane!(editor, tab; title = tab.title, group = _find_file_group(window))
@@ -103,9 +113,11 @@ end
 # for example, holds the window's document itself.
 function _get_window_content(editor)
     document = getfield(editor, :document)
-    hasproperty(document, :windows) || return document
+    # A window's content may sit inside a transparent wrapper — a history — and
+    # what this answers is the window it shows, not the wrapper around it.
+    hasproperty(document, :windows) || return get_wrapped_document(document)
     windows = document.windows
-    isempty(windows) ? document : first(windows).content
+    get_wrapped_document(isempty(windows) ? document : first(windows).content)
 end
 
 # The group a file opens in: the group that holds a file already, else a group

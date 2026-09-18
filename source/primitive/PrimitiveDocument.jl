@@ -247,33 +247,29 @@ retarget_operation(op::ReplaceNumberRangeOperation, reference::Reference) =
 
 # ── The way back ─────────────────────────────────────────────────────────────
 #
-# A range edit replaces the characters of `[s, e)` with a replacement, so the way
-# back replaces `[s, s + length(replacement))` with the characters that are there
-# now. The number form answers a number operation, so the way back reparses the
-# text exactly as the way there did.
+# The way back from a range edit is the field it edited, as it was — a whole-field
+# write, not another range edit.
+#
+# Two reasons. It CARRIES the object it writes into, so the entry survives the
+# document moving in the tree, where a path from the editor's root would go stale.
+# And it covers every representation a text field can hold — a string, a cleared
+# field, a number, a styled span — because it puts the value itself back rather
+# than splicing characters into whatever is there.
 
 make_inverse_operation(document, op::ReplaceStringRangeOperation) =
-    _make_range_inverse(document, op, ReplaceStringRangeOperation)
+    _make_range_inverse(document, op)
 make_inverse_operation(document, op::ReplaceNumberRangeOperation) =
-    _make_range_inverse(document, op, ReplaceNumberRangeOperation)
+    _make_range_inverse(document, op)
 
-function _make_range_inverse(document, op, constructor)
+function _make_range_inverse(document, op)
     split = _split_replace_reference(op.reference)
-    split === nothing && return nothing
-    target_path, field_name, range_step = split
+    # No editable slot — an edit aimed at a projection-introduced span. The write
+    # does nothing, and there is nothing to take back.
+    split === nothing && return DoNothingOperation()
+    target_path, field_name, _ = split
     target = try_evaluate_reference(document, target_path)
     target === nothing && return nothing
     hasproperty(target, Symbol(field_name)) || return nothing
-    value = getproperty(target, Symbol(field_name))
-    # The same reading of a field the write side takes: a cleared field is the
-    # empty text, and a number is its textual form.
-    text = value === nothing ? "" :
-           value isa AbstractString ? String(value) : string(value)
-    total = length(text)
-    start = clamp(range_step.start, 0, total)
-    stop = clamp(range_step.stop, start, total)
-    replaced = first(last(text, total - start), stop - start)
-    steps = get_reference_steps(strip_reference_types(op.reference))
-    steps[end] = RangeReferenceStep(start, start + length(op.replacement))
-    constructor(Reference(steps...), String(replaced))
+    ReplaceReferencedValueOperation(target, field_name,
+                                    getproperty(target, Symbol(field_name)))
 end

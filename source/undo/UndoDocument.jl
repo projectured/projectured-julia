@@ -72,6 +72,19 @@ end
 UndoBuffer(content::Document; capacity::Integer = 100, selection = nothing) =
     UndoBuffer(content, CellVector(), CellVector(), Int(capacity), selection)
 
+# A buffer is transparent on the screen, and a real node in the tree. Anything
+# that reads the tree rather than the picture — saving a file is the case — asks
+# for the document it stands for and gets what it holds.
+get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
+
+# A buffer survives its document being replaced, and forgets its history: the
+# steps of the old document say nothing about the new one.
+function replace_wrapped_document!(buffer::UndoBuffer, document)
+    buffer.content = document
+    clear_undo_history!(buffer)
+    buffer
+end
+
 """
     push_undo_entry!(buffer, entry) -> buffer
 
@@ -202,6 +215,9 @@ function evaluate_operation(editor, op::RecordUndoOperation)
     label = describe_operation(op.operation)
     before = copy_reference(get_selection(editor.document))
     inverse = evaluate_invertible_operation!(editor, op.operation)
+    # A step whose way back is to do nothing changed no document — a file that was
+    # written, a zoom. It is not a step, so the history does not grow for it.
+    inverse isa DoNothingOperation && return nothing
     push_undo_entry!(op.buffer, UndoEntry(label, inverse, before))
     nothing
 end

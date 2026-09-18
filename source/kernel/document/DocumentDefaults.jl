@@ -104,3 +104,9 @@ function Base.show(io::IO, x::Document)
     end
     print(io, ")")
 end
+
+# The document a node stands for: itself, unless a wrapper says otherwise.
+get_wrapped_document(node) = node
+
+# Replacing a plain document is storing the new one in its place.
+replace_wrapped_document!(node, document) = document

@@ -169,13 +169,22 @@ get_window_tree(tree::PaneTree) = tree
 get_window_tree(slice::ClipboardSlice) = get_window_tree(slice.content)
 
 function get_window_tree(editor)
-    hasfield(typeof(editor), :document) ||
-        error("A " * String(nameof(typeof(editor))) * " holds no pane tree.")
+    hasfield(typeof(editor), :document) || return _get_wrapped_window_tree(editor)
     document = getfield(editor, :document)
     document isa PaneTree && return document
+    hasproperty(document, :windows) || return _get_wrapped_window_tree(document)
     windows = document.windows
     isempty(windows) && error("The editor shows no window.")
     get_window_tree(first(windows).content)
+end
+
+# A content that is wrapped — a history, say — holds the tree inside the wrapper.
+# A node that wraps nothing holds no tree at all, and that is what to say.
+function _get_wrapped_window_tree(node)
+    wrapped = get_wrapped_document(node)
+    wrapped === node &&
+        error("A " * String(nameof(typeof(node))) * " holds no pane tree.")
+    get_window_tree(wrapped)
 end
 
 # ── What a pane holds ───────────────────────────────────────────────────────

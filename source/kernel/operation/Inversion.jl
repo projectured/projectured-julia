@@ -159,10 +159,20 @@ function make_inverse_operation(document, op::ReplaceReferencedValueOperation)
     _make_slot_inverse(op, parent, terminal, op.value)
 end
 
+# Every one of these answers an operation that CARRIES THE OBJECT it writes into,
+# rather than a path to it. The object is in hand — the inverse had to resolve it
+# to read the old value — and a carried root is what makes an entry survive the
+# document moving in the tree: a path from the editor's root goes stale when a tab
+# is dragged or a pane is split, and an object does not.
+#
+# It is also more truthful. A history is taken back newest first, so by the time
+# this entry is applied every later entry has been applied, and those restored the
+# very objects this one names.
+
 # A field write: put back what the field holds now.
 _make_slot_inverse(op::ReplaceReferencedValueOperation, parent, step::FieldReferenceStep, value) =
     hasproperty(parent, Symbol(step.name)) ?
-        ReplaceReferencedValueOperation(op.document, op.reference,
+        ReplaceReferencedValueOperation(parent, Reference(step),
                                         getproperty(parent, Symbol(step.name))) :
         nothing
 
@@ -171,7 +181,7 @@ function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                             step::RangeReferenceStep, value)
     index = step.start + 1
     (index < 1 || index > length(parent)) && return nothing
-    ReplaceReferencedValueOperation(op.document, op.reference, get_slot_at(parent, index))
+    ReplaceReferencedValueOperation(parent, Reference(step), get_slot_at(parent, index))
 end
 
 # A splice: the write replaces `[start, stop)` with `n` items, so the way back
@@ -182,15 +192,6 @@ function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                             step::RangeReferenceStep, value::AbstractVector)
     (step.start < 0 || step.stop > length(parent) || step.stop < step.start) && return nothing
     old = Any[get_slot_at(parent, index) for index in (step.start + 1):step.stop]
-    ReplaceReferencedValueOperation(op.document,
-        _replace_terminal_step(strip_reference_types(op.reference),
-                               RangeReferenceStep(step.start, step.start + length(value))),
-        old)
-end
-
-# The same path with another last step.
-function _replace_terminal_step(path::ConcreteReference, step::ReferenceStep)
-    steps = get_reference_steps(path)
-    steps[end] = step
-    Reference(steps...)
+    ReplaceReferencedValueOperation(parent,
+        Reference(RangeReferenceStep(step.start, step.start + length(value))), old)
 end

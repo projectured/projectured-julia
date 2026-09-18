@@ -85,12 +85,26 @@ function make_application_document(paths::AbstractVector; window::Symbol = :pane
     window in APPLICATION_WINDOWS ||
         error("make_application_document: the window must be one of ",
               join(APPLICATION_WINDOWS, ", "), ", not ", repr(window))
-    tabs = [make_workbench_file_editor(path) for path in paths]
+    tabs = [make_workbench_file_editor(path, UndoBuffer) for path in paths]
     folder = abspath(root)
     navigator = WorkbenchNavigator(Workspace([WorkspaceFolder(basename(folder), folder)]))
-    window === :workbench ?
+    content = window === :workbench ?
         _make_application_workbench(tabs, navigator, assistant) :
         _make_application_pane_tree(tabs, navigator, assistant)
+    # Two levels of history, and the four rules of the undo slice make them one
+    # story. Each file tab holds its own, so `Ctrl+Z` takes back an edit in the
+    # file the person is looking at. The window holds one around all of them, so
+    # a splitter that moves, a tab that opens and a chat draft can be taken back
+    # too — none of those is inside a file.
+    buffer = UndoBuffer(content)
+    # The focus was seated on the content before the buffer held it, and a
+    # selection is a chain every node on the path holds a piece of. Seat it again
+    # from the buffer, so the first key goes where it was meant to go.
+    inner = get_selection(content)
+    inner === nothing || replace_selection!(buffer,
+        concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                          strip_reference_types(inner)))
+    buffer
 end
 
 # The pane window: the navigator, the files and the assistant side by side. The
@@ -140,6 +154,9 @@ function make_application_content_projections(; measure = measure_truetype_text)
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     Pair{Type,Any}[
+        # A history around what a tab holds is invisible: it prints what it holds
+        # and answers that output.
+        UndoBuffer        => UndoBufferToAnyProjection(),
         JsonDocument      => ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                                 RecursiveProjection(SyntaxToText()), text_to_graphics),
         XmlDocument       => ChainingProjection(RecursiveProjection(XmlToSyntax()),
@@ -149,7 +166,8 @@ function make_application_content_projections(; measure = measure_truetype_text)
         TextDocument      => text_to_graphics,
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
-            RecursiveProjection(FileSystemToWidget(open_file = OpenWorkspaceFileOperation)),
+            RecursiveProjection(FileSystemToWidget(
+                open_file = path -> OpenWorkspaceFileOperation(path; wrap = UndoBuffer))),
             WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure)),
         conversation_draft_entry(measure = measure),
         conversation_widget_entry(measure = measure),
@@ -175,9 +193,21 @@ function make_application_projection(; window::Symbol = :pane,
     base = window === :workbench ?
         make_workbench_projection(measure = measure, content_projections = content) :
         _make_application_pane_projection(content, measure)
-    make_command_palette_decorator_projection(
-        GestureHelpDecoratorProjection(inner = base, state = GestureHelpState()))
+    _with_window_history(make_command_palette_decorator_projection(
+        GestureHelpDecoratorProjection(inner = base, state = GestureHelpState())))
 end
+
+# The window content sits inside a history of its own, so a change that belongs
+# to no file — a splitter that moves, a tab that opens — can be taken back too.
+# The buffer is transparent, so everything below it is drawn exactly as before:
+# the dispatcher answers the buffer, and hands every other document to the window
+# projection unchanged.
+#
+# It is the OUTERMOST projection, because the document it is handed is the buffer,
+# and because the operation it records must be the one the whole chain settled on.
+_with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
+    UndoBuffer => UndoBufferToAnyProjection(),
+    Any        => base))
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
 # file tab, the navigator and the assistant are workbench documents, so each one

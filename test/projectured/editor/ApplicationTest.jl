@@ -17,6 +17,14 @@ end
 _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
 _app_count_tabs(workbench::WorkbenchWorkbench) = length(workbench.editing_page.elements)
 
+# The application gives the window a history and every file tab one of its own,
+# so the document a test reaches for is inside a buffer and an operation a reader
+# answers arrives recorded. Two helpers say so once, and the assertions below
+# stay about what they were about.
+_app_window(document) = get_wrapped_document(document)
+_app_plain(operation) =
+    operation isa WrappingOperation ? _app_plain(get_wrapped_operation(operation)) : operation
+
 # One small file of each format in `dir`. `TestRun` is the `.pred` document of
 # FileProjectTest.jl, in this module.
 function _app_write_files(dir)
@@ -61,7 +69,7 @@ end
 function _app_find_file_row(composed, iomap)
     for y in 0:4:400
         operation = _app_fire(composed, iomap, MousePress(:left, 100, y, 2, ModifierKeys()))
-        operation isa OpenWorkspaceFileOperation && return (y, operation)
+        _app_plain(operation) isa OpenWorkspaceFileOperation && return (y, operation)
     end
     (nothing, nothing)
 end
@@ -138,10 +146,10 @@ function test_application()
                     document, scene, composed, iomap = _app_make_scene([json], dir, window)
                     editor = _AppFakeEditor(scene, iomap)
                     operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true)))
-                    @test operation isa SaveWorkbenchEditorOperation
-                    tab = operation.editor
+                    @test _app_plain(operation) isa SaveWorkbenchEditorOperation
+                    tab = _app_plain(operation).editor
                     @test tab.filename == json
-                    tab.content.entries[1].value.value = "Bob"
+                    get_wrapped_document(tab.content).entries[1].value.value = "Bob"
                     evaluate_operation(editor, operation)
                     @test occursin("Bob", read(json, String))
                     write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
@@ -151,24 +159,24 @@ function test_application()
                     document, scene, composed, iomap = _app_make_scene(paths[1:1], dir, window)
                     editor = _AppFakeEditor(scene, iomap)
                     y, operation = _app_find_file_row(composed, iomap)
-                    @test operation isa OpenWorkspaceFileOperation
-                    @test basename(operation.path) == "a.jl"    # the first file row
-                    before = _app_count_tabs(document)
+                    @test _app_plain(operation) isa OpenWorkspaceFileOperation
+                    @test basename(_app_plain(operation).path) == "a.jl"   # the first file row
+                    before = _app_count_tabs(_app_window(document))
                     evaluate_operation(editor, operation)
-                    @test _app_count_tabs(document) == before + 1
+                    @test _app_count_tabs(_app_window(document)) == before + 1
                     if window === :pane
-                        groups = get_pane_groups(document)
+                        groups = get_pane_groups(_app_window(document))
                         @test length(groups[1].tabs) == 1       # the navigator stays alone
                         @test length(groups[2].tabs) == 2       # the file joins the files
                     end
 
                     # A single click selects the row, and Enter opens it.
                     selection = _app_fire(composed, iomap, MousePress(:left, 100, y, 1, ModifierKeys()))
-                    @test selection isa CompoundOperation
+                    @test _app_plain(selection) isa CompoundOperation
                     evaluate_operation(editor, selection)
                     opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys()))
-                    @test opened isa OpenWorkspaceFileOperation
-                    @test opened.path == operation.path
+                    @test _app_plain(opened) isa OpenWorkspaceFileOperation
+                    @test _app_plain(opened).path == _app_plain(operation).path
                 end
             end
         end

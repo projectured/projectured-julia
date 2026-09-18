@@ -38,6 +38,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: get_wrapped_document, replace_wrapped_document!
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           get_wrapped_operation, rewrap_operation,
                           operation_travels_unchanged

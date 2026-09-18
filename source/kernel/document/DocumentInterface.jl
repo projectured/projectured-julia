@@ -344,6 +344,48 @@ function sync_element_limit end
 function make_unsynced_placeholder end
 
 """
+    get_wrapped_document(node)
+
+The document that `node` stands for.
+
+Use it where code needs the document itself and may have been handed a
+transparent wrapper around it: a history, a version list, a clipboard slice. The
+default answers `node`, so a caller that names this asks a question every
+document can answer, and a wrapper adds one method.
+
+A wrapper is transparent on the screen — its projection prints what it holds and
+answers that output — but it is a real node in the tree, so anything that reads
+the tree rather than the picture meets it. Saving a file is the case this exists
+for: the file holds the document, not the history of it.
+
+# Example
+
+    write_document_file(get_wrapped_document(tab.content), tab.filename)
+
+See also `copy_document` and `replace_wrapped_document!`.
+"""
+function get_wrapped_document end
+
+"""
+    replace_wrapped_document!(node, document) -> node
+
+Put `document` where `node` stood, and answer what belongs there now.
+
+Use it where a document is replaced rather than edited — a file re-read from
+disk. The default answers `document`, so the caller stores that in place of
+`node` and the wrapper, if there was one, is gone. A wrapper that must survive
+the replacement writes `document` into itself, deals with whatever state it kept
+about the old one, and answers itself.
+
+# Example
+
+    tab.content = replace_wrapped_document!(tab.content, read_document_file(tab.filename))
+
+See also `get_wrapped_document`.
+"""
+function replace_wrapped_document! end
+
+"""
     search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector
     search_documents(obj, query::Union{AbstractString,Regex}; …)                      -> Vector
 

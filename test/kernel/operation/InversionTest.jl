@@ -120,6 +120,26 @@ function test_inversion()
         end
     end
 
+    # An entry outlives the moment it was made, and the document may move in the
+    # tree before it is applied. An inverse therefore names the OBJECT it writes
+    # into rather than a path from the editor's root.
+    @testset "an inverse carries the object it writes into" begin
+        root = InvBranch(_leaf("a"), _leaf("b"), nothing)
+        reference = Reference(FieldReferenceStep("left"), FieldReferenceStep("value"))
+        inverse = make_inverse_operation(root,
+            ReplaceReferencedValueOperation(nothing, reference, "changed"))
+        @test inverse.document === root.left
+        # So it applies against an editor that has never seen this document.
+        evaluate_operation(_InvEditor(InvBranch(_leaf("p"), _leaf("q"), nothing)), inverse)
+        @test root.left.value == "a"
+
+        list = InvList(Any[_leaf("a"), _leaf("b")], nothing)
+        splice = make_inverse_operation(list,
+            ReplaceReferencedValueOperation(nothing,
+                Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 1)), Any[]))
+        @test splice.document === list.items
+    end
+
     @testset "a whole-root swap puts the old root back" begin
         old = InvBranch(_leaf("a"), _leaf("b"), nothing)
         new = InvBranch(_leaf("c"), _leaf("d"), nothing)
