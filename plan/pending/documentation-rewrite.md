@@ -942,11 +942,12 @@ What it reported and did not fix:
       `package/reflection/reflection.md` (the value reflection, and how it
       relates to `NaturalToGraphics` and `ObjectToWidget`),
       `package/gesturehelp/gesturehelp.md`, `package/mcp/mcp.md`.
-- [ ] Tier 2: one guide for each slice of §3.6, tier 2. `database`, `dbcatalog`
-      and `odbc` share one guide.
-- [ ] Tier 3: one paragraph for each slice in `system-anatomy.md`.
-- [ ] The guard's list of slices with no guide is empty, or each remaining slice
-      has its paragraph.
+- [x] Tier 2: one guide for each slice of §3.6, tier 2. `database`, `dbcatalog`
+      and `odbc` share one guide, and `anthropic` and `ollama` share
+      `package/llm/llm.md`. Fifteen slices had none; each has one now.
+- [x] Tier 3: not needed. Every slice has a guide of its own, so the paragraph
+      that would stand in for one has nothing left to cover.
+- [x] The guard's list of slices with no guide is empty.
 
 ### Step 8: rules, contributor documents, seal list, plans
 
