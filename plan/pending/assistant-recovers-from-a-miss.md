@@ -440,16 +440,14 @@ sentences, which needs no chat model. A piece lands only when more questions
 rank first or in the first ten, and none of the three corpora is worse. Each in
 its own commit, in this order:
 
-- [ ] **A generated schema variant is not a hit.** `@document` writes a type
-      per storage kind and exports it, and 790 of projectured's 2,355 entries
-      are one: `ACCellVector`, `DCCellTable`, `MCStyleFont`. They carry no
-      documentation of their own — 281 of 1,584 type entries have a sentence —
-      and they crowd out the type a person means. An entry whose binding is an
-      alias of another type, whose name ends with the root type's name and is
-      longer, is a variant. The rule follows the chain, because
-      `DCStyleColor` is an alias of `ACStyleColor`, which is one of
-      `StyleColor`; and it keeps `Cell`, which is an alias of `ReactiveCell`
-      and is what a person writes.
+- [x] **A generated schema variant is not a hit**, done 2026-09-18. The rule
+      reads the prefixes the macro writes, `AC`, `RC`, `IC`, `MC`, `DC` and `A`,
+      and drops the name when the rest of it is a type of the same module. The
+      corpora fell from 2,355 to 1,389 entries and from 1,612 to 904. **The
+      ranks did not move**, which the user's rule asked to be measured before
+      the work was believed: a name with no words of its own answers no query.
+      What it buys is the third of the vectors, of the index and of every
+      listing of names. §7 has the numbers.
 - [ ] **Identifier tokens.** The name score is a test of substrings, so "card"
       scores inside "discard". Split a name into its words and score a whole
       word above a part of one.
@@ -509,6 +507,13 @@ and the report says why:
 One Julia process at a time, one chat model in it, and that model unloaded when
 the stage ends. No loop polls for the conditions.
 
+**A measurement runs in a lane of its own**, decided by the user 2026-09-18:
+cores 28, 30 and 31, which are neither the build lane, 16 to 23, nor the suite
+lane, 24 to 27, nor the two isolated cores, 13 and 29. It runs at the ordinary
+priority, because a measurement that is pushed aside measures the pushing. The
+lane is what makes a time worth reading while the machine has other work, and
+every time is reported with the load it was taken under.
+
 ## 6. Decisions
 
 Made by the user on 2026-09-17:
@@ -561,6 +566,26 @@ vectors of a corpus take about 13 MB. So the inverted index and BM25F wait, as
 
 **A third of the corpus is noise.** 790 of projectured's 2,355 entries are
 generated schema variants of another type. Step 3 takes them out first.
+
+### Step 3, the generated variants, 2026-09-18
+
+The corpora, before and after the rule, and what the questions answered:
+
+| corpus | entries before | after | names first / in five / in ten, by words | by description |
+| --- | --- | --- | --- | --- |
+| projectured, 26 questions | 2,355 | 1,389 | 4 / 7 / 7, unchanged | 10 / 19 / 20, unchanged |
+| omnet, 34 questions | 1,612 | 904 | 3 / 11 / 13, from 3 / 10 / 12 | 8 / 15 / 19, unchanged |
+
+**The noise cost work, not ranks.** A variant has no words of its own, so it
+never stood where a question's answer should have been. It costs a vector, a
+line of a listing of names, and a place in the index; a third of each is now
+saved. The measure-first rule earned its keep here: the reason written in the
+plan for doing this — that the variants crowd out the name a person means — was
+wrong, and the measurement said so.
+
+The times, taken in the measurement lane with a load of about 3: a search by
+words about 4 ms, by description about 14 ms, the index built in 0.2 s, and the
+vectors of a corpus take 13 MB. Nothing here triggers the inverted index.
 
 ### Step 5, 2026-09-18
 
