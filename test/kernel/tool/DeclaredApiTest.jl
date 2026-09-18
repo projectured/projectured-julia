@@ -14,7 +14,7 @@ using ProjecturedKernel.ToolModule
 # allows `module` only at the top level, so the fixture lives here rather than
 # inside the testset.
 module ToyApi
-export toy_verb, toy_count, toy_limit
+export toy_verb, toy_count, toy_limit, _toy_inside
 """Answer the word this verb is named after."""
 toy_verb() = "toy"
 """Count what it is given."""
@@ -25,6 +25,8 @@ toy_count(xs) = length(xs)
 How many toys a box holds. Use it to bound a count.
 """
 const toy_limit = 3
+"""What the module keeps to itself, although it is exported."""
+_toy_inside() = "inside"
 end
 
 # A docstring shaped the way this repository writes one: an indented signature
@@ -446,6 +448,8 @@ function test_declared_api()
         set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
         hits = search_api("bound a count"; api = set.api)
         @test occursin("`toy_limit` — value in ToyApi", hits)
+        # A name that opens with an underscore is the module's own business.
+        @test !occursin("_toy_inside", search_api("toy"; api = set.api, detail = "names"))
         @test occursin("How many toys a box holds.", hits)
         @test occursin("bound a count", read_resource(set, "resource://value/ToyApi/toy_limit"))
         @test startswith(read_resource(set, "resource://value/ToyApi/nothing_here"), "Value 'nothing_here' is not")

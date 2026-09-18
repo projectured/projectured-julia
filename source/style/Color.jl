@@ -2,6 +2,23 @@
 # compare, interpolate and shade a colour; everything else here is data: about
 # 1076 named constants, in curated ramps and one large list of colour names.
 
+"""
+    StyleColor(red, green, blue, alpha = 1.0)
+
+A colour, as four parts from zero to one.
+
+Use it wherever something is painted: the fill of a box, the ink of a word, the
+line of a chart. A colour with a name is a constant, `color_black`,
+`color_red`, `color_slate_500`, and the themes carry curated ramps; a colour
+with an alpha below one lets what is behind it show through.
+
+# Example
+
+    GraphicsRect(Int32(0), Int32(0), Int32(10), Int32(10), color_slate_200)
+    faint = StyleColor(0.0, 0.0, 0.0, 0.25)
+
+See also `StyleText`, which pairs a colour with a font, and `GraphicsRect`.
+"""
 @document ImmutableCell [DC] struct StyleColor
     red::Float64
     green::Float64

@@ -773,6 +773,10 @@ const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 # did not change where the golden names ranked, because a name with no words of
 # its own answers no query; what they cost is the work and what a listing of
 # names shows.
+# A name that opens with an underscore is the module's own business, whatever it
+# exports. A caller does not write one, so a search does not answer one.
+_is_private_name(name::Symbol) = startswith(String(name), "_")
+
 function _is_schema_variant(mod::Module, name::Symbol, value)
     value isa Type || return false
     written = String(name)
@@ -805,6 +809,7 @@ function _index_declared(api)
         for (source, sym) in api_entry_bindings(declared)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
+            _is_private_name(sym) && continue
             value = getfield(mod, source)
             _is_schema_variant(mod, source, value) && continue
             get(bound, sym, nothing) === value && continue
@@ -831,12 +836,14 @@ function _index_api()
         mn = String(mod_sym)
         push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
         for (type_sym, type_value) in _struct_types(mod)
-            _is_schema_variant(mod, type_sym, type_value) && continue
+            (_is_private_name(type_sym) || _is_schema_variant(mod, type_sym, type_value)) &&
+                continue
             push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
         end
         # A function has no resource of its own: a resource per function fans out
         # to hundreds, so a hit is read with `read_function_documentation`.
         for (function_sym, _) in _module_functions(mod)
+            _is_private_name(function_sym) && continue
             push!(entries, _make_api_entry("function", "$mn.$function_sym",
                                            _binding_doc(mod, function_sym)))
         end

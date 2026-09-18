@@ -7,7 +7,17 @@
 """
     StyleFont(filename, size)
 
-A font style value consisting of a file path and a point size.
+A font: the file it is drawn from, and how large.
+
+Use it to say how words look: which typeface a label, a heading or a block of
+code is drawn in, and at what size. A backend loads the file and measures the
+words with it.
+
+# Example
+
+    StyleFont("DejaVuSans.ttf", 14)
+
+See also `StyleText`, which pairs a font with a colour, and `GraphicsText`.
 """
 # A value-document: `filename`/`size` are immutable by default; the selection is
 # typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a

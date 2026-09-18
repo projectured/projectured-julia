@@ -11,6 +11,19 @@
 """
     StyleText(font, color)
 
+How words are drawn: the font to draw them with, and the colour to draw them
+in.
+
+Use it to give a piece of text one look: a heading, a comment, a word a search
+matched. A projection of text carries one of these for each run of words it
+draws.
+
+# Example
+
+    StyleText(StyleFont("DejaVuSans.ttf", 14), color_black)
+
+See also `StyleFont`, `StyleColor` and `GraphicsText`.
+
 A text style value: the `font` to draw with and the `color` to draw in.
 """
 # A value-document. `[DC]` binds the bare name to the default spelling, so
