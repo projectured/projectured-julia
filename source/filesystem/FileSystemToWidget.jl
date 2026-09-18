@@ -26,7 +26,7 @@ evaluates the operation, so the view stays free of side effects.
 
 The default is `OpenFileOperation`, the intent this slice declares — it names
 the file and nothing about where it goes. A caller that knows the destination
-(a workbench tab, a pane) passes its own operation instead.
+(the pane tree, a specific pane) passes its own operation instead.
 """
 struct FileSystemToWidgetTree <: Projection
     position::Point2D

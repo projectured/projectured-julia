@@ -302,7 +302,7 @@ alongside the widget types in
 
 | Operation | Effect |
 |---|---|
-| `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the workbench overloads it into a document-selection move |
+| `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the pane package overloads it into a document-selection move |
 | `CloseTabOperation` / `OpenTabOperation` / `DragTabOperation` / `DuplicateTabOperation` | the other four event-like strip reports — see [Strip reports](#strip-reports) |
 | `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
 | `InvokeActionOperation(action)` | invoke a control's `Action` — its `callback` runs (with the editor if it takes one), guarded by the action's `enabled` |
@@ -787,7 +787,7 @@ right and down act only on a whole selection.
 
 ## When to use widgets vs. graphics
 
-- Build user interfaces (workbenches, menus, dialogs, IDE layouts) at the
+- Build user interfaces (menus, dialogs, IDE layouts) at the
   widget level — the layer is meant for layout abstractions, not pixels.
 - Custom drawing primitives (specialised visualisations, plot canvases)
   can go straight to `GraphicsCanvas`.
@@ -795,5 +795,6 @@ right and down act only on a whole selection.
   through widgets only as a presentation layer; keep the source-of-truth
   document in its own semantic domain.
 
-The Workbench domain (see [the workbench guide](../workbench/workbench.md)) is the largest
-example of a widget consumer in ProjecturEd.
+The pane package (see [the pane guide](../pane/pane.md)) is the largest
+example of a widget consumer in ProjecturEd: it projects a tree of splits,
+tab groups and tabs onto a live `WidgetSplitPane` / `WidgetTabbedPane` tree.

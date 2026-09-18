@@ -40,7 +40,7 @@ using Projectured, ProjecturedExample, ProjecturedSdl
 
 run_example()                           # the JSON example
 run_example("widget")                   # the widget forms
-run_example("json"; workbench = true)   # the same example in the workbench shell
+run_example("json"; shell = true)       # the same example inside a WidgetShell
 run_value_viewer(my_value)              # a window on any value of your own
 ```
 

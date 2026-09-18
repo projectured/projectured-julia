@@ -29,7 +29,6 @@ ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
@@ -57,6 +56,5 @@ ProjecturedRstExample = {path = "../ProjecturedRstExample"}
 ProjecturedSequenceChartExample = {path = "../ProjecturedSequenceChartExample"}
 ProjecturedSqlExample = {path = "../ProjecturedSqlExample"}
 ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
-ProjecturedWorkbenchExample = {path = "../ProjecturedWorkbenchExample"}
 ProjecturedXmlExample = {path = "../ProjecturedXmlExample"}
 ProjecturedYamlExample = {path = "../ProjecturedYamlExample"}

@@ -335,8 +335,7 @@ function test_mouse_clicks()
             # caret inside child canvases, which the top-level get_cursor_rect
             # scan can't see — skip the whole family here.
             startswith(example.name, "widget") && continue
-            example.name in ("workbench",
-                              "filesystem", "xml", "table", "math_table",
+            example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
                               "book", "object",

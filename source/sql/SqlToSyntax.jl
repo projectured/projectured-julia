@@ -2034,4 +2034,6 @@ function __init__()
                              format    = :sql,
                              extension = ".sql",
                              parse     = parse_sql_text)
+
+    register_file_document_type!(".sql", SqlFile)
 end

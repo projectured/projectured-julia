@@ -72,5 +72,5 @@ are exercised through `test/substrate/projection/SelectionWalkingTest.jl`,
 `WidgetButtonTest.jl` and `WidgetSelectionTest.jl`. The cycle guard in
 `get_first_focusable_path` / `get_last_focusable_path` is what keeps Tab from
 stack-overflowing on a document that embeds a doubly-linked list, such as
-text or syntax content in the workbench or the assistant; removing it
-reintroduces that crash rather than merely slowing the walk down.
+text or syntax content in the assistant; removing it reintroduces that crash
+rather than merely slowing the walk down.

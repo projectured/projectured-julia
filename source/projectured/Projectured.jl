@@ -17,7 +17,6 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedChart, ProjecturedSequenceChart,
                   ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm,
                   ProjecturedProcess, ProjecturedConversation,
-                  ProjecturedAssistant, ProjecturedWorkbench, ProjecturedUndo)
 
 # A binding is re-exported when it is a submodule this source defines, or a
 # submodule of a package this source reaches but the list does not name. The

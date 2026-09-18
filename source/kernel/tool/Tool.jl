@@ -179,7 +179,7 @@ cannot call wastes a round and learns to distrust the answer. Each line of it is
 an [`ApiEntry`](@ref), and [`declare_api!`](@ref) is how one is written.
 
 Empty, the default, means the editor's whole surface: every loaded `Projectured`
-package, which is what the workbench and the MCP server want. A caller that names
+package, which is what the assistant and the MCP server want. A caller that names
 modules gets those and nothing else.
 
 Naming modules **opens** as much as it narrows. The default surface is gathered by

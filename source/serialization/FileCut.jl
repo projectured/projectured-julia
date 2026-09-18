@@ -69,9 +69,9 @@ Whether the file writes the field `name` of `node`, and so whether the save
 walks it. The default is `true`: a file writes the document it holds, whole.
 
 A format whose notation writes a reduced form of a node says so here, and the
-rest of that node is the document's own business. A card read from a file holds
-the live workbench it built, and nothing writes that: without this the save
-would reach it, find no file of its domain, and call it an orphan.
+rest of that node is the document's own business. A `GestureLog` read from a
+file holds the live entries it records, and nothing writes that: without this
+the save would reach it, find no file of its domain, and call it an orphan.
 """
 is_written_in_file(file, node, name::Symbol) = true
 

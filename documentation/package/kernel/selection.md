@@ -232,8 +232,9 @@ mirroring how `set_selection!` distributes it across the domain tree.
 The key point: **the selection is not passed as a parameter through
 `print_document`** — it is wired reactively. `CopyingProjection` does this
 generically; compound projections that introduce structure (e.g.
-`WorkbenchToWidget`, whose shell inserts split panes that have no domain
-counterpart) wire the selection cells explicitly in `print_document`.
+`PaneToWidget`, whose tree stage wraps the printed layout in a `WidgetComposite`
+that has no domain counterpart) wire the selection cells explicitly in
+`print_document`.
 
 A leaf printer illustrates the reactive wiring (`source/syntax/SyntaxToText.jl`,
 the projection from a `SyntaxLeaf` to a `TextBlock`):
@@ -276,7 +277,7 @@ instead of broadcasting to every child and hoping the focused one answers. This
 is the usual desired behavior: a key event should be delivered to the child the
 selection points at.
 
-For example, in the widget tree the workbench projects to:
+For example, in the widget tree the pane tree projects to:
 
 - a `WidgetSplitPane` reads its `selection` head (`elements[slot].child.…`) and
   forwards a keystroke only into `slot` (`_selected_split_slot` /
@@ -285,7 +286,7 @@ For example, in the widget tree the workbench projects to:
   (`selector_element_pairs[i].…`), so the focused document tab follows the
   selection and receives key events (`_tab_index_from_selection`).
 
-A node with no selection (e.g. a split pane built outside the workbench, where
+A node with no selection (e.g. a split pane built outside the pane tree, where
 nothing forward-projects onto it) falls back to forwarding to each child in
 turn. Mouse events still hit-test by coordinate rather than following the
 selection — the selection only directs *coordless* events such as keystrokes.

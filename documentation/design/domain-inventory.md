@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md)
 
-Contributor guide to the twenty-one packages that hold ProjecturEd's concrete
+Contributor guide to the twenty packages that hold ProjecturEd's concrete
 source domains: what a domain package contains, how they depend on each other,
 and how to add one. For the whole-system picture see
 [architecture.md](system-anatomy.md).
@@ -20,7 +20,6 @@ A domain with a reference guide keeps it in its own package:
 - [fsm.md](../package/fsm/fsm.md) — the state machine domain
 - [process.md](../package/process/process.md) — the process domain
 - [graph-layout.md](../package/graph/graph-layout.md) — the graph domain's layout engines
-- [workbench.md](../package/workbench/workbench.md) — the workbench application
 
 ## What a domain package is
 
@@ -42,8 +41,7 @@ embeds. [packages.md](../rule/package-rules.md) has the substrate table.
 ## The dependency table
 
 Fourteen domains need nothing but the engine. Five build on one layer of
-domains. The assistant panel builds on the conversation domain. The workbench
-sits on top of all of them.
+domains. The assistant panel builds on the conversation domain.
 
 | Package | Directory | Depends on |
 | --- | --- | --- |
@@ -67,11 +65,10 @@ sits on top of all of them.
 | `ProjecturedProcess` | `package/process/` | Julia, Graph |
 | `ProjecturedConversation` | `package/conversation/` | Json, Julia, Xml |
 | `ProjecturedAssistant` | `package/assistant/` | Conversation |
-| `ProjecturedWorkbench` | `package/workbench/` | Assistant, Conversation, FileSystem |
 
 Every edge in the right column is a domain embedding another domain's content:
 a state machine guard is a Julia expression, a catalog query produces a SQL
-statement, the workbench opens documents of every kind.
+statement, a conversation part parses to Json, Julia or Xml.
 
 ## What is NOT a domain package
 

@@ -1,7 +1,11 @@
 # Tool views replace the workbench
 
-> **Status (2026-09-17): NOT STARTED.** No step is done. Every fact in
-> section 2 was checked against the source on this date.
+> **Status (2026-09-18): DONE.** Every step (0 through 10) is done. Step 0
+> keeps its two `@test_broken` assertions (a printable key not reaching the
+> name buffer); every other step is fully green. The workbench domain —
+> `source/workbench/`, `example/workbench/`, `test/workbench/`,
+> `ProjecturedWorkbench`/`ProjecturedWorkbenchExample`/`ProjecturedWorkbenchTest`
+> — is deleted.
 
 **Goal.** A person opens an empty tab, presses Insert, types a name, and gets a
 working tool. Six tools answer to a name: a log, a read-eval-print loop, a
@@ -646,9 +650,46 @@ holds, and a person types a short word instead of a type name.
 
 ### Step 7. A file tab holds a `FileDocument`
 
-**Status: points 1, 2 and 4 done, 2026-09-18.** A tab that holds a
-`FileDocument` draws the file's content, and `Ctrl+S` / `Ctrl+O` save and reload
-it. Points 3 and 5 wait for Step 8, which is deferred.
+**Status: done, 2026-09-18.** A tab that holds a `FileDocument` draws the
+file's content, and `Ctrl+S` / `Ctrl+O` save and reload it.
+
+**Point 3, done with Step 8.** `make_file_tab(path)` lives in `DocumentFile.jl`
+and answers `get_file_document_type(path)(abspath(path), read_document_file(path))`
+— the *absolute path*, not its base name. A `FileDocument`'s `filename` field is
+what `SaveFileOperation`/`ReloadFileOperation` read the file back through and
+what `get_document_title` takes a base name from; a version holding only the
+base name saves and reloads through the working directory instead of the file's
+own directory, which `test/projectured/projection/FileTabTest.jl`'s own
+`mktempdir` fixture already assumed correctly (`open_pane!`'s document title
+still shows the base name, from `get_document_title`, not from `filename`
+itself). `get_file_document_type` covers every extension the application opens
+— `.json`, `.xml`, `.md`, `.rst`, `.math`, `.jl`, `.pred`, `.txt`, no extension —
+**except `.yaml`**: YAML has a registered natural parser (so
+`read_document_file`/`write_document_file` already round-trip it) but no
+registered `FileDocument` type, so `make_file_tab("a.yaml")` raises. Opening a
+`.yaml` file as a tab needs a `YamlFile <: FileDocument` registered the way
+`JsonFile`/`XmlFile`/… are; not added here, since it is a new file-format
+registration outside this plan's scope, not a workbench-shaped decision.
+
+**Point 5, done with Step 8, not where the plan expected.** `PaneModule` is
+substrate — `test_package_graph()`'s "no kernel or substrate package depends on
+a domain" holds it to depending on no domain package, `ProjecturedFileSystem`
+(where `OpenFileOperation` is declared) included — so
+`evaluate_operation(editor, ::OpenFileOperation)` cannot be written in
+`source/pane/`, which can never `using` the module that declares the type it
+would dispatch on. It is defined in `source/filesystem/FileSystemDocument.jl`
+instead, beside the operation, and reads the pane tree through two new,
+public, substrate-side entry points in `source/pane/PaneFile.jl`:
+`get_pane_file_group(editor)` (the group a file opens in) and the already-kept
+`_get_window_content`. `ProjecturedFileSystem` gained `ProjecturedPane` and
+`ProjecturedFileFormat` as dependencies to call them and `make_file_tab`. The
+"group that already holds a file, else a group that accepts one" rule no
+longer names `Workspace`/`Assistant` directly (same substrate rule): a new
+domain-extensible predicate, `accepts_opened_file(document) -> Bool` (default
+`true`), sits in `DocumentCore.jl` beside `accepts_pasted_document` and
+friends; `Workspace` and `Assistant` each answer `false`. `is_file_document`
+(already substrate, from `ProjecturedSerialization`) answers the "already
+holds a file" half without a new trait.
 
 `SaveFileOperation` calls `save_file!`, not `write_document_file`: the latter
 takes a `Document`, and a `TextFile` holds a raw `String`. `save_file!`
@@ -669,61 +710,147 @@ The projection (point 1) is **not** a `@projection_template`, and not a
 `SimpleIoMap` that answers the content either. A registered row must reach
 graphics, and a row whose output is another document does not: the recursion
 re-enters for a node's CHILDREN, not for its output. The printer must call the
-recursion on the content itself, the way `_content_pane` in `WorkbenchToWidget.jl`
-and `_recurse` in `PaneToWidget.jl` do. Points 3 to 5 move with Step 8, which is
-where the file tab changes.
+recursion on the content itself, the way `_recurse` in `PaneToWidget.jl` does.
 
 1. Write one `@projection_template` that draws a `FileDocument` by drawing its
    `content`, and register it for `FileDocument` in the natural table.
 2. Give `FileDocument` a `get_document_title` that answers `basename(filename)`.
-3. Change `make_workbench_file_editor(path)` to `make_file_tab(path)`, which
-   answers the `FileDocument` that `load_file` builds.
+3. **Done, with a different name than planned.** `make_file_tab(path)` in
+   `DocumentFile.jl` answers the `FileDocument` that `read_document_file`
+   builds, holding the path itself (see the status note above) — there is no
+   `load_file` here, since `load_file` is the *project*-relative loader
+   (`FileProject.jl`), and a standalone tab is not part of a project.
 4. Move the `Ctrl+S` and `Ctrl+O` bindings from `WorkbenchEditor` to
    `FileDocument`, and make them call `save_file!` and `load_file`.
-5. **Superseded by the Step 1 correction above.** There is no
+5. **Superseded by the Step 1 correction above, done in `source/filesystem/`,
+   not `source/pane/`** — see the status note above for why. There is no
    `OpenWorkspaceFileOperation` left to move: the intent is already
-   `OpenFileOperation`, declared in the file system slice. Give the pane slice
-   `evaluate_operation(editor, op::OpenFileOperation)` — its own version of
-   what `WorkbenchFile.jl` does today — and delete `OpenWorkspaceFileOperation`
-   and its workbench-side `evaluate_operation` with the rest of the workbench
-   in Step 8.
+   `OpenFileOperation`, declared in the file system slice, and its own
+   `evaluate_operation` now lives beside it.
 
 **Test.** Extend `test/projectured/editor/ApplicationTest.jl`: open every
 format, save one, read it again, and assert the round trip.
 
 ### Step 8. The workbench goes away
 
-**Status: point 1 done, 2026-09-18; the workbench itself is not deleted yet —
-`ProjecturedWorkbench` still builds and its own tests still pass.** The actual
-moved set differs from the plan's write-up in one way: `WorkspaceFolder`,
-`Workspace`, `WorkspaceFolderToFileSystemDirectory` and `WorkspaceToFileSystem`
-moved, and `ProjecturedFileSystem` gained a `ProjecturedDomain` dependency it
-did not have (see the Step 1 correction). `OpenFileOperation` moved down too,
-ahead of schedule — it was declared new in the file system slice rather than
-carried over, since `OpenWorkspaceFileOperation` stays put in the workbench
-until Step 8 deletes it (see point 5 of the file-tab step above).
+**Status: done, 2026-09-18.** `source/workbench/`, `example/workbench/`,
+`test/workbench/` and the three packages are gone. `grep -rn "Workbench" .`
+outside `plan/` finds nothing.
 
-1. **Done.** `git mv source/workbench/Workspace.jl source/filesystem/Workspace.jl`
-   and `WorkspaceToFileSystem.jl` beside it. Their exports moved from
-   `WorkbenchModule.jl` to `FileSystemModule.jl`; `WorkbenchModule` still sees
-   `Workspace` through its existing bare `using ..FileSystemModule`, so nothing
-   downstream of it (`WorkbenchDocument.jl`, `WorkbenchToWidget.jl`) needed a
-   change.
-2. `git mv source/workbench/WorkbenchFile.jl source/pane/PaneFile.jl`, without
-   `WorkbenchEditor`.
-3. Delete `source/workbench/`, `example/workbench/`, `test/workbench/` and the
-   three packages.
-4. Delete the workbench rows from `example/projectured/Application.jl`, and the
-   `:workbench` value of `APPLICATION_WINDOWS`. One window is left, so the
-   parameter goes too.
-5. Delete the comments that name the workbench in the eight files of section 2.
-   They are history comments, which the project rule forbids.
-6. Delete the workbench entries from `documentation/`, and write the tool views
-   into [documentation/package/pane/pane.md](../../documentation/package/pane/pane.md).
+1. **Done**, from an earlier pass. `Workspace.jl`/`WorkspaceToFileSystem.jl`
+   already sat in `source/filesystem/`.
+2. **Done.** `git mv source/workbench/WorkbenchFile.jl source/pane/PaneFile.jl`,
+   keeping only the "which group does a file open in" helper (now the public
+   `get_pane_file_group(editor)`) and `_get_window_content`.
+   `evaluate_operation(editor, ::OpenFileOperation)` did **not** move into this
+   file — see point 5 of the file-tab step above for why, and where it actually
+   is.
+3. **Done.** Nothing depended on the three packages by the time they were
+   removed, except a wide set of examples and tests that had never moved out
+   of `ProjecturedWorkbenchExample`/`ProjecturedWorkbenchTest` even though they
+   named no workbench type — a gap this step had to close, not one it created:
+   - `NavigatorDocumentExample.jl`/`NavigatorProjectionExample.jl` (the
+     `navigator` example, `make_workspace_folder_document_example`,
+     `make_workspace_document_example`) → `example/filesystem/`, into
+     `ProjecturedFileSystemExample`.
+   - `AssistantDocumentExample.jl`/`AssistantProjectionExample.jl` (the
+     `assistant` example, `conversation_draft_entry`, `conversation_widget_entry`)
+     → `example/conversation/`, into `ProjecturedConversationExample`, which
+     gained a `ProjecturedAssistant` dependency. `make_assistant_projection_example`
+     no longer routes its top-level `Assistant` through `WorkbenchToWidget()`;
+     it wraps `AssistantToWidgetSplitPane()` directly.
+   - `TableDocumentExample.jl` (`table`/`math_table`, JSON and Math cells in a
+     `WidgetTable`) → `example/projectured/`, included directly by
+     `ProjecturedExample` (its projection half already lived in
+     `example/substrate/TableProjectionExample.jl`, untouched).
+   - `WrapperDocumentExample.jl`/`WrapperProjectionExample.jl`, minus
+     `make_workbench_document`/`make_workbench_projection`, which had no
+     replacement (the `workbench=true` gallery wrapper and `EditorDomain`'s own
+     `workbench` keyword are gone with them, in `Gallery.jl` and
+     `FileEditor.jl`) → renamed `GalleryWrapperDocumentExample.jl` /
+     `GalleryWrapperProjectionExample.jl` in `example/projectured/`: the
+     scrolling/shell/introspection/command-palette wrappers `run_example` and
+     `test_gallery_wrappers()` use, which name no workbench type and had simply
+     never moved.
+   - `test/workbench/editor/AssistantMvpTest.jl`/`AssistantDuplicateTest.jl`
+     (real `Assistant` document coverage, not workbench coverage) →
+     `test/projectured/editor/`, into `ProjecturedTest`. Package-qualified
+     references such as `ProjecturedKernel.ProjectionModule.Projection` had to
+     become bare `ProjectionModule.Projection`: `ProjecturedTest` binds every
+     submodule of `Projectured` (the umbrella) as a plain name, not the
+     top-level package names themselves.
+   - `test/workbench/projection/WorkbenchContentPaneTest.jl`/
+     `WorkbenchTabClickTest.jl` were **not** moved: both are regression tests
+     for bugs in `WorkbenchPage`'s own widget projection, which no longer
+     exists: their subject is gone, not relocated.
+4. **Done**, and further than planned: `APPLICATION_WINDOWS` is gone
+   entirely (not just its `:workbench` value), along with the `window` keyword
+   on every function that took one, `--window` on the command line, and
+   `PROJECTURED_OPTIONS`' matching entry — one window was the whole point.
+   `_make_application_pane_projection`'s three workbench rows and its
+   `WorkbenchToWidget()` chain are gone; the navigator (a bare `Workspace`) and
+   the assistant draw through the rows their own packages register, with one
+   exception recorded below. The `WorkspaceDocument` row in
+   `make_application_content_projections` was removed: running
+   `test_application()` with and without it renders identically, because the
+   global row `FileSystemToSyntax.jl` registers already defaults `open_file`
+   to `OpenFileOperation`.
 
-**Test.** `test_package_graph()` and `test_application()`. Then load every
-package once and read the import-time warnings: a clean load is not a migration
-check.
+   **Found by running the tests, not planned:** an `Assistant` reached as a
+   pane tab's own content — read through `print_child`, not a fresh top-level
+   `print_document` — is not reduced to a fixpoint the way a top-level print
+   reduces one, so the bare global row `Assistant => AssistantToWidgetSplitPane()`
+   handed the tab a `WidgetSplitPane`, not the graphics it draws;
+   `get_graphics_size` then received a widget it cannot measure.
+   `make_application_content_projections` now carries an explicit
+   `Assistant => ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()), NaturalToGraphics(...))`
+   entry, exactly as the workbench-era code gave the assistant its own
+   independent chain rather than relying on a shared one. `PaneToWidget`'s own
+   docstring and the assistant's `__init__` comment both now say why. This is
+   a real, narrow gap in the "a document registers its own row" story from
+   Step 1 — any document whose row produces a widget (not final graphics) has
+   the same problem when it is a pane tab's content, not only `Assistant`.
+5. **Done.** The ten files: `source/assistant/AssistantModule.jl`,
+   `AssistantToWidget.jl`, `AssistantTurn.jl`, `package/ProjecturedAssistant/src/ProjecturedAssistant.jl`,
+   `source/component/ComponentModule.jl`, `source/conversation/ConversationDocument.jl`,
+   `source/dragging/DraggingWrapper.jl`, `source/mcp/Mcp.jl`,
+   `source/natural/NaturalProjection.jl`, `source/fileformat/DocumentFile.jl`,
+   plus two more found while fixing the reactivity gap above:
+   `source/pane/PaneToWidget.jl` and `source/widget/WidgetToGraphics.jl`.
+6. **Done.** `documentation/package/workbench/` is deleted; every guide that
+   used the workbench as its worked example now uses the pane tree instead
+   (`documentation/design/engineer-tour.md`, `system-anatomy.md`,
+   `documentation/guide/examples-tour.md`, `orientation.md`,
+   `documentation/package/kernel/finding-and-selecting.md`, `macros.md`,
+   `operation.md`, `projection-system.md`, `selection.md`,
+   `documentation/rule/architecture-invariants.md`,
+   `documentation/presentation/projectured-overview.md`,
+   `documentation/package/component/component.md`, `fileformat.md`).
+   `documentation/package/pane/pane.md` needed no new writing — Step 1 through
+   this step already kept it current — only its own two comparisons against
+   the (now deleted) `WorkbenchPageToWidgetTabbedPane`.
+
+**Found, not planned: `make_file_tab` has no `.yaml` coverage.** `.yaml` has a
+registered natural parser but no registered `FileDocument` type (unlike
+`.json`/`.xml`/`.md`/`.rst`/`.math`/`.jl`/`.pred`/`.txt`/no-extension, which all
+do), so `make_file_tab("a.yaml")` raises. `ApplicationTest.jl`'s "every format
+draws" sweep skips what `has_file_document_type` does not cover, with a comment
+saying why, rather than silently expecting it to work.
+
+**Found, not planned: two pre-existing `test_package_graph()` failures**,
+present before this step and untouched by it (`git diff` on
+`PackageGraphTest.jl` touches only the `DOMAIN_EDGES` entry this step removes):
+`ProjecturedConversation`'s and `ProjecturedFormula`'s actual `[deps]` no
+longer match the table's `["ProjecturedJson", "ProjecturedJulia", "ProjecturedXml"]`
+/ `["ProjecturedJulia"]`. Not this plan's to fix.
+
+**Test.** `test_package_graph()` (614 pass / 2 fail, both pre-existing) and
+`test_application()` (45 pass / 0 fail). Also `test_mcp_tools()`,
+`test_mcp_resources()`, `test_file_tab()`, `test_tool_views()`,
+`test_user_interface_file()`, `test_insertion_in_tab()`, `test_kernel()`
+(1904 pass / 3 fail / 3 error, pre-existing) and `test_substrate()` (62639
+pass / 3 fail / 2 error / 1 broken, pre-existing) — all green apart from the
+two lines above and the pre-existing kernel/substrate baseline.
 
 ### Step 9. The user interface saves to a `.pred` file
 

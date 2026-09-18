@@ -8,9 +8,8 @@ types, the draft the composer edits, the model and the key it talks to, and the
 `Llm` that services a turn. What a turn DOES is `AssistantModule`'s, and what
 it looks like is `AssistantModule`'s.
 
-It was `ProjecturedWorkbench`'s, as a `WorkbenchDocument` beside the navigator and
-the console. It is a `Document` of its own now, because a program that wants an
-assistant beside its own panes should not carry an IDE to get one.
+It is a `Document` of its own, so a program that wants an assistant beside its
+own panes does not carry an IDE to get one.
 """
 module AssistantModule
 
@@ -40,7 +39,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
-import ..DomainModule: accepts_pasted_document
+import ..DomainModule: accepts_pasted_document, accepts_opened_file
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments

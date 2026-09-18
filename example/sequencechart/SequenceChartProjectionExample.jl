@@ -26,7 +26,7 @@ make_sequencechart_large_projection_example(; measure=measure_truetype_text) =
     make_sequencechart_pipeline_example(; measure=measure)
 
 # Embedding a sequence chart in anything that recurses its children takes one
-# dispatch entry — which is also all it takes to open one as a workbench tab.
+# dispatch entry — which is also all it takes to open one as a pane tab.
 function make_sequencechart_composite_projection_example(; measure=measure_truetype_text,
                                                          width::Integer=880,
                                                          height::Integer=330)

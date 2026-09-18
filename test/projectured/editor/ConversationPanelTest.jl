@@ -58,27 +58,6 @@ function test_assistant_composer_panel()
             @test a.status === :idle
         end
 
-        @testset "ENTER submits through the nested full workbench" begin
-            # Regression: in the full workbench the panel reader isn't reached, so
-            # the composer must convert ENTER's submit via the draft's assistant.
-            ex   = workbench_example
-            doc  = ex.make_document()
-            proj = ex.make_projection()
-            iom  = print_document(proj, doc)
-            a = nothing
-            for p in (:navigation_page, :editing_page, :information_page, :control_page)
-                for e in getfield(doc, p)[].elements
-                    e isa Assistant && (a = e)
-                end
-            end
-            @test a !== nothing
-            @test doc.control_page.elements[1] === a
-            set_selection!(doc, @reference(doc, control_page.elements[1].draft.^(
-                make_draft_caret_reference(a.draft))))
-            @test read_intent(proj, iom, KeyPress('h')) isa ReplaceStringRangeOperation
-            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
-        end
-
         @testset "an assistant card takes the keys where its selection points" begin
             a = Assistant(; llm = FakeLlm("ok"))
             # The chain a page draws an assistant with: the card, and the natural

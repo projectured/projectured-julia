@@ -32,15 +32,13 @@ using ProjecturedFormulaTest
 using ProjecturedFsmTest
 using ProjecturedProcessTest
 using ProjecturedConversationTest
-using ProjecturedWorkbenchTest
 using ProjecturedUndoTest
 # The builder's own suite is umbrella-only: it needs no domain and no editor,
 # but it is a repository-wide tool and this is where a repository-wide test runs.
 using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
-# gives a REPL `test_json()` and `test_workbench()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedConversationTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFileSystemTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedSqlTest, ProjecturedSubstrateTest, ProjecturedUndoTest, ProjecturedWorkbenchTest, ProjecturedXmlTest, ProjecturedYamlTest)
+# gives a REPL `test_json()` and `test_substrate()` as well as `test_all()`.
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
@@ -141,7 +139,8 @@ include("editor/ConstructTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/ConversationParsingTest.jl")
 include("editor/ConversationSerializationTest.jl")
-include("editor/WorkbenchFileTest.jl")
+include("editor/AssistantMvpTest.jl")
+include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
 include("editor/InsertionInTabTest.jl")
 include("projection/ToolViewTest.jl")
@@ -210,7 +209,6 @@ function test_projections()
         test_hover_probe()
         test_hover_probe_pipeline()
         test_split_pane_drag()
-        test_workbench_tab_click()
         test_dragging()
         test_write_image()
         test_record_video()
@@ -340,7 +338,6 @@ function test_all()
     test_process()
     test_conversation()
     test_undo()
-    test_workbench()
     test_anthropic()
     test_ollama()
     # Every concrete-domain example through the printer.
@@ -386,7 +383,7 @@ function test_all()
     test_julia_typein()
     test_conversation_editor()
     test_assistant_mvp()
-    test_workbench_file_keys()
+    test_assistant_duplicate()
     test_application()
     test_insertion_in_tab()
     test_tool_views()
@@ -432,7 +429,7 @@ export test_search_scale
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
-export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_workbench_tab_click, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
+export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete
@@ -457,7 +454,7 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
-export test_workbench_file_keys, test_application, test_insertion_in_tab,
+export test_application, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel,
        test_value_viewer, test_builder,
@@ -471,8 +468,8 @@ export test_assistant_composer_panel, test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_search_guides, test_search_api, test_search_tools_registered
-export test_workbench_b1, test_print_object_options, test_search_object
-export test_execute_julia_code, test_workbench_editor_reference, test_function_availability
+export test_pane_tab_b1, test_print_object_options, test_search_object
+export test_execute_julia_code, test_assistant_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
 export test_command_palette, test_command_palette_decorator, test_document_insertion
 export test_gesture_log, test_file_project

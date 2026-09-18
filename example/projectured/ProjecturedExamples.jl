@@ -30,7 +30,6 @@ const examples = [
     sequencechart_example, sequencechart_vertical_example, sequencechart_linear_example,
     sequencechart_inspector_example, sequencechart_pair_example,
     fsm_example, fsm_toggle_example, fsm_diagram_example,
-    workbench_example,
     math_example,
     julia_example,
     formula_example,
@@ -280,7 +279,6 @@ const _DOMAIN_GUIDE_EXAMPLE = Dict(
     "package/visual/doc/syntax.md"    => "syntax",
     "package/visual/doc/graphics.md"  => "graphics_image",
     "package/visual/doc/widget.md"    => "widget",
-    "package/domain/doc/workbench.md" => "workbench",
     "package/domain/doc/chart.md"     => "chart",
     "package/domain/doc/sequencechart.md" => "sequencechart",
     "package/base/doc/collection.md"  => "collection",
@@ -322,9 +320,9 @@ function _readme_screenshots_block(md_dir::AbstractString)
     |---|---|---|
     | $(cell("json", "JSON")) | $(cell("widget", "Widget")) | $(cell("table", "Table")) |
 
-    | Syntax tree | Julia AST | Workbench |
+    | Syntax tree | Julia AST | Assistant |
     |---|---|---|
-    | $(cell("syntax", "Syntax")) | $(cell("julia", "Julia AST")) | $(cell("workbench", "Workbench")) |
+    | $(cell("syntax", "Syntax")) | $(cell("julia", "Julia AST")) | $(cell("assistant", "Assistant")) |
 
     ---
     """

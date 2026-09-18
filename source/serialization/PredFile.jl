@@ -88,10 +88,11 @@ The arguments of the call a `.pred` file writes for `document`. The default
 writes every declared field as a keyword, in declaration order: a document made
 of data is its fields.
 
-A document that also holds what it did not read — a workbench built for a
-model, the module a source ran in — says here what its file half is, and reads
-it back in [`make_pred_document`](@ref). The two are inverses, and a value the
-notation cannot write is refused at save whichever of them produced it.
+A document that also holds what it did not read — a `PaneTree`'s drag in
+progress, an `Assistant`'s API key and conversation — says here what its file
+half is, and reads it back in [`make_pred_document`](@ref). The two are
+inverses, and a value the notation cannot write is refused at save whichever
+of them produced it.
 """
 function pred_arguments(document)
     keywords = Pair{Symbol,Any}[]

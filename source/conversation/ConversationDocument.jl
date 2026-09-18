@@ -136,7 +136,7 @@ copy_document(policy::DuplicatePolicy, draft::ConversationDraft) =
 set_cell_function!(d::ConversationDraft, f::Function) =
     (set_cell_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 
-# ── set_cell_function! delegation (mirror Workbench panel pattern) ────────────────────────
+# ── set_cell_function! delegation ──────────────────────────────────────────
 
 set_cell_function!(c::ConversationConversation, f::Function) =
     (set_cell_function!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)

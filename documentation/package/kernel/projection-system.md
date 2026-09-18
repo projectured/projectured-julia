@@ -127,12 +127,12 @@ output selection formats are identical may instead *share* the same
 is valid only leaf-to-leaf (see [§7 of the selection deep dive](selection.md)).
 
 A compound projection that introduces *structural* output nodes with no input
-counterpart (e.g. `WorkbenchToWidget`, whose shell inserts split panes around
-the projected pages) wires those nodes' `selection` cells explicitly: it
-forward-projects the workbench selection and re-roots it onto each split with a
-small prefix strip. Once wired, those forward-projected selection cells let the
-reader route events by selection — see below and
-[the selection guide](selection.md#forward-projecting-selection).
+counterpart (e.g. `PaneToWidget`, whose tree stage wraps the printed layout in a
+`WidgetComposite` that also carries the drop indicator) wires those nodes'
+`selection` cells explicitly: it forward-projects the pane tree's own selection
+and re-roots it onto the wrapper with a small index prefix. Once wired, those
+forward-projected selection cells let the reader route events by selection —
+see below and [the selection guide](selection.md#forward-projecting-selection).
 
 ### `print_document_pure` / `print_child_pure` — the pure printer
 
@@ -425,7 +425,7 @@ rows are representative (every domain adds its own `*To*` projection).
 
 | Category | Members | Purpose |
 |---|---|---|
-| **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `PrimitiveToSyntax`, `CollectionToSyntax`, … | Translate between two distinct domains |
+| **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `PaneToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `PrimitiveToSyntax`, `CollectionToSyntax`, … | Translate between two distinct domains |
 | **Domain-preserving** | `WordWrapping`, `TextLineNumbering`, `TextHighlighting`, `TextFiltering`, `GraphicsCanvasToGraphicsImage`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
 | **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `IdentityProjection`, `ConstantProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (8 in `generic/`, plus `ObjectToWidget` in `widget/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
 | **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowInputUnwrappingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `DraggingProjection`, `ProjectionConfiguringProjection` | Compose other projections (8 in `higherorder/`; the other 4 sit beside the domain each one touches) |
@@ -741,7 +741,7 @@ RecursiveProjection(TypeDispatchingProjection(
 ```
 
 `JsonToSyntax()`, `XmlToSyntax()`, `WidgetToGraphics()`,
-`WorkbenchToWidget()`, `ObjectToSyntax()` — every multi-shape projection
+`PaneToWidget()`, `ObjectToSyntax()` — every multi-shape projection
 exposes a zero-arg factory that returns exactly this shape.
 
 ## The screen pipeline

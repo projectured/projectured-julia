@@ -59,7 +59,7 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [packages.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
-twenty-one domain packages**, plus an umbrella and the opt-in packages. The kernel
+twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its seventeen layers depend only downward, and
 the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
@@ -95,11 +95,11 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
         │                      is in [packages.md](../rule/package-rules.md).
-The twenty-one domain packages one package per concrete source domain
+The twenty domain packages     one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ filesystem/ graph/ chart/
         │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
-        │                      conversation/ assistant/ workbench/. Each holds its
+        │                      conversation/ assistant/. Each holds its
         │                      documents, its parser and its projections.
         │                      Deps: the kernel, the substrate packages it uses,
         │                      and the domains it embeds. See
@@ -212,7 +212,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 | `SyntaxDocument.jl` | `SyntaxLeaf`, `SyntaxNode`; wrapper types `SyntaxDelimitation`, `SyntaxIndentation`, `SyntaxCollapsible`, `SyntaxNavigation`, `SyntaxConcatenation`, `SyntaxSeparation` |
 | `GraphicsDocument.jl` | `GraphicsText`, `GraphicsRect`, `GraphicsCanvas`, `GraphicsViewport`, `GraphicsImage`, `GraphicsFence` |
 | `WidgetDocument.jl` | Core: `WidgetInsertion`, `WidgetLabel`, `WidgetText`, `WidgetCheckbox`, `WidgetButton`, `WidgetTooltip`, `WidgetMenu`, `WidgetMenuItem`, `WidgetComposite`, `WidgetToolbar`, `WidgetShell`, `WidgetTitlePane`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetScrollPane`, `WidgetScrollBar`. Extension: `WidgetBadge`, `WidgetSeparator`, `WidgetCard`, `WidgetSwitch`, `WidgetProgress`, `WidgetSlider`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetSkeleton`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetSelect`, `WidgetTextarea`, `WidgetAccordion`, `WidgetTable`, `WidgetTree` |
-| `WorkbenchDocument.jl` | `WorkbenchWorkbench`, `WorkbenchPage`, `WorkbenchNavigator`, `WorkbenchConsole`, `WorkbenchDescriptor`, `WorkbenchOperator`, `WorkbenchSearcher`, `WorkbenchEvaluator`, `WorkbenchAssistant`, `WorkbenchEditor` |
+| `PaneDocument.jl` | `PaneTree`, `PaneSplit`, `PaneGroup`, `PaneTab` |
 | `BookDocument.jl` | `BookBook`, `BookChapter`, `BookParagraph`, `BookList`, `BookPicture` |
 | `MathDocument.jl` | `MathVariable`, `MathBinaryOperation`, `MathParenthesized`, `MathAssignment` |
 | `JuliaDocument.jl` | `JuliaIdentifier`, `JuliaInteger`, `JuliaBinaryOperation`, `JuliaCall`, `JuliaIf`, `JuliaFunction`, `JuliaBlock` |
@@ -287,7 +287,7 @@ composes with any higher-order projection.
 | `TextToGraphics` | `Text` → `Graphics` |
 | `TextToString` | `Text` → `String` |
 | `WidgetToGraphics` | `Widget` → `Graphics` |
-| `WorkbenchToWidget` | `Workbench` → `Widget` |
+| `PaneToWidget` | `Pane` → `Widget` |
 | `GraphicsCaching` | `Graphics` → `Graphics` (caching projection) |
 | `LineNumbering` | `Text` → `Text` (domain-preserving) |
 | `WordWrapping` | `Text` → `Text` (domain-preserving) |
@@ -333,14 +333,14 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── the 28 substrate packages ◄── the 21 domains ◄── Projectured
+ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
    Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
    (opt-in)                    (opt-in)                 (opt-in)
 ```
 
-The substrate packages form their own DAG, and so do the twenty-one domains.
+The substrate packages form their own DAG, and so do the twenty domains.
 [packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
 has the domain table.
 
@@ -421,11 +421,10 @@ concept, and each declares the exact set of packages it imports:
    pdf             the vector PDF backend
 ```
 
-**The twenty-one domain packages** — one package per concrete source domain,
+**The twenty domain packages** — one package per concrete source domain,
 each holding one slice: its documents, its parser and its projections.
 Fourteen need only the engine packages; five build on one layer of domains;
-the assistant panel builds on the conversation domain; the workbench
-application sits on top. [domains.md](domain-inventory.md) has the table and the rules
+the assistant panel builds on the conversation domain. [domains.md](domain-inventory.md) has the table and the rules
 for adding one.
 
 ---
@@ -442,7 +441,7 @@ for adding one.
 | Syntax → Text (leaf and node with word-wrap) | ✅ |
 | Text → GraphicsCanvas (SDL2 text + cursor rect) | ✅ |
 | Widget → GraphicsCanvas | ✅ |
-| Workbench → Widget → GraphicsCanvas | ✅ |
+| Pane → Widget → GraphicsCanvas | ✅ |
 | SDL2 window rendering | ✅ |
 | Text → terminal (`ConsoleBackend`, ANSI colors, no `TextToGraphics`) | ✅ |
 | Web rendering (browser canvas, dirty-rect patches) | ✅ |

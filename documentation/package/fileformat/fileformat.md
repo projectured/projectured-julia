@@ -51,9 +51,10 @@ The binary row and the registered-file-type row both call down to
 the text printers that [natural.md](../natural/natural.md) dispatches to by
 registered domain. This slice adds no format of its own — it is the seam
 that picks among the ones `ProjecturedSerialization` and each domain already
-provide. The `WorkbenchEditor` save/reload keybindings and the file-editor
-registry are what calls `write_document_file` / `read_document_file` in the
-running editor.
+provide. `FileDocument`'s save/reload keybindings and `make_file_tab` are
+what call into this seam in the running editor: a reload and a tab open
+read through `read_document_file`, and a save writes through `save_file!`
+directly, dispatching by the file's own type.
 
 ## What a reader must know before changing this
 
@@ -64,5 +65,5 @@ text form, so exporting one does not re-parse. Round-tripping through
 `export_document` / `import_document` holds for a real data document, not for
 editor scaffolding. There is no `test/fileformat/` folder; the seam is
 exercised through `test/projectured/editor/ApplicationTest.jl`,
-`test/projectured/editor/WorkbenchFileTest.jl` and
+`test/projectured/projection/FileTabTest.jl` (`test_file_tab()`) and
 `test/projectured/serializer/SerializationTest.jl`.

@@ -61,7 +61,7 @@ substitution is visible rather than silent.
 
 Loading `ProjecturedAdaptagrams` is the whole opt-in: its `__init__` calls
 `register_layout_engine!`, so any caller of `make_deferred_layout_engine()` —
-an example, a workbench page, a live diagram — gets native placement from
+an example, a pane tab, a live diagram — gets native placement from
 the moment the package is in the session, with nothing else rewired. Nothing
 under `source/graph/` depends on this package; the dependency runs the other
 way, from `ProjecturedAdaptagrams` to `ProjecturedGraph`'s

@@ -151,7 +151,7 @@ function test_search_api()
         @test occursin("read_function_documentation", result) || occursin("resource://", result)
 
         # kind filter restricts results to classes (structs)
-        result_class = search_api("workbench"; kind="class")
+        result_class = search_api("conversation"; kind="class")
         @test isa(result_class, String)
         @test !occursin("— function", result_class)
 
@@ -203,54 +203,56 @@ function test_search_tools_registered()
     end
 end
 
-function test_workbench_b1()
-    @testset "workbench tabs via operations + search" begin
-        editing = WorkbenchPage([])
-        info    = WorkbenchPage([])
-        wb = WorkbenchWorkbench(
-            WorkbenchPage([WorkbenchNavigator(Workspace())]),
+function test_pane_tab_b1()
+    @testset "pane tabs via operations + search" begin
+        editing = PaneGroup(PaneTab[])
+        info    = PaneGroup(PaneTab[])
+        tree = PaneTree(PaneSplit(:vertical, Any[
+            PaneGroup(PaneTab[PaneTab("Files", Workspace())]),
             editing,
             info,
-            WorkbenchPage([]),
-        )
-        editor = (document = wb,)
+        ]))
 
         # Find tabs generically with search (no bespoke list helper). The
-        # Navigator is not a WorkbenchEditor, so nothing is "open" yet.
-        @test isempty(search_documents(wb, x -> x isa WorkbenchEditor))
+        # explorer is not a file document, so nothing is "open" yet.
+        @test isempty(search_documents(tree, x -> is_file_document(x)))
 
-        # Open tabs by building the operation that carries its target page, then
-        # evaluating it — the same path the editor loop runs for a gesture.
-        a = WorkbenchEditor(JsonString("hi"); title="a.json")
-        b = WorkbenchEditor(JsonNull();        title="b.json")
-        evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, a))
-        evaluate_operation(editor, WorkbenchOpenDocumentOperation(editing, b))
+        # Open tabs by building the operation that carries its target group, then
+        # applying it — the same path the editor loop runs for a gesture.
+        a = JsonFile("a.json", JsonString("hi"))
+        b = JsonFile("b.json", JsonNull())
+        apply_pane_operation!(tree,
+            make_pane_open_tab_operation(tree, editing, PaneTab(get_document_title(a), a)))
+        apply_pane_operation!(tree,
+            make_pane_open_tab_operation(tree, editing, PaneTab(get_document_title(b), b)))
 
-        editors = search_documents(wb, x -> x isa WorkbenchEditor)
-        @test length(editors) == 2
-        @test Set(e.title for e in editors) == Set(["a.json", "b.json"])
+        files = search_documents(tree, x -> is_file_document(x))
+        @test length(files) == 2
+        @test Set(get_document_title(f) for f in files) == Set(["a.json", "b.json"])
 
         # Locate a tab by content and resolve its reference back to the node.
-        refs = search_references(wb, x -> x isa WorkbenchEditor && x.title == "b.json")
+        refs = search_references(tree,
+            x -> is_file_document(x) && get_document_title(x) == "b.json")
         @test length(refs) == 1
-        @test evaluate_reference(wb, refs[1]) === b
+        @test evaluate_reference(tree, refs[1]) === b
 
         # "Focus" is selecting that tab — a ReplaceSelectionOperation, like a click.
-        evaluate_operation(editor, ReplaceSelectionOperation(refs[1]))
-        @test evaluate_reference(wb, wb.selection) === b
+        apply_pane_operation!(tree, ReplaceSelectionOperation(refs[1]))
+        @test evaluate_reference(tree, tree.selection) === b
 
-        # Open onto another page; search finds it regardless of which page.
-        n = WorkbenchEditor(JsonNull(); title="n.json")
-        evaluate_operation(editor, WorkbenchOpenDocumentOperation(info, n))
-        @test any(e -> e.title == "n.json", search_documents(wb, x -> x isa WorkbenchEditor))
+        # Open onto another group; search finds it regardless of which group.
+        n = JsonFile("n.json", JsonNull())
+        apply_pane_operation!(tree,
+            make_pane_open_tab_operation(tree, info, PaneTab(get_document_title(n), n)))
+        @test any(f -> get_document_title(f) == "n.json", search_documents(tree, x -> is_file_document(x)))
 
-        # Close a tab: find its index on the page, build the close operation.
+        # Close a tab: find its index on the group, build the close operation.
         idx = 0
-        for (i, e) in enumerate(editing.elements)
-            e.title == "a.json" && (idx = i; break)
+        for (i, tab) in enumerate(editing.tabs)
+            get_document_title(tab.content) == "a.json" && (idx = i; break)
         end
-        evaluate_operation(editor, WorkbenchCloseDocumentOperation(editing, idx))
-        @test [e.title for e in editing.elements] == ["b.json"]
+        apply_pane_operation!(tree, make_pane_close_tab_operation(tree, editing, idx))
+        @test [get_document_title(tab.content) for tab in editing.tabs] == ["b.json"]
     end
 end
 
@@ -457,10 +459,10 @@ end
 # Reproduces the bug where ALT+ENTER → SubmitJuliaOperation → call_tool
 # used to pass `nothing` for editor, so the assistant saw `editor === nothing`
 # and any `editor.document` reach-through crashed with FieldError. Verifies
-# the workbench flow now forwards the live editor (or a stand-in carrying
+# the assistant forwards the live editor (or a stand-in carrying
 # `.document`) all the way to `execute_julia_code`'s `let editor = …`.
-function test_workbench_editor_reference()
-    @testset "workbench editor reference" begin
+function test_assistant_editor_reference()
+    @testset "assistant editor reference" begin
         tools = register_default_tools!(ToolSet())
 
         a = Assistant(; llm = FakeLlm("ok"))
@@ -627,12 +629,12 @@ function test_mcp_tools()
         test_execute_julia_code()
         test_function_availability()
         test_base_extensions()
-        test_workbench_editor_reference()
+        test_assistant_editor_reference()
         test_assistant_turn_binds_meaning_model()
         test_search_guides()
         test_search_api()
         test_search_tools_registered()
-        test_workbench_b1()
+        test_pane_tab_b1()
         test_print_object_options()
         test_search_object()
     end
@@ -643,6 +645,6 @@ export test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_execute_julia_code, test_function_availability, test_base_extensions
-export test_workbench_editor_reference, test_assistant_turn_binds_meaning_model
+export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api, test_search_tools_registered
-export test_workbench_b1, test_print_object_options, test_search_object
+export test_pane_tab_b1, test_print_object_options, test_search_object

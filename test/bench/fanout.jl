@@ -60,17 +60,17 @@ _kindname(c) = c isa ReactiveCell ? :reactive :
 _fanout(c::ReactiveCell) = (d = getfield(c, :dependents); d === nothing ? 0 : length(d))
 
 """
-    fanout_report(name = "workbench"; io = stdout, top = 20) -> NamedTuple
+    fanout_report(name = "pane_json"; io = stdout, top = 20) -> NamedTuple
 
 Print the cell-kind census and reactive `dependents` fanout distribution for the
 named example's printed pipeline, with the `top` highest-fanout cells attributed
 to the `struct.field` that holds each. Returns the measurements, so several
 examples can be compared in one session:
 
-    a = fanout_report("workbench"); b = fanout_report("json")
+    a = fanout_report("pane_json"); b = fanout_report("json")
     a.census[:reactive] / b.census[:reactive]
 """
-function fanout_report(name = "workbench"; io::IO = stdout, top::Integer = 20)
+function fanout_report(name = "pane_json"; io::IO = stdout, top::Integer = 20)
     ex = getproperty(@__MODULE__, Symbol(name, "_example"))
     doc, proj = ex.make_document(), ex.make_projection()
     iomap = print_document(proj, doc)

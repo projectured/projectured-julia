@@ -13,6 +13,7 @@ loop below rebuilds that namespace over this package's sources.
 """
 module ProjecturedConversationExample
 
+import ProjecturedAssistant
 import ProjecturedConversation
 import ProjecturedJulia
 import ProjecturedKernel
@@ -45,7 +46,6 @@ import ProjecturedDomain
 import ProjecturedPrimitive
 import ProjecturedCollection
 import ProjecturedMarkdown
-import ProjecturedWorkbench
 using ProjecturedJuliaExample
 using ProjecturedMarkdownExample
 import ProjecturedJson
@@ -58,7 +58,7 @@ using ProjecturedKernelExample
 using ProjecturedSubstrateExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedWorkbench, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedAssistant, ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -78,11 +78,15 @@ end
 
 include("../../../example/conversation/ConversationDocumentExample.jl")
 include("../../../example/conversation/ConversationProjectionExample.jl")
+include("../../../example/conversation/AssistantDocumentExample.jl")
+include("../../../example/conversation/AssistantProjectionExample.jl")
 
 export _conversation_widget_graphics
 export make_conversation_document_example, make_conversation_editor_document_example, make_conversation_part_document_example
 export make_assistant_conversation_document_example
 export make_conversation_turn_document_example, make_conversation_conversation_document_example, make_conversation_draft_document_example
 export make_conversation_widget_projection_example, make_conversation_editor_projection_example
+export make_assistant_document_example, make_assistant_projection_example
+export conversation_draft_entry, conversation_widget_entry
 
 end # module ProjecturedConversationExample

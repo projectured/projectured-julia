@@ -26,7 +26,6 @@ using ProjecturedFormulaExample
 using ProjecturedFsmExample
 using ProjecturedProcessExample
 using ProjecturedConversationExample
-using ProjecturedWorkbenchExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
                                  record_example_video, make_typein_gestures
 import ProjecturedSubstrateExample: print_example, write_example_pdf
@@ -38,7 +37,7 @@ import ProjecturedSubstrateExample: print_example, write_example_pdf
 for _src in (ProjecturedKernelExample, ProjecturedSubstrateExample,
              ProjecturedJsonExample, ProjecturedYamlExample, ProjecturedXmlExample, ProjecturedMarkdownExample, ProjecturedRstExample, ProjecturedBookExample,
              ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSqlExample, ProjecturedDatabaseExample, ProjecturedFileSystemExample, ProjecturedGraphExample, ProjecturedChartExample,
-             ProjecturedSequenceChartExample, ProjecturedDbCatalogExample, ProjecturedFormulaExample, ProjecturedFsmExample, ProjecturedProcessExample, ProjecturedConversationExample, ProjecturedWorkbenchExample)
+             ProjecturedSequenceChartExample, ProjecturedDbCatalogExample, ProjecturedFormulaExample, ProjecturedFsmExample, ProjecturedProcessExample, ProjecturedConversationExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue
@@ -72,6 +71,7 @@ include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "TableDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "UndoDocumentExample.jl"))
 
@@ -83,6 +83,12 @@ include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "UndoProjectionExample.jl"))
+
+# The gallery's own wrapper documents and projections (scrolling, shell,
+# introspection, the command palette decorator, …): generic, cross-domain, and
+# used by nothing below the umbrella.
+include(joinpath(_EXAMPLE_DIR, "GalleryWrapperDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "GalleryWrapperProjectionExample.jl"))
 
 # The concrete-domain `Example` instances. They name factories from all twenty
 # example packages, so they belong here rather than in any one of them.
@@ -108,7 +114,7 @@ include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
 export run_value_viewer, make_value_viewer
 export run_application, make_application_document, make_application_projection,
        make_application_assistant, make_application_content_projections,
-       get_application_greeting_text, APPLICATION_WINDOWS, APPLICATION_ASSISTANTS,
+       get_application_greeting_text, APPLICATION_ASSISTANTS,
        parse_application_arguments, run_application_command,
        warm_application
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
@@ -258,14 +264,8 @@ export make_sql_update_document_example, make_sql_update_syntax_projection_examp
 export make_sql_column_reference_document_example, make_sql_table_expression_document_example
 export make_table_document_example, make_table_projection_example
 export make_text_configuring_projection, make_versioning_document_example
-export make_versioning_projection_example, make_workbench_document
-export make_workbench_document_example, make_workbench_projection
-export make_workbench_assistant_document_example, make_workbench_console_document_example
-export make_workbench_descriptor_document_example, make_workbench_editor_document_example
-export make_workbench_evaluator_document_example, make_workbench_navigator_document_example
-export make_workbench_operator_document_example, make_workbench_page_document_example
-export make_workbench_searcher_document_example, make_workbench_workbench_document_example
-export make_workbench_projection_example, make_xml_document_example
+export make_versioning_projection_example
+export make_xml_document_example
 export make_xml_projection_example, make_yaml_document_example, make_yaml_projection_example
 export markdown_example, markdown_rendered_example, math_example, math_display_example, math_table_example
 export mixed_example, natural_example, navigator_example, pane_json_example
@@ -273,7 +273,7 @@ export widget_tabs_example, widget_split_example, widget_split_tabs_example
 export record_assistant_conversation_video
 export run_console_example, run_example, run_file_editor, sql_insert_syntax_example
 export sql_nested_syntax_example, sql_syntax_example, sql_update_syntax_example, table_example
-export versioning_example, warm_file_editor, workbench_example, xml_example, yaml_example
+export versioning_example, warm_file_editor, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export precompile_atoms, precompile_atom_parsers
 export precompile_workload
@@ -341,7 +341,6 @@ export make_filtering_projection_example
 export make_searching_projection_example
 export make_sorting_projection_example
 export make_focusing_document_example, make_focusing_projection_example
-export make_workbench_document_example, make_workbench_projection_example
 export make_assistant_document_example, make_assistant_projection_example
 export make_table_document_example, make_table_projection_example
 export make_graph_document_example, make_graph_projection_example
@@ -359,7 +358,6 @@ export make_sql_nested_document_example, make_sql_nested_syntax_projection_examp
 
 export make_graphics_caching
 export make_scrolling_document, make_scrolling_projection
-export make_workbench_document, make_workbench_projection
 export make_introspection_document, make_introspection_projection, EditorIntrospection
 export make_dragging_document, make_dragging_projection
 export make_shell_document, make_shell_projection, make_command_palette_decorator_projection
@@ -390,7 +388,7 @@ export widget_textarea_example, widget_accordion_example, widget_table_example, 
 export widget_table_offered_example, widget_table_frozen_example
 export widget_disabled_example, widget_focus_example
 export layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, navigator_example
-export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example, workbench_example
+export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example
 export lazy_example, lazy_bidirectional_example
 export math_example
 export julia_example

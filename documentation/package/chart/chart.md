@@ -75,7 +75,7 @@ ChainingProjection(ChartToChartPlot(),
                    ChartPlotToGraphicsCanvas(measure=measure_truetype_text))
 ```
 
-To put a chart inside another document — a workbench tab, a table cell — add one
+To put a chart inside another document — a pane tab, a table cell — add one
 dispatch entry: `NaturalToGraphics(measure=…, extra=[Chart => that_pipeline])`.
 
 ## Data model

@@ -1,7 +1,7 @@
 # domain-example/Gallery.jl
 #
 # The example gallery: `run_example` opens one window per example, side by
-# side, with optional cross-domain wrappers (workbench, tooltip, inspector,
+# side, with optional cross-domain wrappers (tooltip, inspector,
 # clipboard, introspection, text filtering/highlighting; that domain
 # vocabulary is why the gallery's lowest home is the domain tier). No backend is
 # named here: an explicit `backend` wins, otherwise `default_backend()` picks one
@@ -15,7 +15,7 @@ end
 
 """
     run_example(examples::Vector{Example}; width, height,
-                caching=false, scrolling=false, workbench=false, reset=false,
+                caching=false, scrolling=false, reset=false,
                 tooltip=false, inspector=false, introspection=false, selection=nothing,
                 shell=false, hover=false, dragging=false, gesture_help=false,
                 command_palette=false, gesture_log=false, profile=false)
@@ -51,7 +51,7 @@ and drives the follower window via `OpenWindowOperation` / `CloseWindowOperation
 The window's content is a `ReferenceInspector` rendered the same two ways as the
 tooltip (compact `ReferenceToText` + human-readable `ReferenceToHumanReadableText`).
 It closes over dead space. Desktop-only (needs the SDL backend's global mouse via
-`get_pointer_position`); mutually exclusive with `tooltip` and `workbench`.
+`get_pointer_position`); mutually exclusive with `tooltip`.
 
 When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with
@@ -144,7 +144,7 @@ end
 
 Open a live editor window on a raw `(document, projection)` pair, with no
 `Example` needed. Accepts every keyword the gallery offers (`scrolling`,
-`workbench`, `tooltip`, `inspector`, `introspection`,
+`tooltip`, `inspector`, `introspection`,
 `clipboard`/`clipboard_collection`, `text_filtering`/`text_highlighting`,
 `selection`, `caching`, `profile`, `backend`, `width`, `height`); `name` becomes
 the window's id/title. See the `run_example(documents, projections, names)`
@@ -157,8 +157,8 @@ run_example(document, projection; name::AbstractString="document", kwargs...) =
     run_example(documents::Vector, projections::Vector, names::Vector; kwargs...)
 
 The `Example`-free core: open one window per `(documents[i], projections[i])`
-pair, side by side, applying the same optional cross-domain wrappers (workbench,
-tooltip, inspector, introspection, clipboard, text filtering/highlighting,
+pair, side by side, applying the same optional cross-domain wrappers (tooltip,
+inspector, introspection, clipboard, text filtering/highlighting,
 caching, dragging, shell, hover, gesture help, command palette). `names[i]` is
 window i's id/title and must be unique. Every keyword is
 identical to the `Example` overloads *except* `reset` — there are no factories to
@@ -171,7 +171,7 @@ document in sync, a watcher, a client. Passed straight through to `run_editor!`.
 """
 function run_example(documents::Vector, projections::Vector, names::Vector;
                      width=nothing, height=nothing,
-                     caching=false, scrolling=false, workbench=false,
+                     caching=false, scrolling=false,
                      tooltip=false, inspector=false, introspection=false,
                      clipboard=false, clipboard_collection=false,
                      text_filtering=false, text_highlighting=false, selection=nothing,
@@ -185,8 +185,8 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
     end
-    if inspector && (tooltip || workbench)
-        error("run_example: inspector=true is not compatible with tooltip=true or workbench=true")
+    if inspector && tooltip
+        error("run_example: inspector=true is not compatible with tooltip=true")
     end
     clipboard = clipboard || clipboard_collection
     if clipboard && (tooltip || inspector)
@@ -201,9 +201,6 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         sw, sh = get_display_size(backend)
         width  = something(width,  sw)
         height = something(height, sh)
-    end
-    if tooltip && workbench
-        error("run_example: tooltip=true is not compatible with workbench=true")
     end
 
     # One log for the whole screen: every window's overlay shows it and the
@@ -220,15 +217,12 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         document   = documents[i]
         projection = projections[i]
         # Apply a caller-supplied selection to the first pair's bare domain
-        # document, before any workbench/scrolling/introspection wrapping. The
+        # document, before any scrolling/introspection wrapping. The
         # selection-lifting step below then promotes it to a screen-rooted path.
         if selection !== nothing && i == 1
             set_selection!(document, selection)
         end
-        if workbench
-            document   = make_workbench_document(document; title=names[i])
-            projection = make_workbench_projection()
-        elseif scrolling
+        if scrolling
             document   = make_scrolling_document(document; width=width, height=height)
             projection = make_scrolling_projection(projection)
         elseif introspection
@@ -633,7 +627,7 @@ end
 """
     record_assistant_conversation_video(filename=tempname()*".mp4"; reply, kwargs...) -> String
 
-Record a headless MP4 of someone composing a multi-part message in the workbench
+Record a headless MP4 of someone composing a multi-part message in the
 assistant and waiting for the reply. The recorded session, driven entirely
 through the live `make_assistant_projection_example` chain
 (`KeyPress`/`KeyDown` → composer operations), is:

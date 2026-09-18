@@ -87,7 +87,7 @@ Pick the narrowest scope that exercises your change:
 
 - A single example: `test_printer(json_example)`, `test_reader(json_example)`, `test_position_navigation(json_example)`, `test_repl(json_example)`, or `test_example(json_example)` for all three at once. Add `test_position_navigation(json_example; check_reaches_all=true)` to also assert navigation reaches every enumerated position.
 - A single domain or pipeline stage: e.g. `test_json_document()`, `test_syntax()`, `test_json_to_syntax()`, `test_syntax_to_text()`.
-- One package's whole suite: `test_kernel()`, `test_substrate()`, and one per domain — `test_json()`, `test_sql()`, `test_workbench()`, … Each is its own test package (`package/Projectured<Name>Test`) that only depends on the packages below it, so these also run in an environment without SDL/ODBC/Tulip installed (`julia --project=package/ProjecturedKernelTest`, etc.). Each includes its package's static layering guard (`test_kernel_layering()`, `test_json_layering()`, …).
+- One package's whole suite: `test_kernel()`, `test_substrate()`, and one per domain — `test_json()`, `test_sql()`, … Each is its own test package (`package/Projectured<Name>Test`) that only depends on the packages below it, so these also run in an environment without SDL/ODBC/Tulip installed (`julia --project=package/ProjecturedKernelTest`, etc.). Each includes its package's static layering guard (`test_kernel_layering()`, `test_json_layering()`, …).
 - The reactive primitive only: `test_cell()`.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 

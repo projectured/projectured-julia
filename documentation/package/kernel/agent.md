@@ -336,7 +336,7 @@ function it cannot call wastes a round and learns to distrust the answer, so the
 two are never allowed to differ.
 
 Empty — the default — means the editor's whole surface: every loaded `Projectured`
-package, which is what the workbench and the MCP server want.
+package, which is what the assistant and the MCP server want.
 
 **The list opens as much as it narrows.** The default surface is gathered by
 package name, so a module in a package not called `Projectured…` is unreachable
@@ -399,7 +399,7 @@ round appended to it. A message list inside the agent would be a second copy of 
 transcript, free to drift from the real one.
 
 `on_event` receives every `LlmEvent` as it streams, plus an `AgentToolResult` for
-each tool that runs. The workbench assistant turns those into live conversation
+each tool that runs. The assistant turns those into live conversation
 parts; something else might simply print them.
 
 ## Who implements what

@@ -3,8 +3,8 @@
 
 The YAML source domain.
 
-The document types, the text parser, and the syntax projection that renders
-and edits them.
+The document types, the text parser, the syntax projection that renders and
+edits them, and the `YamlFile` wrapper that reads and writes `.yaml`/`.yml`.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -20,11 +20,12 @@ using ProjecturedNatural
 using ProjecturedKernel
 using ProjecturedPrimitive
 using ProjecturedProjection
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedKernel, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

@@ -25,7 +25,7 @@ make_chart_strip_projection_example(; measure=measure_truetype_text) =
 
 # The composite is a WidgetTable whose cells happen to be charts, so it renders
 # through the natural projection with one extra dispatch entry. That entry is
-# also all it takes to open a chart as a workbench tab or drop one into any other
+# also all it takes to open a chart as a pane tab or drop one into any other
 # document that recurses its children.
 function make_chart_projection_example(; measure=measure_truetype_text)
     NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,

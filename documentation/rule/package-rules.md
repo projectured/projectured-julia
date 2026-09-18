@@ -72,12 +72,12 @@ code **invalidated** when the session finishes loading, because a method added
 later can void a call site that was already compiled, and a session ends up
 loading a great many packages that add methods to `Base` functions.
 
-Measured, a first paint in a fresh session:
+Measured, a first paint of a JSON document in a fresh session:
 
-| | a JSON document | a workbench |
-| --- | ---: | ---: |
-| with no workload anywhere | 8.36 s | 11.40 s |
-| with a workload in the leaf | **0.66 s** | **1.63 s** |
+| | first paint |
+| --- | ---: |
+| with no workload anywhere | 8.36 s |
+| with a workload in the leaf | **0.66 s** |
 
 That is why `@compile_workload` is asserted to live only in a leaf, and why the
 body it calls — `ProjecturedExample.precompile_workload(level)` — is an ordinary

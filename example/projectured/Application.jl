@@ -1,24 +1,10 @@
 # The ProjecturEd application: a window that shows files, with a file navigator
 # and the assistant beside them.
 #
-# Two windows show the same files, and `window` selects one:
-#
-# - `:pane`, the default: a pane tree. The navigator, the file tabs and the
-#   assistant are the groups of a split, and the pane gestures rearrange them.
-# - `:workbench`: the shell of four pages, with the navigator on the left, the
-#   files in the middle, the information panels below and the assistant on the
-#   right.
-#
-# Both windows hold the same file tab, `WorkbenchEditor`. So `Ctrl+S` saves and
-# `Ctrl+O` reloads in both, and the navigator opens a file in both with
-# `OpenWorkspaceFileOperation`.
-
-"""
-    APPLICATION_WINDOWS
-
-The windows [`run_application`](@ref) can open: `:pane` and `:workbench`.
-"""
-const APPLICATION_WINDOWS = (:pane, :workbench)
+# The navigator, the file tabs and the assistant are the groups of a split, and
+# the pane gestures rearrange them. Every file tab holds a `FileDocument`, so
+# `Ctrl+S` saves and `Ctrl+O` reloads it, and the navigator opens a file with
+# `OpenFileOperation`.
 
 """
     APPLICATION_ASSISTANTS
@@ -74,23 +60,18 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "")
 end
 
 """
-    make_application_document(paths; window = :pane, root = pwd(), assistant = nothing)
+    make_application_document(paths; root = pwd(), assistant = nothing)
 
 The document of the application window: one file tab for each path, a navigator
 over `root`, and the assistant when it is not `nothing`. A path that does not
 exist opens as the empty seed of its extension.
 """
-function make_application_document(paths::AbstractVector; window::Symbol = :pane,
+function make_application_document(paths::AbstractVector;
                                    root::AbstractString = pwd(), assistant = nothing)
-    window in APPLICATION_WINDOWS ||
-        error("make_application_document: the window must be one of ",
-              join(APPLICATION_WINDOWS, ", "), ", not ", repr(window))
-    tabs = [make_workbench_file_editor(path, UndoBuffer) for path in paths]
+    tabs = [make_file_tab(path, UndoBuffer) for path in paths]
     folder = abspath(root)
-    navigator = WorkbenchNavigator(Workspace([WorkspaceFolder(basename(folder), folder)]))
-    content = window === :workbench ?
-        _make_application_workbench(tabs, navigator, assistant) :
-        _make_application_pane_tree(tabs, navigator, assistant)
+    navigator = Workspace([WorkspaceFolder(basename(folder), folder)])
+    content = _make_application_pane_tree(tabs, navigator, assistant)
     # Two levels of history, and the four rules of the undo slice make them one
     # story. Each file tab holds its own, so `Ctrl+Z` takes back an edit in the
     # file the person is looking at. The window holds one around all of them, so
@@ -107,11 +88,11 @@ function make_application_document(paths::AbstractVector; window::Symbol = :pane
     buffer
 end
 
-# The pane window: the navigator, the files and the assistant side by side. The
-# focus starts inside the first file, or inside the navigator when no file is
-# open, so the first key reaches that document and not the tab strip.
+# The navigator, the files and the assistant side by side. The focus starts
+# inside the first file, or inside the navigator when no file is open, so the
+# first key reaches that document and not the tab strip.
 function _make_application_pane_tree(tabs, navigator, assistant)
-    files = PaneGroup(PaneTab[PaneTab(tab.title, tab) for tab in tabs])
+    files = PaneGroup(PaneTab[PaneTab(get_document_title(tab), tab) for tab in tabs])
     places = PaneGroup(PaneTab[PaneTab("Files", navigator)])
     groups = Any[places, files]
     weights = [0.2, 0.8]
@@ -120,27 +101,15 @@ function _make_application_pane_tree(tabs, navigator, assistant)
         weights = [0.18, 0.5, 0.32]
     end
     tree = PaneTree(PaneSplit(:vertical, groups; weights = weights))
-    tab = get_pane_tab_reference(tree, isempty(tabs) ? places : files, 1)
-    inner = isempty(tabs) ? "workspace" : "content"
-    set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
-                                          FieldReferenceStep(inner)))
+    if isempty(tabs)
+        tab = get_pane_tab_reference(tree, places, 1)
+        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content")))
+    else
+        tab = get_pane_tab_reference(tree, files, 1)
+        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
+                                              FieldReferenceStep("content")))
+    end
     tree
-end
-
-# The workbench window: the same parts on the four fixed pages. The focus starts
-# inside the first file, or inside the navigator when no file is open, because a
-# key goes where the selection points.
-function _make_application_workbench(tabs, navigator, assistant)
-    workbench = WorkbenchWorkbench(
-        WorkbenchPage([navigator]),
-        WorkbenchPage(Any[tabs...]),
-        WorkbenchPage([WorkbenchConsole(), WorkbenchDescriptor(EmptyReference()),
-                       WorkbenchOperator(), WorkbenchSearcher(), WorkbenchEvaluator()]),
-        WorkbenchPage(assistant === nothing ? Any[] : Any[assistant]))
-    set_selection!(workbench, isempty(tabs) ?
-        @reference(workbench, navigation_page.elements[1].workspace) :
-        @reference(workbench, editing_page.elements[1].content))
-    workbench
 end
 
 """
@@ -148,11 +117,16 @@ end
 
 How the application draws what a tab holds, in front of the defaults of
 `NaturalToGraphics`: the domains with an editor projection of their own, the
-navigator with its open gesture, the conversation, and plain text.
+assistant and its conversation, and plain text. The navigator draws through
+its own registered row.
 """
 function make_application_content_projections(; measure = measure_truetype_text)
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
+    conversation_rows = Pair{Type,Any}[
+        conversation_draft_entry(measure = measure),
+        conversation_widget_entry(measure = measure),
+    ]
     Pair{Type,Any}[
         # A history around what a tab holds is invisible: it prints what it holds
         # and answers that output.
@@ -164,13 +138,24 @@ function make_application_content_projections(; measure = measure_truetype_text)
         JuliaDocument     => make_julia_projection_example(measure = measure),
         SqlDocument       => make_sql_syntax_projection_example(measure = measure),
         TextDocument      => text_to_graphics,
+        # The file system slice registers a row for a workspace, and this one
+        # overrides it for one reason: what a file opens WITH is the
+        # application's choice, and a slice cannot know that this application
+        # gives every file it opens a history.
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FileSystemToWidget(
-                open_file = path -> OpenWorkspaceFileOperation(path; wrap = UndoBuffer))),
+                open_file = path -> OpenFileOperation(path; wrap = UndoBuffer))),
             WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure)),
-        conversation_draft_entry(measure = measure),
-        conversation_widget_entry(measure = measure),
+        # A tab of its own: the pane group hands the assistant's own split pane
+        # to a fresh renderer, rather than re-entering the one already dispatching
+        # on it — a tab's content is read through `print_child`, which does not
+        # reduce a projection's own output to a fixpoint the way a top-level
+        # print does, so a bare `Assistant => AssistantToWidgetSplitPane()` row
+        # would hand the tab a widget, not the graphics it draws.
+        Assistant         => ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()),
+                                                NaturalToGraphics(measure = measure, extra = conversation_rows)),
+        conversation_rows...,
         # A tab title and a plain text file are prose, not a quoted string.
         PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
                                                 text_to_graphics),
@@ -178,21 +163,15 @@ function make_application_content_projections(; measure = measure_truetype_text)
 end
 
 """
-    make_application_projection(; window = :pane, measure = measure_truetype_text)
+    make_application_projection(; measure = measure_truetype_text)
 
 How the application window is drawn. The window projection is wrapped in the
 gesture help, which F1 opens, and in the command palette, which Ctrl+Shift+P
 opens.
 """
-function make_application_projection(; window::Symbol = :pane,
-                                      measure = measure_truetype_text)
-    window in APPLICATION_WINDOWS ||
-        error("make_application_projection: the window must be one of ",
-              join(APPLICATION_WINDOWS, ", "), ", not ", repr(window))
+function make_application_projection(; measure = measure_truetype_text)
     content = make_application_content_projections(measure = measure)
-    base = window === :workbench ?
-        make_workbench_projection(measure = measure, content_projections = content) :
-        _make_application_pane_projection(content, measure)
+    base = _make_application_pane_projection(content, measure)
     # The recorder sits at the root, which is the seam every operation passes. A
     # gesture log a person opens in a tab is the session's own log, so it fills
     # from here without the window knowing that a tab holds one. It is
@@ -216,28 +195,23 @@ _with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
     Any        => base))
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
-# file tab, the navigator and the assistant are workbench documents, so each one
-# goes through the workbench stage first, and then through the same renderer.
+# file tab, the navigator and the assistant each register their own natural
+# row, so the renderer draws them without this application naming them.
 function _make_application_pane_projection(content, measure)
-    renderer(extra) = NaturalToGraphics(measure = measure, extra = extra)
-    workbench = ChainingProjection(RecursiveProjection(WorkbenchToWidget()), renderer(content))
-    parts = Pair{Type,Any}[WorkbenchEditor    => workbench,
-                           WorkbenchNavigator => workbench,
-                           Assistant          => workbench]
+    renderer = NaturalToGraphics(measure = measure, extra = content)
     WidgetHoverTrackingProjection(inner = ChainingProjection(
         RecursiveProjection(PaneToWidget()),
-        renderer(vcat(parts, content))))
+        renderer))
 end
 
 """
-    run_application(paths...; window = :pane, backend = nothing,
+    run_application(paths...; backend = nothing,
                     assistant = :ollama, model = "", mcp = false, root = pwd(),
                     width = nothing, height = nothing)
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
 
-- `window` is `:pane` or `:workbench`; see [`APPLICATION_WINDOWS`](@ref).
 - `backend` is a constructed backend, for example `SdlBackend()` or
   `WebBackend()`. `nothing` takes the default backend.
 - `assistant` is `:ollama`, `:anthropic` or `:none`, and `model` names the model
@@ -250,16 +224,16 @@ window closes.
 
     run_application("data.json", "notes.md"; assistant = :none)
 """
-function run_application(paths::AbstractString...; window::Symbol = :pane,
+function run_application(paths::AbstractString...;
                          backend = nothing, assistant::Symbol = :ollama,
                          model::AbstractString = "", mcp::Bool = false,
                          root::AbstractString = pwd(),
                          width = nothing, height = nothing,
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model)
-    document = make_application_document(collect(String, paths); window = window,
+    document = make_application_document(collect(String, paths);
                                          root = root, assistant = chat)
-    projection = make_application_projection(; window = window, measure = measure)
+    projection = make_application_projection(; measure = measure)
     backend === nothing && (backend = default_backend())
     # What a log view shows is what the program said, and what says it is the
     # Julia logger. The capture records each message and forwards it, so the
@@ -290,7 +264,7 @@ The `--help` text of a binary lists the same options: the builder writes it
 from `PROJECTURED_OPTIONS`, and a test compares the two.
 """
 function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
-    values = Dict{String,String}("window" => "pane", "backend" => "",
+    values = Dict{String,String}("backend" => "",
                                  "assistant" => "ollama", "model" => "",
                                  "root" => pwd())
     mcp = false
@@ -308,15 +282,12 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
             push!(files, String(argument))
         end
     end
-    window = Symbol(values["window"])
-    window in APPLICATION_WINDOWS ||
-        error("--window is one of ", join(APPLICATION_WINDOWS, ", "), ", not ", repr(values["window"]))
     assistant = Symbol(values["assistant"])
     assistant in APPLICATION_ASSISTANTS ||
         error("--assistant is one of ", join(APPLICATION_ASSISTANTS, ", "), ", not ",
               repr(values["assistant"]))
     backend = isempty(values["backend"]) ? nothing : Symbol(values["backend"])
-    (; files, window, backend, assistant,
+    (; files, backend, assistant,
        model = values["model"], root = values["root"], mcp)
 end
 
@@ -346,7 +317,7 @@ function run_application_command(arguments; backends)
         return Cint(1)
     end
     try
-        run_application(command.files...; window = command.window,
+        run_application(command.files...;
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, root = command.root)
@@ -364,9 +335,9 @@ end
     warm_application() -> Nothing
 
 Run the application once without a window, so that a build compiles what a
-person does first: both windows, several file formats, a click in the
-navigator, Enter on a file, a key in a file, and a save. It works in a
-temporary directory. A failure is logged and does not stop the build.
+person does first: several file formats, a click in the navigator, Enter on a
+file, a key in a file, and a save. It works in a temporary directory. A failure
+is logged and does not stop the build.
 """
 function warm_application()
     directory = mktempdir()
@@ -385,27 +356,25 @@ function warm_application()
                      MousePress(:left, 100, 84, 1, ModifierKeys()),
                      KeyDown(:return, ModifierKeys()),
                      KeyDown(:s, ModifierKeys(ctrl = true))]
-        for window in APPLICATION_WINDOWS
-            document = make_application_document(paths; window = window, root = directory,
-                assistant = make_application_assistant(:ollama))
-            projection = make_application_projection(; window = window)
-            scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
-            composed = make_window_scene_projection(projection; opened_window_projections =
-                Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
-            editor = Editor(ConsoleBackend(), scene, composed,
-                            Device[Display(), Keyboard(), Mouse()])
-            editor.iomap = print_document(composed, scene)
+        document = make_application_document(paths; root = directory,
+            assistant = make_application_assistant(:ollama))
+        projection = make_application_projection()
+        scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
+        composed = make_window_scene_projection(projection; opened_window_projections =
+            Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
+        editor = Editor(ConsoleBackend(), scene, composed,
+                        Device[Display(), Keyboard(), Mouse()])
+        editor.iomap = print_document(composed, scene)
+        _force_reactive!(editor.iomap)
+        for event in events
+            change = read_intent(composed, nothing,
+                                 Intent(WindowInput(:ProjecturEd, event)), editor.iomap)
+            operation = change isa Intent ? change.operation : change
+            operation isa Operation || continue
+            editor.operation = operation
+            evaluate_operation(editor, operation)
+            editor.iomap = print_document(composed, editor.document)
             _force_reactive!(editor.iomap)
-            for event in events
-                change = read_intent(composed, nothing,
-                                     Intent(WindowInput(:ProjecturEd, event)), editor.iomap)
-                operation = change isa Intent ? change.operation : change
-                operation isa Operation || continue
-                editor.operation = operation
-                evaluate_operation(editor, operation)
-                editor.iomap = print_document(composed, editor.document)
-                _force_reactive!(editor.iomap)
-            end
         end
     catch err
         @warn "warm_application: the warm-up failed, and the build goes on" err

@@ -1,7 +1,7 @@
 # Fragment of `AssistantModule`.
 #
 # Operations, streaming orchestration, and message building for the
-# in-editor AI chat surface. Glue between `WorkbenchModule.Assistant`, the
+# in-editor AI chat surface. Glue between `AssistantModule.Assistant`, the
 # editor's `ToolSet`, and the `LlmModule` provider seam.
 #
 # Submit flows:

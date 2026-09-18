@@ -365,7 +365,7 @@ and scope by domain node type.** To locate a node by content, search for it and
 operate on the returned reference rather than open-coding a recursive descent;
 the search predicate runs in the input (document) domain, so match on the
 domain node type (`v isa JsonString`) — a bare string/regex query matches every
-projection of the same value in the workbench. Paths rooted at a sub-document
+occurrence of the same value, wherever it recurs in the document. Paths rooted at a sub-document
 or an iomap are for inspection only and are **not** selectable on screen;
 search `editor.document` when you intend to select.
 
@@ -1222,7 +1222,7 @@ still be *defined* in an example package the executable bundles, but because no
 "No test doubles in `main`" bullet in
 [architecture-rules.md](architecture-rules.md). Precedent: `FakeLlm` /
 `ScriptedLlm` moved from kernel `main` (`LlmModule`) to
-`ProjecturedKernelExample`, and `WorkbenchAssistant` dropped its `FakeLlm`
+`ProjecturedKernelExample`, and `Assistant` dropped its `FakeLlm`
 fallback.
 
 ### PAR-NO-CONSUMER-DOCS

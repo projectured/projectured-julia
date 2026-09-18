@@ -279,4 +279,8 @@ function __init__()
     # `.yml` is the same format under the other spelling, and a fenced block is
     # written either way.
     register_natural_parser!(:yml, parse_yaml)
+
+    # Both spellings open as the same file document type.
+    register_file_document_type!(".yaml", YamlFile)
+    register_file_document_type!(".yml",  YamlFile)
 end

@@ -351,7 +351,7 @@ end
 # Regression: an embedded `ListNode` (the doubly-linked backing of text/syntax/
 # collection lists) is cyclic — `prev`/`next` point at each other — so the focus
 # walk recursed `next → prev → next …` forever and Tab stack-overflowed on the
-# workbench/assistant examples. The objectid `visited` guard must make it terminate.
+# file tab/assistant examples. The objectid `visited` guard must make it terminate.
 @testset "focus traversal terminates on a cyclic ListNode graph" begin
     a = ListNode("x"); b = ListNode("y")
     a.next = b; b.prev = a                                  # a ⇄ b (the prev/next cycle)

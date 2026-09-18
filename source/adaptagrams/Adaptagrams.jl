@@ -279,7 +279,7 @@ end
 # ── The default engine, once this package is loaded ──────────────────────────
 #
 # Registering is the whole opt-in: anything that asks for
-# `make_deferred_layout_engine()` — an example, a workbench page, a live diagram —
+# `make_deferred_layout_engine()` — an example, a pane tab, a live diagram —
 # gets native placement and routing from the moment this package is in the
 # session, with nothing else rewired. Done from `__init__` so the mutation
 # survives precompilation; defining a second method instead would be a

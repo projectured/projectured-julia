@@ -8,10 +8,8 @@ draft, the model and the key, and the `Llm` that services a turn. `AssistantTurn
 is what a turn does — the operations, the streaming, the tools it may call, and
 the blocks an answer is split into. `AssistantToWidget.jl` is what it looks like.
 
-It was part of `ProjecturedWorkbench`, whose other half is an IDE: a workspace, a
-navigator, a console, a searcher, tabs and a file tree. A program that wants an
-assistant beside its own panes had to carry all of it, and the six source domains
-the IDE names with it.
+A program that wants an assistant beside its own panes takes this package alone,
+not a whole IDE.
 
 **This package names no source domain.** What a person may type into the composer
 and what a fenced block in an answer becomes are asked of the natural-format

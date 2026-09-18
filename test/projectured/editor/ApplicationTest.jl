@@ -1,7 +1,8 @@
-# Tests for the application window. Both windows draw a file of every format,
-# a navigator gesture opens a file beside the other files, and Ctrl+S saves the
-# file tab that has the focus. The events go through the same window scene that
-# `run_application` runs, with no window on the screen.
+# Tests for the application window: it draws a file of every format that has a
+# registered file document, a navigator gesture opens a file beside the other
+# files, and Ctrl+S saves the file tab that has the focus. The events go
+# through the same window scene that `run_application` runs, with no window on
+# the screen.
 
 using Test
 using ProjecturedExample: _gesture_map_entry
@@ -15,7 +16,6 @@ function _app_fire(composed, iomap, event)
 end
 
 _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
-_app_count_tabs(workbench::WorkbenchWorkbench) = length(workbench.editing_page.elements)
 
 # The application gives the window a history and every file tab one of its own,
 # so the document a test reaches for is inside a buffer and an operation a reader
@@ -54,9 +54,9 @@ function _app_write_files(dir)
 end
 
 # The window scene and its reader state, as `run_application` builds them.
-function _app_make_scene(paths, dir, window)
-    document = make_application_document(paths; window = window, root = dir, assistant = nothing)
-    projection = make_application_projection(; window = window)
+function _app_make_scene(paths, dir)
+    document = make_application_document(paths; root = dir, assistant = nothing)
+    projection = make_application_projection()
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection; opened_window_projections =
         Pair{Type,Any}[_gesture_map_entry(measure_truetype_text)])
@@ -65,7 +65,7 @@ function _app_make_scene(paths, dir, window)
 end
 
 # The first height at which a double click on the navigator opens a file, and
-# the operation it makes. The navigator is the leftmost part of both windows.
+# the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
     for y in 0:4:400
         operation = _app_fire(composed, iomap, MousePress(:left, 100, y, 2, ModifierKeys()))
@@ -83,28 +83,26 @@ function test_application()
             @test assistant.backend === :ollama && assistant.model == "small"
             @test_throws ErrorException make_application_assistant(:unknown)
             @test occursin("ANTHROPIC_API_KEY", get_application_greeting_text(:anthropic))
-            @test_throws ErrorException make_application_document(String[]; window = :unknown)
         end
 
         @testset "the command line" begin
             command = parse_application_arguments(String[])
-            @test command.files == String[] && command.window === :pane
+            @test command.files == String[]
             @test command.backend === nothing && command.assistant === :ollama
             @test command.model == "" && !command.mcp
             command = parse_application_arguments(
-                ["a.json", "--window=workbench", "--backend=web", "--assistant=none",
+                ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "b.md"])
             @test command.files == ["a.json", "b.md"]
-            @test command.window === :workbench && command.backend === :web
+            @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
             @test_throws ErrorException parse_application_arguments(["--colour=red"])
             @test_throws ErrorException parse_application_arguments(["-x"])
-            @test_throws ErrorException parse_application_arguments(["--window=tiles"])
             @test_throws ErrorException parse_application_arguments(["--assistant=gpt"])
             # A wrong command line answers 1 and opens no window.
             quiet = devnull
-            @test redirect_stderr(() -> run_application_command(["--window=tiles"];
+            @test redirect_stderr(() -> run_application_command(["--assistant=gpt"];
                                                                 backends = (sdl = () -> nothing,)),
                                   quiet) == 1
             @test redirect_stderr(() -> run_application_command(["--backend=web"];
@@ -114,7 +112,7 @@ function test_application()
             # parser takes.
             usage = make_projectured_usage([:sdl, :web])
             flags = Set(first(split(label, '=')) for (label, _) in usage.options)
-            @test flags == Set(["--window", "--backend", "--assistant", "--model",
+            @test flags == Set(["--backend", "--assistant", "--model",
                                 "--root", "--mcp"])
             for flag in flags
                 @test haskey(pairs(parse_application_arguments(String[])), Symbol(flag[3:end]))
@@ -129,24 +127,26 @@ function test_application()
 
         dir = mktempdir()
         paths = _app_write_files(dir)
-        for window in APPLICATION_WINDOWS
-            @testset "$window window" begin
-                @testset "every format draws" begin
-                    for path in vcat([String[]], [[p] for p in paths])
-                        document = make_application_document(path; window = window, root = dir,
-                            assistant = make_application_assistant(:ollama))
-                        projection = make_application_projection(; window = window)
-                        errors, _ = walk_printer_output(document, projection)
-                        @test isempty(errors)
-                    end
+        @testset "the application window" begin
+            @testset "every format draws" begin
+                # `.pdoc` is the binary snapshot format, registered under no
+                # `FileDocument` type — `make_file_tab` cannot open it as a
+                # file tab, so the sweep skips what it cannot open.
+                openable = [p for p in paths if has_file_document_type(p)]
+                for path in vcat([String[]], [[p] for p in openable])
+                    document = make_application_document(path; root = dir,
+                        assistant = make_application_assistant(:ollama))
+                    projection = make_application_projection()
+                    errors, _ = walk_printer_output(document, projection)
+                    @test isempty(errors)
                 end
+            end
 
                 @testset "Ctrl+S saves the focused file" begin
                     json = joinpath(dir, "a.json")
                     document, scene, composed, iomap = _app_make_scene([json], dir, window)
                     editor = _AppFakeEditor(scene, iomap)
                     operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true)))
-                    @test _app_plain(operation) isa SaveWorkbenchEditorOperation
                     tab = _app_plain(operation).editor
                     @test tab.filename == json
                     get_wrapped_document(tab.content).entries[1].value.value = "Bob"

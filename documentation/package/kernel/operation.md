@@ -67,8 +67,9 @@ end
   projections **reroot `reference`** as the operation bubbles up (it is a
   reference-carrying operation; see the invariants below).
 - `document !== nothing` — **self-contained**: it carries its own root (a widget, a
-  `WorkbenchPage`, or a projection's own parameter `Cell`), so it bubbles up
-  **unchanged** and applying it never depends on where the document sits in the tree.
+  `PaneTree`'s own `drag` field, or a projection's own parameter `Cell`), so it
+  bubbles up **unchanged** and applying it never depends on where the document
+  sits in the tree.
 
 **Terminal-step dispatch** on `reference`'s last step decides what "write" means:
 
@@ -116,7 +117,7 @@ needs no `reroot_operation` method of its own and no entry in the default
 single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
 `ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,
 `SetWidgetHoverOperation`, `SetWidgetPressedOperation`, `CollectionInsertOperation`,
-`CollectionDeleteOperation`, and the Workbench open/close. **Reach for
+`CollectionDeleteOperation`, and a pane's own tab open and close. **Reach for
 `ReplaceReferencedValueOperation` (or a builder) before writing a new operation struct.** See
 [`plan/done/consolidate-operations-replace.md`](../../../plan/done/consolidate-operations-replace.md).
 
@@ -127,7 +128,7 @@ These do something other than a single-slot write, so they stay their own types:
 | Operation | Where it lives | Why it stays |
 |---|---|---|
 | `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
-| `SelectTabOperation(tabbed_pane, index)` | `widget/WidgetDocument.jl` | event-like signal — the workbench overloads it into a document-selection move |
+| `SelectTabOperation(tabbed_pane, index)` | `widget/WidgetDocument.jl` | event-like signal — the pane layer leaves it unclaimed; a tab click reaches the tree as an ordinary reference-mapped selection instead |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
@@ -168,9 +169,10 @@ do exactly what a reader does: find the target, build the operation, evaluate it
 ref = first(search_references(editor.document, v -> v isa JsonString && v.value == "Alice"))
 evaluate_operation(editor, ReplaceSelectionOperation(ref))   # == replace_selection!(editor.document, ref)
 
-# A workbench action: find the page, build the op carrying it, evaluate.
-page = editor.document |> d -> first(search_documents(d, x -> x isa WorkbenchPage && !isempty(x.elements)))
-evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
+# A pane action: find the group, build the op carrying it, evaluate.
+tree = get_window_tree(editor)
+group = editor.document |> d -> first(search_documents(d, x -> x isa PaneGroup && !isempty(x.tabs)))
+evaluate_operation(editor, make_pane_close_tab_operation(tree, group, 1))
 ```
 
 This pattern — **`search_documents` / `search_references` → build `Operation` →

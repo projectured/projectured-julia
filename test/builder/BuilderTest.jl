@@ -533,7 +533,7 @@ function test_builder()
                            source)
             @test occursin("ProjecturedExample.warm_application()", source)
             @test occursin("--backend=sdl|web", source)
-            @test occursin("--window=pane|workbench", source)
+            @test occursin("--assistant=ollama|anthropic|none", source)
             text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
             @test all(line -> length(line) <= 80, split(text, '\n'))
 

@@ -445,7 +445,7 @@ when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free
 for a hand-written keyword constructor that needs to do more than fill fields
-(`WorkbenchAssistant` back-links its draft this way). A struct with no fields of
+(`Assistant` back-links its draft this way). A struct with no fields of
 its own beyond the injected `selection` (e.g. `JsonNull`) is the exception: `Foo()`
 has to come from somewhere, so it gets the generated keyword constructor too. Why
 `Base.@kwdef` can't simply be stacked on these macros (macro-ordering and the

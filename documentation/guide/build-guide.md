@@ -23,7 +23,7 @@ one is an experiment; the builder here is the path that ships.
 
 ```bash
 bin/projectured                       # the window, from this checkout
-bin/projectured a.json --window=workbench
+bin/projectured a.json --root=.
 bin/projectured --help
 ```
 

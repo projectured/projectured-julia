@@ -1,7 +1,7 @@
 # domain-example/Examples.jl
 #
 # The domain-tier `Example` instances: the concrete source domains
-# (json/yaml/xml/sql/...), the application examples (workbench, conversation,
+# (json/yaml/xml/sql/...), the application examples (conversation,
 # assistant), and the cross-domain compositions (mixed, graph, tables). The
 # global `examples` registry that interleaves every tier lives in the
 # `ProjecturedExample` umbrella.
@@ -47,9 +47,6 @@ const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_docume
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const process_diagram_example = Example("process_diagram", make_process_diagram_document_example, make_process_diagram_projection_example)
-# The workbench fills the window it is offered, so an offscreen render needs a
-# size: without one it is a strip of no height.
-const workbench_example      = Example("workbench",      make_workbench_document_example,      make_workbench_projection_example; render_width=1600, render_height=1000)
 # The visual tier's `pane_example` with real domain documents in its tabs: the
 # focused tab holds the json example document, and the renderer is the natural
 # projection, so any other domain works in a tab too.
@@ -175,7 +172,6 @@ const domain_examples = Example[
     process_diagram_example,
     fsm_toggle_example,
     fsm_diagram_example,
-    workbench_example,
     pane_json_example,
     widget_tabs_example,
     widget_split_example,
@@ -396,16 +392,6 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:fsm, "timer",      make_fsm_timer_document_example),
     AtomicDocument(:fsm, "transition", make_fsm_transition_document_example),
     AtomicDocument(:fsm, "variable",   make_fsm_variable_document_example),
-    AtomicDocument(:workbench, "assistant",  make_workbench_assistant_document_example),
-    AtomicDocument(:workbench, "console",    make_workbench_console_document_example),
-    AtomicDocument(:workbench, "descriptor", make_workbench_descriptor_document_example),
-    AtomicDocument(:workbench, "editor",     make_workbench_editor_document_example),
-    AtomicDocument(:workbench, "evaluator",  make_workbench_evaluator_document_example),
-    AtomicDocument(:workbench, "navigator",  make_workbench_navigator_document_example),
-    AtomicDocument(:workbench, "operator",   make_workbench_operator_document_example),
-    AtomicDocument(:workbench, "page",       make_workbench_page_document_example),
-    AtomicDocument(:workbench, "searcher",   make_workbench_searcher_document_example),
-    AtomicDocument(:workbench, "workbench",  make_workbench_workbench_document_example),
     AtomicDocument(:conversation, "conversation", make_conversation_conversation_document_example),
     AtomicDocument(:conversation, "draft",        make_conversation_draft_document_example),
     AtomicDocument(:conversation, "part",         make_conversation_part_document_example),

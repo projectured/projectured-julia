@@ -19,10 +19,12 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventPatternModule
+using ..FileFormatModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..NaturalModule
 using ..OperationModule
+using ..PaneModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -35,7 +37,8 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
-import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file
+import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: make_pred_document
 

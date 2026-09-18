@@ -2346,7 +2346,7 @@ get_instance_gesture_bindings(w::WidgetTree) = w.gestures
     SelectTabOperation(widget, tab_index)
 
 Signals that tab `tab_index` (1-based) of `widget` was clicked.
-Carries the widget identity so the workbench layer can disambiguate
+Carries the widget identity so the pane tree can disambiguate
 between multiple tab panes on screen.
 """
 struct SelectTabOperation <: Operation

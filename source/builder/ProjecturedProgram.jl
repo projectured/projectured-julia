@@ -24,8 +24,6 @@ The options of the `projectured` command that every build takes, as
 more than one backend. The builder writes its own four options after these.
 """
 const PROJECTURED_OPTIONS = [
-    "--window=pane|workbench" =>
-        "the window: tabs in split panes (the default), or\nthe workbench",
     "--assistant=ollama|anthropic|none" =>
         "the model backend of the assistant (ollama by\ndefault), or no assistant",
     "--model=NAME" => "the model of that backend (default: the default\nmodel of the backend)",

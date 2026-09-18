@@ -16,7 +16,7 @@ conversation_draft_entry(; measure=measure_truetype_text) =
 
 Dispatch entry rendering the conversation history (`ConversationDocument`) as the
 Stage-2 widget chat bubbles (`ConversationToWidget → widget_graphics`). Shared by
-the assistant, workbench, and wrapper panels so they all show the widget chat.
+the assistant and the application, so both show the widget chat the same way.
 """
 conversation_widget_entry(; measure=measure_truetype_text) =
     ConversationDocument => ChainingProjection(
@@ -27,8 +27,7 @@ conversation_widget_entry(; measure=measure_truetype_text) =
     make_assistant_projection_example(; measure=measure_truetype_text)
 
 Build a projection chain that takes a `Assistant` to a
-`GraphicsCanvas`. Unlike the full workbench projection, this chain is
-focused on the assistant alone — no tabs, no navigator, no editor.
+`GraphicsCanvas` — the assistant alone, no tabs, no navigator, no editor.
 
 Stage-6 wiring: the conversation pane is the widget chat presentation
 (`ConversationToWidget`) and the input pane is the composer
@@ -51,7 +50,7 @@ function make_assistant_projection_example(; measure=measure_truetype_text)
         ],
     )))
     ChainingProjection(
-        RecursiveProjection(WorkbenchToWidget()),
+        RecursiveProjection(AssistantToWidgetSplitPane()),
         inner_chain,
     )
 end

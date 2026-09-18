@@ -109,7 +109,7 @@ end
 
 # A tab's content belongs to a foreign domain, so it is not this projection's to
 # print: it passes through unchanged and the renderer below reads it. Only pane
-# nodes recurse. Mirrors the workbench's `_recurse`.
+# nodes recurse.
 _recurse(recursion, document, ctx) =
     (recursion !== nothing && document isa PaneDocument) ?
         print_child(recursion, document, ctx) : SimpleIoMap(nothing, document, document)
@@ -717,12 +717,17 @@ end
     PaneToWidget() -> TypeDispatchingProjection
 
 The pane-tree stage: wrap it in a `RecursiveProjection` and chain a widget
-renderer after it, exactly as the workbench does —
+renderer after it —
 
     ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)
 
 A tab's content passes through this stage unchanged, so `renderer` is what
-decides how each content document is drawn.
+decides how each content document is drawn. A tab's content is read through
+`print_child`, not through a fresh top-level `print_document`, so a document
+whose own natural row produces a widget (rather than final graphics) is not
+reduced to a fixpoint the way a top-level print reduces one: give such a
+document its own `extra` entry that chains its widget-producing projection
+into a fresh `renderer` instance, rather than relying on the row alone.
 """
 PaneToWidget(; new_tab = default_new_pane_tab) = TypeDispatchingProjection(
     PaneTree  => PaneTreeToWidget(new_tab),

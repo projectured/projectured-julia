@@ -118,9 +118,6 @@ ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
 ProjecturedUndoTest = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
-ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
-ProjecturedWorkbenchExample = "3b86899d-243a-4ba0-bf7d-8ea9799fc2e6"
-ProjecturedWorkbenchTest = "dee3d367-0cd3-47f5-9f81-9b83918ba741"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedXmlTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
@@ -245,9 +242,6 @@ ProjecturedWeb = {path = "../../package/ProjecturedWeb"}
 ProjecturedWidget = {path = "../../package/ProjecturedWidget"}
 ProjecturedUndo = {path = "../../package/ProjecturedUndo"}
 ProjecturedUndoTest = {path = "../../package/ProjecturedUndoTest"}
-ProjecturedWorkbench = {path = "../../package/ProjecturedWorkbench"}
-ProjecturedWorkbenchExample = {path = "../../package/ProjecturedWorkbenchExample"}
-ProjecturedWorkbenchTest = {path = "../../package/ProjecturedWorkbenchTest"}
 ProjecturedXml = {path = "../../package/ProjecturedXml"}
 ProjecturedXmlExample = {path = "../../package/ProjecturedXmlExample"}
 ProjecturedXmlTest = {path = "../../package/ProjecturedXmlTest"}

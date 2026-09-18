@@ -15,8 +15,8 @@ end
 # shape. The dragging printer is transparent, so the content renders as usual;
 # its reader turns press → drag → drop into a MoveRangeOperation. Pairs with
 # `make_dragging_document`; the domain-specific twin is
-# `make_dragging_projection_example`. Both moved to `ProjecturedDragging` — see
-# `WrapperDocumentExample.jl`.
+# `make_dragging_projection_example`. Both are `ProjecturedDragging`'s — see
+# `GalleryWrapperDocumentExample.jl`.
 
 # Render a WidgetShell and the content it frames: the shell's own bands are
 # widgets, and the content slot defers to the example's projection. This is the
@@ -88,33 +88,4 @@ function make_text_configuring_projection(inner_text_projection;
         ProjectionConfiguringProjection(inner=inner_text_projection),
         renderer,
     )
-end
-
-function make_workbench_projection(; measure=measure_truetype_text,
-                                   content_projections=Pair{Type,Any}[
-                                       JsonDocument         => ChainingProjection(RecursiveProjection(JsonToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                       XmlDocument          => ChainingProjection(RecursiveProjection(XmlToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                       JuliaDocument        => make_julia_projection_example(measure=measure),
-                                       SqlDocument          => make_sql_syntax_projection_example(measure=measure),
-                                       TextDocument         => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                       # Navigator: render the workspace file system as a native WidgetTree
-                                       # (icons, chevrons, selection band) — `Workspace → FileSystem →
-                                       # WidgetTree → Graphics` — instead of the generic object projection.
-                                       WorkspaceDocument    => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget(open_file = OpenWorkspaceFileOperation)), WidgetToGraphics(font_ubuntu_monospace_regular_20; measure=measure)),
-                                       # Assistant panel: composer input + widget chat history.
-                                       conversation_draft_entry(measure=measure),
-                                       conversation_widget_entry(measure=measure),
-                                       PrimitiveDocument    => ChainingProjection(RecursiveProjection(PrimitiveToSyntax()), RecursiveProjection(SyntaxToText()), WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-                                   ])
-    # `NaturalToGraphics` provides the widget/layout/Any rendering; the caller's
-    # `content_projections` are passed as `extra` (matched first, so they win).
-    # The hover tracker wraps the whole pipeline so a hovered widget (e.g. a
-    # navigator tree row) clears when the pointer leaves it — container hit-routing
-    # only delivers a MouseMove to the child under the pointer, so the tracker is
-    # what synthesises the MouseEnter/MouseLeave crossings (cf.
-    # make_workbench_projection_example / make_widget_projection_example).
-    WidgetHoverTrackingProjection(inner = ChainingProjection(
-        RecursiveProjection(WorkbenchToWidget()),
-        NaturalToGraphics(measure=measure, extra=content_projections),
-    ))
 end

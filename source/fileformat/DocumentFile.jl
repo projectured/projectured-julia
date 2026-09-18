@@ -19,7 +19,7 @@
 # placeholder registered on `make_document_seed` (`.json` → `JsonInsertion`, …), an
 # empty `PrimitiveString` for a text file, or a `DocumentNothing` otherwise — so a
 # new file starts as an editable seed that can be typed into and then saved. Used
-# by the `WorkbenchEditor` save/reload keybindings and the file-editor registry.
+# by `make_file_tab` and the `FileDocument` save/reload keybindings below.
 #
 # The binary half and the file types call down to
 # [`SerializationModule`](@ref); the natural half needs the text printers.
@@ -103,6 +103,25 @@ seed and saving creates the file.
 """
 make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
 
+"""
+    make_file_tab(path, wrap = identity) -> FileDocument
+
+The file document a tab opens for `path`: the type its extension is registered
+under, holding the absolute path and [`read_document_file`](@ref)'s content. A
+path that does not exist opens as the empty seed of its extension, which
+`read_document_file` already gives. The absolute path is what `SaveFileOperation`
+and `ReloadFileOperation` read the file back through, and what
+[`get_document_title`](@ref) takes its base name from; a tab opened from outside
+the working directory still saves and reloads through the file it was opened
+from.
+
+`wrap` is applied to the content before the file holds it. It is how an
+application gives every file it opens an overlay of its own — a history, say —
+without this layer naming one.
+"""
+make_file_tab(path::AbstractString, wrap = identity) =
+    get_file_document_type(path)(abspath(path), wrap(read_document_file(path)))
+
 # ── What a file is called ────────────────────────────────────────────────────
 
 # A tab with no name of its own is called after what it holds, and a file holds
@@ -112,9 +131,8 @@ get_document_title(file::FileDocument) = basename(String(get_filename(file)))
 
 # ── Ctrl+S / Ctrl+O on a FileDocument ───────────────────────────────────────
 #
-# The same pair `WorkbenchEditor` binds in `WorkbenchFile.jl`, for a
-# `FileDocument` directly: **Ctrl+S** saves the document's own `content` to
-# its own `filename`, **Ctrl+O** reloads it.
+# **Ctrl+S** saves the document's own `content` to its own `filename`,
+# **Ctrl+O** reloads it.
 
 """
     SaveFileOperation(file)

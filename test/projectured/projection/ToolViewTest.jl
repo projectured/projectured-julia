@@ -65,7 +65,7 @@ end
 
 # The file system slice declares the intent to open a file, and the slice that
 # knows where to put one defines what happens. Without that inversion the
-# explorer could not draw without the workbench, which owned the operation.
+# explorer could not draw without the pane tree, which owns the operation.
 @testset "opening a file is an intent the file system declares" begin
     @test OpenFileOperation("a.json") isa Operation
     # It carries its own subject and names no reference, so every reader between

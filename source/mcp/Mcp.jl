@@ -35,7 +35,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
     # and that's the field the MCP `initialize` handler delivers to clients,
     # so the in-editor assistant and any external MCP client share the same
     # prompt. The caller supplies `instructions`; it defaults to a generic,
-    # domain-free prompt so this module needs no Workbench dependency.
+    # domain-free prompt so this module needs no Assistant dependency.
     srv.config = ServerConfig(
         name         = srv.config.name,
         version      = srv.config.version,

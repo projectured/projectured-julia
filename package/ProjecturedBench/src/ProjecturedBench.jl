@@ -6,7 +6,7 @@ repository. Each is a function, so a session can run several and compare:
 
     using ProjecturedBench
     colorbench()                                  # colour representation costs
-    fanout_report("workbench"); fanout_report("json")   # cell fanout, side by side
+    fanout_report("pane_json"); fanout_report("json")   # cell fanout, side by side
 
 - [`colorbench`](@ref) — what a colour costs as a plain struct, as a bare
   `@document`, as a non-selectable `@document`, and as a reactive selectable one.

@@ -77,7 +77,7 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   the Display *device* and display-size seam stay in the kernel, because they are the
   interface the editor writes to, not the graphics themselves.
 - **domain** — pure feature slices (json, sql, graph, …: each a document + parser +
-  projections + tests) plus the application slices (workbench, conversation) in the
+  projections + tests) plus the application slices (assistant, conversation) in the
   layer above. No shared layers between them: anything two slices need is a
   framework and belongs in base (or visual, if it renders).
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,

@@ -33,3 +33,6 @@ get_insertion_aliases(::Type{Workspace}) = ["explorer", "file explorer"]
 # `Workspace()` holds no folder, and an empty explorer shows nothing — so a
 # person who opens one by typing its name gets the working directory instead.
 make_insertion_document(::Type{Workspace}) = Workspace([WorkspaceFolder(basename(pwd()), pwd())])
+
+# A file opens beside the explorer it was found in, never over it.
+accepts_opened_file(::Workspace) = false

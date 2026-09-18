@@ -421,7 +421,7 @@ a chat message can hold Julia code. All three exist in the repository today.
 ### 4.2 Projections compose
 
 - **Primitives** are the one-domain-to-one-domain pairs: `JsonToSyntax`,
-  `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`.
+  `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `PaneToWidget`.
 - **Combination** is the higher-order projections. Each one takes other
   projections as arguments and is itself a projection, so they nest freely.
 - **Abstraction** is again a Julia function. A function that returns a wired
@@ -504,7 +504,7 @@ capability is a **product**, not a sum.
 
 ```
     domains (json, xml, yaml, julia, math, sql, book, markdown, rst, graph,
-             filesystem, fsm, chart, table, widget, workbench, conversation, …)
+             filesystem, fsm, chart, table, widget, pane, conversation, …)
   ×
     projection combinators (chain, dispatch by type / predicate / reference,
              recurse, switch, nest, apply-at, decorate)
@@ -567,11 +567,13 @@ two lines.
 
 ### 5.2 Read these three combinations closely
 
-**The workbench.** `WorkbenchToWidget` prints an IDE shell — navigator, console,
-descriptor, evaluator, assistant — as widgets. The editor pane holds an
-arbitrary inner projection over an arbitrary document. So the workbench is not a
-program that hosts documents; it is a document that hosts documents. Every pane
-is selectable and editable by the same machinery as its content.
+**The pane tree.** `PaneToWidget` prints a layout of tab groups and splits —
+`PaneGroup` → `WidgetTabbedPane`, `PaneSplit` → `WidgetSplitPane` — as widgets. A
+tab's content passes through this stage untouched, so the renderer that follows
+holds an arbitrary projection over an arbitrary document. So the pane tree is not
+a program that hosts documents; it is a document that hosts documents. Every
+pane and every tab is selectable and editable by the same machinery as its
+content.
 
 **The AI assistant.** The chat is a `Conversation` document: messages, response
 blocks, and code runs are structured nodes. The assistant changes the document

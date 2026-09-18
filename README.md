@@ -20,14 +20,14 @@ You can extend ProjecturEd with your own domain: its document types, the project
 |---|---|---|
 | <img width="396" alt="JSON example" src="asset/image/example/json.png"> | <img width="1024" alt="Widget example" src="asset/image/example/widget.png"> | <img width="397" alt="Table example" src="asset/image/example/table.png"> |
 
-| Syntax tree | Julia AST | Workbench |
+| Syntax tree | Julia AST | Assistant |
 |---|---|---|
-| <img width="586" alt="Syntax example" src="asset/image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="asset/image/example/julia.png"> | <img width="1285" alt="Workbench example" src="asset/image/example/workbench.png"> |
+| <img width="586" alt="Syntax example" src="asset/image/example/syntax.png"> | <img width="336" alt="Julia AST example" src="asset/image/example/julia.png"> | <img width="1285" alt="Assistant example" src="asset/image/example/assistant.png"> |
 
 ## What you can do with it
 
 - **View and edit structured files as structures.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation open, change and save through their own parsers. See [the domain inventory](documentation/design/domain-inventory.md).
-- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. The [workbench](documentation/package/workbench/workbench.md) is a complete application of this kind.
+- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. ProjecturEd's own window is a complete application of this kind.
 - **Look into a running Julia program.** A reflection view shows any object as a tree that opens one level at a time.
 - **Show results.** Line, bar, histogram, scatter and strip charts, and [sequence charts](documentation/package/sequencechart/sequencechart.md), are documents. A data point can be selected like any other part.
 - **Model behaviour and run it.** A [state machine](documentation/package/fsm/fsm.md) produces runnable Julia code. A [process flowchart](documentation/package/process/process.md) runs with breakpoints and a live trace.
@@ -49,7 +49,6 @@ bin/projectured
 
 ```sh
 bin/projectured --help                       # every option
-bin/projectured --window=workbench a.xml     # the workbench window
 bin/projectured --assistant=none notes.txt   # no assistant
 bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1:8080
 bin/projectured --mcp a.json                 # with an MCP server for an external client

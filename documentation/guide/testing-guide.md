@@ -22,7 +22,7 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← the 20 domain t
 - `package/<domain>/test` — one test package per domain, holding the suites
   whose fixtures are that domain's documents: its parser, its `*ToSyntax`
   projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
-  `test_workbench()`, … Each also runs its package's layering guard
+  `test_xml()`, … Each also runs its package's layering guard
   (`test_json_layering()`, …).
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
@@ -102,7 +102,7 @@ sequence; pick the one you actually need and skip the rest.
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
 | `test_substrate()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of each of the twenty-eight packages, and the package's example printer sweep (`test_substrate_examples()`). |
-| `test_json()` … `test_workbench()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
+| `test_json()` … `test_yaml()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
 | `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all twenty. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |

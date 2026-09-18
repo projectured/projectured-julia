@@ -1,10 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# test/editor/AssistantMvpTest.jl
+# test/projectured/editor/AssistantMvpTest.jl
 #
 # End-to-end test for the Assistant MVP. Drives the printer /
 # reader / evaluate_operation pipeline by hand — no SDL, no graphics
-# layout — and asserts the four scenes from
-# `plan/workbench-assistant-mvp.md`:
+# layout — and asserts the four scenes of the assistant MVP:
 #
 #   1. type "Hello"  → input.value updates, no submit yet
 #   2. press Enter   → user message + canned "Yes, sir!" reply appear,
@@ -14,8 +13,8 @@
 #
 # Typing goes through the standard `PrimitiveString → Syntax → Text →
 # Graphics` chain (PrimitiveStringToSyntaxLeaf catches `KeyPress`).
-# Enter goes through `WorkbenchToWidget` so the
-# `AssistantToWidgetSplitPane.read_intent` handler fires.
+# Enter goes through `AssistantToWidgetSplitPane.read_intent`, which
+# returns `SubmitProseOperation` for `KeyDown :return`.
 # The test deliberately does not wire the full assistant → graphics
 # chain — that path is exercised by the standalone assistant example
 # (see [`make_assistant_only_example`](../example/Examples.jl)).
@@ -38,7 +37,7 @@ import ProjecturedKernel.CellModule: Cell, ComputedCell
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
 # next round of SSE events) is a test double, so it lives in
 # `ProjecturedKernelExample` (fakes never sit in `main`); it reaches this suite
-# through `using ProjecturedConversationExample`. The `_tool_use_script` /
+# through `using ProjecturedExample`. The `_tool_use_script` /
 # `_final_text_script` builders below produce the same event-vector shape it consumes.
 
 # ── Test fixture ────────────────────────────────────────────────────────
@@ -57,12 +56,6 @@ function _input_chain()
     )
 end
 
-# Chain that exercises the Enter keybinding. WorkbenchToWidget dispatches
-# Assistant to AssistantToWidgetSplitPane, whose
-# read_intent for KeyDown :return returns SubmitProseOperation.
-function _workbench_chain()
-    RecursiveProjection(WorkbenchToWidget())
-end
 
 function make_assistant_mvp_setup(; reply::AbstractString = "Yes, sir!")
     # Use FakeLlm so the agent loop runs without network and produces a
@@ -246,41 +239,41 @@ plus the reactive-thunk probe. No SDL, no network.
 """
 # A projection that draws any document as an empty canvas. The width test below
 # asks where the two halves of the card are, not what they hold.
-struct _BlankToGraphics <: ProjecturedKernel.ProjectionModule.Projection end
-ProjecturedKernel.ProjectionModule.print_document(::_BlankToGraphics, recursion, document, ctx) =
-    ProjecturedKernel.IoMapModule.SimpleIoMap(_BlankToGraphics(), document,
-        ProjecturedGraphics.GraphicsModule.GraphicsCanvas(Any[]))
+struct _BlankToGraphics <: ProjectionModule.Projection end
+ProjectionModule.print_document(::_BlankToGraphics, recursion, document, ctx) =
+    IoMapModule.SimpleIoMap(_BlankToGraphics(), document,
+        GraphicsModule.GraphicsCanvas(Any[]))
 
 # The card of an assistant on a page is as wide as the page, and so are its two
 # halves: each authors its height and no width.
 function _mvp_test_card_fills_its_page()
     @testset "the assistant card fills its page" begin
         a = make_assistant_mvp_setup()
-        widgets = ProjecturedWidget.WidgetModule.WidgetToGraphics(
-            ProjecturedStyle.StyleModule.font_ubuntu_regular_20; measure = _mvp_measure)
+        widgets = WidgetModule.WidgetToGraphics(
+            StyleModule.font_ubuntu_regular_20; measure = _mvp_measure)
         renderer = RecursiveProjection(
-            ProjecturedProjection.ProjectionAlgebraModule.TypeDispatchingProjection(vcat(
+            ProjectionAlgebraModule.TypeDispatchingProjection(vcat(
             Pair{Type,Any}[
                 Assistant => ChainingProjection(
                     AssistantToWidgetCard(),
-                    ProjecturedLayout.LayoutModule.VerticalLayoutToGraphicsCanvas()),
-                ProjecturedConversation.ConversationModule.ConversationDocument => _BlankToGraphics(),
-                ProjecturedConversation.ConversationModule.ConversationDraft => _BlankToGraphics()],
-            ProjecturedLayout.LayoutModule.LayoutToGraphics().dispatch,
+                    LayoutModule.VerticalLayoutToGraphicsCanvas()),
+                ConversationModule.ConversationDocument => _BlankToGraphics(),
+                ConversationModule.ConversationDraft => _BlankToGraphics()],
+            LayoutModule.LayoutToGraphics().dispatch,
             widgets.dispatch)))
         padding = 16
         for width in (600, 900)
-            offer = ProjecturedKernel.ProjectionModule.with_available_size(
-                ProjecturedKernel.ProjectionModule.PrinterContext();
+            offer = ProjectionModule.with_available_size(
+                ProjectionModule.PrinterContext();
                 width = Cell(Int32(width)), height = Cell(Int32(1200)))
             canvas = print_document(renderer, nothing, a, offer).output
             @test Int(canvas.w) == width
             boxes = Tuple{Int,Int}[]
             function walk(node, ox = 0)
-                if node isa ProjecturedGraphics.GraphicsModule.GraphicsViewport
+                if node isa GraphicsModule.GraphicsViewport
                     push!(boxes, (ox + Int(node.x), Int(node.w)))
                     walk(node.content, ox + Int(node.x))
-                elseif node isa ProjecturedGraphics.GraphicsModule.GraphicsCanvas
+                elseif node isa GraphicsModule.GraphicsCanvas
                     foreach(element -> walk(element, ox + Int(node.x)), node.elements)
                 end
             end
@@ -389,13 +382,13 @@ function _canvas_max_absright(node, ax = 0)
 end
 
 function _render_conversation_widget(doc, ctx)
-    proj = ProjecturedConversationExample.make_conversation_widget_projection_example(
+    proj = make_conversation_widget_projection_example(
         measure = (t, _f) -> (length(t) * 10, 20))
     print_document(proj, proj, doc, ctx).output
 end
 
 function _all_expanded_conversation()
-    doc = ProjecturedConversationExample.make_conversation_document_example()
+    doc = make_conversation_document_example()
     for t in doc.turns
         t.collapsed = false
         for p in t.parts
@@ -409,7 +402,7 @@ function _mvp_test_collapse_containment()
     @testset "collapse layout: no balloon + body containment" begin
         # Stage 2 — collapsing a part does not widen any card.
         out_default  = _render_conversation_widget(
-            ProjecturedConversationExample.make_conversation_document_example(), PrinterContext())
+            make_conversation_document_example(), PrinterContext())
         out_expanded = _render_conversation_widget(_all_expanded_conversation(), PrinterContext())
         # A folded card is its header alone, so it can be narrower than the
         # open card; it must never be wider.
@@ -421,7 +414,7 @@ function _mvp_test_collapse_containment()
                     with_available_size(PrinterContext(); width = Cell(760)),
                     with_available_size(PrinterContext(); width = Cell(1200)))
             out = _render_conversation_widget(
-                ProjecturedConversationExample.make_conversation_document_example(), ctx)
+                make_conversation_document_example(), ctx)
             @test _canvas_max_absright(out) <= Int(out.w)
         end
     end
@@ -484,8 +477,8 @@ end
 function _mvp_test_collapse_click()
     @testset "collapse on header click" begin
         fake_measure(_text, _font) = (length(_text) * 10, 20)
-        doc  = ProjecturedConversationExample.make_conversation_document_example()
-        proj = ProjecturedConversationExample.make_conversation_widget_projection_example(measure = fake_measure)
+        doc  = make_conversation_document_example()
+        proj = make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())
 
         # Resolve both header clicks from the *same* fresh projection (a toggle

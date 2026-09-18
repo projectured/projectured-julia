@@ -679,9 +679,9 @@ end
 A verdict must not depend on when it was measured. The same leaves, measured
 forward and then backward, must give the same counts.
 
-This is not a nicety. The first full sweep reported one frozen location in
-`workbench` that answered "not shown" when probed on its own, and an artifact
-that survives into a marker is a false fact recorded in the suite forever. Every
+This is not a nicety. The first full sweep reported one frozen location that
+answered "not shown" when probed on its own, and an artifact that survives
+into a marker is a false fact recorded in the suite forever. Every
 write is undone, but the cells it touched stay invalid and the next surface
 re-forces them, so an earlier leaf can move what a later leaf sees.
 """
@@ -717,16 +717,8 @@ end
 
 # @broken registry for the reactivity sweep, keyed on the frozen FIELD rather
 # than on the example, so a different field on a known-broken example is
-# unrecognised and stays an unmarked failure.
-#
-# @broken: the editing page's tab title does not follow `WorkbenchEditor.filename`.
-# At `root.child_iomap.step_iomaps[1].editing_page_iomap`
-# (`WorkbenchPageToWidgetTabbedPane`) the obligation is strong — the mapper says
-# the field is rendered — and writing it invalidates 0 of 964 cells. The tab keeps
-# showing a name that is no longer current, and no other suite can see it because
-# every printer test re-prints from scratch.
-# plan/pending/reactivity-property-testing.md §8.7
-_reactivity_broken(name) = name == "workbench" ? (:filename,) : ()
+# unrecognised and stays an unmarked failure. Empty: nothing is known-broken.
+_reactivity_broken(name) = ()
 
 """
     test_reactivity(; leaf_limit=2, node_limit=12)

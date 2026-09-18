@@ -48,5 +48,6 @@ dashboard, a wizard, a searchable list) that this slice does not have yet.
 `ProjecturedComponent` depends only on `ProjecturedKernel`; it imports no
 widget type. The intended position is between the document layer and the
 widget layer that [widget.md](../widget/widget.md) describes: a component
-would compose widgets the way `WorkbenchEditor` composes panes, without
-being a domain of its own.
+would compose widgets the way `PaneSplitToWidgetSplitPane` composes a pane
+split's elements ([pane.md](../pane/pane.md)), without being a domain of its
+own.

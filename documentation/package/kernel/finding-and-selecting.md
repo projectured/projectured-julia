@@ -168,8 +168,9 @@ ref = first(search_references(editor.document, v -> v isa JsonString && v.value 
 evaluate_operation(editor, ReplaceSelectionOperation(ref))
 
 # Any other action: find the target, build the op carrying it, evaluate.
-page = first(search_documents(editor.document, x -> x isa WorkbenchPage && !isempty(x.elements)))
-evaluate_operation(editor, WorkbenchCloseDocumentOperation(page, 1))
+tree = get_window_tree(editor)
+group = first(search_documents(editor.document, x -> x isa PaneGroup && !isempty(x.tabs)))
+evaluate_operation(editor, make_pane_close_tab_operation(tree, group, 1))
 ```
 
 Because operations carry their own target and `evaluate_operation` is
@@ -198,12 +199,13 @@ JSON section of the [reference guide](reference.md#json-domain)).
 
 ## Scoping a search to one domain
 
-The workbench renders the **same** underlying document through several projections
-at once — a JSON value also shows up in a syntax editor and a text editor. So a
-bare value query returns **one hit per projection** and cannot tell them apart:
+A pane tree can mirror one document into two tabs at once — the tree's own
+selection tracks one caret shared between them (see
+[pane.md](../pane/pane.md#a-duplicate-is-a-pane-of-its-own)) — so a bare value
+query returns **one hit per tab** and cannot tell them apart:
 
 ```julia
-search_references(editor.document, "Alice")                       # ← matches in JSON, syntax, text…
+search_references(editor.document, "Alice")                       # ← matches in every tab that mirrors it
 search_references(editor.document, n -> n isa AbstractString && n == "Alice")  # same problem
 ```
 
@@ -256,7 +258,7 @@ counts as a reactivity signal).
 - A `String`/`Regex` query is a leaf-text shorthand; it cannot distinguish
   domains (see "Scoping a search to one domain"). Use a typed predicate to scope.
 - In the running editor `editor.document` is a `ScreenDocument`; searching it
-  walks through the window(s) into the workbench automatically, so a content-based
+  walks through the window(s) into the pane tree automatically, so a content-based
   search does not care about the screen/window wrapping.
 - `execute_julia_code` keeps top-level bindings between calls (a persistent
   scratch module), so you can assign `paths = …` in one step and use it the next.

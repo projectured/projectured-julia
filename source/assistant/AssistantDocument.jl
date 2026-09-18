@@ -30,10 +30,11 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "- Build an `Operation` and apply it with `evaluate_operation(editor, op)` — e.g. " *
                                   "`ReplaceSelectionOperation(path)` to select. This is the one way to change the document.\n" *
                                   "  See resource://guide/kernel/finding-and-selecting and resource://guide/kernel/operation for the details.\n\n" *
-                                  "SCOPING A SEARCH TO A DOMAIN — the workbench renders the SAME document through\n" *
-                                  "several projections (a JSON value also appears in syntax and text editors), so a\n" *
-                                  "bare value match (e.g. \"Alice\" or `n isa AbstractString`) returns one hit per\n" *
-                                  "projection and cannot tell them apart. Match the DOMAIN NODE TYPE instead, e.g.\n" *
+                                  "SCOPING A SEARCH TO A DOMAIN — the pane tree holds every open tab inside the\n" *
+                                  "SAME document, so a JSON file in one tab and an unrelated value in another can\n" *
+                                  "share the same string (e.g. \"Alice\" or match `n isa AbstractString`), and a\n" *
+                                  "bare value match returns one hit per tab and cannot tell them apart. Match the\n" *
+                                  "DOMAIN NODE TYPE instead, e.g.\n" *
                                   "`v -> v isa JsonString && v.value == \"Alice\"`, and/or first locate the document\n" *
                                   "with `search_documents(editor.document, x -> x isa JsonDocument)`.\n\n" *
                                   "STATE PERSISTS between `execute_julia_code` calls: a variable you assign at top\n" *
@@ -169,3 +170,6 @@ end
 # belongs to the composer. A pasted document replaces neither it nor anything in
 # it. The composer's own text paste is not a pasted document, so it still works.
 accepts_pasted_document(::Assistant) = false
+
+# A file opens beside the conversation, never over it.
+accepts_opened_file(::Assistant) = false

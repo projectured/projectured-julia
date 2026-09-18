@@ -38,7 +38,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 
 **The general steps.** `collection`, `reversing`, `filtering`, `searching`, `sorting`, `focusing`, `dragging`. One step in front of any data: a filter, a sort, a search. They work for every domain, which is what makes them worth reading.
 
-**Files and the workbench.** `filesystem`, `filesystem_widget`, `navigator`, `table`, `math_table`, `workbench`. The parts the application is built from.
+**Files.** `filesystem`, `filesystem_widget`, `navigator`, `table`, `math_table`. The parts the application is built from.
 
 **The assistant.** `assistant`, `conversation_widget`, `conversation_editor`. The conversation as a document. The example answers from a canned transcript, so a test needs no model; [assistant-guide.md](assistant-guide.md) says how to talk to a real one.
 
@@ -131,8 +131,8 @@ controls: a text box, a checkbox, and a button.
 - Domain independence: `WidgetToGraphics` knows nothing about JSON
 - `GraphicsViewport` — how scroll panes clip content to a bounding box
 - Event routing through composite projections
-- The workbench (`run_example("workbench")`) extends this further to a full
-  IDE shell
+- The pane tree (`run_example("pane")`) extends this further with tab groups
+  and splits
 
 ---
 
@@ -194,34 +194,37 @@ nodes; the cursor understands the structure of the code.
 
 ---
 
-## 6. Workbench (`run_example("workbench")`)
+## 6. Pane tree (`run_example("pane")`)
 
-<img width="1285" alt="Workbench example" src="../asset/image/example/workbench.png">
-
-**What it demonstrates:** The full IDE shell. The workbench is a compound
-document that wraps any other document in a structured editor environment with
-a navigator, console, operator, searcher, evaluator, and assistant pane.
+**What it demonstrates:** The generic tab-and-split layout that organizes any
+documents on the screen. `PaneToWidget` renders a `PaneTree`'s `PaneSplit`s and
+`PaneGroup`s into split panes and tabbed panes, and each tab's content passes
+through untouched, so a plain string, a JSON file, or an assistant all draw
+through the renderer that follows.
 
 ```
-WorkbenchWorkbench ──WorkbenchToWidget──▶ WidgetShell ──WidgetToGraphics──▶ GraphicsCanvas
+PaneTree ──PaneToWidget──▶ WidgetSplitPane / WidgetTabbedPane ──WidgetToGraphics──▶ GraphicsCanvas
 ```
 
-The example opens a workbench containing a JSON document in the editor pane.
-The navigator pane on the left shows the document tree.
+The example opens a layout with two panes side by side, the right one split
+again so three groups share the window: two tabs of plain text on the left, one
+tab of notes and one of scratch space on the right.
 
 **What to try:**
-- Tab through the panes (navigator, editor, console, …).
-- Use the evaluator pane to run Julia expressions against the document.
-- Run `run_example("workbench")` with `workbench=true` on any other example:
-  `run_example("json"; workbench=true)`.
+- Press `Ctrl+Tab` / `Ctrl+Shift+Tab` to move the focus between groups.
+- Press `Ctrl+\` to split the focused group, or `Ctrl+T` to open a new tab in it.
+- Run `run_example("pane_json")` for a layout whose focused tab holds a real
+  JSON document instead of plain text — any domain works in a tab, because the
+  tab's content passes through the pane stage untouched.
 
 **Concepts illustrated:**
-- Multi-level projection pipeline (three full domain hops)
-- `NestingProjection` — the workbench editor pane wraps an arbitrary inner
-  projection; the nested projection's events and selections are scoped
-  correctly
-- `SwitchingProjection` — the workbench pane switcher routes events to the
-  currently focused pane
+- Compound projection: the pane stage decides the layout, and the renderer
+  that follows decides how each tab's content looks — the same split every
+  domain projection keeps
+- `PaneGroupToWidgetTabbedPane` / `PaneSplitToWidgetSplitPane` — each pane node
+  projects to its matching widget container
+- The tree's own `selection` names the focused tab; there is no separate
+  active-tab field (see [pane.md](../package/pane/pane.md))
 
 ---
 

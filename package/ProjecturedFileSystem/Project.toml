@@ -8,8 +8,10 @@ authors = []
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
@@ -21,8 +23,10 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 [sources]
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedDomain = {path = "../ProjecturedDomain"}
+ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}
+ProjecturedPane = {path = "../ProjecturedPane"}
 ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedSerialization = {path = "../ProjecturedSerialization"}

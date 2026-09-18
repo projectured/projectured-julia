@@ -51,8 +51,8 @@ function reader_broken(name)
     # plan/pending/simplest-syntax-document.md
     name == "xml" && return (ev, msg) -> occursin("SyntaxConcatenation", msg)
     # @broken: a caret on a projection-introduced token yields an under-typed
-    # ProjectionReferenceStep path the graph/workbench selection maps cannot wrap.
-    name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
+    # ProjectionReferenceStep path the graph selection map cannot wrap.
+    name == "graph" && return (ev, msg) -> occursin("under-typed @reference", msg)
     nothing
 end
 
@@ -79,8 +79,8 @@ function repl_broken(name)
     name in ("conversation_widget", "filesystem", "navigator",
              "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatchException", msg)
     # @broken: caret on a projection-introduced token → under-typed
-    # ProjectionReferenceStep path the graph/workbench maps cannot wrap.
-    name in ("graph", "workbench") && return (ev, msg) -> occursin("under-typed @reference", msg)
+    # ProjectionReferenceStep path the graph map cannot wrap.
+    name == "graph" && return (ev, msg) -> occursin("under-typed @reference", msg)
     # @broken: sql_update selection cell throws when re-projecting after a
     # backspace/whole-cell edit (a stale iomap `.output` and a missing
     # read_intent method); two distinct signatures.
@@ -141,7 +141,7 @@ posnav_throws_broken(name) =
 function test_position_navigations()
     @testset "PositionNavigation" begin
         for example in examples
-            # Skip widget / layout examples, workbench, and assistant — the
+            # Skip widget / layout examples and assistant — the
             # widget-to-graphics layer doesn't route keyboard events to its
             # children, so Ctrl+Home can't seed an initial selection.
             #
@@ -169,7 +169,7 @@ function test_position_navigations()
                              # here for the widget-container reason, not a chart
                              # one — the four standalone chart examples navigate.
                              "table", "math_table", "chart", "chart_inspector",
-                             "workbench", "assistant",
+                             "assistant",
                              # `fsm` is the twelve-state TCP machine. It
                              # navigates correctly — it is simply far too big
                              # for an exhaustive caret walk (tens of minutes,
@@ -250,7 +250,7 @@ function test_tree_navigations()
         for example in examples
             (startswith(example.name, "widget") && example.name != "widget_text") && continue
             example.name in ("layout",
-                             "workbench", "assistant",
+                             "assistant",
                              "text", "text_with_image", "graphics_image",
                              "lazy", "lazy_bidirectional") && continue
             @testset "$(example.name)" begin
@@ -358,7 +358,7 @@ function test_click_roundtrips()
             # Skip examples whose top-level pipeline does not feed a
             # TextToGraphics step (handled by other readers entirely).
             # Skip:
-            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
+            #   - widget/layout/table/tooltip/navigator/assistant: no
             #     TextToGraphics at the top, MousePress is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
@@ -366,8 +366,7 @@ function test_click_roundtrips()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
-            example.name in ("workbench",
-                              "filesystem", "xml", "table", "math_table",
+            example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
                               "book", "object",
@@ -439,7 +438,7 @@ function test_text_navigation_invariants_all()
     @testset "TextNavInvariants" begin
         for example in examples
             # Skip:
-            #   - widget/workbench/layout/table/tooltip/navigator/assistant: no
+            #   - widget/layout/table/tooltip/navigator/assistant: no
             #     TextToGraphics at the top, MousePress is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
@@ -447,8 +446,7 @@ function test_text_navigation_invariants_all()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
-            example.name in ("workbench",
-                              "filesystem", "xml", "table", "math_table",
+            example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
                               "navigator", "assistant",
                               "book", "object",

@@ -30,7 +30,7 @@ end # @testset
 
 @testset "allocate_axis — fixed + flex" begin
 
-# Pattern from the workbench: navigator pinned to 200, right column flexes.
+# A pinned navigator column: fixed at 200, the right column flexes.
 # available = 1280, gap = 0, two slots.
 actual = allocate_axis(1280,
                        Int[200, 0],

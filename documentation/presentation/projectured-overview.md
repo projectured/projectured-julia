@@ -161,16 +161,6 @@ The same editor, open on different kinds of data.
 
 <!-- _class: lead -->
 
-## The workbench
-
-<img width="680" alt="Workbench example" src="../../asset/image/example/workbench.png">
-
-<span class="muted">A file navigator, open documents in tabs, and the assistant, in one window.</span>
-
----
-
-<!-- _class: lead -->
-
 ## A chart
 
 <img width="580" alt="Chart example" src="../../asset/image/example/chart.png">
@@ -376,7 +366,7 @@ Opens a window with a file navigator, open files in tabs, and the assistant.
 
 ```sh
 bin/projectured --help                       # every option
-bin/projectured --window=workbench a.xml     # the workbench window
+bin/projectured --root=~/project a.json      # the navigator lists another directory
 bin/projectured --assistant=none notes.txt   # no assistant
 bin/projectured --backend=web a.json         # in a browser
 bin/projectured --mcp a.json                 # with an MCP server

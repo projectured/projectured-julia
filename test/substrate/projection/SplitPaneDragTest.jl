@@ -113,7 +113,7 @@ end
     # The tabbed-pane reader must translate the drag events' coordinates into
     # the active tab's frame, otherwise the grab region floats above where the
     # splitter is actually drawn (the bug that made the assistant
-    # conversation/draft splitter unmovable in the workbench).
+    # conversation/draft splitter unmovable in a pane tab).
     top    = WidgetTitlePane("T", WidgetLabel(Point2D(8, 8), "t"))
     bottom = WidgetTitlePane("B", WidgetLabel(Point2D(8, 8), "b"))
     split  = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[150, 150])

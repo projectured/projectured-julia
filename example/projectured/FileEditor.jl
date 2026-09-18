@@ -119,19 +119,18 @@ function domain_for_path(path; default::Symbol, allowed=keys(EDITOR_DOMAINS))
 end
 
 """
-    build_file_editor(domain::Symbol; file=nothing, workbench=false) -> (document, projection, name)
+    build_file_editor(domain::Symbol; file=nothing) -> (document, projection, name)
 
 Assemble the `(document, projection, window-name)` triple a file editor runs,
 *without* opening a window — the testable core of [`run_file_editor`](@ref).
 
 - `document`: the domain's `load_file(file)` when `file` is given and exists,
   otherwise `make_empty_document()` (a scratch document).
-- `projection`: the domain's `make_projection()`, wrapped in the workbench shell
-  when `workbench=true`.
+- `projection`: the domain's `make_projection()`.
 - `name`: the window id/title — the file's basename, or the domain name when no
   file is given.
 """
-function build_file_editor(domain::Symbol; file=nothing, workbench::Bool=false)
+function build_file_editor(domain::Symbol; file=nothing)
     dom = editor_domain(domain)
     document = if file !== nothing && isfile(file)
         dom.load_file === nothing &&
@@ -142,33 +141,28 @@ function build_file_editor(domain::Symbol; file=nothing, workbench::Bool=false)
     end
     projection = dom.make_projection()
     name = file !== nothing ? basename(String(file)) : string(domain)
-    if workbench
-        document   = make_workbench_document(document; title=name, filename=something(file, name))
-        projection = make_workbench_projection()
-    end
     (document, projection, name)
 end
 
 """
-    run_file_editor(domain::Symbol; file=nothing, workbench=false, backend=nothing,
+    run_file_editor(domain::Symbol; file=nothing, backend=nothing,
                     width=nothing, height=nothing, mcp=false)
 
 Open a single editor window for `domain` (a key in [`EDITOR_DOMAINS`](@ref)) and
 run the editor loop until the window is closed.
 
 `file` is loaded via the domain's `load_file` when it exists; otherwise the editor
-starts on a scratch document (`make_empty_document`). With `workbench=true` the
-content is wrapped in the workbench shell. The backend defaults to SDL; pass a
-`backend` to override (e.g. the web backend), and `width`/`height` to fix the
-window size (defaults to the display size). `mcp=true` starts an MCP server
-alongside the loop.
+starts on a scratch document (`make_empty_document`). The backend defaults to
+SDL; pass a `backend` to override (e.g. the web backend), and `width`/`height`
+to fix the window size (defaults to the display size). `mcp=true` starts an MCP
+server alongside the loop.
 
 Saving is out of scope in v1 (the domain's `save_file` is `nothing`), so this
 opens and edits a file but does not write it back.
 """
-function run_file_editor(domain::Symbol; file=nothing, workbench::Bool=false,
+function run_file_editor(domain::Symbol; file=nothing,
                          backend=nothing, width=nothing, height=nothing, mcp::Bool=false)
-    document, projection, name = build_file_editor(domain; file=file, workbench=workbench)
+    document, projection, name = build_file_editor(domain; file=file)
     backend === nothing && (backend = default_backend())
     if width === nothing || height === nothing
         sw, sh = get_display_size(backend)
@@ -231,7 +225,7 @@ function _force_reactive!(x, visited::Set{UInt64} = Set{UInt64}(),
 end
 
 """
-    warm_file_editor(domain::Symbol; workbench=false) -> nothing
+    warm_file_editor(domain::Symbol) -> nothing
 
 Headlessly drive the **exact windowed editor pipeline** [`run_file_editor`](@ref)
 runs — the composed multi-window projection over a `ScreenDocument` — through one
@@ -247,9 +241,9 @@ baked backend.
 Never throws: any hiccup is logged and swallowed, so a warm-up miss can't fail the
 build.
 """
-function warm_file_editor(domain::Symbol; workbench::Bool = false)
+function warm_file_editor(domain::Symbol)
     try
-        document, projection, name = build_file_editor(domain; workbench = workbench)
+        document, projection, name = build_file_editor(domain)
         # The same scene + composed projection `run_file_editor` uses, at a fixed
         # size so no display probe is needed.
         screen    = _build_window_scene(Any[document], String[name]; width = 800, height = 600)

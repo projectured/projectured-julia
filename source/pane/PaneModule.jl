@@ -81,6 +81,7 @@ export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneGroupToWidgetTabbedPane, PaneGroupToWidgetTabbedPaneIoMap,
        PaneToWidget
 export save_user_interface, load_user_interface
+export get_pane_file_group
 
 
 include("PaneDocument.jl")
@@ -90,6 +91,7 @@ include("PaneProgram.jl")
 include("PaneGestures.jl")
 include("PaneToWidget.jl")
 include("UserInterfaceFile.jl")
+include("PaneFile.jl")
 
 # A file may name a pane tree, a split, a group or a tab. The registry is
 # runtime state, so the offer is made here and not at the top level.

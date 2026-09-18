@@ -48,7 +48,7 @@ root.elements[2]              # an empty group: the group itself
 
 The tab a group *shows* is the tab its own injected `selection` names, so every
 focus move and every tab switch is one `ReplaceSelectionOperation` and nothing
-else. This is what `WorkbenchPageToWidgetTabbedPane` already does for a page.
+else.
 
 **The consequence:** `_sync_selection!` clears the divergent branch when the
 selection moves, so a group that loses the focus loses its own selection, and the
@@ -335,9 +335,8 @@ ChainingProjection(
 ```
 
 A tab's content passes through the first stage untouched, so `renderer` decides
-how each content document is drawn — exactly as the workbench composes its own.
-`make_pane_projection_example` builds one that knows widgets, layouts, and
-primitive documents.
+how each content document is drawn. `make_pane_projection_example` builds one
+that knows widgets, layouts, and primitive documents.
 
 Each split slot is wrapped in a `LayoutConstraint` whose weight on the split axis
 is the element's share. Where the parent seeded an available extent the slot also

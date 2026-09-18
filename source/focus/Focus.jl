@@ -46,8 +46,8 @@ end
 # `node`'s subtree, or `nothing` if it holds no focusable document. `visited` guards
 # against cycles in the document graph: an embedded `ListNode` is a doubly-linked
 # list (`prev`/`next` both point at Documents), so a naive walk recurses
-# `next → prev → next …` forever (this is what made Tab stack-overflow on the
-# workbench/assistant, which embed ListNode-backed text/syntax). Acyclic trees (the
+# `next → prev → next …` forever (this is what makes Tab stack-overflow on a
+# file tab/assistant, which embed ListNode-backed text/syntax). Acyclic trees (the
 # widget examples) visit each node once regardless, so their focus order is unchanged.
 function _focusable_path(node, reverse::Bool, visited::Set{UInt}=Set{UInt}())
     node === nothing && return nothing

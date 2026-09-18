@@ -10,7 +10,7 @@ The order of the work has been the same from the start: **make the whole path wo
 
 **The editing path.** An edit is an operation on the data. Insert and delete work on a collection (`insert_elements`, `delete_elements`), a character edit works inside a string, a number, a key, an XML text and an attribute (`ReplaceStringRangeOperation`), and the reader chain turns a key press into one of them. Julia and SQL are typed through their parsers with live completion; Markdown, math and prose take text as well.
 
-**Twenty domains.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia, math, formulas, charts, sequence charts, graphs, state machines, processes, books, the file system, the conversation, the workbench, versioning and the reflection view of any object. [domain-inventory.md](../design/domain-inventory.md) lists them with what each one holds.
+**Twenty domains.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia, math, formulas, charts, sequence charts, graphs, state machines, processes, books, the file system, the conversation, the assistant, versioning and the reflection view of any object. [domain-inventory.md](../design/domain-inventory.md) lists them with what each one holds.
 
 **Views that are not text.** Line, bar, histogram, scatter and strip charts, sequence charts, a graph with two layout engines, a state machine as a diagram, and a form or a table of widgets. A data point of a chart is selected like any other part.
 
@@ -18,7 +18,7 @@ The order of the work has been the same from the start: **make the whole path wo
 
 **The clipboard.** Copy, cut, note and paste move a part of the data, not a text. Where a text conversion exists, the system clipboard carries the text of it.
 
-**Windows.** Tabs and split panes with a pane tree, a command palette, a file navigator, and one application command that opens files of every supported format (`bin/projectured`). The workbench is a second window made of the same parts.
+**Windows.** Tabs and split panes with a pane tree, a command palette, a file navigator, and one application command that opens files of every supported format (`bin/projectured`). A tab typed with a tool's name — `assistant`, `gestures`, `log`, `selection`, `reference`, `explorer` or `repl` — opens that tool.
 
 **Backends.** A native window through SDL, a browser over HTTP and WebSocket, a terminal with colour, and no screen at all for a test. A view also goes to a PNG image, a vector PDF with selectable text, or an MP4 video.
 
@@ -54,7 +54,6 @@ Each line names the plan that carries it.
 - **Undo and redo.** Done. An `UndoBuffer` is a document that holds another document and the steps that take it back, and its projection is transparent. It is opt-in: the application installs one around each file and one around the window, and no other example has one.
 - **Editable tables.** A table renders and navigates; a cell does not take an edit.
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
-- **Tool views in place of the workbench** (`tool-views-replace-the-workbench.md`). The workbench window has no clipboard, no dragging, no tooltip, no filter and no search wired into it. The pane window that `bin/projectured` opens does not have that gap.
 - **Links between documents** (`document-link-feature.md`, `document-locator.md`). A reference from one document to another does not exist yet.
 - **Richer SQL** (`bound-sql-statement.md`, `sql-select-aggregation-support.md`, `dbcatalog-index-support.md`).
 - **An assistant that recovers from a miss** (`assistant-recovers-from-a-miss.md`). Two of the eleven example problems are still missed.

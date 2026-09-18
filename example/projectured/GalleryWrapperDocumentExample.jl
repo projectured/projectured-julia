@@ -52,27 +52,3 @@ function make_shell_document(document; title="untitled", width=nothing, height=n
                 menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar,
                 size=size)
 end
-
-function make_workbench_document(document; title="untitled", filename=title)
-    # Start the navigator in the current working directory, so the workbench opens
-    # showing the files next to wherever the editor was launched from.
-    cwd = pwd()
-    nav_page = WorkbenchPage([
-        WorkbenchNavigator(Workspace([WorkspaceFolder(basename(cwd), cwd)])),
-    ])
-    edit_page = WorkbenchPage([
-        WorkbenchEditor(document; title=title, filename=filename),
-    ])
-    info_page = WorkbenchPage([
-        WorkbenchConsole(),
-        WorkbenchDescriptor(EmptyReference()),
-        WorkbenchOperator(),
-        WorkbenchSearcher(),
-        WorkbenchEvaluator(),
-    ])
-    control_page = WorkbenchPage([
-        # Example doc: explicit FakeLlm so the embedded assistant works offline.
-        Assistant(; llm = FakeLlm()),
-    ])
-    WorkbenchWorkbench(nav_page, edit_page, info_page, control_page)
-end

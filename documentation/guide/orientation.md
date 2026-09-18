@@ -22,7 +22,7 @@ browsing tools below. Do not guess names — search for them.
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
 | Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `kernel/editor` |
-| Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `workbench/workbench`, `kernel/editor` |
+| Screen / pane tree | `ScreenDocument` → `WindowDocument` → `PaneTree` → `PaneSplit`/`PaneGroup` → `PaneTab`; `ScreenToScreen`, `WindowManagingProjection` | `pane/pane`, `kernel/editor` |
 | Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `kernel/devices-and-backends` |
 
 ## How to browse
@@ -54,7 +54,7 @@ browsing tools below. Do not guess names — search for them.
 ### Gotchas
 
 - Property access already unwraps `Cell`s — write `node.field`, **not** `node.field[]`.
-- The workbench shows the **same** document through several projections, so a bare
-  value match hits all of them — scope by **domain node type** (`v isa JsonString`).
+- A pane tree can mirror the **same** document into two tabs at once, so a bare
+  value match hits both — scope by **domain node type** (`v isa JsonString`).
 - `execute_julia_code` keeps top-level bindings between calls, so build state up
   incrementally (`paths = …` in one call, use `paths` in the next).

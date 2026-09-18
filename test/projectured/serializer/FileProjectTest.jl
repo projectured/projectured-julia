@@ -557,7 +557,8 @@ function test_file_project()
             try
                 # The panel is a document of no file's domain. Nothing writes
                 # it, so the save does not walk it and does not call it an
-                # orphan — a card holds the live workbench it built this way.
+                # orphan — a `GestureLog` holds the live entries it recorded
+                # this way.
                 window = TestWindow("Aloha", 5, JsonObject("live" => JsonString("x")))
                 @test save_file!(PredFile("w.pred", window), d) === true
                 # Only what the document called its file half is on disk, one

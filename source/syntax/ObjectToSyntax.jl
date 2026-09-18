@@ -178,11 +178,12 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
 
     # Cycle detection for mutable ancestors. Self-referential graphs (e.g.
-    # the workbench rendered inside one of its own pages) always close the
-    # loop through a mutable value — Julia immutables can't reference
-    # themselves directly. Tracking only mutables avoids false positives
-    # for value-equal immutable leaves (fonts, colors, TextStrings) that
-    # legitimately appear many times in the same tree.
+    # the gallery's introspection tab, which embeds the running document
+    # inside one of its own tabs) always close the loop through a mutable
+    # value — Julia immutables can't reference themselves directly. Tracking
+    # only mutables avoids false positives for value-equal immutable leaves
+    # (fonts, colors, TextStrings) that legitimately appear many times in
+    # the same tree.
     if ismutable(obj)
         visited = get_property(ctx, :objects_seen, nothing)
         if visited !== nothing && haskey(visited, obj)

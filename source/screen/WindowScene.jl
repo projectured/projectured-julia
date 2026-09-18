@@ -3,7 +3,7 @@
 # ── One window on one document, and the loop that drives it ─────────────────
 #
 # `ProjecturedExample.run_example` opens the development gallery: one window per
-# example, with options for the workbench, the tooltip, the inspector, the
+# example, with options for introspection, the tooltip, the inspector, the
 # clipboard, the gesture log and the profiler. Behind it stand the twenty-one
 # domain example packages its umbrella registers, because a registry of every
 # domain must depend on every domain.

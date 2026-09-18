@@ -3142,7 +3142,7 @@ end
 # A tabbed pane's input has `.selector_element_pairs[i]` (a Pair whose
 # second member is the i-th tab's content widget). The reader prepends
 # `selector_element_pairs[i]` to bubbled paths so the active tab is
-# encoded; upstream projections (e.g. `WorkbenchPageToWidgetTabbedPane`)
+# encoded; upstream projections (e.g. `PaneGroupToWidgetTabbedPane`)
 # decode it. Without a slot index this generic mapper has nothing to add.
 function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
     # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
@@ -3381,11 +3381,11 @@ end
 # that page's `element`, so the true path continues through `.element`. It is not
 # always written, and the reason is history rather than design.
 #
-# Two upstream decoders — `PaneToWidget` and `WorkbenchToWidget` — were written
-# when a pair was a raw tuple, and they still expect the path to run straight from
-# `[i]` into the content widget. Both put a **widget** in the tab, and both map the
-# reference back into their own domain before anything validates it against a
-# document, so the missing step never shows up there.
+# The upstream decoder — `PaneToWidget` — was written when a pair was a raw
+# tuple, and it still expects the path to run straight from `[i]` into the
+# content widget. It puts a **widget** in the tab, and it maps the reference
+# back into its own domain before anything validates it against a document, so
+# the missing step never shows up there.
 #
 # A tab that holds a foreign-domain document has no such decoder. The widget path
 # **is** the document path, it reaches `_matched_selection`, and the missing step
@@ -3393,7 +3393,7 @@ end
 # to the document inside the page.
 #
 # So the step is added exactly for that case. This is deliberately narrow: writing
-# it unconditionally is the correct path, and it would need both decoders changed
+# it unconditionally is the correct path, and it would need the decoder changed
 # in the same commit.
 #
 # A selection of the whole page takes the step too, whatever the page holds. A

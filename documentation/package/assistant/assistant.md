@@ -61,4 +61,4 @@ assistant = Assistant(; backend = :ollama)
 - **No server, or no model on the server.** The turn writes what is missing into the transcript, including the address it asked.
 - **A tool raised.** The tool result carries the error text, and the model gets it, so a miss is visible in the transcript.
 
-`test/workbench/editor/AssistantMvpTest.jl` drives a whole turn with a scripted model, and `assistant_example` runs from a canned transcript, so a test needs no model.
+`test/projectured/editor/AssistantMvpTest.jl` drives a whole turn with a scripted model, and `assistant_example` runs from a canned transcript, so a test needs no model.

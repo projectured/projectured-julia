@@ -30,7 +30,7 @@ julia> run_example(json_example)    # or pass the Example object directly
 
 The gallery lives at
 [domain/example/Gallery.jl](../../example/projectured/Gallery.jl) (the
-`Example`/`Vector` overloads — its workbench/tooltip/clipboard wrappers are
+`Example`/`Vector` overloads — its shell/tooltip/clipboard wrappers are
 domain vocabulary); the name-lookup overloads live with the global registry in
 [projectured/example/ProjecturedExamples.jl](../../example/projectured/ProjecturedExamples.jl), and
 `using ProjecturedExample` provides all of them. It accepts a
@@ -41,7 +41,7 @@ few keyword arguments worth knowing:
 | `width`, `height` | Window size. When unset, defaults to the display size via `get_sdl_display_size()`. |
 | `caching=true` | Wraps the projection in `make_graphics_caching` so you can verify cell invalidation behaviour. |
 | `scrolling=true` | Wraps the document/projection in the scrolling wrapper so you can drive layout that exceeds the viewport. |
-| `workbench=true` | Embeds the example inside the workbench shell. |
+| `shell=true` | Embeds the example inside a `WidgetShell` (a menu bar, a toolbar, and a status bar that names the example). |
 | `tooltip=true` | Opens a sibling window showing the *current selection*'s reference (compact + human-readable) while a selection is set. |
 | `inspector=true` | Opens a secondary window that **follows the mouse** and shows the reference a single click *would* create at the pointer — compact (`ReferenceToText`) and human-readable (`ReferenceToHumanReadableText`) — without committing a selection. Move the mouse around to see what is what. Desktop/SDL only. |
 | `reset=true` | Rebuilds a fresh `document`/`projection` from the example's factories. Use this after an interactive session has mutated the cached instance. |

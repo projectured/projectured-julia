@@ -43,8 +43,8 @@
 # ## Scope
 #
 # This renders *content / data* documents. Structural shells (the conversation
-# chat bubbles, the workbench tabs/panes) are projected to widgets by their own
-# panels as a separate top-level stage; a `ConversationDocument` / `WorkbenchDocument`
+# chat bubbles, the pane tabs/splits) are projected to widgets by their own
+# panels as a separate top-level stage; a `ConversationDocument` / `PaneDocument`
 # reaching a content slot here falls through to the reflective `Any` fallback. A
 # caller that wants the real rendering injects an entry via `extra`.
 #

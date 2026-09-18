@@ -356,7 +356,7 @@ function test_command_palette_decorator()
         @test length(arr.elements) == 2
     end
 
-    # The case that forced this design. A document wrapper (clipboard, workbench,
+    # The case that forced this design. A document wrapper (clipboard, pane tab,
     # shell, scrolling, dragging) puts the domain document one level down. Reaching
     # into a flat binding list could not run anything through it; asking the reader
     # can, because the reader roots what it returns.
