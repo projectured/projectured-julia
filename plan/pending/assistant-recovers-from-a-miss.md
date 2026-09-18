@@ -433,7 +433,32 @@ still failed, so a rank is a proxy and not the goal.
 - [ ] A test that the ranks of the questions do not move, and the measurement
       again, which must show the same ranks and a shorter search.
 
-### Step 3. The ranking, one piece at a time (§3g)
+### Step 3. The documentation first, then the ranking (§3g)
+
+**The order was wrong, and the user said so on 2026-09-18.** The experiments
+below ranked text that was never written for a model: of the 1,389 entries of
+projectured's corpus, only 730 have a first sentence, and the names the
+questions expect were not written to the docstring standard of the last plan. A
+ranking cannot read what the text does not say, so an experiment measured on
+that text answers about the text and not about the ranking.
+
+**The documentation is written for a reader, not for the questions.** The user
+said so in the same breath: "we should not update the documentation to
+magically fit the test corpus, but at least make it good enough in the general
+sense". So a docstring is written from the code and from what the thing is for,
+the questions are not read while writing it, and no sentence of a question may
+appear in a docstring. A fixture that the text was fitted to measures nothing.
+
+- [ ] **Write the documentation of the names a reader needs**, in both
+      repositories, to the standard of `code-quality-rules.md`: the first
+      sentence, a "Use it to" paragraph, an example, and the neighbours. Take a
+      module at a time and document what it exports, not a list of names a
+      question mentions.
+- [ ] **Measure again**, and take that as the baseline of the ranking.
+- [ ] **Run the rejected experiments again** on the new text: the header, the
+      chunks, and the fusion. Their results below are about the old text.
+
+### The ranking, one piece at a time (§3g)
 
 Each piece is measured on the questions of both corpora and on the golden
 sentences, which needs no chat model. A piece lands only when more questions
@@ -630,6 +655,12 @@ whole documentation is two sentences; and `set_cell_function!`, whose
 documentation never says "document" or "field". A ranking cannot read what the
 text does not say. The next lever is the text, which is the docstring standard
 of the last plan, applied wider.
+
+**Every result of this section is about the old text.** The experiments should
+have run after the documentation was written for a model, and Step 3 runs them
+again. The one that landed, the rarity of a word, stays for now because what it
+repairs — a common word counting as loudly as a rare one — is a property of the
+scoring and not of the text; it is measured again all the same.
 
 **A caution on comparing.** The guides of projectured changed under these runs,
 because the user is editing them. A guide number is only comparable within one
