@@ -7,8 +7,17 @@ function test_list_guides()
         result = list_guides()
         @test isa(result, String)
         @test !isempty(result)
-        # Should contain some guide names
-        @test occursin("**", result)  # Markdown bold formatting
+        @test occursin("**", result)                 # the name of each guide
+        @test occursin("**guide/setup-guide**", result)
+
+        # The description of a guide is its summary paragraph, and never the
+        # header line above it: a model that reads `> **Kind:** …` learns the
+        # kind of the document and nothing about its subject.
+        for line in split(result, "\n\n")
+            startswith(line, "**") || continue
+            @test !occursin("**Kind:**", line)
+            @test !occursin("**Status:**", line)
+        end
     end
 end
 

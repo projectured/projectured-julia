@@ -122,7 +122,12 @@ function list_guides()
     guides_info = String[]
     for (guide_name, filepath) in guides
         content = read(filepath, String)
-        # The first paragraph after the title is the description.
+        # The first paragraph after the title is the description. The header
+        # line of a document — `> **Kind:** … **Status:** … **Stands on:** …` —
+        # sits between the two, and it is metadata: a model that reads it
+        # learns the kind of the document and nothing about its subject. So a
+        # quoted line is skipped, and the paragraph after it is the summary
+        # that `writing-rules.md` asks every document to carry.
         description_lines = String[]
         in_description = false
         seen_heading = false
@@ -133,7 +138,9 @@ function list_guides()
                 continue
             elseif startswith(stripped, "#")
                 seen_heading = true
-            elseif seen_heading && !startswith(stripped, "#")
+            elseif startswith(stripped, ">")
+                continue
+            elseif seen_heading
                 in_description = true
                 push!(description_lines, stripped)
             end

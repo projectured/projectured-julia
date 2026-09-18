@@ -651,8 +651,9 @@ Each part is one commit with its test.
 - [ ] Replace the guide names in `DEFAULT_ASSISTANT_SYSTEM` and
       `_WHOLE_SURFACE_DESCRIPTION` with names that exist. Better: make the list
       from the index, so that a new name can not break it.
-- [ ] Make `list_guides()` skip the metadata line. Extend `test_list_guides` so
-      that no description starts with `> **Kind:**`.
+- [x] Make `list_guides()` skip the metadata line. Extend `test_list_guides` so
+      that no description starts with `> **Kind:**`. The test walks every
+      guide of the list: 146 assertions, and none of them carries the header.
 - [ ] Make the docstring of `DEFAULT_ASSISTANT_SYSTEM` true about MCP.
 - [ ] Fix the dead references in code comments and the docstring of
       `precompile_workload` (§3.2).
@@ -893,16 +894,32 @@ Each guide has runnable code. Run each snippet once, in one warm session.
 
 ### Step 6: the reference documents
 
-- [ ] Kernel guides: REWRITE `macros.md`, `selection.md` and `editor.md`. UPDATE
+- [x] Kernel guides: REWRITE `macros.md`, `selection.md` and `editor.md`. UPDATE
       the others by the findings.
-- [ ] Procedure guides: REWRITE `new-domain-guide.md` around `@domain` and
+- [x] Procedure guides: REWRITE `new-domain-guide.md` around `@domain` and
       `@projection_template`, with the package root that loads. UPDATE the
       others.
-- [ ] Package guides: REWRITE `workbench.md` and `syntax.md`. UPDATE the others.
-- [ ] Design documents: UPDATE `system-anatomy.md`, `domain-inventory.md`,
-      `editor-derivation.md`.
-- [ ] Make one table of the 17 layers, in `system-anatomy.md`, and link to it
+- [x] Package guides: REWRITE `workbench.md` and `syntax.md`. UPDATE the others.
+- [x] Design documents: UPDATE `system-anatomy.md`, `domain-inventory.md`,
+      `engineer-tour.md`.
+- [x] Make one table of the 17 layers, in `system-anatomy.md`, and link to it
       from `architecture.md`.
+
+Done on 2026-09-18 by a subagent, in four commits (`87a18368` to `ffcc2031`):
+32 files, 939 lines added and 579 removed, with the guard at zero after each
+group. It checked each survey finding against the tree of today rather than
+against the tree the survey read, and it ran the snippets of the rewritten
+guides in a session.
+
+I checked its claims and corrected one: two guides said that every structural
+projection is written with `@projection_template`. Eleven of the twenty-three
+domain-to-syntax projections use it, and seventeen files in all.
+
+What it reported and did not fix:
+
+- Two timing figures in `testing-guide.md` are not measured again.
+- `widget.md` says that an extension widget is printer-only and its reader a
+  no-op; the reader of `WidgetSwitch` is not a no-op.
 
 ### Step 7: the missing package guides
 
