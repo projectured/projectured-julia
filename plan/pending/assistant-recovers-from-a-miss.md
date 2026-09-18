@@ -118,6 +118,37 @@ plan is corrected.
   folder.)
 - The files this plan changes are unsealed (⬜) in both `SEALING.md` files.
 
+### 1d. The corpus grows, 2026-09-18
+
+The user said that the declared corpus will soon hold thousands of names and
+hundreds of modules. It is reachable today. A declaration of every module a
+package exposes gives:
+
+| corpus | modules | entries | functions | types | values | with a first sentence | guide sections |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| projectured | 72 | 5,556 | 990 | 4,221 | 273 | 1,544 | 1,036 |
+| omnet | 80 | 3,769 | 1,177 | 2,191 | 321 | 1,697 | 1,349 |
+
+Two things the counts say. Most entries are types, because `@document` writes a
+schema variant per document type, and the pane module's own comment already
+says what that costs a search. And most entries carry no sentence at all, so at
+scale the ranking reads names and signatures more often than prose.
+
+**What breaks first**, read off the code and not yet measured:
+
+1. **Every description search rebuilds the whole corpus text.** The ranking
+   builds the meaning text of every entry and looks each one up in a dictionary
+   keyed by that whole text. At 120 entries that is nothing; at 10,000 it hashes
+   megabytes per query.
+2. **The vector file keeps the text beside each vector**, so it grows with the
+   corpus and with every edit, and a text that is gone is never removed.
+3. **The vectors live as a dictionary of arrays.** One dense matrix and one
+   call of the linear algebra library is the same arithmetic, much faster.
+4. **The word search reads the text of every entry, per query.** That is a
+   linear scan with no index.
+5. **The index is built by reading every docstring**, once per process, and
+   that cost grows with the corpus.
+
 ## 2. The rule: measure first
 
 Decided by the user on 2026-09-17: "don't change anything unless a measurement
@@ -296,6 +327,67 @@ either way, as a known miss: the words "plot" and "chart" find the verb first.
   vectors, and the file never shrinks. It says how to rebuild: delete the
   model's file, and the next binding computes every vector again.
 
+### 3g. What scale needs, and when
+
+**Now, because a rebuild is cheap only now.** Every change to the text a vector
+reads, or to the key it is stored under, rebuilds every vector: seconds at 120
+entries, and up to an hour at 10,000. These three change no ranking, so they
+land with a test that the ranks do not move:
+
+1. **A vector is keyed by a hash of its text and of the model's digest.** The
+   file then holds a hash and a vector, not the text. This also ends the stale
+   vectors of a model pulled again under its name, which §1c names as a limit,
+   and it ends the hashing of megabytes per query.
+2. **An entry's meaning text is computed once**, when the index is built, and
+   the entry keeps its hash.
+3. **A store keeps its vectors in one dense matrix**, in the order of the
+   index, so a description search is one matrix-vector product.
+
+**Later, each on a trigger.** None is worth doing at 120 entries, and the scale
+measurement of §3h says when:
+
+| turn it on when | what to do |
+| --- | --- |
+| a query costs more than about 50 ms, or the corpus passes a few thousand entries | an inverted index over identifier tokens, and BM25F fields over it |
+| the first eight hits lose precision on the scale questions | structural signals: the kind asked for, the verb of the name, the window's context |
+| one family fills the first hits, as six table makers would | group a family and show one of it |
+| a corpus of hundreds of modules | rank modules as answers of their own, and let the model open one |
+| above about 100,000 entries | approximate nearest neighbours |
+
+**Not at any size:** a vector database below 100,000 entries, a synonym
+dictionary while the word search finds every golden name inside 50 hits, and a
+fixed blend of the two rankings. Every fusion measured on the API corpus ranked
+worse than the meaning alone, and that must be measured again at scale, not
+assumed.
+
+### 3h. The scale corpora and their questions
+
+Each repository gets a corpus of its own and questions of its own, because each
+declares its own modules and its own guides. inet is left out for now.
+
+- **projectured**: `ProjecturedKernelExample` holds the list of modules to
+  declare, about 25 of them over the kernel, the substrate, the widgets, the
+  layouts, the panes and a few domains, and about 25 questions, each an English
+  sentence with the name it means. `ProjecturedKernelTest` runs it.
+- **omnet**: `OmnetIdeExample` holds the same over the simulator, the results,
+  the presentation, the interface, the campaign and the study, with questions
+  of its own, and `OmnetIdeTest` runs it.
+
+What the measurement answers, per corpus and per search mode:
+
+- the entries, the modules and the guide sections it declares;
+- the time to build the index, the time of a search by words and of a search by
+  description, and the memory the vectors take;
+- the quality on the questions: how many rank first, recall in the first 5 and
+  in the first 10, and the mean reciprocal rank. **Recall in the first ten is
+  what matters**, because the model reads eight hits and discards what does not
+  fit; a name that is not there at all is the loss.
+
+What the test does, with no timing and no server: it declares the corpus, holds
+every question's expected name against the declaration, and runs the
+measurement with a backend of the test's own, so that a question can not name a
+verb that no longer exists.
+
 ## 4. Steps
 
 Work in the worktree `../projectured-julia-format` and in the omnet worktree
@@ -340,7 +432,33 @@ and the merge or not.
       table.
 - [x] Not run: the trial stage. The default stays `nomic-embed-text`.
 
-### Step 5. Close
+### Step 5. The scale corpora and their questions (§3h)
+
+- [ ] The modules, the questions, the measurement and the test, in
+      projectured.
+- [ ] The same in omnet.
+
+### Step 6. What a rebuild would cost later (§3g)
+
+- [ ] The vector key: the hash of the text and of the model's digest; the file
+      without the text.
+- [ ] The meaning text computed once, at the index.
+- [ ] The dense matrix per store.
+- [ ] A test that the ranks of the golden sentences do not move.
+
+### Step 7. The scale measurement (§3h)
+
+- [ ] Both corpora measured, with the user's word, because it reads a clock
+      (§5). The numbers go in §7 and set the triggers of §3g.
+
+### Step 8. The text a vector reads (§3g, a candidate)
+
+- [ ] The structured header: the kind, the module, the signature and the split
+      words, before the documentation. Measured on the golden sentences and on
+      the scale questions of both corpora, which needs no chat model. It lands
+      only when more sentences rank first.
+
+### Step 9. Close
 
 - [ ] The tables and the gate results in §7, and this plan to `plan/done/`.
 
@@ -352,7 +470,9 @@ runs of 2026-09-16 on the same seed gave six turns with the same rounds, calls
 and tokens, and the chat request to Ollama has no read time limit, so a slow
 machine slows a turn and does not fail it. The seconds are reported and are no
 gate. Decided by the user 2026-09-17: a stage needs no idle machine and no word
-before it.
+before it. **A measurement that reads a clock is another matter**: the scale
+measurement of Step 7 waits for an idle machine and for the user's word. A test
+and a rank measurement read no clock and wait for neither.
 
 A stage starts only when both of these hold, and otherwise it does not start
 and the report says why:
@@ -382,6 +502,10 @@ Made by the user on 2026-09-17:
    the pane sentence, the empty plot, and the vector store. §2 lists them.
 7. **A stage needs no idle machine and no word before it**, only the memory and
    a free Ollama. §5 says why.
+8. **The corpus will grow** to thousands of names and hundreds of modules, so
+   the engine is built for that: §3g says what to do now and what waits for a
+   trigger, and §3h builds a corpus and questions in each repository. inet is
+   left out for now.
 
 ## 7. Findings
 
