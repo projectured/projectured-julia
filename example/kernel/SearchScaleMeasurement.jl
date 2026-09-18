@@ -115,6 +115,14 @@ function measure_search_scale!(; modules, questions, backend = nothing, io::IO =
             join([string(count, " ", kind) for (kind, count) in sort(collect(kinds))], ", "),
             ") and ", length(sections), " guide sections.")
     println(io, "The index took ", round(build_seconds; digits = 2), " s to build.")
+    # What the ranking has to read. A name with no sentence answers no question
+    # by meaning, and the questions of a corpus can only see the names they ask
+    # for, so this is how the documentation of the rest is watched.
+    named = [entry for entry in entries if entry.kind != "module"]
+    println(io, "Documented: ", count(entry -> !isempty(entry.summary), named), " of ",
+            length(named), " names carry a sentence, ",
+            count(entry -> occursin("\nUse it to", entry.full), named),
+            " a paragraph that says what it is for.")
     vector_seconds = 0.0
     if backend !== nothing && has_meaning_model(backend)
         bind_meaning_model!(set, backend)

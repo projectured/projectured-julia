@@ -458,7 +458,14 @@ appear in a docstring. A fixture that the text was fitted to measures nothing.
       in ten of 26, against 10, 19 and 20. §7 has it.
 - [x] **The three experiments again on the new text**, and none of them lands.
       §7 has the numbers.
-- [ ] The rest of the layers a reader needs, module by module.
+- [x] The collections and the drawn shapes, 2026-09-18: fourteen more.
+- [ ] The rest of the layers a reader needs, module by module. The measurement
+      now says how many names carry a sentence and how many a paragraph that
+      says what they are for, because **the questions can only see the names
+      they ask for**: documenting a collection or a shape moved the answers by
+      one either way, which is noise, while the coverage is the number that
+      shows the work. At the start of it: 717 of 1,364 names carry a sentence,
+      78 a use paragraph.
 
 ### The ranking, one piece at a time (§3g)
 
@@ -712,6 +719,12 @@ So the answers stand where they stood on the thin text: the header is worse,
 the fusion is much worse, and the chunks are the same for more vectors. **The
 text is the lever, and the ranking is not.** Twenty-two docstrings bought what
 five ranking experiments could not.
+
+**A fixture sees only what it asks.** The questions name 26 things of 1,364.
+Documentation of anything else cannot raise them, and may cost a place by
+making another name findable. So the questions gate a change of the ranking,
+and the coverage of the documentation is watched instead, as the measurement
+now prints it.
 
 **A caution on comparing.** The guides of projectured changed under these runs,
 because the user is editing them. A guide number is only comparable within one
