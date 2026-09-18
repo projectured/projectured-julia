@@ -58,5 +58,5 @@ check, so building the shim is picked up without a stale precompile cache.
 ```julia
 using ProjecturedExample, ProjecturedAdaptagrams
 proj = make_graph_projection_example(engine = AdaptagramsLayout())
-# AdaptagramsLayout(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false)
+# AdaptagramsLayout(; ideal_length=60.0, avoid_overlaps=true, orthogonal=false, node_margin=nothing)
 ```

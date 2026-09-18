@@ -12,18 +12,18 @@ browsing tools below. Do not guess names — search for them.
 
 | Concept | Names to search | Guide |
 |---|---|---|
-| Document & domains | `@document`; `JsonObject`/`JsonString`/`JsonNumber`, `XmlElement`, `TextBlock`/`TextString`, `SyntaxNode`/`SyntaxLeaf`, `GraphicsCanvas`, `WidgetButton`, `JuliaCall`, `TableTable` | `concepts`, `architecture`, `document/*` |
-| Reactive cell | `Cell`, `set_cell_function!`, `getfield` (escape hatch), `get_performance_counters` | `reactive-cells` |
-| Macros | `@document`, `@projection`, `@iomap` | `macros` |
-| Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `projection-system` |
-| Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `higher-order-projections`, `generic-projections` |
-| Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `editor/reference` |
-| Selection | `set_selection!`, `clear_selection!`, `replace_selection!` | `editor/selection`, `selection-deep-dive` |
-| Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `editor/finding-and-selecting`, `debugging` |
-| Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `operations` |
-| Editor & loop | `Editor`, `run_editor!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `editor` |
-| Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `document/workbench`, `editor` |
-| Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `devices-and-backends` |
+| Document & domains | `@document`; `JsonObject`/`JsonString`/`JsonNumber`, `XmlElement`, `TextBlock`/`TextString`, `SyntaxNode`/`SyntaxLeaf`, `GraphicsCanvas`, `WidgetButton`, `JuliaCall` | `design/concepts`, `kernel/architecture`, `kernel/document` |
+| Reactive cell | `Cell`, `set_cell_function!`, `getfield` (escape hatch), `get_performance_counters` | `kernel/cell` |
+| Macros | `@document`, `@projection`, `@projection_template`, `@iomap` | `kernel/macros` |
+| Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `kernel/projection-system` |
+| Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `kernel/higher-order-projections`, `kernel/generic-projections` |
+| Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
+| Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
+| Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
+| Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
+| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `kernel/editor` |
+| Screen / workbench | `ScreenDocument` → `WindowDocument` → `WorkbenchWorkbench` → `WorkbenchPage` → `WorkbenchEditor`; `ScreenToScreen`, `WindowManagingProjection` | `workbench/workbench`, `kernel/editor` |
+| Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MousePress` | `kernel/devices-and-backends` |
 
 ## How to browse
 
@@ -34,7 +34,7 @@ browsing tools below. Do not guess names — search for them.
   not, `a|b` is either, `"a phrase"`), `"regex"`, or `"description"` for a
   sentence that says what you want to do; and `detail`: `"names"`, `"summary"`
   or `"full"`.
-- `read_guide("editor/reference")` / `read_resource(uri)` — read full text on demand.
+- `read_guide("kernel/reference")` / `read_resource(uri)` — read full text on demand.
 - `resource://guides`, `resource://modules` — the full catalogues.
 
 ## Acting on the document (the essentials)
@@ -44,7 +44,7 @@ browsing tools below. Do not guess names — search for them.
   `String`/`Regex` matching leaf text (string/regex matches fold to the enclosing `Document` by
   default; pass `raw=true` for the exact matched value). Both walk **any** graph, so passing an
   **iomap** (`print_document(proj, doc)`) searches the whole projection
-  pipeline — a debugging move for "where did the value go?" (see `debugging`).
+  pipeline — a debugging move for "where did the value go?" (see `guide/debugging-guide`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
 - **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
   (e.g. `ReplaceSelectionOperation(path)` to select). This is the *one* way to

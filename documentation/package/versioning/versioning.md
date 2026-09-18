@@ -17,7 +17,7 @@ becomes the output and re-roots edits back into that child.
 ## Documents — `VersioningModule`
 
 Two levels, defined in
-[`source/versioning/VersioningModule.jl`](../../../source/versioning/VersioningModule.jl):
+[`source/versioning/VersioningDocument.jl`](../../../source/versioning/VersioningDocument.jl):
 
 - **`VersionedObject`** — the container that *has versions*: a `versions`
   `CellVector` of `ObjectVersion`s (newest-first by convention) plus the active
@@ -95,7 +95,7 @@ display toggle, drops `editor.iomap` to force a rebuild on the new criterion
   (`versioning_example`) — a `VersionedObject` over a `JsonObject` with three
   `ObjectVersion`s. Like `clipboard_example`, it is kept out of the enumeration
   registry; run it directly, e.g. `test_printer(versioning_example)`.
-- Tests: `test/projection/VersioningToAnyTest.jl` (`test_versioning_to_any`)
+- Tests: `test/substrate/projection/VersioningToAnyTest.jl` (`test_versioning_to_any`)
   covers `select_version` per criterion, the printer under Latest vs Index, the
   empty/no-match → `DocumentNothing` case, reference peel/prepend, reader
   re-rooting, the version-management gestures, and versioned-in-versioned

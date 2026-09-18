@@ -8,7 +8,7 @@ overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
 [documentation/design/concepts.md](../../design/concepts.md).
 
-The layer lives in [main/document/](../../../source/kernel/document/), inside one aggregator
+The layer lives in [source/kernel/document/](../../../source/kernel/document/), inside one aggregator
 module (`DocumentModule`) split across fragments that share its namespace:
 
 ```
@@ -101,6 +101,12 @@ generics at every child —
 the walk described above and pays nothing for the option. This layer never names
 a marker *type*, and never sees a policy that is not handed to it: it asks
 whoever supplied the policy what stands where the walk stopped.
+
+The same three hooks bound the walk that `ProjecturedReflection`'s
+`sync_reflection!` uses to grow a shadow of an arbitrary Julia value one level
+at a time, instead of walking the whole value up front. See
+[reflection.md](../reflection/reflection.md) for the policy and the widget view
+built on that shadow.
 
 Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own kind;
 the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are

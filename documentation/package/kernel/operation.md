@@ -305,7 +305,7 @@ edit the reader side of the projection pipeline produces and
 supertype, the built-in concrete operations, the selection propagation, the
 splice helpers, and the **two open seams** below.
 
-The layer lives in [main/operation/](../../../source/kernel/operation/), inside one aggregator
+The layer lives in [source/kernel/operation/](../../../source/kernel/operation/), inside one aggregator
 module (`OperationModule`) split across three fragments:
 
 ```

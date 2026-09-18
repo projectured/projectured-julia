@@ -9,13 +9,13 @@ protocol machines — Ethernet CSMA MAC, PLCA (control + data), TCP — well eno
 that a component projects to complete, runnable Julia code.
 
 Slice: `source/fsm/`. Design plan and its research grounding:
-`plan/pending/state-machine-domain.md`.
+`plan/done/state-machine-domain.md`.
 
 ## Document types
 
 | Type | Holds |
 | --- | --- |
-| `FsmComponent` | the unit of code generation: `variables`, `timers`, `events`, `machines`, `usings`, `helpers` |
+| `FsmComponent` | the unit of code generation: `variables`, `timers`, `events`, `machines`, `usings`, `helpers`, `supertype` |
 | `FsmMachine` | `name`, `initial` state, `states`, `on_unhandled` policy |
 | `FsmState` | `name`, `entry` code, outgoing `transitions` in priority order |
 | `FsmTransition` | `trigger`, `guard`, `action`, `target` |

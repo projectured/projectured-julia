@@ -28,7 +28,9 @@ the dependency-free in-memory `HeadlessBackend` test double lives in
 ## Layered structure
 
 The package is organized around a strict layered architecture with per-layer
-guards, docs, and tests:
+guards, docs, and tests. [system-anatomy.md](../../design/system-anatomy.md#the-17-kernel-layers)
+carries the same 17 layers as a repository-wide table; this list adds the
+per-layer key types and files a kernel contributor needs:
 
 ```
 Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
@@ -43,7 +45,7 @@ Layer 9  — selection/  the selection primitives (get/clear/set/replace_selecti
 Layer 10 — operation/  Operation + evaluate_operation + the traversal and reroot seams
 Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
 Layer 12 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
-Layer 13 — projection/ ProjectionApi/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
+Layer 13 — projection/ ProjectionInterface/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
 Layer 14 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
 Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
 Layer 16 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
@@ -57,7 +59,7 @@ per-layer runners (`test/<layer>/`) exercise each layer against its
 own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
-The package file [main/ProjecturedKernel.jl](../../../package/ProjecturedKernel/src/ProjecturedKernel.jl) includes
+The package file [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../../package/ProjecturedKernel/src/ProjecturedKernel.jl) includes
 one **layer fragment per layer folder** (`cell/CellLayer.jl`, …,
 `editor/EditorLayer.jl`), bottom-to-top; each layer fragment holds its layer's
 ordered include list (~50 module files total, each defining exactly one module).
@@ -95,12 +97,12 @@ hubs — the modules a consolidation must keep cheap to import — are:
 
 | Hub | Layer | Imported by |
 | --- | --- | --- |
-| `DocumentModule` | 6 | 11 kernel files |
-| `ReferenceModule` | 7 | 10 |
-| `CellModule` | 1 | 10 |
-| `OperationModule` | 9 | 9 |
-| `EventModule` | 2 | 7 |
-| `ProjectionApiModule` | 11 | 6 |
+| `CellModule` | 1 | 8 kernel files |
+| `EventModule` | 3 | 6 |
+| `DocumentModule` | 7 | 7 |
+| `ReferenceModule` | 8 | 5 |
+| `OperationModule` | 10 | 4 |
+| `ProjectionModule` | 13 | 2 |
 
 ## The interface files are the extension SPI
 
@@ -135,7 +137,7 @@ asserts every relative `..XxxModule` import resolves to a module defined by an
 module is defined once. Run it with:
 
 ```
-julia --project=package/kernel/test package/kernel/test/runtests.jl
+julia --project=package/ProjecturedKernelTest package/ProjecturedKernelTest/runtests.jl
 ```
 
 Depth ≠ include index. A module's *earliest safe position* is its longest path from
@@ -148,11 +150,12 @@ legitimately sit later in the list than its depth requires.
 
 ## Folder layout
 
-Each layer lives in its own folder under [main/](../../../package/ProjecturedKernel/):
+Each layer lives in its own folder under [source/kernel/](../../../source/kernel/):
 
 | Folder | Holds |
 | --- | --- |
-| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounter` (see [cell.md](cell.md)) |
+| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounterModule` (see [cell.md](cell.md)) |
+| `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, the shared `get_wall_clock` singleton |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventPatternModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
@@ -163,7 +166,7 @@ Each layer lives in its own folder under [main/](../../../package/ProjecturedKer
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`) and the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`) |
-| `projection/` | the projection interface and infrastructure only — ProjectionApi, Intent, PrinterContext, ChildrenContainer, GestureBindings, Projection (`@projection` + fallbacks), ProjectionTemplate. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
+| `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `Intent`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |

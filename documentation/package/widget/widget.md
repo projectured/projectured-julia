@@ -38,6 +38,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
 | `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
 | `WidgetTabbedPane(selector_element_pairs; closable, new_tab, draggable, duplicable)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width. The four flags add a close button per tab, a new-tab button after the last, a grab on a button down, and a `+` above the close button of a page that offers a duplicate — see [Strip reports](#strip-reports) |
+| `WidgetTabPage(selector, element[, icon[, duplicable]])` | One tab of a `WidgetTabbedPane`: the tab's own selector (label), content element, optional icon, and whether it offers a duplicate button |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
 | `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
@@ -64,6 +65,7 @@ the fields they need plus `visible`/`selection`:
 | `WidgetToggle(position, content; pressed)` | Two-state toggle button |
 | `WidgetToggleGroup(position, options; selected)` | Segmented control |
 | `WidgetSelect(position, value; width)` | Closed select / combobox |
+| `WidgetOption(position, select, value; label, popup_id, width)` | One row of an open `WidgetSelect` dropdown; a click writes `value` onto `select` and dismisses the popup |
 | `WidgetTextarea(position, content; width, rows)` | Multi-line text surface |
 | `WidgetAccordion(position, items; expanded)` | Expandable sections |
 | `WidgetTable(position, headers, rows)` | Data table with hairline rows |
@@ -187,9 +189,9 @@ shows them together.
   `Up`/`Down` do the same from the keyboard. The default `validator` is
   `make_numeric_validator()`, so typing only commits numeric text. Disabled is inert.
 - **`WidgetList(pos, items; selected, width)`** — a single-column
-  selectable list (the sanctioned `QListWidget`; previously expressible only as a
-  one-column table). A left click selects the hit row (drawing the accent
-  selection band); `Up`/`Down` move the selection. An empty list is inert.
+  selectable list (the sanctioned `QListWidget`). A left click selects the hit
+  row (drawing the accent selection band); `Up`/`Down` move the selection. An
+  empty list is inert.
 - **`FormLayout(rows; label_align=:right, …)`** — thin sugar over a two-column
   `GridLayout`: each `row` is a `(label, field)` pair of **documents** (wrap text
   labels in `WidgetLabel`). It builds `GridLayout(2; column_align=[label_align,
@@ -684,16 +686,18 @@ RecursiveProjection(TypeDispatchingProjection(
     WidgetScrollPane  => WidgetScrollPaneToGraphicsCanvas(...),
     WidgetToolbar     => WidgetToolbarToGraphicsCanvas(...),
     WidgetScrollBar   => WidgetScrollBarToGraphicsCanvas(...),
-    # …plus the 17 extension widgets, each with its own ToGraphicsCanvas:
+    # …plus the 19 extension widgets, each with its own ToGraphicsCanvas:
     # WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
     # WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-    # WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetTextarea,
-    # WidgetAccordion, WidgetTable, WidgetTree.
+    # WidgetHighlight, WidgetToggle, WidgetToggleGroup, WidgetSelect,
+    # WidgetOption, WidgetTextarea, WidgetAccordion, WidgetTable, WidgetTree.
 ))
 ```
 
-The real factory maps all 33 widget types: the 15 core widgets above, the
-`WidgetInsertion` type-replace placeholder, and the 17 extension widgets.
+The real factory maps all 42 `WidgetDocument` subtypes: the widgets in the
+tables above, `WidgetInsertion` (the type-replace placeholder), and
+`WidgetContextMenu`, `WidgetDialog`, `WidgetStatusBar`, `WidgetSpinBox` and
+`WidgetList`, each covered in its own section above.
 
 Each per-widget projection takes a `font`, a backend `measure` function,
 and a `theme::WidgetTheme` (colours are read from the theme, not stored on

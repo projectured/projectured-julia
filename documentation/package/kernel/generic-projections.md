@@ -6,8 +6,10 @@ Generic projections are **input-domain-independent**: they operate on any
 document *by structure, not by type* — copying, sorting, reversing, filtering,
 focusing, preserving, or reflecting over it without dispatching on any specific
 domain. That input-independence is the defining property of the nine projections
-in `source/projection/generic/`; each is a single struct subtyping
-`Projection`. *Most* also preserve the domain (same domain in and out). The
+below; each is a single struct subtyping `Projection`. Eight of them live in
+`source/projection/generic/`; the ninth, `ObjectToWidget`, lives in
+`source/widget/ObjectToWidget.jl`. *Most* also preserve the domain (same
+domain in and out). The
 reflection-driven `ObjectToWidget` is the one that does not preserve the
 domain — it is still fully input-independent (it reflects over any object) but
 produces a widget form. So it belongs here by the input-independence test, even

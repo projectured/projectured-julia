@@ -244,8 +244,13 @@ file:
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the embedded font metrics via `pdf_measure_text`, a drop-in for
   `measure_sdl_text`.
+- **`record_video`** ([package/ProjecturedVideo/src/ProjecturedVideo.jl](../../../package/ProjecturedVideo/src/ProjecturedVideo.jl))
+  renders a timed sequence of gestures or operations to an `.mp4` file, with no
+  window: it rasterizes each frame through the same offscreen SDL renderer as
+  `write_image`, then encodes the frames with `ffmpeg` (via `FFMPEG.jl`). It
+  is a separate opt-in package because it is the only one that pulls in FFMPEG.
 
-See [the graphics guide](../graphics/graphics.md) for both APIs.
+See [the graphics guide](../graphics/graphics.md) for the image and PDF APIs.
 
 ## Projections that need the backend
 
@@ -305,13 +310,17 @@ produced it nor the document it will end up changing.
 The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
 ```
-EventModule.jl   (EventModule)        — the input event vocabulary, five fragments:
+EventModule.jl   (EventModule)        — the input event vocabulary, seven fragments:
+        ├─ EventInterface.jl  — the Event/DeviceEvent/SyntheticEvent types and
+        │                       the get_modifier_keys generic every event answers
         ├─ ModifierKeys.jl       — the Ctrl/Shift/Alt/Meta struct
         ├─ KeyboardEvent.jl   — KeyDown, KeyUp, KeyPress, KeyChord
         ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
         │                       MouseEnter, MouseLeave, MouseScroll
         ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
-        └─ WindowInput.jl   — an event plus the id of the window it came from
+        ├─ WindowInput.jl   — an event plus the id of the window it came from
+        └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
+                                has_*_modifier_key predicates derived over it
 EventPatternModule.jl  (EventPatternModule) — the event pattern language: the reified
                                         EventPattern, matches/describe, the
                                         @event_case macro, and the parser API
@@ -369,7 +378,7 @@ a screen's resolution and HiDPI scale, a mouse's button count and scroll wheel,
 a keyboard's layout — but interprets nothing, so this layer names no document,
 no operation, and no backend type, and has no imports of its own.
 
-The layer lives in [main/device/](../../../source/kernel/device/):
+The layer lives in [source/kernel/device/](../../../source/kernel/device/):
 
 ```
 DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
@@ -395,11 +404,11 @@ endofunction on the event stream — events in, events out — so this layer
 names no document and no operation; what a gesture *means* is decided by
 whoever binds it, in the `binding/` layer far above.
 
-The layer lives in [main/gesture/](../../../source/kernel/gesture/) as
+The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/) as
 one module:
 
 ```
-GestureRecognizer.jl (GestureRecognizerModule) — MousePress + KeyChord synthesis
+GestureRecognizerModule.jl (GestureRecognizerModule) — MousePress + KeyChord synthesis
 ```
 
 `GestureRecognizer` is a stateful event → gesture recogniser:
@@ -418,7 +427,7 @@ Layer 6 of the kernel — **rendering targets**. The layer carries the abstract
 packages, and the dependency-free `HeadlessBackend` test double lives in
 `ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
-The layer lives in [main/backend/](../../../source/kernel/backend/):
+The layer lives in [source/kernel/backend/](../../../source/kernel/backend/):
 
 ```
 BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
@@ -480,11 +489,12 @@ pulls gesture bindings up to layer 11 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
 event/device/gesture layers above.
 
-The layer lives in [main/binding/](../../../source/kernel/binding/):
+The layer lives in [source/kernel/binding/](../../../source/kernel/binding/):
 
 ```
-GestureBinding.jl (GestureBindingModule) — GestureBinding, the per-document-type
-                                           registry, read_gesture / read_bound_gesture
+GestureBindingModule.jl (GestureBindingModule)   — the aggregator
+        ├─ GestureBinding.jl — GestureBinding, the per-document-type
+        │                      registry, read_gesture / read_bound_gesture
         └─ Gestures.jl — the @gestures / @gesture_set authoring DSL
 ```
 

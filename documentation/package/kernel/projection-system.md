@@ -134,6 +134,26 @@ small prefix strip. Once wired, those forward-projected selection cells let the
 reader route events by selection — see below and
 [the selection guide](selection.md#forward-projecting-selection).
 
+### `print_document_pure` / `print_child_pure` — the pure printer
+
+A second interpreter of the same projection produces the output tree directly,
+with no `IoMap`, no reactive cells, and no selection wiring:
+
+```julia
+print_document_pure(projection, recursion, input, ctx) → output
+print_child_pure(recursion, input, ctx) → output
+```
+
+A pipeline uses this pair for batch or export work — writing an image, a PDF, or
+a text serialization — where nothing is edited and no selection maps back.
+Every projection gets it for free: the default falls back to a snapshot of the
+reactive output, so a projection author writes `print_document_pure` only to
+skip that snapshot on a path a profile shows is slow. `ChainingProjection`,
+`RecursiveProjection`, and `TypeDispatchingProjection` thread the pure call so a
+whole pipeline stays pure. Both functions are declared next to the other four
+in
+[source/kernel/projection/ProjectionInterface.jl](../../../source/kernel/projection/ProjectionInterface.jl).
+
 ### The `Intent` the reader threads
 
 The reader's payload is a **`Intent`** ([operation/IntentModule.jl](../../../source/kernel/operation/IntentModule.jl)) —
@@ -406,9 +426,9 @@ rows are representative (every domain adds its own `*To*` projection).
 | Category | Members | Purpose |
 |---|---|---|
 | **Domain-to-domain** | `JsonToSyntax`, `SyntaxToText`, `TextToGraphics`, `WidgetToGraphics`, `WorkbenchToWidget`, `XmlToSyntax`, `ObjectToSyntax`, `BookToSyntax`, `JuliaToSyntax`, `MathToSyntax`, `FileSystemToSyntax`, `PrimitiveToSyntax`, `CollectionToSyntax`, … | Translate between two distinct domains |
-| **Domain-preserving** | `WordWrapping`, `LineNumbering`, `TextHighlighting`, `TextFiltering`, `GraphicsCaching`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
-| **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `IdentityProjection`, `ConstantProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (the 9 in `generic/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
-| **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `ProjectionConfiguringProjection` | Compose other projections (the 10 in `higherorder/`) |
+| **Domain-preserving** | `WordWrapping`, `TextLineNumbering`, `TextHighlighting`, `TextFiltering`, `GraphicsCanvasToGraphicsImage`, `ScreenToScreen`, … | Same domain in and out (`ScreenToScreen` is the screen-domain projection — see [the screen pipeline](#the-screen-pipeline)) |
+| **Generic (domain-independent)** | `CopyingProjection`, `SortingProjection`, `ReversingProjection`, `FilteringProjection`, `SearchingProjection`, `FocusingProjection`, `IdentityProjection`, `ConstantProjection`, `ObjectToWidget` | Operate on any input domain *by structure, not by type* (8 in `generic/`, plus `ObjectToWidget` in `widget/`). Most also preserve the domain; `ObjectToWidget` is input-independent but produces widgets |
+| **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowInputUnwrappingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `DraggingProjection`, `ProjectionConfiguringProjection` | Compose other projections (8 in `higherorder/`; the other 4 sit beside the domain each one touches) |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
 See [higher-order projections](higher-order-projections.md) and
@@ -494,7 +514,7 @@ it must never **write another cell** (`other_cell[] = v`) or mutate shared
 document state. The eager engine invalidates a written cell's consumers
 immediately (see [reactive-cells.md](cell.md)), so writing a cell from
 inside another cell's computation invalidates those consumers *mid-computation* —
-and graphics-domain cells *do* have consumers (e.g. `GraphicsCaching` reads them).
+and graphics-domain cells *do* have consumers (e.g. `GraphicsCanvasToGraphicsImage` reads them).
 That makes recomputation order-dependent and the graph inconsistent.
 
 To preserve output-object identity across recomputes (printer locality —

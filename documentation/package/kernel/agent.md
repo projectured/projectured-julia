@@ -243,6 +243,13 @@ An assistant that names no backend errors on submit, and the error lists the
 backends whose packages are loaded. An explicit `assistant.llm` overrides both,
 which is what a test does with a `FakeLlm`.
 
+Each backend reads its key and its default model from its own configuration:
+
+| backend | key | default endpoint | default model |
+| --- | --- | --- | --- |
+| `:anthropic` | the `ANTHROPIC_API_KEY` environment variable, read once at construction | `https://api.anthropic.com/v1/messages` | `claude-opus-4-5-20251101` |
+| `:ollama` | none — the server runs on this machine and needs no key | `http://localhost:11434` | `qwen3.8:27b` |
+
 The backend is built once per turn, not kept on the document. The key and the
 model are the backend's own configuration, so a cached backend would freeze
 whichever model was selected first and editing `assistant.model` would stop taking
@@ -399,6 +406,6 @@ parts; something else might simply print them.
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentServerModule.jl` | `ProjecturedMcp` (`package/mcp`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentServerModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

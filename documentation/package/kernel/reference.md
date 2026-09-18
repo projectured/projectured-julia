@@ -17,8 +17,8 @@ the sibling [selection guide](selection.md).
 ## The reference layer (kernel layer 8)
 
 References are **layer 8 of the kernel** — paths into documents. The layer lives
-in [main/reference/](../../../source/kernel/reference/), inside one aggregator module
-(`ReferenceModule`) split across eight fragments that share its namespace:
+in [source/kernel/reference/](../../../source/kernel/reference/), inside one aggregator module
+(`ReferenceModule`) split across ten fragments that share its namespace:
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
@@ -697,9 +697,9 @@ are:
 | Document type | Field | Reference step | Reaches |
 |---|---|---|---|
 | **XmlElement** | `attrs` | `FieldReferenceStep("attrs")` | CellVector of XmlAttribute |
-| **XmlElement** | `cell` | `FieldReferenceStep("cell")` | CellVector of child nodes |
-| **XmlText** | `cell` | `FieldReferenceStep("cell")` | the String cell |
-| **XmlAttribute** | `cell` | `FieldReferenceStep("cell")` | the attribute value cell |
+| **XmlElement** | `children` | `FieldReferenceStep("children")` | CellVector of child nodes |
+| **XmlText** | `content` | `FieldReferenceStep("content")` | the String cell |
+| **XmlAttribute** | `value` | `FieldReferenceStep("value")` | the attribute value cell |
 | *any CellVector or String* | `[i]` | `ElementReferenceStep(i)` | the i-th item (1-based) — element or character |
 | *any CellVector or String* | `{k}` | `PositionReferenceStep(k)` | cursor at boundary `k` (0-based) — between elements or characters |
 
@@ -801,11 +801,11 @@ documents this at the type declaration.
 
 ## Testing
 
-`test/reference/` migrates ProjecturedTest's `ReferenceBuilderTest.jl` verbatim
-(rewritten to `using ProjecturedKernel.ReferenceModule` — no umbrella needed)
-and adds `ReferenceEvalTest.jl` which walks `evaluate_reference` over a
-test-local `@document struct ToyBranch`. No concrete engine document is imported;
-the reference DSLs must stand on their own.
+`test/kernel/reference/` holds `ReferenceBuilderTest.jl` (the `@reference` /
+`@reference_step` / `@reference_case` DSLs, against `ProjecturedKernel.ReferenceModule`
+directly — no umbrella needed) and `ReferenceEvalTest.jl`, which walks `evaluate_reference`
+over a test-local `@document struct EvaluationBranch`. No concrete engine document is imported;
+the reference DSLs stand on their own.
 
 `ReferenceRulesTest.jl` is mostly one **conformance corpus**: every construct of the
 pattern grammar written twice — once as a `@reference_case` block, once as a

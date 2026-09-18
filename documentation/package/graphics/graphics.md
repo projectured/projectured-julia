@@ -9,8 +9,21 @@ The graphics domain provides the backend-agnostic rendering primitives. It repre
 ## Types
 
 - **GraphicsText**: Rendered text with position and styling
-- **GraphicsRect**: Rectangle for cursor, selection, or decoration
+- **GraphicsRect**: Rectangle for cursor, selection, or decoration, with an
+  optional per-corner radius and border
+- **GraphicsLine**: A straight line between two points, solid or dashed
+- **GraphicsCircle**: A filled circle with an optional border
+- **GraphicsPolyline**: A connected sequence of straight segments, with
+  optional arrowheads — the routed-connector primitive
+- **GraphicsPolygon**: A closed filled shape through a point sequence
+- **GraphicsSpline**: A smooth curve through or along a point sequence
 - **GraphicsCanvas**: Container holding a collection of graphics elements
+- **GraphicsViewport**: A clipping viewport over a `GraphicsCanvas`, with its
+  own affine transform
+- **GraphicsImage**: A cached rasterized canvas
+- **GraphicsFence**: A barrier inside a canvas's element list that keeps the
+  elements before and after it from overlapping along the layout axis; it
+  has no visual representation of its own
 
 ## Examples
 

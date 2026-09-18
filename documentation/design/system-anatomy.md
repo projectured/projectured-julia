@@ -66,9 +66,9 @@ the ordering is enforced statically by the shared
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone.
 
-Each main package is one third of a **triad** in one folder:
-`package/<name>/{main, test, example}` — its code, its tests and its examples
-as separate packages under the same directory. The substrate shares one
+Each main package is one third of a **triad**: `package/Projected<Name>`,
+`package/Projected<Name>Test` and `package/Projected<Name>Example`, three
+sibling packages, each with its own `Project.toml`. The substrate shares one
 example package and one test package
 (`ProjecturedSubstrateExample`, `ProjecturedSubstrateTest`), because the files
 of both were written against the flat namespace. See
@@ -91,7 +91,7 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      pane;
         │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fileformat,
-        │                      naturalprojection;
+        │                      natural;
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
         │                      is in [packages.md](../rule/package-rules.md).
@@ -140,8 +140,8 @@ See [terminology.md](../rule/division-terminology.md) for the definitions and
 [architecture-rules.md](../rule/architecture-rules.md) for the durable division
 rules.
 
-Each source package also has a `doc/` directory with the per-layer / per-slice /
-per-domain reference guides that used to live at the top level. The kernel set
+Each slice's reference guides live under `documentation/package/<slice>/`, one
+folder per slice. The kernel set
 ([cell](../package/kernel/cell.md),
 [macros](../package/kernel/macros.md),
 [document](../package/kernel/document.md),
@@ -155,8 +155,8 @@ per-domain reference guides that used to live at the top level. The kernel set
 [devices-and-backends](../package/kernel/devices-and-backends.md),
 [agent](../package/kernel/agent.md),
 [editor](../package/kernel/editor.md),
-[naming](../rule/naming-rules.md)) is the largest; the per-domain guides
-live next to the code, in the `doc/` folder of the package they document —
+[naming](../rule/naming-rules.md)) is the largest; the per-domain guides sit
+next to it, one folder per domain —
 [widget](../package/widget/widget.md), [text](../package/text/text.md),
 [collection](../package/collection/collection.md) and the rest.
 
@@ -333,7 +333,7 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains ◄── Projectured
+ProjecturedKernel ◄── the 28 substrate packages ◄── the 21 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
    Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
@@ -344,8 +344,11 @@ The substrate packages form their own DAG, and so do the twenty-one domains.
 [packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
 has the domain table.
 
-**Inside ProjecturedKernel — 17 layers**, in include order; each imports only layers
-above it in this list:
+### The 17 kernel layers
+
+In include order, each importing only layers above it in this list — the order
+[package/ProjecturedKernel/src/ProjecturedKernel.jl](../../package/ProjecturedKernel/src/ProjecturedKernel.jl)
+includes them in:
 
 ```
  1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
@@ -413,7 +416,7 @@ concept, and each declares the exact set of packages it imports:
    gesturehelp     the gesture map, the command palette and their two decorators
    gesturelog      the log document, its printer, its recorder and its overlay
    fileformat      NaturalFormat, DocumentFile
-   naturalprojection  NaturalRegistry and NaturalProjection: render anything
+   natural         NaturalRegistry and NaturalProjection: render anything
    console         the ANSI terminal backend
    pdf             the vector PDF backend
 ```

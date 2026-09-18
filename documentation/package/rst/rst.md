@@ -10,7 +10,7 @@ and about 51 000 lines — and every one of those files parses and round-trips.
 Files:
 
 ```
-rst/  RstDocument.jl · RstParser.jl · RstToSyntax.jl · RstFile.jl
+rst/  RstDocument.jl · RstModule.jl · RstParser.jl · RstToSyntax.jl · RstToLayout.jl · RstFile.jl
 ```
 
 The slice depends on no other domain slice.
@@ -28,7 +28,7 @@ The slice depends on no other domain slice.
 `RstTransition`, `RstComment`, `RstTarget`, `RstSubstitutionDefinition`,
 `RstFootnote`, `RstGridTable`, `RstTableRow`, `RstTableCell`, `RstRoot`.
 
-**Directives** — twelve typed structs plus one generic fallback.
+**Directives** — eleven typed structs plus one generic fallback.
 
 ### Sections nest, the source does not
 
@@ -44,7 +44,7 @@ imposing one.
 
 ### Directives are typed where it pays
 
-The twelve directives that carry meaning for the natural notation get their
+The eleven directives that carry meaning for the natural notation get their
 own struct with named fields: `RstLiteralInclude`, `RstFigure`,
 `RstCodeBlock`, `RstImage`, `RstVideo`, `RstAudio`, `RstAdmonition`,
 `RstToctree`, `RstMathBlock`, `RstRawBlock`, `RstRoleDefinition`. Everything
@@ -166,9 +166,10 @@ field is `bound`.
 ## The file document
 
 `RstFile <: FileDocument` wraps an `RstDocument`. The module registers
-`natural_syntax_projection` / `natural_extension` / `parse_natural`, and
-`.rst` as a file document type, so `import_document`, `export_document` and
-`document_to_text` all reach the slice by extension.
+`register_natural_syntax!`, `register_file_document_type!` for `.rst`, and
+`register_natural_domain!` (format `:rst`, extension `.rst`, `parse_rst` as
+the reader), so `import_document`, `export_document` and `document_to_text`
+all reach the slice by extension.
 
 `find_rst_section(document, title)` finds a section by the plain text of its title.
 Unlike the markdown counterpart it returns the node itself, because an RST
@@ -217,7 +218,7 @@ section, where the title takes the first slot.
 
 - `test_rst_parser()` — unit tests, one construct at a time.
 - `test_rst_round_trip()` — the five fixtures in
-  `package/projectured/test/fixture/rst/`, copied from the INET documentation.
+  `test/rst/fixture/rst/`, copied from the INET documentation.
 - `test_rst_corpus(dir)` — an opt-in sweep of a whole documentation tree, not
   wired into `test_domain()` because the tree is not a dependency of this
   repository. Point it at a checkout:
@@ -228,8 +229,8 @@ section, where the title takes the first slot.
 
 - `test_example(rst_example)` and `test_printer(rst_rendered_example)` for the
   two projections.
-- `test_rst_embed()` — the `pred-ref` directive, the card an embedded document
-  wears, and the save-by-marker invariant.
+- `test_rst_embed_card()` — the `pred-ref` directive, the card an embedded
+  document wears, and the save-by-marker invariant.
 
 ### The round-trip criterion is AST idempotence
 

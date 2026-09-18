@@ -154,10 +154,11 @@ the instrumentation counter module, the cell engine, and the transparent-cell
 struct codegen, loaded in this order:
 
 ```
-PerformanceCounter.jl   (PerformanceCounterModule)   — instrumentation
+PerformanceCounterModule.jl (PerformanceCounterModule) — instrumentation
         │  @count_performance imported by ↓
 CellModule.jl            (CellModule)                 — the cell kinds, one file each:
         ├─ CellInterface.jl   — the AbstractCell{T} base + shared protocol
+        ├─ CellComputed.jl    — the Computed marker: marks a thunk as a cell's computation, not its value
         ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
         ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
         ├─ ImmutableCell.jl   — read-only, zero-cost wrapper

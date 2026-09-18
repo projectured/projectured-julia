@@ -67,7 +67,7 @@ sits on top of all of them.
 | `ProjecturedProcess` | `package/process/` | Julia, Graph |
 | `ProjecturedConversation` | `package/conversation/` | Json, Julia, Xml |
 | `ProjecturedAssistant` | `package/assistant/` | Conversation |
-| `ProjecturedWorkbench` | `package/workbench/` | Assistant, Conversation, FileSystem, Json, Julia, Markdown, Xml, Yaml |
+| `ProjecturedWorkbench` | `package/workbench/` | Assistant, Conversation, FileSystem |
 
 Every edge in the right column is a domain embedding another domain's content:
 a state machine guard is a Julia expression, a catalog query produces a SQL

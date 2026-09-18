@@ -2,10 +2,9 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../design/system-anatomy.md), [package-rules.md](../rule/package-rules.md)
 
-One folder per slice, holding the guides that describe that slice's code. They
-lived beside the code as `package/<slice>/doc/` until the repository tree moved
-prose out of `package/`, which now holds a name and an include list and nothing
-else — see [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
+One folder per slice, holding the guides that describe that slice's code. Guides
+live in `documentation/package/`, one folder per slice; `package/<slice>/` holds
+only a name and an include list.
 
 The cross-cutting guides stay one level up, in [documentation/](../). Read those
 first: [concepts.md](../design/concepts.md) explains what a document, a projection and

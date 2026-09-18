@@ -108,14 +108,14 @@ and `max_iterations` bound the work instead.
 
 ## The ported files
 
-`main/omnetpp/` holds the port, one file per C++ file in
+`source/graph/omnetpp/` holds the port, one file per C++ file in
 `omnet-cpp/src/layout/`, keeping the original's name and the order of its
 definitions so a later fix over there can be read across.
 
 | here | there |
 | --- | --- |
 | `LcgRandom.jl` | `common/lcgrandom.{h,cc}` |
-| `Geometry.jl` | `geometry.h` |
+| `LayoutGeometry.jl` | `geometry.h` |
 | `GraphComponent.jl` | `graphcomponent.{h,cc}` |
 | `BasicSpringEmbedderLayout.jl` | `basicspringembedderlayout.{h,cc}` |
 | `ForceDirectedParametersBase.jl` | `forcedirectedparametersbase.h` |

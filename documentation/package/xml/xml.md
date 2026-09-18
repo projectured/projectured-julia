@@ -38,7 +38,7 @@ elem = XmlElement("div",
 # Access and modify (transparent via @document macro — no [] needed)
 text.content = "New text"
 attr.value = "456"
-push!(elem, XmlText("More content"))
+push!(elem.children, XmlText("More content"))
 ```
 
 ## Selection

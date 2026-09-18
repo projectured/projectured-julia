@@ -121,6 +121,24 @@ Implementation is at
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 
+## Writing a single screenshot
+
+`write_example_image` renders one example to a `.bmp` or `.png` file, without
+opening a window. It takes the same name-or-`Example` argument as
+`print_example`.
+
+```julia
+julia> write_example_image("json", "/tmp/json.png")
+julia> write_example_image(syntax_example, "/tmp/syntax.png")
+```
+
+Implementation is at
+[example/kernel/Harness.jl](../../example/kernel/Harness.jl); the name-lookup
+form lives with `print_example` in
+[example/projectured/ProjecturedExamples.jl](../../example/projectured/ProjecturedExamples.jl).
+`generate_example_screenshots()` (see "Generating all screenshots" below)
+calls it once per example.
+
 ## Listing what's available
 
 ```julia

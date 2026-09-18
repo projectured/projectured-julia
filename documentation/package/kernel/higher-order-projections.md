@@ -3,25 +3,26 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Higher-order projections compose other projections. Each one lives in its own
-module under its package's projection folder (the generic combinators in
-`source/projection/higherorder/`, the document-shaped ones in
-`source/projection/`) and implements
+module under its package's projection folder: the eight domain-independent
+combinators in `source/projection/higherorder/`, and four decorators beside the
+domain each one touches — `source/screen/`, `source/tooltip/`,
+`source/dragging/`, `source/widget/`. Each implements
 `print_document`, `read_intent`, and the two reference-mapping
-functions. They never touch any specific domain — their argument is always
+functions. Most never touch any specific domain — their argument is always
 some other projection.
 
 There are twelve higher-order projections in ProjecturEd:
 
 | Projection | Selects by | Key file |
 |---|---|---|
-| `ChainingProjection` | order in a list | `Sequential.jl` |
+| `ChainingProjection` | order in a list | `Chaining.jl` |
 | `TypeDispatchingProjection` | `typeof(input)` | `TypeDispatching.jl` |
 | `PredicateDispatchingProjection` | `pred(input)` | `PredicateDispatching.jl` |
 | `ReferenceDispatchingProjection` | the `reference` argument | `ReferenceDispatching.jl` |
 | `RecursiveProjection` | identity — wraps a child and supplies *itself* as `recursion` | `Recursive.jl` |
-| `SwitchingProjection` | a reactive `Cell{Int}` index | `Alternative.jl` |
+| `SwitchingProjection` | a reactive `Cell{Int}` index | `Switching.jl` |
 | `NestingProjection` | nests by element list, with recursion fallback | `Nesting.jl` |
-| `WindowManagingProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManager.jl` |
+| `WindowManagingProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManaging.jl` |
 | `WindowInputUnwrappingProjection` | passthrough printer; reader strips the `WindowInput` off the gesture for pipelines with no screen/window layer | `WindowInputUnwrapping.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
 | `DraggingProjection` | dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` | `Dragging.jl` |

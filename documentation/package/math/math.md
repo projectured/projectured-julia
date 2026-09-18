@@ -55,7 +55,7 @@ Three rules keep the vocabulary from saying the same thing twice:
 `MathScript` covers `x²`, `P_t` and `A_i^n`; `MathSubscript(base, index)` and
 `MathSuperscript(base, exponent)` build one with a single script.
 
-One table in [MathModule.jl](../../../source/math/MathModule.jl) holds three columns per operator:
+One table in [MathDocument.jl](../../../source/math/MathDocument.jl) holds three columns per operator:
 the text the linear form writes (ASCII where ASCII exists, a backslash name
 where it does not), the glyph the page shows, and the class — `:binary`,
 `:relation` or `:punctuation` — that decides the space around it.

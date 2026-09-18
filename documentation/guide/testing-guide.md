@@ -7,7 +7,7 @@ package DAG (see [plan/done/test-package-split.md](../../plan/done/test-package-
 
 ```
 main:     ProjecturedKernel ← the 28 substrate packages ← the 20 domains ← Projectured ← {Example, Sdl, …}
-tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubstrateTest ← the 20 domain test packages ← ProjecturedTest
+tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← the 20 domain test packages ← ProjecturedTest
 ```
 
 - [package/kernel/test](../../package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl) —
@@ -23,8 +23,7 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubs
   whose fixtures are that domain's documents: its parser, its `*ToSyntax`
   projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
   `test_workbench()`, … Each also runs its package's layering guard
-  (`test_json_layering()`, …). Three of them — yaml, book and database — hold
-  only the guard so far; their first suite lands there.
+  (`test_json_layering()`, …).
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
   umbrella): [package/sdl/test](../../package/ProjecturedSdlTest) (`test_sdl()` — DirtyRect,
@@ -34,6 +33,11 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← ProjecturedSubs
   (`test_odbc()` — the live-DB adapter + DbCatalog suites). Like the opt-in
   example packages they resolve through the root env and precompile only where
   the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
+  [package/ollama/test](../../package/ProjecturedOllamaTest) follows the same
+  shape (`test_ollama()` — request/stream translation, a meaning-vector suite
+  against a stand-in server, and two live-server tests that skip themselves
+  when no Ollama server answers), but gates on a reachable server rather than
+  a native library.
 - [package/projectured/test](../../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,
@@ -82,8 +86,8 @@ julia> using Projectured, ProjecturedExample, ProjecturedTest
 julia> test_all()
 ```
 
-Runs everything: the four per-package suites (`test_kernel()`, `test_substrate()`,
-`test_substrate()`, and one `test_<domain>()` per domain — each includes its package's static
+Runs everything: the per-package suites (`test_kernel()`, `test_substrate()`,
+and one `test_<domain>()` per domain — each includes its package's static
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
 mouse-click / click-round-trip sweeps — see
@@ -98,7 +102,7 @@ sequence; pick the one you actually need and skip the rest.
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
 | `test_substrate()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of each of the twenty-eight packages, and the package's example printer sweep (`test_substrate_examples()`). |
-| `test_json()` … `test_workbench()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database_domain()` is the odd one out — `test_database` belongs to the ODBC live-connection suite. |
+| `test_json()` … `test_workbench()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
 | `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all twenty. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
@@ -115,6 +119,12 @@ sequence; pick the one you actually need and skip the rest.
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 | `test_catalog()` | Runs printer/reader/repl (+ position-navigation on `:graphics`) over the **generated** atomic-example catalog — see below. Run by `test_all`. |
+
+`test_kernel()` also runs the tool/agent seam suites under
+[test/kernel/tool/](../../test/kernel/tool/DeclaredApiTest.jl) (the declared API a model
+may call, search by name/pattern/description, and `execute_julia_code`) and
+[test/kernel/agent/AgentSeamTest.jl](../../test/kernel/agent/AgentSeamTest.jl) (the inbound
+agent-server seam) — this table does not name them individually.
 
 ## The generated example catalog
 
@@ -155,22 +165,24 @@ julia> test_catalog(; testers = (test_printer,))  # just one tester
 ```
 
 A domain is included once its leaf projections are **bidirectional and navigable**. The
-catalog covers json, yaml, xml, primitive, markdown, math, julia, book, filesystem, and
-sql — including the opaque display leaves (their introduced-text carets collapse to a
+catalog covers every domain that has a registered `AtomicDocument` — run
+`catalog(; domain = :formula)`, or any domain symbol, to see one — plus the substrate
+atoms (primitive, collection, graphics, layout, syntax, text, widget), including the
+opaque display leaves (their introduced-text carets collapse to a
 bounded `proj(p, …)` position, navigable but non-editable) and the self-modifying
 `*Nothing` / `*Insertion` documents (whose syntax variant uses the domain's dispatching
 projection, since a bare leaf can't reproject a type swap). It covers a minimal non-empty
 **compound** for *every* node type too — the whole document grammar of each domain (json
 array/object/object_entry, all the julia AST nodes, all the sql clause/statement nodes, the
 markdown blocks/inlines, …) — so every projection is exercised, not just the leaves.
+`process` is the one domain with no generated atoms; its examples are hand-authored instead.
 
 **No document type is skipped.** A node whose projection still has a bug stays in the catalog
 with its failure recorded `@test_broken` — the failure is *information* (a real bug to fix),
 keyed on its signature so a *different* failure still surfaces as an unmarked `Fail` (a
 regression). The open bugs are `grep "@catalog-broken"` in
-[CatalogTest.jl](../../test/projectured/projection/CatalogTest.jl). Still *out of scope*
-only for whole domains not yet wired: **formula** / **dbcatalog** (ODBC-gated) /
-**conversation**. See `plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
+[CatalogTest.jl](../../test/projectured/projection/CatalogTest.jl). See
+`plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
 
 ## Testing a single example
 
@@ -458,7 +470,7 @@ The standard `Pkg` workflow also works and is what CI uses:
 
 ```julia
 julia> using Pkg
-julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedSubstrateTest / ProjecturedSubstrateTest / ProjecturedJsonTest / …
+julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedSubstrateTest / ProjecturedJsonTest / …
 ```
 
 Each test package ships a one-line `test/runtests.jl` that calls its
