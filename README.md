@@ -100,7 +100,7 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 
 ## Where to read next
 
-**To use it**: [setup-guide.md](documentation/guide/setup-guide.md), then [examples-tour.md](documentation/guide/examples-tour.md) and [the assistant guide](documentation/guide/assistant-guide.md).
+**To use it**: [setup-guide.md](documentation/guide/setup-guide.md), then [examples-tour.md](documentation/guide/examples-tour.md), [keyboard-and-mouse-guide.md](documentation/guide/keyboard-and-mouse-guide.md) and [the assistant guide](documentation/guide/assistant-guide.md).
 
 **To show your own data**: [concepts.md](documentation/design/concepts.md), then [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) and [own-project-guide.md](documentation/guide/own-project-guide.md).
 

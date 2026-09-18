@@ -874,9 +874,11 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       tool window from widgets and domain views, a form from a `@document`
       struct, a chart of your numbers. Then the views on demand: a window on
       your own value (D4), and the reflection view of a running object.
-- [ ] `guide/keyboard-and-mouse-guide.md`: the common keys (arrows, `Alt` +
+- [x] `guide/keyboard-and-mouse-guide.md`: the common keys (arrows, `Alt` +
       arrows, clipboard, tabs, zoom, collapse), and F1 and Ctrl+Shift+P for the
-      full live list.
+      full live list. Every key in it comes from a `@gestures` declaration of
+      the code. Step 10 must press them in a window: the guide is written from
+      the declarations, not from a session.
 - [x] `guide/own-project-guide.md`: use the packages from your own project,
       which package to load, `run_editor!`, a backend.
 
