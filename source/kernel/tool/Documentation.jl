@@ -985,20 +985,22 @@ end
 # `stop_simulations`, because `run` is inside almost every verb of that module.
 #
 # Every text is folded already.
-function _api_score(terms, name::AbstractString, qualified::AbstractString,
-                    prose::AbstractString)
-    named = 0
-    said = 0
-    for term in terms
-        named += maximum(_compute_name_score(written, name, qualified)
-                         for written in term.written)
-        said += maximum(length(findall(form, prose)) for form in term.forms)
-    end
-    (named, said)
+# The words of an identifier: `open_pane!` is "open" and "pane", `WidgetCard` is
+# "widget" and "card", and `HTTPServer` is "http" and "server".
+function _split_identifier_words(name::AbstractString)
+    spaced = replace(String(name), r"([a-z0-9])([A-Z])" => s"\1 \2")
+    spaced = replace(spaced, r"([A-Z]+)([A-Z][a-z])" => s"\1 \2")
+    String[lowercase(word) for word in split(spaced, r"[^A-Za-z0-9]+") if !isempty(word)]
 end
 
-_compute_name_score(written, name::AbstractString, qualified::AbstractString) =
+# **A word of a name is not a piece of one.** A term that is a whole word of the
+# name is what a person said — "card" in `WidgetCard` — and a term that merely
+# falls inside it is often another word: "card" inside `discard`, "run" inside
+# `trundle`. The word scores above the piece, and both below the whole name.
+_compute_name_score(written, name::AbstractString, words::Vector{String},
+                    qualified::AbstractString) =
     (written isa AbstractString && name == written) ? 100 :
+    (written isa AbstractString && written in words) ? 30 :
     occursin(written, name) ? 20 :
     occursin(written, qualified) ? 10 : 0
 
@@ -1008,16 +1010,59 @@ _compute_name_score(written, name::AbstractString, qualified::AbstractString) =
 # `run_simulations_in_conversation` both hold every word of "run simulation", and
 # the first is what the words say; the second says them and more. Length is the
 # whole of that difference, so it is the tie-break.
+# What a word is worth in the prose, by the rule search engines call BM25: a word
+# that few entries hold is worth more than one that most of them hold, a second
+# occurrence in one entry is worth less than the first, and a long text earns no
+# score for being long.
+#
+# **At a hundred names a count was enough; at a thousand it is not.** Measured
+# 2026-09-18 on the corpus of 1,389 names: "make a field of a document computed"
+# never reached `set_cell_function!`, because "document" stands in hundreds of
+# entries and counted as loudly as "computed", which stands in a few.
+const _WORD_SATURATION = 1.2
+const _LENGTH_WEIGHT = 0.75
+
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
-    scored = Tuple{Tuple{Int,Int},_ApiEntry}[]
+    kept = _ApiEntry[]
+    named = Int[]
+    counts = Vector{Vector{Int}}()
+    lengths = Float64[]
     for entry in entries
         qualified = fold(entry.qualname)
         prose = fold(entry.text)
         _is_passing(query, qualified, prose) || continue
-        score = _api_score(terms, last(split(qualified, '.')), qualified, prose)
-        (score[1] > 0 || score[2] > 0) && push!(scored, (score, entry))
+        name_score = 0
+        words = _split_identifier_words(last(split(entry.qualname, '.')))
+        short = last(split(qualified, '.'))
+        for term in terms
+            name_score += maximum(_compute_name_score(written, short, words, qualified)
+                                  for written in term.written)
+        end
+        term_counts = Int[maximum(length(findall(form, prose)) for form in term.forms)
+                          for term in terms]
+        (name_score > 0 || any(>(0), term_counts)) || continue
+        push!(kept, entry)
+        push!(named, name_score)
+        push!(counts, term_counts)
+        push!(lengths, max(1.0, Float64(length(prose))))
+    end
+    isempty(kept) && return Tuple{Tuple{Int,Float64},_ApiEntry}[]
+    average = sum(lengths) / length(kept)
+    holders = Int[count(one -> one[index] > 0, counts) for index in eachindex(terms)]
+    scored = Tuple{Tuple{Int,Float64},_ApiEntry}[]
+    for place in eachindex(kept)
+        said = 0.0
+        for index in eachindex(terms)
+            frequency = counts[place][index]
+            frequency == 0 && continue
+            rarity = log(1 + (length(kept) - holders[index] + 0.5) / (holders[index] + 0.5))
+            said += rarity * frequency * (_WORD_SATURATION + 1) /
+                    (frequency + _WORD_SATURATION *
+                     (1 - _LENGTH_WEIGHT + _LENGTH_WEIGHT * lengths[place] / average))
+        end
+        push!(scored, ((named[place], said), kept[place]))
     end
     sort!(scored; by = x -> (-x[1][1], -x[1][2], length(x[2].qualname)))
 end
