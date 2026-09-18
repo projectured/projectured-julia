@@ -53,11 +53,15 @@ A designed view is a projection: a printer that makes the view, and a reader tha
 
 2. **Write the projection.** The [widget guide](../package/widget/widget.md) lists the parts: labels, fields, tables, cards, buttons, tabs and split panes. [new-domain-guide.md](new-domain-guide.md) is the long form, from the document types to the key bindings.
 
-3. **Open it.**
+3. **Open it.** `run_example` takes the document and the projection you built:
 
    ```julia
    run_example(document, projection; name = "measurement")
    ```
+
+   The three steps above are the shape of the work, not a script to paste: step
+   2 is where your own projection is written, and [new-domain-guide.md](new-domain-guide.md)
+   walks one from the first document type to the key bindings.
 
 A designed view and a view on demand live in the same window: open your model in one tab, and a value of the running program in the next.
 

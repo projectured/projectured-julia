@@ -1041,9 +1041,35 @@ What it reported and did not fix:
 
 ### Step 10: the review
 
-- [ ] A fresh-reader test: a subagent with no knowledge of the repository gets
-      only the README and the guides that it links. It follows the quick start
-      and writes down where it stops or guesses.
+- [x] A fresh-reader test: a subagent with no knowledge of the repository gets
+      only the README and the guides that it links. It followed the quick start
+      on 2026-09-18 and ran sixteen commands, every one that needs no window.
+
+**What it found, and what I did.** Five faults, all in documents this plan
+wrote, and all now fixed and re-run:
+
+1. `setup-guide.md` wrote `print_object(editor.document)`, and no page binds
+   `editor`. A reader met an `UndefVarError`. The guide now shows the document
+   it just parsed, and says that `print_object` answers a string rather than
+   writing it, so a script prints it itself.
+2. The same guide called `print_example()` "the JSON example as text". It
+   writes the whole structure down to each graphics primitive and each font —
+   thousands of lines. The guide now says what it writes and when to reach for
+   it, and it names `print_natural_text` for the text of a document.
+3. `examples-tour.md` said `catalog()` answers the same list as `examples`. It
+   answers 487 entries against 106: one for each document of each domain with
+   each projection. The guide says that now.
+4. `own-project-guide.md` said `print_document` "gives the view as data". It
+   answers an IO map; `iomap.output` is the view.
+5. `view-your-data-guide.md` showed three steps as if they were a script. Step
+   2 is where a projection of your own is written, and the guide says so.
+
+It also checked one thing I could not: every link and every screenshot it
+followed exists. It could not check anything that needs a window, and its
+machine had a warm cache, so the first-start cost is still unmeasured.
+
+The model tag `qwen3.8:27b` looked wrong to it. It is right: that model is on
+the server of this machine, and it is the default of `source/ollama/Ollama.jl`.
 - [ ] A language review against `writing-rules.md`, one document group at a
       time.
 - [ ] An assistant test: `list_guides()` shows a real summary for each guide,

@@ -71,7 +71,7 @@ run_window_editor(document, projection, "My data"; backend = WebBackend())
 
 The browser then shows the same window at `http://127.0.0.1:8080`.
 
-A test or a script needs no window: `print_document(projection, document)` gives the view as data, and `write_image` writes it to a file. [testing-guide.md](testing-guide.md) says which helper checks what.
+A test or a script needs no window. `print_document(projection, document)` answers an IO map, which is the view together with the record that maps it back to the data; `iomap.output` is the view itself, and `write_image` writes it to a file. [testing-guide.md](testing-guide.md) says which helper checks what.
 
 ## What to expect
 

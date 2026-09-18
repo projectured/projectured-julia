@@ -18,7 +18,7 @@ write_example_image("json", "/tmp/snapshot.png")
 write_example_pdf("json", "/tmp/snapshot.pdf")
 ```
 
-`[example.name for example in ProjecturedExample.examples]` lists every name; there are 106. `catalog()` answers the same list with the domain and the document of each one.
+`[example.name for example in ProjecturedExample.examples]` lists every name; there are 106. `catalog()` answers a longer list, one entry for each document of each domain with each projection that draws it, which is what a sweep walks.
 
 ## The groups
 

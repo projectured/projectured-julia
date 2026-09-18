@@ -50,19 +50,36 @@ Press **Escape** to close the window.
 
 ## Look at a view without a window
 
+An image or a PDF of an example needs no window:
+
 ```julia
-print_example()                      # the JSON example as text, on the terminal
-print_example("syntax")
 write_example_image("json", "/tmp/snapshot.png")
 write_example_pdf("json", "/tmp/snapshot.pdf")     # vector PDF, with selectable text
 ```
 
-`print_object` shows any Julia value as structured text:
+For the **text of a document**, in the notation of its domain, ask the document:
 
 ```julia
-print_object(editor.document)
-print_object(my_struct; include_selection = false)
+document = parse_natural_text(:json, "{\"name\": \"Alice\"}")
+println(print_natural_text(document))
 ```
+
+That writes the document in its own notation, over as many lines as the notation
+takes.
+
+`print_object` answers the **structure** of any Julia value as a string — the
+type names, the fields and the elements — which is what you want while you debug
+a document. It answers the string rather than writing it, so a script prints it
+itself:
+
+```julia
+println(print_object(document))
+println(print_object(my_struct; include_selection = false))
+```
+
+`print_example("json")` writes the same structure for the whole output of an
+example, down to each graphics primitive and each font. It runs to thousands of
+lines, and it is the tool for a projection that draws the wrong thing.
 
 ## When a load fails
 
