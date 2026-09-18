@@ -274,9 +274,20 @@ not enough. Three defects in the pane came out behind them, and two are fixed:
    `tabs[1]::DocumentInsertion.content.value{0}`. A selection whose checkpoints
    moved matches no document. **Fixed** at the three backward maps of the pane,
    by `concat_references`, which carries a terminal type onto the node that
-   follows it. **The forward maps still use the splice**, and that is why a
-   typed key does not reach the buffer: the text layer needs the forward image
-   of the caret to place it. This is the next thing to fix.
+   follows it. The forward maps still splice; leave them until something proves
+   they are wrong.
+
+**What is still open, and what it is not.** A printable key does not reach the
+name buffer in the test. The cause is not the new rows and not the pane:
+
+- The caret reaches the document. After Insert, `content.selection` reads
+  `::DocumentInsertion.value::String{0}::Position`, and the prompt draws.
+- `TextInsertion`, which ships and works today, behaves exactly the same way
+  when it is driven the same way with no pane around it at all.
+
+So the harness is the suspect. Find what the editor loop gives a text edit that
+a hand-driven `read_intent` does not, then unmark the two assertions. Do this
+before Step 5, which needs the same path for the read-eval-print loop.
 3. **A group printed with no tab never draws its first tab.** The standing iomap
    keeps the empty pane it printed. Reproduced on clean `main`, so it is older
    than this plan. The test starts from a group with one tab to step around it.

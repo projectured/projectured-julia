@@ -31,8 +31,18 @@ iomap = print_document(projection, nothing, tree,
                                       Dict{Symbol,Any}()))
 
 # One gesture, read through the standing iomap and applied.
+#
+# The four-argument `Intent` form, which is what the editor loop runs. The
+# three-argument form carries the gesture alone, and a text edit needs both: the
+# layer that owns the caret answers an operation, and every stage above it
+# translates that operation rather than the key. A harness that passes the raw
+# event reaches the pane's own gestures and never the caret.
+#
+# The intent carries the bare gesture. `WindowInput` is what a window layer
+# unwraps, and this chain has no window.
 function press!(event)
-    operation = read_intent(projection, iomap, event)
+    change = read_intent(projection, nothing, Intent(event), iomap)
+    operation = change isa Intent ? change.operation : change
     operation === nothing || evaluate_operation(editor, operation)
     operation
 end
@@ -82,17 +92,18 @@ end
 
 @testset "A typed name narrows and commits" begin
     type!("json")
-    # @broken: a printable key does not reach the name buffer. The caret is on
-    # `content.value{0}`, and the text layer needs the FORWARD image of that path
-    # to place it. `_tab_forward` splices the content image with the `^` operator
-    # of `@reference`, which moves the spliced path's leading type onto the node
-    # before it — the same defect the backward map had. Fix the forward map the
-    # same way, with `concat_references`.
+    # @broken: a printable key does not reach the name buffer in this harness.
+    # The caret is on the document — `content.selection` reads
+    # `::DocumentInsertion.value::String{0}::Position` — and the prompt draws, so
+    # the leaf and the rows are right. `TextInsertion`, which ships and works,
+    # behaves the same way when it is driven like this with no pane around it, so
+    # what is missing is in the harness and not in the insertion. Find what the
+    # editor loop gives a text edit that this does not, and unmark both.
     @test_broken occursin("json", drawn())
     press!(KeyDown(:enter, ModifierKeys()))
     # "json" is the alias `@domain Json` gives its own insertion, and an exact
     # name wins over every prefix, so the commit is unambiguous.
-    # @broken: nothing was typed, so there is no name to commit.
+    # @broken: nothing was typed, so there is no name to commit. Same cause.
     @test_broken content() isa JsonInsertion
 end
 
