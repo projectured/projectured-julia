@@ -310,11 +310,13 @@ makes an action fire by accident later.
 ### 3.4 Any document answers a tooltip
 
 ```julia
-find_tooltip(document) -> Document | Nothing
+compute_tooltip(document) -> Document | Nothing
 ```
 
-One generic over documents. `find_` because a document with nothing to say
-answers `nothing`, and `find_tooltip(::Any) = nothing` is the default.
+One generic over documents. `compute_` because most documents build a fresh
+answer rather than look one up: only a widget has something to find.
+`compute_tooltip(::Any) = nothing` is the default, so a document with nothing to
+say says nothing.
 
 **A widget stores its tooltip; every other document computes one.** That is the
 whole of the difference the owner named:
@@ -341,7 +343,7 @@ drawn (§3.3). The generic is therefore the right shape and the probe needs no
 case for a widget.
 
 **A host may still override.** `make_window_wrap` takes the function as a
-keyword, and `find_tooltip` is the default. A host that wants another rule
+keyword, and `compute_tooltip` is the default. A host that wants another rule
 passes another function.
 
 A tooltip is a `Document`, so it draws through a projection like everything
@@ -351,7 +353,7 @@ accepted and wrapped, because most tooltips are one line.
 ### 3.5 Every widget type carries a `tooltip` field
 
 A widget is the one kind of document that stores its tooltip instead of
-computing one, so the field is what its `find_tooltip` method reads.
+computing one, so the field is what its `compute_tooltip` method reads.
 
 The field goes last in the chrome run that nearly every widget type already
 has, after `padding_color`, beside `visible`, `margin` and `border`. It defaults
@@ -372,7 +374,7 @@ Its method answers `nothing`.
 ### 3.6 The context menu asks the same question of any document
 
 ```julia
-find_context_menu(document) -> Document | Nothing
+compute_context_menu(document) -> Document | Nothing
 ```
 
 A right press runs the same probe as the tooltip, finds the innermost document
@@ -503,8 +505,8 @@ to correct.
 | `make_window_wrap` | function | Verb first. The word that names the kind produced goes last, and it produces a wrap. |
 | `make_opened_window_projections` | function | Verb first. It builds the value of the `opened_window_projections` keyword of `run_window_editor`, so it carries that name. |
 | `make_shell_document`, `make_shell_projection` | functions | The wrapper pair every other wrapper here uses. |
-| `find_tooltip` | function | `find_`, because a document with nothing to say answers `nothing`. One generic over documents, not one per kind of document. |
-| `find_context_menu` | function | The same shape, for the same reason. |
+| `compute_tooltip` | function | `compute_`, because most methods build a fresh document. `find_` would promise a look-up, which only the widget method does. One generic over documents, not one per kind of document. |
+| `compute_context_menu` | function | The same shape, for the same reason. |
 | `get_screen_origin` | function | `get_`, because the value sits at a known place. It is the sibling of `get_display_size`, so it is declared in `source/kernel/backend/BackendInterface.jl`, defaulted in `BackendDefaults.jl` and answered in `source/sdl/Sdl.jl`. |
 | `make_file_api` | function | The shape of `make_pane_api` and `make_interface_api`. |
 | `make_application_api` | function | The same. |
@@ -517,13 +519,13 @@ to correct.
 
 **Who owns each name.** Every exported name has exactly one owning module.
 
-- `DomainModule` owns the generics `find_tooltip` and `find_context_menu`, in
+- `DomainModule` owns the generics `compute_tooltip` and `compute_context_menu`, in
   `source/domain/DocumentCore.jl` beside `accepts_pasted_document`. Every other
   slice imports them and adds methods; none redefines or re-exports them.
 - `WidgetModule` owns `ContextMenuProbeProjection`, and adds the widget methods of
   the two generics. It gains one dependency edge, `ProjecturedWidget` to
   `ProjecturedDomain` (§3.4).
-- `JuliaModule` adds the `find_tooltip` method that computes a signature and its
+- `JuliaModule` adds the `compute_tooltip` method that builds a signature and its
   prose. `ProjecturedJulia` already depends on `ProjecturedDomain`.
 - `TooltipModule` owns `TooltipProbeProjection`. It takes the tooltip function as
   a keyword and gains one dependency edge, `ProjecturedTooltip` to
@@ -550,10 +552,18 @@ would have reached the code.
    share one word, so the fold is `make_window_wrap` and the shell stays the
    widget.
 
-A fourth name went when the design did. `find_widget_tooltip` and
-`find_widget_context_menu` named a widget in a generic that is over documents,
-so they are `find_tooltip` and `find_context_menu`. A widget answers them with a
-method, and a method needs no name of its own.
+Two more names changed after that, and both for the same pair.
+
+4. `find_widget_tooltip` and `find_widget_context_menu` named a widget in a
+   generic that is over documents. A widget answers with a method, and a method
+   needs no name of its own.
+5. `find_` promised a look-up, and only the widget method does one. Every other
+   method builds a fresh document, so the verb is `compute_`. The pair is
+   `compute_tooltip` and `compute_context_menu`.
+
+**The verb is chosen by the work, not by the return.** A function does not take
+`find_` because it can answer `nothing`; it takes `find_` because it searches.
+Answering `nothing` is what a computation with nothing to say does too.
 
 ## 4. Steps
 
@@ -633,9 +643,9 @@ the new count here.
 
 ### Step 4 — a document answers a tooltip
 
-- [ ] Add the generic `find_tooltip(document)` to `DomainModule`, in
+- [ ] Add the generic `compute_tooltip(document)` to `DomainModule`, in
       `source/domain/DocumentCore.jl` beside `accepts_pasted_document`, with
-      `find_tooltip(::Any) = nothing` and the `String` convenience.
+      `compute_tooltip(::Any) = nothing` and the `String` convenience.
 - [ ] Add `tooltip::Any = nothing` to the chrome run of each of the 43 widget
       types in `source/widget/WidgetDocument.jl`, and a `tooltip` keyword to each
       hand-written outer constructor.
@@ -678,12 +688,12 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
 - [ ] Add `TooltipProbeProjection` and `TooltipProbeIoMap` to `TooltipModule`:
       the Alt+press probe, the dwell timer, and the `OpenWindowOperation` it
-      makes from what its `find_tooltip` keyword answered. The keyword is why
+      makes from what its `compute_tooltip` keyword answered. The keyword is why
       `ProjecturedTooltip` needs no dependency on `ProjecturedWidget` (§3.14).
 - [ ] Derive the real position: the pointer, plus `get_screen_origin` of the window
       the pointer is in, plus an offset, held inside the screen. This closes
       Step 6 of [tooltip.md](tooltip.md).
-- [ ] The shell composes it. `make_window_wrap(; tooltip = find_tooltip)` turns
+- [ ] The shell composes it. `make_window_wrap(; tooltip = compute_tooltip)` turns
       it on, and a host passes its own function.
 - [ ] The tooltip window draws with the content projections of the window it
       belongs to, through `make_opened_window_projections`. A computed tooltip is
@@ -702,7 +712,7 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 - [ ] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
       (§2.6), which a window shell must not do.
-- [ ] Add the generic `find_context_menu(document)` to `DomainModule`, the widget
+- [ ] Add the generic `compute_context_menu(document)` to `DomainModule`, the widget
       method that reads a `context_menu` field, and
       `ContextMenuProbeProjection` with `ContextMenuProbeIoMap` in
       `WidgetModule`. What the generic answers opens through
@@ -796,7 +806,7 @@ The File menu of Step 7 names them, so they are written here and not later.
 | **A tooltip window that takes the focus makes the editor unusable.** A wrong flag set is worse than no tooltip. | Step 5 lands the flags and the focus test **before** Step 6 turns any tooltip on. If no flag set keeps the focus on X11 and on Wayland, Step 5 stops and the owner decides; Step 6 does not start. |
 | The flag set that works on X11 may not work on Wayland, macOS or Windows. | Step 5 checks the two this machine has and writes down what it could not check. A backend that cannot answer is named in the guide, not hidden. |
 | The web client must draw a `:tooltip` window in the page, which is a second drawing path. | It is one branch in `client.js` at the point where a window is opened. Step 5 asserts that a `:tooltip` window never enters `pendingPopups`. |
-| A computed tooltip runs while the person moves the pointer, and a slow one stalls the window. | `find_tooltip` is called once the pointer has rested for the dwell time, and its answer is held until the pointer moves to another document. Step 4 keeps every method cheap: the Julia one reads a docstring that Julia already holds, and computes no layout. |
+| A computed tooltip runs while the person moves the pointer, and a slow one stalls the window. | `compute_tooltip` is called once the pointer has rested for the dwell time, and its answer is held until the pointer moves to another document. Step 4 keeps every method cheap: the Julia one reads a docstring that Julia already holds, and computes no layout. |
 | A dialog is modal, and a modal that cannot be closed traps the person. | Step 8 gives every dialog an Escape that cancels and writes nothing, and tests it. |
 
 ## 6. Out of scope
