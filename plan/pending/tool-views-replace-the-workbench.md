@@ -367,6 +367,14 @@ in `entries`.
 
 ### Step 5. The read-eval-print loop
 
+**Ruling (2026-09-18).** Code a person types goes straight to `eval`, and it can
+call anything. There is no limit and no sandbox. `execute_julia_code` already
+works this way: it parses with `Meta.parseall`, evaluates each top-level form
+with `Core.eval` in a scratch module, and keeps the last value
+([CodeExecution.jl:157-190](../../source/kernel/tool/CodeExecution.jl#L157-L190)).
+The read-eval-print loop uses it and `editor.tools`, so a binding a person makes
+is a binding the assistant sees, and back.
+
 `EvaluatorToplevel` exists and holds a sequence of `EvaluatorForm`s. It needs
 two things:
 
@@ -374,8 +382,12 @@ two things:
    way the transcript draws an evaluation. Reuse the section card the
    conversation already builds.
 2. A gesture: `Alt+Enter` evaluates the form the cursor is in, appends the
-   result, and opens a fresh empty form below. Call `execute_julia_code`, the
-   same function the assistant and the transcript call.
+   result, and opens a fresh empty form below. Copy the shape of
+   `ComposerEvaluateOperation`
+   ([ConversationEditor.jl:340-367](../../source/conversation/ConversationEditor.jl#L340-L367)),
+   which already does the whole thing: it calls `execute_julia_code`, keeps a
+   `Document` answer live so it renders as itself, falls back to the printed text
+   for any other value, and marks the form when the answer is an error.
 
 The last form of a fresh `EvaluatorToplevel` must be an empty one, so a person
 can type at once. Give it a `make_insertion_document` method that seeds it.
