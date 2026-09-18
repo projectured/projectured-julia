@@ -906,7 +906,7 @@ Each guide has runnable code. Run each snippet once, in one warm session.
 
 ### Step 7: the missing package guides
 
-- [ ] Tier 1: `package/assistant/assistant.md`, `package/natural/natural.md`,
+- [x] Tier 1: `package/assistant/assistant.md`, `package/natural/natural.md`,
       `package/reflection/reflection.md` (the value reflection, and how it
       relates to `NaturalToGraphics` and `ObjectToWidget`),
       `package/gesturehelp/gesturehelp.md`, `package/mcp/mcp.md`.
