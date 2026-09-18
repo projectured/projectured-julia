@@ -73,6 +73,7 @@ include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "UndoDocumentExample.jl"))
 
 include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
@@ -81,6 +82,7 @@ include(joinpath(_EXAMPLE_DIR, "GraphicsProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "UndoProjectionExample.jl"))
 
 # The concrete-domain `Example` instances. They name factories from all twenty
 # example packages, so they belong here rather than in any one of them.
@@ -406,6 +408,8 @@ export make_clipboard_document_example, make_clipboard_projection_example
 export clipboard_example
 export make_versioning_document_example, make_versioning_projection_example
 export versioning_example
+export make_undo_document_example, make_undo_projection_example
+export undo_example
 export SCALE_SEARCH_MODULE_NAMES, SCALE_SEARCH_QUESTIONS, get_scale_search_modules,
        measure_projectured_search_scale!
 export make_dragging_document_example, make_dragging_projection_example

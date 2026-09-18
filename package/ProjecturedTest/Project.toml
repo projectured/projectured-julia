@@ -49,6 +49,7 @@ ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
+ProjecturedUndoTest = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
 ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 ProjecturedWorkbenchTest = "dee3d367-0cd3-47f5-9f81-9b83918ba741"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
@@ -97,6 +98,7 @@ ProjecturedSyntax = {path = "../ProjecturedSyntax"}
 ProjecturedText = {path = "../ProjecturedText"}
 ProjecturedTulipTest = {path = "../ProjecturedTulipTest"}
 ProjecturedVideoTest = {path = "../ProjecturedVideoTest"}
+ProjecturedUndoTest = {path = "../ProjecturedUndoTest"}
 ProjecturedWorkbench = {path = "../ProjecturedWorkbench"}
 ProjecturedWorkbenchTest = {path = "../ProjecturedWorkbenchTest"}
 ProjecturedXml = {path = "../ProjecturedXml"}

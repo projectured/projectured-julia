@@ -1,0 +1,22 @@
+name = "ProjecturedUndoTest"
+uuid = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
+version = "0.1.0"
+authors = []
+
+# The suite of ProjecturedUndo, run by test_undo(). It depends only on what undo
+# depends on, plus the identity projection it drives the printer and the reader
+# through, so the slice is tested on its own and in an environment that holds no
+# domain.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedUndo = {path = "../ProjecturedUndo"}

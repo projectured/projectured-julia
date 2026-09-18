@@ -1,0 +1,15 @@
+name = "ProjecturedUndo"
+uuid = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
+version = "0.1.0"
+authors = []
+
+# The UndoBuffer overlay document and the transparent projection that records the
+# way back from every change that passes through it.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}

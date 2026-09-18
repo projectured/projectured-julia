@@ -730,43 +730,56 @@ plan did not foresee.
 
 ### Step 4 — the undo slice
 
-- [ ] `source/undo/` with `UndoModule.jl`, `UndoDocument.jl` (the buffer, the
-      entry, `push_undo_entry!`, `pop_undo_entry!`, `clear_redo_entries!`,
-      `is_undo_step`) and `UndoBufferToAny.jl` (the projection, the two
-      reference maps, the reader, the gesture table, the three operations and
-      their `evaluate_operation` methods, `make_undoable_operation`).
-- [ ] `package/ProjecturedUndo/` with a `Project.toml` and
-      `src/ProjecturedUndo.jl`, copied from `ProjecturedVersioning` — the same
-      four dependencies, the same alias block, one `include` of the slice.
-      Mint a fresh UUID.
-- [ ] `package/ProjecturedUndoExample/` and `package/ProjecturedUndoTest/`, in
-      the shape `ProjecturedWorkbenchExample` and `ProjecturedWorkbenchTest`
-      have. The test package is what lets `test_undo()` run on its own (U19).
-- [ ] The wiring, about ten files, in the **application** tier (U19). The rule
-      is: **wherever `ProjecturedWorkbench` appears, `ProjecturedUndo` appears
-      beside it** — and it appears in no `SUBSTRATE` list and in no domain's
-      `Example` or `Test` package. `package/Projectured/Project.toml` (`[deps]`
-      and `[sources]`), `package/Projectured/src/Projectured.jl`,
+- [x] `source/undo/` with `UndoModule.jl`, `UndoDocument.jl` (the buffer, the
+      entry, `push_undo_entry!`, `clear_undo_history!`, `is_undo_step`,
+      `is_undo_barrier`, the three operations and their `evaluate_operation` and
+      `make_inverse_operation` methods, `make_undoable_operation`) and
+      `UndoBufferToAny.jl` (the projection, the two reference maps, the reader
+      and the gesture table).
+- [x] `package/ProjecturedUndo/` with a `Project.toml` and
+      `src/ProjecturedUndo.jl`, in the shape of `ProjecturedVersioning`. It
+      declares **two** dependencies and not four: it names nothing of
+      `ProjecturedDomain` and nothing of `ProjecturedPrimitive`, and the package
+      graph guard asserts that a package declares exactly what it names.
+- [x] `package/ProjecturedUndoTest/`, which is what lets `test_undo()` run on
+      its own. **No `ProjecturedUndoExample`**: the example needs a domain to be
+      worth looking at, so its bodies live in `example/projectured/` inside
+      `ProjecturedExample`, exactly where the versioning example's live.
+- [x] The wiring, in the **application** tier (U19).
+      `package/Projectured/Project.toml` (`[deps]` and `[sources]`),
+      `package/Projectured/src/Projectured.jl`,
       `source/projectured/Projectured.jl` (the end of `_SOURCES`),
-      `environment/all/Project.toml`, `package/ProjecturedTest/`, and
-      `test/projectured/ProjecturedSuite.jl` for `test_undo()`. Then
-      `Pkg.resolve()` to rewrite `environment/all/Manifest.toml`.
-- [ ] The four rules of U17, which are cheap here and untestable until step 7:
-      R1 is the order of the reader; R2 is the three `make_inverse_operation`
-      methods beside the three operation types; R3 and R4 are two guards in the
-      recorder.
-- [ ] `test/undo/UndoBufferTest.jl` with `test_undo()`, in the house style of
-      `VersioningToAnyTest.jl`: one function, several testsets. Cover the
-      printer, the two maps, the delegation, the filter, a barrier, an undo, a
-      redo, and the empty stacks.
-- [ ] `example/undo/UndoDocumentExample.jl` and
-      `example/undo/UndoProjectionExample.jl`, the pair the folder of every
-      other slice holds: a JSON document inside an `UndoBuffer`, and the JSON
-      chain with `UndoBuffer => UndoBufferToAnyProjection()` at the top of the
-      dispatcher — the direct analogue of `VersioningProjectionExample.jl`.
-      **No other example changes** (U18).
-- [ ] Test: `test_undo()` passes, and `test_package_graph()` and
-      `test_substrate()` match step 0.
+      `environment/all/Project.toml`, `package/ProjecturedTest/Project.toml`
+      and `test/projectured/ProjecturedSuite.jl`. Then `Pkg.resolve()` rewrote
+      `environment/all/Manifest.toml`.
+      **`ProjecturedExample` and `ProjecturedTest` declare no dependency on
+      `ProjecturedUndo`.** Both reach its names through `using Projectured` and
+      `using ProjecturedUndoTest`, and a package that declares what it never
+      names fails the graph guard.
+- [x] The four rules of U17. R1 is the order of the reader; R2 is the three
+      `make_inverse_operation` methods beside the three operation types; R3 and
+      R4 are two guards in `_record_operation`. Two nested buffers are tested
+      here, not only in step 7.
+- [x] `test/undo/UndoBufferTest.jl` with `test_undo()`: **69 assertions, all
+      passing.** It covers the bounded history, the filter, a barrier, the
+      printer, the two maps, the delegation, an undo, a redo, a delete that
+      comes back in the cell it left, the caret that goes back to the edit, two
+      nested buffers, and `make_undoable_operation`.
+- [x] `example/projectured/UndoDocumentExample.jl` and
+      `example/projectured/UndoProjectionExample.jl` — a JSON object inside an
+      `UndoBuffer`, and the JSON chain with
+      `UndoBuffer => UndoBufferToAnyProjection()` at the top of the dispatcher.
+      `undo_example` is in `domain_examples` but out of the `examples` registry,
+      for the reason `versioning_example` is: a sweep shares one document, and a
+      buffer records what the sweep does. **No other example changes** (U18).
+- [x] `documentation/package/undo/undo.md`, the guide of the slice.
+- [x] Test: `test_undo()` 69 / 69, from its own environment and from the
+      umbrella. `test_printer(undo_example)` 760 / 760 and
+      `test_reader(undo_example)` 225 / 225 — the buffer is transparent through
+      the whole chain. `test_package_graph()` 616 / 3; the three are the
+      pre-existing domain-edge rows of `ProjecturedConversation`,
+      `ProjecturedFormula` and `ProjecturedWorkbench`, and no row names an undo
+      package.
 
 ### Step 5 — the round trip is a property, not an example
 

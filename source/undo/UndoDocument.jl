@@ -1,0 +1,255 @@
+# Fragment of `UndoModule` — the buffer, one entry of its history, the three
+# operations that fill and walk it, and the filter that decides what enters.
+
+abstract type UndoDocument <: Document end
+
+# ── One step of the history ──────────────────────────────────────────────────
+
+"""
+    UndoEntry(label, inverse, selection)
+
+One step that can be taken back.
+
+- `label` — what the step did, in words, for a person reading the history.
+- `inverse` — the operation that takes it back, or `nothing` for a **barrier**:
+  a step whose way back nobody could work out. Undo stops at a barrier rather
+  than stepping over it, because stepping over it would build a document that
+  matches no state the person ever saw.
+- `selection` — where the caret was before the step, or `nothing`. It is put
+  back after the inverse runs, so undo returns the caret to the edit as well as
+  the value.
+
+An entry is a plain value and holds no cell: the buffer that keeps entries is
+the document, and an entry is one of the things it holds.
+"""
+struct UndoEntry
+    label::String
+    inverse::Any
+    selection::Any
+end
+
+"""
+    is_undo_barrier(entry) -> Bool
+
+Whether the history stops at this entry.
+"""
+is_undo_barrier(entry::UndoEntry) = entry.inverse === nothing
+
+# ── The buffer ───────────────────────────────────────────────────────────────
+
+"""
+    UndoBuffer(content; capacity = 100, selection = nothing)
+
+A document that holds another document and the steps that take it back.
+
+Use it to give a document a history. Put one around a whole window and every
+edit in the program can be taken back; put one around each file and `Ctrl+Z`
+takes back an edit in the file the person is looking at, which is what a person
+means by it. Both at once is the supported arrangement, and the buffer closest
+to the focus answers first.
+
+`content` is the document whose edits it records. `undo_entries` holds the steps
+that can be taken back, oldest first, and `redo_entries` the steps that were
+taken back and can be put back. `capacity` bounds the first list; the oldest
+entry is dropped when a new one does not fit.
+
+The buffer records nothing by itself. `UndoBufferToAnyProjection` is what wraps
+the operations that pass through it.
+
+# Example
+
+    buffer = UndoBuffer(read_document_file("data.json"))
+
+See also `UndoBufferToAnyProjection`, `UndoEntry` and `make_inverse_operation`.
+"""
+@document struct UndoBuffer <: UndoDocument
+    content::Document
+    undo_entries::CellVector
+    redo_entries::CellVector
+    capacity::Int
+end
+
+UndoBuffer(content::Document; capacity::Integer = 100, selection = nothing) =
+    UndoBuffer(content, CellVector(), CellVector(), Int(capacity), selection)
+
+"""
+    push_undo_entry!(buffer, entry) -> buffer
+
+Put one step on the history, and forget what could be put back.
+
+An ordinary edit makes what was taken back unreachable: the document has moved
+past it. The oldest entry is dropped when the history is at its capacity.
+"""
+function push_undo_entry!(buffer::UndoBuffer, entry::UndoEntry)
+    push!(buffer.undo_entries, entry)
+    _empty_entries!(buffer.redo_entries)
+    _trim_entries!(buffer.undo_entries, buffer.capacity)
+    buffer
+end
+
+"""
+    clear_undo_history!(buffer) -> buffer
+
+Forget every step, in both directions.
+
+Call it when the document is replaced rather than edited — a file re-read from
+disk, say — because the steps of the old document say nothing about the new one.
+"""
+function clear_undo_history!(buffer::UndoBuffer)
+    _empty_entries!(buffer.undo_entries)
+    _empty_entries!(buffer.redo_entries)
+    buffer
+end
+
+# Deleting from the front, one at a time, is how the gesture log bounds its own
+# buffer: a `CellVector` write is what the readers of the collection follow.
+function _empty_entries!(entries)
+    while length(entries) > 0
+        deleteat!(entries, 1)
+    end
+    entries
+end
+
+function _trim_entries!(entries, capacity::Integer)
+    while length(entries) > capacity
+        deleteat!(entries, 1)
+    end
+    entries
+end
+
+"""
+    is_undo_step(gesture, operation) -> Bool
+
+Whether this operation belongs in a history: the filter a buffer uses when
+nobody names another one.
+
+It drops the operations that change nothing and the bare selection moves. A
+caret move follows almost every key and almost every click, and a history full
+of caret moves is one a person can not use. A compound that carries a write is
+kept, because only a bare selection move matches.
+
+Pass `(gesture, operation) -> operation !== nothing` to a buffer to record the
+caret moves as well.
+"""
+is_undo_step(gesture, operation) =
+    !(operation === nothing ||
+      operation isa DoNothingOperation ||
+      operation isa ReplaceSelectionOperation)
+
+# ── The three operations ─────────────────────────────────────────────────────
+
+"""
+    RecordUndoOperation(buffer, operation)
+
+Apply `operation` and put the way back on `buffer`.
+
+It is what the projection of a buffer answers in place of the operation the
+reader below it made. The recording is an operation and not something the reader
+does itself, because a reader never changes anything: it names the change and
+the editor applies it.
+
+The way back is taken **before** the change is applied, because an inverse reads
+the state the change starts from. A change nobody could invert becomes a barrier
+entry, so the history stops there instead of lying about it.
+"""
+struct RecordUndoOperation <: WrappingOperation
+    buffer::UndoBuffer
+    operation::Any
+end
+
+get_wrapped_operation(op::RecordUndoOperation) = op.operation
+rewrap_operation(op::RecordUndoOperation, inner) = RecordUndoOperation(op.buffer, inner)
+
+"""
+    UndoOperation(buffer)
+
+Take back the last step of `buffer`, and put it on what can be redone.
+
+It carries the buffer itself, so it travels up the reader chain unchanged and
+needs no rerooting.
+"""
+struct UndoOperation <: Operation
+    buffer::UndoBuffer
+end
+
+"""
+    RedoOperation(buffer)
+
+Put back the last step that `UndoOperation` took back.
+"""
+struct RedoOperation <: Operation
+    buffer::UndoBuffer
+end
+
+operation_travels_unchanged(::UndoOperation) = true
+operation_travels_unchanged(::RedoOperation) = true
+
+"""
+    make_undoable_operation(buffer, operation) -> operation
+
+`operation`, recorded on `buffer` when it runs.
+
+Use it to put a change into a history from outside the reader chain: a tool that
+a model calls, a driver that posts its work, a script. A reader needs it only
+through the projection, which wraps what it reads.
+"""
+make_undoable_operation(buffer::UndoBuffer, operation) =
+    operation === nothing ? nothing : RecordUndoOperation(buffer, operation)
+
+# ── What the three do ────────────────────────────────────────────────────────
+
+function evaluate_operation(editor, op::RecordUndoOperation)
+    label = describe_operation(op.operation)
+    before = copy_reference(get_selection(editor.document))
+    inverse = evaluate_invertible_operation!(editor, op.operation)
+    push_undo_entry!(op.buffer, UndoEntry(label, inverse, before))
+    nothing
+end
+
+evaluate_operation(editor, op::UndoOperation) =
+    _step_undo_history!(editor, op.buffer.undo_entries, op.buffer.redo_entries)
+
+evaluate_operation(editor, op::RedoOperation) =
+    _step_undo_history!(editor, op.buffer.redo_entries, op.buffer.undo_entries)
+
+# One step of the history, in either direction. Undo and redo differ only in
+# which list a step is taken from and which one it goes to, because the way back
+# from a way back is the way there.
+#
+# The caret is read before anything is applied, so the entry that goes on the
+# other list carries the place the reverse step starts from — the same rule the
+# entry being applied follows.
+function _step_undo_history!(editor, from, to)
+    length(from) == 0 && return nothing
+    entry = from[end]
+    is_undo_barrier(entry) && return nothing
+    here = copy_reference(get_selection(editor.document))
+    back = evaluate_invertible_operation!(editor, entry.inverse)
+    deleteat!(from, length(from))
+    push!(to, UndoEntry(entry.label, back, here))
+    entry.selection === nothing || _restore_selection!(editor.document, entry.selection)
+    nothing
+end
+
+# A path that no longer matches the document is not an error here: an undo puts a
+# value back, and where the caret lands is a convenience on top of that.
+function _restore_selection!(document, path)
+    try
+        replace_selection!(document, path)
+    catch exception
+        exception isa SelectionMismatchException || rethrow()
+    end
+    nothing
+end
+
+# ── The way back from the three ──────────────────────────────────────────────
+#
+# These three methods are what let one buffer hold another. An outer buffer
+# records "this inner buffer took one step" and takes that step back by asking
+# the inner buffer to undo — so it never repeats the inner buffer's work, and the
+# inner buffer's own two lists stay right. An undo a person makes inside is an
+# edit like any other, and its way back is a redo.
+
+make_inverse_operation(document, op::RecordUndoOperation) = UndoOperation(op.buffer)
+make_inverse_operation(document, op::UndoOperation) = RedoOperation(op.buffer)
+make_inverse_operation(document, op::RedoOperation) = UndoOperation(op.buffer)

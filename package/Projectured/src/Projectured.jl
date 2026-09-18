@@ -75,6 +75,7 @@ import ProjecturedFsm
 import ProjecturedProcess
 import ProjecturedConversation
 import ProjecturedAssistant
+import ProjecturedUndo
 import ProjecturedWorkbench
 
 include("../../../source/projectured/Projectured.jl")

@@ -51,6 +51,7 @@ ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
 ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
 ProjecturedVersioning = "a4ca456b-a893-43e8-800f-57a1f4488681"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
+ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
 ProjecturedWorkbench = "0f877e1b-20a0-4c5b-94fa-be7570d31986"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
@@ -103,6 +104,7 @@ ProjecturedText = {path = "../ProjecturedText"}
 ProjecturedTooltip = {path = "../ProjecturedTooltip"}
 ProjecturedVersioning = {path = "../ProjecturedVersioning"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}
+ProjecturedUndo = {path = "../ProjecturedUndo"}
 ProjecturedWorkbench = {path = "../ProjecturedWorkbench"}
 ProjecturedXml = {path = "../ProjecturedXml"}
 ProjecturedYaml = {path = "../ProjecturedYaml"}

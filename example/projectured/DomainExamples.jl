@@ -124,6 +124,13 @@ const formula_example        = Example("formula",         make_formula_document_
 # `test_reader(...)` / `test_position_navigation(...)`. Use it interactively with
 # `run_example(versioning_example)`.
 const versioning_example     = Example("versioning",      make_versioning_document_example,     make_versioning_projection_example)
+# `undo_example` is deliberately kept OUT of the `examples` registry below, for
+# the reason `versioning_example` is: the enumeration-based suites run every
+# sub-test on one shared document, and a buffer records what those sweeps do, so
+# a later sub-test would start with a history the sweep before it left. Each
+# suite passes on a fresh document — run them one at a time, e.g.
+# `test_printer(undo_example)`. Use it interactively with `run_example(undo_example)`.
+const undo_example           = Example("undo",            make_undo_document_example,           make_undo_projection_example)
 
 # The domain tier's slice of the example registry, in registry order.
 const domain_examples = Example[
@@ -183,6 +190,7 @@ const domain_examples = Example[
     clipboard_example,
     formula_example,
     versioning_example,
+    undo_example,
 ]
 
 # ── The domain tier's slice of the atomic-document registry ───────────────────
@@ -421,4 +429,5 @@ const domain_atomic_documents = AtomicDocument[
     # JSON array, a `VersionedObject` over a JSON object.
     AtomicDocument(:dragging, "state", make_dragging_document_example),
     AtomicDocument(:versioning, "object", make_versioning_document_example),
+    AtomicDocument(:undo, "buffer", make_undo_document_example),
 ]
