@@ -755,10 +755,11 @@ function describe_api(api; signatures::Bool = true)
     isempty(lines) ? "" : join(lines, "\n")
 end
 
-# The names `@document` writes beside a schema, one per storage kind: `ACFoo`,
-# `RCFoo`, `ICFoo`, `MCFoo`, `DCFoo` and `AFoo`. The macro exports them, so a
-# declaration of a module holds them all.
-const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A")
+# The names `@document` writes beside a schema: one per storage kind, `ACFoo`,
+# `RCFoo`, `ICFoo`, `MCFoo`, `DCFoo` and `AFoo`, and the struct of the native
+# layout, `MFoo` or `IFoo`. The macro exports them all, so a declaration of a
+# module holds them all.
+const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 
 # Whether `name` is one of those. It is a variant when the name is a prefix and
 # a type that the same module has: `ACCellVector` beside `CellVector`. The check

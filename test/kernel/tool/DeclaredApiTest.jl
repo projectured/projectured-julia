@@ -61,7 +61,7 @@ end
 # A document type as `@document` writes one: the schema, and the names the macro
 # writes beside it, one per storage kind. The macro exports them all.
 module ToyStorage
-export ToyBox, ACToyBox, DCToyBox, ICToyBox, MCToyBox, RCToyBox, AToyBox, Action
+export ToyBox, ACToyBox, DCToyBox, ICToyBox, MCToyBox, RCToyBox, AToyBox, MToyBox, Action
 """
     ToyBox(lid)
 
@@ -76,6 +76,10 @@ const ICToyBox = ToyBox
 const MCToyBox = ToyBox
 const RCToyBox = ToyBox
 const AToyBox = ToyBox
+# The native layout is a struct of its own, not an alias.
+struct MToyBox
+    lid::Bool
+end
 """A command, whose name opens with the letter of a variant."""
 struct Action
     label::String
