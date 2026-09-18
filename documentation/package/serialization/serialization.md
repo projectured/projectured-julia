@@ -62,11 +62,10 @@ restricted Julia expression read by the Julia parser and run by a small
 interpreter — never `eval` — so opening a project can never execute
 arbitrary code. `file` and `node` are built in; a package registers any other
 verb with `register_marker_function!(:name, f)`, called as
-`f(project, args...)`.
-
-Loading parses every file with its own format first, then walks each tree and
-replaces every marker leaf with the node it names, so a cycle across files
-becomes a cycle in memory, the same as a cycle inside one file.
+`f(project, args...)`. Loading parses every file with its own format first,
+then walks each tree and replaces every marker leaf with the node it names,
+so a cycle across files becomes a cycle in memory, the same as a cycle
+inside one file.
 
 `TextFile` is the simplest file document: its content is a raw `String`, no
 parser and no projection runs, and it is the fallback for any extension no
