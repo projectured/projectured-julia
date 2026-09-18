@@ -5,10 +5,10 @@
 How the code of this repository reads, and what keeps it readable. A human reads
 this code to learn what it does. Every rule here serves that reader.
 
-The rules that hold in all three repositories are in
-`omnet-team/policy/code-quality-rules.md`. Read them first. This document adds
-what is true here: the shape of a file, the local rules, the size budgets, and
-the measured baseline. It never weakens a shared rule.
+This document holds the rules of this repository: the shape of a file, the
+local rules, the size budgets, and the measured baseline. Where a rule is about
+a name, [naming-rules.md](naming-rules.md) is the one that decides; where it is
+about a document, [writing-rules.md](writing-rules.md) is.
 
 ## What this document does not cover
 
@@ -102,15 +102,15 @@ See also `make_result_table`, which shows the same frame as rows.
   a model copies a shape more than it reads a signature.
 - **See also** names the neighbours a model confuses it with.
 
-A docstring of a declared name without its "Use it to" paragraph is found by:
+A name the assistant can reach without its "Use it to" paragraph is found by:
 
 ```bash
 grep -rlE '^Use it to ' --include='*.jl' source | sort > /tmp/documented
-grep -rhoE ':[a-z_]+!?' source/campaign/*Verbs.jl source/ide/*Verbs.jl | sort -u  # the names a window declares
 ```
 
-The second list against the first is the work left; the omnet IDE's
-`get_assistant_api()` is the list that matters.
+The names that matter are the ones `search_api` ranks, which is every exported
+name of the loaded packages. A name a model is expected to call, and that has
+no such paragraph, is the work left.
 
 ## 2. A comment says what is, never what was
 
@@ -216,9 +216,8 @@ better as one list.
 
 ## 5. The measured baseline
 
-Reproduce these with the commands in
-`omnet-team/policy/code-quality-rules.md`. A number that grows without a
-reason is the signal the steward watches.
+Each number below comes from the command beside it. A number that grows
+without a reason is the signal to look at the file that grew.
 
 | Measurement | 2026-08-14 |
 | --- | --- |

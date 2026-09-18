@@ -7,9 +7,8 @@ code is laid out. This file is the map. It draws the chain that derives the code
 from first principles, lists every document with its place in the chain, and
 states the header that every document carries.
 
-The structure is the one omnet-julia uses, so a reader who knows one repository
-knows the other. See
-[omnet-julia/documentation/README.md](../../omnet-julia/documentation/README.md).
+The same structure is used in the other repositories of this author, so a
+reader who knows one of them knows this one.
 
 ## The folders and the chain
 
@@ -33,7 +32,7 @@ package/       the guide of each slice
 presentation/  the slide decks
 ```
 
-Three folders that omnet-julia has are **not** here, because there is nothing
+Three more folders of this structure are **not** here, because there is nothing
 yet to put in them. `evidence/` holds a risk register and the numbers measured
 against a predecessor; `study/` holds experiments that are not decisions;
 `history/` holds how the chain came to be. Until then the history is
@@ -101,8 +100,8 @@ folder's own `README.md` carries the header and says what each deck is.
 | reference | Where is what, and how is it used? |
 | procedure | How do I do this task? |
 
-`evidence`, `study` and `history` are kinds omnet-julia uses that no document
-here carries yet. Add one when the folder that holds it arrives.
+`evidence`, `study` and `history` are three more kinds, which no document here
+carries yet. Add one when the folder that holds it arrives.
 
 **Status** is `current` (a qualifier can follow a semicolon), `snapshot <date>`,
 `superseded by <document>`, or `generated, do not edit`.
