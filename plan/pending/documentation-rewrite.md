@@ -1072,9 +1072,26 @@ The model tag `qwen3.8:27b` looked wrong to it. It is right: that model is on
 the server of this machine, and it is the default of `source/ollama/Ollama.jl`.
 - [ ] A language review against `writing-rules.md`, one document group at a
       time.
-- [ ] An assistant test: `list_guides()` shows a real summary for each guide,
+- [x] An assistant test: `list_guides()` shows a real summary for each guide,
       and each guide name in the prompts resolves. If the machine has the
       memory free, one real session with Ollama.
+
+`test_list_guides()` walks every guide of the list, 146 assertions, and none of
+them carries the header line. The guard checks every `resource://guide/…` string
+of `source/` and `documentation/`, and finds none that answers to nothing.
+
+**The live session (2026-09-18, no GPU, the model on the processor).** One turn,
+asked: "Name the ProjecturEd function that opens a window on any Julia value.
+Use search_api to find it. Answer with the name only."
+
+| Model | Time | What it did |
+| --- | --- | --- |
+| `mistral:latest` (7B) | 13 s | called no tool and answered nonsense |
+| `qwen3.8:27b` (the default) | 49 s | searched the API by description, said "Not it — let me refine the search", searched again, searched the guides, read `resource://guide/guide/view-your-data-guide`, and answered `run_value_viewer` |
+
+So the local path works end to end, and the guide written today is what the
+model read to answer. The small model is not enough for a tool-using turn, which
+is why the assistant guide names the model to pull.
 - [ ] Check again every claim of §2.3, §2.5 and the roadmap against `main`.
 - [ ] `test_documentation()` passes. Record the final counts.
 
