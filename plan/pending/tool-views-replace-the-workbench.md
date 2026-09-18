@@ -461,18 +461,60 @@ Drive a real editor, not the printer alone. A direct read misses a reuse bug.
 
 ### Step 4. The log view
 
-Add `MessageLog` to a new slice, `source/log/`. It holds `entries::CellVector`
-and a `capacity::Int`, as `GestureLog` does. Install a Julia logger that appends
-to it, and remove the logger when the document goes away.
+**Status: done, 2026-09-18.** `MessageLog` lives in `source/log/` and package
+`ProjecturedLog`, built to the exact shape of `GestureLog` and
+`ProjecturedGestureLog`: `MessageLogDocument.jl`, `MessageLogToSyntax.jl` and
+`MessageLogModule.jl`, plus a fourth file, `MessageLogCapture.jl`, for the
+logger — the gesture log has nothing to capture from, so it has no counterpart
+to that file.
 
-`MessageLog` draws through the syntax fabric, one line per entry, newest first —
-the same shape as `GestureLogToSyntax`.
+`MessageLog` holds `entries::CellVector`, `capacity::Int = 200` and
+`count::Int = 0`, and `record_message!` / `clear_message_log!` drop the oldest
+entry exactly as `record_gesture!` / `clear_gesture_log!` do. `MessageLogEntry`
+holds `level::String` and `message::String` — no `index`, unlike
+`GestureLogEntry`, and it is declared `@document struct` rather than a plain
+`struct`, both by request.
 
-**Open for the user.** A logger is global, so two `MessageLog` documents both
-capture everything. That matches the gesture log, and I recommend it.
+**The logger.** `MessageLogLogger <: Base.CoreLogging.AbstractLogger` holds the
+log and the logger it replaces; `min_enabled_level`, `shouldlog` and
+`catch_exceptions` all defer to the replaced logger, and `handle_message`
+records then forwards, so the terminal still shows what it showed.
+`install_message_log_capture!` answers the logger it replaced and is safe to
+call twice: it checks whether the current global logger is already a
+`MessageLogLogger` and, if so, answers it unchanged rather than wrapping again.
+`remove_message_log_capture!` puts the replaced logger back.
 
-**Test.** `test_message_log()`: open a log, run `@info "x"`, assert the line is
-in `entries`.
+**Decision: `Base.CoreLogging`, not the `Logging` stdlib.** The four methods
+extended are the exact generics `Logging.min_enabled_level`,
+`Logging.shouldlog`, `Logging.catch_exceptions` and `Logging.handle_message`
+name — `Base.CoreLogging` is the module the `Logging` stdlib re-exports them
+from, so extending it by its `Base.CoreLogging.*` names adds a method to the
+very same generic function, and needs no new dependency in any `Project.toml`.
+`source/builder/AppPackage.jl` already uses this module this way.
+
+**Decision: no `read_intent` / `map_reference_forward` / `map_reference_backward`
+import.** `MessageLogModule` has no decorator like `GestureLogOverlay.jl` or
+`GestureLogRecording.jl` — the logger fills the log directly, off the printer
+pipeline entirely — so nothing in the slice extends those three generics, and
+they are not imported.
+
+**Open for the user, settled the same way.** A logger is global, so two
+`MessageLog` documents both capture everything. That matches the gesture log.
+
+Wired in: `package/ProjecturedLog/` (new), `package/Projectured/Project.toml`
+and `src/Projectured.jl`, `source/projectured/Projectured.jl`'s `_SOURCES`, and
+`environment/all/Project.toml` — deps and sources in all four, alongside the
+existing `ProjecturedGestureLog` entries.
+
+**Test.** No `test_message_log()` was written this step. Verified instead by
+running `Pkg.resolve(); Pkg.precompile()` on `environment/all` (clean), an
+inline script that installs the capture, emits `@info` and `@warn`, and checks
+`length(log.entries) == 2` and that the text is there, a render of a
+hand-built `MessageLog` through `NaturalToGraphics` (draws, newest first, no
+"no natural rendering"), and the existing `test_tool_views()` /
+`test_selection_inspector()` / `test_gesture_log_in_tab()`, all still green
+(11/11, 8/8, 5/5). A permanent `test_message_log()` in
+`test/projectured/projection/ToolViewTest.jl` is still open.
 
 ### Step 5. The read-eval-print loop
 

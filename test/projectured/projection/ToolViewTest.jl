@@ -195,3 +195,67 @@ clear_gesture_log!(log)
 
 end
 end
+
+# A log view captures what the program says.
+#
+# The capture is a Julia logger installed for the session. It records each
+# message and then forwards it to the logger it replaced, so the terminal still
+# shows what it showed. A log a person opens by name is the session's own log,
+# because a fresh empty one would never fill.
+function test_message_log()
+@testset "a log view captures log statements" begin
+
+_stub(t, f) = (max(1, length(t)) * 10, 24)
+
+function drawn(node, depth = 0)
+    depth > 40 && return ""
+    node isa GraphicsText && return String(node.text) * " "
+    node isa GraphicsCanvas &&
+        return join([drawn(node.elements[i], depth + 1) for i in 1:length(node.elements)])
+    node isa GraphicsViewport && return drawn(node.content, depth + 1)
+    ""
+end
+
+log = get_session_message_log()
+clear_message_log!(log)
+previous = install_message_log_capture!()
+try
+    @testset "the capture records and forwards" begin
+        @info "a message the log view keeps"
+        @warn "and a warning"
+        @test length(log.entries) == 2
+        @test any(occursin("a message the log view keeps", String(log.entries[i].message))
+                  for i in 1:length(log.entries))
+    end
+
+    @testset "a second install does not double every message" begin
+        # Each install wraps the current logger, so two of them would record
+        # every message twice and the view would read as if the program said
+        # everything twice.
+        install_message_log_capture!()
+        before = length(log.entries)
+        @info "once"
+        @test length(log.entries) == before + 1
+    end
+
+    @testset "the view draws what it captured" begin
+        text = drawn(get_iomap_output(
+            print_document(NaturalToGraphics(measure = _stub), nothing, log,
+                           PrinterContext(EmptyReference(), Cell(600), Cell(400),
+                                          Dict{Symbol,Any}()))))
+        @test !occursin("no natural rendering", text)
+        @test occursin("a message the log view keeps", text)
+    end
+finally
+    remove_message_log_capture!(previous)
+    clear_message_log!(log)
+end
+
+@testset "a person opens it by name" begin
+    @test make_insertion_document(MessageLog) === log
+    @test resolve_insertion(Document, "log") === MessageLog
+    @test get_document_title(MessageLog()) == "Log"
+end
+
+end
+end

@@ -48,6 +48,7 @@ import ProjecturedTooltip
 import ProjecturedInspector
 import ProjecturedGestureHelp
 import ProjecturedGestureLog
+import ProjecturedLog
 import ProjecturedFileFormat
 import ProjecturedNatural
 import ProjecturedConsole

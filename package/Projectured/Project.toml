@@ -30,6 +30,7 @@ ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
+ProjecturedLog = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
@@ -83,6 +84,7 @@ ProjecturedJson = {path = "../ProjecturedJson"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedLayout = {path = "../ProjecturedLayout"}
+ProjecturedLog = {path = "../ProjecturedLog"}
 ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMath = {path = "../ProjecturedMath"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}

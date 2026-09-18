@@ -1,0 +1,44 @@
+"""
+    MessageLogModule
+
+A record of what the program said — a document that holds the last N log
+messages a Julia logger captured.
+
+The buffer has a fixed size. `record_message!` appends one entry and deletes
+the oldest entry when the buffer is full. The entries live in a `CellVector`,
+so an append invalidates every reader of the collection and the display
+redraws.
+
+[`MessageLogToSyntax`](MessageLogToSyntax.jl) projects the log onto the
+Syntax → Text → Graphics path. [`MessageLogLogger`](MessageLogCapture.jl) is
+the Julia logger that fills it.
+"""
+module MessageLogModule
+
+using ..CellModule
+using ..CollectionModule
+using ..DocumentModule
+using ..DomainModule
+using ..IoMapModule
+using ..NaturalModule
+using ..ProjectionModule
+using ..ReferenceModule
+using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: get_document_title
+import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..ProjectionModule: print_document
+
+export MessageLogEntry, MessageLog, get_session_message_log,
+       record_message!, clear_message_log!
+export MessageLogLogger, install_message_log_capture!, remove_message_log_capture!
+export MessageLogToSyntax
+
+include("MessageLogDocument.jl")
+include("MessageLogCapture.jl")
+include("MessageLogToSyntax.jl")
+
+end # module

@@ -261,10 +261,19 @@ function run_application(paths::AbstractString...; window::Symbol = :pane,
                                          root = root, assistant = chat)
     projection = make_application_projection(; window = window, measure = measure)
     backend === nothing && (backend = default_backend())
-    run_window_editor(document, projection, "ProjecturEd";
-                      backend = backend, width = width, height = height, mcp = mcp,
-                      opened_window_projections = Pair{Type,Any}[_gesture_map_entry(measure)],
-                      on_start = editor -> _start_application!(editor, mcp, assistant, model))
+    # What a log view shows is what the program said, and what says it is the
+    # Julia logger. The capture records each message and forwards it, so the
+    # terminal shows what it showed and a tab can show it too. The logger the
+    # window replaced comes back when the window closes.
+    previous_logger = install_message_log_capture!()
+    try
+        run_window_editor(document, projection, "ProjecturEd";
+                          backend = backend, width = width, height = height, mcp = mcp,
+                          opened_window_projections = Pair{Type,Any}[_gesture_map_entry(measure)],
+                          on_start = editor -> _start_application!(editor, mcp, assistant, model))
+    finally
+        remove_message_log_capture!(previous_logger)
+    end
 end
 
 # ── The command line ─────────────────────────────────────────────────────────
