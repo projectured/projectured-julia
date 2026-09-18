@@ -449,14 +449,16 @@ sense". So a docstring is written from the code and from what the thing is for,
 the questions are not read while writing it, and no sentence of a question may
 appear in a docstring. A fixture that the text was fitted to measures nothing.
 
-- [ ] **Write the documentation of the names a reader needs**, in both
-      repositories, to the standard of `code-quality-rules.md`: the first
-      sentence, a "Use it to" paragraph, an example, and the neighbours. Take a
-      module at a time and document what it exports, not a list of names a
-      question mentions.
-- [ ] **Measure again**, and take that as the baseline of the ranking.
-- [ ] **Run the rejected experiments again** on the new text: the header, the
-      chunks, and the fusion. Their results below are about the old text.
+- [x] **The documentation of the kernel's own names**, 2026-09-18: twenty-two
+      docstrings over the cells, the projection's two halves, the operation,
+      the selection, the reference, the map, the document and the saved
+      document, and two of omnet's documents. Six of the files were sealed,
+      and the user allowed them.
+- [x] **Measured again**: by description 11 questions first, 20 in five and 21
+      in ten of 26, against 10, 19 and 20. §7 has it.
+- [x] **The three experiments again on the new text**, and none of them lands.
+      §7 has the numbers.
+- [ ] The rest of the layers a reader needs, module by module.
 
 ### The ranking, one piece at a time (§3g)
 
@@ -685,6 +687,31 @@ have run after the documentation was written for a model, and Step 3 runs them
 again. The one that landed, the rarity of a word, stays for now because what it
 repairs — a common word counting as loudly as a rare one — is a property of the
 scoring and not of the text; it is measured again all the same.
+
+### Step 3, the documentation and the experiments again, 2026-09-18
+
+Twenty-two docstrings were written to the standard, from the code and never
+from the questions. The corpus answered better by description at once:
+
+| projectured, 26 questions | first | in five | in ten | mean reciprocal rank |
+| --- | --- | --- | --- | --- |
+| before the documentation | 10 | 19 | 20 | 0.52 |
+| after it | 11 | 20 | 21 | 0.55 |
+
+By words it moved the other way by one, 6 first to 5, because more prose
+changes what a rare word is. The three experiments, run again on the new text:
+
+| experiment | first | in five | in ten | mean reciprocal rank |
+| --- | --- | --- | --- | --- |
+| the text as it is | 11 | 20 | 21 | 0.55 |
+| a header of the kind, the name, its words and the signature | 11 | 18 | 19 | 0.53 |
+| the documentation in chunks of 600, best chunk wins | 11 | 20 | 21 | 0.56 |
+| the words fused with the meaning | 7 | 14 | 16 | 0.40 |
+
+So the answers stand where they stood on the thin text: the header is worse,
+the fusion is much worse, and the chunks are the same for more vectors. **The
+text is the lever, and the ranking is not.** Twenty-two docstrings bought what
+five ranking experiments could not.
 
 **A caution on comparing.** The guides of projectured changed under these runs,
 because the user is editing them. A guide number is only comparable within one
