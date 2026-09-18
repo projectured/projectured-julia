@@ -460,8 +460,13 @@ its own commit, in this order:
       numbers.
 - [ ] **Fields and their weights**, a BM25F score over an inverted index, if a
       later measurement says a search costs more than about 50 ms.
+- [x] **An entry's documentation cut into chunks**, tried at 600 and at 1,000
+      characters, 2026-09-18, and **not kept**. §7 has the numbers.
+- [x] **An alias carries the documentation of what it stands for**, tried
+      2026-09-18 and **not kept**: it moved nothing.
 - [ ] **Structural signals:** the kind a question asks for, a thing against an
-      action, and the module the window is working in.
+      action, and the module the window is working in. Held: the failures that
+      are left are not of that shape. §7 says what they are.
 - [ ] **A family shown once**, if one family fills the first hits.
 
 ### Step 4. The baseline of the chat model
@@ -602,6 +607,29 @@ beside the meaning, the description answered 8 first, 13 in five and 15 in ten,
 against 10, 19 and 20 for the meaning alone. The rule of 2026-09-16 stands at
 1,389 names: on this corpus the meaning decides and the words only stand in for
 it.
+
+**An entry's documentation in chunks: not kept.** A long docstring gets one
+vector, and one vector over 2,000 characters answers a question about one
+paragraph of it weakly. Cut at 600 characters, with an entry scoring as its
+best chunk, `declare_api!` entered the list at 14 for "say which names a model
+may write", which its own first sentence says; but the corpus answered 9
+questions first instead of 10, the same 19 in five and 20 in ten, and the mean
+reciprocal rank fell from 0.52 to 0.49. At 1,000 characters it was 9 / 19 / 20
+and 0.50. Fewer first and no more in ten is not worth the vectors, so the text
+stays whole.
+
+**An alias that carries the documentation of what it stands for: not kept.**
+`Cell` documents the alias, and `ReactiveCell` documents the thing. With both,
+the corpus answered exactly as before, 10 / 19 / 20, and `Cell` was still not
+among the first fifty for "a value that is computed again when what it reads
+changes".
+
+**What is left is not the engine's to fix.** The names that no mode finds are
+`Cell`, whose documentation is about being an alias; `parse_pred_text`, whose
+whole documentation is two sentences; and `set_cell_function!`, whose
+documentation never says "document" or "field". A ranking cannot read what the
+text does not say. The next lever is the text, which is the docstring standard
+of the last plan, applied wider.
 
 **A caution on comparing.** The guides of projectured changed under these runs,
 because the user is editing them. A guide number is only comparable within one
