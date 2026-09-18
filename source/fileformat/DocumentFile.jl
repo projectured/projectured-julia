@@ -102,3 +102,10 @@ domain's insertion placeholder for a registered natural format, or a
 seed and saving creates the file.
 """
 make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
+
+# ── What a file is called ────────────────────────────────────────────────────
+
+# A tab with no name of its own is called after what it holds, and a file holds
+# its own name. The base name is what a person reads: the directory is context,
+# and a tab strip has no room for it.
+get_document_title(file::FileDocument) = basename(String(get_filename(file)))

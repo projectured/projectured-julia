@@ -53,6 +53,13 @@ end
     end
 end
 
+@testset "a file names the tab that holds it" begin
+    # A tab with no name of its own is called after what it holds. A file holds
+    # its own name, and the base name is what fits a tab strip.
+    @test get_document_title(JsonFile("a.json", JsonNull())) == "a.json"
+    @test get_pane_tab_title_string(PaneTab("", JsonFile("a.json", JsonNull()))) == "a.json"
+end
+
 # The insertion reaches each tool by its own name, which is what makes
 # Ctrl+T, Insert, a name, Enter work.
 @testset "the insertion resolves each tool by name" begin

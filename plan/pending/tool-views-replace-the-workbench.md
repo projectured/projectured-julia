@@ -536,6 +536,20 @@ holds, and a person types a short word instead of a type name.
 
 ### Step 7. A file tab holds a `FileDocument`
 
+**Status: point 2 done, 2026-09-18.** `get_document_title(::FileDocument)`
+answers the base name, so a `JsonFile` in a tab calls that tab `a.json`. It lives
+in the file format slice, which already has every dependency it needs; the
+serialization slice that declares `FileDocument` depends on the kernel alone and
+must stay that way.
+
+The projection (point 1) is **not** a `@projection_template`, and not a
+`SimpleIoMap` that answers the content either. A registered row must reach
+graphics, and a row whose output is another document does not: the recursion
+re-enters for a node's CHILDREN, not for its output. The printer must call the
+recursion on the content itself, the way `_content_pane` in `WorkbenchToWidget.jl`
+and `_recurse` in `PaneToWidget.jl` do. Points 3 to 5 move with Step 8, which is
+where the file tab changes.
+
 1. Write one `@projection_template` that draws a `FileDocument` by drawing its
    `content`, and register it for `FileDocument` in the natural table.
 2. Give `FileDocument` a `get_document_title` that answers `basename(filename)`.

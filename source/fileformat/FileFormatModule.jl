@@ -32,6 +32,9 @@ using ..ReferenceModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
+
+# Imported to extend: this module adds a method to it.
+import ..DocumentModule: get_document_title
 using ..TextModule
 using ..WidgetModule
 
