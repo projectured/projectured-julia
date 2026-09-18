@@ -4,7 +4,9 @@
 The file-system domain.
 
 The file and directory documents, read from a real path, and their two
-projections: a syntax tree and a widget tree.
+projections: a syntax tree and a widget tree. The workspace — one or more
+named folder roots, and the tool view a person opens by typing `explorer` —
+is here too: it is the file system's own document, not a consumer's.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -14,6 +16,7 @@ lower package, so each module is bound once, under its own name.
 module ProjecturedFileSystem
 
 using ProjecturedCollection
+using ProjecturedDomain
 using ProjecturedKernel
 using ProjecturedNatural
 using ProjecturedPrimitive
@@ -23,7 +26,7 @@ using ProjecturedSyntax
 using ProjecturedText
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedKernel, ProjecturedNatural, ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

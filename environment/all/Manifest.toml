@@ -1013,7 +1013,7 @@ uuid = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 version = "0.1.0"
 
 [[deps.ProjecturedFileSystem]]
-deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedFileSystem"
 uuid = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 version = "0.1.0"

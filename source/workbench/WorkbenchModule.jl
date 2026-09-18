@@ -1,11 +1,11 @@
 """
     WorkbenchModule
 
-The workspace document domain. A workspace groups one or more named folder
-roots (WorkspaceFolder) into a single container (Workspace). Each folder
-carries a display name and a filesystem pathname; the actual directory
-contents are produced by projection (WorkspaceFolderToFileSystemDirectory),
-not stored in the document.
+The workbench application shell: the four-page workbench document
+(navigator, editing, information, assistant), its widget projection, and the
+file tab (`WorkbenchEditor`) that Ctrl+S saves and Ctrl+O reloads. The
+navigator holds a `Workspace`, which is the file-system slice's document —
+this module opens one of its files into an editing tab.
 """
 module WorkbenchModule
 
@@ -36,11 +36,9 @@ import ..CellModule: set_cell_function!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
-export WorkspaceDocument
 export WorkbenchDocument, get_workbench_title, set_cell_function!, DEFAULT_ASSISTANT_SYSTEM,
        WorkbenchOpenDocumentOperation, WorkbenchCloseDocumentOperation,
        OpenWorkspaceFileOperation, make_workbench_file_editor
-export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchPageToWidgetTabbedPane,    WorkbenchPageToWidgetTabbedPaneIoMap,
        WorkbenchNavigatorToWidgetScrollPane, WorkbenchNavigatorToWidgetScrollPaneIoMap,
@@ -52,12 +50,10 @@ export WorkbenchWorkbenchToWidgetShell,    WorkbenchWorkbenchToWidgetShellIoMap,
        WorkbenchEditorToWidgetScrollPane,
        WorkbenchToWidget
 export SaveWorkbenchEditorOperation, ReloadWorkbenchEditorOperation
-export Workspace, WorkspaceFolder, WorkbenchWorkbench, WorkbenchPage, WorkbenchEditor
+export WorkbenchWorkbench, WorkbenchPage, WorkbenchEditor
 
 
-include("Workspace.jl")
 include("WorkbenchDocument.jl")
-include("WorkspaceToFileSystem.jl")
 include("WorkbenchToWidget.jl")
 include("WorkbenchFile.jl")
 

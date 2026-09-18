@@ -53,6 +53,26 @@ end
     end
 end
 
+@testset "the file explorer opens by name, seeded" begin
+    # `Workspace()` holds no folder, and an empty explorer shows nothing. A
+    # person who opens one by name gets the working directory in it.
+    explorer = make_insertion_document(Workspace)
+    @test length(explorer.folders) == 1
+    @test resolve_insertion(Document, "explorer") === Workspace
+    @test get_pane_tab_title_string(PaneTab("", explorer)) == "Explorer"
+    @test !occursin("no natural rendering", render(explorer))
+end
+
+# The file system slice declares the intent to open a file, and the slice that
+# knows where to put one defines what happens. Without that inversion the
+# explorer could not draw without the workbench, which owned the operation.
+@testset "opening a file is an intent the file system declares" begin
+    @test OpenFileOperation("a.json") isa Operation
+    # It carries its own subject and names no reference, so every reader between
+    # the click and the editor passes it up unchanged.
+    @test operation_travels_unchanged(OpenFileOperation("a.json"))
+end
+
 @testset "a file names the tab that holds it" begin
     # A tab with no name of its own is called after what it holds. A file holds
     # its own name, and the base name is what fits a tab strip.

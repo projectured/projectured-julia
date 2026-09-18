@@ -16,19 +16,23 @@
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """
-    FileSystemToWidgetTree(position = Point2D(0, 0); open_file = nothing)
+    FileSystemToWidgetTree(position = Point2D(0, 0); open_file = OpenFileOperation)
 
-The file-system view. `open_file` is `nothing`, or a function that takes the
-absolute path of a file and returns the operation that opens it. With a
-function, Enter on the selected file and a double click on a file row return
-that operation. The view does not open anything itself: the editor evaluates
-the operation, so the view stays free of side effects.
+The file-system view. `open_file` is a function that takes the absolute path of
+a file and returns the operation that opens it, or `nothing` to disable
+opening. Enter on the selected file and a double click on a file row call it
+and return that operation. The view does not open anything itself: the editor
+evaluates the operation, so the view stays free of side effects.
+
+The default is `OpenFileOperation`, the intent this slice declares — it names
+the file and nothing about where it goes. A caller that knows the destination
+(a workbench tab, a pane) passes its own operation instead.
 """
 struct FileSystemToWidgetTree <: Projection
     position::Point2D
     open_file::Any
 end
-FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = nothing) =
+FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = OpenFileOperation) =
     FileSystemToWidgetTree(position, open_file)
 
 # ── Node construction (icon + text per item) ──────────────────────────────────
@@ -176,10 +180,10 @@ end
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 """
-    FileSystemToWidget(; open_file = nothing)
+    FileSystemToWidget(; open_file = OpenFileOperation)
 
 Projection mapping a file-system document to a single [`WidgetTree`](@ref) with a
 dedicated icon + text per item. Wrap in `RecursiveProjection` at the call site.
 `open_file` is as in [`FileSystemToWidgetTree`](@ref).
 """
-FileSystemToWidget(; open_file = nothing) = FileSystemToWidgetTree(; open_file = open_file)
+FileSystemToWidget(; open_file = OpenFileOperation) = FileSystemToWidgetTree(; open_file = open_file)

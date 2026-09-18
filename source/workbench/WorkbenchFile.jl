@@ -109,6 +109,13 @@ function evaluate_operation(editor, op::OpenWorkspaceFileOperation)
     nothing
 end
 
+# The file-system slice names the intent (`OpenFileOperation`) without knowing
+# where the opened file goes. This is where it goes: the same tab, the same
+# placement rules as `OpenWorkspaceFileOperation`.
+function evaluate_operation(editor, op::OpenFileOperation)
+    evaluate_operation(editor, OpenWorkspaceFileOperation(op.path))
+end
+
 # What the first window of the editor shows. A caller without a screen, a test
 # for example, holds the window's document itself.
 function _get_window_content(editor)

@@ -186,6 +186,21 @@ system slice. `WorkbenchFile.jl` moves to the pane slice, without
 `WorkbenchEditor`. Everything else is deleted: the four-page shell, the nine
 panel types, `WorkbenchToWidget.jl`, and the three packages.
 
+**Amended 2026-09-18: the open-a-file intent moves down ahead of the file
+itself.** `FileSystemToWidget(open_file = ...)` names an operation but the
+file system slice cannot declare one, because it does not know where an
+opened file goes — a workbench tab, a pane. Inverting it solves that without
+waiting for Step 8's workbench deletion: the file system slice declares
+`OpenFileOperation(path) <: Operation`, marked `operation_travels_unchanged`
+for the same reason as its workbench counterpart, and `FileSystemToWidget`'s
+`open_file` defaults to it. The slice that knows the destination defines
+`evaluate_operation` for it — today that is the workbench
+(`evaluate_operation(editor, ::OpenFileOperation)` in `WorkbenchFile.jl`,
+delegating to the unchanged `OpenWorkspaceFileOperation`), and once Step 8
+deletes the workbench, the pane slice defines it directly instead. The
+workbench's own `OpenWorkspaceFileOperation` is untouched by this — it keeps
+serving `WorkbenchFile.jl`'s own callers until the workbench is deleted.
+
 ### D7. The names
 
 A document is a noun. The alias is what a person types.
@@ -333,12 +348,33 @@ of bug this test found. 5 pass, 2 broken.
 
 ### Step 1. Four tools register their own row
 
-**Status: three done, 2026-09-18.** The assistant, the gesture log and the
-reference inspector each register from their own `__init__`. `Workspace` waits
-for Step 8, which moves it to the file system slice — that slice already
-registers a row and already depends on the natural package, so the file explorer
-costs nothing there and a dependency added to the workbench now would be thrown
-away.
+**Status: done, 2026-09-18.** The assistant, the gesture log and the reference
+inspector each register from their own `__init__`. `Workspace` followed once
+its move to the file system slice (the part of Step 8 done below): that slice
+already registered a row and already depended on the natural package, but it
+did **not** already depend on `ProjecturedDomain` — `get_insertion_aliases` and
+`make_insertion_document` needed it, exactly as `ProjecturedGestureLog` and
+`ProjecturedLog` already show. **Correction to the claim below:** the file
+explorer did not cost nothing; it cost one dependency, added to
+`ProjecturedFileSystem` rather than thrown away on the workbench, which is the
+outcome the paragraph below was really arguing for.
+
+**The intent moved down, not the operation.** Rather than wait for Step 7's
+"move `OpenWorkspaceFileOperation` to the pane slice", the file system slice
+now declares its own operation, `OpenFileOperation(path)`, in
+`FileSystemDocument.jl` — it names a file to open and nothing about where,
+marked `operation_travels_unchanged` for the same reason
+`OpenWorkspaceFileOperation` is. `FileSystemToWidget`'s `open_file` keyword
+defaults to it. The workbench still works unchanged: `WorkbenchFile.jl` keeps
+`OpenWorkspaceFileOperation` exactly as it was and additionally defines
+`evaluate_operation(editor, ::OpenFileOperation)` delegating to it, so a
+navigator built with the default `open_file` already opens a file into a
+workbench or a pane tree. **This changes Step 7 point 5 and Step 8's later
+cleanup:** there is no longer an `OpenWorkspaceFileOperation` to move to the
+pane slice — the pane slice defines `evaluate_operation` for the
+already-existing `OpenFileOperation` instead, and `OpenWorkspaceFileOperation`
+along with its workbench-side `evaluate_operation` is simply deleted with the
+rest of the workbench.
 
 The duplicate rows in `example/projectured/Gallery.jl` and
 `example/projectured/Application.jl` are **not** removed yet. An `extra` row
@@ -353,7 +389,19 @@ re-resolve.
 **Test.** [test/projectured/projection/ToolViewTest.jl](../../test/projectured/projection/ToolViewTest.jl),
 function `test_tool_views()`. It asserts each tool takes no argument, that the
 renderer claims it rather than falling through to "no natural rendering", and
-that the insertion resolves it by name. 9 pass.
+that the insertion resolves it by name. 11 pass (measured 2026-09-18, after the
+file explorer's move — the file did not need a new assertion added, since the
+existing three-tool checks already exercise the shape).
+
+Verified directly for `Workspace`, since `test_tool_views()` does not name it:
+`make_insertion_document(Workspace)` seeds one folder,
+`resolve_insertion(Document, "explorer") === Workspace`,
+`get_document_title` and `get_pane_tab_title_string` both answer `"Explorer"`,
+and the `NaturalToGraphics` render of the seeded workspace lists real entries
+of the working directory and contains no "no natural rendering". `test_workbench()`
+and `test_application()` (72/72) are unaffected — `test_workbench()`'s
+144 pass / 3 fail / 2 error is unchanged from clean `main`, confirmed by
+stashing this step's changes and rerunning.
 
 
 Each slice registers from its `__init__`, with `register_natural_graphics!` for
@@ -361,18 +409,28 @@ a tool that draws widgets and `register_natural_syntax!` for one that draws a
 tree.
 
 1. `Assistant => AssistantToWidgetSplitPane()`, from `AssistantModule`.
-2. `WorkspaceDocument => ChainingProjection(WorkspaceToFileSystem(), FileSystemToWidget(...), ...)`,
-   from the file system slice after Step 8 moves it.
+2. **Done.** `WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()), RecursiveProjection(FileSystemToWidget()), WidgetToGraphics(...))`,
+   registered in `FileSystemToSyntax.jl`'s existing `__init__`, beside the
+   `:filesystem` syntax row — a module takes one `__init__`, so both rows live
+   there rather than in a second one on `Workspace.jl`.
 3. `GestureLog => GestureLogToSyntax()`, from `GestureLogModule`.
 4. `ReferenceInspector => ReferenceInspectorToText()`, from `InspectorModule`.
 
 Then delete the same rows from `example/projectured/Application.jl` and
 `example/projectured/Gallery.jl`. A row in an application is a row that a
-second application must repeat.
+second application must repeat. **Not done for row 2**: `Application.jl` still
+passes its own `open_file = OpenWorkspaceFileOperation` explicitly, which is a
+caller overriding the default and stays correct either way; removing that
+explicit keyword (letting it fall through to `FileSystemToWidget`'s own
+default, `OpenFileOperation`) is left for the pass that deletes the workbench,
+since until then a bare default still needs a workbench or a pane tree to
+evaluate it.
 
-The file explorer needs a seed: `Workspace()` holds no folder, and an empty
-explorer shows nothing. Give it
-`make_insertion_document(::Type{Workspace}) = Workspace([WorkspaceFolder(basename(pwd()), pwd())])`.
+**Done.** The file explorer needed a seed: `Workspace()` holds no folder, and
+an empty explorer shows nothing. It got
+`make_insertion_document(::Type{Workspace}) = Workspace([WorkspaceFolder(basename(pwd()), pwd())])`,
+in `source/filesystem/Workspace.jl`, beside its `get_document_title` and
+`get_insertion_aliases`.
 
 **Test.** `test_natural_rows()`: build each of the four, print it through
 `NaturalToGraphics`, and assert the canvas is not the "no natural rendering"
@@ -599,16 +657,35 @@ where the file tab changes.
    answers the `FileDocument` that `load_file` builds.
 4. Move the `Ctrl+S` and `Ctrl+O` bindings from `WorkbenchEditor` to
    `FileDocument`, and make them call `save_file!` and `load_file`.
-5. Move `OpenWorkspaceFileOperation` to the pane slice, and delete its workbench
-   branch.
+5. **Superseded by the Step 1 correction above.** There is no
+   `OpenWorkspaceFileOperation` left to move: the intent is already
+   `OpenFileOperation`, declared in the file system slice. Give the pane slice
+   `evaluate_operation(editor, op::OpenFileOperation)` — its own version of
+   what `WorkbenchFile.jl` does today — and delete `OpenWorkspaceFileOperation`
+   and its workbench-side `evaluate_operation` with the rest of the workbench
+   in Step 8.
 
 **Test.** Extend `test/projectured/editor/ApplicationTest.jl`: open every
 format, save one, read it again, and assert the round trip.
 
 ### Step 8. The workbench goes away
 
-1. `git mv source/workbench/Workspace.jl source/filesystem/Workspace.jl` and
-   `WorkspaceToFileSystem.jl` beside it. Move their exports.
+**Status: point 1 done, 2026-09-18; the workbench itself is not deleted yet —
+`ProjecturedWorkbench` still builds and its own tests still pass.** The actual
+moved set differs from the plan's write-up in one way: `WorkspaceFolder`,
+`Workspace`, `WorkspaceFolderToFileSystemDirectory` and `WorkspaceToFileSystem`
+moved, and `ProjecturedFileSystem` gained a `ProjecturedDomain` dependency it
+did not have (see the Step 1 correction). `OpenFileOperation` moved down too,
+ahead of schedule — it was declared new in the file system slice rather than
+carried over, since `OpenWorkspaceFileOperation` stays put in the workbench
+until Step 8 deletes it (see point 5 of the file-tab step above).
+
+1. **Done.** `git mv source/workbench/Workspace.jl source/filesystem/Workspace.jl`
+   and `WorkspaceToFileSystem.jl` beside it. Their exports moved from
+   `WorkbenchModule.jl` to `FileSystemModule.jl`; `WorkbenchModule` still sees
+   `Workspace` through its existing bare `using ..FileSystemModule`, so nothing
+   downstream of it (`WorkbenchDocument.jl`, `WorkbenchToWidget.jl`) needed a
+   change.
 2. `git mv source/workbench/WorkbenchFile.jl source/pane/PaneFile.jl`, without
    `WorkbenchEditor`.
 3. Delete `source/workbench/`, `example/workbench/`, `test/workbench/` and the

@@ -216,9 +216,16 @@ function FileSystemToSyntax()
 end
 
 # ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
+# The rows that teach the render-anything projection what this domain is: a
+# file-system tree as syntax, and a workspace — the explorer tool view — all
+# the way to widgets. The factory form, so every renderer builds its own
+# projection instances.
 
 function __init__()
     register_natural_syntax!(:filesystem, () -> Pair{Type,Any}[FileSystemDocument => FileSystemToSyntax()])
+    register_natural_graphics!(:workspace, (; measure) -> Pair{Type,Any}[
+        WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
+                                                RecursiveProjection(FileSystemToWidget()),
+                                                WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure)),
+    ])
 end

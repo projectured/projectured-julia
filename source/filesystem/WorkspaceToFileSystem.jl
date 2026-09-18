@@ -1,4 +1,4 @@
-# Fragment of `WorkbenchModule`.
+# Fragment of `FileSystemModule`.
 #
 # Workspace → FileSystem projection. Maps workspace documents to file-system
 # documents:
