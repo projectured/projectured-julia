@@ -181,3 +181,81 @@ set_cell_function!(t::EvaluatorToplevel, f::Function) =
 # form or result, never at the evaluation between them: the Alt + arrow walk
 # passes through it.
 is_selection_walk_stop(::EvaluatorForm) = false
+
+get_document_title(::EvaluatorToplevel) = "Evaluator"
+get_insertion_aliases(::Type{EvaluatorToplevel}) = ["repl", "evaluator"]
+
+# A fresh loop: one empty form, caret at the start of its (empty) source, ready
+# to type into at once.
+@insertion EvaluatorToplevel =
+    @with_selection EvaluatorToplevel([EvaluatorForm(PrimitiveString(""))]) elements[1].form.value{0}
+
+# ── EvaluateSelectedFormOperation ────────────────────────────────────────────
+
+"""
+    EvaluateSelectedFormOperation(toplevel)
+
+ALT+ENTER on an [`EvaluatorToplevel`](@ref): evaluate the [`EvaluatorForm`](@ref)
+the caret sits in, the same evaluation [`ComposerEvaluateOperation`](@ref) runs
+for the composer's draft, and open a fresh empty form after it so a person can
+keep typing at once.
+
+Declines — leaves the toplevel untouched — when the caret names no element, or
+that element's source is blank. Both are checked here, at evaluation time, not
+at read time: the gesture always fires and lets the operation decide, exactly
+as the composer's own evaluate does.
+"""
+struct EvaluateSelectedFormOperation <: Operation
+    toplevel::EvaluatorToplevel
+end
+
+# The 1-based index of the `elements[i]` the caret sits in, or `nothing` when
+# the toplevel's selection does not reach into an element at all.
+function _find_selected_form_index(t::EvaluatorToplevel)
+    path = t.selection
+    path isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) >= 2 && steps[1] isa FieldReferenceStep && steps[1].name == "elements" &&
+     steps[2] isa RangeReferenceStep) || return nothing
+    i = steps[2].stop
+    (1 <= i <= length(t.elements)) || return nothing
+    i
+end
+
+# The source text a form carries: what was typed, while it is still the plain
+# `PrimitiveString` an untouched form starts as; the printer's rendering of it
+# otherwise — a form already committed to a parsed document, evaluated again.
+_get_form_source_text(form::PrimitiveString) = something(form.value, "")
+_get_form_source_text(form::Document) = print_natural_text(form)
+
+function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
+    t = op.toplevel
+    i = _find_selected_form_index(t)
+    i === nothing && return nothing
+    element = t.elements[i]
+    text = _get_form_source_text(element.form)
+    isempty(strip(text)) && return nothing
+    set = editor.tools
+    output = try
+        execute_julia_code(set, editor, text)
+    catch e
+        sprint(showerror, e, catch_backtrace())
+    end
+    is_err = occursin("ERROR", output) || occursin("Error", output)
+    # A `Document` return value is kept as the result so it renders live;
+    # otherwise the printed output, exactly as the composer's own evaluate does.
+    val = get_last_evaluated_value(set)
+    result = val isa Document ? val : make_evaluator_result_text(rstrip(output))
+    element.result = result
+    element.is_error = is_err
+    push!(t.elements, EvaluatorForm(PrimitiveString("")))
+    n = length(t.elements)
+    set_selection!(t, ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(n - 1, n),
+            ConcreteReference(FieldReferenceStep("form"), _valpath(0)))))
+    nothing
+end
+
+@gestures EvaluatorToplevel begin
+    KeyDown(:enter; alt) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+end

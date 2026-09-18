@@ -42,8 +42,9 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!
-import ..DocumentModule: copy_document, has_document_duplicate
-import ..DomainModule: accepts_pasted_document, accepts_pasted_text
+import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
+import ..DomainModule: accepts_pasted_document, accepts_pasted_text,
+                       get_insertion_aliases, make_insertion_document
 import ..FocusModule: is_selection_walk_stop
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
@@ -51,12 +52,13 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
-       ToggleEvaluatorSectionOperation
+       ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation
 export ConversationDocument, make_conversation_thinking_part
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
        ConversationToWidget, compute_transcript_walk
+export EvaluatorFormToWidgetCard, EvaluatorToplevelToWidgetComposite
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,
@@ -65,12 +67,14 @@ export ConversationComposerToWidget, read_composer_gesture, resolve_composer_hos
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
        ComposerRevertOperation, ComposerSubmitOperation
-export ConversationConversation, EvaluatorForm, ConversationTurn, ConversationPart, ConversationDraft
+export ConversationConversation, EvaluatorForm, EvaluatorToplevel, ConversationTurn,
+       ConversationPart, ConversationDraft
 
 
 include("Evaluator.jl")
 include("ConversationDocument.jl")
 include("ConversationToWidget.jl")
+include("EvaluatorToWidget.jl")
 include("ConversationEditor.jl")
 
 end # module

@@ -576,6 +576,20 @@ hand-built `MessageLog` through `NaturalToGraphics` (draws, newest first, no
 
 ### Step 5. The read-eval-print loop
 
+**Status: done, 2026-09-18.** A person types `repl` into an empty tab, types an
+expression, presses `Alt+Enter`, and sees the value. The state persists: `x = 41`
+in one form and `x + 1` in the next answers `42`, which is what proves it is a
+read-eval-print loop and not a sandbox.
+
+Two projections, mirroring the transcript: one draws a bare `EvaluatorForm` as
+the two-section card the composer already draws for a draft, and one stacks the
+forms of an `EvaluatorToplevel`. The second copies
+`ConversationConversationToWidgetComposite` exactly — child iomaps in a computed
+cell, a vertical layout of their outputs, a `ChildrenIoMap` — so the reference
+mapping comes with the shape and a caret reaches a nested form.
+
+The tab reads **Evaluator**, and a person types `repl` or `evaluator`.
+
 **Ruling (2026-09-18).** Code a person types goes straight to `eval`, and it can
 call anything. There is no limit and no sandbox. `execute_julia_code` already
 works this way: it parses with `Meta.parseall`, evaluates each top-level form
