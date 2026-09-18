@@ -494,23 +494,24 @@ its own commit, in this order:
       are left are not of that shape. §7 says what they are.
 - [ ] **A family shown once**, if one family fills the first hits.
 
-### Step 4. The baseline of the chat model
+### Step 4. The baseline of the chat model — done 2026-09-18
 
-- [ ] `qwen3.8:27b` on three seeds, with the engine of Step 3.
-- [ ] The table and the counts of the misses in §7, and the first gate of
-      §3b and §3c decided from them. A miss that Step 3 has already removed
-      needs no candidate.
+- [x] `qwen3.8:27b` on three seeds, with the engine as it stands: **29 of 33
+      turns**, 9, 10 and 10 by seed.
+- [x] The counts of the misses: **every one is zero**, over 33 turns. §7 has
+      the table.
 
-### Step 5. The trials that are left (§3b, §3c)
+### Step 5. The trials that are left (§3b, §3c) — none, 2026-09-18
 
-In the order of §2, and only for a candidate that passed the first gate:
+The first gate of §2 asks that a miss occur in at least two turns of the
+baseline and fail at least one. **Not one of the three misses occurred at all**
+in 33 turns, so no candidate goes on:
 
-- [ ] §3b, the note for a one-word description, if the miss is still there.
-- [ ] §3c, the printed line of an empty result.
-- [ ] §3c, the `name` keyword, when the miss remains.
-
-Each: the branch with the change and its tests, the trial stage, the counts,
-and the merge or not.
+- [x] §3b, the note for a one-word description: the model wrote no one-word
+      description in 33 turns.
+- [x] §3c, the printed line of an empty result: no turn opened an empty table
+      or an empty plot.
+- [x] §3c, the `name` keyword: no turn wrote a name pattern without a wildcard.
 
 ### Step 6. Close
 
@@ -571,6 +572,29 @@ Made by the user on 2026-09-17:
    left out for now.
 
 ## 7. Findings
+
+### Step 4, the chat model on three seeds, 2026-09-18
+
+`qwen3.8:27b`, the eleven problems, three seeds, with the engine after Step 3:
+
+| solved | rounds | calls | tokens in / out | seconds |
+| --- | --- | --- | --- | --- |
+| 29 of 33 turns; 9, 10 and 10 by seed | 151 | 145 | 900,330 / 28,409 | 2,242 |
+
+The four that failed: `pane_arrangement` twice, `simulation_run` once and
+`card_around_table` once. `table_beside_plot`, which failed at every earlier
+stage, is solved on all three seeds, and so is `simulation_stop`.
+
+**Every miss the plan was built around is gone.** Over 33 turns the model wrote
+no description of one word, no name pattern without a wildcard, and opened no
+empty table or plot. The three candidates of §3b and §3c therefore fail their
+first gate and are not done. What removed them is not provable from this one
+stage; the prompt that names only what exists, the plot that answers an empty
+frame, and the word score are all of Step 1 and Step 3.
+
+**A stage is worth three of an earlier one.** The earlier stages ran one seed
+and moved by one or two problems; this one shows a problem solved twice of
+three and tells a real change from noise.
 
 ### Step 1, the ranks at scale, 2026-09-18
 
