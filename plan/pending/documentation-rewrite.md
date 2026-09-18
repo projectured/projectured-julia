@@ -244,7 +244,12 @@ the rest.
   and uses `environment/all`.
 - SDL2 and SDL_ttf must be installed for a native window.
 - Commercial use needs a licence from the author (D1).
-- "Duplicate a pane" and "select any widget with Alt+click" are plans, not code.
+- ~~"Duplicate a pane" and "select any widget with Alt+click" are plans, not
+  code.~~ Both landed while this plan ran: `Ctrl+Shift+D` duplicates the
+  focused tab (`source/pane/PaneGestures.jl`), and an Alt+click selects the
+  widget under the pointer (`is_whole_selection_press` in
+  `source/focus/WholeSelection.jl`). The README does not list them as
+  missing.
 
 Three more limits are true today. Step 1 removes the first two (D4, D5), and
 `application-and-build.md` removes the third (D18): no single call opens a
@@ -994,18 +999,45 @@ What it reported and did not fix:
 
 ### Step 9: pictures, videos, slides, web site
 
-- [ ] Make new screenshots with `generate_example_screenshots`: the assistant,
+- [x] Make new screenshots with `generate_example_screenshots`: the assistant,
       the workbench, a chart, a sequence chart, a state machine, a rendered RST
-      page, a reflection view.
+      page, a reflection view. Every example was drawn again on 2026-09-18:
+      106 images, 36 of them new. Two faults were fixed to make them right: the
+      workbench example declared no render size and came out as a strip, and
+      the generator needs the SDL package loaded, which writes the image.
 - [ ] Record three short videos with `record_example_video`: the assistant
       builds a view from a request; a chart with zoom and selection; a view of a
       running object that opens level by level.
-- [ ] Rewrite `presentation/projectured-overview.md` from the new README. No
-      emoji, no source-path footers.
+- [x] Rewrite `presentation/projectured-overview.md` from the new README. No
+      emoji, no source-path footers. 31 slides, with the ten screenshots, the
+      five ideas, the assistant and MCP, the limits, and where to start. It
+      drops every claim it could not trace to the README or a guide: undo,
+      redo, versioning, collaboration, and the thirty domains.
 - [ ] D13: correct the text of the web site in `projectured.github.io`: the
       framing of §2.1, the line count of `source/`, the "not bolted on"
       sentences, and the author and contact of D8. Use the new screenshots.
       The site must not name the private application.
+
+      **Prepared on 2026-09-18, and not applied: the edit of a live public site
+      needs the owner's word.** What the site says today:
+
+      - The hero picture and the whole "See it in action" section show the
+        private application: an M/M/1/K queueing study with an OMNeT++ model
+        running inside the editor, in the image, the alt text, the caption and
+        the video. D9 says that application stays hidden.
+      - "roughly seventy thousand lines" — `source/` holds 106,966 lines, and
+        the whole tree 170,263.
+      - The title, the hero and the meta text carry the old framing, and one
+        heading is "Built for an AI collaborator — not bolted on".
+      - The contact is already `projectured@gmail.com`; the author is not
+        named.
+
+      The prepared edit puts the approved tagline in the title and the meta
+      text, says in the hero what the application does, rewrites the assistant
+      section around the tool set, writes the measured line count, and puts the
+      new workbench screenshot where the private pictures are. A video of this
+      editor alone would be better than a screenshot, and that is the video
+      item above, which is not started.
 
 ### Step 10: the review
 
