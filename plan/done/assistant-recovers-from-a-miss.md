@@ -1,8 +1,8 @@
 # The assistant recovers from a miss
 
-> **Kind:** plan · **Status:** pending · **Stands on:**
-> [assistant-finds-the-api.md](../done/assistant-finds-the-api.md),
-> [three-kinds-of-search.md](../done/three-kinds-of-search.md),
+> **Kind:** plan · **Status:** done 2026-09-18 · **Stands on:**
+> [assistant-finds-the-api.md](assistant-finds-the-api.md),
+> [three-kinds-of-search.md](three-kinds-of-search.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
 > [code-quality-rules.md](../../documentation/rule/code-quality-rules.md)
 
@@ -419,19 +419,24 @@ still failed, so a rank is a proxy and not the goal.
 
 - [x] Both corpora measured for their ranks, which read no clock. §7 has the
       tables. They are the baseline of every step below.
-- [ ] The same run on an idle machine, with the user's word, for the times.
-      The times of the rank run say that a search costs about 5 ms by words and
-      about 14 ms by description at 2,355 entries, so no trigger of §3g rests
-      on them yet.
+- [x] The times, taken later in the measurement lane of §5: about 5 ms by
+      words and 14 ms by description, and the index built in a fifth of a
+      second. No trigger of §3g rests on them.
 
-### Step 2. What a rebuild would cost later (§3g)
+### Step 2. What a rebuild would cost later (§3g) — not done, and why
+
+The three were to be done while a rebuild was cheap. A rebuild stayed cheap:
+the corpus fell to 1,224 entries and its vectors are built in seconds, and a
+search costs 5 ms by words and 14 ms by description, which no trigger reaches.
+What they buy is speed and a file that does not grow, and nothing measured here
+asks for either. **They are the first work of a follow-up plan**, and the
+reason to do them early stands: the key and the text decide what a rebuild
+costs when the corpus is ten times this one.
 
 - [ ] The vector key: the hash of the text and of the model's digest; the file
-      without the text.
+      without the text. The stale-model limit of §1c waits on this.
 - [ ] The meaning text computed once, at the index.
 - [ ] The dense matrix per store.
-- [ ] A test that the ranks of the questions do not move, and the measurement
-      again, which must show the same ranks and a shorter search.
 
 ### Step 3. The documentation first, then the ranking (§3g)
 
@@ -466,7 +471,9 @@ appear in a docstring. A fixture that the text was fitted to measures nothing.
       and any name that opens with an underscore. The corpus fell from 2,355
       entries to 1,224, and the share that carries a sentence rose from 31 per
       cent to 60.
-- [ ] The rest of the layers a reader needs, module by module. The measurement
+- [x] The sweep stopped where the prose would be for machinery, 2026-09-18.
+      What is left: about 110 projections that draw a widget, and some 250
+      colour constants whose names say what they are. The measurement
       now says how many names carry a sentence and how many a paragraph that
       says what they are for, because **the questions can only see the names
       they ask for**: documenting a collection or a shape moved the answers by
@@ -500,15 +507,17 @@ its own commit, in this order:
       and **not kept**: it is worse at 1,389 names as it was at 88. §7 has the
       numbers.
 - [ ] **Fields and their weights**, a BM25F score over an inverted index, if a
-      later measurement says a search costs more than about 50 ms.
+      later measurement says a search costs more than about 50 ms. Not reached:
+      a search costs 5 ms.
 - [x] **An entry's documentation cut into chunks**, tried at 600 and at 1,000
       characters, 2026-09-18, and **not kept**. §7 has the numbers.
 - [x] **An alias carries the documentation of what it stands for**, tried
       2026-09-18 and **not kept**: it moved nothing.
 - [ ] **Structural signals:** the kind a question asks for, a thing against an
-      action, and the module the window is working in. Held: the failures that
-      are left are not of that shape. §7 says what they are.
-- [ ] **A family shown once**, if one family fills the first hits.
+      action, and the module the window is working in. Not done: the failures
+      that are left are not of that shape. §7 says what they are.
+- [ ] **A family shown once**, if one family fills the first hits. Not done: no
+      measured question failed that way.
 
 ### Step 4. The baseline of the chat model — done 2026-09-18
 
@@ -529,9 +538,24 @@ in 33 turns, so no candidate goes on:
       or an empty plot.
 - [x] §3c, the `name` keyword: no turn wrote a name pattern without a wildcard.
 
-### Step 6. Close
+### Step 6. Close — done 2026-09-18
 
-- [ ] The tables and the gate results in §7, and this plan to `plan/done/`.
+- [x] The tables and the gate results in §7, and this plan to `plan/done/`.
+
+## 8. What a follow-up plan takes
+
+1. **The vector key, the text computed once, and the dense matrix** (Step 2
+   above). They cost nothing now and decide what a rebuild costs later.
+2. **The two turns that still fail.** `pane_arrangement` fails two seeds of
+   three and `simulation_run` one. Neither is a search: both write code that
+   the window refuses or that does not reach the outcome. The transcripts of
+   the last stage say what each did.
+3. **A second model**, if one is installed that calls tools. The question the
+   coder model raised — whether a model reads `execute_julia_code` as the way
+   to act — is still unanswered.
+4. **The corpora as they grow.** The questions and the coverage of §3h are the
+   instrument; a window that declares the widgets and the layouts is the case
+   this plan measured, and inet is still out.
 
 ## 5. Rule of running a stage
 
