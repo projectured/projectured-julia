@@ -920,8 +920,9 @@ Each guide has runnable code. Run each snippet once, in one warm session.
 
 - [ ] Rule documents: the fixes of §3.5. Wording only in
       `architecture-invariants.md`.
-- [ ] `CONTRIBUTING.md` and `CLAUDE.md`: links instead of copies (§3.7). Keep
-      the sealed-file warning in `CLAUDE.md`.
+- [x] `CONTRIBUTING.md` and `CLAUDE.md`: links instead of copies (§3.7). Keep
+      the sealed-file warning in `CLAUDE.md`. `CLAUDE.md` is 98 lines from 112,
+      and its reading list is four links and two sentences.
 - [x] `CONTRIBUTING.md`: the licence in plain words, the contribution terms
       (D1b), the fork and pull request process, the author and the primary
       contact address (D8).
@@ -933,7 +934,7 @@ Each guide has runnable code. Run each snippet once, in one warm session.
       A comment in `source/builder/BuildContext.jl` and one in
       `source/dragging/DraggingWrapper.jl` name it too, and D16 lets a code
       comment keep it.
-- [ ] `SEALING.md` (D10): make the inventory from the real include order of
+- [x] `SEALING.md` (D10): make the inventory from the real include order of
       `ProjecturedKernel.jl`, and keep each seal state:
   - `cell/PerformanceCounter.jl`, `clock/Clock.jl`, `event/EventPattern.jl` and
     `gesture/GestureRecognizer.jl` are sealed. Their new names
@@ -949,9 +950,11 @@ Each guide has runnable code. Run each snippet once, in one warm session.
     get ⬜.
   - `binding/GestureBindingModule.jl` is new and gets ⬜.
   - Check the list against the include order with a script, as the survey did.
-- [ ] Plans: move the five superseded plans and `plan/tentative/gesture-help.md`
-      to `plan/obsolete/`. Fix the two links in `plan/tentative/`. Fix the facts
-      of `nlnet-application.md`.
+- [x] Plans: move the five superseded plans and `plan/tentative/gesture-help.md`
+      to `plan/obsolete/`. Fix the two links in `plan/tentative/`.
+      `plan/pending/` holds 52 plans now. A link from a plan in `plan/done/` to
+      a moved plan is left: a done plan is history and says where it pointed.
+- [ ] Fix the facts of `nlnet-application.md`.
 
 ### Step 9: pictures, videos, slides, web site
 

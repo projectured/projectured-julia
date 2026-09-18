@@ -50,7 +50,7 @@ Two hard constraints from the architecture shape the whole design:
 
 2. **Side effects belong to the editor loop.** The blessed pattern for getting
    external, time-varying input into the reactive graph is the one
-   [plan/pending/animation-global-time.md](animation-global-time.md) establishes
+   [plan/obsolete/animation-global-time.md](../obsolete/animation-global-time.md) establishes
    for the clock: *"a primitive cell holding the buffer, written by an external
    sampler in the loop, exactly like `EDITOR_TIME` itself."* The loop
    (`run!`/`play_live!` in

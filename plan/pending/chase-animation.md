@@ -56,7 +56,7 @@ hard requirements:
   animation to the edit path (an out-of-band `w.checked = true` snaps instead
   of sliding) and pollutes the domain type with presentation state. This plan
   is the generalization that removes both couplings.
-- **[plan/pending/animation-global-time.md](animation-global-time.md) §7**
+- **[plan/obsolete/animation-global-time.md](../obsolete/animation-global-time.md) §7**
   posed the "arming on state change" question and answered it with the
   reader-side compound operation. This plan supersedes that answer for
   value-chasing animations; the rest of that document (the time cell, easing

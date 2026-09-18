@@ -13,32 +13,18 @@ and the full audit-order inventory of `source/kernel/`.
 
 ## Before working in this repo
 
-Read the guides in [documentation/](documentation/) before making non-trivial changes. They explain the architecture, the reactive cell system, and the domain/projection/editor pipeline that the code assumes you understand. The division vocabulary (package / layer / slice / module / leaf) is defined in [documentation/rule/division-terminology.md](documentation/rule/division-terminology.md) — use those terms exactly. Before adding a package, read [documentation/rule/package-rules.md](documentation/rule/package-rules.md): it says what a package may depend on, and that a `@compile_workload` belongs only in a leaf.
+Read the guides in [documentation/](documentation/) before a change that is not trivial. The index is [documentation/README.md](documentation/README.md), and it names every document with what it answers.
 
-The canonical reading order for contributors is in [README.md](README.md) under **"Before you build something"**. A quick summary:
+The short path:
 
-0. [documentation/rule/naming-rules.md](documentation/rule/naming-rules.md) — **how everything is named.** Read it before you write a name.
-1. [documentation/design/concepts.md](documentation/design/concepts.md) — plain-English conceptual guide (domain, document, selection, operation, projection). **Start here if you are new.**
-2. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the package graph, the kernel's layers, and the module inventory.
-2b. [documentation/rule/package-rules.md](documentation/rule/package-rules.md) — the five kinds of package, what each may depend on, and the leaf the alias loads.
-3. [documentation/package/kernel/cell.md](documentation/package/kernel/cell.md) — the pull-based reactive cell system that powers incrementality.
-4. [documentation/package/kernel/macros.md](documentation/package/kernel/macros.md) — `@document`, `@projection`, `@iomap`.
-5. [documentation/package/kernel/projection-system.md](documentation/package/kernel/projection-system.md) — the four interface functions and the printer/reader pair.
-6. [documentation/package/kernel/editor.md](documentation/package/kernel/editor.md) — the read-eval-print loop, event handling, and rendering pipeline.
+1. [documentation/design/concepts.md](documentation/design/concepts.md) — what a document, a view, an edit and the tool set are. Start here.
+2. [documentation/design/engineer-tour.md](documentation/design/engineer-tour.md) — the same system in code.
+3. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the packages, the layers of the kernel, and what depends on what.
+4. [documentation/rule/](documentation/rule/) — the rules a change must keep: naming, packages, architecture, code quality, writing. **Read [naming-rules.md](documentation/rule/naming-rules.md) before you write a name.**
 
-Per-slice reference guides live in [documentation/package/](documentation/package/),
-one folder per slice; the cross-cutting concept/architecture/tooling guides stay in
-[documentation/](documentation/). When touching selection/reference handling or a
-specific domain, also consult:
+Per-slice guides live in [documentation/package/](documentation/package/), one folder per slice. When you touch selection and reference handling, read [reference.md](documentation/package/kernel/reference.md) and [selection.md](documentation/package/kernel/selection.md); when you add a domain, read [domain-inventory.md](documentation/design/domain-inventory.md) and [new-domain-guide.md](documentation/guide/new-domain-guide.md).
 
-- [documentation/package/kernel/reference.md](documentation/package/kernel/reference.md) and [documentation/package/kernel/selection.md](documentation/package/kernel/selection.md) — how references and selections are represented and mapped through projections, with worked examples.
-- [documentation/design/domain-inventory.md](documentation/design/domain-inventory.md) — the twenty domain packages, what depends on what, and how to add one.
-- Per-domain guides: [json](documentation/package/json/json.md), [xml](documentation/package/xml/xml.md), [rst](documentation/package/rst/rst.md), [fsm](documentation/package/fsm/fsm.md), [process](documentation/package/process/process.md), [graph-layout](documentation/package/graph/graph-layout.md), [math](documentation/package/math/math.md), [workbench](documentation/package/workbench/workbench.md), [conversation transcript](documentation/package/conversation/transcript.md), [versioning](documentation/package/versioning/versioning.md); [text](documentation/package/text/text.md), [syntax](documentation/package/syntax/syntax.md), [graphics](documentation/package/graphics/graphics.md), [widget](documentation/package/widget/widget.md), [collection](documentation/package/collection/collection.md) and [bounded-sync](documentation/package/reflection/bounded-sync.md) (substrate).
-
-When iterating in the REPL or running the test suite:
-
-- [documentation/guide/debugging-guide.md](documentation/guide/debugging-guide.md) — REPL debugging tips: `run_example`, `print_example`, `write_example_image`, driving the printer/reader by hand, and forcing reactive cells.
-- [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) — testing tips: `test_all`, `test_printers`, `test_readers`, `test_position_navigations`, `test_repls`, and the walker helpers behind them.
+When you iterate in a session: [debugging-guide.md](documentation/guide/debugging-guide.md) and [testing-guide.md](documentation/guide/testing-guide.md).
 
 ## Naming
 
